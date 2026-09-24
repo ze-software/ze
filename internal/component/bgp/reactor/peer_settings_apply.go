@@ -46,7 +46,7 @@ type peerSettingsSwap struct {
 // session is visible and self-healing; a session left running on stale settings is
 // the silent mis-enforcement this spec exists to remove.
 //
-// Four fields qualify today, and each one qualifies for a reason read at the
+// Five fields qualify today, and each one qualifies for a reason read at the
 // consumer:
 //
 //   - ImportFilters: the ingress datapath re-reads it per received UPDATE through
@@ -71,8 +71,16 @@ type peerSettingsSwap struct {
 //     not hold and withdraws what the configuration no longer names. Its one
 //     reader, sendInitialRoutes, goes through the p.mu-guarded accessor
 //     Peer.staticRoutes, and p.staticMu serializes the two writers of the wire.
+//   - ProcessBindings, and only when the two lists differ in derived feed-only
+//     bindings alone (onlyDerivedFeedsDiffer, peer_derived_bindings.go). Its
+//     consumer is the delivery graph, which applyHotSwappableSettings
+//     republishes, and catchUpDerivedFeeds then brings each gained or lost
+//     consumer in line with the running session. Any other binding change is
+//     left undelivered here, so it still reads as a difference and restarts.
+//     Its readers hold r.mu (the graph build, maySend) or p.mu
+//     (initialUpdateReporters), and the write holds both.
 //
-// All four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
+// The first four are the mutable set: resolveDynamicPeerSettings (reactor_dynamic.go)
 // writes the filter pair on the pointed-to struct under p.mu on a dynamic peer's
 // establishment, and every reader outside the facts snapshot goes through the
 // locked accessors. That is why writing them from the reload goroutine is race-free
@@ -83,6 +91,9 @@ func hotSwappableSettings(dst, src *PeerSettings) {
 	dst.ExportFilters = src.ExportFilters
 	dst.PrefixUpdated = src.PrefixUpdated
 	dst.StaticRoutes = src.StaticRoutes
+	if onlyDerivedFeedsDiffer(dst.ProcessBindings, src.ProcessBindings) {
+		dst.ProcessBindings = src.ProcessBindings
+	}
 }
 
 // peerSettingsRestartRequired reports whether applying next to a peer currently
@@ -133,6 +144,12 @@ func peerSettingsSwapPlan(current, next *PeerSettings, s *Session) (settingsCopi
 	// values. What remains different is what a swap cannot deliver.
 	c := *current
 	hotSwappableSettings(&c, next)
+	// A derived feed a consumer gains needs the peer's earlier routes, and a
+	// session that owes some and cannot re-send them restarts instead
+	// (derivedFeedsDeliverable).
+	if !derivedFeedsDeliverable(current.ProcessBindings, c.ProcessBindings, s.feedCatchUp()) {
+		c.ProcessBindings = current.ProcessBindings
+	}
 	if peerSettingsEqual(&c, next) {
 		return hotSwappableSettings, ""
 	}
@@ -268,11 +285,30 @@ func (p *Peer) hotSwappableSnapshot(copy settingsCopier) *PeerSettings {
 // same invariant hotSwappableSettings guards, one layer out -- a field cannot be
 // delivered onto the peer and then not delivered onto the wire.
 func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier) {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+
+	// r.mu is held across the write because ProcessBindings is one of the fields
+	// a copier can deliver, and the delivery graph build and maySend read it
+	// under r.mu alone. Lock order is r.mu, then p.mu, as everywhere else.
+	if r != nil {
+		r.mu.Lock()
+	}
 	p.mu.Lock()
 	before := p.settings.StaticRoutes
+	bindingsBefore := p.settings.ProcessBindings
 	copy(p.settings, next)
 	after := p.settings.StaticRoutes
+	gained, lost := derivedFeedChange(bindingsBefore, p.settings.ProcessBindings)
 	p.mu.Unlock()
+	if r != nil {
+		if (len(gained) > 0 || len(lost) > 0) && r.deliveryPublished {
+			r.publishDeliveryGraphLocked()
+		}
+		r.mu.Unlock()
+	}
+	p.catchUpDerivedFeeds(gained, lost)
 
 	p.refreshForwardFactsIfLive()
 	p.refreshPrefixStale()
@@ -299,7 +335,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 // (plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md).
 func (p *Peer) refreshPrefixStale() {
 	p.mu.RLock()
-	oldest := p.settings.OldestPrefixUpdated()
+	oldest := p.settings.oldestPrefixUpdated()
 	p.mu.RUnlock()
 
 	now := p.clock.Now()

@@ -12,7 +12,7 @@ import (
 // freeCalls names the calls that hand an entry's memory back. Each one makes
 // the slot available to another goroutine's getReadBuf, so every one of them
 // must come after the walk that reads it.
-var freeCalls = [...]string{"ReturnReadBuffer", "returnFwdHandles"}
+var freeCalls = [...]string{"returnReadBuffer", "returnFwdHandles"}
 
 // walkCall is the identifier release. It parses the entry's Withdrawn Routes
 // and MP_UNREACH sections, which are slices into the same pooled buffer.
@@ -22,7 +22,7 @@ const walkCall = "fwdReleaseWithdrawnPathIDs"
 // the RFC 7911 identifier release reading the UPDATE it belongs to.
 //
 // VALIDATES: in both eviction paths, fwdReleaseWithdrawnPathIDs is called
-// before ReturnReadBuffer and before returnFwdHandles.
+// before returnReadBuffer and before returnFwdHandles.
 // PREVENTS: the order this repository shipped until 2026-09-03, where the read
 // buffer went back to the pool first. Another goroutine can take that slot
 // between the two statements, so the walk parsed the next UPDATE's bytes: it

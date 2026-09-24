@@ -362,7 +362,7 @@ func TestBuildOpenConfigFamiliesUnchanged(t *testing.T) {
 // a plugin-only peer negotiate ipv4/unicast instead of what the plugin decodes.
 func TestBuildOpenPluginFamiliesUnchanged(t *testing.T) {
 	s, settings := newNoFamilySession(t)
-	s.SetPluginFamiliesGetter(func() []string { return []string{"ipv6/unicast"} })
+	s.setPluginFamiliesGetter(func() []string { return []string{"ipv6/unicast"} })
 
 	open, err := s.buildOpen(settings, settings.Capabilities)
 	require.NoError(t, err)
@@ -390,7 +390,7 @@ func TestBuildOpenCoalescesPathsLimit(t *testing.T) {
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Limit: 4},
 		}},
 	}
-	s.SetPluginCapabilityGetter(func() []capability.Capability {
+	s.setPluginCapabilityGetter(func() []capability.Capability {
 		return []capability.Capability{
 			capability.NewPlugin(76, []byte{0, 1, 1, 0, 9, 0, 2, 1, 0, 0}),
 			capability.NewPlugin(76, []byte{0, 2, 1, 0, 8, 0, 1, 2, 0, 3}),
@@ -466,7 +466,7 @@ func TestSendOpenRejectsMalformedPluginPathsLimit(t *testing.T) {
 	for _, size := range []int{4, 260} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {
 			s, _ := newNoFamilySession(t)
-			s.SetPluginCapabilityGetter(func() []capability.Capability {
+			s.setPluginCapabilityGetter(func() []capability.Capability {
 				return []capability.Capability{capability.NewPlugin(76, make([]byte, size))}
 			})
 			conn := &recordingConn{}

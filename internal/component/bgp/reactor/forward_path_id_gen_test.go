@@ -200,10 +200,10 @@ func TestForwardPathIDIdenticalForEveryDestination(t *testing.T) {
 
 	toFirst, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, first, netip.MustParseAddr("192.0.2.40"), &fwdParseCache{})
 	require.True(t, ok)
-	defer ReturnReadBuffer(toFirst.transcodeBuf)
+	defer returnReadBuffer(toFirst.transcodeBuf)
 	toSecond, ok := buildFwdBody(wire, message.MaxMsgLen, ctxID, second, netip.MustParseAddr("192.0.2.41"), &fwdParseCache{})
 	require.True(t, ok)
-	defer ReturnReadBuffer(toSecond.transcodeBuf)
+	defer returnReadBuffer(toSecond.transcodeBuf)
 
 	require.Len(t, toFirst.rawBodies, 1, "guard: the fixture must produce one frame per destination")
 	require.Len(t, toSecond.rawBodies, 1)
@@ -295,7 +295,7 @@ func fwdForwardOnePathID(t *testing.T, wire *wireu.WireUpdate, destCtxID bgpctx.
 	t.Helper()
 	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.43"), &fwdParseCache{})
 	require.True(t, ok, "the UPDATE must forward")
-	t.Cleanup(func() { ReturnReadBuffer(result.transcodeBuf) })
+	t.Cleanup(func() { returnReadBuffer(result.transcodeBuf) })
 	return forwardedPathID(t, result)
 }
 
@@ -305,7 +305,7 @@ func fwdForwardOneWithdrawnPathID(t *testing.T, wire *wireu.WireUpdate, destCtxI
 	t.Helper()
 	result, ok := buildFwdBody(wire, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.44"), &fwdParseCache{})
 	require.True(t, ok, "the withdraw must forward")
-	t.Cleanup(func() { ReturnReadBuffer(result.transcodeBuf) })
+	t.Cleanup(func() { returnReadBuffer(result.transcodeBuf) })
 
 	var withdrawn []byte
 	switch {

@@ -73,7 +73,7 @@ func buildFwdBody(
 			result.transcodeBuf = ownedBuf
 			return
 		}
-		ReturnReadBuffer(ownedBuf)
+		returnReadBuffer(ownedBuf)
 	}()
 
 	// Preserve the same-context raw-split path before any parse or re-encode.
@@ -272,7 +272,7 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 				transcodeBuf = BufHandle{}
 			}
 			if transcodeBuf.Buf == nil {
-				ReturnReadBuffer(handle)
+				returnReadBuffer(handle)
 			}
 		}()
 

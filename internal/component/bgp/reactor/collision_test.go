@@ -113,7 +113,7 @@ func TestCollisionEstablished(t *testing.T) {
 	// Regardless of remote BGP ID, ESTABLISHED always rejects
 	remoteID := uint32(0xFFFFFFFF) // Higher than local - would normally win
 
-	shouldAccept, shouldCloseExisting := session.DetectCollision(remoteID)
+	shouldAccept, shouldCloseExisting := session.detectCollision(remoteID)
 
 	assert.False(t, shouldAccept, "ESTABLISHED should reject new connection")
 	assert.False(t, shouldCloseExisting, "ESTABLISHED should not close existing")
@@ -138,7 +138,7 @@ func TestCollisionOpenConfirmLocalWins(t *testing.T) {
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
 
-	shouldAccept, shouldCloseExisting := session.DetectCollision(remoteID)
+	shouldAccept, shouldCloseExisting := session.detectCollision(remoteID)
 
 	// Local > Remote: reject incoming, keep existing
 	assert.False(t, shouldAccept, "local wins: should reject incoming")
@@ -160,7 +160,7 @@ func TestCollisionOpenConfirmRemoteWins(t *testing.T) {
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
 
-	shouldAccept, shouldCloseExisting := session.DetectCollision(remoteID)
+	shouldAccept, shouldCloseExisting := session.detectCollision(remoteID)
 
 	// Local < Remote: accept incoming, close existing
 	assert.True(t, shouldAccept, "remote wins: should accept incoming")
@@ -196,7 +196,7 @@ func TestCollisionOpenSentNoCollision(t *testing.T) {
 
 	require.Equal(t, fsm.StateOpenSent, session.State())
 
-	shouldAccept, shouldCloseExisting := session.DetectCollision(remoteID)
+	shouldAccept, shouldCloseExisting := session.detectCollision(remoteID)
 
 	// OpenSent: no collision detection (per RFC MUST only for OpenConfirm)
 	assert.True(t, shouldAccept, "OpenSent should accept new connection")
@@ -266,7 +266,7 @@ func TestCollisionBGPIDComparison(t *testing.T) {
 			defer func() { _ = client.Close() }()
 			defer func() { _ = server.Close() }()
 
-			shouldAccept, shouldCloseExisting := session.DetectCollision(tt.remoteID)
+			shouldAccept, shouldCloseExisting := session.detectCollision(tt.remoteID)
 
 			assert.Equal(t, tt.wantAccept, shouldAccept, "accept mismatch")
 			assert.Equal(t, tt.wantCloseExisting, shouldCloseExisting, "close existing mismatch")
@@ -537,7 +537,7 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 // to every connection (internal/component/bgp/reactor/session.go:598-629).
 func TestCollisionNonCollisionStates(t *testing.T) {
 	// For states that cannot have a connection (Idle/Connect/Active),
-	// DetectCollision should always return (true, false) - accept new, don't close existing
+	// detectCollision should always return (true, false) - accept new, don't close existing
 	tests := []struct {
 		name       string
 		connection ConnectionMode
@@ -560,8 +560,8 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 			// Session starts in Idle - don't start it to stay in Idle
 			require.Equal(t, fsm.StateIdle, session.State())
 
-			// DetectCollision with any remote ID
-			shouldAccept, shouldCloseExisting := session.DetectCollision(0xFFFFFFFF)
+			// detectCollision with any remote ID
+			shouldAccept, shouldCloseExisting := session.detectCollision(0xFFFFFFFF)
 
 			// Non-collision states should accept
 			assert.True(t, shouldAccept, "%s should accept", tt.name)
@@ -604,7 +604,7 @@ func openConfirmSessionWithAS(t *testing.T, localAS, peerAS, localID uint32) *Se
 // TestDetectCollisionEqualIdentifierPrefersLargerAS verifies RFC 6286 Section 2.3.
 //
 // RFC requirement: RFC6286-2.3-1 positive -- when the BGP Identifiers involved in a
-// connection collision are identical, DetectCollision preserves the connection initiated by
+// connection collision are identical, detectCollision preserves the connection initiated by
 // the speaker with the larger AS number: the remote-initiated (pending) connection when the
 // peer's AS is larger, the local-initiated (existing) one when this speaker's AS is larger.
 // RFC requirement: RFC6286-2.3-1 negative -- when the identifiers DIFFER the AS numbers are
@@ -659,7 +659,7 @@ func TestDetectCollisionEqualIdentifierPrefersLargerAS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			session := openConfirmSessionWithAS(t, tt.localAS, tt.peerAS, localID)
 
-			accept, closeExisting := session.DetectCollision(tt.remoteID)
+			accept, closeExisting := session.detectCollision(tt.remoteID)
 			assert.Equal(t, tt.wantAccept, accept, tt.description)
 			assert.Equal(t, tt.wantClose, closeExisting, tt.description)
 		})

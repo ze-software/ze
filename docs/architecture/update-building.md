@@ -36,15 +36,15 @@ if !kept: s.returnReadBuffer(buf) ← Return only if not cached
 var readBufPool4K = sync.Pool{...}   // 4096 bytes (before Extended Message)
 var readBufPool64K = sync.Pool{...}  // 65535 bytes (after Extended Message)
 
-func ReturnReadBuffer(buf []byte)    // Exported for cache eviction
+func returnReadBuffer(buf []byte)    // Exported for cache eviction
 ```
 
 **Files involved:**
-- `internal/component/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
+- `internal/component/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `returnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
 - `internal/component/bgp/wireu/wire_update.go` - `WireUpdate` struct with derived accessors
 - `internal/component/bgp/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
 - `internal/component/bgp/reactor/recent_cache.go` - Returns buf to pool on eviction
-<!-- source: internal/component/bgp/reactor/session.go -- Session, getReadBuffer, ReturnReadBuffer -->
+<!-- source: internal/component/bgp/reactor/session.go -- Session, getReadBuffer, returnReadBuffer -->
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 

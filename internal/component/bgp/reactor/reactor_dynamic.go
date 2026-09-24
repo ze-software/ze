@@ -178,13 +178,12 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 }
 
 // removeDynamicPeer removes a dynamic peer and decrements the group counter.
-// The peer's live session, if any, is sent Cease with subcode (stopWithCease).
-// Must be called with r.mu held (Lock).
-func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) {
+// Must be called with r.mu held (Lock). It returns the stop that sends the
+// peer's live session, if any, Cease with subcode, and the caller MUST run it
+// after releasing r.mu (peerStop).
+func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) peerStop {
 	settings := peer.Settings()
 	key := settings.PeerKey()
-
-	peer.stopWithCease(subcode)
 	// Same synchronous release as removePeer and the reload-remove path: Stop
 	// only cancels a context, so a dynamic peer removed and recreated (the
 	// remove/recreate path this function serves) would otherwise race its own
@@ -219,6 +218,7 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) {
 	if r.deliveryPublished {
 		r.publishDeliveryGraphLocked()
 	}
+	return peerStop{peer: peer, subcode: subcode}
 }
 
 // dynamicTemplateChanged reports whether a dynamic peer at addr would be built with
@@ -235,22 +235,50 @@ func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) {
 // chains at establishment, so a running dynamic peer differs from every template,
 // including the one it was built from.
 //
+// A template that differs only in derived feed-only bindings does not restart the
+// peer, for the reason hotSwappableSettings delivers them to a static peer: the
+// first iBGP peer adds one to every peer (peer_derived_bindings.go). feeds is then
+// the binding list to deliver onto the running peer, and nil when there is
+// nothing to deliver. catchUp is derivedFeedsDeliverable's: a peer that owes a
+// new consumer routes it cannot re-send restarts instead.
+//
 // Fail closed: an absent old group or a template that no longer builds counts as
 // changed, so the peer restarts and the next connection is accepted under settings
 // that were actually derived from the new configuration.
-func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr) bool {
+func (r *Reactor) dynamicTemplateChanged(old, next *DynamicGroupConfig, addr netip.Addr, catchUp feedCatchUp) (changed bool, feeds []ProcessBinding) {
 	if old == nil || next == nil {
-		return true
+		return true, nil
 	}
 	oldSettings, oldErr := r.buildDynamicPeerSettings(old, addr)
 	if oldErr != nil {
-		return true
+		return true, nil
 	}
 	nextSettings, nextErr := r.buildDynamicPeerSettings(next, addr)
 	if nextErr != nil {
-		return true
+		return true, nil
 	}
-	return !peerSettingsEqual(oldSettings, nextSettings)
+	if peerSettingsEqual(oldSettings, nextSettings) {
+		return false, nil
+	}
+	if !onlyDerivedFeedsDiffer(oldSettings.ProcessBindings, nextSettings.ProcessBindings) {
+		return true, nil
+	}
+	if !derivedFeedsDeliverable(oldSettings.ProcessBindings, nextSettings.ProcessBindings, catchUp) {
+		return true, nil
+	}
+	oldSettings.ProcessBindings = nextSettings.ProcessBindings
+	if !peerSettingsEqual(oldSettings, nextSettings) {
+		return true, nil
+	}
+	return false, nextSettings.ProcessBindings
+}
+
+// derivedFeedDelivery is one running peer whose derived feeds a reload changed,
+// kept for the catch-up that runs once r.mu is released.
+type derivedFeedDelivery struct {
+	peer   *Peer
+	gained []string
+	lost   []string
 }
 
 // tryCreateDynamicPeer checks dynamic groups for the given address and creates a
@@ -307,9 +335,27 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 // left running, session included.
 func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	delivered, stops := r.setDynamicGroupsLocked(groups)
+	r.mu.Unlock()
 
+	// After the unlock: a stop writes a NOTIFICATION and the catch-up writes to
+	// the peer's socket and delivers to plugins, and none may run under the
+	// reactor lock.
+	for _, stop := range stops {
+		stop.run()
+	}
+	for _, d := range delivered {
+		d.peer.catchUpDerivedFeeds(d.gained, d.lost)
+	}
+}
+
+// setDynamicGroupsLocked is SetDynamicGroups under r.mu. It returns the running
+// peers whose derived feeds it delivered, for the caller to catch up, and the
+// stops of the peers it removed, for the caller to run.
+func (r *Reactor) setDynamicGroupsLocked(groups []*DynamicGroupConfig) ([]derivedFeedDelivery, []peerStop) {
 	old := r.dynamicGroups
+	var delivered []derivedFeedDelivery
+	var stops []peerStop
 
 	// Collect peers to remove BEFORE replacing the groups slice.
 	// removeDynamicPeer decrements ActivePeers on the current dynamicGroups;
@@ -343,11 +389,22 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 				toRemove = append(toRemove, peer)
 				continue
 			}
-			if r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address) {
+			catchUp := peer.currentSession().feedCatchUp()
+			changed, feeds := r.dynamicTemplateChanged(oldByName[settings.GroupName], next, settings.Address, catchUp)
+			if changed {
 				reactorLogger().Info("dynamic peer restart required",
 					"peer", settings.Address, "group", settings.GroupName, "changed", "group template")
 				toRemove = append(toRemove, peer)
 				restart[peer] = true
+				continue
+			}
+			if feeds != nil {
+				peer.mu.Lock()
+				before := peer.settings.ProcessBindings
+				peer.settings.ProcessBindings = feeds
+				peer.mu.Unlock()
+				gained, lost := derivedFeedChange(before, feeds)
+				delivered = append(delivered, derivedFeedDelivery{peer: peer, gained: gained, lost: lost})
 			}
 		}
 		for _, peer := range toRemove {
@@ -355,7 +412,12 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 			if restart[peer] {
 				subcode = message.NotifyCeaseOtherConfigChange
 			}
-			r.removeDynamicPeer(peer, subcode)
+			stops = append(stops, r.removeDynamicPeer(peer, subcode))
+		}
+		// The delivered feeds change the peer-to-process index. A removal above
+		// may already have republished it, and one more build is cheap.
+		if len(delivered) > 0 && r.deliveryPublished {
+			r.publishDeliveryGraphLocked()
 		}
 	}
 
@@ -385,7 +447,7 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 	// socket is the peer-removal path's decision (reactor_peers.go), and a group
 	// removal that shared the socket with a peer must not take it down.
 	if !r.running || r.stopping {
-		return
+		return delivered, stops
 	}
 	for _, dg := range groups {
 		s := dg.Settings
@@ -397,6 +459,7 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 				"group", dg.GroupName, "address", s.LocalAddress, "error", err)
 		}
 	}
+	return delivered, stops
 }
 
 // resolveDynamicPeerSettings sets PeerAS from the OPEN message and resolves
@@ -486,15 +549,18 @@ func (r *Reactor) scheduleDynamicPeerCleanup(peer *Peer) {
 
 	r.clock.AfterFunc(timeout, func() {
 		r.mu.Lock()
-		defer r.mu.Unlock()
 		current, exists := r.findPeerByAddr(addr)
 		if !exists || current != peer {
+			r.mu.Unlock()
 			return
 		}
 		if current.State() == PeerStateEstablished {
+			r.mu.Unlock()
 			return
 		}
-		r.removeDynamicPeer(current, message.NotifyCeasePeerDeconfigured)
+		stop := r.removeDynamicPeer(current, message.NotifyCeasePeerDeconfigured)
+		r.mu.Unlock()
+		stop.run()
 		reactorLogger().Info("dynamic peer removed after idle timeout", "addr", addr, "group", groupName)
 	})
 }

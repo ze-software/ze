@@ -105,16 +105,16 @@ func updateBufMuxBudget(maxBytes int64) {
 	}
 }
 
-// CombinedBufMuxStats returns total allocated and in-use byte counts
+// combinedBufMuxStats returns total allocated and in-use byte counts
 // across both the 4K and 64K buffer multiplexers. Used by metrics and
 // backpressure decisions (AC-27: memory pressure is shared).
-func CombinedBufMuxStats() (totalBytes, usedBytes int64) {
+func combinedBufMuxStats() (totalBytes, usedBytes int64) {
 	return combinedMuxStats(bufMuxStd.mux, bufMuxExt.mux)
 }
 
-// CombinedBufMuxUsedRatio returns the fraction of allocated bytes in use
+// combinedBufMuxUsedRatio returns the fraction of allocated bytes in use
 // across both multiplexers (0.0 to 1.0). Returns 0.0 if nothing is allocated.
-func CombinedBufMuxUsedRatio() float64 {
+func combinedBufMuxUsedRatio() float64 {
 	return combinedMuxUsedRatio(bufMuxStd.mux, bufMuxExt.mux)
 }
 
@@ -129,7 +129,7 @@ func putBuildBuf(h BufHandle) {
 	bufMuxStd.Return(h)
 }
 
-// ReturnReadBuffer returns a buffer handle to the appropriate multiplexer.
+// returnReadBuffer returns a buffer handle to the appropriate multiplexer.
 // Used by cache to return buffers when entries are evicted.
 //
 // Skips handles carrying the noPoolBufID sentinel: these are backed by a
@@ -139,7 +139,7 @@ func putBuildBuf(h BufHandle) {
 // handle's ID/idx collide with a real slot in bufMuxStd.block[0] and either
 // trigger a "double return detected" log or silently free an in-use slot
 // (memory corruption).
-func ReturnReadBuffer(h BufHandle) {
+func returnReadBuffer(h BufHandle) {
 	if h.Buf == nil || h.ID == noPoolBufID {
 		return
 	}
@@ -217,7 +217,7 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 //
 // One lock OUTSIDE this Session is ordered against it: Peer.mu comes BEFORE s.mu.
 // Peer.ResolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
-// DetectCollision, which reads peerOpen under s.mu (see collisionPeerAS). The
+// detectCollision, which reads peerOpen under s.mu (see collisionPeerAS). The
 // reverse must never appear: no Session code may acquire p.mu, and no callback a
 // Peer installs on a Session may be invoked with s.mu held.
 //
@@ -366,6 +366,14 @@ type Session struct {
 	// An End-of-RIB and a pure withdrawal leave it alone: neither makes a
 	// destination reachable (RFC 4724 Section 2).
 	advertised atomic.Bool
+
+	// receivedRoute records that the peer announced at least one route on this
+	// connection. The read goroutine sets it (noteReceivedRoute); a config
+	// reload reads it from its own goroutine to decide whether a consumer newly
+	// fed this peer's routes has anything to catch up on (feedCatchUp). A
+	// withdrawal or an End-of-RIB leaves it alone, because neither leaves a
+	// route for a consumer to hold.
+	receivedRoute atomic.Bool
 
 	// recvCtxID is the encoding context for received messages.
 	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
@@ -752,9 +760,9 @@ func (s *Session) Negotiated() *capability.Negotiated {
 	return s.negotiated
 }
 
-// SetRecvCtxID sets the encoding context ID for received messages.
+// setRecvCtxID sets the encoding context ID for received messages.
 // Called by Peer after capability negotiation for zero-copy WireUpdate creation.
-func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
+func (s *Session) setRecvCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recvCtxID = ctxID
@@ -784,30 +792,24 @@ func (s *Session) SetSourceID(id source.SourceID) {
 	s.sourceID = id
 }
 
-// SetPluginCapabilityGetter sets the callback for retrieving plugin capabilities.
+// setPluginCapabilityGetter sets the callback for retrieving plugin capabilities.
 // Called by Peer at creation time to link to plugin.Server.GetPluginCapabilitiesForSelectors().
-func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capability) {
+func (s *Session) setPluginCapabilityGetter(getter func() []capability.Capability) {
 	s.pluginCapGetter = getter
 }
 
-// SetPluginFamiliesGetter sets the callback for retrieving plugin decode families.
+// setPluginFamiliesGetter sets the callback for retrieving plugin decode families.
 // Called by Peer at creation time to link to plugin.Server registry.
 // Used to auto-add Multiprotocol capabilities for families that plugins can decode.
-func (s *Session) SetPluginFamiliesGetter(getter func() []string) {
+func (s *Session) setPluginFamiliesGetter(getter func() []string) {
 	s.pluginFamiliesGetter = getter
 }
 
-// SetOpenValidator sets the callback for validating OPEN message pairs.
+// setOpenValidator sets the callback for validating OPEN message pairs.
 // Called by Peer at creation time to link to Server.BroadcastValidateOpen().
 // Plugins that register WantsValidateOpen will be consulted during OPEN processing.
-func (s *Session) SetOpenValidator(validator func(string, *message.Open, *message.Open) error) {
+func (s *Session) setOpenValidator(validator func(string, *message.Open, *message.Open) error) {
 	s.openValidator = validator
-}
-
-// WriteBuf returns the session's write buffer for zero-allocation message building.
-// The buffer is sized based on negotiated Extended Message capability.
-func (s *Session) WriteBuf() *wire.SessionBuffer {
-	return s.writeBuf
 }
 
 // getReadBuffer gets an appropriately-sized buffer from pool.
@@ -821,10 +823,10 @@ func (s *Session) getReadBuffer() BufHandle {
 
 // returnReadBuffer returns buffer to the appropriate multiplexer.
 func (s *Session) returnReadBuffer(h BufHandle) {
-	ReturnReadBuffer(h)
+	returnReadBuffer(h)
 }
 
-// DetectCollision checks if an incoming connection causes a collision.
+// detectCollision checks if an incoming connection causes a collision.
 // RFC 4271 §6.8 - BGP Connection Collision Detection.
 //
 // Returns (shouldAccept, shouldCloseExisting):
@@ -837,7 +839,7 @@ func (s *Session) returnReadBuffer(h BufHandle) {
 //   - If local_id < remote_id: accept new, close existing
 //   - If local_id >= remote_id: reject new, keep existing
 //   - Other states: accept new (no collision detection possible)
-func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldCloseExisting bool) {
+func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldCloseExisting bool) {
 	state := s.fsm.State()
 
 	switch state {
@@ -873,7 +875,7 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// Do NOT assume an internal peer cannot reach this branch. An earlier
 			// version of this comment claimed §2.2 (validateOpenIdentifier) had
 			// already rejected one, and that equal AS numbers were therefore
-			// impossible here. The ORDER is the other way round: DetectCollision
+			// impossible here. The ORDER is the other way round: detectCollision
 			// is called from ResolvePendingCollision (peer_connection.go) on the
 			// pending OPEN, and §2.2 runs later, only on the connection that WINS
 			// (session_connection.go). An internal peer's colliding connection
@@ -927,7 +929,7 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 //
 // LOCK ORDER: this takes s.mu while the caller holds p.mu -- the sole production
 // caller is Peer.ResolvePendingCollision (peer_connection.go), which holds
-// p.mu.Lock() across DetectCollision. That p.mu -> s.mu edge is outside the
+// p.mu.Lock() across detectCollision. That p.mu -> s.mu edge is outside the
 // hierarchy documented above, which orders only the Session's own three locks, so
 // it is recorded here (and in that block) rather than left to be re-derived.
 //
@@ -949,18 +951,18 @@ func (s *Session) collisionPeerAS() uint32 {
 //
 // RFC 4271 Section 8.2.2, Idle + Event 1: this also sets the
 // ConnectRetryCounter to zero. Only the operator's start belongs here; the
-// peer reconnect loop uses StartDamped for every later cycle, so a retry does
+// peer reconnect loop uses startDamped for every later cycle, so a retry does
 // not erase the retry history (peer_run.go, runOnce).
 func (s *Session) Start() error {
 	return s.fsm.Event(fsm.EventManualStart)
 }
 
-// StartDamped triggers RFC 4271 Event 6
+// startDamped triggers RFC 4271 Event 6
 // (AutomaticStart_with_DampPeerOscillations) to begin a connection cycle that
 // the peer-level exponential backoff already delayed. It reaches Connect (or
 // Active, when passive) exactly as Start does, and deliberately leaves the
 // ConnectRetryCounter alone: §8.2.2 gives Event 6 no action list.
-func (s *Session) StartDamped() error {
+func (s *Session) startDamped() error {
 	return s.fsm.Event(fsm.EventAutomaticStartWithDampPeerOscillations)
 }
 

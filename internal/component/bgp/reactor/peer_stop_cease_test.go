@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // RFC 4486 Section 4: "If a BGP speaker decides to de-configure a peer, then
@@ -45,6 +48,110 @@ func TestStopWithCeaseTellsThePeerWhy(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("the peer was stopped without being told why")
 			}
+		})
+	}
+}
+
+// TestRemovePeerSendsCeaseWithoutHoldingTheReactorLock proves the Cease is
+// written after r.mu is released.
+//
+// VALIDATES: while the NOTIFICATION write of a removed peer is blocked, because
+// nothing reads the other end of the pipe, the reactor lock is free; once the
+// peer reads, it gets the Cease / Peer De-configured and RemovePeer returns.
+// PREVENTS: one peer with a full send buffer holding r.mu up to the write
+// deadline, which stalls the reload and every other path that takes the lock.
+func TestRemovePeerSendsCeaseWithoutHoldingTheReactorLock(t *testing.T) {
+	session, client := shutdownTestSession(t, fsm.StateEstablished)
+	r := newRemovalTestReactor()
+	peer := NewPeer(session.settings)
+	peer.SetReactor(r)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	key := peerKeyFromAddrPort(session.settings.Address, DefaultBGPPort)
+	r.peers[key] = peer
+
+	done := make(chan error, 1)
+	go func() { done <- r.RemovePeer(session.settings.Address) }()
+
+	// net.Pipe has no buffer, so the NOTIFICATION write cannot complete before
+	// the client reads. The lock must come free while it waits.
+	require.Eventually(t, func() bool {
+		if !r.mu.TryLock() {
+			return false
+		}
+		_, present := r.peers[key]
+		r.mu.Unlock()
+		return !present
+	}, 3*time.Second, 5*time.Millisecond, "the reactor lock was held while the Cease write was blocked")
+	select {
+	case err := <-done:
+		t.Fatalf("RemovePeer returned (%v) before the peer read its NOTIFICATION", err)
+	default:
+	}
+
+	got := readOne(client)
+	want := append(bytes.Repeat([]byte{0xFF}, 16), 0x00, 0x15, 0x03, byte(message.NotifyCease), message.NotifyCeasePeerDeconfigured)
+	select {
+	case msg, ok := <-got:
+		require.True(t, ok, "socket closed with no NOTIFICATION on it")
+		require.Equal(t, want, msg)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the removed peer was never told why")
+	}
+	require.NoError(t, <-done)
+}
+
+// TestConfigOperationCeaseNamesWhyTheSessionEnds proves the config-apply path
+// tells the peer why its session ends. A remove-peer the configuration no
+// longer holds sends RFC 4486 Section 4 subcode 3 "Peer De-configured". The
+// remove half of a remove and add pair carries the peer's new config
+// (bgpPeerOperation), and sends subcode 6 "Other Configuration Change", which
+// the modify-peer restart sends too (restartPeerForOperation).
+//
+// VALIDATES: applyConfigOperation picks the subcode from the operation.
+// PREVENTS: a reload that restarts a peer telling it it was de-configured.
+func TestConfigOperationCeaseNamesWhyTheSessionEnds(t *testing.T) {
+	cases := []struct {
+		name    string
+		config  json.RawMessage
+		subcode uint8
+	}{
+		{"peer removed", nil, message.NotifyCeasePeerDeconfigured},
+		{"peer restarted under a changed config", json.RawMessage(`{"session":{}}`), message.NotifyCeaseOtherConfigChange},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := New(&Config{})
+			settings := NewPeerSettings(mustParseAddr("203.0.113.1"), 65000, 65001, 0)
+			settings.Name = "edge"
+			require.NoError(t, r.AddPeer(settings))
+			session, client := shutdownTestSession(t, fsm.StateEstablished)
+			peer := r.Peers()[0]
+			peer.mu.Lock()
+			peer.session = session
+			peer.mu.Unlock()
+
+			op := rpc.ConfigOperation{
+				ID: "bgp-remove-peer-edge", Root: "bgp", Owner: "bgp", Type: configop.RemovePeer,
+				Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "edge"},
+				Params: rpc.ConfigOperationParams{Peer: "edge", Config: tc.config},
+			}
+			done := make(chan error, 1)
+			go func() {
+				_, err := (&reactorAPIAdapter{r: r}).applyConfigOperation(&op, &testJournal{})
+				done <- err
+			}()
+
+			want := append(bytes.Repeat([]byte{0xFF}, 16), 0x00, 0x15, 0x03, byte(message.NotifyCease), tc.subcode)
+			select {
+			case msg, ok := <-readOne(client):
+				require.True(t, ok, "socket closed with no NOTIFICATION on it")
+				require.Equal(t, want, msg)
+			case <-time.After(5 * time.Second):
+				t.Fatal("the peer was never told why")
+			}
+			require.NoError(t, <-done)
 		})
 	}
 }

@@ -240,7 +240,7 @@ func TestDynamicPeerOwnsPrefixMaps(t *testing.T) {
 	assert.Equal(t, uint32(1000), first.Settings().PrefixMaximum["ipv4/unicast"])
 	assert.True(t, first.Settings().prefixTeardownFor("ipv4/unicast"))
 	assert.Equal(t, uint16(30), first.Settings().prefixIdleTimeoutFor("ipv4/unicast"))
-	assert.Equal(t, "2026-07-30", first.Settings().OldestPrefixUpdated())
+	assert.Equal(t, "2026-07-30", first.Settings().oldestPrefixUpdated())
 
 	// Mutating one peer changes neither its sibling nor the template.
 	first.Settings().PrefixTeardown["ipv4/unicast"] = false
@@ -252,7 +252,7 @@ func TestDynamicPeerOwnsPrefixMaps(t *testing.T) {
 		"the sibling keeps its own enforcement setting")
 	assert.Equal(t, uint32(1000), second.Settings().PrefixMaximum["ipv4/unicast"])
 	assert.Equal(t, uint16(30), second.Settings().prefixIdleTimeoutFor("ipv4/unicast"))
-	assert.Equal(t, "2026-07-30", second.Settings().OldestPrefixUpdated())
+	assert.Equal(t, "2026-07-30", second.Settings().oldestPrefixUpdated())
 	assert.True(t, dg.Settings.prefixTeardownFor("ipv4/unicast"),
 		"the template is not mutated either")
 }

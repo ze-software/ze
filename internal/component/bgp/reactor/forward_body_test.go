@@ -63,7 +63,7 @@ func TestForwardSplitConvertsASN4Context(t *testing.T) {
 	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 170, destCtxID, peer, netip.MustParseAddr("192.0.2.3"), &fwdParseCache{})
 	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
 	// read-pool buffer that production returns at cache eviction.
-	defer ReturnReadBuffer(result.transcodeBuf)
+	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies)
 	require.Greater(t, len(result.updates), 1)
@@ -220,7 +220,7 @@ func TestTranscodeBufferPooled(t *testing.T) {
 
 		// The result aliases the buffer, so releasing is the caller's job. Stand in
 		// for it here so the pool is left as it was found.
-		ReturnReadBuffer(result.transcodeBuf)
+		returnReadBuffer(result.transcodeBuf)
 		_, after := bufMuxStd.Stats()
 		require.Equal(t, before, after)
 	})
@@ -291,7 +291,7 @@ func TestGoldenBytesUnchangedCrossContextTranscode(t *testing.T) {
 	assert.Equal(t, want, hex.EncodeToString(fwdPackUpdateBody(result.updates[0])),
 		"pooling the transcode buffer must not move a byte on the wire")
 
-	ReturnReadBuffer(result.transcodeBuf)
+	returnReadBuffer(result.transcodeBuf)
 }
 
 // poisonReadPool fills every currently-free standard read-pool buffer with a
@@ -312,7 +312,7 @@ func poisonReadPool(t *testing.T) {
 	}
 	require.NotEmpty(t, held, "guard: the read pool handed out nothing, so nothing was poisoned")
 	for _, h := range held {
-		ReturnReadBuffer(h)
+		returnReadBuffer(h)
 	}
 }
 

@@ -39,6 +39,13 @@ expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=rewrite:conn=3:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=3:seq=2
 
+# RFC 4486 Section 4: the restart is a configuration change, so each restarted
+# session first reads NOTIFICATION Cease (6), subcode 6 "Other Configuration
+# Change": 21 bytes, no data.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+
 # Connection 4: peer3 now rid=1.2.3.4 (lowest), resends 172.16.0.0/16
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040A0000014005040000006410AC10
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

@@ -163,7 +163,7 @@ func collapseRecvSession(t *testing.T, settings *PeerSettings, asn4 bool) (*Sess
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.FromNegotiatedRecv(s.negotiated))
 	require.NoError(t, err, "receive encoding context must register")
-	s.SetRecvCtxID(ctxID)
+	s.setRecvCtxID(ctxID)
 	return s, ctxID
 }
 

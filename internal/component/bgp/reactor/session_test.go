@@ -182,7 +182,7 @@ func TestSessionSendOpenWithPluginFamilies(t *testing.T) {
 	session := NewSession(settings)
 
 	// Set plugin families getter to return flowspec families
-	session.SetPluginFamiliesGetter(func() []string {
+	session.setPluginFamiliesGetter(func() []string {
 		return []string{"ipv4/flow", "ipv6/flow"}
 	})
 
@@ -244,7 +244,7 @@ func TestSessionSendOpenConfigFamiliesOverridePlugin(t *testing.T) {
 	session := NewSession(settings)
 
 	// Plugin returns IPv4 FlowSpec - should be IGNORED because config has families
-	session.SetPluginFamiliesGetter(func() []string {
+	session.setPluginFamiliesGetter(func() []string {
 		return []string{"ipv4/flow"}
 	})
 

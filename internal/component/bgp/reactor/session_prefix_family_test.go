@@ -433,7 +433,7 @@ func TestPrefixUpdatedAggregatesOldest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &PeerSettings{PrefixUpdated: tt.updated}
-			assert.Equal(t, tt.want, ps.OldestPrefixUpdated())
+			assert.Equal(t, tt.want, ps.oldestPrefixUpdated())
 		})
 	}
 }
@@ -450,6 +450,6 @@ func TestPrefixStaleUsesOldestFamily(t *testing.T) {
 		"ipv6/unicast": "2020-01-01", // older than the 180 day threshold
 	}}
 
-	assert.True(t, isPrefixDataStale(ps.OldestPrefixUpdated(), now),
+	assert.True(t, isPrefixDataStale(ps.oldestPrefixUpdated(), now),
 		"one stale family makes the peer stale")
 }

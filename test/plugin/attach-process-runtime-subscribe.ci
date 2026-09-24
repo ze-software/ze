@@ -26,10 +26,12 @@ option=timeout:value=40s
 # after the live subscribe can fall entirely inside that gap.
 option=linger:value=true
 # One session before the reload and one after it: a changed attach block tears
-# the peer down and re-adds it (ProcessBindings sits outside
-# hotSwappableSettings), and each session ends its initial sync with an
-# End-of-RIB.
+# the peer down and re-adds it (an operator binding is not a derived feed, so
+# hotSwappableSettings does not swap it), and each session ends its initial
+# sync with an End-of-RIB. The first session ends on NOTIFICATION Cease (6),
+# subcode 6 "Other Configuration Change" (RFC 4486 Section 4).
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

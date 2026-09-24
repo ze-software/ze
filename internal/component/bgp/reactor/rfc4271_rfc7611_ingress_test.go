@@ -54,7 +54,7 @@ func TestRFC4271CollisionClosesExactlyOneConnection(t *testing.T) {
 			session, client, server := setupOpenConfirmSession(t, tc.localID)
 			defer func() { _ = client.Close() }()
 			defer func() { _ = server.Close() }()
-			accept, closeExisting := session.DetectCollision(tc.remote)
+			accept, closeExisting := session.detectCollision(tc.remote)
 			closeIncoming := !accept
 			require.NotEqual(t, closeIncoming, closeExisting, "exactly one connection closes")
 			require.Equal(t, tc.wantCloseCurrent, closeExisting)

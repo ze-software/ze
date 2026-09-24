@@ -23,7 +23,7 @@ var emptyPayload = []byte{0, 0, 0, 0}
 
 // TestWireUpdateBufferPoisonedAfterRecycle proves contract-A enforcement: a
 // received-UPDATE borrow into a reactor read buffer reads poison after the
-// reactor recycles the buffer (ReturnReadBuffer) in debug builds, so a
+// reactor recycles the buffer (returnReadBuffer) in debug builds, so a
 // subscriber that retained RawBytes without WireUpdate.Snapshot is caught. In
 // release builds the recycle leaves the buffer intact (the borrow reads stale
 // bytes, as today).
@@ -46,7 +46,7 @@ func TestWireUpdateBufferPoisonedAfterRecycle(t *testing.T) {
 	require.False(t, memguard.IsPoisonedForTest(h.Buf), "a live buffer is not poisoned")
 
 	// The reactor recycles the buffer when the cache evicts the entry.
-	ReturnReadBuffer(h)
+	returnReadBuffer(h)
 
 	if memguard.Enabled {
 		// The whole slot is poisoned; the retained borrow aliases it and so no
@@ -1963,7 +1963,7 @@ func gapCacheUnderPressure(t *testing.T, fc *sim.FakeClock, ratio, highWater flo
 // TestCacheReclaimsUnderPoolPressure proves AC-1: under pool pressure a passed-over
 // (gap-evictable) stalled entry aged past the SHORTENED pressure valve (but well short
 // of the 5-minute safety valve) is force-evicted on the next scan, and its pooled read
-// buffer is returned to the multiplexer (ReturnReadBuffer observed).
+// buffer is returned to the multiplexer (returnReadBuffer observed).
 //
 // VALIDATES: Load-aware reclamation shortens eviction *timing* for passed-over entries
 // (AC-1). PREVENTS: A stuck consumer pinning shared read buffers for minutes.
@@ -1975,7 +1975,7 @@ func TestCacheReclaimsUnderPoolPressure(t *testing.T) {
 	cache := gapCacheUnderPressure(t, fc, 0.95, 0.80, 10*time.Second, 100, 200)
 	defer cache.Stop()
 
-	// Give the stalled entry a REAL pooled read buffer so eviction's ReturnReadBuffer
+	// Give the stalled entry a REAL pooled read buffer so eviction's returnReadBuffer
 	// is observable via the multiplexer's in-use slot count.
 	h := bufMuxStd.Get()
 	require.NotNil(t, h.Buf, "read buffer pool must hand out a buffer")

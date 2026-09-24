@@ -131,7 +131,7 @@ func TestDynamicPeerEntersTheIndexUnderItsOwnAddress(t *testing.T) {
 	require.Equal(t, "dyn-192.0.2.7", member.Name, "no config document holds this name")
 
 	srv := &pluginserver.Server{}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, DeliveryPeersFromSettings([]*PeerSettings{member}))
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings([]*PeerSettings{member}))
 	g := srv.DeliveryGraph()
 
 	// Asked exactly as the seven peer-scoped delivery sites ask it: by address.

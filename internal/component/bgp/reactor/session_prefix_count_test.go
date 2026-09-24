@@ -60,13 +60,13 @@ func newOfferedCountSettings() *PeerSettings {
 // the accessor is what decides that those peers keep the behavior they had.
 func TestPrefixCountModeDefaultIsOffered(t *testing.T) {
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
-	assert.Equal(t, PrefixCountOffered, ps.PrefixCountFor("ipv4/unicast"))
-	assert.Equal(t, PrefixCountOffered, ps.PrefixCountFor("ipv6/unicast"))
+	assert.Equal(t, PrefixCountOffered, ps.prefixCountFor("ipv4/unicast"))
+	assert.Equal(t, PrefixCountOffered, ps.prefixCountFor("ipv6/unicast"))
 
 	// The zero value of the map's value type is the offered mode, so a family
 	// present with no explicit value reads the same way.
 	ps.PrefixCount = map[string]PrefixCountMode{"ipv4/unicast": PrefixCountOffered}
-	assert.Equal(t, PrefixCountOffered, ps.PrefixCountFor("ipv4/unicast"))
+	assert.Equal(t, PrefixCountOffered, ps.prefixCountFor("ipv4/unicast"))
 }
 
 // TestPrefixCountOfferedKeepsDroppedPrefixes proves today's behavior is intact:
@@ -688,18 +688,18 @@ func TestParsePrefixCountFromFamily(t *testing.T) {
 
 	entry := map[string]any{"prefix": map[string]any{"maximum": "100", "count": "installed"}}
 	require.NoError(t, parsePrefixLimitFromFamily("ipv4/unicast", entry, ps))
-	assert.Equal(t, PrefixCountInstalled, ps.PrefixCountFor("ipv4/unicast"))
+	assert.Equal(t, PrefixCountInstalled, ps.prefixCountFor("ipv4/unicast"))
 
 	// A second family disagreeing keeps its own answer.
 	entry6 := map[string]any{"prefix": map[string]any{"maximum": "100", "count": "offered"}}
 	require.NoError(t, parsePrefixLimitFromFamily("ipv6/unicast", entry6, ps))
-	assert.Equal(t, PrefixCountOffered, ps.PrefixCountFor("ipv6/unicast"))
-	assert.Equal(t, PrefixCountInstalled, ps.PrefixCountFor("ipv4/unicast"))
+	assert.Equal(t, PrefixCountOffered, ps.prefixCountFor("ipv6/unicast"))
+	assert.Equal(t, PrefixCountInstalled, ps.prefixCountFor("ipv4/unicast"))
 
 	// A family that states nothing reads as offered and writes no entry.
 	entryNone := map[string]any{"prefix": map[string]any{"maximum": "100"}}
 	require.NoError(t, parsePrefixLimitFromFamily("ipv4/multicast", entryNone, ps))
-	assert.Equal(t, PrefixCountOffered, ps.PrefixCountFor("ipv4/multicast"))
+	assert.Equal(t, PrefixCountOffered, ps.prefixCountFor("ipv4/multicast"))
 
 	bad := map[string]any{"prefix": map[string]any{"maximum": "100", "count": "delivered"}}
 	err := parsePrefixLimitFromFamily("ipv4/unicast", bad, ps)

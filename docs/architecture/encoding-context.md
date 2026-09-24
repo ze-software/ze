@@ -191,8 +191,8 @@ var readBufPool64K = sync.Pool{
     New: func() any { return make([]byte, message.ExtMsgLen) }, // 65535
 }
 
-// ReturnReadBuffer returns buffer to appropriate pool (exported for cache)
-func ReturnReadBuffer(buf []byte)
+// returnReadBuffer returns buffer to appropriate pool (exported for cache)
+func returnReadBuffer(buf []byte)
 ```
 
 ### Session Flow (Zero-Copy with Ownership Transfer)
@@ -254,7 +254,7 @@ The session's `recvCtxID` is set by Peer after capability negotiation:
 ```go
 // internal/component/bgp/reactor/peer.go - setEncodingContexts()
 p.recvCtxID = bgpctx.Registry.Register(recvCtx)
-p.session.SetRecvCtxID(p.recvCtxID)  // Propagate to session
+p.session.setRecvCtxID(p.recvCtxID)  // Propagate to session
 ```
 <!-- source: internal/component/bgp/reactor/peer.go -- setEncodingContexts -->
 

@@ -291,7 +291,7 @@ func installedPrefixFamilies(settings *PeerSettings) map[uint32]bool {
 	// contract on the field (peer_settings.go): an absent or zero value is the
 	// offered mode, and no site decides that twice.
 	for fam := range settings.PrefixCount {
-		if settings.PrefixCountFor(fam) != PrefixCountInstalled {
+		if settings.prefixCountFor(fam) != PrefixCountInstalled {
 			continue
 		}
 		fk, ok := familyKeyString(fam)
@@ -870,7 +870,7 @@ func (s *Session) reportPrefixExceeded(fk uint32, famName string, current int64,
 		"family", famName,
 		"count", current,
 		"maximum", maximum,
-		"mode", s.settings.PrefixCountFor(famName).String(),
+		"mode", s.settings.prefixCountFor(famName).String(),
 		"teardown", teardown,
 	)
 
@@ -1094,7 +1094,7 @@ func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSe
 
 	// Staleness: set metric based on the oldest per-family updated date, so the
 	// gauge stays set while any one family is stale.
-	setPrefixStaleMetric(m, peerAddr, settings.OldestPrefixUpdated(), now)
+	setPrefixStaleMetric(m, peerAddr, settings.oldestPrefixUpdated(), now)
 }
 
 // stalenessThreshold is the age beyond which prefix data is considered stale.

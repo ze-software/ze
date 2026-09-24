@@ -191,7 +191,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 			if !ok {
 				t.Fatal("native FlowSpec forward was refused")
 			}
-			defer ReturnReadBuffer(result.transcodeBuf)
+			defer returnReadBuffer(result.transcodeBuf)
 			bodies := result.rawBodies
 			for _, update := range result.updates {
 				packet := message.PackTo(update, nil)

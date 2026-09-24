@@ -207,7 +207,10 @@ best path sends no RPC.
 Failure of the mandatory metric feed terminates the subprocess connection.
 AIGP derives received-UPDATE and state delivery to the RIB from every peer.
 An explicit binding that omits these inputs is refused; no Adj-RIB-In replay
-plugin or forwarding permission is added. The feature-only binding grants
+plugin or forwarding permission is added. A reload that adds or removes this
+derived delivery does not restart the running sessions: the RIB catches up
+with a ROUTE-REFRESH, or a session restarts when its peer cannot re-send
+(`docs/architecture/core-design.md`, "BGP Peer Reload: Swap or Restart"). The feature-only binding grants
 neither sent-UPDATE nor refresh delivery. BGP-source redistribution and explicit
 peer bindings retain their separate grants.
 

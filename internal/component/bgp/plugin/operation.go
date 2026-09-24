@@ -106,7 +106,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		// this pair declares in Consumes.
 		if peerBindingDisturbed(disturbed, activePeer.localAddress) {
 			ops = append(ops,
-				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw, disturbed),
+				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, candidatePeer.raw, activePeer.raw, disturbed),
 				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil, disturbed),
 			)
 			continue
@@ -116,7 +116,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		}
 		if activePeer.localAddress != candidatePeer.localAddress {
 			ops = append(ops,
-				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, nil, activePeer.raw, disturbed),
+				bgpPeerOperation(configop.RemovePeer, name, activePeer.localAddress, candidatePeer.raw, activePeer.raw, disturbed),
 				bgpPeerOperation(configop.AddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil, disturbed),
 			)
 			continue
@@ -125,7 +125,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 	}
 	if peerRouterIDRotation(sameAddressChanges) {
 		for _, change := range sameAddressChanges {
-			ops = append(ops, bgpPeerOperation(configop.RemovePeer, change.name, change.active.localAddress, nil, change.active.raw, disturbed))
+			ops = append(ops, bgpPeerOperation(configop.RemovePeer, change.name, change.active.localAddress, change.candidate.raw, change.active.raw, disturbed))
 		}
 		for _, change := range sameAddressChanges {
 			ops = append(ops, bgpPeerOperation(configop.AddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil, disturbed))
@@ -233,6 +233,10 @@ func injectBGPGlobalPeerDefaults(root, peer map[string]any) {
 	}
 }
 
+// bgpPeerOperation builds an add-peer or a remove-peer. A remove-peer that
+// carries config is the remove half of a remove and add pair: the peer stays
+// configured under that config, so the reactor ends its session with the Cease
+// for a configuration change rather than for a removal (RFC 4486 Section 4).
 func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress string, config, oldConfig json.RawMessage, disturbed []string) configtx.ConfigOperation {
 	verb := configtx.VerbCreate
 	word := "add"

@@ -2,6 +2,7 @@ package bgpconfig
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -113,17 +114,22 @@ bgp {
     }
 }`
 
-// TestAddingIBGPPeerLeavesOtherBindingsUnchanged holds the reload invariant
-// for derived delivery: an edit never changes the derived settings of a peer
-// it did not touch.
+// TestAddingIBGPPeerChangesOtherPeersOnlyByDerivedFeeds holds the reload
+// invariant for derived delivery: an edit changes the bindings of a peer it did
+// not touch only by a DERIVED binding that grants no send type.
 //
 // VALIDATES: adding one iBGP peer, which enables AIGP by the RFC 7311 Section
-// 3.3 default, leaves the ProcessBindings of the existing static peer and of
-// the dynamic group template byte-for-byte what they were.
-// PREVENTS: the reload restarting every established session. ProcessBindings
-// is not hot-swappable, so a derived grant that follows another peer's AIGP
-// state bounces every session (reload-dynamic-peer-survives.ci).
-func TestAddingIBGPPeerLeavesOtherBindingsUnchanged(t *testing.T) {
+// 3.3 default, leaves every binding of the existing static peer and of the
+// dynamic group template what it was, apart from derived feed-only bindings.
+// Each binding the edit adds is marked Derived and grants no send type.
+// PREVENTS: the reload restarting every established session. The reactor
+// delivers a derived feed-only change in place (peer_derived_bindings.go,
+// TestDerivedFeedSwapKeepsSessionAndCatchesUp), so the invariant it relies on
+// is this one. An earlier form asserted the bindings UNCHANGED; the grant MUST
+// follow the RFC 7311 Section 4.2 selection, which feeds every peer's
+// candidates to the RIB once any peer enables AIGP, so the bindings do change,
+// and only the session must not (reload-dynamic-peer-survives.ci).
+func TestAddingIBGPPeerChangesOtherPeersOnlyByDerivedFeeds(t *testing.T) {
 	const added = `peer spare {
         connection { remote { ip 10.0.0.3; } local { ip 10.0.0.1; } }
         session { asn { local 65000; remote 65000; } }
@@ -148,6 +154,23 @@ func TestAddingIBGPPeerLeavesOtherBindingsUnchanged(t *testing.T) {
 
 	staticBefore, dynamicBefore := build(fmt.Sprintf(aigpUntouchedBase, ""))
 	staticAfter, dynamicAfter := build(fmt.Sprintf(aigpUntouchedBase, added))
-	require.Equal(t, staticBefore, staticAfter, "adding an iBGP peer changed an untouched static peer's bindings")
-	require.Equal(t, dynamicBefore, dynamicAfter, "adding an iBGP peer changed the dynamic group template's bindings")
+	requireOnlyDerivedFeedsAdded(t, "static peer", staticBefore, staticAfter)
+	requireOnlyDerivedFeedsAdded(t, "dynamic group template", dynamicBefore, dynamicAfter)
+}
+
+// requireOnlyDerivedFeedsAdded fails unless after is before plus bindings that
+// are derived and grant no send type, and unless the edit added at least one:
+// without one the test would pass against a config that never enables AIGP.
+func requireOnlyDerivedFeedsAdded(t *testing.T, who string, before, after []reactor.ProcessBinding) {
+	t.Helper()
+	var kept, added []reactor.ProcessBinding
+	for _, b := range after {
+		if b.Derived && !b.SendAll && len(b.Send) == 0 && !slices.ContainsFunc(before, func(o reactor.ProcessBinding) bool { return o.PluginName == b.PluginName }) {
+			added = append(added, b)
+			continue
+		}
+		kept = append(kept, b)
+	}
+	require.NotEmpty(t, added, "%s: adding an iBGP peer added no derived feed", who)
+	require.Equal(t, before, kept, "%s: adding an iBGP peer changed a binding other than a derived feed", who)
 }

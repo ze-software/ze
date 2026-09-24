@@ -76,7 +76,7 @@ redistribute {
 //
 // VALIDATES: AC-1, AC-7 -- the binding exists, names the process the plugin
 // server auto-loads, and grants the three event types the Loc-RIB declares.
-// PREVENTS: the silent stage-1 drop, where DeliveryPeersFromSettings builds a
+// PREVENTS: the silent stage-1 drop, where deliveryPeersFromSettings builds a
 // graph from ProcessBindings alone and a peer with no attach block grants
 // nothing, so PeerScopedProcs answers empty and the UPDATE is discarded.
 func TestRedistributeBGPSourceWiresLocRIBBinding(t *testing.T) {
@@ -95,7 +95,7 @@ func TestRedistributeBGPSourceWiresLocRIBBinding(t *testing.T) {
 // DeliveryGraph.Receivers). The assertion is then about what a received UPDATE
 // reaches, rather than about a struct field.
 //
-// VALIDATES: AC-1 -- the derived binding survives DeliveryPeersFromSettings and
+// VALIDATES: AC-1 -- the derived binding survives deliveryPeersFromSettings and
 // resolves the Loc-RIB process for an UPDATE in the received direction.
 func TestPeerWithAutoWiredLocRIBReceivesUpdate(t *testing.T) {
 	g := graphFromConfig(t, redistOSPFImportsBGP)

@@ -449,18 +449,18 @@ func TestBufMux_SetBudgetSeedsExistingBlocks(t *testing.T) {
 }
 
 func TestCombinedBufMuxGlobalStats(t *testing.T) {
-	// VALIDATES: AC-27 — CombinedBufMuxStats and CombinedBufMuxUsedRatio
+	// VALIDATES: AC-27 — combinedBufMuxStats and combinedBufMuxUsedRatio
 	// read from the global bufMuxStd/bufMuxExt pools.
 	// PREVENTS: Global wiring disconnect.
 
 	// The global pools start empty or have steady-state traffic.
 	// Just verify the functions are callable and return consistent values.
-	totalBytes, usedBytes := CombinedBufMuxStats()
+	totalBytes, usedBytes := combinedBufMuxStats()
 	if usedBytes > totalBytes {
 		t.Fatalf("usedBytes (%d) > totalBytes (%d)", usedBytes, totalBytes)
 	}
 
-	ratio := CombinedBufMuxUsedRatio()
+	ratio := combinedBufMuxUsedRatio()
 	if ratio < 0 || ratio > 1.0 {
 		t.Fatalf("ratio %f out of [0, 1] range", ratio)
 	}
@@ -471,7 +471,7 @@ func TestCombinedBufMuxGlobalStats(t *testing.T) {
 		t.Fatal("global bufMuxStd.Get() returned nil")
 	}
 
-	totalAfter, usedAfter := CombinedBufMuxStats()
+	totalAfter, usedAfter := combinedBufMuxStats()
 	if totalAfter < totalBytes {
 		t.Fatalf("totalBytes should not decrease after Get: before=%d, after=%d", totalBytes, totalAfter)
 	}

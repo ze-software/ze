@@ -655,6 +655,12 @@ type ProcessBinding struct {
 	// through MaySend.
 	SendAll bool
 	Send    map[string]bool
+
+	// Derived marks a binding the config builder added (EnsureProcessBinding),
+	// never one the operator typed. A derived binding that grants no send type
+	// only feeds a consumer, so a reload can deliver a change to it without a
+	// session restart (derivedFeedsOnly, peer_derived_bindings.go).
+	Derived bool
 }
 
 // baseReceiveTypes are the event types the receive list has always named
@@ -822,7 +828,7 @@ func parsePrefixCountMode(s string) (mode PrefixCountMode, ok bool) {
 	return PrefixCountOffered, false
 }
 
-// PrefixCountFor returns which prefixes fam's count holds. fam is an "afi/safi"
+// prefixCountFor returns which prefixes fam's count holds. fam is an "afi/safi"
 // string.
 //
 // An unconfigured family reads as OFFERED. That is the YANG default and the
@@ -831,7 +837,7 @@ func parsePrefixCountMode(s string) (mode PrefixCountMode, ok bool) {
 // here: offered counts the prefixes of a dropped UPDATE, so the count is never
 // below the number of routes the session delivered, and the maximum cannot be
 // passed by a count that reads low.
-func (n *PeerSettings) PrefixCountFor(fam string) PrefixCountMode {
+func (n *PeerSettings) prefixCountFor(fam string) PrefixCountMode {
 	return n.PrefixCount[fam]
 }
 
@@ -909,7 +915,7 @@ func parsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
 	return PrefixReconnectUnset, false
 }
 
-// PrefixReconnectFor resolves what the peer does after fam stopped the session
+// prefixReconnectFor resolves what the peer does after fam stopped the session
 // for exceeding its prefix maximum. fam is an "afi/safi" string. It never
 // returns PrefixReconnectUnset.
 //
@@ -929,7 +935,7 @@ func parsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
 // at once, re-exceed its maximum, and flap with no backoff at all. It resolves
 // to NEVER here rather than in the parser alone, because this accessor is the
 // one reader and the fail-closed decision belongs where it cannot be bypassed.
-func (n *PeerSettings) PrefixReconnectFor(fam string) PrefixReconnectMode {
+func (n *PeerSettings) prefixReconnectFor(fam string) PrefixReconnectMode {
 	if mode, ok := n.PrefixReconnect[fam]; ok && mode != PrefixReconnectUnset {
 		if mode == PrefixReconnectTimer && n.PrefixIdleTimeout[fam] == 0 {
 			return PrefixReconnectNever
@@ -942,7 +948,7 @@ func (n *PeerSettings) PrefixReconnectFor(fam string) PrefixReconnectMode {
 	return PrefixReconnectNever
 }
 
-// OldestPrefixUpdated returns the oldest per-family prefix `updated` date, in
+// oldestPrefixUpdated returns the oldest per-family prefix `updated` date, in
 // YYYY-MM-DD form, or "" when no family carries one.
 //
 // The peer-level surfaces keep one date each: the `prefix-updated` JSON key
@@ -953,7 +959,7 @@ func (n *PeerSettings) PrefixReconnectFor(fam string) PrefixReconnectMode {
 // Families are walked in sorted key order so a peer whose dates do not parse
 // still reports the same value on every run. A value that does not parse loses
 // to any value that does, and is returned only when no family parses.
-func (n *PeerSettings) OldestPrefixUpdated() string {
+func (n *PeerSettings) oldestPrefixUpdated() string {
 	var oldest string
 	var oldestTime time.Time
 	var unparsed string

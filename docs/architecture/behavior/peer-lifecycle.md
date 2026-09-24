@@ -152,8 +152,8 @@ down. Step-by-step:
    to raise `session-dropped` on the report bus.
 2. **Create and wire the session.** `NewSession` + `SetClock`,
    `SetDialer`, metric hookups, `onMessageReceived`, `onNotifSent`,
-   `onNotifRecv`, `SetSourceID`, `SetPluginCapabilityGetter`,
-   `SetPluginFamiliesGetter`, `SetOpenValidator`.
+   `onNotifRecv`, `SetSourceID`, `setPluginCapabilityGetter`,
+   `setPluginFamiliesGetter`, `setOpenValidator`.
 3. **Publish the session on `p.session` under lock** so other API
    callers (`Teardown`, `AcceptConnection`, metrics) can see it.
 4. **Deferred cleanup:** clear negotiated capabilities, clear encoding
@@ -340,7 +340,7 @@ which waits for OPEN before comparing identifiers.
 
 `ResolvePendingCollision`:
 
-1. Reads `session.DetectCollision(pendingOpen.BGPIdentifier)` to decide
+1. Reads `session.detectCollision(pendingOpen.BGPIdentifier)` to decide
    who wins. Higher BGP router-id wins per RFC 4271 §6.8.
 2. If the remote wins (pending connection is accepted):
    - Stores the pending OPEN so it can be replayed.

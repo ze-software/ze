@@ -383,7 +383,7 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 
 	// Parse session > family and session > capability: what this speaker offers
 	// in its OPEN and what it demands of the peer's.
-	if err := ApplyNegotiationConfig(name, sessionMap, ps); err != nil {
+	if err := applyNegotiationConfig(name, sessionMap, ps); err != nil {
 		return nil, err
 	}
 
@@ -719,7 +719,7 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	return peers, nil
 }
 
-// ApplyNegotiationConfig parses the two `session` blocks that decide what this
+// applyNegotiationConfig parses the two `session` blocks that decide what this
 // speaker offers in its OPEN and what it demands of the peer's: `family`
 // (RFC 4760 Multiprotocol capabilities, plus the per-family prefix limits of
 // RFC 4486 and default-originate) and `capability`. A nil sessionMap is a peer
@@ -735,7 +735,7 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 // carries nothing: sendInitialRoutes (peer_initial_sync.go) sends one End-of-RIB
 // per NEGOTIATED family and every forwarded route is dropped as
 // family-not-negotiated. That is what the dynamic path did until 2026-08-13.
-func ApplyNegotiationConfig(peerName string, sessionMap map[string]any, ps *PeerSettings) error {
+func applyNegotiationConfig(peerName string, sessionMap map[string]any, ps *PeerSettings) error {
 	if sessionMap == nil {
 		return nil
 	}
@@ -970,7 +970,7 @@ func EnsureProcessBinding(ps *PeerSettings, processName, receive, send string) e
 		}
 	}
 
-	binding := ProcessBinding{PluginName: processName}
+	binding := ProcessBinding{PluginName: processName, Derived: true}
 	if err := parseReceiveFlags(receive, &binding); err != nil {
 		return fmt.Errorf("derived binding for process %q: %w", processName, err)
 	}

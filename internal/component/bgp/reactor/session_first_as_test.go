@@ -29,7 +29,7 @@ func firstASSession(t *testing.T, settings *PeerSettings, peerCaps, pluginCaps [
 	t.Helper()
 	settings.Connection = ConnectionPassive
 	s := NewSession(settings)
-	s.SetPluginCapabilityGetter(func() []capability.Capability { return pluginCaps })
+	s.setPluginCapabilityGetter(func() []capability.Capability { return pluginCaps })
 	client, server := net.Pipe()
 	t.Cleanup(func() {
 		s.timers.StopAll()
@@ -87,7 +87,7 @@ func firstASSession(t *testing.T, settings *PeerSettings, peerCaps, pluginCaps [
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.SetRecvCtxID(ctxID)
+	s.setRecvCtxID(ctxID)
 	return s, client
 }
 

@@ -75,8 +75,14 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		if err != nil {
 			return nil, err
 		}
+		remove := a.removePeerForOperation
+		if len(op.Params.Config) > 0 {
+			// The remove half of a remove and add pair (bgpPeerOperation):
+			// the peer stays configured, under the config it carries.
+			remove = a.restartPeerForOperation
+		}
 		if err := j.Record(
-			func() error { return a.removePeerForOperation(settings) },
+			func() error { return remove(settings) },
 			func() error { return a.r.AddPeer(settings) },
 		); err != nil {
 			return nil, err
@@ -100,7 +106,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 			return bgpOperationApplyOutput(newSettings), nil
 		}
 		if err := j.Record(
-			func() error { return a.removePeerForOperation(oldSettings) },
+			func() error { return a.restartPeerForOperation(oldSettings) },
 			func() error { return a.r.AddPeer(oldSettings) },
 		); err != nil {
 			return nil, err
@@ -290,8 +296,17 @@ func operationPeerRemotePortExplicit(peer map[string]any) bool {
 	return exists
 }
 
+// removePeerForOperation removes a peer the configuration no longer holds.
 func (a *reactorAPIAdapter) removePeerForOperation(settings *PeerSettings) error {
 	return a.r.RemovePeer(settings.Address)
+}
+
+// restartPeerForOperation removes a peer the configuration still holds, before
+// the operation adds it back under its changed configuration.
+// RFC 4486 Section 4: the Cease says "Other Configuration Change" (subcode 6),
+// not "Peer De-configured" (subcode 3), because the peer was not de-configured.
+func (a *reactorAPIAdapter) restartPeerForOperation(settings *PeerSettings) error {
+	return a.r.restartPeer(settings.Address)
 }
 
 // swapPeerForOperation applies a modify-peer to the RUNNING session where the

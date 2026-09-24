@@ -96,9 +96,10 @@ var errSendNoSender = errors.New("send refused: the command names no sender, so 
 // and saying nothing is not a grant (ai/rules/evidence.md).
 //
 // Reads p.settings directly rather than through settingsSnapshot, which copies
-// the struct under p.mu. The fields read here are written once, when the peer is
-// built, and no later path writes them, so the copy would buy nothing and this
-// runs once per send command per matched peer. Settings() returns the same
+// the struct under p.mu. The one later writer of ProcessBindings delivers a
+// derived feed-only change while holding r.mu, which the caller holds here, so
+// the copy would buy nothing and this runs once per send command per matched
+// peer. Settings() returns the same
 // pointer and would read identically; the direct field is used because the
 // caller already holds r.mu and the intent is a field read, not a handle.
 func (p *Peer) maySend(origin sendOrigin) bool {

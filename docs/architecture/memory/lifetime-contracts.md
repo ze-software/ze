@@ -67,11 +67,11 @@ bytes gets a new index, never a rebased one.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate.Snapshot eager copy on retain -->
 <!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire.CarryOver -->
 <!-- source: internal/component/bgp/types/rawmessage.go -- RawMessage.IsAsyncSafe borrow-vs-owned boundary -->
-<!-- source: internal/component/bgp/reactor/session.go -- ReturnReadBuffer receive-buffer recycle/poison point -->
+<!-- source: internal/component/bgp/reactor/session.go -- returnReadBuffer receive-buffer recycle/poison point -->
 
 **Whatever reads the bytes runs before whatever frees them.** A release path
 that both walks a payload and returns its buffer must walk first: the moment
-`ReturnReadBuffer` runs, the slot is available to another goroutine's
+`returnReadBuffer` runs, the slot is available to another goroutine's
 `getReadBuf`, so a walk placed after it reads whichever UPDATE won the pool. The
 recent-update cache shipped the wrong order until 2026-09-03, and its eviction
 released RFC 7911 Path Identifiers by parsing a body it had already given back.

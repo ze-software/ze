@@ -232,7 +232,7 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 		update.SetSourceID(src)
 		result, ok := buildFwdBody(update, message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
 		require.True(t, ok, "the UPDATE must forward")
-		defer ReturnReadBuffer(result.transcodeBuf)
+		defer returnReadBuffer(result.transcodeBuf)
 		return forwardedPathID(t, result)
 	}
 
@@ -278,7 +278,7 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 			update.SetSourceID(probeSourceReencoded)
 			result, ok := buildFwdBody(update, message.MaxMsgLen, wideCtxID, widePeer, netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
 			require.True(t, ok, "the UPDATE must forward")
-			defer ReturnReadBuffer(result.transcodeBuf)
+			defer returnReadBuffer(result.transcodeBuf)
 			require.Empty(t, result.rawBodies, "guard: a raw body means the forward took the same-context rail, not the re-encode one")
 			return forwardedPathID(t, result)
 		}

@@ -115,7 +115,7 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 	if scratch.Buf == nil {
 		return nil, nil, errRelayBufferPool
 	}
-	defer ReturnReadBuffer(scratch)
+	defer returnReadBuffer(scratch)
 	selection := validationSelection{
 		peer:    update.SourcePeerIP,
 		msgID:   update.sourceMessageID(),
@@ -327,7 +327,7 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 		return nil, errRelayBufferPool
 	}
 	if size > len(h.Buf) {
-		ReturnReadBuffer(h)
+		returnReadBuffer(h)
 		return nil, errRelayTooLarge
 	}
 	buf := h.Buf

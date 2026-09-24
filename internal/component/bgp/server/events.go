@@ -575,6 +575,30 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		return
 	}
 
+	var fmtCache formatCache
+	var scratchArr [512]byte
+	unheldRoles := deliverPeerState(s, peer, procs, state, reason, &fmtCache, &scratchArr)
+
+	// Deliver to CLI monitors lazily.
+	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
+		if jsonOutput, ok := fmtCache.get("json"); ok {
+			return jsonOutput
+		}
+		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, "json"))
+	})
+}
+
+// deliverPeerState delivers one peer state event to procs, sequentially and in
+// reverse dependency order, and arms the peer-up barrier for the ones that
+// declare it. It fills fmtCache with the text rendering of each encoding it
+// formatted, which the caller reuses for the CLI monitors, and returns the
+// unheld roles it carried on every copy for the same reuse.
+//
+// It serves two callers: onPeerStateChange, which delivers to every process the
+// delivery graph feeds this peer, and onPeerUnbound, which delivers to named
+// processes the graph no longer feeds.
+func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*process.Process, state rpc.SessionState, reason string, fmtCache *formatCache, scratch *[512]byte) []string {
+	peerAddr := peer.AddrStr()
 	// Sort by reverse dependency tier: dependents first, dependencies last.
 	sortByReverseDependencyTier(procs)
 
@@ -626,15 +650,13 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	// optional group/local) fits well under 512B. Long peer/group names
 	// spill transparently. See docs/architecture/api/process-protocol.md,
 	// "Text Event Formatting: the scratch discipline".
-	var fmtCache formatCache
-	var scratchArr [512]byte
 	for _, proc := range procs {
 		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			scratch := format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, enc)
+			scratch := format.AppendStateChange(scratch[:0], peer, state, reason, unheldRoles, enc)
 			fmtCache.set(enc, string(scratch))
 		}
 	}
@@ -688,13 +710,29 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 		reactor.SetPeerUpBarrier(peerAddr, acknowledged)
 	}
 
-	// Deliver to CLI monitors lazily.
-	monitorDeliverLazyTyped(s, stateETID, events.DirUnspecified, peerAddr, peer.Name, func() string {
-		if jsonOutput, ok := fmtCache.get("json"); ok {
-			return jsonOutput
-		}
-		return string(format.AppendStateChange(scratchArr[:0], peer, state, reason, unheldRoles, "json"))
-	})
+	return unheldRoles
+}
+
+// onPeerUnbound tells the named processes that a live peer no longer feeds
+// them. A reload removed a derived feed-only binding from the peer's settings
+// (peer_derived_bindings.go in the reactor), and the republished delivery graph
+// already omits the edge, so PeerScopedProcs cannot find them and they are
+// looked up by name. Only a process that subscribed to state events is told.
+//
+// The CLI monitors are not told: the peer is still up, and a monitor watches the
+// peer rather than one consumer's view of it.
+func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string, names []string) {
+	if s.Context().Err() != nil {
+		return
+	}
+	stateETID := events.LookupEventTypeID(bgpevents.EventState)
+	procs := s.SubscribedProcsNamed(bgpNS(), stateETID, events.DirUnspecified, peer.AddrStr(), peer.Name, names)
+	if len(procs) == 0 {
+		return
+	}
+	var fmtCache formatCache
+	var scratchArr [512]byte
+	deliverPeerState(s, peer, procs, state, reason, &fmtCache, &scratchArr)
 }
 
 // onPeerNegotiated handles capability negotiation completion.

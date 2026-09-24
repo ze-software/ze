@@ -892,6 +892,15 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 		oldSettings := currentPeers[peerKey]
 		err := j.Record(
 			func() error {
+				// Deferred first so it runs AFTER the deferred unlock below: the
+				// Cease is written with r.mu released (peerStop, peer.go). It
+				// still runs before this closure returns, so before the add loop.
+				var stop peerStop
+				defer func() {
+					if stop.peer != nil {
+						stop.run()
+					}
+				}()
 				r.mu.Lock()
 				defer r.mu.Unlock()
 				if peer, ok := r.peers[peerKey]; ok {
@@ -902,7 +911,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 					if restarted[peerKey] {
 						subcode = message.NotifyCeaseOtherConfigChange
 					}
-					peer.stopWithCease(subcode)
+					stop = peerStop{peer: peer, subcode: subcode}
 					// Stop only cancels the peer's context (Peer.Stop, peer.go);
 					// the peer's own goroutine gives up its AS-wide BGP Identifier
 					// claim later, from cleanup (peer_run.go). A reload that MOVES

@@ -242,7 +242,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			//
 			// Ownership: buildWithdrawBody makes each body a fresh allocation, never a slice
 			// into the session pool buffer, so it cannot alias the primary's buffer. The
-			// sentinel makes cache eviction's ReturnReadBuffer a no-op (the body is GC-owned,
+			// sentinel makes cache eviction's returnReadBuffer a no-op (the body is GC-owned,
 			// not a pool slot), so there is no double-free and no pool slot is consumed (D-7).
 			for _, extra := range bodies[1:] {
 				if s.onMessageReceived != nil {
@@ -316,6 +316,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}
+		s.noteReceivedRoute(wireUpdate)
 	}
 
 	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery, so

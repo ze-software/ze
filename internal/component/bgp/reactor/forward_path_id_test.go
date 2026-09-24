@@ -64,10 +64,10 @@ func TestForwardPathIDsDifferForCollidingSources(t *testing.T) {
 
 	firstResult, ok := buildFwdBody(firstWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
 	require.True(t, ok, "first source UPDATE must forward")
-	defer ReturnReadBuffer(firstResult.transcodeBuf)
+	defer returnReadBuffer(firstResult.transcodeBuf)
 	secondResult, ok := buildFwdBody(secondWire, message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.10"), &fwdParseCache{})
 	require.True(t, ok, "second source UPDATE must forward")
-	defer ReturnReadBuffer(secondResult.transcodeBuf)
+	defer returnReadBuffer(secondResult.transcodeBuf)
 
 	first := forwardedPathID(t, firstResult)
 	second := forwardedPathID(t, secondResult)
@@ -100,10 +100,10 @@ func TestForwardPathIDStableAcrossUpdates(t *testing.T) {
 
 	firstResult, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
 	require.True(t, ok, "first advertisement must forward")
-	defer ReturnReadBuffer(firstResult.transcodeBuf)
+	defer returnReadBuffer(firstResult.transcodeBuf)
 	secondResult, ok := buildFwdBody(wireu.NewWireUpdate(body, ctxID), message.MaxMsgLen, ctxID, peer, netip.MustParseAddr("192.0.2.11"), &fwdParseCache{})
 	require.True(t, ok, "re-advertisement of the same path must forward")
-	defer ReturnReadBuffer(secondResult.transcodeBuf)
+	defer returnReadBuffer(secondResult.transcodeBuf)
 
 	first := forwardedPathID(t, firstResult)
 	second := forwardedPathID(t, secondResult)

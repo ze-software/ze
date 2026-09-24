@@ -233,7 +233,7 @@ func TestPeerSharesOneConnectRetryCounterWithEveryFSM(t *testing.T) {
 		if cycle == 1 {
 			require.NoError(t, session.Start())
 		} else {
-			require.NoError(t, session.StartDamped())
+			require.NoError(t, session.startDamped())
 		}
 
 		// Walk to Established, then hand the FSM the one event RFC 4271

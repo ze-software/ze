@@ -119,7 +119,7 @@ func (u *ReceivedUpdate) adoptFwdHandle(h BufHandle) {
 // empties the list. Called by the cache under cache.mu when the entry is evicted
 // (evictLocked) or deleted (Delete) -- the single return point for entry-owned
 // per-forward read-pool handles. Idempotent: a second call (e.g. a hypothetical
-// double-evict) finds an empty list and returns nothing twice. ReturnReadBuffer
+// double-evict) finds an empty list and returns nothing twice. returnReadBuffer
 // runs outside fwdHandleMu so the leaf lock never nests the pool mutex.
 func (u *ReceivedUpdate) returnFwdHandles() {
 	u.fwdHandleMu.Lock()
@@ -127,7 +127,7 @@ func (u *ReceivedUpdate) returnFwdHandles() {
 	u.fwdHandles = nil
 	u.fwdHandleMu.Unlock()
 	for _, h := range handles {
-		ReturnReadBuffer(h)
+		returnReadBuffer(h)
 	}
 }
 

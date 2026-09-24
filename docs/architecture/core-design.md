@@ -2009,11 +2009,12 @@ struct, so a field nobody classified still counts as a change.
 |--------|-----------|----------------------|
 | No change | the two structs compare equal | nothing happens, and nothing is logged |
 | Swap | every difference is in a field a running session re-reads or republishes | the FSM, the TCP connection and the negotiated capabilities all survive |
-| Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it |
+| Restart | any other difference | the peer is removed and re-added, and one log line names every field that forced it. The session first reads a Cease with RFC 4486 Section 4 subcode 6 "Other Configuration Change"; a peer the configuration no longer holds reads subcode 3 "Peer De-configured" instead |
 
 `hotSwappableSettings` is the swap set, and it is a SUBTRACTION from the whole
 struct rather than a list of what matters. Four fields qualify: `ImportFilters`,
-`ExportFilters`, `PrefixUpdated` and `StaticRoutes`. Every other field forces a
+`ExportFilters`, `PrefixUpdated` and `StaticRoutes`, and `ProcessBindings` does
+for a derived feed (below). Every other field forces a
 restart, so a field added to `PeerSettings` tomorrow is restart-scoped until
 somebody classifies it on purpose. A wrongly restarted session is visible and
 self-healing; a session left running on settings nobody checked is silent.
@@ -2032,6 +2033,33 @@ withdrawn, because RFC 4271 Section 3.1 has the second advertisement replace the
 first.
 
 <!-- source: internal/component/bgp/reactor/peer_static_wire.go -- deliverStaticRouteDelta, staticRouteDelta -->
+
+`ProcessBindings` is swappable for one kind of change only: a DERIVED binding
+that grants the process no send type. The config builder adds such a binding
+(`ProcessBinding.Derived`, written only by `EnsureProcessBinding`) when a feature
+needs a consumer fed with every peer's routes. The RFC 7311 AIGP grant to
+`bgp-rib` is the example: the first iBGP peer in the configuration adds it to
+EVERY peer, so a restart for it would end sessions the operator did not touch.
+A change to any other binding, the operator's `attach` block included, still
+restarts. A dynamic peer takes the same rule through its group template
+(`dynamicTemplateChanged`).
+
+A consumer that starts being fed must also learn the routes the peer sent before
+the feed began. `Session.feedCatchUp` decides how:
+
+| The session | Catch-up |
+|-------------|----------|
+| announced no route (`Session.receivedRoute`, set on the read path) | none needed, the swap goes ahead |
+| announced routes, and the peer advertised Route Refresh | one ROUTE-REFRESH per negotiated family (RFC 2918 Section 3), sent after the delivery graph is republished |
+| announced routes, and the peer cannot re-send them | restart |
+
+The apply decides again after the republish, because the peer can announce its
+first route between the plan and the apply. A session that now owes routes it
+cannot re-send is ended with Cease subcode 6. A consumer that LOSES its feed
+receives a peer-down for that peer alone (`EventDispatcher.OnPeerUnbound`), so it
+drops the peer's routes while the consumers still fed keep them.
+
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- derivedFeedsDeliverable, Session.feedCatchUp, Peer.catchUpDerivedFeeds -->
 
 A withdrawal is built from the ANNOUNCEMENT the peer received and then rewritten
 by `message.SynthesizeWithdraw`, which moves the NLRI into the Withdrawn Routes

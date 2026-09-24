@@ -84,14 +84,15 @@ func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.Ses
 	onPeerStateChange(d.server, peer, state, reason)
 }
 
-// OnEORReceived handles End-of-RIB marker detection for an UPDATE.
-// RFC 4724 Section 2: EOR signals completion of initial routing exchange.
-// Called after normal UPDATE delivery when the UPDATE is detected as an EOR marker.
-func (d *EventDispatcher) OnEORReceived(peer *plugin.PeerInfo, family string) {
+// OnPeerUnbound tells the named processes that a live peer stopped feeding
+// them, with a state event carrying state and reason. The reactor calls it after
+// a reload removed a derived feed-only binding from the peer
+// (Peer.catchUpDerivedFeeds), so every other consumer of the peer hears nothing.
+func (d *EventDispatcher) OnPeerUnbound(peer *plugin.PeerInfo, state rpc.SessionState, reason string, processes []string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
-	onEORReceived(d.server, peer, family)
+	onPeerUnbound(d.server, peer, state, reason, processes)
 }
 
 // OnPeerNegotiated handles capability negotiation completion.

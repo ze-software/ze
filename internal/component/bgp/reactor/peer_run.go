@@ -240,10 +240,10 @@ func (p *Peer) runOnce() error {
 	capture := p.startCapture(session)
 	p.attachStatsCallbacks(session)
 	session.SetSourceID(p.sourceID)
-	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
+	session.setPluginCapabilityGetter(p.getPluginCapabilities)
 	session.setConfigCapabilityGetter(p.configuredCapabilities)
-	session.SetPluginFamiliesGetter(p.getPluginFamilies)
-	session.SetOpenValidator(p.validateOpen)
+	session.setPluginFamiliesGetter(p.getPluginFamilies)
+	session.setOpenValidator(p.validateOpen)
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 3: the session reads
 	// bfd.SessionState through this, so its OPEN rail can apply Section 8.5.5.
 	// Wired for every BFD peer, not just a strict one, so the reader answers
@@ -360,7 +360,7 @@ func (p *Peer) runOnce() error {
 	// (AutomaticStart_with_DampPeerOscillations) and carries no such clause.
 	// Firing Event 1 on every cycle would zero the counter before each attempt
 	// and leave it structurally unable to read more than one.
-	start := session.StartDamped
+	start := session.startDamped
 	if !p.operatorStarted.Swap(true) {
 		start = session.Start
 	}
@@ -734,7 +734,7 @@ func prefixReconnectDecision(settings *PeerSettings, err error, count uint32) (p
 
 	plan := prefixReconnectPlan{
 		Family: family,
-		Mode:   settings.PrefixReconnectFor(family),
+		Mode:   settings.prefixReconnectFor(family),
 	}
 	if plan.Mode != PrefixReconnectTimer {
 		return plan, true
@@ -816,7 +816,12 @@ func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
 // this package interprets either (ai/rules/plugins.md).
 func (p *Peer) initialUpdateReporters() []string {
 	var reporters []string
-	for _, binding := range p.settings.ProcessBindings {
+	// Under p.mu: a reload can deliver a derived binding change onto the
+	// running peer (applyHotSwappableSettings, peer_settings_apply.go).
+	p.mu.RLock()
+	bindings := p.settings.ProcessBindings
+	p.mu.RUnlock()
+	for _, binding := range bindings {
 		if !binding.MayPushRoutes() || !binding.ReceivesPeerState() {
 			continue
 		}

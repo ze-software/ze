@@ -134,7 +134,7 @@ func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending
 		return false, conn, nil, nil
 	}
 
-	shouldAccept, shouldCloseExisting := session.DetectCollision(pendingOpen.BGPIdentifier)
+	shouldAccept, shouldCloseExisting := session.detectCollision(pendingOpen.BGPIdentifier)
 
 	if shouldAccept && shouldCloseExisting {
 		// Remote wins: close existing, accept pending

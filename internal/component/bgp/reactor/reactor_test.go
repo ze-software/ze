@@ -1657,7 +1657,7 @@ func testUpdatePayload() []byte {
 }
 
 // testPoolBuf returns a fake BufHandle carrying a standalone 4K byte slice
-// and the noPoolBufID sentinel. ReturnReadBuffer recognizes the sentinel
+// and the noPoolBufID sentinel. returnReadBuffer recognizes the sentinel
 // and skips the pool return, so the fake handle never collides with a real
 // slot in bufMuxStd/bufMuxExt. Use this whenever a test needs
 // notifyMessageReceiver to treat the path as "received with a pool buffer"
@@ -1666,7 +1666,7 @@ func testUpdatePayload() []byte {
 // Previous implementations used BufHandle{Buf: make([]byte, 4096)} directly.
 // That handle's zero-value ID=0/idx=0 collided with the first real slot of
 // bufMuxStd.block[0], so when the cache later evicted the entry and called
-// ReturnReadBuffer, the real bufmux either logged "double return detected"
+// returnReadBuffer, the real bufmux either logged "double return detected"
 // or silently marked an in-use slot as free (memory corruption). The
 // ze-unit-reactor-test-race run on 2026-04-11 surfaced ~300 of these errors across
 // parallel tests. The sentinel makes the fake explicit instead.

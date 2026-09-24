@@ -25,7 +25,7 @@ type BufHandle struct {
 }
 
 // noPoolBufID is a sentinel BufHandle.ID that marks a handle as "not from a
-// pool". ReturnReadBuffer checks for it and skips the pool return. Real
+// pool". returnReadBuffer checks for it and skips the pool return. Real
 // pools never assign this ID: BufMux.growLocked allocates block IDs via
 // m.nextID starting at 0 and incrementing; it would take 2^32 grows to
 // collide with the sentinel, and the budget would exhaust long before.
@@ -36,7 +36,7 @@ type BufHandle struct {
 // family's synthesized withdraw over a heap-allocated body (buildWithdrawBody),
 // not a session pool slot. Wrapping that body in a noPoolBufID handle lets it
 // enter the recentUpdates forward cache (the gate requires buf.Buf != nil) so a
-// route server forwards it, while eviction's ReturnReadBuffer is a no-op instead
+// route server forwards it, while eviction's returnReadBuffer is a no-op instead
 // of corrupting a real slot. See session_read.go's treat-as-withdraw dispatch.
 //
 // Also used by tests that need to pass a non-nil Buf to notifyMessageReceiver

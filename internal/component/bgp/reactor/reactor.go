@@ -1259,9 +1259,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// AddPeer skips the publish until the index is live, so this is the one
 	// build the config load pays for. Every later change republishes from
 	// AddPeer or RemovePeer, which is every path a changed attach block can
-	// take: ProcessBindings sits outside hotSwappableSettings
-	// (peer_settings_apply.go), so a peer whose block changed is torn down and
-	// re-added.
+	// take: a peer whose operator block changed is torn down and re-added. A
+	// derived feed-only binding is delivered in place, and that delivery
+	// republishes too (peer_derived_bindings.go).
 	//
 	// BEFORE the peers start, and that ordering is the whole point. Delivery
 	// reads this index and an empty one feeds nobody, so a peer that reached

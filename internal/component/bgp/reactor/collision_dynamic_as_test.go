@@ -76,7 +76,7 @@ func TestDetectCollisionEqualIdentifierDynamicPeerUsesAdvertisedAS(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			session := dynamicOpenConfirmSession(t, tt.localAS, tt.advertisedAS, localID)
 
-			accept, closeExisting := session.DetectCollision(localID)
+			accept, closeExisting := session.detectCollision(localID)
 
 			assert.Equal(t, tt.wantAccept, accept, tt.description)
 			assert.Equal(t, tt.wantClose, closeExisting, tt.description)

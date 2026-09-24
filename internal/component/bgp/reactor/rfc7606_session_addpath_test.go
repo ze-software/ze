@@ -47,7 +47,7 @@ func newAddPathSession(t *testing.T, fams ...capability.Family) *Session {
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.FromNegotiatedRecv(s.negotiated))
 	require.NoError(t, err, "receive encoding context must register")
-	s.SetRecvCtxID(ctxID)
+	s.setRecvCtxID(ctxID)
 	return s
 }
 

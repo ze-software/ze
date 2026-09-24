@@ -162,8 +162,8 @@ func TestPrefixReconnectPerFamilyParse(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.Equal(t, PrefixReconnectBackoff, ps.PrefixReconnectFor("ipv4/unicast"))
-	assert.Equal(t, PrefixReconnectTimer, ps.PrefixReconnectFor("ipv6/unicast"))
+	assert.Equal(t, PrefixReconnectBackoff, ps.prefixReconnectFor("ipv4/unicast"))
+	assert.Equal(t, PrefixReconnectTimer, ps.prefixReconnectFor("ipv6/unicast"))
 }
 
 // TestPrefixReconnectDefaults verifies what a config that never mentions
@@ -181,9 +181,9 @@ func TestPrefixReconnectDefaults(t *testing.T) {
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
-	assert.Equal(t, PrefixReconnectNever, ps.PrefixReconnectFor("ipv4/unicast"))
-	assert.Equal(t, PrefixReconnectTimer, ps.PrefixReconnectFor("ipv6/unicast"))
-	assert.Equal(t, PrefixReconnectNever, ps.PrefixReconnectFor("ipv6/multicast"),
+	assert.Equal(t, PrefixReconnectNever, ps.prefixReconnectFor("ipv4/unicast"))
+	assert.Equal(t, PrefixReconnectTimer, ps.prefixReconnectFor("ipv6/unicast"))
+	assert.Equal(t, PrefixReconnectNever, ps.prefixReconnectFor("ipv6/multicast"),
 		"a family the peer never configured must not read as reconnecting")
 }
 
@@ -247,7 +247,7 @@ func TestPrefixUpdatedPerFamily(t *testing.T) {
 
 	assert.Equal(t, "2020-01-01", ps.PrefixUpdated["ipv4/unicast"])
 	assert.Equal(t, "2026-07-30", ps.PrefixUpdated["ipv6/unicast"])
-	assert.Equal(t, "2020-01-01", ps.OldestPrefixUpdated(),
+	assert.Equal(t, "2020-01-01", ps.oldestPrefixUpdated(),
 		"the peer-level surfaces report the oldest date")
 }
 

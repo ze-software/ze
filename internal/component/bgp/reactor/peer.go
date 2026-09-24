@@ -687,7 +687,7 @@ func (p *Peer) configuredCapabilities() []capability.Capability {
 func (p *Peer) oldestPrefixUpdated() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.settings.OldestPrefixUpdated()
+	return p.settings.oldestPrefixUpdated()
 }
 
 // IsIBGP reports whether this is an IBGP session under p.mu.
@@ -1013,7 +1013,7 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 	}
 
 	if p.session != nil {
-		p.session.SetRecvCtxID(p.recvCtxID)
+		p.session.setRecvCtxID(p.recvCtxID)
 		p.session.setSendCtxID(p.sendCtxID)
 	}
 
@@ -1079,7 +1079,7 @@ func (p *Peer) SetReactor(r *Reactor) {
 }
 
 // getPluginCapabilities returns capabilities declared by API plugins.
-// Used as callback for Session.SetPluginCapabilityGetter().
+// Used as callback for Session.setPluginCapabilityGetter().
 // Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
 // Resolves the peer's name, its address and, for a peer built from a dynamic
 // group's template, that group -- in one query, so per-peer and per-group
@@ -1166,7 +1166,7 @@ func (p *Peer) openPolicyPlugins() []string {
 }
 
 // getPluginFamilies returns families from plugins that declared decode capability.
-// Used as callback for Session.SetPluginFamiliesGetter().
+// Used as callback for Session.setPluginFamiliesGetter().
 // Plugins that can decode a family should advertise it in OPEN Multiprotocol capabilities.
 //
 // KNOWN DEFECT, and the fix is NOT the obvious one. This is the whole PROCESS's
@@ -1196,7 +1196,7 @@ func (p *Peer) getPluginFamilies() []string {
 }
 
 // validateOpen checks router-ID uniqueness and delegates OPEN validation to plugins.
-// Used as callback for Session.SetOpenValidator().
+// Used as callback for Session.setOpenValidator().
 func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error {
 	p.mu.RLock()
 	r := p.reactor
@@ -1667,6 +1667,21 @@ func (p *Peer) stopWithCease(subcode uint8) {
 		_ = session.Teardown(subcode, "")
 	}
 	p.Stop()
+}
+
+// peerStop is a stop a caller decided under r.mu and runs once it has released
+// the lock (peerStop.run). stopWithCease writes a NOTIFICATION, and a peer whose
+// TCP send buffer is full blocks that write up to the write deadline, which is
+// at least 10 seconds. Run under r.mu, that one peer would stall every path that
+// takes the reactor lock, the other sessions' reload included.
+type peerStop struct {
+	peer    *Peer
+	subcode uint8
+}
+
+// run sends the Cease and stops the peer. The caller MUST NOT hold r.mu.
+func (s peerStop) run() {
+	s.peer.stopWithCease(s.subcode)
 }
 
 // ErrOpQueueFull is returned when the operation queue is full and the teardown

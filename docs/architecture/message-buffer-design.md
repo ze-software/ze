@@ -14,7 +14,7 @@ Zero-copy message handling with capability-based forwarding.
 > - **Zero-copy cache** - cache owns buffer, `Take()` transfers ownership
 > - **No ref counting** - single owner at a time (session -> cache -> caller)
 > - **Critical ordering** - callback executes BEFORE cache (prevents use-after-free)
-<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, ReturnReadBuffer -->
+<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, returnReadBuffer -->
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 >
 > **Cache API:**

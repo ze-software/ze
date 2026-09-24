@@ -171,7 +171,7 @@ func TestForwardSplitsMixedShapeAcrossContextsThatFits(t *testing.T) {
 	// The pool release below stands in for the caller's adoptFwdHandle, which
 	// production does at cache eviction. buildFwdBody borrows a read-pool buffer, so
 	// without the release this test leaks one per run.
-	defer ReturnReadBuffer(result.transcodeBuf)
+	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies, "mismatched contexts must not reuse the source bytes")
 	require.Greater(t, len(result.updates), 1, "a mixed re-encoded UPDATE must be split")
@@ -201,7 +201,7 @@ func TestForwardCompliantShapeAcrossContextsNotSplit(t *testing.T) {
 		netip.MustParseAddr("192.0.2.15"), &fwdParseCache{})
 	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
 	// read-pool buffer that production returns at cache eviction.
-	defer ReturnReadBuffer(result.transcodeBuf)
+	defer returnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Len(t, result.updates, 1, "a compliant UPDATE must not be split")
 }

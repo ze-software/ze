@@ -360,7 +360,7 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 		// (fwdUpdateForDestination): a collector-owned buffer is safe to alias
 		// into the async write without a handle, and an allocation on the
 		// exhausted-pool path is the correct trade against dropping a route.
-		ReturnReadBuffer(handle)
+		returnReadBuffer(handle)
 		handle = BufHandle{}
 		dst = make([]byte, len(payload))
 	}
@@ -379,7 +379,7 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 	failed := true
 	defer func() {
 		if failed {
-			ReturnReadBuffer(handle)
+			returnReadBuffer(handle)
 		}
 	}()
 

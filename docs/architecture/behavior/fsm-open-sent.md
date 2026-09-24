@@ -121,7 +121,7 @@ is in `fsm.md`.
 <!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
 <!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, openAdvertisedAS -->
 <!-- source: internal/component/bgp/reactor/session_as_migration.go -- isIBGPWith -->
-<!-- source: internal/component/bgp/reactor/session.go — openValidator, SetOpenValidator -->
+<!-- source: internal/component/bgp/reactor/session.go — openValidator, setOpenValidator -->
 
 ## Timers running in this state
 

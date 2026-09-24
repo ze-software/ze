@@ -511,7 +511,7 @@ ownership for queued work; it does not copy the route payload.
 | UPDATE processed, forwarded via channel | Handle passed through |
 | Processing complete | `Return(handle)` routes to `blocks[ID]` free list |
 
-<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, ReturnReadBuffer -->
+<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, returnReadBuffer -->
 
 ### Congestion Path (channel full)
 
@@ -705,7 +705,7 @@ pressure is a shared resource -- growth, shrink, and backpressure
 decisions use the combined usage across both multiplexers.
 
 <!-- source: internal/component/bgp/reactor/bufmux.go -- combinedBudget -->
-<!-- source: internal/component/bgp/reactor/session.go -- initBufMuxBudget, CombinedBufMuxStats -->
+<!-- source: internal/component/bgp/reactor/session.go -- initBufMuxBudget, combinedBufMuxStats -->
 
 **Shared byte budget:** Both multiplexers share a `combinedBudget`
 (atomic counter). Each mux increments the counter on block growth
@@ -716,7 +716,7 @@ cross-mux deadlock risk.
 |----------|-----------|
 | Grow (new block) | `combinedBudget.tryReserve(blockBytes)` denies if total allocated across both muxes would exceed the active byte budget |
 | Shrink (collapse) | Per-mux collapse. Budget counter decremented on collapse via `releaseBytes`. |
-| Metrics/pressure signal | `CombinedBufMuxUsedRatio()` reports in-use bytes across both muxes. |
+| Metrics/pressure signal | `combinedBufMuxUsedRatio()` reports in-use bytes across both muxes. |
 
 **Configuration:** `ze.fwd.pool.maxbytes` sets the combined byte limit
 (default 0 = auto-sized by the reactor from peer weights unless an explicit

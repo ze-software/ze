@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -25,8 +26,33 @@ func graphFromConfig(t *testing.T, input string) *pluginserver.DeliveryGraph {
 		settings = append(settings, p.Settings())
 	}
 	srv := &pluginserver.Server{}
-	srv.UpdateDeliveryGraph(bgpevents.Namespace, reactor.DeliveryPeersFromSettings(settings))
+	srv.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeers(settings))
 	return srv.DeliveryGraph()
+}
+
+// deliveryPeers maps built peer settings onto the delivery graph's input, field
+// for field, as the reactor does when it publishes the graph
+// (deliveryPeersFromSettings, reactor/delivery_graph.go). The reactor keeps its
+// mapping unexported, so this test states the same mapping to reach the graph
+// from the config builder's output.
+func deliveryPeers(peers []*reactor.PeerSettings) []pluginserver.DeliveryPeer {
+	out := make([]pluginserver.DeliveryPeer, 0, len(peers))
+	for _, s := range peers {
+		bindings := make([]plugin.PeerProcessBinding, 0, len(s.ProcessBindings))
+		for _, b := range s.ProcessBindings {
+			bindings = append(bindings, plugin.PeerProcessBinding{
+				PluginName: b.PluginName,
+				Encoding:   b.Encoding,
+				Format:     b.Format,
+				ReceiveAll: b.ReceiveAll,
+				Receive:    b.Receive,
+				SendAll:    b.SendAll,
+				Send:       b.Send,
+			})
+		}
+		out = append(out, pluginserver.DeliveryPeer{Addr: s.Address.String(), Name: s.Name, Bindings: bindings})
+	}
+	return out
 }
 
 // fedBy returns the processes a peer feeds for one event type, asked exactly as

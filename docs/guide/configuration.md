@@ -119,7 +119,7 @@ AS is internal when it equals Ze's own AS, and also when it equals a configured
 either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
 binds it exactly as it binds a peer in the same AS.
 
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — detectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
 ## OSPF
 

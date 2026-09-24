@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/architecture.md -- peer-to-process delivery edges
-// Related: peer_settings_apply.go -- ProcessBindings sits outside hotSwappableSettings,
-//   so every change to a peer's attach block travels through RemovePeer and AddPeer
+// Related: peer_settings_apply.go -- a change to a peer's attach block travels through
+//   RemovePeer and AddPeer; only a derived feed-only binding is delivered in place
+//   (applyHotSwappableSettings, peer_derived_bindings.go)
 // Related: reactor_peers.go, reactor_dynamic.go, reactor_api.go -- the publish
 //   points: StartWithContext once before the peers start, then AddPeer,
 //   doRemovePeer, createDynamicPeer, removeDynamicPeer and the end of every
@@ -14,7 +15,7 @@ import (
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 )
 
-// DeliveryPeersFromSettings turns resolved peer settings into the delivery
+// deliveryPeersFromSettings turns resolved peer settings into the delivery
 // graph's input.
 //
 // RESOLVED settings, never the config tree: a peer built from a group already
@@ -23,7 +24,7 @@ import (
 // document instead is what makes config/graph.go's addProcessBindings miss
 // every inherited binding; that function feeds `ze config graph` and must not
 // feed delivery.
-func DeliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPeer {
+func deliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPeer {
 	out := make([]pluginserver.DeliveryPeer, 0, len(peers))
 	for _, s := range peers {
 		bindings := make([]plugin.PeerProcessBinding, 0, len(s.ProcessBindings))
@@ -50,11 +51,11 @@ func DeliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPee
 // publishDeliveryGraphLocked rebuilds the peer-to-process index from the
 // reactor's own peers and swaps it into the plugin server.
 //
-// The caller MUST hold r.mu. Address, Name and ProcessBindings are written once,
-// when the peer is built, and no later path writes them: hotSwappableSettings
-// copies three other fields and resolveDynamicPeerSettings writes PeerAS and the
-// filter chains. Reading them without p.mu is the contract notifyPeerNegotiated
-// reads them under (reactor_notify.go). The build only reads the reactor, and
+// The caller MUST hold r.mu. Address and Name are written once, when the peer is
+// built, and no later path writes them. ProcessBindings has two later writers,
+// applyHotSwappableSettings and setDynamicGroupsLocked, and both deliver only a
+// derived feed-only change while holding r.mu, so reading it here under r.mu
+// without p.mu is safe. The build only reads the reactor, and
 // the plugin server only builds an index and stores a pointer, so nothing calls
 // back into the reactor under the lock.
 func (r *Reactor) publishDeliveryGraphLocked() {
@@ -65,7 +66,7 @@ func (r *Reactor) publishDeliveryGraphLocked() {
 	for _, peer := range r.peers {
 		settings = append(settings, peer.settings)
 	}
-	r.api.UpdateDeliveryGraph(bgpevents.Namespace, DeliveryPeersFromSettings(settings))
+	r.api.UpdateDeliveryGraph(bgpevents.Namespace, deliveryPeersFromSettings(settings))
 	// The index is live from here, so every later peer change republishes.
 	r.deliveryPublished = true
 }

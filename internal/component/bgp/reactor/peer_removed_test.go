@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/clock"
 )
 
@@ -43,7 +44,7 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.7")
 	insertTestPeer(r, addr)
 
-	removed, err := r.doRemovePeer(addr)
+	removed, _, err := r.doRemovePeer(addr, message.NotifyCeasePeerDeconfigured)
 	require.NoError(t, err)
 	require.NotNil(t, removed)
 	assert.Equal(t, addr, removed.Address, "removed identity must be the removed peer")

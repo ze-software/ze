@@ -81,7 +81,7 @@ type RecentUpdateCache struct {
 	// that are already gap-evictable (passed over); the eviction *criteria*
 	// (isGapEvictable) are unchanged, so frontier entries are never affected.
 	// pressureHighWater == 0 disables the feature (default), preserving legacy behavior.
-	pressureSource    func() float64 // 0.0..1.0 pool utilization; default CombinedBufMuxUsedRatio
+	pressureSource    func() float64 // 0.0..1.0 pool utilization; default combinedBufMuxUsedRatio
 	pressureHighWater float64        // 0 = feature disabled (default); else 0.0..1.0 threshold
 	pressureValve     time.Duration  // Shortened valve applied under pressure
 
@@ -227,7 +227,7 @@ func newRecentUpdateCache(maxEntries int) *RecentUpdateCache {
 		maxEntries:     maxEntries,
 		safetyValve:    defaultSafetyValveDuration,
 		pluginLastAck:  make(map[string]uint64),
-		pressureSource: CombinedBufMuxUsedRatio,
+		pressureSource: combinedBufMuxUsedRatio,
 		pressureValve:  defaultPressureValveDuration,
 		// pressureHighWater defaults to 0 = load-aware reclamation disabled.
 	}
@@ -386,7 +386,7 @@ func (c *RecentUpdateCache) setPressureValve(d time.Duration) {
 }
 
 // setPressureSource overrides the pool-pressure signal used by load-aware reclamation.
-// Production wires CombinedBufMuxUsedRatio (set in the constructor); tests use this to
+// Production wires combinedBufMuxUsedRatio (set in the constructor); tests use this to
 // stub utilization deterministically. A nil source disables the pressure path.
 func (c *RecentUpdateCache) setPressureSource(fn func() float64) {
 	c.mu.Lock()
@@ -602,7 +602,7 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 // life. TestEvictionWalksTheBodyBeforeItFreesTheBuffer holds the order.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	fwdReleaseWithdrawnPathIDs(e.update)
-	ReturnReadBuffer(e.update.poolBuf)
+	returnReadBuffer(e.update.poolBuf)
 	e.update.returnFwdHandles()
 	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
@@ -667,7 +667,7 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 
 	if e, ok := c.entries.Get(id); ok {
 		fwdReleaseWithdrawnPathIDs(e.update)
-		ReturnReadBuffer(e.update.poolBuf)
+		returnReadBuffer(e.update.poolBuf)
 		e.update.returnFwdHandles()
 		c.entries.Delete(id)
 		return true

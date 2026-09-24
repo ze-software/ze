@@ -180,7 +180,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// of reactor), so no inversion is possible.
 	// The oldest per-family date drives both surfaces, so the alarm stays
 	// raised while any one family is stale.
-	oldestUpdated := settings.OldestPrefixUpdated()
+	oldestUpdated := settings.oldestPrefixUpdated()
 	raisePrefixStale(settings.Address.String(), oldestUpdated, r.clock.Now())
 
 	// Log staleness warning if prefix data is outdated.
@@ -241,10 +241,27 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 // RemovePeer removes a peer from the reactor.
 // Looks up by address, trying default port first then searching by IP.
 func (r *Reactor) RemovePeer(addr netip.Addr) error {
-	removed, err := r.doRemovePeer(addr)
+	// RFC 4486 Section 4: subcode 3 "Peer De-configured".
+	return r.removePeer(addr, message.NotifyCeasePeerDeconfigured)
+}
+
+// restartPeer removes the peer the way RemovePeer does, for a caller that adds
+// it back under a changed configuration straight after.
+// RFC 4486 Section 4: subcode 6 "Other Configuration Change", because the peer
+// is still configured and only its configuration changed.
+func (r *Reactor) restartPeer(addr netip.Addr) error {
+	return r.removePeer(addr, message.NotifyCeaseOtherConfigChange)
+}
+
+// removePeer removes the peer and ends its session with a Cease of the given
+// subcode, which says why (RemovePeer, restartPeer).
+func (r *Reactor) removePeer(addr netip.Addr, subcode uint8) error {
+	removed, stop, err := r.doRemovePeer(addr, subcode)
 	if err != nil {
 		return err
 	}
+	// The Cease is written after r.mu is released (peerStop).
+	stop.run()
 	// Notify plugins the peer was removed, AFTER releasing r.mu: plugin event
 	// delivery may block, so it must not run under the reactor lock. Emitted
 	// unconditionally here (not via the FSM teardown, which only fires for
@@ -258,8 +275,9 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 }
 
 // doRemovePeer performs the locked peer-removal work and returns the removed
-// peer's identity so RemovePeer can notify plugins after releasing r.mu.
-func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
+// peer's identity so RemovePeer can notify plugins after releasing r.mu, and the
+// stop that sends its Cease, which the caller MUST run after releasing r.mu.
+func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo, peerStop, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -268,15 +286,16 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 
 	key, peer, exists := r.findPeerKeyByAddr(addr)
 	if !exists {
-		return nil, ErrPeerNotFound
+		return nil, peerStop{}, ErrPeerNotFound
 	}
 
 	settings := peer.Settings()
 	localAddr := settings.LocalAddress
 	listenPort := r.peerListenPort(settings)
 
-	// RFC 4486 Section 4: a de-configured peer is told so (stopWithCease).
-	peer.stopWithCease(message.NotifyCeasePeerDeconfigured)
+	// RFC 4486 Section 4: a de-configured peer is told so (stopWithCease), by
+	// the caller once r.mu is released (peerStop).
+	stop := peerStop{peer: peer, subcode: subcode}
 
 	// Release the AS-wide BGP Identifier claim synchronously, for the same
 	// reason the reload-remove path does (reactor_api.go): Stop only cancels a
@@ -430,7 +449,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		State:           peer.State().PluginState(),
 	}
 
-	return removed, nil
+	return removed, stop, nil
 }
 
 // AddDynamicPeer adds a peer to the running reactor from a config tree the

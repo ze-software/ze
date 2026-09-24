@@ -455,7 +455,7 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	if scratch.Buf == nil {
 		return nil, 0, 0, errRelayBufferPool
 	}
-	defer ReturnReadBuffer(scratch)
+	defer returnReadBuffer(scratch)
 	// Only the FIRST element has to fit. A run longer than one message is not an
 	// error: the fill loop below stops where the message stops, and the caller
 	// starts the next reconstruction at the route that did not fit.
@@ -553,7 +553,7 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		return nil, 0, 0, errRelayBufferPool
 	}
 	if size > len(out.Buf) {
-		ReturnReadBuffer(out)
+		returnReadBuffer(out)
 		return nil, 0, 0, errRelayTooLarge
 	}
 	n := writeRelayPayload(out.Buf, 0, scanned, attrs, nextHop, nlri, fam, needNextHop)
@@ -645,7 +645,7 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 		off += 4
 	}
 	if _, err := hex.Decode(buf[off:off+nlriLen-pathIDLen], []byte(route.NLRIHex)); err != nil {
-		ReturnReadBuffer(out)
+		returnReadBuffer(out)
 		return nil, 0, 0, errRelayHex
 	}
 	update := &ReceivedUpdate{
