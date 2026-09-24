@@ -137,21 +137,35 @@ func p12L2TPWithdraw(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// p12LateJoinInjected is the file the late-join scenario writes once its
+// injection has run, and the one p12LateJoinTrigger waits on before it adds the
+// peer. Its existence is the whole message.
+const p12LateJoinInjected = "late-join-injected"
+
+// p12LateJoinConfigAdd injects the route while the bgp block holds no peer, then
+// says so. The emit is synchronous: the orchestrator offers the batch to the bgp
+// consumer on the emitting goroutine, and the consumer's update-route returns
+// before the command does, so `done` means the injection found no peer and
+// queued nothing. Only then may the trigger add the peer, or the route would
+// reach it through the ordinary announce and the replay would go unproven.
 func p12LateJoinConfigAdd(ctx context.Context, plugin *sdk.Plugin) error {
-	err := p12RequireDone(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.0.0.1/32")
-	return err
+	if err := p12RequireDone(ctx, plugin, "request fakeredist emit add ipv4/unicast 10.0.0.1/32"); err != nil {
+		return err
+	}
+	return os.WriteFile(p12LateJoinInjected, nil, 0o600)
 }
 
+// p12LateJoinTrigger adds the peer once the injection has run. It waits on the
+// scenario's own report of that (p12LateJoinInjected), never on a clock: a fixed
+// delay after daemon.pid was a guess at how long startup plus the injection take,
+// and under a loaded suite the guess ran long enough to spend the test's budget.
 func p12LateJoinTrigger(ctx context.Context, _ []string) error {
 	if err := p12WaitForFile(ctx, "daemon.pid"); err != nil {
 		return err
 	}
-	timer := time.NewTimer(6 * time.Second)
-	select {
-	case <-ctx.Done():
-		timer.Stop()
-		return ctx.Err()
-	case <-timer.C:
+	const pollDelay = 100 * time.Millisecond
+	if !waitForFile(ctx, p12LateJoinInjected, WaitAttempts(80, pollDelay, 300), pollDelay) {
+		return fmt.Errorf("the late-join scenario never reported its injection (%s)", p12LateJoinInjected)
 	}
 	if err := p12CopyFile("config2.conf", "ze-bgp.conf"); err != nil {
 		return err

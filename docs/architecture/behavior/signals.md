@@ -272,13 +272,30 @@ Usage: `ze signal <command>`
 
 There is one startup path, `runYANGConfig`, and every config takes it:
 
-1. Load config via the YANG parser
-2. Create the plugin server and register `sigCh` for SIGINT, SIGTERM and SIGHUP
-3. Start SSH server (binds configured listen addresses)
-4. Start the plugin server, which starts the plugins
-5. Wait for SIGTERM/SIGINT, or for the plugin server to report done
+1. Register `stopCh` for SIGINT and SIGTERM, and `hupCh` for SIGHUP
+2. Load config via the YANG parser
+3. Create the plugin server
+4. Start SSH server (binds configured listen addresses)
+5. Start the plugin server, which starts the plugins
+6. Wait for SIGTERM/SIGINT, or for the plugin server to report done
 
-Step 2 comes before step 4 because a plugin takes the process signal
+Step 1 comes first because an unregistered signal has the default disposition:
+a SIGHUP or SIGTERM that arrives during config parsing kills the daemon with no
+log line and no shutdown. Parsing and plugin construction take seconds on a
+loaded host. Until 2026-09-24 the registration sat after them, and a test
+trigger that sent SIGHUP a fixed delay after the daemon started killed the
+daemon silently. Registered first, the signal waits in the buffer until startup
+finishes.
+
+A stop and a reload have separate channels, each one signal deep. os/signal
+drops a signal that finds its channel full. With one shared channel, a SIGHUP
+queued during startup made a SIGTERM that followed it the dropped signal: the
+daemon reloaded, then ran on. On separate channels a dropped signal is only
+ever a second copy of a queued signal of the same kind. A process still in Go
+package initialization has registered nothing yet, so a SIGHUP in its first few
+hundred milliseconds still kills it.
+
+Step 1 also comes before step 5 because a plugin takes the process signal
 disposition. Every plugin opens `sdk.SignalContext`, and an in-process plugin
 registers SIGINT and SIGTERM for the whole process. A SIGTERM that arrived
 between the first plugin and the hub's own registration was therefore neither
@@ -286,7 +303,7 @@ fatal nor delivered to the hub: the plugins exited and the daemon waited for a
 second signal. The hub now registers first, and `waitLoop` drains the queued
 signal when startup finishes.
 
-`waitLoop` is the only reader of `sigCh`, so it never blocks. It gives a SIGHUP
+`waitLoop` is the only reader of `stopCh` and `hupCh`, so it never blocks. It gives a SIGHUP
 to the reload worker through a channel that holds one signal. When a SIGHUP is
 already queued behind a running reload, `waitLoop` drops the new SIGHUP: the
 queued reload reads the config source when it starts, so it applies every
@@ -313,7 +330,7 @@ hub owns every signal.
 A second path existed until 2026-08-12, `runOrchestratorWithData`, reached by a
 config whose top-level blocks were only `plugin` and `env`. It parsed the config
 with its own parser and handled its own signals. It is deleted.
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig, signal.Notify beside apiServer.SetShutdownFunc -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, signal.Notify at the top of the function -->
 <!-- source: pkg/plugin/sdk/signal.go -- SignalContext -->
 <!-- source: internal/component/bgp/reactor/reactor.go -- startSignalHandler, guarded by !r.externalServer -->
 

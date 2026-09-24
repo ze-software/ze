@@ -24,7 +24,9 @@ option=timeout:value=30s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101024002004003047F00000240050400000064200A000001
 EOF_PEER
 
-# Trigger: after the inject window, rewrite the config to add peer1 and SIGHUP.
+# Trigger: once the scenario reports the injection ran (it writes
+# late-join-injected after the emit returns), rewrite the config to add peer1
+# and SIGHUP. No clock decides the order.
 
 # Initial config: fakeredist + orchestrator + redistribute, but NO bgp peers.
 stdin=ze-bgp:terminator=EOF_CONF

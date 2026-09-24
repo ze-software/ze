@@ -357,6 +357,27 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// credentials or policy.
 	defer closeAAABundle(slogutil.Logger("hub.aaa"))
 
+	// Take the signals before any startup work. Until signal.Notify runs, a
+	// SIGHUP or SIGTERM has the default disposition and kills the daemon with
+	// no log line and no shutdown. Config parsing and plugin construction below
+	// take seconds on a loaded host, and a reload or stop sent in that window
+	// (an operator, systemd, a test trigger that knows only the pid) must not
+	// be fatal. Registered here, the first signal waits in the buffer and
+	// waitLoop drains it once startup finishes: a SIGHUP then reloads, a
+	// SIGTERM then shuts down in order.
+	//
+	// A stop and a reload each get their own channel. os/signal drops a signal
+	// that finds its channel full, so one shared channel of depth 1 holding a
+	// queued SIGHUP dropped the SIGTERM that followed it during startup: the
+	// daemon reloaded and then ran on, stop lost. On separate channels a
+	// dropped signal only ever duplicates one already queued of its own kind.
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stopCh)
+	hupCh := make(chan os.Signal, 1)
+	signal.Notify(hupCh, syscall.SIGHUP)
+	defer signal.Stop(hupCh)
+
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -856,24 +877,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// runs to its test timeout. Measured on test/bfd/bfd-detection-interval.ci,
 	// whose fixture answers 60ms after the BFD plugin reports running.
 	//
-	// signal.Notify is wired here for the same reason, and it MUST stay ahead of
-	// apiServer.StartWithContext below. Without it, a SIGTERM that arrives
-	// before this line kills the daemon with the default disposition and runs
-	// no shutdown. Registering before any plugin starts queues that first
-	// signal in the buffer instead, and waitLoop drains it as soon as startup
-	// finishes. sdk.HostOwnsSignals MUST also run before the first plugin: every
-	// plugin opens sdk.SignalContext (pkg/plugin/sdk/signal.go), and an
-	// in-process plugin that registered SIGTERM itself would cancel on the
-	// signal the daemon is still handling.
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	// stopCh is registered at the top of runYANGConfig, for the same reason
+	// taken further (see there). sdk.HostOwnsSignals MUST run before the first
+	// plugin: every plugin opens sdk.SignalContext (pkg/plugin/sdk/signal.go),
+	// and an in-process plugin that registered SIGTERM itself would cancel on
+	// the signal the daemon is still handling.
 	// This daemon ends its in-process plugins through the ordered shutdown
 	// below, after the reload worker's grace. A plugin that took SIGTERM itself
 	// would exit in the same instant and strand a reload still in flight.
 	sdk.HostOwnsSignals()
 	apiServer.SetShutdownFunc(func() {
 		select {
-		case sigCh <- syscall.SIGTERM:
+		case stopCh <- syscall.SIGTERM:
 		default:
 		}
 	})
@@ -1314,7 +1329,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Signal handling (SIGINT and SIGTERM for shutdown, SIGHUP for config
-	// reload) is registered where sigCh is created, far above, before the first
+	// reload) is registered where stopCh and hupCh are created, far above, before the first
 	// plugin starts and takes the process signal disposition with it.
 
 	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins,
@@ -1330,7 +1345,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 
 	if stdinOpen {
-		go monitorStdinEOF(sigCh)
+		go monitorStdinEOF(stopCh)
 	}
 
 	fmt.Printf("Starting ze with config: %s\n", configPath)
@@ -1460,7 +1475,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A reload can remove every plugin without ending this daemon lifecycle.
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
-	waitLoop(sigCh, reloadCh, doneCh)
+	waitLoop(stopCh, hupCh, reloadCh, doneCh)
 
 	// A second INTERRUPT forces immediate exit. Shutdown below stops plugins,
 	// gNMI, the API servers and the reactor, each with its own grace period,
@@ -1468,8 +1483,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// is willing to wait. The web-only path has had this since it was
 	// written; the daemon is the path an operator actually runs.
 	//
-	// It gets its OWN channel rather than reusing sigCh, because sigCh also
-	// carries SIGHUP and apiServer.SetShutdownFunc injects a SIGTERM on every
+	// It gets its OWN channel rather than reusing stopCh, because
+	// apiServer.SetShutdownFunc injects a SIGTERM into stopCh on every
 	// `request shutdown`. forceExitOnSignal reads the next VALUE and never asks
 	// which signal it is, so sharing the channel made a config-reload SIGHUP
 	// arriving mid-shutdown kill the daemon with exit 1. Notify only what an
@@ -1528,23 +1543,22 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 	close(doneCh)
 }
 
-// waitLoop dispatches signals: SIGHUP to reloadCh, any other signal returns so
-// the caller shuts down. It also returns when doneCh closes (server exit); a
-// nil doneCh never fires.
+// waitLoop dispatches signals: a SIGHUP from hupCh to reloadCh, and any signal
+// from stopCh returns so the caller shuts down. It also returns when doneCh
+// closes (server exit); a nil doneCh never fires.
 //
-// It MUST NOT block on reloadCh, because it is the only reader of sigCh: a loop
+// It MUST NOT block on reloadCh, because it is the only reader of stopCh: a loop
 // parked on a full reloadCh reads no SIGTERM until the reload worker takes the
 // queued SIGHUP, which a wedged or slow reload delays by up to its 30s timeout
 // per queued signal. A SIGHUP that finds one already queued is coalesced into
 // it: the queued reload reads the config source when it runs
 // (handleSIGHUPReload), so it applies every edit the dropped signal announced.
-func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}) {
+func waitLoop(stopCh, hupCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}) {
 	for {
 		select {
-		case sig := <-sigCh:
-			if sig != syscall.SIGHUP {
-				return
-			}
+		case <-stopCh:
+			return
+		case sig := <-hupCh:
 			select {
 			case reloadCh <- sig:
 			default: // A reload is already queued and covers this signal.

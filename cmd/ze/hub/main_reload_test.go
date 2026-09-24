@@ -403,7 +403,8 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 		return nil, nil, errors.New("candidate verify failed")
 	}
 
-	sigCh := make(chan os.Signal, 4)
+	stopCh := make(chan os.Signal, 1)
+	hupCh := make(chan os.Signal, 4)
 	reloadCh := make(chan os.Signal, 1)
 	reloadDone := make(chan struct{})
 	reloadCtx, reloadCancel := context.WithCancel(context.Background())
@@ -412,19 +413,19 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 
 	loopDone := make(chan struct{})
 	go func() {
-		waitLoop(sigCh, reloadCh, nil)
+		waitLoop(stopCh, hupCh, reloadCh, nil)
 		close(loopDone)
 	}()
 
-	sigCh <- syscall.SIGHUP
+	hupCh <- syscall.SIGHUP
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the reload worker did not start the first reload")
 	}
-	sigCh <- syscall.SIGHUP
-	sigCh <- syscall.SIGHUP
-	sigCh <- syscall.SIGTERM
+	hupCh <- syscall.SIGHUP
+	hupCh <- syscall.SIGHUP
+	stopCh <- syscall.SIGTERM
 
 	select {
 	case <-loopDone:
@@ -543,17 +544,18 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 
 		held := startHeldTransaction(t, server, reactor)
 
-		sigCh := make(chan os.Signal, 4)
+		stopCh := make(chan os.Signal, 1)
+		hupCh := make(chan os.Signal, 4)
 		reloadCh := make(chan os.Signal, 1)
 		reloadDone := make(chan struct{})
 		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, store, configPath, load, nil, nil)
 		loopDone := make(chan struct{})
 		go func() {
-			waitLoop(sigCh, reloadCh, nil)
+			waitLoop(stopCh, hupCh, reloadCh, nil)
 			close(loopDone)
 		}()
 
-		sigCh <- syscall.SIGHUP
+		hupCh <- syscall.SIGHUP
 		select {
 		case <-loads:
 		case <-time.After(5 * time.Second):
@@ -569,7 +571,7 @@ func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
 			t.Fatal("the queued SIGHUP did not reload when the holder's transaction ended")
 		}
 
-		sigCh <- syscall.SIGTERM
+		stopCh <- syscall.SIGTERM
 		<-loopDone
 		close(reloadCh)
 		awaitReloadWorker(reloadDone, 5*time.Second, func() { t.Error("the queued reload did not finish") })
@@ -692,4 +694,37 @@ func configPointer(t *testing.T, store storage.Storage, configPath string, point
 func setConfigPointer(t *testing.T, store storage.Storage, configPath string, pointer zefs.KeyEntry, stamp string) {
 	t.Helper()
 	require.NoError(t, store.WriteFile(pointer.Key(filepath.Base(configPath)), []byte(stamp+"\n"), 0o600))
+}
+
+// VALIDATES: a SIGTERM that arrives while a SIGHUP is still queued from startup
+// ends the daemon's signal loop.
+// PREVENTS: the stop being lost behind the reload. The daemon registers its
+// signals before startup and reads them only once startup finishes, so both
+// can be queued at once. os/signal drops a signal whose channel is full, and
+// with one shared channel of depth 1 the queued SIGHUP made the SIGTERM the
+// dropped one: the daemon reloaded and then ran on. Each kind now has its own
+// channel, so both are queued here exactly as the registration queues them.
+//
+// Method: queue one SIGHUP and one SIGTERM, each on its own depth-1 channel,
+// before waitLoop starts. waitLoop MUST return.
+func TestWaitLoopStopQueuedBehindStartupSIGHUP(t *testing.T) {
+	t.Parallel()
+
+	stopCh := make(chan os.Signal, 1)
+	hupCh := make(chan os.Signal, 1)
+	reloadCh := make(chan os.Signal, 1)
+	hupCh <- syscall.SIGHUP
+	stopCh <- syscall.SIGTERM
+
+	loopDone := make(chan struct{})
+	go func() {
+		waitLoop(stopCh, hupCh, reloadCh, nil)
+		close(loopDone)
+	}()
+
+	select {
+	case <-loopDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the SIGTERM queued behind a startup SIGHUP did not end waitLoop")
+	}
 }

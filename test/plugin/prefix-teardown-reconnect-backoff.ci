@@ -25,14 +25,11 @@
 #     the connection-2 clause that states the property, because a reject alone
 #     also passes against a daemon with the whole reconnect path deleted.
 #
-# One unreproduced TIME, 2026-08-03, on the first `./le functional plugin-test` after
-# promotion. The daemon stderr in that report stopped at the teardown: no
-# `timing: safeRunOnce returned`, no second attempt, nothing for 57 seconds, and
-# no truncation marker. It did not reproduce: the suite is green twice more with
-# this test at 7s, and `./le stress-repro run` is clean over 64 invocations at 4x core
-# oversubscription. If it returns, the window to instrument is between Session.Run
-# returning and that log line in Peer.run (peer_run.go), and it needs a goroutine
-# dump from the live daemon: the runner's failure report cannot show one.
+# A TIME that first showed on 2026-08-03 (daemon stderr stopped at the
+# teardown, nothing for 57 seconds) was a lock-order deadlock, reproduced and
+# fixed on 2026-09-24: Session.closeConn held s.mu and waited for writeMu while
+# sendInitialRoutes held writeMu and SendUpdateHeld waited for s.mu. The fix and
+# its test are in reactor/session_write.go and session_write_held_lock_test.go.
 #
 # ze-peer: sends 2 IPv4 routes over the maximum of 1 on EVERY connection it
 # accepts, so connection 2 is a full session, not a bare TCP handshake.
