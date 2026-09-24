@@ -12,7 +12,7 @@
 //
 // A build without ze_l2tp therefore drives a product with no PPPoE access
 // concentrator, and offers only the two scenarios such a product can answer.
-// That is the same answer internal/le/docvalid/contract_bgp.go gives for BGP,
+// That is the same answer internal/le/doc/yangcontract/contract_bgp.go gives for BGP,
 // and it costs no scenario: every build that runs this lab carries every
 // feature tag.
 

@@ -56,7 +56,7 @@ var llmsSection = regexp.MustCompile(`(?m)^(#|##) .+$`)
 // the command section alone.
 //
 // This is the second live regression phase 4 closes. Since the interpreter
-// cutover, internal/le/docvalid wrote the whole file from the command catalog:
+// cutover, internal/le/doc/yangcontract wrote the whole file from the command catalog:
 // the published file is 1035 lines and the one a Go build produced was 399,
 // carrying one of its eighteen sections. Nothing noticed, because no check
 // answers for a published file that is not a route.

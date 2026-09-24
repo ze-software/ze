@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/docstocode"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -151,7 +151,7 @@ func repoRoot(t *testing.T) string {
 // over the real corpus rather than over a hand-built tree.
 // PREVENTS: the blind spot a rendered index creates. renderCodeIndex writes a
 // package of at most namedInline files as bullets and a larger one as a table
-// (internal/le/docstocode/codetodocs_report.go), and the parse this audit used
+// (internal/le/doc/index/codetodocs_report.go), and the parse this audit used
 // matched the table alone, so 674 of the tree's 2,537 code paths were invisible
 // to it.
 //
@@ -162,7 +162,7 @@ func repoRoot(t *testing.T) string {
 func TestTheAuditReportsEveryDocumentOfABulletRenderedPath(t *testing.T) {
 	root := repoRoot(t)
 
-	model, err := docstocode.DocumentsByPath(root)
+	model, err := docindex.DocumentsByPath(root)
 	if err != nil {
 		t.Fatalf("build the reverse index: %v", err)
 	}
@@ -249,7 +249,7 @@ func bulletRenderedPath(t *testing.T, root string, model map[string][]string) (s
 }
 
 // packageOf is the directory part of a code path, which is what the renderer
-// groups by (packageDir, internal/le/docstocode/codetodocs.go).
+// groups by (packageDir, internal/le/doc/index/codetodocs.go).
 func packageOf(path string) string {
 	if index := strings.LastIndex(path, "/"); index >= 0 {
 		return path[:index]

@@ -1,4 +1,4 @@
-// Related: rules.go -- skipReformat, internal/le/rules -- IsArtifact
+// Related: rules.go -- skipReformat, internal/le/ai/rules -- IsArtifact
 
 package reporewrite
 

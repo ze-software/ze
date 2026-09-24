@@ -53,7 +53,7 @@ func leRulesAnswers(ctx context.Context) error {
 	}
 	// `git archive` unpacks FILES and no history, and the gate-map ratchet reads
 	// its baseline out of git: headSources runs `git rev-parse --verify HEAD`
-	// and answers false when there is none (internal/le/rules/coverage.go). With
+	// and answers false when there is none (internal/le/ai/rules/coverage.go). With
 	// no baseline the report's `regressed` is an empty list that was never
 	// computed, which is a zero that says nothing (ai/rules/principles.md) and
 	// is what the assertion below refuses. Committing the export once gives the
@@ -86,10 +86,10 @@ func leRulesAnswers(ctx context.Context) error {
 		args    []string
 		markers []string
 	}{
-		{"rules lint", []string{areaRules, "lint"}, []string{"rule point(s) state an RFC 2119 level"}},
-		{"rules render-check", []string{areaRules, "render-check"}, []string{"rules are fresh"}},
-		{"rules points-roundtrip-check", []string{areaRules, "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
-		{"rules gate-map-report", []string{areaRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
+		{"rules lint", []string{areaAIRules, "lint"}, []string{"rule point(s) state an RFC 2119 level"}},
+		{"rules render-check", []string{areaAIRules, "render-check"}, []string{"rules are fresh"}},
+		{"rules points-roundtrip-check", []string{areaAIRules, "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
+		{"rules gate-map-report", []string{areaAIRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
 	}
 	for _, gate := range readOnly {
 		answer, err := le(root, gate.args...)
@@ -128,7 +128,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := writeFixture(updatedTree, fixtureFiles); err != nil {
 		return err
 	}
-	updated, err := le(updatedTree, "rules", "render-update")
+	updated, err := le(updatedTree, areaAIRules, "render-update")
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := writeFixture(staleTree, fixtureFiles); err != nil {
 		return err
 	}
-	stale, err := le(staleTree, "rules", "render-check")
+	stale, err := le(staleTree, areaAIRules, "render-check")
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func leRulesAnswers(ctx context.Context) error {
 	}
 	// `empty` NAMES each population the lint read nothing from, so the passing
 	// answer is an absent list rather than a false. It is []string on the
-	// report (LintReport.Empty, internal/le/rules/lint.go) and carries no
+	// report (LintReport.Empty, internal/le/ai/rules/lint.go) and carries no
 	// omitempty, so a clean run marshals it as null and this key reads as nil.
 	//
 	// It was asserted as a bool, which no answer this gate can give will ever
@@ -246,7 +246,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return err
 	}
 
-	counted, err := le(root, "rules", "gate-map-report", "|", "count")
+	counted, err := le(root, areaAIRules, "gate-map-report", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -257,12 +257,12 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("the count refusal does not name the lists: %q", counted.stderr)
 	}
 
-	listing, err := le(root, "rules")
+	listing, err := le(root, areaAIRules)
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
-		return uiLeRulesAnswersFailf("`le rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
+		return uiLeRulesAnswersFailf("`le ai rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
 	for _, word := range []string{"lint", "render-check", "render-update", "points-roundtrip-check", "gate-map-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
@@ -270,7 +270,7 @@ func leRulesAnswers(ctx context.Context) error {
 		}
 	}
 
-	unknown, err := le(root, "rules", "nonesuch")
+	unknown, err := le(root, areaAIRules, "nonesuch")
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("an unknown action answered %d rather than 2", unknown.code)
 	}
 
-	refused, err := le(root, "rules", "lint", "ai/rules")
+	refused, err := le(root, areaAIRules, "lint", "ai/rules")
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func leRulesAnswers(ctx context.Context) error {
 		{"rules router-report", actionRouterReport, nil, []string{"corpus: 0 past task descriptions"}},
 	}
 	for _, gate := range digestGates {
-		answer, err := le(root, "rules", gate.verb)
+		answer, err := le(root, areaAIRules, gate.verb)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := os.WriteFile(filepath.Join(corpusTree, "ai", "rules", "INDEX.md"), []byte("stale index\n"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: make INDEX.md stale: %w", err)
 	}
-	indexUpdate, err := le(corpusTree, "rules", "index-update")
+	indexUpdate, err := le(corpusTree, areaAIRules, "index-update")
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func leRulesAnswers(ctx context.Context) error {
 			return fmt.Errorf("FAIL: make %s stale: %w", name, err)
 		}
 	}
-	condensedUpdate, err := le(corpusTree, "rules", "condensed-update")
+	condensedUpdate, err := le(corpusTree, areaAIRules, "condensed-update")
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("the first per-task row carries no surfaced set: %v", first)
 	}
 
-	listing, err = le(root, "rules")
+	listing, err = le(root, areaAIRules)
 	if err != nil {
 		return err
 	}
@@ -458,7 +458,7 @@ func leRulesAnswers(ctx context.Context) error {
 		}
 	}
 
-	refused, err = le(root, "rules", "router-report", "plan")
+	refused, err = le(root, areaAIRules, "router-report", "plan")
 	if err != nil {
 		return err
 	}
@@ -492,7 +492,7 @@ func uiLeRulesAnswersExecute(ctx context.Context, dir string, env []string, prog
 }
 
 func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error), tree, verb string) (map[string]any, error) {
-	answer, err := le(tree, "rules", verb, "|", "json")
+	answer, err := le(tree, areaAIRules, verb, "|", "json")
 	if err != nil {
 		return nil, err
 	}
@@ -517,7 +517,7 @@ func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error
 
 func requireRenderings(le func(string, ...string) (uiLeRulesAnswersCommandResult, error), tree, verb string) error {
 	for _, operator := range []string{renderYAML, renderTable} {
-		answer, err := le(tree, "rules", verb, "|", operator)
+		answer, err := le(tree, areaAIRules, verb, "|", operator)
 		if err != nil {
 			return err
 		}

@@ -72,7 +72,7 @@ func lePlacementAnswers(ctx context.Context) error {
 
 	// The checkout is expected to satisfy every placement gate. Valid gate
 	// pages are data on stdout; stderr remains reserved for diagnostics.
-	if _, err := leExpectSuccessfulPage(command, "./le digest", "digest"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le ai digest", areaDigest); err != nil {
 		return err
 	}
 	if _, err := leExpectSuccessfulPage(command, "./le repository tree-check", "repository", "tree-check"); err != nil {
@@ -143,7 +143,7 @@ func lePlacementAnswers(ctx context.Context) error {
 
 	// Refusals retain the boundary-specific status assigned by the command
 	// engine and identify the reason on stderr.
-	refused, err := command("digest", "nope")
+	refused, err := command(areaDigest, "nope")
 	if err != nil {
 		return err
 	}

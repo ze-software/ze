@@ -322,7 +322,7 @@ func parseDelegationTable(r io.Reader) (DelegationTable, error) {
 // registry each stop the render rather than reaching the file.
 //
 // It is exported for the generator that writes the shipped table
-// (internal/le/ianaasn). A stored copy carries these same bytes.
+// (internal/le/data/asndelegation). A stored copy carries these same bytes.
 func RenderDelegationTable(table DelegationTable) ([]byte, error) {
 	if table.Generated.IsZero() {
 		return nil, errors.New("delegation table: no generation date")

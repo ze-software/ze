@@ -93,7 +93,7 @@ func assertSameNames(t *testing.T, path, subject string, want, got []string) {
 
 // VALIDATES: AC-3 at the wiki producer, the twin of
 // TestHelpCommandNamesAPluginCommand in cmd/ze. The two catalogs are compared
-// field for field (internal/le/docvalid, compareWikiCatalogProducer), so a
+// field for field (internal/le/doc/yangcontract, compareWikiCatalogProducer), so a
 // plugin command reaching one and not the other is a gate failure with a
 // confusing message; this states the requirement where a reader of this package
 // meets it.

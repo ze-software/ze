@@ -94,7 +94,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("le --help exited %d", usage.exitCode)
 	}
 	usageText := usage.stderr + usage.stdout
-	for _, command := range []string{"perf-bench", "docs-to-code", "token-economy"} {
+	for _, command := range []string{"perf-bench", "doc index", "ai tokens"} {
 		if !strings.Contains(usageText, command) {
 			return uiLeBinaryDispatchesFailf("le --help does not list the %s command", command)
 		}
@@ -139,37 +139,41 @@ func leBinaryDispatches(ctx context.Context) error {
 	}
 
 	// Check the source-anchor reverse index and preserve the whole gate names.
-	docs, err := le("docs-to-code", "|", "json")
+	docs, err := le("doc", "index", "|", "json")
 	if err != nil {
 		return err
 	}
 	if docs.exitCode != 0 {
-		return uiLeBinaryDispatchesFailf("`le docs-to-code | json` exited %d", docs.exitCode)
+		return uiLeBinaryDispatchesFailf("`le doc index | json` exited %d", docs.exitCode)
 	}
 	docsPayload, err := decodeObject(docs.stdout)
 	if err != nil {
-		return uiLeBinaryDispatchesFailf("decode `le docs-to-code | json`: %v", err)
+		return uiLeBinaryDispatchesFailf("decode `le doc index | json`: %v", err)
 	}
 	docVerbs, err := actionVerbs(docsPayload)
 	if err != nil {
 		return err
 	}
-	for _, verb := range []string{actionCheck, actionUpdate, actionIndexCheck, actionIndexUpdate} {
+	for _, verb := range []string{actionCheck, actionWrite} {
 		if _, ok := docVerbs[verb]; !ok {
-			return uiLeBinaryDispatchesFailf("the docs-to-code area lost %q: %v", verb, sortedSet(docVerbs))
+			return uiLeBinaryDispatchesFailf("the doc index area lost %q: %v", verb, sortedSet(docVerbs))
 		}
 	}
 
-	anchors, err := le("docs-to-code", "index-check", "|", "json")
+	anchors, err := le("doc", "index", "check", "|", "json")
 	if err != nil {
 		return err
 	}
-	if anchors.exitCode != 0 && anchors.exitCode != 1 {
-		return uiLeBinaryDispatchesFailf("the anchor check exited %d, want a verdict", anchors.exitCode)
+	if anchors.exitCode != 0 && anchors.exitCode != 1 && anchors.exitCode != 3 {
+		return uiLeBinaryDispatchesFailf("the index check exited %d, want a verdict", anchors.exitCode)
 	}
-	checked, err := decodeObject(anchors.stdout)
+	both, err := decodeObject(anchors.stdout)
 	if err != nil {
-		return uiLeBinaryDispatchesFailf("decode the anchor check: %v", err)
+		return uiLeBinaryDispatchesFailf("decode the index check: %v", err)
+	}
+	checked, ok := both["code-to-docs"].(map[string]any)
+	if !ok {
+		return uiLeBinaryDispatchesFailf("the index check answered no code-to-docs half: %v", uiLeBinaryDispatchesSortedKeys(both))
 	}
 	paths, err := uiLeBinaryDispatchesInteger(checked, "paths")
 	if err != nil {
@@ -240,7 +244,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("close transcript: %v", err)
 	}
 
-	fixtureArgs := []string{"token-economy", "root", filepath.Dir(store), "project", "-fixture"}
+	fixtureArgs := []string{"ai", "tokens", "root", filepath.Dir(store), "project", "-fixture"}
 	economy, err := le(fixtureArgs...)
 	if err != nil {
 		return err
@@ -293,7 +297,7 @@ func leBinaryDispatches(ctx context.Context) error {
 
 	// An absent store is stated explicitly, never rendered as a zero-valued
 	// report that could be mistaken for free work.
-	absent, err := le("token-economy", "root", work, "project", "-nothing-here")
+	absent, err := le("ai", "tokens", "root", work, "project", "-nothing-here")
 	if err != nil {
 		return err
 	}
@@ -304,7 +308,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("an absent store did not say so:\n%s", absent.stdout)
 	}
 
-	refused, err := le("token-economy", "cap", "0")
+	refused, err := le("ai", "tokens", "cap", "0")
 	if err != nil {
 		return err
 	}

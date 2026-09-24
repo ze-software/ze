@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/ai"
+	airules "github.com/ze-software/ze/internal/le/ai/rules"
+	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	"github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/rules"
 	"github.com/ze-software/ze/internal/le/session"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
 	specsession "github.com/ze-software/ze/internal/le/spec/session"
@@ -250,9 +250,9 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		}
 		fmt.Fprintf(out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol
 	}
-	if report, err := (ai.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
+	if report, err := (aisync.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
 		fmt.Fprintln(out, "Warning: generated agent files are stale (AGENTS.md / a leftover CLAUDE.md / skills mirrors)") //nolint:errcheck // hook protocol
-		fmt.Fprintln(out, "   -> run: ./le ai skills-sync")                                                               //nolint:errcheck // hook protocol
+		fmt.Fprintln(out, "   -> run: ./le ai sync write")                                                                //nolint:errcheck // hook protocol
 	}
 	fmt.Fprintln(out, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call.")                                 //nolint:errcheck // hook protocol
 	fmt.Fprintln(out, "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial.")                                                          //nolint:errcheck // hook protocol
@@ -429,9 +429,9 @@ func hookStop(ctx context, errOut io.Writer) int {
 
 func hookRuleCoverage(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
-	report, code := rules.RunSessionCoverage(ctx.root, rules.SessionCoverageOptions{
+	report, code := airules.RunSessionCoverage(ctx.root, airules.SessionCoverageOptions{
 		Quiet: true, Transcript: ctx.transcript, Session: id,
-	}, rules.NativeTranscriptSource{}, time.Now, errOut)
+	}, airules.NativeTranscriptSource{}, time.Now, errOut)
 	if report == nil {
 		return min(code, 1)
 	}

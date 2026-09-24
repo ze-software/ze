@@ -24,7 +24,7 @@ import templruntime "github.com/a-h/templ/runtime"
 //
 // The loop below renders nothing today, and that is the point: the page names
 // no htmx attribute, so pageAssets derives an empty set for it
-// (internal/le/webassets/webassets.go, page_assets.go). It renders the set rather
+// (internal/le/web/assets/webassets.go, page_assets.go). It renders the set rather
 // than hand-writing tags, so a component this page starts rendering brings its
 // asset with it.
 func snapshotPage(v snapshotPageData) templ.Component {

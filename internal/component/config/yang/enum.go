@@ -161,7 +161,7 @@ func EnumValueSummaries(entry *gyang.Entry) map[string]string {
 // This is the ONE reader of which values a leaf renders. Value completion
 // (internal/component/cli, valueCompletions), the analysis tree
 // (internal/component/config/yang/cli, yangEnumValues) and the help-shape
-// gate (internal/le/docvalid, schemaEnums) all read through it, so the
+// gate (internal/le/doc/yangcontract, schemaEnums) all read through it, so the
 // population the gate judges is the population the two surfaces render.
 func EnumValueNames(entry *gyang.Entry) []string {
 	if entry == nil || entry.Type == nil {

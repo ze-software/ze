@@ -45,6 +45,10 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"config ports/check":       "config-ports-check.log",
 		"plugin boundary/check":    "plugin-boundary-check.log",
 		"site facts/check":         "site-facts-check.log",
+		"web vendor/check":         "web-vendor-check.log",
+		"doc index/check":          "doc-index-check.log",
+		"ai rules/lint":            "ai-rules-lint.log",
+		"ai hooks/unit":            "ai-hooks-unit.log",
 	}
 
 	seen := 0

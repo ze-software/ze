@@ -12,7 +12,7 @@
 // spelling in any of the four turns a byte comparison into a verdict
 // comparison.
 //
-// internal/le/rules has a repr for its own corpus, which is strings alone. This one
+// internal/le/ai/rules has a repr for its own corpus, which is strings alone. This one
 // takes a decoded JSON value, because the artifact parser reports whatever an
 // author wrote in a field: null, a number, a list. They are not the same
 // function and neither is a layer over the other.

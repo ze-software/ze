@@ -73,7 +73,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	// sibling publication checkouts. Its human rendering must be a stable,
 	// nonempty clean report, while its data rendering must carry an empty
 	// issues row set.
-	drift, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "doc-drift")
+	drift, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift")
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if driftReport == "" || strings.Contains(driftReport, "\n") {
 		return fmt.Errorf("doc-drift did not emit one clean report line: %q", joined(drift))
 	}
-	driftAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "doc-drift")
+	driftAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift")
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("doc-drift changed over an unchanged checkout\nfirst: %q\nsecond: %q", joined(drift), joined(driftAgain))
 	}
 
-	driftData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "doc-drift", "|", "json")
+	driftData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "doc-drift", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 
 	// The contract is intentionally large. Check both the stable human table
 	// and every field of the document answer rather than sampling a few rows.
-	contract, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "command-contract")
+	contract, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract")
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	if len(contractLines) <= 100 {
 		return fmt.Errorf("command-contract rendered %d lines, too few to cover the product", len(contractLines))
 	}
-	contractAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "command-contract")
+	contractAgain, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract")
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("command-contract produced different ordered output over one unchanged tree")
 	}
 
-	contractData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid", "command-contract", "|", "json")
+	contractData, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract", "command-contract", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 	// count is rejected by action name before any checkout walk. A deliberately
 	// absent root ensures that a different validation order cannot satisfy this.
 	missingRoot := filepath.Join(work, "does-not-exist")
-	counted, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: missingRoot}, le, "docvalid", "command-contract", "|", "count")
+	counted, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: missingRoot}, le, "doc", "yang-contract", "command-contract", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 
 	writes := make([]uiLeDocvalidAnswersCommandResult, 0, len(trees))
 	for _, tree := range trees {
-		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "docvalid", "pipe-operators-update")
+		written, err := uiLeDocvalidAnswersRunCommand(ctx, work, map[string]string{envRepoRoot: tree}, le, "doc", "yang-contract", "pipe-operators-update")
 		if err != nil {
 			return err
 		}

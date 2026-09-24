@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check session-start",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks session-start",
             "timeout": 5
           }
         ]
@@ -19,17 +19,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check compaction-reminder",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks compaction-reminder",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check verify-claim-reminder",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks verify-claim-reminder",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check delegation-reminder",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks delegation-reminder",
             "timeout": 5
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check block-until-lsp",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks block-until-lsp",
             "timeout": 5,
             "blocking": true
           }
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-bash",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks pretool-bash",
             "timeout": 30,
             "blocking": true
           }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-writeedit",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks pretool-writeedit",
             "timeout": 30,
             "blocking": true
           }
@@ -74,7 +74,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check pretool-agent-skill",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks pretool-agent-skill",
             "timeout": 30,
             "blocking": true
           }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check pre-compact-save",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks pre-compact-save",
             "timeout": 5
           }
         ]
@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check block-premature-stop",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks block-premature-stop",
             "timeout": 10,
             "blocking": true
           }
@@ -110,7 +110,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check rule-coverage-report",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks rule-coverage-report",
             "timeout": 15
           }
         ]
@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check session-end-summary",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks session-end-summary",
             "timeout": 5
           }
         ]
@@ -132,7 +132,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check subagent-context",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks subagent-context",
             "timeout": 5
           }
         ]
@@ -144,7 +144,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-lsp-invoked",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks mark-lsp-invoked",
             "timeout": 5
           }
         ]
@@ -154,7 +154,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-source-read",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks mark-source-read",
             "timeout": 5
           }
         ]
@@ -164,7 +164,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check mark-agent-spawned",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks mark-agent-spawned",
             "timeout": 5
           }
         ]
@@ -174,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check validate-spec",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks validate-spec",
             "timeout": 10,
             "blocking": true
           }
@@ -185,7 +185,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le hook-check posttool-writeedit",
+            "command": "$CLAUDE_PROJECT_DIR/le ai hooks posttool-writeedit",
             "timeout": 90,
             "blocking": true
           }

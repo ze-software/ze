@@ -168,7 +168,7 @@ var commandMarkers = [...]string{
 // isCommandSource reports a change that must re-run the command contract gate.
 func isCommandSource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/docvalid/actions.go", "internal/le/cli/list/register.go",
+	case "internal/le/doc/yangcontract/actions.go", "internal/le/cli/list/register.go",
 		"internal/component/config/yang/command.go",
 		"internal/component/plugin/server/command.go":
 		return true, nil
@@ -188,8 +188,8 @@ func isCommandSource(root, path string) (bool, error) {
 // isDocSource reports a change that must re-run the documentation gates.
 func isDocSource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/docvalid/actions.go",
-		"internal/le/docstocode/codetodocs.go", "ai/CODE-TO-DOCS.md":
+	case "internal/le/doc/yangcontract/actions.go",
+		"internal/le/doc/index/codetodocs.go", "ai/CODE-TO-DOCS.md":
 		return true, nil
 	}
 	if (strings.HasPrefix(path, "docs/") || path == "README.md") && strings.HasSuffix(path, ".md") {
@@ -254,7 +254,7 @@ func isDigestSource(root, path string) (bool, error) {
 	if strings.HasPrefix(path, "ai/digests/") && strings.HasSuffix(path, ".md") {
 		return true, nil
 	}
-	if path == "internal/le/digest/register.go" {
+	if path == "internal/le/ai/digest/register.go" {
 		return true, nil
 	}
 	if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {

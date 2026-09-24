@@ -224,7 +224,7 @@ func Collect() []Entry {
 //
 // It is the twin of appendPluginCommands in cmd/ze/help_command.go and MUST
 // stay its twin: the two catalogs are compared field for field
-// (internal/le/docvalid, compareWikiCatalogProducer). A plugin's command is
+// (internal/le/doc/yangcontract, compareWikiCatalogProducer). A plugin's command is
 // dispatched through the plugin, so it reaches neither the YANG command tree
 // nor the local command registry, and both catalogs named none of them however
 // much each declared.

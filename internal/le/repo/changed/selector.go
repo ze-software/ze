@@ -89,12 +89,12 @@ const (
 	// (ai/rules/plugins.md).
 	featureManifestPath = "feature-gates.txt"
 
-	docValidationPackage = "internal/le/docvalid"
+	docValidationPackage = "internal/le/doc/yangcontract"
 	verifyRunnerPackage  = "internal/le/verify/engine"
 	checksPackage        = "internal/le"
 	hookRuntimePackage   = "internal/le/hookruntime"
 	rfcPackage           = "internal/le/rfc"
-	rulesPackage         = "internal/le/rules"
+	rulesPackage         = "internal/le/ai/rules"
 	specPackage          = "internal/le/spec/status"
 	workflowPackage      = "internal/le/workflowcheck"
 	docCheckPackage      = "internal/le/doc/check"

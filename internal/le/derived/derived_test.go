@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	_ "github.com/ze-software/ze/internal/le/docstocode"
+	_ "github.com/ze-software/ze/internal/le/doc/index"
 	"github.com/ze-software/ze/internal/le/hookruntime"
 	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 )

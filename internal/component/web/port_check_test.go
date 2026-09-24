@@ -88,7 +88,7 @@ const (
 
 // The four below are one deliberate change: a page loads the assets its own
 // markup needs. The L2TP pages render no htmx attribute at all, so neither one
-// loads htmx any more (internal/le/webassets/webassets.go, page_assets.go).
+// loads htmx any more (internal/le/web/assets/webassets.go, page_assets.go).
 const portPageAssets = "the page renders no htmx attribute, so its head loads no htmx"
 
 // The L2TP configuration form hand-wrote the description of each of its nine

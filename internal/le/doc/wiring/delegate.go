@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	aidigest "github.com/ze-software/ze/internal/le/ai/digest"
 	clilist "github.com/ze-software/ze/internal/le/cli/list"
 	cliownership "github.com/ze-software/ze/internal/le/cli/ownership"
-	"github.com/ze-software/ze/internal/le/digest"
-	"github.com/ze-software/ze/internal/le/docstocode"
-	"github.com/ze-software/ze/internal/le/docvalid"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	"github.com/ze-software/ze/internal/le/leroot"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
@@ -34,11 +34,11 @@ func registered(answer leroot.Answer, args []string) call {
 
 // goActions is the complete selected action table.
 var goActions = map[string]call{
-	actionDocvalidCommandContract: registered(docvalid.Answer, []string{"command-contract"}),
+	actionDocvalidCommandContract: registered(docyangcontract.Answer, []string{"command-contract"}),
 	"command ownership":           registered(cliownership.Answer, nil),
 	actionDocCheckVerify:          {answer: answerDocVerify},
 	actionDocsToCodeIndexCheck:    {answer: answerDocIndex},
-	actionDigest:                  registered(digest.Answer, nil),
+	actionDigest:                  registered(aidigest.Answer, nil),
 	actionInventory:               registered(repoinventory.Answer, nil),
 	actionCommandList:             registered(clilist.Answer, nil),
 	actionPluginImportsCheck:      registered(pluginimports.Answer, []string{"check"}),
@@ -111,7 +111,7 @@ func delegatedFailurePaths(payload any) []string {
 // answerDocIndex runs the source-anchor check against the tree named by this
 // router rather than resolving another implicit checkout.
 func answerDocIndex(root string) (any, int) {
-	report, err := docstocode.CheckCodeIndex(root)
+	report, err := docindex.CheckCodeIndex(root)
 	if err != nil {
 		return errorPage(err), 2
 	}

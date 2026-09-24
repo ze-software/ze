@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/rules"
+	airules "github.com/ze-software/ze/internal/le/ai/rules"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 // skipReformat reports whether a file under ai/rules/ is outside this
 // rewriter's population.
 //
-// Generated aggregates are recognized by rules.IsArtifact, which is the one
+// Generated aggregates are recognized by airules.IsArtifact, which is the one
 // producer of that judgement: it tests the all-caps stem shape as well as the
 // two named aggregates, so TRIGGERS.md and CORE.md are excluded without being
 // listed and a third generated aggregate needs no edit here.
@@ -39,10 +39,10 @@ var (
 // conforming.
 //
 // rule-format.md is this rewriter's own exclusion and stays here: it is a real
-// rule that rules.IsArtifact correctly does not skip, and it DEFINES the
+// rule that airules.IsArtifact correctly does not skip, and it DEFINES the
 // canonical format this migration rewrites toward, so migrating it is circular.
 func skipReformat(name string) bool {
-	return rules.IsArtifact(name) || name == "rule-format.md"
+	return airules.IsArtifact(name) || name == "rule-format.md"
 }
 
 // rulesReformatReport counts migrated and skipped rule files.

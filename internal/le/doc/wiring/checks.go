@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/docstocode"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
 
 const (
@@ -526,7 +526,7 @@ func (g *checker) checkDocDrift() CheckResult {
 		return CheckResult{Skipped: true}
 	}
 
-	claims, err := docstocode.ClaimsByPath(g.root)
+	claims, err := docindex.ClaimsByPath(g.root)
 	if err != nil {
 		return g.readFailure(checkDocDriftName, err)
 	}

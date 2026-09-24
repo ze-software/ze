@@ -14,7 +14,7 @@ import templruntime "github.com/a-h/templ/runtime"
 //
 // The head loads the assets v.Page needs, not the union every page needs: one
 // layout serves every looking-glass page and only the peers page opens an SSE
-// stream. internal/le/webassets/webassets.go derives each set from the markup that
+// stream. internal/le/web/assets/webassets.go derives each set from the markup that
 // page reaches, and an unnamed page gets every asset rather than none.
 func pageLayout(v layoutView, content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

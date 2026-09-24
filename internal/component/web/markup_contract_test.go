@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/le/webassets"
+	webassets "github.com/ze-software/ze/internal/le/web/assets"
 )
 
 // The tests here hold the markup contracts no single component owns. Each one
@@ -1053,7 +1053,7 @@ func webPageFixtures(t *testing.T) []webPageFixture {
 }
 
 // zeSurfaceDirs are the three packages that serve a page of their own, from the
-// repository root. internal/le/webassets/webassets.go names the same three. The
+// repository root. internal/le/web/assets/webassets.go names the same three. The
 // repetition is deliberate: a checker that read its population from the
 // generator could not report a surface the generator forgot.
 var zeSurfaceDirs = []string{

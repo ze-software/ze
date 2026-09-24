@@ -157,7 +157,7 @@ func checkName(check hookCheck) string {
 // Probe runs ONE named check over a synthetic payload and reports its verdict
 // code, its message, and whether a check of that name is registered.
 //
-// It exists so the fixture population in internal/le/hookcheck can ask the
+// It exists so the fixture population in internal/le/ai/hooks can ask the
 // producer for a verdict instead of restating the producer's rule beside it. A
 // restatement stays green when the producer's rule moves, which is how a
 // fixture category came to claim that writeDesignEvidence matches the kind of

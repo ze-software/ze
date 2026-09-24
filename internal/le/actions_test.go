@@ -29,16 +29,17 @@ import (
 // now registers one. plan/spec-le-every-area-dispatches-through-one-table.md
 // empties it.
 var areasWithoutAnActionTable = []string{
+	"ai digest",
+	"ai tokens",
 	"arch iface-resolution",
 	"cli grammar",
 	"cli list",
 	"cli ownership",
 	"commit",
 	"config claims",
-	"consistency",
-	"digest",
 	"doc check",
-	"docvalid",
+	"doc consistency",
+	"doc yang-contract",
 	"go-extract",
 	"gokrazy-gosum",
 	"job",
@@ -50,7 +51,6 @@ var areasWithoutAnActionTable = []string{
 	"spec status",
 	"stress-repro",
 	"test-helper",
-	"token-economy",
 	"verify lock",
 	"verify summary",
 	"weekly",

@@ -5,7 +5,7 @@
 //
 // runCheck and runWrite are where the tree is found and a failure becomes an
 // exit code. Check and Write take the tree as an argument instead, so a test
-// names a fixture by calling the function (internal/le/vendorweb, the same split).
+// names a fixture by calling the function (internal/le/web/vendor, the same split).
 
 package yangglue
 

@@ -14,9 +14,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	docste "github.com/ze-software/ze/internal/le/doc/ste"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
-	"github.com/ze-software/ze/internal/le/ste"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
@@ -728,8 +728,8 @@ func judgeYangSummary(text yangText) []string {
 	if count := utf8.RuneCountInString(text.text); count > yangSummaryChars {
 		bad = append(bad, yangFinding(text, yangRuleCharCap, fmt.Sprintf("%d characters, and the bound is %d", count, yangSummaryChars)))
 	}
-	if count := ste.WordCount(text.text); count > ste.MaxDescriptiveWords {
-		bad = append(bad, yangFinding(text, yangRuleWordCap, fmt.Sprintf("%d words, and the bound is %d", count, ste.MaxDescriptiveWords)))
+	if count := docste.WordCount(text.text); count > docste.MaxDescriptiveWords {
+		bad = append(bad, yangFinding(text, yangRuleWordCap, fmt.Sprintf("%d words, and the bound is %d", count, docste.MaxDescriptiveWords)))
 	}
 	if strings.Contains(text.text, ";") {
 		bad = append(bad, yangFinding(text, yangRuleShape, "the summary joins two statements with a semicolon"))

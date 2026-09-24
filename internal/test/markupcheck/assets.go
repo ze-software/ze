@@ -18,7 +18,7 @@ import (
 // and which this pattern therefore does not match.
 var assetRef = regexp.MustCompile(`(?:src|href)="([^"]*)"`)
 
-// generatedAssets is the file internal/le/webassets/webassets.go writes. A head
+// generatedAssets is the file internal/le/web/assets/webassets.go writes. A head
 // block renders the set that file carries instead of naming each vendored
 // asset itself, so the scan reads it beside the templates. Without it a rename
 // of htmx.min.js would resolve against nothing and no test would say so.

@@ -1011,7 +1011,7 @@ func TestWebDashboardClose(t *testing.T) {
 // to be embedded and non-empty.
 //
 // The set is read, not repeated. page_assets.go is derived from the markup
-// (internal/le/webassets/webassets.go), so a vendored file that is renamed moves the
+// (internal/le/web/assets/webassets.go), so a vendored file that is renamed moves the
 // set, and a consumer copy the sync never wrote fails here.
 //
 // VALIDATES: every asset path the dashboard's head renders resolves in the

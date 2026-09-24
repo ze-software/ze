@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/ste"
+	docste "github.com/ze-software/ze/internal/le/doc/ste"
 )
 
 // yangModulePath is a module that does not exist on disk, which is the state of
@@ -66,9 +66,9 @@ func TestWriteEditWarnsOnAYangShortHelpPastTheCharCap(t *testing.T) {
 }
 
 func TestWriteEditWarnsOnAYangShortHelpPastTheWordCap(t *testing.T) {
-	summary := strings.Repeat("aa ", ste.MaxDescriptiveWords) + "bb."
-	if got := ste.WordCount(summary); got != ste.MaxDescriptiveWords+1 {
-		t.Fatalf("the fixture summary counts %d words, want %d", got, ste.MaxDescriptiveWords+1)
+	summary := strings.Repeat("aa ", docste.MaxDescriptiveWords) + "bb."
+	if got := docste.WordCount(summary); got != docste.MaxDescriptiveWords+1 {
+		t.Fatalf("the fixture summary counts %d words, want %d", got, docste.MaxDescriptiveWords+1)
 	}
 	code, message := runYangWrite(t, yangModule(summary, ""))
 	if code != 1 {
@@ -139,16 +139,16 @@ func TestWriteEditYangSummaryBoundsHoldAtTheirLastValidValue(t *testing.T) {
 		t.Errorf("a 97-character summary was accepted: code=%d %s", code, message)
 	}
 
-	atWords := strings.Repeat("aa ", ste.MaxDescriptiveWords-1) + "bb."
-	if got := ste.WordCount(atWords); got != ste.MaxDescriptiveWords {
-		t.Fatalf("the fixture summary counts %d words, want %d", got, ste.MaxDescriptiveWords)
+	atWords := strings.Repeat("aa ", docste.MaxDescriptiveWords-1) + "bb."
+	if got := docste.WordCount(atWords); got != docste.MaxDescriptiveWords {
+		t.Fatalf("the fixture summary counts %d words, want %d", got, docste.MaxDescriptiveWords)
 	}
 	if code, message := runYangWrite(t, yangModule(atWords, "")); code != 0 {
-		t.Errorf("a %d-word summary was refused: code=%d %s", ste.MaxDescriptiveWords, code, message)
+		t.Errorf("a %d-word summary was refused: code=%d %s", docste.MaxDescriptiveWords, code, message)
 	}
-	pastWords := strings.Repeat("aa ", ste.MaxDescriptiveWords) + "bb."
+	pastWords := strings.Repeat("aa ", docste.MaxDescriptiveWords) + "bb."
 	if code, message := runYangWrite(t, yangModule(pastWords, "")); code != 1 || !strings.Contains(message, "word-cap") {
-		t.Errorf("a %d-word summary was accepted: code=%d %s", ste.MaxDescriptiveWords+1, code, message)
+		t.Errorf("a %d-word summary was accepted: code=%d %s", docste.MaxDescriptiveWords+1, code, message)
 	}
 }
 

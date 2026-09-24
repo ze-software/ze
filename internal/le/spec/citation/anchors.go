@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/docstocode"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
 )
 
 const designHeaderLines = 25
@@ -110,7 +110,7 @@ func declaredDesignDocument(root, relative string) string {
 // audit. A reader that reconstructs what a renderer dropped is a second
 // declaration of the fact, and it disagreed with the first (ai/rules/principles.md).
 func loadDocumentIndex(root string) (map[string][]string, error) {
-	index, err := docstocode.DocumentsByPath(root)
+	index, err := docindex.DocumentsByPath(root)
 	if err != nil {
 		return nil, fmt.Errorf("derive the document index for %s: %w", root, err)
 	}

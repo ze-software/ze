@@ -1,0 +1,139 @@
+package aihooks
+
+import (
+	"slices"
+	"testing"
+
+	"github.com/ze-software/ze/internal/le/hookruntime"
+)
+
+// ungroundedCategories are the fixture categories whose verdict RESTATES the
+// rule instead of asking the producer for it. Each one is a place where the
+// fixtures can go on passing after the producer stops doing what they describe.
+//
+// It is a ratchet, not an allowance. A category may leave this list, never join
+// it, and a category that leaves must not come back.
+//
+// Grounded means ONE thing: the verdict reaches the code that ENFORCES the
+// rule, which is hookruntime for a hook and the consistency gate for the one
+// category no hook produces. It does not mean the verdict calls a function. The
+// first version of this guard counted any non-string-library call as grounding
+// and reported five bound categories; every one of those five called a copy of
+// the producer's rule living in THIS package. A copy drifts exactly like an
+// inline restatement, so the true count was zero of twenty-five.
+//
+// script-weakening-arms is the one category left, and it is not a missing
+// probe: testweakened.Proposed returns before its detector for every path that
+// is not a _test.go or a .ci/.et under test/, so writeWeakening never judges
+// the Python test files this category is about. Its arms are reachable from
+// `./le test-weakened` over a diff, and from no hook.
+//
+// The failure this prevents has already happened. `eae2825926` replaced the
+// Python hooks with Go, and two design fixtures did not come across: the
+// design-gate category claimed writeDesignEvidence matches the KIND of source
+// read against the kind of file written, and design-ref claimed a hook demands
+// a `// Design:` header. The gate matches no kinds, and no hook demands that
+// header. Fifty-two design-gate fixtures stayed green throughout, and
+// plan/spec-finish-ci-coverage.md cited them as its proof.
+//
+//nolint:gochecknoglobals // a ratchet baseline is data, and it is read by one test
+var ungroundedCategories = []string{
+	categoryScriptWeakeningArms,
+}
+
+// TestEveryFixtureCategoryReachesItsProducer holds the rule that a fixture
+// naming a producer must ASK it, because a fixture that restates the rule
+// cannot go red when the producer stops following it.
+//
+// VALIDATES: each category is either bound to a probe, which runs its producer
+// itself, or named on the ungroundedCategories baseline. There is no third
+// state.
+// PREVENTS: the design-gate failure recorded in
+// plan/journal/refactor-removes-feature.md, where a migration kept 52 fixture
+// names, dropped the behavior they exercised, and left a green suite that a
+// spec cited as proof.
+func TestEveryFixtureCategoryReachesItsProducer(t *testing.T) {
+	for _, category := range &fixtureCategories {
+		_, bound := categoryProbes[category.name]
+		listed := slices.Contains(ungroundedCategories, category.name)
+		switch {
+		case bound && listed:
+			t.Errorf("category %q now asks its producer, so remove it from ungroundedCategories: "+
+				"the ratchet only tightens", category.name)
+		case !bound && !listed:
+			t.Errorf("category %q decides its verdict without reaching its producer, so it restates "+
+				"%s rather than asking it. A restatement cannot go red when the producer stops "+
+				"following the rule, which is how 52 design-gate fixtures stayed green through a "+
+				"rewrite that dropped what they proved. Add a categoryProbes entry, or state why "+
+				"none is possible by adding the category to ungroundedCategories",
+				category.name, category.evidence)
+		}
+	}
+
+	for _, name := range ungroundedCategories {
+		if !slices.ContainsFunc(fixtureCategories[:], func(c fixtureCategory) bool { return c.name == name }) {
+			t.Errorf("ungroundedCategories names %q, which is not a fixture category: "+
+				"a baseline that outlives its subject stops being read", name)
+		}
+	}
+}
+
+// TestEveryProbeNamesARegisteredCheck fails when a probe names no producer,
+// names more than one, or names a check hookruntime does not register. Without
+// it a renamed producer would leave the probe answering "not found", which
+// reads as a refusal and would fail the selftest with a message about the
+// fixture rather than about the rename.
+//
+// A lifecycle probe cannot be asked the same question here, because asking runs
+// the hook and a hook writes: probeVerdict answers an ERROR for a kind
+// runLifecycleHook no longer serves, and the separation test below reports it.
+func TestEveryProbeNamesARegisteredCheck(t *testing.T) {
+	for category, probe := range categoryProbes {
+		named := 0
+		for _, producer := range []string{probe.check, probe.lifecycle, probe.finding} {
+			if producer != "" {
+				named++
+			}
+		}
+		if named != 1 {
+			t.Errorf("category %q names %d producers, want exactly one of check, lifecycle, finding",
+				category, named)
+			continue
+		}
+		if probe.check == "" {
+			continue
+		}
+		_, _, found := hookruntime.Probe(probe.check, hookruntime.Payload{ToolName: probe.tool}, "")
+		if !found {
+			t.Errorf("category %q probes %q, which hookruntime registers under no name: "+
+				"the producer was renamed or moved out of nativeHookActions", category, probe.check)
+		}
+	}
+}
+
+// TestEveryProbeSeparatesItsAllowFromItsRefusal runs each bound category's two
+// values through the real check and fails when the producer does not tell them
+// apart. checkFixtureCategory makes the same call at selftest time; this runs
+// it in the unit gate, where the failure names the category.
+func TestEveryProbeSeparatesItsAllowFromItsRefusal(t *testing.T) {
+	for _, category := range &fixtureCategories {
+		probe, bound := categoryProbes[category.name]
+		if !bound {
+			continue
+		}
+		allowed, err := probeVerdict(probe, category.allow)
+		switch {
+		case err != nil:
+			t.Errorf("category %q: the allow probe could not run: %v", category.name, err)
+		case !allowed:
+			t.Errorf("category %q: the producer refused the value the fixtures call allowed", category.name)
+		}
+		refused, err := probeVerdict(probe, category.refuse)
+		switch {
+		case err != nil:
+			t.Errorf("category %q: the refusal probe could not run: %v", category.name, err)
+		case refused:
+			t.Errorf("category %q: the producer allowed the value the fixtures call refused", category.name)
+		}
+	}
+}

@@ -29,7 +29,7 @@ const llmsFile = "llms.txt"
 
 // renderLLMS publishes llms.txt.
 //
-// The file is ONE producer's output. Before this, internal/le/docvalid wrote it
+// The file is ONE producer's output. Before this, internal/le/doc/yangcontract wrote it
 // from the command catalog alone, which cut it from 1035 lines to 399 and lost
 // seventeen of its eighteen sections. A second writer for one path means the
 // last writer wins and nothing says which one ran.

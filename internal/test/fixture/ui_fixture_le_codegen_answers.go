@@ -139,7 +139,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 		"yang glue",
 		"plugin imports",
 		"feature-tags",
-		"web-assets",
+		"web assets",
 	}
 	for _, name := range generators {
 		checked := runLE(name, "check")
@@ -208,16 +208,16 @@ func runLECodegenAnswers(ctx context.Context) error {
 		return uiLeCodegenAnswersFailf("`le plugin imports check | count` answered %q, want %d", counted.stdout, len(files))
 	}
 
-	// web-assets pages is a document-shaped answer. JSON is supported, while
+	// web assets pages is a document-shaped answer. JSON is supported, while
 	// its values retain the distinction between pages with and without assets.
-	pages := runLE("web-assets", "pages", "|", "json")
+	pages := runLE("web assets", "pages", "|", "json")
 	var sets map[string][]json.RawMessage
 	if err := json.Unmarshal([]byte(pages.stdout), &sets); err != nil {
 		preview := pages.stdout
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return uiLeCodegenAnswersFailf("`le web-assets pages | json` did not answer JSON: %v\n%s", err, preview)
+		return uiLeCodegenAnswersFailf("`le web assets pages | json` did not answer JSON: %v\n%s", err, preview)
 	}
 	if len(sets) < 8 {
 		return uiLeCodegenAnswersFailf("the derived sets name %d pages, want at least eight", len(sets))

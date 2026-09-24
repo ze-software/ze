@@ -64,25 +64,25 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	// Invoke the command from outside the checkout, as a developer may. The
 	// command takes no path and must discover the real checkout independently
 	// of its current working directory.
-	bare, err := runProcess(ctx, work, binary, "consistency")
+	bare, err := runProcess(ctx, work, binary, "doc", "consistency")
 	if err != nil {
-		return fmt.Errorf("FAIL: execute `le consistency`: %w", err)
+		return fmt.Errorf("FAIL: execute `le doc consistency`: %w", err)
 	}
 	if bare.stderr != "" {
-		return fmt.Errorf("FAIL: `le consistency` wrote to stderr: %s", bare.stderr)
+		return fmt.Errorf("FAIL: `le doc consistency` wrote to stderr: %s", bare.stderr)
 	}
 
 	// Invoke the same compiled product from the checkout root. Compare reports
 	// as multisets because report order is not part of the consistency contract.
-	fromRoot, err := runProcess(ctx, root, binary, "consistency")
+	fromRoot, err := runProcess(ctx, root, binary, "doc", "consistency")
 	if err != nil {
-		return fmt.Errorf("FAIL: execute `le consistency` from the checkout: %w", err)
+		return fmt.Errorf("FAIL: execute `le doc consistency` from the checkout: %w", err)
 	}
 	if fromRoot.stderr != "" {
-		return fmt.Errorf("FAIL: `le consistency` from the checkout wrote to stderr: %s", fromRoot.stderr)
+		return fmt.Errorf("FAIL: `le doc consistency` from the checkout wrote to stderr: %s", fromRoot.stderr)
 	}
 	if bare.code != fromRoot.code {
-		return fmt.Errorf("FAIL: `le consistency` exited %d outside the checkout and %d at its root", bare.code, fromRoot.code)
+		return fmt.Errorf("FAIL: `le doc consistency` exited %d outside the checkout and %d at its root", bare.code, fromRoot.code)
 	}
 
 	outsideLines := lineBag(bare.stdout)
@@ -103,17 +103,17 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	// Exercise the same answer through its data renderer. The payload must be a
 	// report, and its finding totals and process status must agree with the bare
 	// command.
-	answer, err := runProcess(ctx, work, binary, "consistency", "|", "json")
+	answer, err := runProcess(ctx, work, binary, "doc", "consistency", "|", "json")
 	if err != nil {
-		return fmt.Errorf("FAIL: execute `le consistency | json`: %w", err)
+		return fmt.Errorf("FAIL: execute `le doc consistency | json`: %w", err)
 	}
 	if answer.stderr != "" {
-		return fmt.Errorf("FAIL: `le consistency | json` wrote to stderr: %s", answer.stderr)
+		return fmt.Errorf("FAIL: `le doc consistency | json` wrote to stderr: %s", answer.stderr)
 	}
 
 	var report map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(answer.stdout), &report); err != nil {
-		return fmt.Errorf("FAIL: `le consistency | json` did not answer JSON: %w\n%s", err, uiLeConsistencyAnswersPrefix(answer.stdout, 400))
+		return fmt.Errorf("FAIL: `le doc consistency | json` did not answer JSON: %w\n%s", err, uiLeConsistencyAnswersPrefix(answer.stdout, 400))
 	}
 	for _, key := range []string{"findings", fieldErrors, "warnings"} {
 		if _, ok := report[key]; !ok {
@@ -161,13 +161,13 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	}
 
 	// Row operators act on findings rather than on the report envelope.
-	counted, err := runProcess(ctx, work, binary, "consistency", "|", "count")
+	counted, err := runProcess(ctx, work, binary, "doc", "consistency", "|", "count")
 	if err != nil {
-		return fmt.Errorf("FAIL: execute `le consistency | count`: %w", err)
+		return fmt.Errorf("FAIL: execute `le doc consistency | count`: %w", err)
 	}
 	wantCount := strconv.Itoa(len(findings))
 	if !strings.Contains(counted.stdout, wantCount) {
-		return fmt.Errorf("FAIL: `le consistency | count` answered %q, want %s", counted.stdout, wantCount)
+		return fmt.Errorf("FAIL: `le doc consistency | count` answered %q, want %s", counted.stdout, wantCount)
 	}
 
 	fmt.Println("OK")

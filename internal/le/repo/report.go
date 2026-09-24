@@ -17,7 +17,7 @@ import "github.com/ze-software/ze/internal/core/textbuf"
 // forms. Therefore, the SHADE differs by one step. Raw sequences would match the
 // script, but c_raw_ansi (.claude/hooks/pretool-writeedit.py) refuses them in
 // compiled Go. `docs/architecture/cli/color-system.md` requires one palette and
-// seven semantic roles on every interface. internal/le/consistency made the same
+// seven semantic roles on every interface. internal/le/doc/consistency made the same
 // step 2 trade and recorded byte-identical color as unreachable. Parity tests
 // compare text and assert the shade separately.
 const (

@@ -66,23 +66,23 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	// The read-only gate runs over the real checkout and must give a successful,
 	// human-readable verdict without writing diagnostics to stderr.
-	checked, err := leVendorWebRun(ctx, work, productEnv, binary, "vendor-web", "check")
+	checked, err := leVendorWebRun(ctx, work, productEnv, binary, "web", "vendor", "check")
 	if err != nil {
 		return err
 	}
 	if checked.code != 0 {
-		return fmt.Errorf("FAIL: `le vendor-web check` exited %d\nstdout:\n%sstderr:\n%s", checked.code, checked.stdout, checked.stderr)
+		return fmt.Errorf("FAIL: `le web vendor check` exited %d\nstdout:\n%sstderr:\n%s", checked.code, checked.stdout, checked.stderr)
 	}
 	if checked.stderr != "" {
-		return fmt.Errorf("FAIL: `le vendor-web check` wrote stderr: %q", checked.stderr)
+		return fmt.Errorf("FAIL: `le web vendor check` wrote stderr: %q", checked.stderr)
 	}
 	if !strings.Contains(checked.stdout, "consumer copies") {
-		return fmt.Errorf("FAIL: `le vendor-web check` reported no verdict:\n%s", checked.stdout)
+		return fmt.Errorf("FAIL: `le web vendor check` reported no verdict:\n%s", checked.stdout)
 	}
 
 	// The same answer must be available as data. Unmarshal the complete stdout,
 	// so any non-data chatter before or after the payload is also a failure.
-	answered, err := leVendorWebRun(ctx, work, productEnv, binary, "vendor-web", "check", "|", "json")
+	answered, err := leVendorWebRun(ctx, work, productEnv, binary, "web", "vendor", "check", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func leVendorWebAnswers(parent context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return fmt.Errorf("FAIL: `le vendor-web check | json` did not answer JSON: %w\n%s", err, preview)
+		return fmt.Errorf("FAIL: `le web vendor check | json` did not answer JSON: %w\n%s", err, preview)
 	}
 	for _, key := range []string{"problems", "compared", "skipped", "drift-checked"} {
 		if _, ok := report[key]; !ok {
@@ -119,20 +119,20 @@ func leVendorWebAnswers(parent context.Context) error {
 		return fmt.Errorf("FAIL: the real checkout has %d vendored-web problems: %s", len(problems), report["problems"])
 	}
 	if answered.code != checked.code {
-		return fmt.Errorf("FAIL: `le vendor-web check | json` exited %d and the bare command exited %d", answered.code, checked.code)
+		return fmt.Errorf("FAIL: `le web vendor check | json` exited %d and the bare command exited %d", answered.code, checked.code)
 	}
 	if answered.stderr != "" {
-		return fmt.Errorf("FAIL: `le vendor-web check | json` wrote stderr: %q", answered.stderr)
+		return fmt.Errorf("FAIL: `le web vendor check | json` wrote stderr: %q", answered.stderr)
 	}
-	counted, err := leVendorWebRun(ctx, work, productEnv, binary, "vendor-web", "check", "|", "count")
+	counted, err := leVendorWebRun(ctx, work, productEnv, binary, "web", "vendor", "check", "|", "count")
 	if err != nil {
 		return err
 	}
 	if counted.code != 1 {
-		return fmt.Errorf("FAIL: `le vendor-web check | count` exited %d, want the document-shape refusal 1", counted.code)
+		return fmt.Errorf("FAIL: `le web vendor check | count` exited %d, want the document-shape refusal 1", counted.code)
 	}
 	if counted.stdout != "" {
-		return fmt.Errorf("FAIL: refused `le vendor-web check | count` wrote stdout: %q", counted.stdout)
+		return fmt.Errorf("FAIL: refused `le web vendor check | count` wrote stdout: %q", counted.stdout)
 	}
 	if !strings.Contains(counted.stderr, "count") || !strings.Contains(counted.stderr, "rows") {
 		return fmt.Errorf("FAIL: count refusal did not identify the row-shape mismatch: %q", counted.stderr)
@@ -140,15 +140,15 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	// Listing the area names all three actions and exposes their read/write
 	// boundary at the point where a developer chooses one.
-	listing, err := leVendorWebRun(ctx, work, productEnv, binary, "vendor-web")
+	listing, err := leVendorWebRun(ctx, work, productEnv, binary, "web", "vendor")
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
-		return fmt.Errorf("FAIL: `le vendor-web` exited %d: %s", listing.code, listing.stderr)
+		return fmt.Errorf("FAIL: `le web vendor` exited %d: %s", listing.code, listing.stderr)
 	}
 	if listing.stderr != "" {
-		return fmt.Errorf("FAIL: `le vendor-web` wrote stderr: %q", listing.stderr)
+		return fmt.Errorf("FAIL: `le web vendor` wrote stderr: %q", listing.stderr)
 	}
 	for _, wanted := range []string{actionCheck, "sync", "update-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, wanted) {
@@ -197,19 +197,19 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	synced := make([]leVendorWebResult, 0, len(trees))
 	for _, tree := range trees {
-		result, err := leVendorWebRun(ctx, work, leVendorWebWithEnv(os.Environ(), "ZE_REPO_ROOT", tree), binary, "vendor-web", "sync")
+		result, err := leVendorWebRun(ctx, work, leVendorWebWithEnv(os.Environ(), "ZE_REPO_ROOT", tree), binary, "web", "vendor", "sync")
 		if err != nil {
 			return err
 		}
 		if result.code != 0 {
-			return fmt.Errorf("FAIL: `le vendor-web sync` for %s exited %d\nstdout:\n%sstderr:\n%s", tree, result.code, result.stdout, result.stderr)
+			return fmt.Errorf("FAIL: `le web vendor sync` for %s exited %d\nstdout:\n%sstderr:\n%s", tree, result.code, result.stdout, result.stderr)
 		}
 		if result.stderr != "" {
-			return fmt.Errorf("FAIL: `le vendor-web sync` for %s wrote stderr: %q", tree, result.stderr)
+			return fmt.Errorf("FAIL: `le web vendor sync` for %s wrote stderr: %q", tree, result.stderr)
 		}
 		wantOutput := "synced: <root>/" + leVendorWebCorrupted + "\n"
 		if got := leVendorWebNormalize(result.stdout, tree); got != wantOutput {
-			return fmt.Errorf("FAIL: `le vendor-web sync` output differs\ngot:  %q\nwant: %q", got, wantOutput)
+			return fmt.Errorf("FAIL: `le web vendor sync` output differs\ngot:  %q\nwant: %q", got, wantOutput)
 		}
 		synced = append(synced, result)
 	}

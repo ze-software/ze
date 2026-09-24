@@ -92,11 +92,11 @@ func TestLowSimilarityRenamePairingFailsClosedOnAmbiguity(t *testing.T) {
 func TestUniqueSuffixPairingLeavesRectangularExtrasUnpaired(t *testing.T) {
 	t.Parallel()
 	oldPaths := []string{"former/docvalid/dispatch.go", "cmd/le/dispatch.go"}
-	newPaths := []string{"internal/le/docvalid/dispatch.go", "internal/le/dispatch.go", "internal/other/dispatch.go"}
+	newPaths := []string{"internal/le/doc/yangcontract/dispatch.go", "internal/le/dispatch.go", "internal/other/dispatch.go"}
 	pairs, unique := uniqueSuffixPairing(oldPaths, newPaths)
 	want := [][2]string{
 		{"cmd/le/dispatch.go", "internal/le/dispatch.go"},
-		{"former/docvalid/dispatch.go", "internal/le/docvalid/dispatch.go"},
+		{"former/docvalid/dispatch.go", "internal/le/doc/yangcontract/dispatch.go"},
 	}
 	if !unique || !slices.Equal(pairs, want) {
 		t.Fatalf("uniqueSuffixPairing = %#v, %v; want %#v, true", pairs, unique, want)

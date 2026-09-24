@@ -16,11 +16,11 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/digest"
-	"github.com/ze-software/ze/internal/le/docstocode"
-	"github.com/ze-software/ze/internal/le/docvalid"
+	aidigest "github.com/ze-software/ze/internal/le/ai/digest"
+	airules "github.com/ze-software/ze/internal/le/ai/rules"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	"github.com/ze-software/ze/internal/le/journal"
-	"github.com/ze-software/ze/internal/le/rules"
 )
 
 type docVerifyPage struct {
@@ -107,7 +107,7 @@ func answerDocVerify(root string) (any, int) {
 }
 
 func docDriftStage(root string) (any, int) {
-	report := docvalid.Drift(root)
+	report := docyangcontract.Drift(root)
 	if len(report.Issues) > 0 {
 		return report, 1
 	}
@@ -115,7 +115,7 @@ func docDriftStage(root string) (any, int) {
 }
 
 func docContractStage(root string) (any, int) {
-	report, err := docvalid.Validate(root)
+	report, err := docyangcontract.Validate(root)
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -128,7 +128,7 @@ func docContractStage(root string) (any, int) {
 // docUsageStage refuses a description that prescribes a CLI spelling, and a
 // deletion that hides a grammar the model still does not state.
 func docUsageStage(root string) (any, int) {
-	report, err := docvalid.Usage(root)
+	report, err := docyangcontract.Usage(root)
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -151,7 +151,7 @@ func docUsageStage(root string) (any, int) {
 // which is the same population every other command gate walks, and it reads
 // HEAD through git for the one rule scoped to the commit under test.
 func docHelpShapeStage(_ string) (any, int) {
-	report, err := docvalid.HelpShape()
+	report, err := docyangcontract.HelpShape()
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -164,7 +164,7 @@ func docHelpShapeStage(_ string) (any, int) {
 func docIndexStage(root string) (any, int) { return answerDocIndex(root) }
 
 func rulesRenderStage(root string) (any, int) {
-	report, err := rules.RenderAll(root,
+	report, err := airules.RenderAll(root,
 		filepath.Join(root, "ai", "rules"), filepath.Join(root, "ai", "rules", "points"), true)
 	if err != nil {
 		return errorPage(err), 2
@@ -180,7 +180,7 @@ func rulesRoundTripStage(root string) (any, int) {
 	if err != nil {
 		return errorPage(err), 2
 	}
-	report, runErr := rules.RoundTrip(filepath.Join(root, "ai", "rules"), out)
+	report, runErr := airules.RoundTrip(filepath.Join(root, "ai", "rules"), out)
 	cleanupErr := os.RemoveAll(out)
 	if runErr != nil {
 		if cleanupErr != nil {
@@ -198,7 +198,7 @@ func rulesRoundTripStage(root string) (any, int) {
 }
 
 func rulesCoverageStage(root string) (any, int) {
-	report, err := rules.Coverage(root)
+	report, err := airules.Coverage(root)
 	if err != nil {
 		return errorPage(err), 2
 	}
@@ -214,7 +214,7 @@ func rulesCoverageStage(root string) (any, int) {
 }
 
 func rulesIndexStage(root string) (any, int) {
-	report, err := rules.Index(root, true)
+	report, err := airules.Index(root, true)
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -225,7 +225,7 @@ func rulesIndexStage(root string) (any, int) {
 }
 
 func rulesLintStage(root string) (any, int) {
-	report, err := rules.Lint(root)
+	report, err := airules.Lint(root)
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -236,7 +236,7 @@ func rulesLintStage(root string) (any, int) {
 }
 
 func rulesDigestStage(root string) (any, int) {
-	report, err := rules.Digest(root, true)
+	report, err := airules.Digest(root, true)
 	if err != nil {
 		return errorPage(err), 1
 	}
@@ -268,7 +268,7 @@ func discoveryIndexesStage(root string) (any, int) {
 	var out textbuf.Buffer
 	failed := false
 
-	docsToCode, err := docstocode.Check(root)
+	docsToCode, err := docindex.Check(root)
 	if err != nil {
 		out.Str(prose(errorPage(err)))
 		failed = true
@@ -291,7 +291,7 @@ func journalStage(root string) (any, int) {
 }
 
 func digestStage(root string) (any, int) {
-	report, err := digest.Check(root)
+	report, err := aidigest.Check(root)
 	if err != nil {
 		return errorPage(err), 2
 	}

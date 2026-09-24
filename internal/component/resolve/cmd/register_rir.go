@@ -5,7 +5,7 @@
 // The wire methods are declared in the command tree of
 // internal/plugins/resolve-cmd/yang/ze-resolve-cmd.yang, which maps each one
 // to its CLI path. A handler no node names, and a node naming no handler, both
-// fail the contract gate in internal/le/docvalid.
+// fail the contract gate in internal/le/doc/yangcontract.
 
 package cmd
 

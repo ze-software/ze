@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/docstocode"
+	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 )
 
@@ -35,10 +35,10 @@ func derivedFixture(t *testing.T) string {
 	if _, err := repopackagemap.Update(root); err != nil {
 		t.Fatalf("seed ai/PACKAGE-MAP.md: %v", err)
 	}
-	if _, err := docstocode.Update(root); err != nil {
+	if _, err := docindex.Update(root); err != nil {
 		t.Fatalf("seed ai/DOCS-TO-CODE.md: %v", err)
 	}
-	if _, err := docstocode.UpdateCodeIndex(root); err != nil {
+	if _, err := docindex.UpdateCodeIndex(root); err != nil {
 		t.Fatalf("seed ai/CODE-TO-DOCS.md: %v", err)
 	}
 	return root

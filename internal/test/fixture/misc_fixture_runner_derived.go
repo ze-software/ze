@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- the derived-artifact lifecycle, through the real hooks
 //
-// misc_fixture_runner_derived.go drives the REAL `le hook-check` binary over a
+// misc_fixture_runner_derived.go drives the REAL `le ai hooks` binary over a
 // scratch checkout and judges the artifact the hooks leave behind.
 //
 // The subject is the registry (internal/le/derived), not one generator. The
@@ -149,7 +149,7 @@ func derivedReadHook(ctx context.Context, repo, le, command string) (int, string
 	return derivedHook(ctx, repo, le, "pretool-bash", "Bash", map[string]any{"command": command})
 }
 
-// derivedHook runs one `le hook-check <kind>` over the scratch checkout, with
+// derivedHook runs one `le ai hooks <kind>` over the scratch checkout, with
 // the payload on stdin, and answers its exit code and everything it printed.
 //
 // The output is answered on every path, refusal included. A hook states WHICH
@@ -168,7 +168,7 @@ func derivedHook(ctx context.Context, repo, le, kind, tool string, input map[str
 	if err != nil {
 		return -1, "", err
 	}
-	command := exec.CommandContext(ctx, le, "hook-check", kind) //nolint:gosec // the fixture chooses the program and its arguments
+	command := exec.CommandContext(ctx, le, "ai", "hooks", kind) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Dir = repo
 	command.Env = envRootedAt(repo)
 	command.Stdin = bytes.NewReader(body)
@@ -178,7 +178,7 @@ func derivedHook(ctx context.Context, repo, le, kind, tool string, input map[str
 	}
 	exit, ok := errors.AsType[*exec.ExitError](runErr)
 	if !ok {
-		return -1, string(output), fmt.Errorf("le hook-check %s: %w\n%s", kind, runErr, output)
+		return -1, string(output), fmt.Errorf("le ai hooks %s: %w\n%s", kind, runErr, output)
 	}
 	return exit.ExitCode(), string(output), nil
 }

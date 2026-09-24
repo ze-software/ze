@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/docvalid"
+	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
@@ -388,7 +388,7 @@ func refreshNativeSurfaces(paths Paths) error {
 // liveCommandCatalog answers the command catalog a build publishes. It is a
 // variable so a test can state a catalog rather than build the daemon, which
 // the real reader does with `go run ./cmd/ze`.
-var liveCommandCatalog = docvalid.LiveCommandCatalog
+var liveCommandCatalog = docyangcontract.LiveCommandCatalog
 
 // publishCommandCatalog republishes the command catalog read from the binary.
 //

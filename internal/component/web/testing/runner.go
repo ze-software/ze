@@ -449,7 +449,7 @@ func (b *Browser) Forward() error {
 
 // getHeadHTML returns the page HEAD's HTML, which is where a page states what
 // it loads. Each page loads the assets its own markup needs
-// (internal/le/webassets/webassets.go), so what a head does NOT carry is as much a
+// (internal/le/web/assets/webassets.go), so what a head does NOT carry is as much a
 // property of the page as what it does.
 func (b *Browser) getHeadHTML() (string, error) {
 	return b.runAgentOutput("get", "html", "head")

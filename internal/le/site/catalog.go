@@ -26,7 +26,7 @@ const catalogFile = "data/cli-commands.json"
 // The shape is spelled here rather than imported from the producer, so a change
 // to the published contract shows up as a compile or a decode error in this
 // package instead of following the producer in silence. It is the same reason
-// internal/le/docvalid spells it a third time for its drift fixture.
+// internal/le/doc/yangcontract spells it a third time for its drift fixture.
 type catalogCommand struct {
 	Path      string `json:"path"`
 	ShortHelp string `json:"short-help,omitempty"`

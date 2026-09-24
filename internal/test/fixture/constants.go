@@ -264,12 +264,14 @@ const (
 	actionStart                   = "start"
 	actionTreeCheck               = "tree-check"
 	actionUpdate                  = "update" // The le action verb.
+	actionWrite                   = "write"
 	actionVPPHugepagesTest        = "vpp-hugepages-test"
 	actionVPPIfaceTest            = "vpp-iface-test"
 	actionVPPTest                 = "vpp-test"
 	areaCLI                       = "cli"
 	areaDeployment                = "deployment"
-	areaDigest                    = "digest"
+	areaDigest                    = "ai digest"
+	areaAIRules                   = "ai rules"
 	areaEvidence                  = "evidence"
 	areaQEMU                      = "qemu" // The le area.
 	areaRepository                = "repo"
