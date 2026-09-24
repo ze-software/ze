@@ -26,7 +26,7 @@ var (
 //
 // Callers wire it unconditionally:
 //
-//	r.SetLocRIB(locrib.Default())   // nil-safe; skips mirroring in forked mode
+//	r.SetLocRIB(locrib.Default())   // nil selects the caller's subprocess transport
 func Default() *RIB {
 	defaultOnce.Do(func() {
 		if env.Get("ze.plugin.hub.token") != "" {

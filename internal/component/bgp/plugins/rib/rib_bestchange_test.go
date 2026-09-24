@@ -1059,11 +1059,11 @@ func TestBestPrevInternerDedup(t *testing.T) {
 	assert.Equal(t, nhIdx, nhDupIdx)
 	assert.Len(t, ir.nextHops, 1)
 
-	m1, ok := ir.internMetric(100)
+	m1, ok := ir.internMetric(bestPathMetrics{MED: 100})
 	require.True(t, ok)
-	m2, ok := ir.internMetric(200)
+	m2, ok := ir.internMetric(bestPathMetrics{MED: 200})
 	require.True(t, ok)
-	mDup, ok := ir.internMetric(100)
+	mDup, ok := ir.internMetric(bestPathMetrics{MED: 100})
 	require.True(t, ok)
 	assert.NotEqual(t, m1, m2)
 	assert.Equal(t, m1, mDup)
@@ -1104,12 +1104,12 @@ func TestBestPrevInternerReverse(t *testing.T) {
 	metrics := []uint32{0, 100, 42, 1<<31 - 1}
 	metricIdxs := make([]uint16, len(metrics))
 	for i, m := range metrics {
-		idx, ok := ir.internMetric(m)
+		idx, ok := ir.internMetric(bestPathMetrics{MED: m})
 		require.True(t, ok)
 		metricIdxs[i] = idx
 	}
 	for i, idx := range metricIdxs {
-		assert.Equal(t, metrics[i], ir.metrics[idx])
+		assert.Equal(t, metrics[i], ir.metrics[idx].MED)
 	}
 }
 
@@ -1122,19 +1122,19 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 	t.Run("bare-intern-overflow", func(t *testing.T) {
 		ir := newBestPrevInterner()
 		for i := range internerCap {
-			_, ok := ir.internMetric(uint32(i))
+			_, ok := ir.internMetric(bestPathMetrics{MED: uint32(i)})
 			require.True(t, ok, "insertion %d within cap must succeed", i)
 		}
 		assert.Len(t, ir.metrics, internerCap)
 
 		// Re-inserting an already-known value still succeeds (forward map hit).
-		idx, ok := ir.internMetric(0)
+		idx, ok := ir.internMetric(bestPathMetrics{})
 		require.True(t, ok, "dedup hit bypasses the cap check")
 		assert.Equal(t, uint16(0), idx)
 
 		// A brand-new value must be rejected without panic.
 		require.NotPanics(t, func() {
-			_, ok := ir.internMetric(0xFFFFFFFF)
+			_, ok := ir.internMetric(bestPathMetrics{MED: 0xFFFFFFFF})
 			assert.False(t, ok, "overflow returns (_, false)")
 		})
 	})
@@ -1180,20 +1180,20 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 
 		ir := newBestPrevInterner()
 		for i := range internerCap {
-			if _, ok := ir.internMetric(uint32(i)); !ok {
+			if _, ok := ir.internMetric(bestPathMetrics{MED: uint32(i)}); !ok {
 				t.Fatalf("fill %d: metric interner unexpectedly rejected within cap", i)
 			}
 		}
 
 		// First overflow on metrics: MUST emit one log line.
-		_, ok := ir.internMetric(0xFFFFFFFF)
+		_, ok := ir.internMetric(bestPathMetrics{MED: 0xFFFFFFFF})
 		require.False(t, ok)
 		assert.Equal(t, 1, strings.Count(logBuf.String(), "best-path interner saturated"),
 			"first saturation logs once")
 		assert.Contains(t, logBuf.String(), "table=metrics")
 
 		// Second overflow on the same table: MUST NOT emit another log line.
-		_, ok = ir.internMetric(0xFFFFFFFE)
+		_, ok = ir.internMetric(bestPathMetrics{MED: 0xFFFFFFFE})
 		require.False(t, ok)
 		assert.Equal(t, 1, strings.Count(logBuf.String(), "best-path interner saturated"),
 			"repeat saturation on same table is silent")
@@ -1475,7 +1475,7 @@ func TestBestPathResolve(t *testing.T) {
 	ir := newBestPrevInterner()
 	peerIdx, _ := ir.internPeer("192.0.2.1")
 	nhIdx, _ := ir.internNextHop(netip.MustParseAddr("10.0.0.1"))
-	metricIdx, _ := ir.internMetric(500)
+	metricIdx, _ := ir.internMetric(bestPathMetrics{MED: 500})
 
 	ebgpRec := packBestPath(metricIdx, peerIdx, nhIdx, flagEBGP)
 	testPfx := netip.MustParsePrefix("10.0.0.0/24")

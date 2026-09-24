@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"slices"
@@ -159,15 +160,16 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		s.commitAIGPWrites(false)
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
 	}
-	if err := s.bufWriter.Flush(); err != nil {
-		if s.prefixMetrics != nil {
-			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
-		}
+	if msg.Type() == msgtype.TypeUPDATE && n >= message.HeaderLen {
+		s.noteAIGPWrite(s.writeBuf.Buffer()[message.HeaderLen:n])
+	}
+	if err := s.flushWrites(); err != nil {
 		return err
 	}
 
@@ -190,7 +192,7 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 		// s.sentSourcePeerStr is read here inside writeMu, its owning critical section
 		// (session.go contract), and carried to notifyMessageReceiver as an argument so
 		// the receiver never re-reads peer.session unlocked. "" for non-forward sends.
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	return nil
@@ -443,6 +445,10 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		return nil
 	}
 
+	if aigpPresent(body) && (!s.settings.AIGPEnabled() || gate && !s.aigpOriginAllowed(body)) {
+		return s.writeUpdateWithoutAIGP(body)
+	}
+
 	if overridden || len(s.pathsLimit) != 0 {
 		return s.writeRawUpdateBody(body)
 	}
@@ -453,6 +459,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		}
 		return err
 	}
+	s.noteAIGPWrite(body)
 	// Asked only while the answer can still change. This function serves the
 	// forwarding rails as well as the originating ones, and once the connection
 	// has advertised something the walk below is not owed.
@@ -468,7 +475,7 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
 		// sentMeta and sentSourcePeerStr are the forward-pool per-write fields, both set
 		// under writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	if s.onWrite != nil {
@@ -481,6 +488,12 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 // writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
 // Caller must hold writeMu. Fires sent event callback with route metadata.
 func (s *Session) writeRawUpdateBody(body []byte) error {
+	// RFC 7311 Section 3.3: "An AIGP attribute MUST NOT be sent on any BGP
+	// session for which AIGP_SESSION is disabled." This final boundary also
+	// covers prefiltered forwarding and stored-route replay.
+	if !s.settings.AIGPEnabled() && aigpPresent(body) {
+		return s.writeUpdateWithoutAIGP(body)
+	}
 	committed := false
 	var withheld uint64
 	if len(s.pathsLimit) != 0 {
@@ -525,6 +538,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		}
 		return err
 	}
+	s.noteAIGPWrite(body)
 	committed = true
 	s.pathsLimitTotals.routes += withheld
 	// Asked only while the answer can still change, as above. This is the
@@ -542,7 +556,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
 		// Forward-pool raw-body write: sentMeta and sentSourcePeerStr are set under
 		// writeMu by fwdBatchHandler and read here in the same writeMu section.
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	if s.onWrite != nil {
@@ -556,11 +570,13 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 // Increments wireWriteErrors on flush failure (TCP write error).
 func (s *Session) flushWrites() error {
 	if err := s.bufWriter.Flush(); err != nil {
+		s.commitAIGPWrites(false)
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
 	}
+	s.commitAIGPWrites(true)
 	return nil
 }
 
@@ -618,16 +634,21 @@ func (s *Session) flushFwdDirty() {
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
 // Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
-	return s.sendUpdateCounted(update, nil)
+	return s.sendUpdateCounted(context.Background(), update, nil)
 }
 
 // sendUpdateCounted captures this write's admission result while writeMu is
 // held. Named commits must not count paths withheld by the session as sent.
-func (s *Session) sendUpdateCounted(update *message.Update, counts *pathsLimitSendCounts) error {
-	s.mu.RLock()
+func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update, counts *pathsLimitSendCounts) error {
+	if err := s.writeMu.LockContext(ctx); err != nil {
+		return err
+	}
+	defer s.writeMu.Unlock()
+
+	// Connection installation and clearing both hold writeMu. Reading it here
+	// avoids acquiring mu while the write lock is held or waiting behind close.
 	conn := s.conn
 	state := s.fsm.State()
-	s.mu.RUnlock()
 
 	if state != fsm.StateEstablished {
 		return ErrInvalidState
@@ -637,14 +658,34 @@ func (s *Session) sendUpdateCounted(update *message.Update, counts *pathsLimitSe
 		return ErrNotConnected
 	}
 
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
-	before := s.pathsLimitTotals
-
-	if err := s.writeUpdate(update); err != nil {
+	if ctx.Done() != nil {
+		release, err := requestWriteDeadline(ctx, conn)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := s.flushWrites(); err != nil {
+	before := s.pathsLimitTotals
+
+	err := s.writeUpdate(update)
+	if err == nil {
+		err = s.flushWrites()
+	}
+	if err != nil {
+		if cancelled := ctx.Err(); cancelled != nil {
+			// A cancelled write may have emitted only part of a BGP frame.
+			// Let the reader retire it rather than reusing a partial stream.
+			closeConnQuietly(conn)
+			return cancelled
+		}
+		// The socket deadline can fire before the context timer goroutine.
+		if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+			closeConnQuietly(conn)
+			return context.DeadlineExceeded
+		}
 		return err
 	}
 	if counts != nil {
@@ -653,6 +694,31 @@ func (s *Session) sendUpdateCounted(update *message.Update, counts *pathsLimitSe
 	}
 	s.resetSendHoldTimer()
 	return nil
+}
+
+// requestWriteDeadline binds a socket write to its request after ownership has
+// been acquired. Cleanup joins an in-flight cancellation callback before another
+// writer can reuse the connection, so an old request cannot poison its deadline.
+func requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetWriteDeadline(deadline); err != nil {
+			return nil, err
+		}
+	}
+	cancelled := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		_ = conn.SetWriteDeadline(time.Now())
+		close(cancelled)
+	})
+	return func() {
+		if !stop() {
+			<-cancelled
+		}
+		_ = conn.SetWriteDeadline(time.Time{})
+	}, nil
 }
 
 // HoldWrites acquires the session write lock, preventing the forward pool
@@ -767,6 +833,17 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 		return nil
 	}
 
+	if aigpPresent(body) && !s.aigpOriginAllowed(body) {
+		if err := s.writeUpdateWithoutAIGP(body); err != nil {
+			return err
+		}
+		if err := s.flushWrites(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
+	}
+
 	if overridden || len(s.pathsLimit) != 0 {
 		if err := s.writeRawUpdateBody(body); err != nil {
 			return err
@@ -785,6 +862,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// destination reachable. The override branch above returned through
 	// writeRawUpdateBody, which asks the question of its own body.
 	s.noteAdvertised(true)
+	s.noteAIGPWrite(body)
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
@@ -793,7 +871,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	// Notify callback after successful send. body is the bytes that reached the
 	// peer, which the override branch returned before ever getting here.
 	if s.onMessageReceived != nil {
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	return nil
@@ -842,6 +920,7 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
 		return err
 	}
+	s.noteAIGPWrite(s.writeBuf.Buffer()[message.HeaderLen:n])
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
@@ -850,7 +929,7 @@ func (s *Session) sendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr)
+		_ = s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil, s.sentSourcePeerStr, s.sentSourceMessageID)
 	}
 
 	return nil
@@ -891,7 +970,8 @@ func (s *Session) sendRawUpdateBody(body []byte) error {
 // SendRawMessage sends raw bytes to the peer.
 // If msgType is 0, payload is a full BGP packet (user provides marker+header+body).
 // If msgType is non-zero, payload is message body only (we add the header).
-// Concurrent calls are serialized by writeMu (when msgType != 0).
+// Concurrent calls are serialized by writeMu in both modes. Raw UPDATEs are
+// locally originated and MUST satisfy the session's AIGP origination policy.
 func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -906,10 +986,20 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		s.writeMu.Lock()
 		defer s.writeMu.Unlock()
 
+		if len(payload) >= message.HeaderLen && payload[18] == byte(msgtype.TypeUPDATE) {
+			if err := s.writeOriginatedRawUpdate(payload[message.HeaderLen:]); err != nil {
+				return err
+			}
+			if err := s.flushWrites(); err != nil {
+				return err
+			}
+			s.resetSendHoldTimer()
+			return nil
+		}
 		if _, err := s.bufWriter.Write(payload); err != nil {
 			return err
 		}
-		if err := s.bufWriter.Flush(); err != nil {
+		if err := s.flushWrites(); err != nil {
 			return err
 		}
 		s.resetSendHoldTimer()
@@ -918,6 +1008,17 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+
+	if msgType == uint8(msgtype.TypeUPDATE) {
+		if err := s.writeOriginatedRawUpdate(payload); err != nil {
+			return err
+		}
+		if err := s.flushWrites(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
+	}
 
 	// Message body mode - write header + body into session buffer
 	totalLen := message.HeaderLen + len(payload)
@@ -940,7 +1041,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
 		return err
 	}
-	if err := s.bufWriter.Flush(); err != nil {
+	if err := s.flushWrites(); err != nil {
 		return err
 	}
 	s.resetSendHoldTimer()

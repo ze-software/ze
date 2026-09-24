@@ -133,7 +133,7 @@ func TestRFC2918ReservedOctetIgnoredOnReceive(t *testing.T) {
 
 			var messageCallbacks int
 			var refreshCallbacks int
-			session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+			session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 				if msgType == msgtype.TypeROUTEREFRESH {
 					messageCallbacks++
 					assert.Equal(t, []byte{0x00, 0x01, tt.octet, 0x01}, raw,
@@ -195,7 +195,7 @@ func TestRFC2918ReservedOctetDoesNotExemptTheMessage(t *testing.T) {
 
 	var messageCallbacks int
 	var refreshCallbacks int
-	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if msgType == msgtype.TypeROUTEREFRESH {
 			messageCallbacks++
 		}

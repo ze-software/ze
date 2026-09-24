@@ -151,7 +151,7 @@ func TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	c := r.extractCandidate(peerAddr, peerAddr.String(), entry)
+	c := r.extractCandidate(family.IPv4Unicast, peerAddr, peerAddr.String(), entry)
 	assert.Equal(t, uint32(100), c.LocalPref,
 		"external route ranked by the locally configured degree of preference")
 	assert.NotEqual(t, uint32(0), c.LocalPref, "not left undefined")
@@ -182,7 +182,7 @@ func TestRFC4271DegreeOfPreferenceNotAHardcodedConstant(t *testing.T) {
 	require.NoError(t, err)
 	defer entry.Release()
 
-	c := r.extractCandidate(peerAddr, peerAddr.String(), entry)
+	c := r.extractCandidate(family.IPv4Unicast, peerAddr, peerAddr.String(), entry)
 	assert.Equal(t, uint32(250), c.LocalPref)
 }
 
@@ -208,7 +208,7 @@ func rfc4271MEDCandidate(t *testing.T, r *RIBManager, peer netip.Addr, attrs []b
 	entry, err := storage.ParseAttributes(attrs)
 	require.NoError(t, err)
 	t.Cleanup(entry.Release)
-	return r.extractCandidate(peer, peer.String(), entry)
+	return r.extractCandidate(family.IPv4Unicast, peer, peer.String(), entry)
 }
 
 // TestAbsentMedStillComparesAsZeroInPhaseTwo verifies a route carrying no

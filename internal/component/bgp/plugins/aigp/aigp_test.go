@@ -1,12 +1,12 @@
-// VALIDATES: the AIGP stub plugin's real surface — the attr-26 JSON formatter,
+// VALIDATES: the AIGP presentation plugin's attr-26 JSON formatter,
 // its registration side effects (JSON formatter + plugin registry entry), the
 // logger nil-guard, and that RunAIGPPlugin actually drives the SDK loop and
 // returns (rather than hanging) on a dead connection.
 // PREVENTS: the AIGP attribute silently losing its JSON rendering or registry
 // entry, and a plugin entry point that hangs instead of exiting on a closed conn.
 //
-// SCOPE: aigp is an explicit stub (aigp.go:7-8). These tests assert only what
-// exists; no RFC 7311 AIGP *semantics* are invented.
+// SCOPE: attribute presentation and plugin lifecycle. Reactor and RIB tests
+// exercise RFC 7311 receive, forwarding and selection behavior.
 package aigp
 
 import (

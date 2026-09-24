@@ -884,6 +884,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 		staleLevel = uint8(lvl)
 	}
 
+	defer r.reconcileFlowSpecs()
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
@@ -1090,6 +1091,9 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		if !ok {
 			continue
 		}
+		if !r.validationEligible(peer, peerRIB, fam, nlriBytes, entry.MsgID) {
+			continue
+		}
 		// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
 		if isSRv6Ineligible(entry) {
 			continue
@@ -1111,7 +1115,7 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		// originated routes -- static, connected, redistributed -- never enter this
 		// map and so are untouched by this test.
 		if selfNextHops != nil && len(*selfNextHops) > 0 {
-			if nh := entryNextHopAddr(entry); isSelfNextHop(selfNextHops, nh) {
+			if nh := entryNextHopAddr(fam, entry); isSelfNextHop(selfNextHops, nh) {
 				// RFC 4271 Section 6.3: "the error SHOULD be logged, and the route
 				// SHOULD be ignored". A guard that drops a route in silence is how
 				// "routes vanish sometimes" gets reported instead of the cause.
@@ -1124,7 +1128,7 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		}
 		// The map key gives the typed address; PeerRIB caches the canonical
 		// string, so the hot path performs no parse and no conversion.
-		c := r.extractCandidate(peer, peerRIB.PeerAddr(), entry)
+		c := r.extractCandidate(fam, peer, peerRIB.PeerAddr(), entry)
 		candidates = append(candidates, c)
 	}
 	return candidates
@@ -1134,11 +1138,12 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 // Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
 // peerAddr is the typed map key; peerStr is PeerRIB's cached canonical string
 // (kept alongside to avoid a per-candidate Addr.String() allocation).
-func (r *RIBManager) extractCandidate(peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
+func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
 	c := &Candidate{
 		PeerAddr:  peerStr,
 		PeerIP:    peerAddr,
 		LocalPref: 100, // RFC 4271 default
+		IGPCost:   ^uint64(0),
 	}
 
 	// Peer metadata for eBGP/iBGP detection.
@@ -1216,12 +1221,13 @@ func (r *RIBManager) extractCandidate(peerAddr netip.Addr, peerStr string, entry
 	// RFC 9494: LLGR-stale flag for best-path depreference.
 	c.StaleLevel = entry.StaleLevel
 
-	// RFC 4271 Section 9.1.2.2 Step 6: IGP cost to next-hop.
-	if b.HasNextHop() {
-		if data, err := pool.NextHop.Get(b.NextHop); err == nil {
-			if nhAddr := parseNextHopAddr(data); nhAddr.IsValid() {
-				c.IGPCost = lookupIGPCost(nhAddr)
-			}
+	c.AIGP, c.HasAIGP = entryAIGP(entry)
+
+	// RFC 7311 Sections 4.1 and 4.2 use the selected family's next hop,
+	// including MP_REACH_NLRI, with the received metric kept separate.
+	if nextHop := entryNextHopAddr(fam, entry); nextHop.IsValid() {
+		if distance := r.igpDistance(nextHop); distance.Resolved {
+			c.IGPCost = distance.Cost
 		}
 	}
 

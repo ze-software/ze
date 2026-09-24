@@ -99,6 +99,10 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 			ps := NewPeerSettings(peerAddr, 65000, 65001, 0x01020304)
 			ps.RSFastPath = true
 			require.NoError(t, reactor.AddPeer(ps))
+			reactor.mu.RLock()
+			src := reactor.peers[ps.PeerKey()]
+			reactor.mu.RUnlock()
+			src.setState(PeerStateEstablished)
 
 			// A DESTINATION peer is required, not just the source. ReactorForwarded
 			// now means "the fast path delivered this UPDATE to someone", not merely
@@ -135,7 +139,7 @@ func TestRSFastPathGateRespectsCapability(t *testing.T) {
 
 			payload := testUpdatePayload()
 			wireUpdate := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "")
+			_ = reactor.notifyMessageReceiver(peerAddr, msgtype.TypeUPDATE, payload, wireUpdate, 0, rpc.DirectionReceived, testPoolBuf(t), nil, "", 0)
 
 			select {
 			case <-gotMsg:

@@ -391,6 +391,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				remoteRouterID: peer.RemoteRouterID(),
 				globalLocalAS:  s.GlobalLocalAS,
 				resolved:       true,
+				peer:           peer,
 			}
 			if len(a.r.egressFilters) > 0 {
 				srcInfo.filterInfo = filterapi.PeerFilterInfo{
@@ -435,6 +436,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
+	srcInfo.sender = sender
 	return a.forwardUpdateCore(update, updateID, permittedPeers, srcInfo)
 }
 
@@ -455,12 +457,14 @@ type forwardSourceInfo struct {
 	globalLocalAS  uint32
 	filterInfo     filterapi.PeerFilterInfo
 	resolved       bool
+	peer           *Peer
+	sender         plugin.Sender
 }
 
-// forwardUpdateCore is the per-destination dispatch loop shared by ForwardUpdate
-// (selector-resolved peers) and ForwardUpdatesDirect (batch-resolved peers).
-// matchingPeers must not include the source peer (already excluded by the caller).
-func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) error {
+// forwardUpdateSection dispatches one received-next-hop section through every
+// existing egress policy. The caller MUST serialize dispatch for the source and
+// keep update's cache entry alive until every worker releases it.
+func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate) error {
 	// Unreachable from any production caller -- ForwardUpdate, ForwardUpdatesDirect
 	// and RelayStoredRoute each refuse an unresolved source before getting here.
 	// Kept so the zero value can never become a valid-looking answer at the one
@@ -484,7 +488,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// caches and the read-buffer adoption they required are gone.
 	// The source's ASN width, resolved once for the whole fan-out: it is the
 	// SrcASN4 half of every destination's AS-path intent.
-	srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
+	srcCtx := bgpctx.Registry.Get(sourceWire.SourceCtxID())
 	srcASN4 := srcCtx != nil && srcCtx.ASN4()
 
 	var parseCache fwdParseCache
@@ -569,33 +573,42 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// destination: whether the source carries LOCAL_PREF at all. A destination
 	// whose policy chain returned a full wire override re-asks over THAT payload
 	// below, because the override is the base its rebuild runs over.
-	srcHasLocalPref := payloadHasLocalPref(update.WireUpdate.Payload())
+	srcHasLocalPref := payloadHasLocalPref(sourceWire.Payload())
 
 	// RFC 8669 Section 8 needs the same one bit per UPDATE: whether the source
 	// carries a Prefix-SID attribute at all. Same re-ask below for a destination
 	// whose base is not the source payload (applyFactsPrefixSID,
 	// forward_prefix_sid.go).
-	srcHasPrefixSID := payloadHasAttr(update.WireUpdate.Payload(), attribute.AttrPrefixSID)
+	srcHasPrefixSID := payloadHasAttr(sourceWire.Payload(), attribute.AttrPrefixSID)
 
 	// RFC 4271 Section 5.1.4 needs one read per UPDATE for the same reason:
 	// which MULTI_EXIT_DISC the source sent, which is the only received value
 	// there is. A destination whose policy chain returned a full wire override
 	// re-asks over THAT payload below, because a metric the override carries and
 	// the source did not is the operator originating one (applyFactsMED).
-	srcMED := payloadMED(update.WireUpdate.Payload())
+	srcMED := payloadMED(sourceWire.Payload())
 
 	// RFC 4271 Section 5.1.3 needs one read per UPDATE for the same reason: the
 	// NEXT_HOP the source sent, which is what every destination is offered unless
 	// something rewrites it for that destination (egressNextHopIsPeerOwn,
 	// forward_next_hop.go).
-	srcNextHop := payloadNextHop(update.WireUpdate.Payload())
+	srcNextHop := payloadNextHop(sourceWire.Payload())
+	srcAIGP := payloadAIGP(sourceWire.Payload())
+	srcAIGPNextHop := srcNextHop
+	metricRevision := aigpRevision()
+	var srcAIGPLinkMetric, srcAIGPMessageID uint64
+	if len(srcAIGP) != 0 {
+		srcAIGPLinkMetric = a.r.sourceAIGPLinkMetric(update.SourcePeerIP)
+		srcAIGPMessageID = update.sourceMessageID()
+		srcAIGPNextHop = aigpNextHop(sourceWire.Payload())
+	}
 
 	// RFC 1997 needs one scan per UPDATE, not one per destination: which
 	// well-known communities the RECEIVED route carries. Scanned over the SOURCE
 	// payload, never over a policy chain's wire override -- an export policy that
 	// strips NO_EXPORT does not license the leak, because the route arrived
 	// carrying it (wireu.WellKnown).
-	srcWellKnown := a.r.scanWellKnownEgress(update.WireUpdate.Payload(), update.SourcePeerIP)
+	srcWellKnown := a.r.scanWellKnownEgress(sourceWire.Payload(), update.SourcePeerIP)
 
 	// The withdrawal half of that same UPDATE, for the destinations an egress gate
 	// refuses. Derived once per UPDATE, so an UPDATE no gate refuses pays one
@@ -611,7 +624,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	withdrawOnlyDerived := false
 	if srcWellKnown != 0 {
 		withdrawOnlyDerived = true
-		srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+		srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
 	}
 
 	for _, peer := range matchingPeers {
@@ -630,7 +643,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// gets the withdrawal half alone: refusing the whole message would leave
 		// the peer holding a prefix ze can no longer withdraw until the session
 		// resets, which is a worse outcome than the leak the clause prevents.
-		destBaseWire := update.WireUpdate
+		destBaseWire := sourceWire
 		if !a.r.wellKnownAllowsEgress(srcWellKnown, !facts.isEBGP) {
 			if srcWithdrawOnly == nil {
 				suppressedCount++
@@ -643,9 +656,9 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		if rsLocalAS != 0 && facts.rsClient && facts.peerAS != 0 {
 			if !communityParsed {
 				communityParsed = true
-				cp := wireu.ParseCommunityPolicy(update.WireUpdate.Payload(), rsLocalAS)
+				cp := wireu.ParseCommunityPolicy(sourceWire.Payload(), rsLocalAS)
 				communityPolicy = &cp
-				communityStripBytes = wireu.StripControlCommunities(update.WireUpdate.Payload(), rsLocalAS)
+				communityStripBytes = wireu.StripControlCommunities(sourceWire.Payload(), rsLocalAS)
 			}
 			// THE CONTROL COMMUNITIES DECIDE ABOUT A ROUTE, NOT ABOUT A MESSAGE.
 			// ShouldForwardTo reads RSBlackhole, WhitelistASNs and BlacklistASNs off
@@ -661,7 +674,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			if !communityPolicy.ShouldForwardTo(facts.peerAS) {
 				if !withdrawOnlyDerived {
 					withdrawOnlyDerived = true
-					srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+					srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
 				}
 				if srcWithdrawOnly == nil {
 					// Counted as suppressed only HERE, where the client receives
@@ -761,6 +774,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		if exportWireOverride != nil {
 			peerBaseWire = exportWireOverride
 		}
+		applyFactsAIGP(facts, srcAIGP, srcAIGPNextHop, peerBaseWire.Payload(), update.SourcePeerIP, srcAIGPLinkMetric, &mods)
 
 		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
 		// be advertised to a peer using an address of that peer as NEXT_HOP."
@@ -784,13 +798,13 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// and break the transparency RFC 7947 Section 2.2.2 requires of a route
 		// server.
 		baseNextHop := srcNextHop
-		if peerBaseWire != update.WireUpdate {
+		if peerBaseWire != sourceWire {
 			baseNextHop = payloadNextHop(peerBaseWire.Payload())
 		}
 		if egressNextHopIsPeerOwn(facts, &mods, baseNextHop) {
 			if !withdrawOnlyDerived {
 				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
 			}
 			fwdLogger().Warn("withholding route: its next hop is this peer's own address",
 				"peer", facts.addrStr, "next-hop", facts.addr,
@@ -833,14 +847,14 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// SHOULD log this suppression, or otherwise expose it through operator
 		// notification ... so that unexpected reachability gaps can be detected."
 		// The warning below is that log line.
-		if peerBaseWire != update.WireUpdate {
+		if peerBaseWire != sourceWire {
 			baseNextHop = payloadNextHop(peerBaseWire.Payload())
 		}
 		if isReflected && egressNextHopIsLinkLocalOnly(&mods, baseNextHop) &&
 			!sameLinkLayerSegment(peer.llScope.Load().connectedPrefixes(), srcAddr, facts.addr) {
 			if !withdrawOnlyDerived {
 				withdrawOnlyDerived = true
-				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+				srcWithdrawOnly = wireu.WithdrawalsOnly(sourceWire)
 			}
 			fwdLogger().Warn("withholding route: its next hop is link-local-only and this client is not on the advertiser's link-layer segment",
 				"peer", facts.addrStr, "advertiser", srcAddr,
@@ -864,7 +878,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// Re-asking whenever the two differ keeps the answer about the bytes this
 		// destination is sent.
 		baseHasLocalPref := srcHasLocalPref
-		if peerBaseWire != update.WireUpdate {
+		if peerBaseWire != sourceWire {
 			baseHasLocalPref = payloadHasLocalPref(peerBaseWire.Payload())
 		}
 		applyFactsLocalPref(facts, baseHasLocalPref, &mods)
@@ -873,7 +887,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// neighbor the operator has placed inside the SR domain. Asked over the
 		// same two payloads, and for the same reason, as the sibling above.
 		baseHasPrefixSID := srcHasPrefixSID
-		if peerBaseWire != update.WireUpdate {
+		if peerBaseWire != sourceWire {
 			baseHasPrefixSID = payloadHasAttr(peerBaseWire.Payload(), attribute.AttrPrefixSID)
 		}
 		applyFactsPrefixSID(facts, baseHasPrefixSID, &mods)
@@ -885,7 +899,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		// forbids relaying somebody else's value rather than the attribute
 		// itself (applyFactsMED, forward_med.go).
 		baseMED := srcMED
-		if peerBaseWire != update.WireUpdate {
+		if peerBaseWire != sourceWire {
 			baseMED = payloadMED(peerBaseWire.Payload())
 		}
 		applyFactsMED(facts, srcMED, baseMED, peerBaseWire.Payload(), &mods)
@@ -1043,7 +1057,11 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: srcAIGPMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
+		item.aigpOrigin = announceOrigin(srcInfo.sender)
+		item.aigpRevision = metricRevision
+		item.aigpReplay = update.aigpReplay
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

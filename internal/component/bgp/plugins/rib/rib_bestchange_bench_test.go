@@ -52,7 +52,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 				}
 				metricIdxs := make([]uint16, 16)
 				for i := range metricIdxs {
-					idx, ok := interner.internMetric(uint32(i * 100))
+					idx, ok := interner.internMetric(bestPathMetrics{MED: uint32(i * 100)})
 					if !ok {
 						b.Fatalf("metric fill %d: interner unexpectedly saturated (cap=%d)", i, internerCap)
 					}

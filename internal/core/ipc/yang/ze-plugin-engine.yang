@@ -428,6 +428,54 @@ every peer, so an omitted selector is not a no-op.";
         }
     }
 
+    rpc route-metrics {
+        ze:help "Read recursive next-hop metrics from the engine.";
+        description
+            "Returns the Loc-RIB revision and one result per requested address, in
+             request order. An empty address list requests the revision alone.";
+        input {
+            leaf-list addresses {
+                type zt:ip-address;
+                max-elements 4096;
+                ordered-by user;
+                ze:help "Next-hop addresses to resolve";
+                description "Each address is resolved through the engine's current Loc-RIB.";
+            }
+        }
+        output {
+            leaf revision {
+                type uint64;
+                mandatory true;
+                ze:help "Routing revision before resolution";
+                description "A later revision invalidates distances from this snapshot.";
+            }
+            list distances {
+                max-elements 4096;
+                ordered-by user;
+                ze:help "Distances in the requested address order";
+                description "Every requested address has one result, including unresolved addresses.";
+                leaf cost {
+                    type uint64;
+                    mandatory true;
+                    ze:help "Accumulated interior metric";
+                    description "Resolved cost includes recursive BGP AIGP and terminal interior distance.";
+                }
+                leaf resolved {
+                    type boolean;
+                    mandatory true;
+                    ze:help "Whether the next hop resolves";
+                    description "False distinguishes an unresolved next hop from a resolved zero cost.";
+                }
+                leaf missing-aigp {
+                    type boolean;
+                    mandatory true;
+                    ze:help "Whether a recursive BGP hop omitted AIGP";
+                    description "A missing AIGP attribute prevents accumulating it for next-hop-self export.";
+                }
+            }
+        }
+    }
+
     // Runtime: Command dispatch (inter-plugin communication).
 
     rpc dispatch-command {

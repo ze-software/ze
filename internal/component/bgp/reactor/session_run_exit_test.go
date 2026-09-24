@@ -146,8 +146,7 @@ func TestPolicyTeardownExitsRun(t *testing.T) {
 	var filterRan bool
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		filterRan = true
 		session.requestPolicyTeardown(message.NotifyCease, message.NotifyCeaseConnectionRejected)
 		return false

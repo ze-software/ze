@@ -168,11 +168,14 @@ func (r *StaticRoute) RouteKey() string {
 // PluginRoute is a generic route built by a plugin's config route parser.
 // Carries pre-built wire bytes so the reactor needs no family-specific code.
 type PluginRoute struct {
-	Family   string // "ipv4/sr-policy", etc.
-	IsIPv6   bool
-	NLRI     []byte // Pre-built NLRI wire bytes.
-	NextHop  netip.Addr
-	RawAttrs [][]byte // Extra pre-built attribute wire bytes (flags+code+len+value).
+	Family  string // "ipv4/sr-policy", etc.
+	IsIPv6  bool
+	NLRI    []byte // Pre-built NLRI wire bytes.
+	NextHop netip.Addr
+	// NextHopSelf resolves the route's explicit self policy from the connected
+	// local endpoint, independently of the peer's default export next hop.
+	NextHopSelf bool
+	RawAttrs    [][]byte // Extra pre-built attribute wire bytes (flags+code+len+value).
 
 	// ASPath is the configured AS_PATH, encoded with ASN4 context by BuildPlugin.
 	ASPath []uint32
@@ -541,6 +544,22 @@ type PeerSettings struct {
 	// the domain. prefixSIDAllowedTo (forward_prefix_sid.go) is the single site
 	// that reads it, and every egress rail asks there.
 	PropagateSRv6PrefixSID bool
+
+	// AIGPSession overrides the RFC 7311 Section 3.3 session default.
+	// Nil selects enabled for iBGP and disabled for eBGP.
+	AIGPSession *bool
+
+	// AIGPOriginate permits explicitly configured metrics on domain-local
+	// routes for which this speaker is the next hop (RFC 7311 Section 3.4.1).
+	AIGPOriginate bool
+
+	// AIGPLinkMetric is the non-zero configured distance to this peer when
+	// no IGP computes one. Zero means no link distance was configured.
+	AIGPLinkMetric uint64
+
+	// AIGPDomainAS lists the external ASes whose routes remain in the
+	// administrative domain. The local AS is always in that domain.
+	AIGPDomainAS []uint32
 
 	// RouteReflectorClient marks this peer as a route reflector client (RFC 4456).
 	// When true, routes from this peer are forwarded to all other clients and non-clients.

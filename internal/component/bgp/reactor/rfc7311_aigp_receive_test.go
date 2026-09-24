@@ -105,6 +105,7 @@ func TestRFC7311AIGPTransitiveDiscardedOnReceive(t *testing.T) {
 // present with flags 0x80 and its metric TLV byte-identical, and no ATTR_TOMBSTONE.
 func TestRFC7311AIGPNonTransitiveKeptOnReceive(t *testing.T) {
 	s := rfc7311EBGPSession()
+	s.settings.AIGPSession = new(true)
 
 	body := makeUpdateBody(nil, rfc7311AIGPAttrs(0x80), []byte{24, 10, 0, 0})
 	wu, action, err := s.enforceRFC7606(wireu.NewWireUpdate(body, 0))

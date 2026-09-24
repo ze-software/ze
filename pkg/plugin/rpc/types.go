@@ -288,6 +288,7 @@ const (
 	MethodRelayStoredRoute    = "ze-plugin-engine:relay-stored-route"
 	MethodRouteInstall        = "ze-plugin-engine:route-install"
 	MethodRouteRemove         = "ze-plugin-engine:route-remove"
+	MethodRouteMetrics        = "ze-plugin-engine:route-metrics"
 	MethodInjectWireRoute     = "ze-plugin-engine:inject-wire-route"
 	MethodBatchValidate       = "ze-plugin-engine:batch-validate"
 	MethodResolveDNS          = "ze-plugin-engine:resolve-dns"
@@ -837,6 +838,12 @@ type StoredRoute struct {
 	AttrHex    string `json:"attr-hex"`
 	NextHopHex string `json:"next-hop-hex"`
 	NLRIHex    string `json:"nlri-hex"`
+	// MsgID is the original received UPDATE generation, independent of any
+	// temporary message-cache identifier the relay allocates.
+	MsgID uint64 `json:"msg-id,omitempty"`
+	// Withdraw explicitly removes a path no longer held by the receive store.
+	// AttrHex and NextHopHex are then unused; NLRIHex still names the path.
+	Withdraw bool `json:"withdraw,omitempty"`
 	// PathID is the RFC 7911 Path Identifier the source session used for this
 	// route. It is meaningful only when NLRIFraming is NLRIFramingPrefixOnly.
 	PathID uint32 `json:"path-id,omitempty"`
@@ -873,9 +880,10 @@ type RouteInstallEntry struct {
 	Instance uint32 `json:"instance"`
 	NextHop  string `json:"next-hop,omitempty"`
 	// Interface is the outgoing device name for NextHop and Weight is NextHop's
-	// share of the group ECMP completes. A protocol-learned route names a gateway
-	// alone and leaves both empty; a configured route may name a device instead.
+	// share of the group ECMP completes. A link-state adjacency can name the
+	// device even when the gateway lies outside its IP subnet.
 	Interface string `json:"interface,omitempty"`
+	OnLink    bool   `json:"on-link,omitempty"`
 	Weight    uint8  `json:"weight,omitempty"`
 	// RouteType is the forwarding action the FIB programs, as the number
 	// internal/core/rib/routetype defines: 1 unicast, 6 blackhole,
@@ -887,7 +895,13 @@ type RouteInstallEntry struct {
 	AdminDistance uint8    `json:"distance"`
 	Metric        uint32   `json:"metric"`
 	Labels        []uint32 `json:"labels,omitempty"`
-	IsEBGP        bool     `json:"is-ebgp,omitempty"`
+	// SRv6SID is the service SID selected for this path, in IPv6 text form.
+	SRv6SID         string `json:"srv6-sid,omitempty"`
+	IsEBGP          bool   `json:"is-ebgp,omitempty"`
+	IsBGP           bool   `json:"is-bgp,omitempty"`
+	AIGP            uint64 `json:"aigp,omitempty"`
+	AIGPPresent     bool   `json:"aigp-present,omitempty"`
+	MetricRecursive bool   `json:"metric-recursive,omitempty"`
 	// ECMP is the route's own equal-cost next-hop set, for a plugin whose one
 	// route names several. Without it a forked plugin's multipath arrives as a
 	// single next-hop.
@@ -902,6 +916,7 @@ type RouteInstallEntry struct {
 type RouteNextHop struct {
 	NextHop   string `json:"next-hop,omitempty"`
 	Interface string `json:"interface,omitempty"`
+	OnLink    bool   `json:"on-link,omitempty"`
 	Weight    uint8  `json:"weight,omitempty"`
 }
 
@@ -935,6 +950,28 @@ type RouteRemoveInput struct {
 // RouteRemoveOutput is the output for ze-plugin-engine:route-remove.
 type RouteRemoveOutput struct {
 	Removed uint32 `json:"removed"` // routes withdrawn from the engine Loc-RIB
+}
+
+// RouteMetricsAddressMax bounds one next-hop resolution batch.
+const RouteMetricsAddressMax = 4096
+
+// RouteMetricsInput reads resolved next-hop distances from the engine's RIB.
+// An empty address list requests only the current routing revision.
+type RouteMetricsInput struct {
+	Addresses []string `json:"addresses,omitempty"`
+}
+
+// RouteMetric distinguishes an unresolved hop from a resolved zero-cost path.
+type RouteMetric struct {
+	Cost        uint64 `json:"cost"`
+	Resolved    bool   `json:"resolved"`
+	MissingAIGP bool   `json:"missing-aigp"`
+}
+
+// RouteMetricsOutput preserves request order and names the routing revision.
+type RouteMetricsOutput struct {
+	Revision  uint64        `json:"revision"`
+	Distances []RouteMetric `json:"distances,omitempty"`
 }
 
 // InjectWireRouteInput is the JSON-codec fallback input for

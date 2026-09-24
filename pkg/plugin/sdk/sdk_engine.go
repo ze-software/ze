@@ -30,7 +30,7 @@ func (p *Plugin) UpdateRouteSel(ctx context.Context, sel *selector.Selector, com
 // UpdateRouteSelWithMeta is the typed-selector variant of UpdateRouteWithMeta.
 func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
 	if p.bridge != nil && p.bridge.HasUpdateRouteSel() {
-		return p.bridge.UpdateRouteSel(sel, command, meta)
+		return p.bridge.UpdateRouteSel(ctx, sel, command, meta)
 	}
 	return p.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 }
@@ -163,6 +163,25 @@ func (p *Plugin) RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry)
 	return out.Removed, nil
 }
 
+// RouteMetrics uses the registered engine RPC on both socket and Direct rails.
+func (p *Plugin) RouteMetrics(ctx context.Context, addresses []string) (*rpc.RouteMetricsOutput, error) {
+	result, err := p.callEngineWithResult(ctx, rpc.MethodRouteMetrics, &rpc.RouteMetricsInput{Addresses: addresses})
+	if err != nil {
+		return nil, err
+	}
+	var out *rpc.RouteMetricsOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal route-metrics result: %w", err)
+	}
+	if out == nil {
+		return nil, errors.New("route-metrics: engine returned no result")
+	}
+	if len(out.Distances) != len(addresses) {
+		return nil, fmt.Errorf("route-metrics: got %d distances for %d addresses", len(out.Distances), len(addresses))
+	}
+	return out, nil
+}
+
 // InjectWireRoute sends raw BGP UPDATE body bytes to the RIB under a named
 // protocol. Zero-copy via DirectBridge typed handler (no hex encoding) for
 // in-process plugins; a forked/external plugin with no typed slot falls back to
@@ -190,13 +209,14 @@ func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDe
 	if err != nil {
 		return nil, err
 	}
-	var out rpc.BatchValidateResult
-	if len(result) > 0 {
-		if err := json.Unmarshal(result, &out); err != nil {
-			return nil, fmt.Errorf("batch-validate: unmarshal result: %w", err)
-		}
+	var out *rpc.BatchValidateResult
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("batch-validate: unmarshal result: %w", err)
 	}
-	return &out, nil
+	if out == nil {
+		return nil, errors.New("batch-validate: engine returned no result")
+	}
+	return out, nil
 }
 
 // ResolveDNS asks the engine to resolve name for the given DNS RR type and
@@ -237,7 +257,7 @@ func (p *Plugin) ResolveDNS(ctx context.Context, name string, qtype uint16) (rec
 // answer, so a caller that must bound its memory takes the other.
 func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status string, data json.RawMessage, err error) {
 	if p.bridge != nil && p.bridge.HasDispatchCommand() {
-		out, dispatchErr := p.bridge.DispatchCommand(command)
+		out, dispatchErr := p.bridge.DispatchCommand(ctx, command)
 		return dispatchDirectCommandResult(out, dispatchErr)
 	}
 	input := &rpc.DispatchCommandInput{Command: command}
@@ -249,7 +269,7 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status st
 // dispatch-command API while avoiding command-string tokenization for internal data.
 func (p *Plugin) DispatchCommandArgs(ctx context.Context, command string, args []string, peer string) (status string, data json.RawMessage, err error) {
 	if p.bridge != nil && p.bridge.HasDispatchCommandArgs() {
-		out, dispatchErr := p.bridge.DispatchCommandArgs(command, args, peer)
+		out, dispatchErr := p.bridge.DispatchCommandArgs(ctx, command, args, peer)
 		return dispatchDirectCommandResult(out, dispatchErr)
 	}
 	input := &rpc.DispatchCommandArgsInput{Command: command, Args: args, Peer: peer}
@@ -276,7 +296,7 @@ func (p *Plugin) DispatchCommandAnswer(ctx context.Context, command string) (*rp
 	// empty: its own refusal names the missing slot, where the closed mux would
 	// answer with a read error that says nothing about why.
 	if p.bridge != nil && p.bridge.Ready() {
-		return p.bridge.DispatchCommandAnswer(command)
+		return p.bridge.DispatchCommandAnswer(ctx, command)
 	}
 	return p.engineMux.CallAnswer(ctx, rpc.MethodDispatchCommand, &rpc.DispatchCommandInput{Command: command})
 }

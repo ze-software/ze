@@ -1835,7 +1835,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	})
 	require.True(t, found, "should have a route entry")
 
-	c := r.extractCandidate(netip.MustParseAddr("10.0.0.1"), "10.0.0.1", entry)
+	c := r.extractCandidate(family.IPv4Unicast, netip.MustParseAddr("10.0.0.1"), "10.0.0.1", entry)
 
 	assert.Equal(t, "10.0.0.1", c.PeerAddr)
 	assert.Equal(t, uint32(65001), c.PeerASN, "PeerASN from peerMeta")

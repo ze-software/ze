@@ -690,6 +690,32 @@ module ze-bgp-conf {
                 community control. A peer inherits these from its group, and a peer value overrides the group value.";
             ze:help "BGP session parameters for this peer or group.";
 
+            container aigp {
+                description "RFC 7311 session boundary and origination policy. Enable external sessions only inside one AIGP administrative domain.";
+                ze:help "Accumulated IGP metric policy for this session.";
+                leaf enabled {
+                    type boolean;
+                    description "Overrides AIGP_SESSION. Without this leaf, internal sessions enable AIGP and external sessions disable it.";
+                    ze:help "Accept and send AIGP on this session.";
+                }
+                leaf originate {
+                    type boolean;
+                    default false;
+                    description "Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.";
+                    ze:help "Permit AIGP attribute origination.";
+                }
+                leaf link-metric {
+                    type uint64 { range "1..max"; }
+                    description "Distance to this peer when no IGP provides one. Use units comparable to the administrative domain's IGP metrics.";
+                    ze:help "Non-zero metric for a link without an IGP.";
+                }
+                leaf-list domain-as {
+                    type zt:asn;
+                    description "External ASes inside the AIGP administrative domain. A newly originated attribute cannot accompany a path containing any other external AS.";
+                    ze:help "External AS numbers inside the AIGP domain.";
+                }
+            }
+
             container asn {
                 description "local overrides the global ASN for this session. remote names the peer ASN. Ze compares
                     the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this

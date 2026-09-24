@@ -95,39 +95,58 @@ func (a *AIGP) Metric() (uint64, bool) {
 	return 0, false
 }
 
+// AIGPMetricOffset validates the TLV sequence and locates its first metric.
+// RFC 7311 Section 3: Type is at byte 0, inclusive Length at bytes 1..2,
+// and the eight-octet metric of Type 1 at bytes 3..10.
+// Section 3.2: "an AIGP attribute MUST NOT be considered to be malformed
+// because it contains more than one TLV of a given type or because it
+// contains TLVs of unknown types."
+// The returned offset is -1 when the valid attribute has no metric TLV.
+func AIGPMetricOffset(data []byte) (int, error) {
+	if len(data) == 0 {
+		return -1, ErrShortData
+	}
+	metricOffset := -1
+	for off := 0; off < len(data); {
+		if len(data)-off < aigpTLVHeaderLen {
+			return -1, ErrMalformedValue
+		}
+		length := int(binary.BigEndian.Uint16(data[off+1:]))
+		if length < aigpTLVHeaderLen {
+			return -1, ErrMalformedValue
+		}
+		if length > len(data)-off {
+			return -1, ErrMalformedValue
+		}
+		if data[off] == aigpTLVTypeMetric {
+			if length != aigpTLVMetricLen {
+				return -1, ErrMalformedValue
+			}
+			if metricOffset < 0 {
+				metricOffset = off + aigpTLVHeaderLen
+			}
+		}
+		off += length
+	}
+	return metricOffset, nil
+}
+
 // ParseAIGP parses an AIGP attribute from wire bytes.
 // RFC 7311 Section 3: sequence of TLVs, each with type(1) + length(2) + value.
 // Type 1 TLV must have length 11. Unknown types are preserved as opaque.
 func ParseAIGP(data []byte) (*AIGP, error) {
-	if len(data) == 0 {
-		return nil, ErrShortData
+	if _, err := AIGPMetricOffset(data); err != nil {
+		return nil, err
 	}
 
 	var tlvs []AIGPTLV
 	off := 0
 	for off < len(data) {
-		// RFC 7311 Section 3: need at least 3 bytes for TLV header
-		if off+aigpTLVHeaderLen > len(data) {
-			return nil, ErrMalformedValue
-		}
 
 		tlvType := data[off]
 		tlvLen := int(binary.BigEndian.Uint16(data[off+1:]))
 
-		// RFC 7311: length includes the type and length fields themselves
-		if tlvLen < aigpTLVHeaderLen {
-			return nil, ErrMalformedValue
-		}
-		if off+tlvLen > len(data) {
-			return nil, ErrMalformedValue
-		}
-
 		valueLen := tlvLen - aigpTLVHeaderLen
-
-		// RFC 7311 Section 3: type 1 MUST have length 11 (3 header + 8 metric)
-		if tlvType == aigpTLVTypeMetric && tlvLen != aigpTLVMetricLen {
-			return nil, ErrMalformedValue
-		}
 
 		valueData := make([]byte, valueLen)
 		copy(valueData, data[off+aigpTLVHeaderLen:off+tlvLen])

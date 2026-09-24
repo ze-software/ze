@@ -84,7 +84,7 @@ func assertNotification(t *testing.T, raw []byte, code message.NotifyErrorCode, 
 // countRouteRefreshDelivery makes the session count what reaches its two receive
 // callbacks, so a refused or ignored message can be shown never to reach a plugin.
 func countRouteRefreshDelivery(session *Session, messages, refreshes *int) {
-	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if msgType == msgtype.TypeROUTEREFRESH {
 			*messages++
 		}

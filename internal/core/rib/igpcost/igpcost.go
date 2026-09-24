@@ -1,36 +1,35 @@
 // Design: docs/architecture/core-design.md -- IGP next-hop cost seam
+// RFC: rfc/short/rfc7311.md -- Sections 3.4.3 and 4.2
 
-// Package igpcost carries the IGP metric of a resolved next-hop from whoever
-// computes it to whoever ranks paths by it.
-//
-// The producer is sysrib's next-hop resolver, which walks the unified Loc-RIB;
-// the consumer is BGP best-path selection (RFC 4271 Section 9.1.2.2 (e), the
-// "lowest interior cost to the NEXT_HOP" tiebreak). Both sides are optional:
-// sysrib runs with no BGP engine compiled in (//go:build ze_bgp), and the BGP
-// engine runs with no Loc-RIB wired. Keeping the seam here, in a leaf that
-// neither side owns, lets each register or read independently -- previously
-// sysrib pushed directly into the BGP RIB package, which pinned the engine into
-// every binary.
-//
-// An unset seam yields cost 0, the same value BGP already used before a resolver
-// existed: every next-hop compares equal on that tiebreak and selection falls
-// through to the next rule.
+// Package igpcost carries resolved next-hop distances from the unified RIB to
+// route selection and advertisement without importing either component.
 package igpcost
 
 import (
 	"net/netip"
 	"sync/atomic"
+
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
-// Func returns the interior (IGP) cost to reach addr.
-type Func func(addr netip.Addr) uint32
+// Distance distinguishes an unknown route from a directly connected zero-cost
+// route. Cost includes each recursive BGP route's received AIGP metric and the
+// terminal IGP/static distance, never a BGP MED. MissingAIGP means a recursive
+// BGP route omitted AIGP, so RFC 7311 Section 3.4.3 forbids carrying the attribute
+// when changing next hop to self.
+type Distance struct {
+	Cost        uint64
+	Resolved    bool
+	MissingAIGP bool
+}
 
-// fnPtr holds the registered lookup. Read on the best-path hot path, written
-// once when a Loc-RIB is wired, so an atomic pointer beats a mutex here.
+// Func resolves the interior distance to addr.
+type Func func(addr netip.Addr) Distance
+
 var fnPtr atomic.Pointer[Func]
 
-// Set registers the IGP cost lookup. Called by sysrib once its next-hop
-// resolver exists. A nil fn clears the seam (Lookup then reports 0).
+// Set registers the lookup. A nil function clears it.
 func Set(fn Func) {
 	if fn == nil {
 		fnPtr.Store(nil)
@@ -39,13 +38,56 @@ func Set(fn Func) {
 	fnPtr.Store(&fn)
 }
 
-// Lookup returns the interior cost to addr, or 0 when no resolver is
-// registered. Zero is the documented "no interior cost known" value, not an
-// error: it makes the IGP-cost tiebreak a no-op rather than a failure.
-func Lookup(addr netip.Addr) uint32 {
+// Lookup uses the registered resolver, or the engine Loc-RIB when none is set.
+func Lookup(addr netip.Addr) Distance {
 	p := fnPtr.Load()
 	if p == nil {
-		return 0
+		return Resolve(locrib.Default(), addr)
 	}
 	return (*p)(addr)
+}
+
+// Add saturates rather than wrapping an accumulated distance.
+func Add(a, b uint64) uint64 {
+	if ^uint64(0)-a < b {
+		return ^uint64(0)
+	}
+	return a + b
+}
+
+// Resolve follows received BGP AIGP and recursive static hops, then counts the
+// terminal interior metric once. Missing reachability never yields a partial cost.
+func Resolve(rib *locrib.RIB, addr netip.Addr) Distance {
+	if rib == nil || !addr.IsValid() {
+		return Distance{}
+	}
+	var distance Distance
+	current := addr
+	for range 8 {
+		fam := family.IPv6Unicast
+		if current.Is4() {
+			fam = family.IPv4Unicast
+		}
+		path, _, found := rib.LPM(fam, current)
+		if !found || path.RouteType.Discards() {
+			return Distance{MissingAIGP: distance.MissingAIGP}
+		}
+		if !path.IsBGP && !path.MetricRecursive {
+			distance.Cost = Add(distance.Cost, uint64(path.Metric))
+			distance.Resolved = true
+			return distance
+		}
+		if path.IsBGP {
+			if !path.AIGPPresent {
+				distance.MissingAIGP = true
+			} else {
+				distance.Cost = Add(distance.Cost, path.AIGP)
+			}
+		}
+		if !path.NextHop.IsValid() || path.NextHop == current {
+			return Distance{MissingAIGP: distance.MissingAIGP}
+		}
+		current = path.NextHop
+	}
+	return Distance{MissingAIGP: distance.MissingAIGP}
 }

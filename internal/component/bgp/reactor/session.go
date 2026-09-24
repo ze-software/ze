@@ -201,7 +201,7 @@ const sendHoldTimerMin = 8 * time.Minute
 // argument rather than being re-read from peer.session in the receiver, which would race
 // the peer run goroutine that nils/replaces peer.session under peer.mu.
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
 //
@@ -238,6 +238,8 @@ type Session struct {
 	bufReader  *bufio.Reader // Wraps conn to batch kernel read syscalls
 	bufWriter  *bufio.Writer // Wraps conn to batch kernel write syscalls
 	negotiated *capability.Negotiated
+	// Updated at connection setup and interface address events; immutable on receive.
+	nextHopScope atomic.Pointer[receiveNextHopScope]
 
 	// bfdState reads the draft-ietf-idr-bgp-bfd-strict-mode Section 3
 	// bfd.SessionState attribute for this peer. nil for a peer with no BFD
@@ -260,6 +262,10 @@ type Session struct {
 	// reads it.
 	bfdHoldDownObserved atomic.Bool
 
+	// transport is immutable socket metadata captured before OPEN. Sent event
+	// callbacks hold writeMu and MUST NOT take mu (the reverse lock order).
+	transport atomic.Pointer[sessionTransport]
+
 	// localOpen stores our OPEN for reference during negotiation.
 	localOpen *message.Open
 
@@ -272,11 +278,16 @@ type Session struct {
 	// No synchronization needed.
 	extendedMessage bool
 
+	// localRSClient is retained from our OPEN, even if the peer omits its Role
+	// capability. Only the receive goroutine accesses it, after negotiation.
+	// A transparent route server does not prepend its ASN (RFC 7947 Section 2.2.2).
+	localRSClient bool
+
 	// writeMu serializes all access to writeBuf.
 	// Multiple goroutines send concurrently (keepalive timer, forward pool workers,
 	// sendInitialRoutes, plugin RPC handlers) — this mutex prevents races on the
 	// shared buffer. Lock ordering: s.mu before s.writeMu (never reverse).
-	writeMu sync.Mutex
+	writeMu sessionWriteMutex
 
 	// Write buffer for zero-allocation message building.
 	// Allocated at 4096 bytes initially, resized to 65535 if Extended Message negotiated.
@@ -374,6 +385,15 @@ type Session struct {
 	// forward pool write. Set alongside sentMeta by fwdBatchHandler. Used by
 	// sent event callbacks for ribOut stale-scoping without map allocation.
 	sentSourcePeerStr string
+	// Original received generation for AIGP forwarded advertisements. Guarded
+	// by writeMu with sentSourcePeerStr; zero for non-forwarded messages.
+	sentSourceMessageID uint64
+	// Forward authority and pending actual writes, all guarded by writeMu.
+	sentAIGPOrigin   sendOrigin
+	sentAIGPRevision uint64
+	aigpReactor      *Reactor
+	aigpPeer         *Peer
+	aigpPending      []aigpAdvertisement
 
 	// fwdDirty tracks destination sessions with unflushed writes from the RS
 	// fast path (tryDirectWriteNoFlush). Flushed by flushFwdDirty when the

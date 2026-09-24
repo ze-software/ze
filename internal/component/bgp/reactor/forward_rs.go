@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // tryDirectWriteNoFlush writes UPDATE bodies directly to the destination peer's
@@ -39,6 +40,9 @@ import (
 // so let bgp-rs drop the UPDATE on its `default` arm -- for a peer that was not
 // Established or whose write errored.
 func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session) {
+	if !forwardSourceCurrent(item.receivedPeer, item.receivedGeneration) {
+		return true, false, nil
+	}
 	peer := item.peer
 	if peer == nil {
 		return false, false, nil
@@ -63,10 +67,16 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 	}
 
 	session.sentMeta = item.meta
+	session.sentSourcePeerStr = item.sourcePeerStr
+	session.sentSourceMessageID = item.sourceMessageID
+	defer func() {
+		session.sentMeta = nil
+		session.sentSourcePeerStr = ""
+		session.sentSourceMessageID = 0
+		session.writeMu.Unlock()
+	}()
 	for _, body := range item.rawBodies {
 		if err := session.writeRawUpdateBody(body); err != nil {
-			session.sentMeta = nil
-			session.writeMu.Unlock()
 			return true, false, session
 		}
 	}
@@ -74,13 +84,9 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		// Pre-filtered: forwardUpdateCore already ran this peer's export chain
 		// (and only then the EBGP prepend). See writeUpdatePreFiltered.
 		if err := session.writeUpdatePreFiltered(update); err != nil {
-			session.sentMeta = nil
-			session.writeMu.Unlock()
 			return true, false, session
 		}
 	}
-	session.sentMeta = nil
-	session.writeMu.Unlock()
 	return true, true, session
 }
 
@@ -96,6 +102,21 @@ func hasActiveFilter(chain []filterapi.FilterRef) bool {
 		if !ref.Inactive {
 			return true
 		}
+	}
+	return false
+}
+
+// sourceUsesCachedForward latches at receipt, even with the native fast path
+// disabled. Enabling it later MUST NOT let a withdrawal overtake cached work.
+func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
+	if peer != nil && peer.forwardCached.Load() {
+		return true
+	}
+	if ribevents.ValidationEnabled() || flowSpecUpdate(update) || len(payloadAIGP(update.Payload())) != 0 {
+		if peer != nil {
+			peer.forwardCached.Store(true)
+		}
+		return true
 	}
 	return false
 }
@@ -120,6 +141,16 @@ func hasActiveFilter(chain []filterapi.FilterRef) bool {
 // Buffer lifetime: callers must ensure the cache entry for updateID exists.
 // This function calls RetainN before dispatch; each fwdItem.done() calls Release.
 func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int) {
+	// notifyMessageReceiver already classified live entries at receipt.
+	var cached bool
+	if received := update.receivedPeer; received != nil {
+		cached = received.forwardCached.Load()
+	} else {
+		cached = sourceUsesCachedForward(sourcePeer, update.WireUpdate)
+	}
+	if cached {
+		return nil, 0
+	}
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
 	var srcSession *Session
@@ -234,6 +265,12 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	var rsLocalAS uint32
 	if sourcePeer != nil {
 		rsLocalAS = sourcePeer.Settings().GlobalLocalAS
+	}
+	srcAIGP := payloadAIGP(update.WireUpdate.Payload())
+	var srcAIGPLinkMetric, srcAIGPMessageID uint64
+	if len(srcAIGP) != 0 {
+		srcAIGPLinkMetric = r.sourceAIGPLinkMetric(sourcePeerAddr)
+		srcAIGPMessageID = update.sourceMessageID()
 	}
 
 	// RFC 4456 Section 8: ORIGINATOR_ID bytes are per-UPDATE constant.
@@ -419,6 +456,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
+		applyFactsAIGP(facts, srcAIGP, srcNextHop, destBaseWire.Payload(), sourcePeerAddr, srcAIGPLinkMetric, &mods)
 
 		// RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT
 		// be advertised to a peer using an address of that peer as NEXT_HOP."
@@ -601,7 +639,8 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: srcAIGPMessageID, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

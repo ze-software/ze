@@ -174,6 +174,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 
 // notifyPeerClosed calls all observers when peer leaves Established.
 func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
+	r.forgetAIGPPeer(peer)
 	// Remove peer from update group index before notifying observers.
 	// Must happen before clearEncodingContexts resets sendCtxID to 0.
 	if r.updateGroups != nil {
@@ -244,7 +245,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -253,6 +254,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	var peerInfo plugin.PeerInfo
 	if hasPeer {
 		s := peer.Settings()
+		peer.mu.RLock()
+		session := peer.session
+		peer.mu.RUnlock()
 		peerInfo = plugin.PeerInfo{
 			Address:         s.Address,
 			LocalAddress:    s.LocalAddress,
@@ -274,6 +278,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			// An atomic load, so it is safe on every goroutine this runs on.
 			RemoteRouterID: peer.RemoteRouterID(),
 			State:          peer.State().PluginState(),
+		}
+		if session != nil {
+			if endpoints := session.transport.Load(); endpoints != nil {
+				if endpoints.local.IsValid() {
+					peerInfo.LocalAddress = endpoints.local
+					peerInfo.LocalAddressStr = endpoints.localString
+				}
+				peerInfo.LocalPort = endpoints.localPort
+				peerInfo.RemotePort = endpoints.remotePort
+			}
 		}
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
@@ -378,6 +392,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	if wireUpdate != nil {
 		// Set messageID on WireUpdate (single source of truth for UPDATEs)
 		wireUpdate.SetMessageID(messageID)
+		r.invalidateAIGPReceived(peerAddr, wireUpdate)
 
 		// Derive AttrsWire for observation callback
 		// Errors logged but not fatal - handleUpdate() validates separately
@@ -425,13 +440,14 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		// panic, or reading a reconnected session's writeMu-guarded field without its
 		// writeMu). "" for received and non-forward sends.
 		msg = bgptypes.RawMessage{
-			Type:          msgType,
-			RawBytes:      bytes,
-			Timestamp:     timestamp,
-			Direction:     direction,
-			MessageID:     messageID,
-			Meta:          sentMeta,
-			SourcePeerStr: sentSourcePeerStr,
+			Type:            msgType,
+			RawBytes:        bytes,
+			Timestamp:       timestamp,
+			Direction:       direction,
+			MessageID:       messageID,
+			Meta:            sentMeta,
+			SourcePeerStr:   sentSourcePeerStr,
+			SourceMessageID: sourceMessageID,
 		}
 
 		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
@@ -526,8 +542,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				payload = res.modifiedPayload
 				// Create new WireUpdate from modified payload.
 				// The modified buffer is heap-allocated (not from pool).
+				sourceID := wireUpdate.SourceID()
 				wireUpdate = wireu.NewWireUpdate(payload, wireUpdate.SourceCtxID())
 				wireUpdate.SetMessageID(messageID)
+				wireUpdate.SetSourceID(sourceID)
 				// Update RawMessage to use modified WireUpdate.
 				attrsWire, parseErr := wireUpdate.Attrs()
 				if parseErr != nil {
@@ -542,6 +560,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		if len(ingressMeta) > 0 {
 			routeMeta = ingressMeta
 		}
+	}
+	if direction == rpc.DirectionReceived && wireUpdate != nil {
+		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta)
 	}
 
 	// Source peer identity for ribOut stale-scoping.
@@ -570,6 +591,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			SourcePeerStr: sourcePeerStr,
 			ReceivedAt:    timestamp,
 			Meta:          routeMeta,
+		}
+		if hasPeer {
+			ru.receivedPeer = peer
+			ru.receivedGeneration = peer.forwardGeneration.Load()
+			sourceUsesCachedForward(peer, wireUpdate)
 		}
 		// Initialize WireUpdate inline to co-locate it within the ReceivedUpdate
 		// allocation (one fewer heap object per UPDATE). Fresh init from the same

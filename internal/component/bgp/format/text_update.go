@@ -613,7 +613,18 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 				first = false
 			}
 		}
+		if msg.SourceMessageID != 0 {
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, `"source-message-id":`...)
+			buf = strconv.AppendUint(buf, msg.SourceMessageID, 10)
+			first = false
+		}
 		for k, v := range msg.Meta {
+			if k == "source-peer" || k == "source-message-id" {
+				continue // Transport provenance cannot be replaced by route policy.
+			}
 			kb, kerr := json.Marshal(k)
 			vb, verr := json.Marshal(v)
 			if kerr != nil || verr != nil {

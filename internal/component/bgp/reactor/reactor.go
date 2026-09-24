@@ -351,6 +351,8 @@ type Reactor struct {
 	// giving up update groups.
 	forwardDedupOff bool
 
+	aigp aigpState
+
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
@@ -1345,6 +1347,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Re-acquire lock only to set running state
 	r.mu.Lock()
 	r.running = true
+	r.wg.Go(func() { r.runAIGPAdvertisements(r.ctx) })
 
 	// Monitor context for shutdown
 	r.wg.Add(1)

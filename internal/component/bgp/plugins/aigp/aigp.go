@@ -1,11 +1,9 @@
-// Design: (none -- predates documentation)
+// Design: docs/architecture/route-selection.md
 // RFC: rfc/short/rfc7311.md
 //
-// Package aigp implements a stub plugin for the AIGP (Accumulated IGP) attribute.
-// RFC 7311: The Accumulated IGP Metric Attribute for BGP.
-//
-// This is a placeholder that registers the AIGP attribute type (code 26).
-// Full AIGP processing will be added when the spec-aigp work is implemented.
+// Package aigp registers AIGP attribute presentation. Session policy,
+// accumulation and metric-triggered forwarding live in the reactor; best-path
+// selection lives in the RIB.
 package aigp
 
 import (
@@ -33,7 +31,7 @@ func setAIGPLogger(l *slog.Logger) {
 	}
 }
 
-// runAIGPPlugin is the in-process entry point. Stub: runs the SDK event loop with no handlers.
+// runAIGPPlugin serves the attribute plugin's SDK lifecycle.
 func runAIGPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-aigp", conn)
 	defer func() { _ = p.Close() }()

@@ -8,6 +8,7 @@ package reactor
 import (
 	"encoding/binary"
 	"net/netip"
+	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
@@ -52,6 +53,9 @@ type peerForwardFacts struct {
 	globalLocalAS uint32
 	peerAS        uint32
 	isEBGP        bool
+	localAddr     netip.Addr
+	localScope    *atomic.Pointer[receiveNextHopScope]
+	aigpEnabled   bool
 
 	rsClient   bool
 	rrClient   bool
@@ -139,17 +143,22 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	// (reactor_dynamic.go) writes PeerAS and the filter pair on a dynamic peer's
 	// establishment.
 	//
-	// IsEBGP is taken here rather than at the struct literal below because it compares
-	// LocalAS against PeerAS. Called outside the lock it would be a second, unsynchronized
-	// read of the same mutable field.
+	// IsEBGP and AIGPEnabled are taken here because both compare LocalAS against
+	// PeerAS. Calling either outside the lock would read that mutable field again
+	// without synchronization.
 	//
 	// Every other field read below is set at construction and never mutated (the contract
 	// on Peer.Settings, peer.go).
 	p.mu.RLock()
+	var localScope *atomic.Pointer[receiveNextHopScope]
+	if p.session != nil {
+		localScope = &p.session.nextHopScope
+	}
 	sendCtxID := p.sendCtxID
 	exportFilters := s.ExportFilters
 	peerAS := s.PeerAS
 	isEBGP := s.IsEBGP()
+	aigpEnabled := s.AIGPEnabled()
 	p.mu.RUnlock()
 
 	ctx := p.sendCtx.Load()
@@ -171,6 +180,9 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 		globalLocalAS: s.GlobalLocalAS,
 		peerAS:        peerAS,
 		isEBGP:        isEBGP,
+		localAddr:     s.LocalAddress.Unmap(),
+		localScope:    localScope,
+		aigpEnabled:   aigpEnabled,
 
 		rsClient:           s.RSClient,
 		rrClient:           s.RouteReflectorClient,

@@ -53,16 +53,29 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
 type fwdItem struct {
-	rawBodies     [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates       []*message.Update // Re-encode path: SendUpdate per entry
-	peer          *Peer             // Target peer for all operations
-	done          func()            // Called after all ops complete (Release cache entry)
-	peerBufIdx    int               // 1-based index into per-peer pool; 0 = not from per-peer pool
-	peerPoolRef   *peerPool         // Pool to return buffer to (avoids map lookup + lock)
-	overflowBuf   BufHandle         // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
-	meta          map[string]any    // Route metadata from ReceivedUpdate; set on sent events
-	sourcePeerStr string            // Source peer address string for ribOut stale-scoping
-	supersedeKey  uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+	rawBodies          [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
+	updates            []*message.Update // Re-encode path: SendUpdate per entry
+	peer               *Peer             // Target peer for all operations
+	done               func()            // Called after all ops complete (Release cache entry)
+	peerBufIdx         int               // 1-based index into per-peer pool; 0 = not from per-peer pool
+	peerPoolRef        *peerPool         // Pool to return buffer to (avoids map lookup + lock)
+	overflowBuf        BufHandle         // Overflow MixedBufMux handle holding this item's copied bodies (ownOverflowBodies); nil Buf = not from overflow
+	meta               map[string]any    // Route metadata from ReceivedUpdate; set on sent events
+	sourcePeerStr      string            // Source peer address string for ribOut stale-scoping
+	sourceMessageID    uint64            // Original received AIGP generation, not a replay cache ID
+	receivedPeer       *Peer
+	receivedGeneration uint64
+	aigpOrigin         sendOrigin
+	aigpRevision       uint64
+	aigpReplay         *aigpAdvertisement
+	supersedeKey       uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+}
+
+// forwardSourceCurrent is lock-free because workers call it under the
+// destination write lock. Stop and re-establishment invalidate old generations.
+func forwardSourceCurrent(peer *Peer, generation uint64) bool {
+	return peer == nil || (!peer.stopping.Load() &&
+		peer.State() == PeerStateEstablished && peer.forwardGeneration.Load() == generation)
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -160,6 +173,10 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	defer func() {
 		session.sentMeta = nil         // Clear route metadata on all exit paths.
 		session.sentSourcePeerStr = "" // Clear source peer string on all exit paths.
+		session.sentSourceMessageID = 0
+		session.sentAIGPOrigin = sendOrigin{}
+		session.sentAIGPRevision = 0
+		session.commitAIGPWrites(false)
 		// Clear write deadline (zero value = no deadline).
 		_ = conn.SetWriteDeadline(time.Time{})
 	}()
@@ -172,8 +189,18 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	items = fwdBucketMerge(items, fwdBucketMaxBodySize(extMsg))
 
 	for i := range items {
+		if !forwardSourceCurrent(items[i].receivedPeer, items[i].receivedGeneration) {
+			continue
+		}
+		if replay := items[i].aigpReplay; replay != nil &&
+			(replay.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay)) {
+			continue
+		}
+		session.sentAIGPOrigin = items[i].aigpOrigin
+		session.sentAIGPRevision = items[i].aigpRevision
 		session.sentMeta = items[i].meta                   // Route metadata for sent event callbacks.
 		session.sentSourcePeerStr = items[i].sourcePeerStr // Source peer for ribOut stale-scoping.
+		session.sentSourceMessageID = items[i].sourceMessageID
 		for _, body := range items[i].rawBodies {
 			if err := session.writeRawUpdateBody(body); err != nil {
 				fwdLogger().Warn("forward batch write failed",
@@ -760,10 +787,9 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 		item.peer.fwdOverflowPending.Store(w.overflowPending)
 	}
 
-	// Route superseding (AC-23): if a pending item has the same content hash,
-	// replace it instead of appending. This bounds queue growth to unique
-	// UPDATE content rather than total update count. O(n) scan is acceptable
-	// because overflow is the slow path and items are bounded by the pool.
+	// Superseding removes an older equal body and appends the new item at its
+	// arrival position. Replacing in place would move a recovery announcement
+	// ahead of an intervening withdrawal and leave the destination withdrawn.
 	if item.supersedeKey != 0 {
 		for i := range w.overflow {
 			if w.overflow[i].supersedeKey != item.supersedeKey {
@@ -773,18 +799,13 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 			if !fwdBodiesEqual(w.overflow[i].rawBodies, item.rawBodies) {
 				continue
 			}
-			// Supersede: release old item's resources, replace with new.
 			old := w.overflow[i]
+			copy(w.overflow[i:], w.overflow[i+1:])
+			w.overflow[len(w.overflow)-1] = item
+			fp.releaseItem(&old)
 			if old.done != nil {
 				old.done()
 			}
-			if old.peerBufIdx > 0 && old.peerPoolRef != nil {
-				old.peerPoolRef.Return(old.peerBufIdx)
-			}
-			if old.overflowBuf.Buf != nil && fp.overflowMux != nil {
-				fp.overflowMux.Return(old.overflowBuf)
-			}
-			w.overflow[i] = item
 			w.overflowMu.Unlock()
 			return true
 		}

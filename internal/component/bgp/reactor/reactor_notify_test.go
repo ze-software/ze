@@ -20,9 +20,9 @@ import (
 // peer.session pointer; in production it is a non-nil-then-nil panic, or a read of a
 // reconnected session's writeMu-guarded sentSourcePeerStr without its writeMu.
 //
-// After the fix the source-peer string travels as a MessageCallback argument captured at
-// the write site under writeMu, so notifyMessageReceiver never re-reads peer.session and
-// the race disappears.
+// After the fix the source-peer string travels as a MessageCallback argument
+// captured at the write site under writeMu. Socket metadata is read from the
+// session's immutable atomic snapshot after one guarded peer.session load.
 //
 // VALIDATES: AC-2 — no data race / nil-deref window on the sent path when the session is
 // nilled mid-send.
@@ -66,7 +66,7 @@ func TestPeerSessionSentPathRace(t *testing.T) {
 	// peer.session unlocked at the sent-path branch of notifyMessageReceiver.
 	body := []byte{} // KEEPALIVE has no body
 	for range 4000 {
-		r.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, body, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "")
+		r.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, body, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0)
 	}
 
 	close(stop)

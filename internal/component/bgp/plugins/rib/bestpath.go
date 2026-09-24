@@ -24,14 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// lookupIGPCost returns the IGP metric for addr, or 0 if no resolver is set.
-// The seam lives in internal/core/rib/igpcost: sysrib registers its next-hop
-// resolver there instead of pushing into this package, so sysrib no longer
-// imports the BGP RIB and the engine can be compiled out (//go:build ze_bgp).
-func lookupIGPCost(addr netip.Addr) uint32 {
-	return igpcost.Lookup(addr)
-}
-
 // BestStep identifies which stage of the RFC 4271 §9.1.2 decision process
 // determined the result of a pairwise candidate comparison. Used by
 // SelectBestExplain to narrate why one path beat another.
@@ -43,11 +35,12 @@ type BestStep uint8
 const (
 	BestStepStale        BestStep = iota // 0 -- stale-level depreference (pre-RFC)
 	BestStepLocalPref                    // 1 -- highest LOCAL_PREF
+	BestStepAIGP                         // received AIGP plus distance to next hop
 	BestStepASPathLen                    // 2 -- shortest AS_PATH
 	BestStepOrigin                       // 3 -- lowest Origin (IGP < EGP < INCOMPLETE)
 	BestStepMED                          // 4 -- lowest MED (same neighbor AS)
 	BestStepEBGPOverIBGP                 // 5 -- prefer eBGP over iBGP
-	BestStepIGPCost                      // 6 -- lowest IGP cost (deferred)
+	BestStepIGPCost                      // lowest resolved interior distance
 	BestStepRouterID                     // 7 -- lowest Router ID / ORIGINATOR_ID
 	BestStepClusterList                  // 8 -- shortest CLUSTER_LIST (RFC 4456 Section 9)
 	BestStepPeerAddr                     // 9 -- lowest peer address
@@ -61,6 +54,8 @@ func (s BestStep) String() string {
 		return "stale-level"
 	case BestStepLocalPref:
 		return "local-preference"
+	case BestStepAIGP:
+		return "aigp"
 	case BestStepASPathLen:
 		return "as-path-length"
 	case BestStepOrigin:
@@ -103,7 +98,9 @@ type Candidate struct {
 	FirstAS            uint32           // first AS in path (for MED neighbor comparison)
 	Origin             attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
 	MED                uint32           // MED value (default 0 if absent)
-	IGPCost            uint32           // IGP metric to next-hop (0 = directly connected or unknown)
+	IGPCost            uint64           // resolved interior distance; max when unavailable
+	AIGP               uint64           // first received AIGP metric (not accumulated)
+	HasAIGP            bool             // metric presence is distinct from metric zero
 	OriginatorIP       netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
 	ClusterListEntries uint16           // CLUSTER_ID count in the CLUSTER_LIST (RFC 4456 Section 9; 0 when the attribute is absent)
 	StaleLevel         uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
@@ -178,14 +175,9 @@ func SelectMultipath(candidates []*Candidate, maxPaths uint32, relaxASPath bool)
 }
 
 // multipathEqual reports whether a and b tie through all "non-tiebreaker"
-// best-path steps: LOCAL_PREF, AS_PATH length (and content unless relaxed),
-// Origin, MED when from the same neighbor AS, and eBGP/iBGP status.
-//
-// Steps 0 (stale), 6 (IGP cost), 7 (Router ID), 8 (CLUSTER_LIST length), and 9
-// (peer address) are excluded: step 0 is a hard gate already handled by
-// SelectBest choosing a non-stale primary, steps 7-9 are final tiebreakers that
-// distinguish paths the earlier steps already found equal-cost, and step 6 is
-// deferred pending IGP integration.
+// best-path steps: LOCAL_PREF, AIGP, AS_PATH, Origin, MED, eBGP/iBGP,
+// and interior distance. Router ID, CLUSTER_LIST length and peer address
+// distinguish paths the earlier steps already found equal-cost.
 //
 // relaxASPath == false requires byte-identical AS_PATH. Because the attrpool
 // deduplicates identical byte sequences to the same handle, two candidates
@@ -195,6 +187,9 @@ func SelectMultipath(candidates []*Candidate, maxPaths uint32, relaxASPath bool)
 func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
 	// Step 1: LOCAL_PREF.
 	if a.LocalPref != b.LocalPref {
+		return false
+	}
+	if compareAIGP(a, b) != 0 || a.IGPCost != b.IGPCost {
 		return false
 	}
 	// Step 2: AS_PATH length (always) and content (unless relaxed).
@@ -324,6 +319,11 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 		return 1, BestStepLocalPref
 	}
 
+	// RFC 7311 Section 4.1: apply AIGP after LOCAL_PREF and before AS_PATH.
+	if cmp := compareAIGP(a, b); cmp != 0 {
+		return cmp, BestStepAIGP
+	}
+
 	// Step 2: Shortest AS_PATH wins.
 	if a.ASPathLen != b.ASPathLen {
 		if a.ASPathLen < b.ASPathLen {
@@ -436,6 +436,11 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		return 1, BestStepLocalPref, reason
 	}
 
+	if cmp := compareAIGP(a, b); cmp != 0 {
+		return cmp, BestStepAIGP, fmt.Sprintf("aigp %t/%d + %d vs %t/%d + %d",
+			a.HasAIGP, a.AIGP, a.IGPCost, b.HasAIGP, b.AIGP, b.IGPCost)
+	}
+
 	// Step 2: Shortest AS_PATH wins.
 	// RFC 4271 §9.1.2.2(a): "prefer the route with the shorter AS_PATH"
 	if a.ASPathLen != b.ASPathLen {
@@ -485,7 +490,7 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 
 	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
 	if a.IGPCost != b.IGPCost {
-		reason := "igp-cost " + textbuf.StringUint32(a.IGPCost) + " vs " + textbuf.StringUint32(b.IGPCost)
+		reason := fmt.Sprintf("igp-cost %d vs %d", a.IGPCost, b.IGPCost)
 		if a.IGPCost < b.IGPCost {
 			return -1, BestStepIGPCost, reason
 		}
@@ -534,6 +539,30 @@ func ebgpLabel(isEBGP bool) routeaction.ProtocolType {
 		return routeaction.ProtocolEBGP
 	}
 	return routeaction.ProtocolIBGP
+}
+
+// compareAIGP first eliminates candidates without a received metric, then
+// compares received metric plus the resolved interior distance. Saturation is
+// essential: wrapping makes the largest path appear to be the shortest.
+func compareAIGP(a, b *Candidate) int {
+	if a.HasAIGP != b.HasAIGP {
+		if a.HasAIGP {
+			return -1
+		}
+		return 1
+	}
+	if !a.HasAIGP {
+		return 0
+	}
+	aMetric := igpcost.Add(a.AIGP, a.IGPCost)
+	bMetric := igpcost.Add(b.AIGP, b.IGPCost)
+	if aMetric < bMetric {
+		return -1
+	}
+	if aMetric > bMetric {
+		return 1
+	}
+	return 0
 }
 
 // asPathLength counts the number of ASes in an AS_PATH attribute value.

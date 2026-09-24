@@ -84,6 +84,15 @@ const (
 // resolve() to materialize the full bestChangeEntry from the reverse tables.
 type bestPathRecord uint64
 
+// bestPathMetrics keeps the received AIGP value distinct from MED and from the
+// distance subsequently added to the next hop. It is interned, not copied into
+// every prefix record, and is replayed unchanged to recursive resolvers.
+type bestPathMetrics struct {
+	AIGP    uint64
+	MED     uint32
+	HasAIGP bool
+}
+
 // packBestPath assembles a bestPathRecord from three interner indices plus a
 // Flags word. Pure arithmetic; safe on any uint16 input.
 func packBestPath(metricIdx, peerIdx, nextHopIdx, flags uint16) bestPathRecord {
@@ -93,7 +102,7 @@ func packBestPath(metricIdx, peerIdx, nextHopIdx, flags uint16) bestPathRecord {
 		uint64(flags))
 }
 
-// metricIdx returns the interner index for this record's MED value.
+// metricIdx returns the interner index for the received MED/AIGP values.
 func (r bestPathRecord) metricIdx() uint16 { return uint16(r >> shiftMetricIdx) }
 
 // peerIdx returns the interner index for this record's peer address.
@@ -148,8 +157,8 @@ type bestPrevInterner struct {
 	nextHopIdx         map[netip.Addr]uint16
 	nextHopsOverflowed bool
 	metricsMu          sync.RWMutex
-	metrics            []uint32
-	metricIdx          map[uint32]uint16
+	metrics            []bestPathMetrics
+	metricIdx          map[bestPathMetrics]uint16
 	metricsOverflowed  bool
 }
 
@@ -160,7 +169,7 @@ func newBestPrevInterner() *bestPrevInterner {
 	return &bestPrevInterner{
 		peerIdx:    make(map[string]uint16),
 		nextHopIdx: make(map[netip.Addr]uint16),
-		metricIdx:  make(map[uint32]uint16),
+		metricIdx:  make(map[bestPathMetrics]uint16),
 	}
 }
 
@@ -290,7 +299,7 @@ func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
 }
 
 // internMetric returns the uint16 index for v; see internPeer for contract.
-func (b *bestPrevInterner) internMetric(v uint32) (uint16, bool) {
+func (b *bestPrevInterner) internMetric(v bestPathMetrics) (uint16, bool) {
 	b.metricsMu.RLock()
 	idx, ok := b.metricIdx[v]
 	b.metricsMu.RUnlock()
@@ -339,13 +348,13 @@ func (b *bestPrevInterner) nextHopAt(idx uint16) netip.Addr {
 	return b.nextHops[idx]
 }
 
-// metricAt returns the original uint32 for idx, or 0 if idx is past the
-// reverse-table bounds. See peerAt for rationale.
-func (b *bestPrevInterner) metricAt(idx uint16) uint32 {
+// metricAt returns the received metrics for idx, or their zero value if idx is
+// past the reverse-table bounds. See peerAt for rationale.
+func (b *bestPrevInterner) metricAt(idx uint16) bestPathMetrics {
 	b.metricsMu.RLock()
 	defer b.metricsMu.RUnlock()
 	if int(idx) >= len(b.metrics) {
-		return 0
+		return bestPathMetrics{}
 	}
 	return b.metrics[idx]
 }
@@ -382,6 +391,7 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.A
 		priority = 20
 		protoType = routeaction.ProtocolEBGP
 	}
+	metrics := interner.metricAt(r.metricIdx())
 	return bestChangeEntry{
 		Action:       action,
 		Prefix:       prefix,
@@ -389,7 +399,9 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action routeaction.A
 		PathID:       pathID,
 		NextHop:      interner.nextHopAt(r.nextHopIdx()),
 		Priority:     priority,
-		Metric:       interner.metricAt(r.metricIdx()),
+		Metric:       metrics.MED,
+		AIGP:         metrics.AIGP,
+		AIGPPresent:  metrics.HasAIGP,
 		ProtocolType: protoType,
 	}
 }
@@ -606,7 +618,7 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 // after the 2026-04-20 fix that moved bestCandidateNextHopAddr outside
 // sh.mu so sh.mu never sits above r.peerMu.
 //
-// Safe with r.locRIB == nil (skips the mirror step).
+// A nil local RIB uses the subprocess sink when configured, otherwise skips mirroring.
 //
 // Cost: one shard.mu.Lock per (family, shard) pair, held across each
 // shard's direct + multi Iterate. For a 1M-prefix table this is O(1M)
@@ -669,9 +681,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 					Action: ribevents.BestChangeWithdraw,
 					Prefix: pfx,
 				})
-				if r.locRIB != nil {
-					r.locRIB.Remove(fam, pfx, bgpProtocolID, 0)
-				}
+				r.removeLocRIB(fam, pfx, 0)
 			}
 
 			// multi: collect (prefix, pathIDs) to remove.
@@ -711,9 +721,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 						AddPath: true,
 						PathID:  pid,
 					})
-					if r.locRIB != nil {
-						r.locRIB.Remove(fam, mv.prefix, bgpProtocolID, pid)
-					}
+					r.removeLocRIB(fam, mv.prefix, pid)
 				}
 			}
 			sh.mu.Unlock()
@@ -733,6 +741,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 // in-process EventBus subscribers that re-enter RIBManager methods do
 // not deadlock against the outer write lock.
 func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeEntry) {
+	r.reconcileFlowSpecs()
 	for fam, changes := range pending {
 		publishBestChanges(changes, fam)
 	}
@@ -785,6 +794,13 @@ func parseNextHopAddr(data []byte) netip.Addr {
 //     mutation).
 //  3. Intern the winner's fields, pack, store, and emit.
 func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
+	if ribevents.IsFlowSpec(fam) {
+		r.reconcileFlowSpecs()
+		return bestChangeEntry{}, false
+	}
+	if fam.SAFI == family.SAFIUnicast || fam.SAFI == family.SAFIVPN {
+		defer r.reconcileFlowSpecs()
+	}
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	// SelectMultipath returns the same primary winner as SelectBest plus any
 	// equal-cost siblings (rib-arch-4). When multipath is off (maximum-paths<=1,
@@ -902,8 +918,8 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		sh.store.delete(fam, nlriBytes, addPath)
 		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
 		// CIDR families only. See mirrorToLocRIB below for why.
-		if r.locRIB != nil && cidr {
-			r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
+		if cidr {
+			r.removeLocRIB(fam, pfx, pathID)
 		}
 		if !cidr {
 			return bestChangeEntry{
@@ -937,7 +953,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// the best next-hop itself is unchanged (the same-best test below compares the
 	// best, not the sibling set); the Loc-RIB dedups a true no-op via Path.Equal.
 	mirrorToLocRIB := func() {
-		if r.locRIB == nil {
+		if r.locRIB == nil && r.forkRIB == nil {
 			return
 		}
 		// NOT MIRRORED for a non-CIDR family, and this is a deliberate limit
@@ -964,7 +980,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			proto, fallback = "ebgp", DefaultAdminDistanceEBGP
 		}
 		distance := ribdistance.OrDefault(proto, fallback)
-		r.locRIB.InsertForward(fam, pfx, locrib.Path{
+		r.insertLocRIB(fam, pfx, locrib.Path{
 			Source:        bgpProtocolID,
 			Instance:      pathID,
 			NextHop:       nextHop,
@@ -972,13 +988,17 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			// Carry the eBGP/iBGP class explicitly so the sysrib replay path
 			// classifies the protocol type without re-deriving it from the
 			// (operator-overridable) AdminDistance above.
-			IsEBGP: isEBGP,
-			Metric: newBest.MED,
+			IsEBGP:      isEBGP,
+			IsBGP:       true,
+			AIGP:        newBest.AIGP,
+			AIGPPresent: newBest.HasAIGP,
+			Metric:      newBest.MED,
 			// Carry the label stack into the Loc-RIB so labeled-unicast routes
 			// reach the kernel as MPLS push entries. sysrib prefers the Loc-RIB
 			// path, so without this the labels are dropped and a plain IP route
 			// is installed.
-			Labels: bestLabels,
+			Labels:  bestLabels,
+			SRv6SID: srv6SID,
 			// Carry the equal-cost multipath sibling next-hops so the Loc-RIB
 			// emits Change.ECMP for a BGP multipath best (rib-arch-4); sysrib
 			// expands it into an ECMP FIB entry. Nil when multipath is off.
@@ -996,7 +1016,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		ir := r.bestPathInterner
 		if ir.peerAt(prev.peerIdx()) == newBest.PeerAddr &&
 			ir.nextHopAt(prev.nextHopIdx()) == nextHop &&
-			ir.metricAt(prev.metricIdx()) == newBest.MED &&
+			ir.metricAt(prev.metricIdx()) == (bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP}) &&
 			prev.IsEBGP() == isEBGP &&
 			prev.isBlackhole() == (blackholeType == routetype.Blackhole) &&
 			!srv6SID.IsValid() && prev.Flags()&flagHadSRv6SID == 0 {
@@ -1018,7 +1038,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if !ok {
 		return bestChangeEntry{}, false
 	}
-	metricIdx, ok := r.bestPathInterner.internMetric(newBest.MED)
+	metricIdx, ok := r.bestPathInterner.internMetric(bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP})
 	if !ok {
 		return bestChangeEntry{}, false
 	}
@@ -1285,7 +1305,7 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 	if !ok {
 		return netip.Addr{}
 	}
-	return entryNextHopAddr(entry)
+	return entryNextHopAddr(fam, entry)
 }
 
 // entryNextHopAddr reads the next-hop a stored route entry advertises. Returns
@@ -1295,14 +1315,20 @@ func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byt
 // (bestCandidateNextHopAddr) and the Section 5.1.3 eligibility test
 // (gatherCandidatesLocked, rib_commands.go) cannot disagree about which address
 // a route names. Reads pool handles only; no lock, no allocation.
-func entryNextHopAddr(entry storage.RouteEntry) netip.Addr {
-	// Try IPv4 NEXT_HOP attribute (code 3) first.
+func entryNextHopAddr(fam family.Family, entry storage.RouteEntry) netip.Addr {
+	// RFC 8955 Section 4: neither the MP next hop nor a legacy NEXT_HOP
+	// carried for another family in the same UPDATE applies to FlowSpec.
+	if ribevents.IsFlowSpec(fam) {
+		return netip.Addr{}
+	}
 	b := entry.GetBundle()
-	if b.HasNextHop() {
-		data, err := pool.NextHop.Get(b.NextHop)
-		if err == nil {
-			if a := parseNextHopAddr(data); a.IsValid() {
-				return a
+	if fam == family.IPv4Unicast {
+		if b.HasNextHop() {
+			data, err := pool.NextHop.Get(b.NextHop)
+			if err == nil {
+				if a := parseNextHopAddr(data); a.IsValid() {
+					return a
+				}
 			}
 		}
 	}
@@ -1370,6 +1396,10 @@ func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
 // A trailing link-local address is dropped for the same reason the 32-octet
 // IPv6 unicast form drops it: the global address is the one to forward to.
 func mpNextHopAddr(safi family.SAFI, nhBytes []byte) netip.Addr {
+	// RFC 8955 Section 4: the advertised next-hop address is ignored.
+	if safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN {
+		return netip.Addr{}
+	}
 	if safi == family.SAFIVPN {
 		// RD(8) + address. Anything shorter names no address.
 		if len(nhBytes) < 8 {
@@ -1397,6 +1427,7 @@ func mpNextHopAddr(safi family.SAFI, nhBytes []byte) netip.Addr {
 // IsReplay() report true and distinguishes a replay batch from an incremental
 // one. Caller MUST NOT hold r.peerMu.
 func (r *RIBManager) replayBestPaths(req *replay.Request) {
+	r.replayFlowSpecs()
 	eb := getEventBus()
 	if eb == nil {
 		return
@@ -1452,6 +1483,15 @@ func (r *RIBManager) replayRedistribute(req *redistevents.ReplayRequest) {
 func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 	families := r.bestPrev.familyList()
 	changesByFamily := make(map[family.Family][]bestChangeEntry, len(families))
+	if state := r.flowSpec.Load(); state != nil {
+		for rule, winner := range state.best {
+			if r.flowSpecEligible(winner.key, 0) {
+				change := winner.change
+				change.NLRI = bytes.Clone(change.NLRI)
+				changesByFamily[rule.family] = append(changesByFamily[rule.family], change)
+			}
+		}
+	}
 	for _, fam := range families {
 		fs := r.bestPrev.familyShards(fam, false)
 		if fs == nil {
@@ -1480,6 +1520,17 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 		appendRec := func(rec bestPathRecord, pfx netip.Prefix, pathID uint32, addPath bool) {
 			if !pfx.IsValid() {
 				return
+			}
+			if ribevents.ValidationEnabled() {
+				peer, err := netip.ParseAddr(r.bestPathInterner.peerAt(rec.peerIdx()))
+				if err != nil {
+					return
+				}
+				if !ribevents.RouteEligible(ribevents.ValidationRoute{
+					Peer: peer, Family: fam, Prefix: pfx, PathID: pathID,
+				}, 0) {
+					return
+				}
 			}
 			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, addPath))
 		}

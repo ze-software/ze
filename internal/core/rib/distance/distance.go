@@ -45,14 +45,10 @@ var fnPtr atomic.Pointer[Func]
 // schema defaults, and again on every configure and rollback. A nil fn clears
 // the seam, after which Of reports that nothing answered.
 //
-// THE SEAM IS PROCESS-GLOBAL, which bounds where it works. sysrib is the only
-// caller, so a producer running in a DIFFERENT process from sysrib never sees a
-// declaration: with `plugin { external rib }`, or any forked producer, Of
-// answers false and every route is stamped with the caller's own bootstrap
-// value. The declaration is then inert for that producer and nothing says so.
-// Carrying it across the process boundary is a separate piece of work; until it
-// exists, an operator configuring a distance for a forked protocol gets no
-// effect and no error.
+// The seam is process-global. A forked producer supplies its bootstrap distance
+// on route-install; the engine stamps its configured value before Loc-RIB
+// arbitration. BGP session flags select "ebgp" or "ibgp" without changing the
+// canonical "bgp" owner (plugin/server.applyRouteInstall).
 func Set(fn Func) {
 	if fn == nil {
 		fnPtr.Store(nil)

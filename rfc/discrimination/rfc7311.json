@@ -66,6 +66,28 @@
       "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
       "producer-sha": "3a6e16b606b95832",
       "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPFinalWriterBoundary",
+      "unit-sha": "76f2cbdadac7f89a",
+      "claim-sha": "b226a9a280d83cf9",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_aigp.go::aigpOriginAllowed",
+      "producer-sha": "a17dfda7e5a5daf6",
+      "break": "body of aigpOriginAllowed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7311-3.3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPFinalWriterBoundary",
+      "unit-sha": "76f2cbdadac7f89a",
+      "claim-sha": "0aecb12c58846655",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_aigp.go::aigpOriginAllowed",
+      "producer-sha": "a17dfda7e5a5daf6",
+      "break": "body of aigpOriginAllowed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

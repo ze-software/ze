@@ -89,7 +89,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	parsed := scratch.parsed[:0]
 	for i := range items {
 		var e bucketEligible
-		if len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
+		if items[i].sourceMessageID == 0 && len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
 			if parts, okParse := parseBucketBody(items[i].rawBodies[0]); okParse && parts.wdLen == 0 {
 				e.parts, e.ok = parts, true
 			}
@@ -108,6 +108,10 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 		}
 		j := i + 1
 		for j < len(items) && parsed[j].ok &&
+			items[j].sourcePeerStr == items[i].sourcePeerStr &&
+			items[j].sourceMessageID == items[i].sourceMessageID &&
+			items[j].receivedPeer == items[i].receivedPeer &&
+			items[j].receivedGeneration == items[i].receivedGeneration &&
 			parsed[j].parts.attrHash == parsed[i].parts.attrHash &&
 			bytes.Equal(parsed[j].parts.attrs, parsed[i].parts.attrs) {
 			j++
@@ -170,10 +174,13 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 			result = append(result, fwdItem{
 				// Every run member is a real item -- a nil-peer sentinel carries
 				// no body, so it never parses and never joins a run.
-				peer:          items[r.start].peer,
-				rawBodies:     [][]byte{merged[b]},
-				meta:          items[r.start].meta,
-				sourcePeerStr: items[r.start].sourcePeerStr,
+				peer:               items[r.start].peer,
+				rawBodies:          [][]byte{merged[b]},
+				meta:               items[r.start].meta,
+				sourcePeerStr:      items[r.start].sourcePeerStr,
+				sourceMessageID:    items[r.start].sourceMessageID,
+				receivedPeer:       items[r.start].receivedPeer,
+				receivedGeneration: items[r.start].receivedGeneration,
 			})
 		}
 		i = r.end
