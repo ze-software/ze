@@ -55,13 +55,12 @@ var (
 )
 
 func main() {
-	// crashlog.Init replaces fd 2 with a pipe that a reader goroutine copies to
-	// the real stderr. A panic that nothing recovers writes its trace into that
-	// pipe and the process dies immediately, so the reader is never scheduled
-	// and the operator gets exit status 2 with no output at all. A deferred
-	// flush runs while the panic unwinds, restores fd 2 to the real stderr and
-	// drains what the pipe already holds, and the runtime then prints the trace
-	// where somebody can read it.
+	// crashlog.Init points os.Stderr at a pipe that goroutines relay to the real
+	// stderr; descriptor 2 itself stays the real stderr, so the runtime's own
+	// panic trace always reaches it. What Go code wrote to os.Stderr may still
+	// sit in the pipe or the relay queue when the process ends. A deferred
+	// flush runs while a panic unwinds, puts os.Stderr back and drains that
+	// backlog, so those lines are not lost.
 	//
 	// The call below it is still owed: os.Exit runs no deferred function, so the
 	// ordinary path flushes for itself. Flush acts once, so the pair is safe.

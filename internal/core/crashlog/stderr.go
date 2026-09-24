@@ -24,28 +24,30 @@ var (
 	flushOnce  sync.Once
 )
 
+// relayQueueLimit is how many bytes of stderr the relay holds while its
+// downstream (the real stderr, syslog) is slower than the writers. Past it the
+// relay drops bytes, counts them, and writes the count into the stream where
+// they went missing. It never makes a writer wait on the downstream.
+const relayQueueLimit = 4 * 1024 * 1024
+
+// relayReadSize is how much the pump takes out of the pipe in one read.
+const relayReadSize = 64 * 1024
+
+// redirectStderr points os.Stderr at a pipe and starts the relay that copies it
+// to the original stderr and to syslog.
+//
+// Descriptor 2 is NOT redirected. The Go runtime prints a fatal error, an
+// unrecovered panic and a SIGQUIT dump only after it has frozen every goroutine,
+// with a raw write to descriptor 2. A pipe on descriptor 2 whose reader is a
+// goroutine is a pipe nobody reads at that moment: it filled at 64 KiB and the
+// dump blocked for ever, so `kill -QUIT` hung the daemon, and a panic trace
+// never reached anyone. The runtime therefore keeps the real descriptor 2, and
+// armCrashOutput gives it a crash file of its own.
 func redirectStderr(syslogAddress, crashDirPath string) error {
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return err
 	}
-
-	// Save fd 2 to a new fd before dup2 overwrites it with the pipe.
-	// Without this, origStderr wraps fd 2 which becomes the pipe,
-	// and the reader goroutine would write back into its own pipe.
-	if saved := saveStderr(); saved != nil {
-		origStderr = saved
-	}
-
-	if err := dupStderr(int(pw.Fd())); err != nil {
-		pr.Close() //nolint:errcheck // cleanup on dup2 failure
-		pw.Close() //nolint:errcheck // cleanup on dup2 failure
-		return err
-	}
-
-	os.Stderr = pw
-	pipeW = pw
-	readerDone = make(chan struct{})
 
 	var syslogW *syslog.Writer
 	if syslogAddress != "" {
@@ -56,38 +58,67 @@ func redirectStderr(syslogAddress, crashDirPath string) error {
 		}
 	}
 
-	go stderrReader(pr, syslogW, crashDirPath)
-
+	os.Stderr = pw
+	pipeW = pw
+	readerDone = startRelay(pr, origStderr, syslogW, crashDirPath)
 	return nil
 }
 
-// Flush drains the stderr pipe so buffered output reaches the terminal.
+// startRelay starts the two goroutines that live as long as the process: the
+// pump, which moves the pipe into a stderrQueue as fast as the writers fill it,
+// and the relay, which copies the queue to out and to syslog at whatever pace
+// they take. The returned channel closes when the relay has seen the end of r.
+func startRelay(r io.Reader, out io.Writer, syslogW *syslog.Writer, crashDirPath string) chan struct{} {
+	queue := newStderrQueue(relayQueueLimit)
+	done := make(chan struct{})
+	go pumpStderr(r, queue)
+	go stderrReader(queue, out, syslogW, crashDirPath, done)
+	return done
+}
+
+// pumpStderr reads r until it ends and hands every byte to the queue, which
+// never blocks it. The reader is therefore always draining the pipe, whatever
+// the downstream does.
+func pumpStderr(r io.Reader, queue *stderrQueue) {
+	buf := make([]byte, relayReadSize)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			queue.Write(buf[:n]) //nolint:errcheck // stderrQueue.Write cannot fail
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				err = nil
+			}
+			queue.close(err)
+			return
+		}
+	}
+}
+
+// Flush drains the stderr relay so queued output reaches the terminal.
 // Safe to call multiple times; only the first call acts.
 func Flush() {
 	flushOnce.Do(func() {
 		if pipeW == nil {
 			return
 		}
-		// Restore fd 2 to the original stderr. This closes the dup2'd
-		// reference to the pipe write end on fd 2, so that closing pipeW
-		// below fully closes the pipe and the reader goroutine sees EOF.
-		_ = dupStderr(int(origStderr.Fd()))
-		pipeW.Close() //nolint:errcheck // triggers EOF on the reader goroutine
+		os.Stderr = origStderr
+		pipeW.Close() //nolint:errcheck // triggers EOF on the pump
 		select {
 		case <-readerDone:
 		case <-time.After(500 * time.Millisecond):
 		}
-		os.Stderr = origStderr
 	})
 }
 
-func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
-	defer close(readerDone)
+func stderrReader(r io.Reader, out io.Writer, syslogW *syslog.Writer, crashDirPath string, done chan struct{}) {
+	defer close(done)
 
-	panicBuf, inPanic, err := relayStderr(pr, syslogW)
-	if err != nil && origStderr != nil {
+	panicBuf, inPanic, err := relayStderr(r, out, syslogW)
+	if err != nil && out != nil {
 		var tb textbuf.Buffer
-		writeMsg(origStderr, tb.Str("crashlog: stderr relay stopped: ").Err(err).Byte('\n').String())
+		writeMsg(out, tb.Str("crashlog: stderr relay stopped: ").Err(err).Byte('\n').String())
 	}
 	if inPanic && crashDirPath != "" {
 		writeCrashFile(crashDirPath, crashKeep, string(panicBuf))
@@ -98,7 +129,7 @@ func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
 // line is relayed in fragments of this size.
 const relayStderrBuffer = 256 * 1024
 
-// relayStderr copies every line of r to the original stderr and to syslog, and
+// relayStderr copies every line of r to out and to syslog, and
 // collects a panic trace once it sees the start of one. It returns the trace,
 // whether a panic was seen, and the read error, which is nil at EOF.
 //
@@ -111,7 +142,7 @@ const relayStderrBuffer = 256 * 1024
 // A crash file that ends because the read failed holds a TRUNCATED trace, and a
 // reader takes the last frame in it for the last frame there was, so the
 // truncation is written into the trace itself.
-func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
+func relayStderr(r io.Reader, out io.Writer, syslogW *syslog.Writer) ([]byte, bool, error) {
 	reader := bufio.NewReaderSize(r, relayStderrBuffer)
 	var panicBuf []byte
 	inPanic := false
@@ -134,11 +165,11 @@ func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
 		}
 		text := string(fragment)
 
-		if origStderr != nil {
+		if out != nil {
 			if more {
-				writeMsg(origStderr, text)
+				writeMsg(out, text)
 			} else {
-				writeMsg(origStderr, text+"\n")
+				writeMsg(out, text+"\n")
 			}
 		}
 

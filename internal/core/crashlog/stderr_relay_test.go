@@ -33,7 +33,7 @@ const panicTrace = "panic: boom\n\ngoroutine 1 [running]:\nmain.main()\n\t/src/m
 func TestRelayStderrMarksTruncatedPanic(t *testing.T) {
 	want := errors.New("pipe broke")
 
-	buf, inPanic, err := relayStderr(&failingReader{prefix: []byte(panicTrace), err: want}, nil)
+	buf, inPanic, err := relayStderr(&failingReader{prefix: []byte(panicTrace), err: want}, nil, nil)
 
 	if !inPanic {
 		t.Fatal("panic start was not detected")
@@ -50,7 +50,7 @@ func TestRelayStderrMarksTruncatedPanic(t *testing.T) {
 }
 
 func TestRelayStderrLeavesWholeTraceUnmarked(t *testing.T) {
-	buf, inPanic, err := relayStderr(strings.NewReader(panicTrace), nil)
+	buf, inPanic, err := relayStderr(strings.NewReader(panicTrace), nil, nil)
 
 	if err != nil {
 		t.Fatalf("a whole trace reported an error: %v", err)
@@ -67,7 +67,7 @@ func TestRelayStderrLeavesWholeTraceUnmarked(t *testing.T) {
 }
 
 func TestRelayStderrNoPanicNoTrace(t *testing.T) {
-	buf, inPanic, err := relayStderr(strings.NewReader("just a log line\n"), nil)
+	buf, inPanic, err := relayStderr(strings.NewReader("just a log line\n"), nil, nil)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -88,17 +88,14 @@ func TestRelayStderrNoPanicNoTrace(t *testing.T) {
 // input. The relay once stopped at such a line: every later line was lost, and
 // the unread pipe then blocked the process at its next write.
 func TestRelayStderrSurvivesALongLine(t *testing.T) {
-	saved := origStderr
-	t.Cleanup(func() { origStderr = saved })
 	sink, err := os.CreateTemp(t.TempDir(), "stderr")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sink.Close() //nolint:errcheck // test cleanup
-	origStderr = sink
 
 	input := strings.Repeat("x", 2*relayStderrBuffer) + "\nthe line after\n"
-	buf, inPanic, err := relayStderr(strings.NewReader(input), nil)
+	buf, inPanic, err := relayStderr(strings.NewReader(input), sink, nil)
 	if err != nil {
 		t.Fatalf("the relay stopped: %v", err)
 	}

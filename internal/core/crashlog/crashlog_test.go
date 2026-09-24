@@ -281,9 +281,9 @@ func TestHandlePanic(t *testing.T) {
 // TestFatalEnvKeyReachesStderrAfterInit verifies that a fatal env diagnostic
 // still reaches the operator once Init installed the crash-capture redirect.
 //
-// Init replaces fd 2 with a pipe that a reader goroutine drains, and that
-// goroutine dies with the process. A caller that writes to stderr and calls
-// os.Exit therefore reports nothing unless env writes to the saved descriptor.
+// Init replaces os.Stderr with a pipe that a relay goroutine drains, and that
+// goroutine dies with the process. A caller that writes to os.Stderr and calls
+// os.Exit therefore reports nothing unless env writes to the real stderr.
 //
 // VALIDATES: after Init, env.Get on an unregistered key names the key on the
 // real stderr and exits 2.

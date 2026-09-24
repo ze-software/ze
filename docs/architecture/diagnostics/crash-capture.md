@@ -9,35 +9,61 @@ holds the pre-crash context.
 <!-- source: internal/core/crashlog/stderr.go -- stderr redirect and syslog forwarding -->
 <!-- source: internal/core/crashlog/persist.go -- crash file persistence and rotation -->
 <!-- source: internal/core/crashlog/list.go -- crash file listing for the CLI -->
+<!-- source: internal/core/crashlog/crashout.go -- the runtime's own crash file, and the harvest on the next start -->
+<!-- source: internal/core/crashlog/stderr_queue.go -- the relay queue that never blocks a writer -->
 
 ## The decisions
 
-**Redirect fd 2 with dup2. A defer in `main()` cannot do this job.** A panic in
-a non-main goroutine is not catchable by any defer in main, so the only way to
-capture an arbitrary goroutine panic is to intercept the file descriptor itself.
-<!-- source: internal/core/crashlog/dup2_unix.go -- fd 2 redirect on unix -->
-<!-- source: internal/core/crashlog/dup2_unsupported.go -- non-unix stub -->
+**Descriptor 2 stays the real stderr, and the runtime gets a crash file of its
+own through `debug.SetCrashOutput`.** The Go runtime prints an unrecovered
+panic, a fatal error and a SIGQUIT goroutine dump only after it has frozen every
+goroutine, and it writes them with a raw write to descriptor 2. No goroutine of
+Ze's runs at that moment, so no in-process reader can capture them. Until
+2026-09-24, Init dup2'd a pipe onto descriptor 2. Its only reader was a goroutine,
+so the reader was frozen with the rest. A panic trace went into the pipe and
+nowhere else, and a dump larger than the 64 KiB pipe buffer blocked for ever:
+`kill -QUIT` hung the daemon it was sent to diagnose. Now the runtime writes the
+dump to the real stderr and writes a copy to the crash output file.
+<!-- source: internal/core/crashlog/stderr.go -- redirectStderr -->
 
-**The build tag is `unix`, not `linux`.** `syscall.Dup2` works on darwin too,
-and crash capture must be testable during development.
+**The crash output file is armed at start and harvested by the next start.**
+The file cannot be created when the crash happens, so Init creates it in
+`<crash dir>/.pending/`, locks it with `flock`, writes a header, and gives it to
+the runtime. The kernel drops the lock when the process exits, however it exits.
+The next Init takes each pending file whose lock is free. A file with output
+after the `=== Runtime Output ===` marker becomes a `crash-*.log` and joins the
+rotation. A file with only the header came from a clean exit and is removed. A
+locked file belongs to a running process and is left alone. The header cannot
+carry the release version, because Init runs before the version is stamped. It
+carries the start time, the commit, the Go version, the PID and the command.
+<!-- source: internal/core/crashlog/crashout.go -- armCrashOutput, harvestPendingCrashes -->
+<!-- source: internal/core/crashlog/lock_unix.go -- flock on unix -->
+<!-- source: internal/core/crashlog/lock_unsupported.go -- no lock, so nothing is armed or harvested -->
 
-**An execve goes through `crashlog.Exec`, which drains the pipe before it
-replaces the image.** The new image inherits fd 2 and does not inherit the
-goroutine that drained it, so the program it runs writes its stderr into a pipe
-nobody reads: every line vanishes, and the write blocks forever once 64 KiB have
-accumulated in the pipe buffer. `Exec` calls `Flush` first, so the new program
-gets the saved descriptor. A raw `syscall.Exec` or `unix.Exec` outside the
-package is refused by the `crashlogExec` rule in
-`.golangci/ruleguard/modern.go`. The rule carries the invariant because the call
-site shows nothing, and a test that does not arm `Init` passes either way.
+**`os.Stderr` goes through a relay that never blocks a writer.** Go code that
+writes `os.Stderr` writes into a pipe. A pump goroutine moves the pipe into a
+queue of at most 4 MiB, and a relay goroutine copies the queue to the real
+stderr and to syslog at the pace they allow. A stalled syslog socket or a slow
+serial console therefore never stops a writer. Past 4 MiB the queue drops bytes
+and writes `crashlog: N bytes of stderr dropped` into the stream where they went
+missing.
+<!-- source: internal/core/crashlog/stderr_queue.go -- stderrQueue -->
+
+**The build tag is `unix`, not `linux`.** `flock` works on darwin too, and crash
+capture must be testable during development.
+
+**An execve goes through `crashlog.Exec`, which drains the relay before it
+replaces the image.** The new image keeps the real descriptor 2, but the relay
+goroutines do not survive an execve, so the lines still queued would be lost.
+`Exec` calls `Flush` first. A raw `syscall.Exec` or `unix.Exec` outside the
+package is refused by the `crashlogExec` rule in `.golangci/ruleguard/modern.go`.
 <!-- source: internal/core/crashlog/exec_unix.go -- the leave that drains the pipe -->
 <!-- source: .golangci/ruleguard/modern.go -- crashlogExec, the rule that refuses a raw execve -->
 
-The worst case is the shipped daemon. `defaultRestart` re-execs `ze` after a
-self-update, so a self-updated appliance used to come back with no log at all
-and then stop on the first full pipe.
-
-**Crash files are written on panic detection, not continuously.** A continuous
+**A panic trace that Go code writes to `os.Stderr` is still detected by the
+relay**, for a framework that recovers a panic and prints it, and becomes a crash
+file when the relay reaches the end of its input. **Crash files are written on
+panic detection, not continuously.** A continuous
 `current.log` needs a clean-shutdown marker, which conflicts with the many
 `os.Exit` paths in `main()`.
 
@@ -57,13 +83,14 @@ file.
 
 ## Constraints
 
-**The in-process pipe reader is best effort.** Go's `_exit(2)` after a panic
-terminates every goroutine at once, so the reader can lose the tail of the
-trace. Line-by-line syslog forwarding is the reliable capture and runs in real
-time.
+**The runtime's fatal output does not reach syslog.** It goes to the real
+stderr and to the crash output file, because nothing in the process runs while it
+is written. A crash file from the runtime carries no log ring for the same
+reason. `HandlePanic`, which runs in a recover, still writes both.
 
-**All stderr output is now forwarded**, including runtime warnings and a stray
-`fmt.Fprintf`, whenever `ze.log.destination` is configured.
+**Everything Go code writes to `os.Stderr` is forwarded** to syslog whenever
+`ze.log.destination` is configured, a stray `fmt.Fprintf` included. A raw write
+to descriptor 2 is not, because descriptor 2 is the real stderr.
 
 **A crash file carries the last 64 log ring entries** for context.
 

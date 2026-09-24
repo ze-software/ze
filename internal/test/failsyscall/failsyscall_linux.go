@@ -122,8 +122,9 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "fail-syscall: %v\n", err) //nolint:errcheck // diagnostic on the way out
 		return 1
 	}
-	// crashlog.Exec puts the real stderr back on descriptor 2 before the image
-	// is replaced. Its doc comment carries the reason, and it is what
+	// crashlog.Exec drains the stderr relay before the image is replaced, so no
+	// line written through os.Stderr is lost. Its doc comment carries the
+	// reason, and it is what
 	// `expect=stderr:contains=l2tp: listener read error` in
 	// test/l2tp/subscriber-reader-failing-socket.ci reads.
 	err = crashlog.Exec(path, parsed.Command, os.Environ())

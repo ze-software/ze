@@ -43,13 +43,20 @@ func Init() {
 		crashDir = resolveCrashDir()
 		crashKeep = parseCrashKeep()
 
+		if crashDir != "" {
+			harvestPendingCrashes(crashDir, crashKeep)
+			if err := armCrashOutput(crashDir); err != nil {
+				writeMsg(origStderr, "warning: crash capture: runtime crash file: "+err.Error()+"\n")
+			}
+		}
+
 		if err := redirectStderr(syslogAddr, crashDir); err != nil {
 			writeMsg(origStderr, "warning: crash capture: "+err.Error()+"\n")
 		}
 
-		// redirectStderr replaced os.Stderr with the pipe. A caller that writes
-		// a fatal diagnostic and exits gets no reader, so point env at the
-		// descriptor saved above, which is still the real stderr.
+		// redirectStderr replaced os.Stderr with the relay pipe. A caller that
+		// writes a fatal diagnostic and exits gets no relay, so point env at the
+		// real stderr, which descriptor 2 still is.
 		env.SetFatalOutput(origStderr)
 	})
 }
@@ -122,6 +129,30 @@ func appendCrashMetadata(b []byte) []byte {
 	b = append(b, "\nBuild: "...)
 	b = append(b, version.BuildDate()...)
 
+	b = appendBuildCommit(b)
+
+	b = append(b, "\nGo: "...)
+	b = append(b, runtime.Version()...)
+	b = append(b, "\nOS/Arch: "...)
+	b = append(b, runtime.GOOS...)
+	b = append(b, '/')
+	b = append(b, runtime.GOARCH...)
+	b = append(b, "\nPID: "...)
+	b = strconv.AppendInt(b, int64(os.Getpid()), 10)
+	b = append(b, "\nGoroutines: "...)
+	b = strconv.AppendInt(b, int64(runtime.NumGoroutine()), 10)
+	b = append(b, "\nUptime: "...)
+	b = append(b, time.Since(startTime).Truncate(time.Second).String()...)
+
+	b = appendCommand(b)
+
+	b = append(b, '\n')
+	return b
+}
+
+// appendBuildCommit appends the VCS revision the binary was built from, when the
+// build recorded one.
+func appendBuildCommit(b []byte) []byte {
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		var commit string
 		var modified bool
@@ -145,19 +176,11 @@ func appendCrashMetadata(b []byte) []byte {
 		}
 	}
 
-	b = append(b, "\nGo: "...)
-	b = append(b, runtime.Version()...)
-	b = append(b, "\nOS/Arch: "...)
-	b = append(b, runtime.GOOS...)
-	b = append(b, '/')
-	b = append(b, runtime.GOARCH...)
-	b = append(b, "\nPID: "...)
-	b = strconv.AppendInt(b, int64(os.Getpid()), 10)
-	b = append(b, "\nGoroutines: "...)
-	b = strconv.AppendInt(b, int64(runtime.NumGoroutine()), 10)
-	b = append(b, "\nUptime: "...)
-	b = append(b, time.Since(startTime).Truncate(time.Second).String()...)
+	return b
+}
 
+// appendCommand appends the command line the process was started with.
+func appendCommand(b []byte) []byte {
 	if len(os.Args) > 0 {
 		b = append(b, "\nCommand: "...)
 		for i, arg := range os.Args {
@@ -174,7 +197,6 @@ func appendCrashMetadata(b []byte) []byte {
 		}
 	}
 
-	b = append(b, '\n')
 	return b
 }
 

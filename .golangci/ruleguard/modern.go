@@ -42,11 +42,11 @@ func modernSort(m dsl.Matcher) {
 
 // crashlogExec keeps every execve behind crashlog.Exec.
 //
-// crashlog.Init dup2s a pipe onto descriptor 2 and drains it from a goroutine.
-// An execve destroys that goroutine, and fd 2 survives into the new image, so
-// the replacement program writes its stderr into a pipe nobody reads: the log
-// vanishes, and the write blocks forever once 64 KiB have accumulated.
-// crashlog.Exec restores the saved descriptor first.
+// crashlog.Init points os.Stderr at a pipe drained by goroutines. An execve
+// destroys those goroutines, so every line still in the pipe or the relay queue
+// is lost. crashlog.Exec flushes the relay first. Until 2026-09-24 Init also
+// dup2'd the pipe onto descriptor 2, and an unflushed execve left the new image
+// writing into a pipe nobody read; descriptor 2 is no longer redirected.
 //
 // The rule exists because the defect is invisible at the call site and in any
 // test that does not arm crashlog. Four of the five execve sites in the tree
