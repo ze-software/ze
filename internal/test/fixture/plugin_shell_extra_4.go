@@ -395,9 +395,26 @@ func pluginShellExtra4TacacsFallback(ctx context.Context, args []string) error {
 //
 // Not an in-config observer: the daemon is driven from OUTSIDE, so the run ends
 // even where a dispatch path is refused.
-func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
+//
+// The daemon starts in the background, so the fixture first waits for the ssh
+// listener to accept a TCP connection. The command then runs ONCE: a login or
+// authorization refusal is the failure under test, never a reason to retry.
+func pluginShellExtra4AAALocalFailover(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
+	}
+	address := net.JoinHostPort("127.0.0.1", args[0])
+	var dialErr error
+	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
+		conn, err := net.DialTimeout("tcp", address, time.Second)
+		dialErr = err
+		if err != nil {
+			return false
+		}
+		_ = conn.Close() //nolint:errcheck // readiness probe only
+		return true
+	}) {
+		return fmt.Errorf("the ssh server never listened on %s: %w", address, dialErr)
 	}
 	output, err := pluginShellExtra4Command(args[0], "admin", "testpass", "show bgp")
 	if err != nil {

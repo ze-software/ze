@@ -142,9 +142,15 @@ func pluginShellExtra2Log(path string) string {
 	return string(contents)
 }
 
+// pluginShellExtra2WaitSSHPort waits for the daemon to log its SSH address.
+//
+// The wait ends on that event, not on a guess at how long a boot takes: a
+// loaded machine has taken more than ten seconds to start the daemon. Its
+// bound is 30 seconds, which is the longest runner timeout among the callers,
+// and the runner's SIGTERM cancels ctx sooner for a shorter one.
 func pluginShellExtra2WaitSSHPort(ctx context.Context, logPath string) (string, error) {
 	var port string
-	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
+	if !Poll(ctx, 150, 200*time.Millisecond, func() bool {
 		match := pluginShellExtra2SSHAddress.FindStringSubmatch(pluginShellExtra2Log(logPath))
 		if len(match) != 2 {
 			return false
@@ -219,7 +225,10 @@ func pluginShellExtra2WaitCapture(token, success, failure string) Driver {
 			return err
 		}
 		path := filepath.Join("capture", "bgp-127.0.0.1.jsonl")
-		if !Poll(ctx, 151, pluginShellExtra2PollDelay, func() bool {
+		// 35 seconds, inside the 40-second command timeout: the wait ends on the
+		// capture event, and a loaded machine has taken more than 15 seconds to
+		// start the daemon and establish the session.
+		if !Poll(ctx, 351, pluginShellExtra2PollDelay, func() bool {
 			contents, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 			return err == nil && bytes.Contains(contents, []byte(token))
 		}) {

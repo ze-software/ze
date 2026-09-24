@@ -13,17 +13,13 @@
 # secret and forbids a client to set TAC_PLUS_UNENCRYPTED_FLAG, so
 # tacacsBackend.Build refuses the server and the whole bundle build fails.
 #
-# VALIDATES: with the AAA chain unbuilt, ssh starts and a LOCAL account logs in,
-#            and authorization then REFUSES its command.
+# VALIDATES: with the TACACS+ backend unbuilt, ssh starts, a LOCAL account logs
+#            in, and its command runs under the authorizer the local backend
+#            contributes.
 # PREVENTS: two failures at once, which is why both are asserted here. Without
 #           the ssh fix the fixture cannot connect at all, because there is no
-#           listener. Without the fail-closed authorizer the command would run,
-#           and a box declaring no authorization profile would be ungoverned for
-#           as long as its chain stayed broken.
-#
-# The two halves answer differently on purpose (owner ruling, 2026-09-04). A
-# login costs nothing and is how the operator sees the failure. A command under
-# no policy is the thing being refused, so repair goes through the console.
+#           listener. Without the local authorizer the command is refused, and
+#           the operator who logged in still cannot repair the box.
 
 stdin=ze-conf:terminator=EOF_CONF
 bgp {
