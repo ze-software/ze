@@ -41,10 +41,15 @@ func replayOpen(asn uint16) []byte {
 }
 
 // replayUpdate builds an UPDATE announcing 198.51.100.0/24 via 10.0.0.1.
+//
+// The replay session is eBGP (local 65000, peer 65001) with no 4-octet AS
+// capability, so the AS_PATH opens with the peer's own AS as a 2-octet
+// AS_SEQUENCE. An empty AS_PATH from an external peer fails the RFC 4271
+// Section 6.3 first-AS check and is treated as a withdrawal.
 func replayUpdate() []byte {
 	attrs := []byte{
 		0x40, 1, 1, 0, // ORIGIN igp
-		0x40, 2, 0, // AS_PATH empty
+		0x40, 2, 4, 2, 1, 0xfd, 0xe9, // AS_PATH AS_SEQUENCE [65001]
 		0x40, 3, 4, 10, 0, 0, 1, // NEXT_HOP 10.0.0.1
 	}
 	body := []byte{0, 0, byte(len(attrs) >> 8), byte(len(attrs))}

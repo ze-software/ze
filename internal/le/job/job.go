@@ -449,10 +449,12 @@ type Ticket struct {
 	// Key fingerprints the work: the command plus the make command-line
 	// variables the caller typed.
 	Key string
-	// Entry is the registry entry this job holds, relative to the root.
+	// Entry is the registry entry this job holds, relative to the root. For
+	// KindAttached it is the entry of the holder whose verdict this job took.
 	Entry string
 	// Log is the file the holder MUST write its progress to, relative to the
-	// root.
+	// root. For KindAttached it is the holder's log, so a caller that attached
+	// can still name where the evidence behind its verdict was written.
 	Log string
 	// Waited is how long admission took.
 	Waited time.Duration
@@ -565,7 +567,8 @@ func (a *Admission) queue(job *pending) (*Ticket, error) {
 			if code, observed := a.attach(job.label, result); observed {
 				return &Ticket{
 					Label: job.label, Kind: KindAttached, Code: code, Tree: job.tree,
-					Key: job.key, Waited: time.Since(started), adm: a,
+					Key: job.key, Entry: result.entry, Log: result.log,
+					Waited: time.Since(started), adm: a,
 				}, nil
 			}
 			// Sharing is offered once. Repeated attachment to jobs that die with

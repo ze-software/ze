@@ -139,6 +139,44 @@ func TestIdenticalWorkAttachesRatherThanQueueing(t *testing.T) {
 	}
 }
 
+// TestAnAttachedTicketNamesTheHoldersEvidence verifies that a ticket which took
+// another job's verdict says where that job wrote its evidence. The method is a
+// real attach: a helper process holds the slot, and this process admits the
+// same work and must follow it.
+//
+// An attached ticket that named no entry and no log made every caller that
+// reports an attach (verify's attachedReport) publish a verdict with no
+// evidence behind it. The verify test that caught it only saw the defect when
+// its own two runs happened to race into an attach, so this case forces one.
+func TestAnAttachedTicketNamesTheHoldersEvidence(t *testing.T) {
+	detach(t)
+	root := fixtureRepo(t)
+	argv := []string{"sh", "-c", "sleep 1; exit 3"}
+
+	holder := startHelper(t, root, "shared", argv...)
+	waitForEntry(t, root, "shared")
+
+	ticket, err := admission(t, root).Admit("shared", argv)
+	if err != nil {
+		t.Fatalf("admit: %v", err)
+	}
+	if err := holder.Wait(); err == nil {
+		t.Fatal("the holder answered 0, and this case needs its own 3 to be visible")
+	}
+	if ticket.Kind != KindAttached {
+		t.Fatalf("admission answered %s, want an attach to the running holder", ticket.Kind)
+	}
+	if ticket.Code != 3 {
+		t.Errorf("the attached ticket carries %d, want the holder's own 3", ticket.Code)
+	}
+	if ticket.Entry == "" {
+		t.Error("the attached ticket names no entry, so the holder is unreachable")
+	}
+	if !strings.HasPrefix(ticket.Log, JobsDir+"/") {
+		t.Errorf("the attached ticket names log %q, want the holder's log under %s", ticket.Log, JobsDir)
+	}
+}
+
 // TestDifferentWorkUnderOneLabelDoesNotShare verifies the sharing boundary and
 // prevents the 2026-08-19 defect. A label names the TARGET, so two sessions
 // that test different packages must each run their own job.

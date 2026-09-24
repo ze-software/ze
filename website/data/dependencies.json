@@ -186,6 +186,10 @@
                     "why": "Reads passwords without echo and detects an interactive terminal during CLI login."
                 },
                 {
+                    "module": "golang.org/x/text",
+                    "why": "Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires."
+                },
+                {
                     "module": "golang.org/x/tools",
                     "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries."
                 },
