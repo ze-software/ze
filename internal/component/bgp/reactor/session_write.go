@@ -659,7 +659,7 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 	}
 
 	if ctx.Done() != nil {
-		release, err := requestWriteDeadline(ctx, conn)
+		release, err := s.requestWriteDeadline(ctx, conn)
 		if err != nil {
 			return err
 		}
@@ -682,7 +682,7 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 			return canceled
 		}
 		// The socket deadline can fire before the context timer goroutine.
-		if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		if deadline, ok := ctx.Deadline(); ok && !s.clock.Now().Before(deadline) {
 			closeConnQuietly(conn)
 			return context.DeadlineExceeded
 		}
@@ -699,7 +699,7 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 // requestWriteDeadline binds a socket write to its request after ownership has
 // been acquired. Cleanup joins an in-flight cancellation callback before another
 // writer can reuse the connection, so an old request cannot poison its deadline.
-func requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
+func (s *Session) requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -710,7 +710,7 @@ func requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
 	}
 	canceled := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
-		_ = conn.SetWriteDeadline(time.Now())
+		_ = conn.SetWriteDeadline(s.clock.Now())
 		close(canceled)
 	})
 	return func() {

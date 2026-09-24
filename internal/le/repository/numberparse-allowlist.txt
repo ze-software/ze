@@ -35,6 +35,7 @@
 3 internal/component/bgp/config/routeattr.go
 2 internal/component/bgp/config/routeattr_community.go
 3 internal/component/bgp/plugins/adj_rib_in/rib_commands.go
+1 internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go
 1 internal/component/bgp/plugins/bmp/sender_config.go
 4 internal/component/bgp/plugins/cmd/update/update_text.go
 2 internal/component/bgp/plugins/cmd/update/update_text_evpn.go
@@ -49,7 +50,7 @@
 3 internal/component/bgp/plugins/nlri/evpn/encode.go
 2 internal/component/bgp/plugins/nlri/evpn/plugin.go
 1 internal/component/bgp/plugins/nlri/flowspec/config.go
-2 internal/component/bgp/plugins/nlri/flowspec/config_builder.go
+1 internal/component/bgp/plugins/nlri/flowspec/config_builder.go
 2 internal/component/bgp/plugins/nlri/labeled/encode.go
 2 internal/component/bgp/plugins/nlri/mup/encode.go
 1 internal/component/bgp/plugins/nlri/mvpn/config.go

@@ -23,7 +23,7 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 		selftestWorkflowRel: selftestWorkflow,
 		selftestSummaryRel: "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 			"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n",
-		"rfc/full/rfc9999.txt": "A speaker MUST send the widget.\n",
+		"rfc/full/rfc9999.txt": checkFixtureSource,
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
 		// The tag scanner type-checks the packages carrying tags under every feature gate,
 		// so the manifest must name at least one. This fixture's one gated package holds
@@ -43,6 +43,13 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 		}
 	}
 
+	// Every enrolled RFC owes an extraction sign-off (02b164de51, owner directive
+	// 2026-09-21), so a tree whose only violation is the planted one carries a valid
+	// artifact. A caller that plants its own artifact keeps it.
+	if _, planted := extra[checkFixtureExtractionRel]; !planted {
+		signCheckFixture(t, root)
+	}
+
 	// The two generated ledger pages are written by the production writer rather than typed
 	// here, so the fixture cannot drift from what the freshness check derives, and so a
 	// planted violation is the only violation the tree carries.
@@ -50,6 +57,65 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 		t.Fatalf("write the fixture ledger pages: %v", err)
 	}
 	return root
+}
+
+// checkFixtureSource is the fixture RFC's source text. Its one site sits in section 2,
+// which is where the fixture summary's requirement says it comes from.
+const checkFixtureSource = "Test RFC 9999\n\n1.  Introduction\n\n    This document describes widgets.\n\n" +
+	"2.  Widgets\n\n    A speaker MUST send the widget.\n"
+
+// checkFixtureExtractionRel is where the fixture RFC's extraction sign-off lives.
+const checkFixtureExtractionRel = "rfc/extraction/rfc9999.json"
+
+// signCheckFixture writes the extraction sign-off for the summary and source text the
+// fixture tree holds, through the selftest's own artifact writer. A site the writer maps
+// to a requirement this summary does not declare is excluded instead, so the artifact
+// agrees with whichever summary the caller planted.
+func signCheckFixture(t *testing.T, root string) {
+	t.Helper()
+
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(selftestSummaryRel)))
+	if err != nil {
+		t.Fatalf("read the fixture summary: %v", err)
+	}
+	requirements, err := parseSummaryText(string(body), selftestStem, selftestSummaryRel)
+	if err != nil {
+		t.Fatalf("parse the fixture summary: %v", err)
+	}
+	inventory, err := NewDeriver(root).Inventory(selftestStem, gatedCounts(requirements)[selftestStem])
+	if err != nil {
+		t.Fatalf("derive the fixture inventory: %v", err)
+	}
+	if inventory == nil {
+		t.Fatal("the fixture source text derived no inventory")
+	}
+
+	declared := map[string]bool{}
+	for _, req := range requirements {
+		declared[req.RID] = true
+	}
+	document := extractionSelftestArtifact(inventory)
+	sites, isSites := document[keySites].([]map[string]any)
+	if !isSites {
+		t.Fatalf("the selftest artifact holds %T sites", document[keySites])
+	}
+	for _, site := range sites {
+		mappedTo, isMapped := site["mapped-to"].(string)
+		if !isMapped || declared[mappedTo] {
+			continue
+		}
+		delete(site, "mapped-to")
+		site[keyDisposition] = DispositionExcluded
+		site["excluded-kind"] = "not-a-requirement"
+		site[keyReason] = "the fixture summary does not declare this site"
+	}
+	artifact, err := marshalSelftestJSON(document)
+	if err != nil {
+		t.Fatalf("marshal the fixture artifact: %v", err)
+	}
+	if err := writeSelftestFiles(root, map[string]string{checkFixtureExtractionRel: artifact}); err != nil {
+		t.Fatalf("write the fixture artifact: %v", err)
+	}
 }
 
 // VALIDATES: the public Check entry point reports the SHAPE of a violation -- exit 2, no
@@ -191,7 +257,9 @@ func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
 				t.Fatalf("ID allocation changed the baseline refusals, exit %d:\n%s", code, report.Text())
 			}
 			assertPermanentIDCoverage(t, root)
-			if report.Signed != 0 || report.DiscriminationProven != 0 {
+			// The fixture signs its baseline, so "invented" is measured against what
+			// the baseline already held rather than against zero.
+			if report.Signed != baseline.Signed || report.DiscriminationProven != baseline.DiscriminationProven {
 				t.Fatalf("a citation correction invented extraction or discrimination evidence:\n%s", report.Text())
 			}
 		})
@@ -389,6 +457,11 @@ func TestRFCCheckReportsUnknownRequirementInCommandTests(t *testing.T) {
 // test. The tagged carrier clears the planted requirement violation, so the drain floor is
 // the only thing left that can red this tree, and "exactly one violation" is then an
 // assertion about the drain floor rather than about a count.
+//
+// Since 02b164de51 every enrolled RFC owes a sign-off, and the floor is capped at the
+// enrolled count, so a tree under its floor always holds an unsigned enrolled RFC too.
+// The drain violation therefore never stands alone: the tree answers exactly two, the
+// enrolment violation for rfc9999 and the drain floor.
 func TestRFCCheckReportsTheDrainFloorViolation(t *testing.T) {
 	// Check reads the wall clock, so the start date is old enough that the verdict cannot
 	// depend on the day the test runs: at rate 1 the floor is min(1, ceil(1 x months)),
@@ -399,6 +472,12 @@ func TestRFCCheckReportsTheDrainFloorViolation(t *testing.T) {
 		"test/plugin/widget.ci": "# RFC requirement: " + selftestRIDSend + " positive\n" +
 			"# RFC requirement: " + selftestRIDSend + " negative\n",
 	})
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(checkFixtureExtractionRel))); err != nil {
+		t.Fatalf("remove the fixture sign-off: %v", err)
+	}
+	if _, err := IndexUpdate(root); err != nil {
+		t.Fatalf("rewrite the fixture ledger pages: %v", err)
+	}
 
 	report, code := Check(root)
 	if report.CannotRun != "" {
@@ -407,11 +486,17 @@ func TestRFCCheckReportsTheDrainFloorViolation(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("an under-quota tree answered %d, want 2:\n%s", code, report.Text())
 	}
-	if len(report.Violations) != 1 {
-		t.Fatalf("the fixture reported %d violation(s), want 1:\n%s",
+	if len(report.Violations) != 2 {
+		t.Fatalf("the fixture reported %d violation(s), want the enrolment and the drain floor:\n%s",
 			len(report.Violations), report.Text())
 	}
+	if !strings.Contains(report.Violations[0]+report.Violations[1], "rfc9999 is enrolled with no valid extraction sign-off") {
+		t.Errorf("the unsigned enrolled RFC was not reported:\n%s", report.Text())
+	}
 	violation := report.Violations[0]
+	if !strings.HasPrefix(violation, "rfc/drain-budget.txt") {
+		violation = report.Violations[1]
+	}
 	for _, want := range []string{
 		"rfc/drain-budget.txt",
 		"requires 1 extraction sign-off(s) by now",
@@ -1856,7 +1941,7 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 		selftestWorkflowRel:    selftestWorkflow,
 		selftestSummaryRel:     preMigrationSummary,
 		"rfc/enrolled.txt":     "# the retired shape\nrfc9999\tthe fixture RFC\n",
-		"rfc/full/rfc9999.txt": "A speaker MUST send the widget.\n",
+		"rfc/full/rfc9999.txt": checkFixtureSource,
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
 		"feature-gates.txt":    "ze_widget  internal/widget\n",
 		carrier:                both,

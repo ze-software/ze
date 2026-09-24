@@ -303,7 +303,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// was already red at HEAD before that commit, for commits other sessions
 	// landed on this package without re-sealing; this seal absorbs those
 	// bytes and does not vouch for them, as the paragraphs above say.
-	const want = "8df713aa841fd73fd1cde944e8a270e1c85f49cee4e48d0ba498f5049745886b"
+	//
+	// Re-sealed 2026-09-24 for 1584e5bd93 (a "management" support area) and
+	// 1ea11bee3a (cmd/ as a tag root, requirement ids keep their allocation,
+	// and a checklist id is no longer refused for disagreeing with its
+	// section). 58f6154746 added a verification-archive exclusion and
+	// b9779d6fbb removed it again. Each is an intended change its commit states.
+	const want = "0b22efc92e6ebf494fd2c13b3cc879463d8050c1e2d2b0797cad56508ff493e4"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

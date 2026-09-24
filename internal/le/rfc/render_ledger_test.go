@@ -359,8 +359,16 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// rfc2516 and rfc7474 joined it, their rewritten cells now spelling a count.
 	// The shrink is argued rather than absorbed, which is what this number is
 	// for: none of the six lost a gap, they lost a SPELLING the check can read.
-	if counted != 53 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 53",
+	// 42 since 2026-09-24. Twelve rows left and one joined, again for a
+	// rewritten Remaining cell rather than a closed gap: each new cell names the
+	// open work in prose and spells no number immediately before MUST.
+	// rfc1332, rfc1661, rfc2516 and rfc2661 left in 82b495d9c3; rfc2205,
+	// rfc7432, rfc7474, rfc8210, rfc8907 and rfc9552 in 53384c8751; rfc8955 and
+	// rfc8956 in 1357a6682c. rfc7950 joined in 1584e5bd93, its cell now opening
+	// "Forty-eight MUST rows carry {gap}". Those twelve rows are no longer
+	// cross-checked against their gated gap count.
+	if counted != 42 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 42",
 			counted, len(rows))
 	}
 }

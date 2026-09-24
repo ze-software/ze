@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
@@ -39,14 +40,15 @@ func applyAIGPSettings(ps *PeerSettings, name string, session map[string]any) er
 		ps.AIGPLinkMetric = value
 	}
 	for _, text := range configvalue.LeafList(cfg["domain-as"]) {
-		value, err := strconv.ParseUint(text, 10, 32)
+		// zt:asn admits every RFC 5396 spelling, so asdot reaches this parse.
+		value, err := asn.Parse(text)
 		if err != nil {
 			return fmt.Errorf("peer %s: invalid aigp domain-as: %w", name, err)
 		}
 		if value == 0 {
 			return fmt.Errorf("peer %s: aigp domain-as cannot be zero", name)
 		}
-		ps.AIGPDomainAS = append(ps.AIGPDomainAS, uint32(value))
+		ps.AIGPDomainAS = append(ps.AIGPDomainAS, value)
 	}
 	return nil
 }

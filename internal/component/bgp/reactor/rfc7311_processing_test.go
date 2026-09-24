@@ -251,3 +251,15 @@ func TestAIGPConfiguredOriginationRejectsOutsideDomain(t *testing.T) {
 		require.Equal(t, []byte{24, 10, 20, 0}, sections.NLRI(frame[message.HeaderLen:]))
 	}
 }
+
+// TestAIGPDomainASAcceptsEveryRFC5396Spelling proves that the domain-as
+// leaf-list, typed zt:asn in YANG, reads the asdot form the schema admits.
+// It drives applyAIGPSettings with one asplain and one asdot member and
+// checks both land as 32-bit AS numbers.
+func TestAIGPDomainASAcceptsEveryRFC5396Spelling(t *testing.T) {
+	var ps PeerSettings
+	session := map[string]any{"aigp": map[string]any{"domain-as": []any{"65001", "1.10"}}}
+
+	require.NoError(t, applyAIGPSettings(&ps, "peer1", session))
+	require.Equal(t, []uint32{65001, 65546}, ps.AIGPDomainAS)
+}
