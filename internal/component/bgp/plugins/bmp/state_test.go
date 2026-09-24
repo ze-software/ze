@@ -18,7 +18,7 @@ func TestStateAddRemoveRouter(t *testing.T) {
 	s := newBMPState()
 
 	s.addRouter("10.0.0.1:12345")
-	s.setRouterInfo("10.0.0.1:12345", "router1", "ze test")
+	s.setRouterInfo("10.0.0.1:12345", "router1", "ze test", nil)
 
 	status, data, err := s.sessionsCommand()
 	if err != nil {
@@ -59,7 +59,7 @@ func TestStatePeerUpDown(t *testing.T) {
 	s.addRouter("10.0.0.1:12345")
 
 	peer := testPeerHeader()
-	s.peerUp("10.0.0.1:12345", peer, nil)
+	s.peerUp("10.0.0.1:12345", peer, nil, nil)
 
 	status, data, err := s.peersCommand()
 	if err != nil {
@@ -103,7 +103,7 @@ func TestStateRemoveRouterClearsPeers(t *testing.T) {
 	// VALIDATES: AC-16 -- removing router drops its peers
 	s := newBMPState()
 	s.addRouter("10.0.0.1:12345")
-	s.peerUp("10.0.0.1:12345", testPeerHeader(), nil)
+	s.peerUp("10.0.0.1:12345", testPeerHeader(), nil, nil)
 
 	s.removeRouter("10.0.0.1:12345")
 
@@ -166,5 +166,47 @@ func TestHandleCommandUnknown(t *testing.T) {
 	}
 	if err == nil {
 		t.Error("expected error for unknown command")
+	}
+}
+
+// Loc-RIB peers share a zero address, so a delayed Peer Down must target the
+// original BGP ID without replacing or withdrawing the new instance's report.
+func TestStateLocRIBIdentityChangeKeepsReportsSeparate(t *testing.T) {
+	bp := &BMPPlugin{state: newBMPState()}
+	const remote = "192.0.2.8:12345"
+	first := PeerHeader{PeerType: PeerTypeLocRIB, PeerAS: 65000, PeerBGPID: 0xc0000201}
+	second := first
+	second.PeerBGPID = 0xc0000202
+	for _, peer := range []PeerHeader{first, second} {
+		open := fabricateLocRIBOpen(localIdentity{asn: peer.PeerAS, routerID: peer.PeerBGPID})
+		bp.processPeerUp(remote, &PeerUp{Peer: peer, SentOpenMsg: open, ReceivedOpenMsg: open})
+	}
+	bp.processPeerDown(remote, &PeerDown{Peer: first, Reason: PeerDownTLVData})
+	_, data, err := bp.handleCommand("show bmp peers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Peers []monitoredPeer `json:"peers"`
+	}
+	if err := json.Unmarshal(marshalAny(data), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Peers) != 2 {
+		t.Fatalf("reported %d Loc-RIB identities, want both old and new", len(result.Peers))
+	}
+	for _, peer := range result.Peers {
+		switch peer.PeerBGPID {
+		case "192.0.2.1":
+			if peer.IsUp {
+				t.Fatal("old Loc-RIB remains up after its Peer Down")
+			}
+		case "192.0.2.2":
+			if !peer.IsUp {
+				t.Fatal("old Loc-RIB Peer Down withdrew the new identity")
+			}
+		default:
+			t.Fatalf("unexpected Loc-RIB identity %q", peer.PeerBGPID)
+		}
 	}
 }

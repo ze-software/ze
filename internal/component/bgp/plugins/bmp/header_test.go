@@ -273,33 +273,6 @@ func TestBMPPeerHeaderFlags(t *testing.T) {
 	}
 }
 
-func TestBMPPeerHeaderIPv4Mapped(t *testing.T) {
-	// VALIDATES: AC-4 -- IPv4 stored as ::ffff:x.x.x.x in 16-byte field
-	p := PeerHeader{PeerType: PeerTypeGlobal}
-	// Set IPv4-mapped IPv6: ::ffff:10.0.0.1
-	p.Address[10] = 0xff
-	p.Address[11] = 0xff
-	p.Address[12] = 10
-	p.Address[13] = 0
-	p.Address[14] = 0
-	p.Address[15] = 1
-
-	buf := make([]byte, PeerHeaderSize)
-	writePeerHeader(buf, 0, p)
-	decoded, _, err := decodePeerHeader(buf, 0)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
-
-	if decoded.Address != p.Address {
-		t.Errorf("address mismatch: got %v, want %v", decoded.Address, p.Address)
-	}
-	// Not IPv6 (V flag not set).
-	if decoded.IsIPv6() {
-		t.Error("IPv4-mapped address should not be IPv6")
-	}
-}
-
 func TestBMPPeerHeaderTooShort(t *testing.T) {
 	// VALIDATES: AC-6 -- short per-peer header returns error
 	buf := make([]byte, PeerHeaderSize-1)

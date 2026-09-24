@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net"
 	"net/netip"
 	"reflect"
 	"slices"
@@ -45,12 +46,25 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 	if o.dispatcher == nil {
 		return
 	}
+	peerInfo := establishedPeerInfo(peer)
+	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateUp, "")
+}
+
+// establishedPeerInfo reports the connected endpoint, including when the
+// configured local IP is "auto". Settings describe the request, not necessarily
+// the address selected by the kernel for this live session.
+func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 	s := peer.Settings()
-	peerInfo := plugin.PeerInfo{
+	local, localString := s.LocalAddress, peer.localAddrString
+	local, localString = connectedLocalEndpoint(peer, local, localString)
+	localPort, remotePort := peer.tCPPorts()
+	return plugin.PeerInfo{
 		Address:         s.Address,
-		LocalAddress:    s.LocalAddress,
+		LocalAddress:    local,
 		AddressStr:      peer.addrString,
-		LocalAddressStr: peer.localAddrString,
+		LocalAddressStr: localString,
+		LocalPort:       localPort,
+		RemotePort:      remotePort,
 		Name:            s.Name,
 		GroupName:       s.GroupName,
 		LocalAS:         s.LocalAS,
@@ -64,7 +78,23 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		Accept:         s.Connection.Accept,
 		State:          peer.State().PluginState(),
 	}
-	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateUp, "")
+}
+
+func connectedLocalEndpoint(peer *Peer, local netip.Addr, localString string) (netip.Addr, string) {
+	peer.mu.RLock()
+	session := peer.session
+	peer.mu.RUnlock()
+	if session != nil {
+		if conn := session.Conn(); conn != nil {
+			if endpoint, ok := conn.LocalAddr().(*net.TCPAddr); ok {
+				actual := endpoint.AddrPort().Addr().Unmap()
+				if actual.IsValid() && actual != local {
+					return actual, actual.String()
+				}
+			}
+		}
+	}
+	return local, localString
 }
 
 func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
@@ -136,16 +166,18 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			peerType = "internal"
 		}
 		localPort, remotePort := p.tCPPorts()
+		local, localString := connectedLocalEndpoint(p, s.LocalAddress, p.localAddrString)
 		info := plugin.PeerInfo{
 			Address:              s.Address,
-			LocalAddress:         s.LocalAddress,
+			LocalAddress:         local,
 			AddressStr:           p.addrString,
-			LocalAddressStr:      p.localAddrString,
+			LocalAddressStr:      localString,
 			Name:                 s.Name,
 			GroupName:            s.GroupName,
 			LocalAS:              s.LocalAS,
 			PeerAS:               peerAS,
 			RouterID:             s.RouterID,
+			RemoteRouterID:       p.RemoteRouterID(),
 			ReceiveHoldTime:      s.ReceiveHoldTime,
 			SendHoldTime:         s.SendHoldTime,
 			KeepaliveTime:        s.KeepaliveTime,

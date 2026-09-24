@@ -822,15 +822,30 @@ func establishedPeer(address string, asn uint16) *peerUpState {
 	return st
 }
 
+// requireReloadEOR checks the complete legacy IPv4 End-of-RIB PDU, not merely
+// the Route Monitoring wrapper, so consuming replay cannot hide an extra route.
+func requireReloadEOR(t *testing.T, rm *RouteMonitoring, flags uint8) {
+	t.Helper()
+	var want [message.HeaderLen + 4]byte
+	copy(want[:message.MarkerLen], message.Marker[:])
+	want[17] = byte(len(want))
+	want[18] = byte(msgtype.TypeUPDATE)
+	if !bytes.Equal(rm.BGPUpdate, want[:]) {
+		t.Fatalf("replay completion PDU = %x, want IPv4 End-of-RIB %x", rm.BGPUpdate, want)
+	}
+	if rm.Peer.Flags != flags {
+		t.Fatalf("End-of-RIB flags = %#x, want %#x", rm.Peer.Flags, flags)
+	}
+}
+
 // RFC requirement: RFC8671-7.2-1 positive -- "In case of any change that results in the
 // alteration of behavior of an existing BMP session (i.e., changes to filtering and
 // table names), the session MUST be bounced with a Peer Down/Peer Up sequence." Changing
 // the route-monitoring policy under two established peers puts a Peer Down and then a
 // Peer Up on the wire for EACH of them, and leaves the BMP session up: the collector
-// keeps its connection and re-reads both peers under the new policy. It does not get
-// the routes back with them -- no Adj-RIB-In replay follows a Peer Up -- so what is
-// asserted below is the Peer Down/Peer Up pair and the session's survival, never a
-// route count.
+// keeps its connection and re-reads both peers under the new policy. These
+// fixtures hold empty Adj-RIBs, so each Peer Up is followed by an IPv4 End-of-RIB
+// for the newly selected post-policy direction, not a fabricated route.
 //
 // What this must not do is end the session. A Termination and a TCP close discard every
 // peer's state on the collector, including the state the change did not touch, and cost
@@ -873,10 +888,11 @@ func TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- engine.reloadBGP(config) }()
 
-	// Two peers, two messages each, in whichever order the peer map yielded.
+	// Two peers, three messages each, in whichever order the peer map yielded.
 	downFor := map[string]int{}
 	upFor := map[string]int{}
-	for range 4 {
+	eorFor := map[string]int{}
+	for range 6 {
 		msg, err := readBMPFromPipe(server)
 		if err != nil {
 			t.Fatalf("read the peer bounce: %v", err)
@@ -897,8 +913,15 @@ func TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession(t *testing.T) {
 				t.Errorf("peer %s was announced up before it was announced down", address)
 			}
 			upFor[address]++
+		case *RouteMonitoring:
+			address := peerAddressString(m.Peer)
+			if upFor[address] != 1 {
+				t.Errorf("peer %s completed replay before exactly one Peer Up", address)
+			}
+			requireReloadEOR(t, m, PeerFlagO|PeerFlagL)
+			eorFor[address]++
 		default:
-			t.Fatalf("the bounce put a %T on the wire, want a Peer Down or a Peer Up", msg)
+			t.Fatalf("the bounce put a %T on the wire, want Peer Down, Peer Up or End-of-RIB", msg)
 		}
 	}
 	awaitReload(t, done)
@@ -906,6 +929,9 @@ func TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession(t *testing.T) {
 	for _, address := range []string{"10.0.0.1", "10.0.0.2"} {
 		if downFor[address] != 1 || upFor[address] != 1 {
 			t.Errorf("peer %s got %d Peer Down and %d Peer Up, want 1 and 1", address, downFor[address], upFor[address])
+		}
+		if eorFor[address] != 1 {
+			t.Errorf("peer %s got %d End-of-RIB markers, want 1", address, eorFor[address])
 		}
 	}
 

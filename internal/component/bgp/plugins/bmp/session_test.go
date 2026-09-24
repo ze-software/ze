@@ -45,7 +45,10 @@ func TestBMPSessionAccepts(t *testing.T) {
 
 	buf := make([]byte, 256)
 	init := &Initiation{
-		TLVs: []TLV{makeStringTLV(InitTLVSysName, "test-router")},
+		TLVs: []TLV{
+			makeStringTLV(InitTLVSysName, "test-router"),
+			makeStringTLV(InitTLVSysDescr, "test router"),
+		},
 	}
 	n := writeInitiation(buf, 0, init)
 	if _, err := conn.Write(buf[:n]); err != nil {
@@ -54,7 +57,7 @@ func TestBMPSessionAccepts(t *testing.T) {
 
 	// Send Termination to cleanly end session.
 	term := &Termination{
-		TLVs: []TLV{makeStringTLV(TermTLVString, "done")},
+		TLVs: []TLV{{Type: TermTLVReason, Length: 2, Value: []byte{0, 0}}},
 	}
 	n = writeTermination(buf, 0, term)
 	if _, err := conn.Write(buf[:n]); err != nil {
@@ -162,12 +165,15 @@ func TestBMPReceiverUnidirectional(t *testing.T) {
 
 	// Feed a valid BMP stream from the monitored router's side.
 	buf := make([]byte, 256)
-	init := &Initiation{TLVs: []TLV{makeStringTLV(InitTLVSysName, "test-router")}}
+	init := &Initiation{TLVs: []TLV{
+		makeStringTLV(InitTLVSysName, "test-router"),
+		makeStringTLV(InitTLVSysDescr, "test router"),
+	}}
 	n := writeInitiation(buf, 0, init)
 	if _, err := client.Write(buf[:n]); err != nil {
 		t.Fatalf("write initiation: %v", err)
 	}
-	term := &Termination{TLVs: []TLV{makeStringTLV(TermTLVString, "done")}}
+	term := &Termination{TLVs: []TLV{{Type: TermTLVReason, Length: 2, Value: []byte{0, 0}}}}
 	n = writeTermination(buf, 0, term)
 	if _, err := client.Write(buf[:n]); err != nil {
 		t.Fatalf("write termination: %v", err)
@@ -220,7 +226,10 @@ func TestBMPMaxSessionsRejects(t *testing.T) {
 
 	// Send valid init to keep session alive.
 	buf := make([]byte, 256)
-	init := &Initiation{TLVs: []TLV{makeStringTLV(InitTLVSysName, "r1")}}
+	init := &Initiation{TLVs: []TLV{
+		makeStringTLV(InitTLVSysName, "r1"),
+		makeStringTLV(InitTLVSysDescr, "test router"),
+	}}
 	n := writeInitiation(buf, 0, init)
 	if _, err := conn1.Write(buf[:n]); err != nil {
 		t.Fatalf("write: %v", err)

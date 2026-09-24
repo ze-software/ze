@@ -84,6 +84,9 @@ type senderSession struct {
 	address       string
 	port          uint16
 	sourceAddress string
+	// identity is set before run starts and reads current system configuration
+	// on each connection. Nil uses the operating system's identity.
+	identity func() (systemIdentity, error)
 
 	conn   net.Conn
 	connMu sync.Mutex
@@ -96,6 +99,9 @@ type senderSession struct {
 	// Every method that encodes into scratch or enqueues MUST hold it.
 	writeMu sync.Mutex
 	scratch []byte
+	// primingMu orders the initial snapshot against live event delivery.
+	// run MUST take it before writeMu; event producers use that same order.
+	primingMu *sync.Mutex
 
 	// flushMu serializes the actual socket writes. Only the drain goroutine and
 	// the session's own goroutine (Initiation, Termination) write, and they must
@@ -158,9 +164,8 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 		cancel:        cancel,
 		txLimit:       txQueueLimitBytes,
 		retryWait:     reconnectMin,
-		// maxBMPMsgSize (65535) is the RFC 7854 ceiling. Allocating
-		// this once per collector session keeps the BGP-UPDATE → BMP
-		// Route Monitoring hot path allocation-free.
+		// Keep one buffer per collector for the largest BGP PDU plus BMP
+		// framing; ordinary monitoring writes reuse it.
 		scratch: make([]byte, maxBMPMsgSize),
 	}
 }
@@ -259,6 +264,9 @@ func (ss *senderSession) run() {
 		// Monitoring for a peer before that peer's Peer Up (RFC 7854 Section
 		// 4.10 ordering). Neither step can block on the socket: publishing is a
 		// pointer store and the Peer Ups go into the transmit queue.
+		if ss.primingMu != nil {
+			ss.primingMu.Lock()
+		}
 		ss.writeMu.Lock()
 		ss.connMu.Lock()
 		ss.conn = conn
@@ -267,6 +275,9 @@ func (ss *senderSession) run() {
 			ss.onPrimed()
 		}
 		ss.writeMu.Unlock()
+		if ss.primingMu != nil {
+			ss.primingMu.Unlock()
+		}
 
 		// Then the work that re-enters the producer path (and so must not hold
 		// writeMu): the full fresh Loc-RIB dump.
@@ -362,22 +373,28 @@ func (ss *senderSession) clearConnAndResetIf(c net.Conn, q *txQueue) {
 // instead of waiting. Nothing is lost by that -- run() primes the new session
 // with a Peer Up for every established peer as soon as the conn is published.
 func (ss *senderSession) sendInitiation(conn net.Conn) error {
+	source := ss.identity
+	if source == nil {
+		source = defaultSystemIdentity
+	}
+	id, err := source()
+	if err != nil {
+		return err
+	}
+	// RFC 7854 Section 4.4: each identity TLV's value "MUST be set to be
+	// equal to the value of" its RFC 1213 system object.
 	init := &Initiation{
 		TLVs: []TLV{
-			makeStringTLV(InitTLVSysName, "ze"),
-			makeStringTLV(InitTLVSysDescr, "ze BGP daemon"),
+			makeStringTLV(InitTLVSysName, id.name),
+			makeStringTLV(InitTLVSysDescr, id.description),
 		},
 	}
-
-	// Size: common header(6) + sysName TLV(4+2) + sysDescr TLV(4+14) = 30.
-	// Fixed compile-time size — a size-constant regression fails to compile.
-	// net.Conn.Write is an interface call so escape analysis moves this to
-	// heap today; if the write path ever becomes a concrete type or a
-	// provided scratch buffer, the same code path stays on the stack.
-	var stack [CommonHeaderSize + TLVHeaderSize + 2 + TLVHeaderSize + 14]byte
-	buf := stack[:]
-	n := writeInitiation(buf, 0, init)
-	return ss.writeRaw(conn, buf[:n])
+	// Common header at byte 0; each TLV has type at +0, length at +2,
+	// and the unmodified identity bytes at +4 (RFC 7854 Section 4.4).
+	// RFC 1213 bounds both identity objects to 255 octets.
+	var stack [CommonHeaderSize + 2*(TLVHeaderSize+255)]byte
+	n := writeInitiation(stack[:], 0, init)
+	return ss.writeRaw(conn, stack[:n])
 }
 
 // sendTermination sends the RFC 7854 Section 4.5 Termination message. It waits
@@ -424,23 +441,26 @@ func (ss *senderSession) acquireFlush(d time.Duration) bool {
 // writeTerminationLocked writes the Termination message.
 //
 // It uses terminationWait rather than writeTimeout as the write deadline: this
-// is the last thing a dying session does, and a collector that cannot take 23
+// is the last thing a dying session does, and a collector that cannot take 29
 // bytes in a second is not going to take them in ten. Without the shorter
 // deadline one wedged collector adds writeTimeout to plugin shutdown.
 //
 // Caller MUST hold flushMu.
 func (ss *senderSession) writeTerminationLocked(conn net.Conn) {
+	var reason [2]byte
+	binary.BigEndian.PutUint16(reason[:], TermReasonAdminDown)
 	term := &Termination{
 		TLVs: []TLV{
 			makeStringTLV(TermTLVString, "shutting down"),
+			{Type: TermTLVReason, Length: 2, Value: reason[:]},
 		},
 	}
 
-	// Size: common header(6) + TLV(4+13) = 23.
+	// Size: common header(6) + string TLV(4+13) + Reason TLV(4+2) = 29.
 	// Fixed compile-time size — a size-constant regression fails to compile.
 	// Escapes via net.Conn.Write today; pattern holds if the write path ever
 	// becomes a concrete type.
-	var stack [CommonHeaderSize + TLVHeaderSize + 13]byte
+	var stack [CommonHeaderSize + TLVHeaderSize + 13 + TLVHeaderSize + 2]byte
 	buf := stack[:]
 	n := writeTermination(buf, 0, term)
 	if err := ss.writeDeadlineLocked(conn, buf[:n], terminationWait); err != nil {
@@ -693,12 +713,19 @@ func (ss *senderSession) writePeerDownLocked(peer PeerHeader, reason uint8, data
 // Route Monitoring carries UPDATEs per RFC 7854) but the parameter makes the
 // synthesized header explicit rather than hardcoded.
 func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
-	bgpPDULen := message.HeaderLen + len(bgpBody)
-	total := CommonHeaderSize + PeerHeaderSize + bgpPDULen
-
 	ss.writeMu.Lock()
 	defer ss.writeMu.Unlock()
+	return ss.writeRouteMonitoringLocked(peer, msgType, bgpBody)
+}
 
+// writeRouteMonitoringLocked MUST be called with writeMu held. bgpBody may
+// alias the body span of scratch, as it does during an initial Adj-RIB replay.
+func (ss *senderSession) writeRouteMonitoringLocked(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
+	bgpPDULen := message.HeaderLen + len(bgpBody)
+	if bgpPDULen > message.ExtMsgLen {
+		return errors.New("bmp: BGP PDU exceeds its two-byte length")
+	}
+	total := CommonHeaderSize + PeerHeaderSize + bgpPDULen
 	buf, err := ss.scratchFor(total)
 	if err != nil {
 		return err
@@ -707,7 +734,7 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 	off += writePeerHeader(buf, off, peer)
 	// Synthesize BGP message header (RFC 4271 §4.1): Marker(16) + Length(2) + Type(1).
 	copy(buf[off:], message.Marker[:])
-	binary.BigEndian.PutUint16(buf[off+message.MarkerLen:], uint16(bgpPDULen)) //nolint:gosec // bgpPDULen bounded by scratch size (maxBMPMsgSize < 65535)
+	binary.BigEndian.PutUint16(buf[off+message.MarkerLen:], uint16(bgpPDULen)) //nolint:gosec // checked against message.ExtMsgLen above.
 	buf[off+message.MarkerLen+2] = byte(msgType)
 	off += message.HeaderLen
 	copy(buf[off:], bgpBody)
@@ -724,6 +751,10 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 // This function is the only producer of a Statistics Report, so the flag is
 // cleared here: every caller is conformant and no caller has to remember.
 func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntry) error {
+	// RFC 7854 Section 4.8 requires at least one statistic in each report.
+	if len(stats) == 0 {
+		return errors.New("bmp: statistics report requires at least one statistic")
+	}
 	peer.Flags &^= PeerFlagO
 
 	sr := &statisticsReport{
@@ -753,6 +784,9 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 // is synthesized inline (same pattern as writeRouteMonitoring).
 func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.MessageType, bgpBody []byte) error {
 	bgpPDULen := message.HeaderLen + len(bgpBody)
+	if bgpPDULen > message.ExtMsgLen {
+		return errors.New("bmp: BGP PDU exceeds its two-byte length")
+	}
 	tlvLen := TLVHeaderSize + bgpPDULen
 	total := CommonHeaderSize + PeerHeaderSize + tlvLen
 

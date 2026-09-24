@@ -85,6 +85,10 @@ func TestBMPSenderConnects(t *testing.T) {
 // sysName TLV (type 2).
 func TestBMPSenderInitiation(t *testing.T) {
 	// VALIDATES: AC-25 -- Initiation sent with sysName and sysDescr
+	expected, err := defaultSystemIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -150,7 +154,7 @@ func TestBMPSenderInitiation(t *testing.T) {
 	// Verify sysName and sysDescr TLVs present.
 	var foundName, foundDescr bool
 	for _, tlv := range init.TLVs {
-		if tlv.Type == InitTLVSysName && string(tlv.Value) == "ze" {
+		if tlv.Type == InitTLVSysName && string(tlv.Value) == expected.name {
 			foundName = true
 		}
 		if tlv.Type == InitTLVSysDescr {
@@ -158,7 +162,7 @@ func TestBMPSenderInitiation(t *testing.T) {
 		}
 	}
 	if !foundName {
-		t.Error("Initiation missing sysName=ze")
+		t.Errorf("Initiation missing sysName=%q", expected.name)
 	}
 	if !foundDescr {
 		t.Error("Initiation missing sysDescr")

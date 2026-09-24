@@ -3,7 +3,6 @@
 // cannot carry them is not sent at all. The proof is what the collector reads
 // off the socket, never the absence of a panic.
 // Related: bmp_events.go -- handleSenderState, the producer under test.
-// Related: event_test.go -- TestBMPPeerUpSkippedOnCacheMiss, the earlier form.
 package bmp
 
 import (
@@ -37,12 +36,6 @@ import (
 // no state for the peer.
 // PREVENTS: an OPEN-less Peer Up desynchronizing every collector that parses the
 // Information TLVs by offset.
-//
-// TestBMPPeerUpSkippedOnCacheMiss carries this same tag and asserts nothing at
-// all -- it calls handleStructuredEvent on a session whose conn is nil and
-// checks only that nothing panics. Replacing the `if st == nil { return }` guard
-// with a Peer Up carrying nil OPENs leaves it green; it turns this test red
-// (mutation-tested, 2026-08-30).
 //
 // RFC requirement: RFC7854-x-8 negative -- when the sent and received OPEN PDUs
 // are not available, the sender emits no Peer Up at all rather than one missing

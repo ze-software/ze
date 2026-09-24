@@ -110,8 +110,14 @@ func DecodeMsg(buf []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if int(ch.Length) > len(buf) {
+	if ch.Length < CommonHeaderSize {
+		return nil, fmt.Errorf("%w: header length %d is below %d", errShortMsg, ch.Length, CommonHeaderSize)
+	}
+	if uint64(ch.Length) > uint64(len(buf)) {
 		return nil, fmt.Errorf("%w: header says %d, have %d", errShortMsg, ch.Length, len(buf))
+	}
+	if uint64(ch.Length) != uint64(len(buf)) {
+		return nil, fmt.Errorf("bmp: trailing bytes after message of length %d", ch.Length)
 	}
 	end := int(ch.Length)
 	off := n
@@ -140,6 +146,23 @@ func decodeInitiation(buf []byte, off, end int) (*Initiation, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initiation: %w", err)
 	}
+	// RFC 7854 Section 4.3: "The sysDescr and sysName Information TLVs MUST be
+	// sent, any others are optional." Their presence is independent of their values.
+	var sysName, sysDescr bool
+	for _, tlv := range tlvs {
+		switch tlv.Type {
+		case InitTLVSysName:
+			sysName = true
+		case InitTLVSysDescr:
+			sysDescr = true
+		}
+	}
+	if !sysName {
+		return nil, errors.New("initiation: missing sysName TLV")
+	}
+	if !sysDescr {
+		return nil, errors.New("initiation: missing sysDescr TLV")
+	}
 	return &Initiation{TLVs: tlvs}, nil
 }
 
@@ -147,6 +170,21 @@ func decodeTermination(buf []byte, off, end int) (*Termination, error) {
 	tlvs, err := DecodeTLVs(buf, off, end)
 	if err != nil {
 		return nil, fmt.Errorf("termination: %w", err)
+	}
+	// RFC 7854 Section 4.5: "Inclusion of this TLV is REQUIRED." Its Information
+	// field contains a two-byte reason code, not the optional termination string.
+	reason := false
+	for _, tlv := range tlvs {
+		if tlv.Type != TermTLVReason {
+			continue
+		}
+		if len(tlv.Value) != 2 {
+			return nil, errors.New("termination: Reason TLV must contain two bytes")
+		}
+		reason = true
+	}
+	if !reason {
+		return nil, errors.New("termination: missing Reason TLV")
 	}
 	return &Termination{TLVs: tlvs}, nil
 }
@@ -280,12 +318,16 @@ func decodeStatisticsReport(buf []byte, off, end int) (*statisticsReport, error)
 	}
 	count := binary.BigEndian.Uint32(buf[off : off+4])
 	off += 4
+	if count == 0 {
+		return nil, errors.New("statistics report: no statistics")
+	}
 
-	// Cap pre-allocation: each stat is at least TLVHeaderSize bytes,
-	// so the maximum possible entries is bounded by remaining buffer.
-	maxFromBuf := uint32(end-off) / TLVHeaderSize
-	stats := make([]StatEntry, 0, min(count, maxFromBuf))
-	for i := uint32(0); i < count && off < end; i++ {
+	// Each stat needs a TLV header, bounding both allocation and the decode loop.
+	if uint64(count) > uint64(end-off)/TLVHeaderSize {
+		return nil, fmt.Errorf("%w: stats count %d exceeds message", errShortMsg, count)
+	}
+	stats := make([]StatEntry, 0, int(count))
+	for i := uint32(0); i < count; i++ {
 		if end-off < TLVHeaderSize {
 			return nil, fmt.Errorf("%w: stat entry %d truncated", errShortMsg, i)
 		}
@@ -301,6 +343,9 @@ func decodeStatisticsReport(buf []byte, off, end int) (*statisticsReport, error)
 		off += int(length)
 		stats = append(stats, se)
 	}
+	if off != end {
+		return nil, errors.New("statistics report: trailing data after statistics")
+	}
 
 	return &statisticsReport{Peer: peer, Stats: stats}, nil
 }
@@ -315,6 +360,32 @@ func decodeRouteMirroring(buf []byte, off, end int) (*routeMirroring, error) {
 	tlvs, err := DecodeTLVs(buf, off, end)
 	if err != nil {
 		return nil, fmt.Errorf("route mirroring: %w", err)
+	}
+	// RFC 7854 Section 4.7: "If the BGP Message TLV occurs in the Route Mirroring
+	// message, it MUST occur last in the list of TLVs." For Errored PDU:
+	// "A BGP Message TLV MUST also occur in the TLV list."
+	// The PDU itself may be malformed; it is evidence of the reported error.
+	var bgpMessage, erroredPDU bool
+	for i, tlv := range tlvs {
+		switch tlv.Type {
+		case MirrorTLVBGPMsg:
+			if i != len(tlvs)-1 {
+				return nil, errors.New("route mirroring: BGP Message TLV is not last")
+			}
+			bgpMessage = true
+		case MirrorTLVInformation:
+			if len(tlv.Value) != 2 {
+				return nil, errors.New("route mirroring: Information TLV must contain two bytes")
+			}
+			if binary.BigEndian.Uint16(tlv.Value) == MirrorInfoErroredPDU {
+				erroredPDU = true
+			}
+		}
+	}
+	if erroredPDU {
+		if !bgpMessage {
+			return nil, errors.New("route mirroring: Errored PDU requires a BGP Message TLV")
+		}
 	}
 	return &routeMirroring{Peer: peer, TLVs: tlvs}, nil
 }

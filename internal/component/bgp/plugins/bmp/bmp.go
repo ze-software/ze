@@ -44,9 +44,9 @@ const (
 	policyAll        = "all"         // both directions
 )
 
-// maxBMPMsgSize is the upper bound on a single BMP message.
-// BGP max (4096) + BMP framing (48) with generous headroom for TLVs.
-const maxBMPMsgSize = 65535
+// maxBMPMsgSize bounds retained frames while allowing a maximum-size Extended
+// BGP PDU, including the per-peer header and Route Mirroring TLV.
+const maxBMPMsgSize = CommonHeaderSize + PeerHeaderSize + TLVHeaderSize + message.ExtMsgLen
 
 // sessionReadDeadline is the read deadline for receiver sessions.
 // Ensures sessions are interruptible on shutdown.
@@ -91,11 +91,12 @@ type listenerConfig struct {
 	Port string `json:"port"`
 }
 
-// The two configuration roots BMP reads, and the protocol name it injects
+// The configuration roots BMP reads, and the protocol name it injects
 // routes and withdrawals under.
 const (
 	configRootBGP         = "bgp"
 	configRootEnvironment = "environment"
+	configRootSystem      = "system"
 	protocolBMP           = "bmp"
 )
 
@@ -218,15 +219,18 @@ func (d *dumpScope) unclosed(want []family.Family) []family.Family {
 // connections, and RFC 7854 Section 4.10 Route Monitoring only makes sense to a
 // collector that has seen the peer's Peer Up first.
 //
-// The timestamp inside peer is the moment the peer came up, not the moment the
-// Peer Up is (re)sent: it describes the event, per RFC 7854 Section 4.2.
+// Wire-message events carry receipt time. A state-only Peer Up has no such
+// timestamp, so its header records zero as RFC 7854 Section 4.2 specifies.
 type peerUpState struct {
-	peer       PeerHeader
-	localAddr  [16]byte
-	localPort  uint16
-	remotePort uint16
-	sentOpen   []byte
-	recvOpen   []byte
+	peer          PeerHeader
+	localAddr     [16]byte
+	localPort     uint16
+	remotePort    uint16
+	sentOpen      []byte
+	recvOpen      []byte
+	routes        map[adjRouteKey]*adjRoute
+	replayErr     error
+	routeRevision uint64
 }
 
 // BMPPlugin implements the bgp-bmp plugin.
@@ -235,9 +239,16 @@ type peerUpState struct {
 //
 // Caller MUST close stopCh and call stopListeners when done.
 type BMPPlugin struct {
-	plugin *sdk.Plugin
-	mu     sync.RWMutex
-	state  *bmpState
+	plugin     *sdk.Plugin
+	mu         sync.RWMutex
+	state      *bmpState
+	systemName *systemNameConfig // Immutable after publication, guarded by mu.
+
+	// eventMu orders the snapshot with live peer state and UPDATE delivery.
+	// Lock order: eventMu, sender writeMu, mu. No socket write holds eventMu.
+	eventMu         sync.Mutex
+	adjReplayBytes  int
+	adjReplayRoutes int
 
 	// Receiver state. listeners is keyed by the CONFIGURED listen address
 	// (net.JoinHostPort of the `ip` and `port` leaves), not by what the socket
@@ -417,7 +428,7 @@ func runBMPPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands:    commandDecls(),
-		WantsConfig: []string{configRootBGP, configRootEnvironment},
+		WantsConfig: []string{configRootBGP, configRootEnvironment, configRootSystem},
 	})
 	if err != nil {
 		logger().Error("bgp-bmp plugin failed", "error", err)
@@ -461,6 +472,8 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// bound, so a rollback to it closes whatever the rolled-back apply opened.
 	currentReceiver := &receiverConfig{}
 	var pendingReceiver, replacedReceiver *receiverConfig
+	currentSystem := &systemNameConfig{}
+	var pendingSystem, replacedSystem *systemNameConfig
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return bp.handleCommand(command)
@@ -495,6 +508,19 @@ func (bp *BMPPlugin) registerCallbacks() {
 	}, nil, "full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		// Identity must be installed before a collector starts, regardless of
+		// the order the engine delivers the configuration roots.
+		for _, section := range sections {
+			if section.Root != configRootSystem {
+				continue
+			}
+			config, err := parseSystemNameConfig(section.Data)
+			if err != nil {
+				return err
+			}
+			currentSystem = config
+			bp.setSystemName(config)
+		}
 		for _, section := range sections {
 			switch section.Root {
 			case configRootEnvironment:
@@ -542,8 +568,16 @@ func (bp *BMPPlugin) registerCallbacks() {
 		replacedSender = nil
 		pendingReceiver = nil
 		replacedReceiver = nil
+		pendingSystem = nil
+		replacedSystem = nil
 		for _, section := range sections {
 			switch section.Root {
+			case configRootSystem:
+				config, err := parseSystemNameConfig(section.Data)
+				if err != nil {
+					return err
+				}
+				pendingSystem = config
 			case configRootBGP:
 				snd, err := parseSenderConfig(section.Data)
 				if err != nil {
@@ -571,6 +605,12 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// there. RFC 8671 Section 7.2 owes a bounce to a change in behavior, and
 	// most of what arrives here is not one.
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		if pendingSystem != nil {
+			replacedSystem = currentSystem
+			currentSystem = pendingSystem
+			pendingSystem = nil
+			bp.setSystemName(currentSystem)
+		}
 		if pendingReceiver != nil {
 			replacedReceiver = currentReceiver
 			currentReceiver = pendingReceiver
@@ -595,6 +635,11 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// transaction whose apply changed nothing restores the same configuration,
 	// which applySenderConfig reads as no change and acts on as one.
 	p.OnConfigRollback(func(_ string) error {
+		if replacedSystem != nil {
+			currentSystem = replacedSystem
+			replacedSystem = nil
+			bp.setSystemName(currentSystem)
+		}
 		if replacedReceiver != nil {
 			currentReceiver = replacedReceiver
 			replacedReceiver = nil
@@ -774,6 +819,7 @@ func (bp *BMPPlugin) processMessage(remote string, msg any) {
 
 func (bp *BMPPlugin) processInitiation(remote string, m *Initiation) {
 	var sysName, sysDescr string
+	var messages []string
 	for _, tlv := range m.TLVs {
 		switch tlv.Type { //nolint:exhaustive // RFC 7854: unknown TLV types are silently ignored
 		case InitTLVSysName:
@@ -783,10 +829,13 @@ func (bp *BMPPlugin) processInitiation(remote string, m *Initiation) {
 			sysDescr = string(tlv.Value)
 			logger().Info("bmp: initiation", "remote", remote, "sysDescr", sysDescr)
 		case InitTLVString:
+			// RFC 7854 Section 4.4: "If multiple strings are included, their
+			// ordering MUST be preserved when they are reported."
+			messages = append(messages, string(tlv.Value))
 			logger().Info("bmp: initiation", "remote", remote, "message", string(tlv.Value))
 		}
 	}
-	bp.state.setRouterInfo(remote, sysName, sysDescr)
+	bp.state.setRouterInfo(remote, sysName, sysDescr, messages)
 }
 
 func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
@@ -855,7 +904,15 @@ func (bp *BMPPlugin) processPeerUp(remote string, m *PeerUp) {
 		open = m.ReceivedOpenMsg
 	}
 	families := openMultiprotocolFamilies(open)
-	bp.state.peerUp(remote, m.Peer, families)
+	var messages []string
+	for _, tlv := range m.InfoTLVs {
+		if tlv.Type == InitTLVString {
+			// RFC 7854 Section 4.4: "If multiple strings are included, their
+			// ordering MUST be preserved when they are reported."
+			messages = append(messages, string(tlv.Value))
+		}
+	}
+	bp.state.peerUp(remote, m.Peer, families, messages)
 	logger().Info("bmp: peer up",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,

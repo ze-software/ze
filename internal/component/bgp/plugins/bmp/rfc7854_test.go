@@ -230,7 +230,7 @@ func receiverSurvives(t *testing.T, first []byte) error {
 	defer closeLog(client, "router")
 
 	var buf [64]byte
-	term := &Termination{TLVs: []TLV{makeStringTLV(TermTLVString, "done")}}
+	term := &Termination{TLVs: []TLV{{Type: TermTLVReason, Length: 2, Value: []byte{0, 0}}}}
 	n := writeTermination(buf[:], 0, term)
 
 	done := make(chan error, 1)

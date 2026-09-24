@@ -68,6 +68,11 @@ environment {
 Port conflicts with other ze listeners are detected at config commit time
 via the YANG `ze:listener` extension.
 
+BMP uses unauthenticated, unencrypted TCP. Listener addresses and firewall rules
+should restrict access to the monitoring network. RFC 7854 Section 11 recommends
+IPsec tunnel protection where transport security is needed; BMP configuration
+does not itself configure IPsec.
+
 ### Sender
 
 The sender connects to one or more external BMP collectors and streams
@@ -89,6 +94,30 @@ bgp {
 }
 ```
 
+Load the `bgp-bmp` internal plugin and attach it to each monitored peer. The
+sender configuration selects collectors; the attachment supplies the OPEN,
+session-state and UPDATE events from which the sender builds its feed:
+
+```
+plugin {
+    internal bgp-bmp {
+        use bgp-bmp;
+    }
+}
+bgp {
+    peer monitored-peer {
+        attach process bgp-bmp {
+            receive [ state update open notification keepalive refresh ]
+        }
+    }
+}
+```
+
+The peer still needs its normal connection and session configuration. Attach
+BMP before establishing that BGP session, because replay depends on observing
+the OPEN exchange and subsequent updates. Adding the attachment to an already
+established peer requires that BGP peer to reconnect before it can be monitored.
+
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
 
 | Field | Default | Description |
@@ -109,8 +138,8 @@ per RFC 7854 recommendations.
 
 | Command | Description |
 |---------|-------------|
-| `ze show bmp sessions` | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status, and the address families their Peer Up OPEN advertised) |
+| `ze show bmp sessions` | Show receiver sessions, identity, uptime and ordered `initiation-strings` |
+| `ze show bmp peers` | Show monitored peers, OPEN address families and ordered information strings |
 | `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
@@ -121,27 +150,34 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 
 | Type | Receiver | Sender |
 |------|----------|--------|
-| Initiation (4) | Parses sysName/sysDescr | Sends ze identity on connect |
-| Termination (5) | Closes session cleanly | Sends before disconnect |
+| Initiation (4) | Requires sysName/sysDescr and preserves information string order | Sends system identity on connect |
+| Termination (5) | Requires a two-byte Reason and closes the session | Sends administrative Reason 0 before disconnect |
 | Peer Up (3) | Tracks monitored peer | Sends on BGP Established |
 | Peer Down (2) | Marks peer down | Sends on BGP session close |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
-| Statistics Report (1) | Stores per-peer counters | Sends one per established peer every `statistics-timeout` seconds, with the O flag cleared (RFC 8671 Section 6.2) |
-| Route Mirroring (6) | Logs raw BGP PDUs | Wraps every BGP PDU when `route-mirroring` is on |
+| Statistics Report (1) | Validates framing and logs peer/count metadata | Sends one per established peer every `statistics-timeout` seconds, with the O flag cleared (RFC 8671 Section 6.2) |
+| Route Mirroring (6) | Validates TLVs and logs peer/count metadata | Wraps every BGP PDU when `route-mirroring` is on |
 
 ### Receiver Behavior
 
 - Validates BMP version 3; rejects other versions
-- Malformed BMP header closes the session; other sessions unaffected
+- Malformed BMP headers, enclosing lengths or required body fields close that session
 - Malformed inner BGP messages are logged; session stays open
 - Session count capped at `max-sessions`
 - 30-second read deadline ensures clean shutdown
+- Requires both Initiation identity TLVs, including when their values are empty
+- Requires a two-byte Termination Reason
+- Requires the BGP Message TLV to be last in Route Mirroring and present with Information code 0 (Errored PDU)
+- Requires a nonempty Statistics Report whose count matches its TLVs; unknown stat types and unexpected stat values are ignored
+- Reports Information strings in received order, including duplicates
+- Keeps separate Loc-RIB peer reports for each distinguisher and BGP ID, so an old identity's Peer Down cannot mark its replacement down
 
 ### Sender Behavior
 
-- Sends Initiation with sysName="ze" on each connection
-- Sends Peer Up for each BGP peer reaching Established state
-- Sends Peer Down with mapped reason code on session close
+- Sends Initiation with the system identity on each connection
+- Sends Peer Up with the cached sent and received OPEN messages for every established BGP peer, followed by its current route snapshot and per-family End-of-RIB
+- Reports the actual established TCP local and remote ports in Peer Up, including the active opener's ephemeral port
+- Sends Peer Down with the established peer's identity and mapped reason code on session close, even after BGP has cleared the negotiated router ID
 - Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)
 - Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)
 - With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
@@ -151,13 +187,14 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   Statistics Report per established BGP peer, to every collector, at that
   interval. Each report carries RFC 7854 Section 4.8 Stat Type 13, "Number of
   duplicate update messages received", as a 4-byte counter. That is the one
-  statistic ze measures: an UPDATE body a peer sends twice is counted once, and
-  a body ze advertised is not counted at all. The counter resets when the BGP
-  peer goes down or when a configuration change bounces it, because either one
-  makes it a new peer to the collector
+  statistic ze measures: repeated received UPDATE bodies count as duplicates
+  while the peer's route state is unchanged. An attribute change followed by a
+  return to an earlier value is a new update. Sent bodies do not increment the
+  counter. Peer Down and a configuration bounce reset it
 - Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
   because the report belongs to neither RIB
 - Route-monitoring-policy controls which direction(s) are streamed
+- Preserves a route's recorded receipt timestamp on replay; unavailable timestamps and snapshot completion markers carry zero
 - With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
   Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance
   carrying a fabricated BGP OPEN in both the sent and the received field, the
@@ -193,15 +230,31 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 
+#### System Identity
+
+`sysName` uses `system.host`, or the operating-system hostname when that leaf is
+absent. `system.domain` qualifies an unqualified, nonempty name. An explicitly
+empty name remains empty, as permitted by the MIB-II definition. `sysDescr`
+contains the Ze version and the operating system name, release and hardware
+architecture returned by `uname`. These are Ze's MIB-II identity values; Ze has
+no separate SNMP provider.
+
+Identity values must fit MIB-II's 255-byte ASCII strings. A source or validation
+error prevents the Initiation from being sent and is logged. A system identity
+configuration change takes effect on the next collector connection; it does not
+interrupt existing sessions.
+
+<!-- source: internal/component/bgp/plugins/bmp/system_identity.go -- readSystemIdentity -->
+
 #### A Config Change Bounces the Peers, Not the Session
 
 RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
 session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
 bounces the peers inside the session and leaves the session itself up: each
 established BGP peer gets a Peer Down with reason 5 (configuration reasons)
-followed by a Peer Up, so the collector re-learns that peer under the new
-configuration. The TCP connection is not closed and no Termination is sent, so
-the collector keeps everything the change did not touch.
+followed by a Peer Up and a current route snapshot with per-family End-of-RIB.
+The collector therefore relearns the peer under the new configuration. The TCP
+connection stays open and no Termination is sent.
 
 Ze acts on a change, not on a commit. Four leaves decide what a collector
 session carries, and only a move in one of them bounces the peers:
@@ -233,8 +286,9 @@ ends rather than continues. A collector you add gets a new session, with
 Initiation and a Peer Up for every established peer. A collector you leave alone
 keeps its session, even when you edit another collector beside it.
 
-One consequence for an operator: a behavior change costs one Peer Down and one
-Peer Up per peer on each collector, rather than a full re-dump of the table.
+A behavior change therefore replays each monitored peer's selected Adj-RIB
+snapshot after its Peer Down and Peer Up. A collector endpoint change starts a
+new TCP session and replays the state selected for that session.
 
 <!-- source: internal/component/bgp/plugins/bmp/sender_config.go -- applySenderConfig, behaviorOf, syncSenders -->
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
@@ -257,7 +311,11 @@ connects (or reconnects after a drop) is told everything again, in this order:
 
 1. Initiation
 2. Peer Up for every BGP peer that is currently established
-3. With `loc-rib true`: the Loc-RIB Peer Up, a full fresh table dump, and an
+3. The current Adj-RIB routes selected by `route-monitoring-policy`, followed by
+   End-of-RIB for each peer, selected direction and address family. Withdrawn
+   routes and superseded attributes are absent. Empty negotiated families get
+   their completion marker too.
+4. With `loc-rib true`: the Loc-RIB Peer Up, a full fresh table dump, and an
    End-of-RIB marker for every family the dump OWES (RFC 4724 Section 2 form),
    which is IPv4 unicast and IPv6 unicast. A family the dump carried no route for
    gets its marker too, so a table with IPv6 populated and IPv4 empty closes
@@ -267,7 +325,20 @@ connects (or reconnects after a drop) is told everything again, in this order:
    still gets both markers, so a collector can tell an empty table from a dump
    still in flight.
 
-Each dump carries a correlation token, and the RIB echoes it back on every batch
+The sender maintains the current per-NLRI state even while collectors are
+disconnected. ADD-PATH identifiers distinguish paths, and family-specific keys
+match labelled withdrawals to their advertisements. Snapshot enqueueing and
+live peer events share one ordering lock, so an old snapshot cannot follow a
+new withdrawal on the same collector session.
+
+The shared snapshot store allows up to two million paths and 512 MiB of retained
+wire data and prefix keys. A storage or parsing failure closes collector sessions
+without sending a misleading End-of-RIB. The affected BGP peer must reconnect to
+rebuild its complete state before that peer can be replayed.
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_replay.go -- cacheAdjUpdate, replayPeerLocked -->
+
+Each Loc-RIB dump carries a correlation token, and the RIB echoes it on every batch
 that dump produces. Ze closes a family only for a batch whose token matches, so
 two collectors that connect together each get a complete dump of their own, and
 neither is told that a dump it never requested has finished. A replay that
@@ -313,13 +384,62 @@ dropped: either they are delivered, or the session that owed them is reset.
 
 #### Shutdown
 
-Stopping a collector session sends a Termination message (RFC 7854 Section 4.5)
-and then closes the TCP connection. If a socket write is already in flight to a
+Stopping a collector session sends a Termination message with the required
+Reason TLV, code 0 (administrative closure), and then closes the TCP connection.
+If a socket write is already in flight to a
 collector that is not reading, ze gives it one second and then closes anyway
 rather than delaying the shutdown of the other collectors.
 
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- stop, terminateAndClose -->
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- handleSenderMirror, peerHeaderFromEvent -->
+
+### Checking the Live Feed
+
+The existing independent-collector scenario runs FRR as the BGP source and
+pmacct `pmbmpd` as the BMP collector:
+
+```
+INTEROP_SCENARIO=bmp-statistics-pmacct ./le integration interop
+```
+
+Its automated assertions cover periodic Statistics Reports decoded by pmacct.
+They do not establish reconnect replay. For that check, the same
+`test/interop/scenarios/bmp-statistics-pmacct/` configuration provides a starting
+point for a separately managed lab, with `pmbmpd -f <collector-config>` recording
+its decoded messages in `/var/log/pmacct/bmp.log`:
+
+1. Set `route-monitoring-policy pre-policy`, establish FRR's BGP session and
+   advertise `10.45.0.0/24` while the collector is stopped. Start `pmbmpd` and
+   wait for Ze's reconnect interval. The new
+   connection must begin with Initiation and Peer Up, then carry that prefix
+   before the IPv4 End-of-RIB. An empty UPDATE alone is insufficient evidence.
+2. Stop only the collector. Withdraw `10.45.0.0/24` in FRR and advertise
+   `10.46.0.0/24`, then restart the collector. Its new snapshot must contain
+   `10.46.0.0/24` and omit the withdrawn prefix. A packet capture decoded as BMP
+   can confirm the End-of-RIB ordering if the collector omits completion markers
+   from its message log.
+3. Commit a change from `pre-policy` to `all` while the connection stays up.
+   Observe Peer Down reason 5, Peer Up and a fresh snapshot with a completion
+   marker for each selected direction. The received stream has O clear and the
+   sent stream has O+L set. A Termination would indicate an incorrect transport
+   restart.
+   Compare Peer Up's local and remote ports with the established BGP socket or
+   its packet capture; the active opener's port must not be replaced with 179.
+4. Close FRR's BGP session and check that Peer Down carries the same Peer AS,
+   address and BGP ID as its Peer Up. Reconnect the collector while BGP remains
+   down; neither that peer nor its routes may reappear.
+5. Re-establish BGP, change `system.host`, and reconnect the collector. The new
+   Initiation must carry the changed name while `sysDescr` identifies the running
+   Ze build and kernel. Removing the collector from configuration must send
+   Termination with the two-byte administrative Reason 0 before TCP closes.
+
+For dual-stack or ADD-PATH peers, repeat with an empty negotiated family and
+with two path identifiers for one prefix. Each selected family must complete,
+and withdrawing one path must leave only the other in the reconnect snapshot.
+
+<!-- source: test/interop/scenarios/bmp-statistics-pmacct/ze.conf -- peer attachment and collector -->
+<!-- source: test/interop/scenarios/bmp-statistics-pmacct/pmbmpd.conf -- independent message log -->
+<!-- source: internal/le/interoplab/bgp/check_extras.go -- scenarioStatisticsPMACCT -->
 
 
 ## Looking Glass Integration
@@ -366,13 +486,6 @@ other looking glass frontends.
 
 ## Limitations
 
-- **Sender OPEN messages are synthetic:** the plugin event system does not
-  carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
-  AS metadata. Capabilities are not reflected. This can be improved when the
-  event schema is extended.
-- **No per-NLRI ribout dedup:** all UPDATEs are forwarded to collectors
-  as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
-  which is a follow-up task.
 - **Loc-RIB Route Monitoring** (RFC 9069) omits communities and LOCAL_PREF:
   the best-change feed it is built from does not carry them, and RFC 9069
   forbids a RIB back-door for the full attribute set.

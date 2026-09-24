@@ -339,6 +339,8 @@ func (bp *BMPPlugin) syncSenders(cfg *senderConfig) []*senderSession {
 			continue
 		}
 		ss := newSenderSession(name, col)
+		ss.identity = bp.readSystemIdentity
+		ss.primingMu = &bp.eventMu
 		// Every connection this session makes is a NEW BMP session and starts
 		// from scratch: Peer Up for the peers that are up (queued in the same
 		// critical section that publishes the connection, so nothing precedes

@@ -83,7 +83,9 @@ func TestPluginFixture04CollectorDriver(t *testing.T) {
 	if conn == nil {
 		t.Fatal("collector did not listen")
 	}
-	if _, err := conn.Write(bmpRouteMonitoring04()); err != nil {
+	frame := bmpRouteMonitoring04()
+	copy(frame[len(frame)-4:], []byte{24, 10, 20, 30})
+	if _, err := conn.Write(frame); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.Close(); err != nil {
@@ -96,5 +98,34 @@ func TestPluginFixture04CollectorDriver(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("collector did not finish")
+	}
+}
+
+// The collector must wait past replay EOR and refuse outbound or unrelated routes.
+func TestBMPMonitoringRequiresReceivedPrefix(t *testing.T) {
+	prefix := []byte{24, 10, 20, 30}
+	frame := bmpRouteMonitoring04()[6:]
+	if monitoringPrefix04(frame, prefix) {
+		t.Fatal("an unrelated announcement satisfied the collector")
+	}
+	copy(frame[len(frame)-4:], prefix)
+	if !monitoringPrefix04(frame, prefix) {
+		t.Fatal("the received test prefix did not satisfy the collector")
+	}
+	frame[1] = 0x10
+	if monitoringPrefix04(frame, prefix) {
+		t.Fatal("Adj-RIB-Out monitoring satisfied received-route evidence")
+	}
+	frame[1] = 0
+	eor := append(append([]byte(nil), frame[:42+19]...), 0, 0, 0, 0)
+	binary.BigEndian.PutUint16(eor[42+16:42+18], 23)
+	if !validateMonitoring04(eor, false) {
+		t.Fatal("a valid End-of-RIB was reported malformed")
+	}
+	if monitoringPrefix04(eor, prefix) {
+		t.Fatal("End-of-RIB satisfied the route observation")
+	}
+	if monitoringPrefix04(frame[:len(frame)-1], prefix) {
+		t.Fatal("a truncated prefix satisfied the route observation")
 	}
 }

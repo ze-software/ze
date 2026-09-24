@@ -32,7 +32,10 @@ func TestBMPReceiverKeepsSessionWithoutTermination(t *testing.T) {
 	}()
 
 	buf := make([]byte, 256)
-	init := &Initiation{TLVs: []TLV{makeStringTLV(InitTLVSysName, "test-router")}}
+	init := &Initiation{TLVs: []TLV{
+		makeStringTLV(InitTLVSysName, "test-router"),
+		makeStringTLV(InitTLVSysDescr, "test router"),
+	}}
 	n := writeInitiation(buf, 0, init)
 	if _, err := client.Write(buf[:n]); err != nil {
 		t.Fatalf("write initiation: %v", err)

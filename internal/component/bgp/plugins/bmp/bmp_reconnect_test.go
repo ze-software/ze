@@ -404,6 +404,7 @@ func TestPrimingPrecedesConcurrentRouteMonitoring(t *testing.T) {
 			localPort: 179, sentOpen: sentOpen, recvOpen: recvOpen,
 		}},
 	}
+	ss.primingMu = &bp.eventMu
 	ss.onPrimed = func() { bp.primeSender(ss) }
 
 	// A producer racing the connect, exactly as the delivery goroutine does.
@@ -588,6 +589,7 @@ func TestSenderReconnectReplaysInitiationPeerUpAndDump(t *testing.T) {
 		peerUps:   map[string]*peerUpState{"10.0.0.1": established},
 		identity:  &localIdentity{asn: 65000, routerID: 0x0A000064},
 	}
+	ss.primingMu = &bp.eventMu
 	ss.onPrimed = func() { bp.primeSender(ss) }
 	ss.onConnected = func() { bp.requestLocRIBDump(ss) }
 
@@ -708,15 +710,15 @@ func readSessionOpening(t *testing.T, conn net.Conn, dumped netip.Prefix, what s
 		globalPeerUps int
 		locRIBPeerUps int
 		sawDump       bool
-		sawEOR        bool
+		locEOR        = make(map[family.Family]bool, 2)
 	)
-	// Initiation + global Peer Up + Loc-RIB Peer Up + Route Monitoring + EoR.
-	const want = 5
-	for i := range want {
+	// Stop only once both Loc-RIB families close. Monitored peer snapshots
+	// precede this dump and have independent per-direction EORs.
+	for i := 0; i < 16 && len(locEOR) < 2; i++ {
 		msg, err := readBMPFromPipe(conn)
 		if err != nil {
 			t.Fatalf("%s: read message %d: %v (got %d global Peer Up, %d Loc-RIB Peer Up, dump=%v, eor=%v)",
-				what, i, err, globalPeerUps, locRIBPeerUps, sawDump, sawEOR)
+				what, i, err, globalPeerUps, locRIBPeerUps, sawDump, locEOR)
 		}
 		switch m := msg.(type) {
 		case *Initiation:
@@ -730,9 +732,17 @@ func readSessionOpening(t *testing.T, conn net.Conn, dumped netip.Prefix, what s
 				globalPeerUps++
 			}
 		case *RouteMonitoring:
+			if m.Peer.PeerType != PeerTypeLocRIB {
+				continue
+			}
 			switch {
 			case isEndOfRIB(m):
-				sawEOR = true
+				body := m.BGPUpdate[message.HeaderLen:]
+				if len(body) == 4 {
+					locEOR[family.IPv4Unicast] = true
+				} else if len(body) == 10 && binary.BigEndian.Uint16(body[7:9]) == 2 && body[9] == 1 {
+					locEOR[family.IPv6Unicast] = true
+				}
 			case bytes.Contains(m.BGPUpdate, dumped.Addr().AsSlice()[:3]):
 				sawDump = true
 			}
@@ -750,8 +760,8 @@ func readSessionOpening(t *testing.T, conn net.Conn, dumped netip.Prefix, what s
 	if !sawDump {
 		t.Errorf("%s: the dumped prefix never arrived as Route Monitoring", what)
 	}
-	if !sawEOR {
-		t.Errorf("%s: the dump was not closed with an End-of-RIB marker", what)
+	if !locEOR[family.IPv4Unicast] || !locEOR[family.IPv6Unicast] {
+		t.Errorf("%s: the dump was not closed for both families: %v", what, locEOR)
 	}
 }
 

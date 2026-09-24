@@ -30,9 +30,9 @@ func TestPeerHeaderFromEvent(t *testing.T) {
 	if ph.Flags&PeerFlagV != 0 {
 		t.Error("IPv4 address should not have V flag")
 	}
-	// Verify IPv4-mapped address.
-	if ph.Address[10] != 0xff || ph.Address[11] != 0xff {
-		t.Errorf("IPv4-mapped prefix missing: got %x", ph.Address[10:12])
+	// RFC 7854 Section 4.2 zero-pads the IPv4 address.
+	if !bytes.Equal(ph.Address[:12], make([]byte, 12)) {
+		t.Errorf("IPv4 padding is nonzero: %x", ph.Address[:12])
 	}
 	if ph.Address[12] != 10 || ph.Address[15] != 1 {
 		t.Errorf("IPv4 address wrong: got %v", ph.Address[12:16])
@@ -266,35 +266,6 @@ func TestBMPOpenCacheClearedOnPeerDown(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7854-x-8 negative -- with no cached OPENs the sender emits
-// no Peer Up at all rather than one missing its required OPEN PDUs.
-func TestBMPPeerUpSkippedOnCacheMiss(t *testing.T) {
-	// VALIDATES: AC-3 edge case -- no cached OPENs -> Peer Up skipped (not crash)
-
-	bp := &BMPPlugin{
-		state:     newBMPState(),
-		openCache: make(map[string]*openPair),
-		stopCh:    make(chan struct{}),
-		senders: []*senderSession{{
-			name:   "test",
-			conn:   nil, // no connection, shouldn't reach write
-			stopCh: make(chan struct{}),
-		}},
-	}
-
-	se := &rpc.StructuredEvent{
-		PeerAddress:  "10.0.0.1",
-		PeerAS:       65001,
-		LocalAS:      65000,
-		LocalAddress: "10.0.0.100",
-		EventType:    rpc.EventKindState,
-		State:        rpc.SessionStateUp,
-	}
-
-	// Should not panic -- just logs warning and returns.
-	bp.handleStructuredEvent(se)
-}
-
 // RFC requirement: RFC7854-x-10 positive -- Peer Down carries a Reason code and
 // the Data its own row requires: RFC 7854 Section 4.9 draws the field as "Data
 // (present if Reason = 1, 2 or 3)", so a teardown ze closed by NOTIFICATION is
@@ -405,41 +376,22 @@ func TestHandleSenderStatePeerDownCarriesTheNotificationZeSent(t *testing.T) {
 	}
 }
 
-func TestHandleSenderNoSenders(t *testing.T) {
-	// VALIDATES: no panic when no senders configured
-	bp := &BMPPlugin{
-		state:  newBMPState(),
-		stopCh: make(chan struct{}),
-	}
-
-	se := &rpc.StructuredEvent{
-		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
-		EventType:   rpc.EventKindState,
-		State:       rpc.SessionStateUp,
-	}
-
-	// Should not panic.
-	bp.handleStructuredEvent(se)
-}
-
-// RFC requirement: RFC7854-x-5 positive -- an IPv4 peer address is stored as an
-// IPv4-mapped IPv6 address (::ffff:x.x.x.x) in the 16-octet field.
+// RFC requirement: RFC7854-x-5 positive -- an IPv4 peer address occupies the last
+// four octets and the twelve most significant octets are zero.
 func TestParseIPIntoIPv4(t *testing.T) {
 	var addr [16]byte
 	parseIPInto("192.168.1.1", &addr)
 
-	// Should be IPv4-mapped: ::ffff:192.168.1.1
-	if addr[10] != 0xff || addr[11] != 0xff {
-		t.Errorf("missing IPv4-mapped prefix: %x", addr[10:12])
+	if !bytes.Equal(addr[:12], make([]byte, 12)) {
+		t.Errorf("IPv4 padding is nonzero: %x", addr[:12])
 	}
 	if addr[12] != 192 || addr[13] != 168 || addr[14] != 1 || addr[15] != 1 {
 		t.Errorf("wrong IP: %v", addr[12:16])
 	}
 }
 
-// RFC requirement: RFC7854-x-5 negative -- a native IPv6 peer address is NOT
-// stored with the ::ffff IPv4-mapped prefix, so the mapping is specific to IPv4.
+// RFC requirement: RFC7854-x-5 negative -- native IPv6 retains its full address
+// rather than receiving the twelve-octet zero padding used for IPv4.
 func TestParseIPIntoIPv6(t *testing.T) {
 	var addr [16]byte
 	parseIPInto("2001:db8::1", &addr)

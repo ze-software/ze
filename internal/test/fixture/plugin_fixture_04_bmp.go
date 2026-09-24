@@ -419,7 +419,12 @@ func bmpCollector04(mode string) Driver {
 			switch mode {
 			case "monitoring":
 				if header[5] == 0 {
-					valid = validateMonitoring04(payload, false)
+					if validateMonitoring04(payload, false) {
+						valid = monitoringPrefix04(payload, []byte{24, 10, 20, 30})
+						if valid {
+							fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: valid-route-monitoring-pdu")
+						}
+					}
 				}
 			case "locrib":
 				if len(payload) > 0 && payload[0] == 3 && header[5] == 3 {
@@ -481,16 +486,51 @@ func validateMonitoring04(payload []byte, locrib bool) bool {
 		fmt.Fprintf(os.Stderr, "BMP-COLLECTOR: invalid-pdu: payload too short (%d bytes)\n", len(payload))
 		return false
 	}
-	if err := validateBGP04(payload[42:], 2, 19); err != nil {
+	if err := validateBGP04(payload[42:], 2, 23); err != nil {
 		fmt.Fprintf(os.Stderr, "BMP-COLLECTOR: invalid-pdu: %v\n", err)
 		return false
 	}
 	if locrib {
 		fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: valid-locrib-route-monitoring")
-	} else {
-		fmt.Fprintln(os.Stderr, "BMP-COLLECTOR: valid-route-monitoring-pdu")
 	}
 	return true
+}
+
+// monitoringPrefix04 requires an announcement in the received IPv4 NLRI field.
+// An initial EOR, a withdrawal, or outbound monitoring cannot satisfy it.
+func monitoringPrefix04(payload, prefix []byte) bool {
+	if len(payload) < 42+23 {
+		return false
+	}
+	// RFC 8671 Section 5: O=1 identifies Adj-RIB-Out monitoring.
+	if payload[1]&0x10 != 0 {
+		return false
+	}
+	body := payload[42+19:]
+	attributes := 2 + int(binary.BigEndian.Uint16(body[:2]))
+	if attributes+2 > len(body) {
+		return false
+	}
+	offset := attributes + 2 + int(binary.BigEndian.Uint16(body[attributes:attributes+2]))
+	if offset > len(body) {
+		return false
+	}
+	found := false
+	for offset < len(body) {
+		bits := int(body[offset])
+		if bits > 32 {
+			return false
+		}
+		end := offset + 1 + (bits+7)/8
+		if end > len(body) {
+			return false
+		}
+		if bytes.Equal(body[offset:end], prefix) {
+			found = true
+		}
+		offset = end
+	}
+	return found
 }
 
 // statisticsRefusal04 prints one reason the Statistics Report was refused, in

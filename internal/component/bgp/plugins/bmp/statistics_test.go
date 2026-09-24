@@ -80,9 +80,9 @@ func statCounter(sr *statisticsReport, typ uint16) (uint32, bool) {
 }
 
 // awaitStatisticsReports reads want Statistics Reports off the collector socket,
-// stepping over the Peer Down and Peer Up a configuration change owes the
-// collector first, and reports how long the LAST one took to arrive after the
-// one before it.
+// stepping over the Peer Down, Peer Up and empty replay a configuration change
+// owes the collector first, and reports how long the LAST report took to arrive
+// after the one before it.
 //
 // The budget is what makes an absent report a failure rather than a hang, and
 // the returned gap is what makes the reports PERIODIC rather than one report
@@ -93,6 +93,8 @@ func awaitStatisticsReports(t *testing.T, conn net.Conn, want int, budget time.D
 	deadline := time.After(budget)
 	gaps := make([]time.Duration, 0, want)
 	last := time.Now()
+	eorFlags := []uint8{0, PeerFlagO | PeerFlagL}
+	eors := 0
 	for len(gaps) < want {
 		select {
 		case got := <-asyncRead(conn):
@@ -105,12 +107,21 @@ func awaitStatisticsReports(t *testing.T, conn net.Conn, want int, budget time.D
 				last = time.Now()
 			case *PeerDown, *PeerUp:
 				// The bounce RFC 8671 Section 7.2 owes a behavior change.
+			case *RouteMonitoring:
+				if eors == len(eorFlags) {
+					t.Fatal("the empty replay sent more than one End-of-RIB per direction")
+				}
+				requireReloadEOR(t, message, eorFlags[eors])
+				eors++
 			default:
 				t.Fatalf("the collector was sent a %T, want a Statistics Report", message)
 			}
 		case <-deadline:
 			t.Fatalf("only %d of %d Statistics Reports reached the collector in %s", len(gaps), want, budget)
 		}
+	}
+	if eors != len(eorFlags) {
+		t.Fatalf("the empty replay sent %d End-of-RIB markers, want %d", eors, len(eorFlags))
 	}
 	return gaps
 }
@@ -496,20 +507,35 @@ func TestRFC7854StatisticsTimeoutZeroSendsNoReport(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- engine.reloadBGP(config) }()
 
-	// The behavior change owes the peer a Peer Down and a Peer Up, and nothing
-	// else. The window is longer than two intervals of the positive test, so a
-	// ticker running at the default would have written twice by now.
+	// The behavior change owes Peer Down, Peer Up, and the empty post-policy
+	// replay's End-of-RIB, but no Statistics Report. The later silence window
+	// exceeds two intervals of the positive test.
 	deadline := time.After(3 * time.Second)
-	for range 2 {
+	for i := range 3 {
 		select {
 		case got := <-asyncRead(server):
 			if got.err != nil {
 				t.Fatalf("the collector session was closed: %v", got.err)
 			}
-			switch got.msg.(type) {
-			case *PeerDown, *PeerUp:
-			default:
-				t.Fatalf("the collector was sent a %T with the periodic report disabled", got.msg)
+			switch i {
+			case 0:
+				down, ok := got.msg.(*PeerDown)
+				if !ok {
+					t.Fatalf("first bounce message = %T, want *PeerDown", got.msg)
+				}
+				if down.Reason != PeerDownDeconfigured {
+					t.Fatalf("bounce reason = %d, want configuration change", down.Reason)
+				}
+			case 1:
+				if _, ok := got.msg.(*PeerUp); !ok {
+					t.Fatalf("second bounce message = %T, want *PeerUp", got.msg)
+				}
+			case 2:
+				rm, ok := got.msg.(*RouteMonitoring)
+				if !ok {
+					t.Fatalf("third bounce message = %T, want End-of-RIB", got.msg)
+				}
+				requireReloadEOR(t, rm, PeerFlagO|PeerFlagL)
 			}
 		case <-deadline:
 			t.Fatal("the behavior change never bounced the peer")

@@ -5,6 +5,7 @@
 package bmp
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -19,10 +20,11 @@ const (
 
 // monitoredRouter tracks a remote BMP router that has connected to the receiver.
 type monitoredRouter struct {
-	Remote   string    `json:"remote"`
-	SysName  string    `json:"sys-name"`
-	SysDescr string    `json:"sys-descr"`
-	Since    time.Time `json:"since"`
+	Remote            string    `json:"remote"`
+	SysName           string    `json:"sys-name"`
+	SysDescr          string    `json:"sys-descr"`
+	InitiationStrings []string  `json:"initiation-strings"`
+	Since             time.Time `json:"since"`
 }
 
 // monitoredPeer tracks a BGP peer reported by a BMP router.
@@ -32,20 +34,39 @@ type monitoredRouter struct {
 // process these capabilities to know which peer belongs to which address
 // family." Empty when the OPEN advertised none, never defaulted.
 type monitoredPeer struct {
-	Router    string   `json:"router"`
-	PeerAS    uint32   `json:"peer-as"`
-	PeerBGPID string   `json:"peer-bgp-id"`
-	IsIPv6    bool     `json:"ipv6"`
-	IsUp      bool     `json:"up"`
-	Families  []string `json:"families,omitempty"`
-	Reason    uint8    `json:"down-reason,omitempty"`
+	Router        string   `json:"router"`
+	PeerAS        uint32   `json:"peer-as"`
+	PeerBGPID     string   `json:"peer-bgp-id"`
+	IsIPv6        bool     `json:"ipv6"`
+	IsUp          bool     `json:"up"`
+	Families      []string `json:"families,omitempty"`
+	PeerUpStrings []string `json:"peer-up-strings"`
+	Reason        uint8    `json:"down-reason,omitempty"`
 }
 
-// peerKey uniquely identifies a monitored peer.
+// peerKey identifies a peer within a router's BMP session. Loc-RIB instances
+// have no address and are identified by distinguisher and BGP ID (RFC 9069
+// Section 6.1.1); other peer types use their address family and address.
 type peerKey struct {
 	router        string
 	distinguisher uint64
 	address       [16]byte
+	peerType      uint8
+	ipv6          bool
+	bgpID         uint32
+}
+
+func peerStateKey(remote string, ph PeerHeader) peerKey {
+	key := peerKey{
+		router: remote, distinguisher: ph.Distinguisher, peerType: ph.PeerType,
+	}
+	if ph.PeerType == PeerTypeLocRIB {
+		key.bgpID = ph.PeerBGPID
+		return key
+	}
+	key.address = ph.Address
+	key.ipv6 = ph.IsIPv6()
+	return key
 }
 
 // collectorStatus tracks a sender collector connection.
@@ -60,7 +81,7 @@ type collectorStatus struct {
 type bmpState struct {
 	mu      sync.RWMutex
 	routers map[string]*monitoredRouter // remote addr -> router
-	peers   map[peerKey]*monitoredPeer  // (router, dist, addr) -> peer
+	peers   map[peerKey]*monitoredPeer
 }
 
 func newBMPState() *bmpState {
@@ -80,20 +101,18 @@ func (s *bmpState) addRouter(remote string) {
 	}
 }
 
-// setRouterInfo updates sysName/sysDescr from an Initiation message.
-func (s *bmpState) setRouterInfo(remote, sysName, sysDescr string) {
+// setRouterInfo takes ownership of the strings reported by an Initiation.
+// The caller MUST NOT modify messages after this call.
+func (s *bmpState) setRouterInfo(remote, sysName, sysDescr string, messages []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r, ok := s.routers[remote]
 	if !ok {
 		return
 	}
-	if sysName != "" {
-		r.SysName = sysName
-	}
-	if sysDescr != "" {
-		r.SysDescr = sysDescr
-	}
+	r.SysName = sysName
+	r.SysDescr = sysDescr
+	r.InitiationStrings = messages
 }
 
 // routerCount reports how many monitored router sessions are registered.
@@ -116,23 +135,25 @@ func (s *bmpState) removeRouter(remote string) {
 }
 
 // peerUp records a peer as up, with the address families its Peer Up OPEN
-// advertised (RFC 9069 Section 6.1.1).
-func (s *bmpState) peerUp(remote string, ph PeerHeader, families []family.Family) {
+// advertised (RFC 9069 Section 6.1.1), and takes ownership of its String TLVs.
+// The caller MUST NOT modify messages after this call.
+func (s *bmpState) peerUp(remote string, ph PeerHeader, families []family.Family, messages []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := peerKey{router: remote, distinguisher: ph.Distinguisher, address: ph.Address}
+	key := peerStateKey(remote, ph)
 	var b textbuf.Buffer
 	names := make([]string, 0, len(families))
 	for _, fam := range families {
 		names = append(names, fam.String())
 	}
 	s.peers[key] = &monitoredPeer{
-		Router:    remote,
-		PeerAS:    ph.PeerAS,
-		PeerBGPID: b.Reset().Uint(uint64(ph.PeerBGPID >> 24)).Byte('.').Uint(uint64((ph.PeerBGPID >> 16) & 0xFF)).Byte('.').Uint(uint64((ph.PeerBGPID >> 8) & 0xFF)).Byte('.').Uint(uint64(ph.PeerBGPID & 0xFF)).String(),
-		IsIPv6:    ph.IsIPv6(),
-		IsUp:      true,
-		Families:  names,
+		Router:        remote,
+		PeerAS:        ph.PeerAS,
+		PeerBGPID:     b.Reset().Uint(uint64(ph.PeerBGPID >> 24)).Byte('.').Uint(uint64((ph.PeerBGPID >> 16) & 0xFF)).Byte('.').Uint(uint64((ph.PeerBGPID >> 8) & 0xFF)).Byte('.').Uint(uint64(ph.PeerBGPID & 0xFF)).String(),
+		IsIPv6:        ph.IsIPv6(),
+		IsUp:          true,
+		Families:      names,
+		PeerUpStrings: messages,
 	}
 }
 
@@ -140,7 +161,7 @@ func (s *bmpState) peerUp(remote string, ph PeerHeader, families []family.Family
 func (s *bmpState) peerDown(remote string, ph PeerHeader, reason uint8) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := peerKey{router: remote, distinguisher: ph.Distinguisher, address: ph.Address}
+	key := peerStateKey(remote, ph)
 	if p, ok := s.peers[key]; ok {
 		p.IsUp = false
 		p.Reason = reason
@@ -156,6 +177,7 @@ func (s *bmpState) sessionsCommand() (string, any, error) {
 	sessions := make([]monitoredRouter, 0, len(s.routers))
 	for _, r := range s.routers {
 		sessions = append(sessions, *r)
+		sessions[len(sessions)-1].InitiationStrings = slices.Clone(r.InitiationStrings)
 	}
 	return statusDone, map[string]any{"sessions": sessions}, nil
 }
@@ -167,6 +189,8 @@ func (s *bmpState) peersCommand() (string, any, error) {
 	peers := make([]monitoredPeer, 0, len(s.peers))
 	for _, p := range s.peers {
 		peers = append(peers, *p)
+		peers[len(peers)-1].PeerUpStrings = slices.Clone(p.PeerUpStrings)
+		peers[len(peers)-1].Families = slices.Clone(p.Families)
 	}
 	return statusDone, map[string]any{"peers": peers}, nil
 }

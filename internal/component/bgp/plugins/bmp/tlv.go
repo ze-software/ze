@@ -52,8 +52,14 @@ const (
 
 // Route Mirroring TLV types (RFC 7854 Section 4.7).
 const (
-	MirrorTLVBGPMsg   uint16 = 0
-	MirrorTLVMsgsLost uint16 = 1
+	MirrorTLVBGPMsg      uint16 = 0
+	MirrorTLVInformation uint16 = 1
+)
+
+// Route Mirroring Information codes (RFC 7854 Section 4.7).
+const (
+	MirrorInfoErroredPDU   uint16 = 0
+	MirrorInfoMessagesLost uint16 = 1
 )
 
 // Statistics Report types (RFC 7854 Section 4.8).
@@ -77,6 +83,8 @@ const (
 var errShortTLV = errors.New("bmp: TLV too short")
 
 // TLV represents a BMP information TLV (Type-Length-Value).
+// The wire layout is Type(2) at offset 0, Length(2) at offset 2, then Value
+// at offset 4 (RFC 7854 Sections 4.4, 4.5 and 4.7). Length excludes the header.
 type TLV struct {
 	Type   uint16
 	Length uint16
@@ -86,6 +94,12 @@ type TLV struct {
 // DecodeTLV parses a single TLV from buf at off.
 // Returns the TLV and bytes consumed.
 func DecodeTLV(buf []byte, off int) (TLV, int, error) {
+	if off < 0 {
+		return TLV{}, 0, errShortTLV
+	}
+	if off > len(buf) {
+		return TLV{}, 0, errShortTLV
+	}
 	if len(buf)-off < TLVHeaderSize {
 		return TLV{}, 0, errShortTLV
 	}
@@ -93,10 +107,10 @@ func DecodeTLV(buf []byte, off int) (TLV, int, error) {
 		Type:   binary.BigEndian.Uint16(buf[off : off+2]),
 		Length: binary.BigEndian.Uint16(buf[off+2 : off+4]),
 	}
-	end := off + TLVHeaderSize + int(t.Length)
-	if end > len(buf) {
+	if int(t.Length) > len(buf)-off-TLVHeaderSize {
 		return TLV{}, 0, fmt.Errorf("%w: need %d bytes, have %d", errShortTLV, t.Length, len(buf)-off-TLVHeaderSize)
 	}
+	end := off + TLVHeaderSize + int(t.Length)
 	t.Value = buf[off+TLVHeaderSize : end]
 	return t, TLVHeaderSize + int(t.Length), nil
 }
@@ -112,9 +126,18 @@ func writeTLV(buf []byte, off int, t TLV) int {
 
 // DecodeTLVs parses all TLVs from buf[off:end].
 func DecodeTLVs(buf []byte, off, end int) ([]TLV, error) {
+	if off < 0 {
+		return nil, errShortTLV
+	}
+	if end < off {
+		return nil, errShortTLV
+	}
+	if end > len(buf) {
+		return nil, errShortTLV
+	}
 	var tlvs []TLV
 	for off < end {
-		t, n, err := DecodeTLV(buf, off)
+		t, n, err := DecodeTLV(buf[:end], off)
 		if err != nil {
 			return tlvs, err
 		}

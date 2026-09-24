@@ -79,6 +79,7 @@ func TestBMPTerminationRoundTrip(t *testing.T) {
 	term := &Termination{
 		TLVs: []TLV{
 			makeStringTLV(TermTLVString, "goodbye"),
+			{Type: TermTLVReason, Length: 2, Value: []byte{0, 0}},
 		},
 	}
 	buf := make([]byte, 512)
@@ -92,8 +93,8 @@ func TestBMPTerminationRoundTrip(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *Termination, got %T", msg)
 	}
-	if len(decoded.TLVs) != 1 {
-		t.Fatalf("got %d TLVs, want 1", len(decoded.TLVs))
+	if len(decoded.TLVs) != 2 {
+		t.Fatalf("got %d TLVs, want 2", len(decoded.TLVs))
 	}
 	if string(decoded.TLVs[0].Value) != "goodbye" {
 		t.Errorf("value = %q, want %q", string(decoded.TLVs[0].Value), "goodbye")

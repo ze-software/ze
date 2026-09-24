@@ -19,7 +19,7 @@ func init() {
 		RFCs:        []string{"7854", "8671"},
 		Features:    "yang",
 		YANG:        bmpyang.ZeBMPConfYANG,
-		ConfigRoots: []string{configRootBGP, configRootEnvironment},
+		ConfigRoots: []string{configRootBGP, configRootEnvironment, configRootSystem},
 		RunEngine:   runBMPPlugin,
 		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {

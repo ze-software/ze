@@ -15,13 +15,13 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"net/netip"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -29,6 +29,9 @@ import (
 
 // handleStructuredEvent processes a reactor event and forwards it to all sender sessions.
 func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+	bp.eventMu.Lock()
+	defer bp.eventMu.Unlock()
+
 	// cause is the Peer Down this event owes a collector, and only the down arm
 	// below can build it: RFC 7854 Section 4.9 makes the Data field the
 	// NOTIFICATION PDU that ended the session, and the same teardown drops that
@@ -77,6 +80,13 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 	policy := bp.routeMonitorPolicy
 	statistics := bp.statisticsInterval > 0
 	bp.mu.RUnlock()
+
+	if se.EventType == rpc.EventKindUpdate {
+		if err := bp.cacheAdjUpdate(se); err != nil {
+			bp.replayFailure(se, err, senders)
+			return
+		}
+	}
 
 	if len(senders) == 0 {
 		return
@@ -180,6 +190,7 @@ func (bp *BMPPlugin) cacheNotificationPDU(se *rpc.StructuredEvent) {
 // peerDownCause is the RFC 7854 Section 4.9 Reason and the Data that reason
 // obliges, for one peer that has left Established.
 type peerDownCause struct {
+	peer   PeerHeader
 	reason uint8
 	data   []byte
 }
@@ -213,14 +224,24 @@ var fsmEventNone = []byte{0, 0}
 func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 	bp.mu.Lock()
 	notify := bp.notifyCache[se.PeerAddress]
+	peer := peerHeaderFromEvent(se)
+	if st := bp.peerUps[se.PeerAddress]; st != nil {
+		// A teardown event can arrive after the reactor has cleared its
+		// negotiated identity. Close the peer previously reported to BMP.
+		peer = st.peer
+		peer.TimestampSec, peer.TimestampUsec = 0, 0
+	}
 	delete(bp.openCache, se.PeerAddress)
 	delete(bp.notifyCache, se.PeerAddress)
 	delete(bp.dedupState, se.PeerAddress)
 	delete(bp.dedupCount, se.PeerAddress)
+	bp.forgetAdjRoutes(bp.peerUps[se.PeerAddress])
 	delete(bp.peerUps, se.PeerAddress)
 	bp.mu.Unlock()
 
-	return peerDownFor(notify, se.Reason)
+	cause := peerDownFor(notify, se.Reason)
+	cause.peer = peer
+	return cause
 }
 
 // peerDownFor chooses the RFC 7854 Section 4.9 Reason, and the Data that reason
@@ -276,10 +297,10 @@ func (bp *BMPPlugin) recordPeerUp(se *rpc.StructuredEvent) {
 
 	st := &peerUpState{
 		peer: peerHeaderFromEvent(se),
-		// Local port 179 and remote port 0 are what ze has always reported
-		// here; StructuredEvent carries no port numbers.
-		localPort:  179,
-		remotePort: 0,
+		// RFC 7854 Section 4.10 reports the established TCP endpoints,
+		// including the ephemeral port of an active opener.
+		localPort:  se.LocalPort,
+		remotePort: se.RemotePort,
 		sentOpen:   sentOpen,
 		recvOpen:   recvOpen,
 	}
@@ -289,6 +310,7 @@ func (bp *BMPPlugin) recordPeerUp(se *rpc.StructuredEvent) {
 	if bp.peerUps == nil {
 		bp.peerUps = make(map[string]*peerUpState)
 	}
+	bp.forgetAdjRoutes(bp.peerUps[se.PeerAddress])
 	bp.peerUps[se.PeerAddress] = st
 	bp.mu.Unlock()
 }
@@ -308,33 +330,25 @@ func (bp *BMPPlugin) recordPeerUp(se *rpc.StructuredEvent) {
 //
 // Caller (run) MUST hold ss.writeMu.
 func (bp *BMPPlugin) primeSender(ss *senderSession) {
-	// The read lock is held ACROSS the writes, not just across a snapshot, so a
-	// peer that goes down mid-prime is either still in the map (and gets its
-	// Peer Up, immediately followed by the Peer Down the state event produces)
-	// or already removed (and gets neither).
-	//
-	// Residual window, stated rather than hidden: the peer-down handler emits
-	// its Peer Down without holding bp.mu, so a Peer Down enqueued between the
-	// map delete and our write can still reach the collector before this Peer
-	// Up. The collector then believes a dead peer is up until its next state
-	// change. Closing that would need per-session send sequencing across two
-	// unrelated code paths; it is not worth the coupling for a window this size.
+	// run holds eventMu before writeMu. No peer transition or UPDATE can
+	// interleave with the snapshot, even between storing state and fan-out.
 	bp.mu.RLock()
-	peers := 0
 	for _, st := range bp.peerUps {
 		if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
-			logger().Debug("bmp: peer up resync failed", "collector", ss.name, "error", err)
-			continue
+			bp.mu.RUnlock()
+			ss.abortAdjReplay(err)
+			return
 		}
-		peers++
+	}
+	for _, st := range bp.peerUps {
+		if err := bp.replayPeerLocked(ss, st, bp.routeMonitorPolicy); err != nil {
+			bp.mu.RUnlock()
+			ss.abortAdjReplay(err)
+			return
+		}
 	}
 	locRIB := bp.locRIBUnsub != nil
 	bp.mu.RUnlock()
-
-	if peers > 0 {
-		logger().Info("bmp: replayed peer up to collector session", "collector", ss.name, "peers", peers)
-	}
-
 	if locRIB {
 		bp.primeLocRIBPeerUp(ss)
 	}
@@ -351,14 +365,9 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 // configuration. Ending the session instead would cost every collector a full
 // re-dump of everything, including the state the change did not touch.
 //
-// What the bounce does NOT do is hand the routes back. Nothing replays the
-// Adj-RIB-In after a Peer Up, here or anywhere: the only Route Monitoring
-// producer for an Adj-RIB is the live update path (handleStructuredEvent ->
-// senderSession.writeRouteMonitoring), and primeSender sends a Peer Up and no
-// routes. So the collector holds nothing for a bounced peer until that peer
-// sends its next UPDATE. That predates this function -- the transport drop it
-// replaces ended in the same empty state -- and it is recorded in
-// plan/journal/announced-state-never-replayed.md rather than fixed here.
+// A Peer Down implicitly withdraws the collector's table. The replacement
+// Peer Up is therefore followed by a current snapshot and its per-family EOR,
+// including when no routes changed while the configuration was applied.
 //
 // The reason code is PeerDownDeconfigured (RFC 7854 Section 4.9 reason 5,
 // "Information for this peer will no longer be sent to the monitoring station
@@ -379,6 +388,8 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 // the two. The snapshot cannot go stale meanwhile, because a peer state event
 // and a config apply reach the plugin on the same delivery goroutine.
 func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
+	bp.eventMu.Lock()
+	defer bp.eventMu.Unlock()
 	if len(senders) == 0 {
 		return
 	}
@@ -390,6 +401,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 		delete(bp.dedupState, address)
 		delete(bp.dedupCount, address)
 	}
+	policy := bp.routeMonitorPolicy
 	bp.mu.Unlock()
 
 	if len(states) == 0 {
@@ -408,6 +420,12 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 			}
 			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 				logger().Debug("bmp: peer bounce up failed", "collector", ss.name, "error", err)
+				ss.abortAdjReplay(err)
+				break
+			}
+			if err := bp.replayPeerLocked(ss, st, policy); err != nil {
+				ss.abortAdjReplay(err)
+				break
 			}
 		}
 		ss.writeMu.Unlock()
@@ -422,8 +440,6 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 // cause carries the Peer Down reason and its Data, built by clearPeerState for
 // this same event. It is read on the down arm alone.
 func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession, cause peerDownCause) {
-	peer := peerHeaderFromEvent(se)
-
 	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
 	case rpc.SessionStateUp:
 		// RFC 7854 S4.10: Peer Up MUST include sent and received OPEN PDUs.
@@ -432,6 +448,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		// when either OPEN is missing.
 		bp.mu.RLock()
 		st := bp.peerUps[se.PeerAddress]
+		policy := bp.routeMonitorPolicy
 		bp.mu.RUnlock()
 		if st == nil {
 			logger().Warn("bmp: OPEN cache miss for peer, skipping Peer Up", "peer", se.PeerAddress)
@@ -439,9 +456,13 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		}
 
 		for _, ss := range senders {
-			if err := ss.writePeerUp(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen); err != nil {
+			ss.writeMu.Lock()
+			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
+			} else if err := bp.replayPeerLocked(ss, st, policy); err != nil {
+				ss.abortAdjReplay(err)
 			}
+			ss.writeMu.Unlock()
 		}
 	case rpc.SessionStateDown:
 		// RFC 7854 Section 4.9: "Data (present if Reason = 1, 2 or 3)". The
@@ -451,7 +472,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 		// reasons runs the collector off the end of the message. peerDownFor
 		// pairs each reason with the Data it obliges.
 		for _, ss := range senders {
-			if err := ss.writePeerDown(peer, cause.reason, cause.data); err != nil {
+			if err := ss.writePeerDown(cause.peer, cause.reason, cause.data); err != nil {
 				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
 			}
 		}
@@ -684,19 +705,28 @@ func (bp *BMPPlugin) duplicateUpdate(address string, received, withdraws bool, r
 //   - O flag: Adj-RIB-Out (sent direction, RFC 8671)
 func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 	ph := PeerHeader{
-		PeerType:     PeerTypeGlobal,
-		PeerAS:       se.PeerAS,
-		TimestampSec: uint32(time.Now().Unix()),
+		PeerType:  PeerTypeGlobal,
+		PeerAS:    se.PeerAS,
+		PeerBGPID: se.RemoteRouterID,
+	}
+	// RFC 7854 Section 5: "Otherwise, the BMP Timestamp field MUST be set
+	// to 0, indicating that time is not available." Delivery time is not
+	// receipt time: only the message's timestamp can date the routes.
+	if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok && msg != nil {
+		if !msg.Timestamp.IsZero() {
+			ph.TimestampSec = uint32(msg.Timestamp.Unix())               //nolint:gosec // BMP timestamps are uint32 Unix seconds.
+			ph.TimestampUsec = uint32(msg.Timestamp.Nanosecond() / 1000) //nolint:gosec // bounded to 999999.
+		}
+		if msg.WireUpdate != nil {
+			ctx := bgpctx.Registry.Get(msg.WireUpdate.SourceCtxID())
+			if ctx != nil && !ctx.ASN4() {
+				ph.Flags |= PeerFlagA
+			}
+		}
 	}
 
-	parseIPInto(se.PeerAddress, &ph.Address)
-
-	// Check if IPv6 by looking for ':' in the address.
-	for _, c := range se.PeerAddress {
-		if c == ':' {
-			ph.Flags |= PeerFlagV
-			break
-		}
+	if parseIPInto(se.PeerAddress, &ph.Address) {
+		ph.Flags |= PeerFlagV
 	}
 
 	// RFC 8671: set O flag for Adj-RIB-Out (sent direction).
@@ -708,14 +738,22 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 	return ph
 }
 
-// parseIPInto parses an IP string into a 16-byte BMP address field.
-// IPv4 is stored as ::ffff:x.x.x.x per RFC 7854.
-func parseIPInto(addr string, out *[16]byte) {
+// parseIPInto writes the BMP address field and reports whether it is IPv6.
+// RFC 7854 Section 4.2 requires IPv4's "12 most significant bytes zero-filled".
+func parseIPInto(addr string, out *[16]byte) bool {
 	parsed, err := netip.ParseAddr(addr)
 	if err != nil {
-		return
+		return false
+	}
+	parsed = parsed.Unmap()
+	if parsed.Is4() {
+		clear(out[:12])
+		v4 := parsed.As4()
+		copy(out[12:], v4[:])
+		return false
 	}
 	*out = parsed.As16()
+	return true
 }
 
 // rawUpdateBytes returns the BGP message body bytes (without the 19-byte BGP

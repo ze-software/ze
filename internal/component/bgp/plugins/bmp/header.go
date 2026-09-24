@@ -110,7 +110,7 @@ type PeerHeader struct {
 	PeerType      uint8
 	Flags         uint8
 	Distinguisher uint64
-	Address       [16]byte // IPv4 as ::ffff:x.x.x.x
+	Address       [16]byte // IPv4 occupies the final four octets; first twelve are zero.
 	PeerAS        uint32
 	PeerBGPID     uint32
 	TimestampSec  uint32
