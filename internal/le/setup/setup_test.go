@@ -950,7 +950,7 @@ func TestToolTablePopulationAndInstallRoutes(t *testing.T) {
 		{
 			name:     "required",
 			tools:    requiredTools(),
-			names:    strings.Fields("go git protobuf jq golangci-lint staticcheck goimports gopls qemu e2fsprogs xorriso grub"),
+			names:    strings.Fields("go git protobuf jq golangci-lint staticcheck goimports gopls govulncheck qemu e2fsprogs xorriso grub"),
 			required: true,
 		},
 		{

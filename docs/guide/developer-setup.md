@@ -127,6 +127,7 @@ of the two is absent.
 | `staticcheck` | Feature-tag structural type checker, pinned to 2026.2.1 (via `go install`) |
 | `goimports` | Go import formatter (via `go install`) |
 | `gopls` | Go language server behind the agent LSP tool (via `go install`) |
+| `govulncheck` | Dependency vulnerability scanner for the verification gate, built from the vendored copy (via `go install`) |
 
 Regenerate the checked-in protobuf Go files after you change
 `api/proto/ze.proto` or the module path:

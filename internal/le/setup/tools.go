@@ -111,6 +111,7 @@ const (
 	toolGit         = "git"
 	toolStaticcheck = "staticcheck"
 	toolGopls       = "gopls"
+	toolGovulncheck = "govulncheck"
 	toolE2fsprogs   = "e2fsprogs"
 	toolXorriso     = "xorriso"
 	toolSshpass     = "sshpass"
@@ -198,6 +199,11 @@ const staticcheckTarget = "honnef.co/go/tools/cmd/staticcheck@" + StaticcheckVer
 const goimportsTarget = "golang.org/x/tools/cmd/goimports@latest"
 const goplsTarget = "golang.org/x/tools/gopls"
 
+// govulncheckTarget is pinned by tools.go and vendored, so it builds from the
+// vendor tree like gopls. The verification gate's vulnerability stage refuses
+// to start without it.
+const govulncheckTarget = "golang.org/x/vuln/cmd/govulncheck"
+
 // requiredTools contains every tool that a Go development or test workflow
 // requires.
 func requiredTools() []Tool {
@@ -210,6 +216,7 @@ func requiredTools() []Tool {
 		{Name: toolStaticcheck, Probe: []string{toolStaticcheck}, GoInstall: staticcheckTarget, Required: true},
 		{Name: toolGoimports, Probe: []string{toolGoimports}, GoInstall: goimportsTarget, Required: true},
 		{Name: toolGopls, Probe: []string{toolGopls}, GoInstall: goplsTarget, Required: true, Note: goplsNote},
+		{Name: toolGovulncheck, Probe: []string{toolGovulncheck}, GoInstall: govulncheckTarget, Required: true},
 
 		{
 			Name:     "qemu",
