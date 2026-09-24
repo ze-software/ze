@@ -1,9 +1,6 @@
-// VALIDATES: spec-ospf-11 RFC 3101 sec 2.5 -- when the same external prefix is reachable
-// via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation picks
-// the Type 7 P=1 (source preference is the primary key, ahead of the sec 16.4 cost), so
-// one winning route is produced.
-// PREVENTS: regressions where a lower-cost Type 5 or P=0 Type 7 beats a P=1 Type 7, or
-// NSSA Type 7 LSAs are ignored by the external computation.
+// VALIDATES: RFC 3101 Section 2.5 scope checks and external route comparison.
+// PREVENTS: source preference overriding E1/E2 metrics, or NSSA LSAs using
+// another area's ASBR or forwarding-address reachability.
 package spf
 
 import (
@@ -45,18 +42,38 @@ func TestOSPFNSSAPreference(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	nssa := areaID(t, "0.0.0.5")
 	fa := "192.168.0.5"
+	for _, tc := range []struct {
+		name   string
+		metric uint32
+		want   string
+	}{
+		{"lower metric wins", 100, "2.2.2.2"},
+		{"equivalent LSA prefers P bit", 1, "3.3.3.3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := ospflsdb.New(nil)
+			require.True(t, db.Install(types.BackboneArea, externalLSA(t, "10.40.0.0", "2.2.2.2", true, 1, fa)))
+			require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "3.3.3.3", tc.metric, true)))
+			require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "4.4.4.4", 1, false)))
+			routesToFA := []RouteEntry{
+				{AreaID: types.BackboneArea, Prefix: netip.MustParsePrefix("192.168.0.0/24"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}},
+				{AreaID: nssa, Prefix: netip.MustParsePrefix("192.168.0.0/24"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.8")}}},
+			}
+			border := []BorderRouterEntry{asbrBorder(t, "2.2.2.2", 3, "10.0.0.9"), nssaASBR(t, nssa, "3.3.3.3"), nssaASBR(t, nssa, "4.4.4.4")}
+			routes := ComputeExternal(ExternalInput{Source: db, Root: root, BorderRouters: border, Routes: routesToFA, NSSAAreas: []types.AreaID{nssa}})
+			require.Len(t, routes, 1)
+			assert.Equal(t, netip.MustParsePrefix("10.40.0.0/24"), routes[0].Prefix)
+			assert.Equal(t, testRID(t, tc.want), routes[0].Origin)
+			assert.Equal(t, uint64(1), routes[0].Metric)
+		})
+	}
+}
 
-	db := ospflsdb.New(nil)
-	require.True(t, db.Install(types.BackboneArea, externalLSA(t, "10.40.0.0", "2.2.2.2", true, 1, fa)), "Type 5")
-	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "3.3.3.3", 100, true)), "Type 7 P=1")
-	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "4.4.4.4", 1, false)), "Type 7 P=0")
-
-	routeTable := []RouteEntry{{Prefix: netip.MustParsePrefix("192.168.0.0/24"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}}}
-
-	routes := ComputeExternal(ExternalInput{Source: db, Root: root, Routes: routeTable, NSSAAreas: []types.AreaID{nssa}, MaxPaths: 8})
-	require.Len(t, routes, 1, "one winning external route for the shared prefix")
-	assert.Equal(t, netip.MustParsePrefix("10.40.0.0/24"), routes[0].Prefix)
-	assert.Equal(t, testRID(t, "3.3.3.3"), routes[0].Origin, "the Type 7 P=1 wins over the Type 5 and the lower-cost Type 7 P=0 (RFC 3101 sec 2.5)")
+func nssaASBR(t *testing.T, area types.AreaID, router string) BorderRouterEntry {
+	t.Helper()
+	entry := asbrBorder(t, router, 3, "10.0.0.9")
+	entry.AreaID = area
+	return entry
 }
 
 // TestOSPFNSSABorderRouterDefaultPBit verifies the P-bit install gate for a
@@ -65,6 +82,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	nssa := areaID(t, "0.0.0.5")
 	routeTable := []RouteEntry{{
+		AreaID:   nssa,
 		Prefix:   netip.MustParsePrefix("192.168.0.0/24"),
 		Metric:   3,
 		Type:     RouteIntraArea,
@@ -80,7 +98,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		// RFC requirement: RFC3101-2.5-1 negative -- a regular NSSA does
 		// not suppress Type-7 defaults when summary import is enabled.
 		routes := ComputeExternal(ExternalInput{
-			Source: db, Root: root, Routes: routeTable,
+			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
 		})
 		require.Len(t, routes, 1)
@@ -94,7 +112,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		// RFC requirement: RFC3101-2.5-1 positive -- an NSSA border router
 		// ignores Type-7 defaults when summary import is suppressed.
 		routes := ComputeExternal(ExternalInput{
-			Source: db, Root: root, Routes: routeTable,
+			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true,
 			NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
 				nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
@@ -111,7 +129,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 		// RFC requirement: RFC3101-2.4-4 negative -- an NSSA border router
 		// does not install a received Type-7 default whose P-bit is clear.
 		routes := ComputeExternal(ExternalInput{
-			Source: db, Root: root, Routes: routeTable,
+			Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
 		})
 		assert.Empty(t, routes)
@@ -126,6 +144,7 @@ func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	nssa := areaID(t, "0.0.0.5")
 	routeTable := []RouteEntry{{
+		AreaID:   nssa,
 		Prefix:   netip.MustParsePrefix("192.168.0.0/24"),
 		Metric:   3,
 		Type:     RouteIntraArea,
@@ -140,7 +159,7 @@ func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 	// RFC requirement: RFC3101-2.5-1 negative -- the suppressed-summary rule
 	// likewise binds an NSSA border router only.
 	routes := ComputeExternal(ExternalInput{
-		Source: db, Root: root, Routes: routeTable,
+		Source: db, Root: root, Routes: routeTable, BorderRouters: []BorderRouterEntry{nssaASBR(t, nssa, "3.3.3.3")},
 		NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: false,
 		NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
 			nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
@@ -149,4 +168,73 @@ func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 	})
 	require.Len(t, routes, 1, "an NSSA internal router installs the border router's P-clear default")
 	assert.Equal(t, netip.MustParsePrefix("0.0.0.0/0"), routes[0].Prefix)
+}
+
+// TestNSSASourcePreferencePreservesOtherExits verifies that replacing one
+// equivalent Type-5 LSA with its preferred Type-7 leaves another equal-cost
+// forwarding address in ECMP.
+func TestNSSASourcePreferencePreservesOtherExits(t *testing.T) {
+	nssa := areaID(t, "0.0.0.5")
+	db := ospflsdb.New(nil)
+	for _, external := range []packet.LSA{
+		externalLSA(t, "10.40.0.0", "2.2.2.2", true, 1, "192.168.0.5"),
+		externalLSA(t, "10.40.0.0", "5.5.5.5", true, 1, "192.168.0.6"),
+	} {
+		require.True(t, db.Install(types.BackboneArea, external))
+	}
+	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "3.3.3.3", 1, true)))
+	routes := ComputeExternal(ExternalInput{
+		Source: db, Root: testRID(t, "1.1.1.1"), NSSAAreas: []types.AreaID{nssa},
+		BorderRouters: []BorderRouterEntry{asbrBorder(t, "2.2.2.2", 3, "10.0.0.9"), asbrBorder(t, "5.5.5.5", 3, "10.0.0.6"), nssaASBR(t, nssa, "3.3.3.3")},
+		Routes: []RouteEntry{
+			{AreaID: types.BackboneArea, Prefix: netip.MustParsePrefix("192.168.0.5/32"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}},
+			{AreaID: types.BackboneArea, Prefix: netip.MustParsePrefix("192.168.0.6/32"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.6")}}},
+			{AreaID: nssa, Prefix: netip.MustParsePrefix("192.168.0.5/32"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.8")}}},
+		},
+	})
+	require.Len(t, routes, 1)
+	assert.ElementsMatch(t, []NextHop{
+		{Addr: netip.MustParseAddr("10.0.0.6")},
+		{Addr: netip.MustParseAddr("10.0.0.8")},
+	}, routes[0].NextHops)
+}
+
+// TestNSSASourcePreferenceCannotOverrideE1 verifies Section 2.5(6)(b) before
+// the final equivalent-LSA preference.
+func TestNSSASourcePreferenceCannotOverrideE1(t *testing.T) {
+	nssa := areaID(t, "0.0.0.5")
+	db := ospflsdb.New(nil)
+	require.True(t, db.Install(types.BackboneArea, externalLSA(t, "10.40.0.0", "2.2.2.2", false, 100, "192.168.0.5")))
+	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "3.3.3.3", 1, true)))
+	routes := ComputeExternal(ExternalInput{
+		Source: db, Root: testRID(t, "1.1.1.1"), NSSAAreas: []types.AreaID{nssa},
+		BorderRouters: []BorderRouterEntry{asbrBorder(t, "2.2.2.2", 3, "10.0.0.9"), nssaASBR(t, nssa, "3.3.3.3")},
+		Routes: []RouteEntry{
+			{AreaID: types.BackboneArea, Prefix: netip.MustParsePrefix("192.168.0.5/32"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}},
+			{AreaID: nssa, Prefix: netip.MustParsePrefix("192.168.0.5/32"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.8")}}},
+		},
+	})
+	require.Len(t, routes, 1)
+	assert.Equal(t, RouteExternalType1, routes[0].Type)
+	assert.Equal(t, uint64(103), routes[0].Metric)
+	assert.Equal(t, testRID(t, "2.2.2.2"), routes[0].Origin)
+}
+
+// RFC requirement: RFC3101-2.5-3 positive -- resolving an eligible Type-5 forwarding address preserves internal path preference and equal-cost next hops.
+// MUTATION: resolveForwarding selects the cheapest candidate regardless of path type or drops another area's equal-cost path.
+func TestExternalForwardingPreservesInternalPreferenceAndECMP(t *testing.T) {
+	source := testSource(t, types.BackboneArea, externalLSA(t, "10.40.0.0", "2.2.2.2", false, 5, "192.168.0.5"))
+	forwarding := netip.MustParsePrefix("192.168.0.0/24")
+	routes := ComputeExternal(ExternalInput{
+		Source: source, Root: testRID(t, "1.1.1.1"),
+		BorderRouters: []BorderRouterEntry{asbrBorder(t, "2.2.2.2", 1, "10.0.0.2")},
+		Routes: []RouteEntry{
+			{AreaID: types.BackboneArea, Prefix: forwarding, Metric: 1, Type: RouteInterArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.8")}}},
+			{AreaID: types.BackboneArea, Prefix: forwarding, Metric: 20, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}},
+			{AreaID: areaID(t, "0.0.0.2"), Prefix: forwarding, Metric: 20, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.10")}}},
+		},
+	})
+	require.Len(t, routes, 1)
+	assert.Equal(t, uint64(25), routes[0].Metric)
+	assert.Equal(t, []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}, {Addr: netip.MustParseAddr("10.0.0.10")}}, routes[0].NextHops)
 }

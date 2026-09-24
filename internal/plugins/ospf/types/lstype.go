@@ -40,7 +40,7 @@ const (
 	// 0x8000|0x000B) for LSDB keying / link-scope routing so it never collides with the
 	// OSPFv2 Type-11 Opaque-AS store. This value is INTERNAL only: it is never written to
 	// the wire (the OSPFv3 codec emits 0x000B). See codec_v6.go v6LSAHeaderToNeutral and
-	// its encoder inverse, and lsdb.isLinkLSAType.
+	// its encoder inverse, and LSType.LinkLocal.
 	LSTypeGraceV6 LSType = 0x800B
 )
 
@@ -76,6 +76,16 @@ func (t LSType) ASExternal() bool {
 // OSPFv2 store routing.
 func (t LSType) ASWide() bool {
 	return t == LSTypeASExternal || t&asScopeBits == asScope
+}
+
+// LinkLocal reports whether the LSA belongs to a single interface's database:
+// OSPFv2 opaque Type 9, the OSPFv3 Link-LSA and internal Grace-LSA sentinel,
+// or a native OSPFv3 extension with S2/S1=00 (RFC 5340 Appendix A.4.2.1).
+// Native extension types retain their 16-bit scope, including E-Link 0x8028
+// (RFC 8362 Section 4.7) and Router Information 0x800C (RFC 7770).
+func (t LSType) LinkLocal() bool {
+	return t == LSTypeLink || t == LSTypeOpaqueLink || t == LSTypeGraceV6 ||
+		(t > 0xff && t&asScopeBits == 0)
 }
 
 // NSSA reports whether the LS type is an NSSA-LSA: the OSPFv2 Type 7 (RFC 2328 / RFC 3101)

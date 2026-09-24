@@ -58,7 +58,7 @@ func TestOSPFv3NSSABorderRouterDefaultPBit(t *testing.T) {
 	nssa := types.AreaID{0, 0, 0, 1}
 	nextHop := netip.MustParseAddr("fe80::2")
 	reach := []ospfspf.BorderRouterEntry{{
-		RouterID: asbr, Kind: ospfspf.BorderRouterASBR, Metric: 10,
+		RouterID: asbr, AreaID: nssa, Kind: ospfspf.BorderRouterASBR, Metric: 10,
 		NextHops: []ospfspf.NextHop{{Addr: nextHop}},
 	}}
 	defaultPrefix := netip.PrefixFrom(netip.IPv6Unspecified(), 0)
@@ -117,7 +117,7 @@ func TestOSPFv3NSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 		Source: v6NSSADefaultSource(t, asbr, false), Root: types.RouterID{1, 1, 1, 1},
 		NSSAAreas: []types.AreaID{nssa},
 		BorderRouters: []ospfspf.BorderRouterEntry{{
-			RouterID: asbr, Kind: ospfspf.BorderRouterASBR, Metric: 10,
+			RouterID: asbr, AreaID: nssa, Kind: ospfspf.BorderRouterASBR, Metric: 10,
 			NextHops: []ospfspf.NextHop{{Addr: nextHop}},
 		}},
 		NSSAPolicies: map[types.AreaID]ospfspf.AreaSummaryPolicy{

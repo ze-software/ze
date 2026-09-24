@@ -878,6 +878,15 @@ same units as the OSPF cost. A Type 2 metric is an order of magnitude larger tha
 internal path. A Type 1 route always wins over a Type 2 route.";
                 ze:help "External metric type.";
             }
+            leaf nssa-propagate {
+                type boolean;
+                default false;
+                description "RFC 3101 Appendix D requires configurable Type-7 propagation and
+defaults the P-bit to clear. Set the P-bit for this source when the router cannot originate
+a Type-5 directly. A P-set Type-7 requires a usable forwarding address in its NSSA;
+without one the LSA is withdrawn. A locally originated Type-5 always clears the P-bit.";
+                ze:help "Permit translation of this source's NSSA routes into Type-5 LSAs.";
+            }
             leaf tag {
                 type uint32;
                 default 0;

@@ -80,6 +80,9 @@ type InterAreaInput struct {
 	Ranges   map[types.AreaID][]AreaRange
 	Resolver InterfaceResolver
 	MaxPaths int
+
+	// Native-run membership retains unresolved inter-area ASBR targets as known.
+	knownOrigins map[types.RouterID]struct{}
 }
 
 // InterAreaSummary is one decoded summary record an ABR advertises into an area: an
@@ -132,6 +135,9 @@ func ComputeInterAreaWith(in InterAreaInput, read SummaryReader) ([]RouteEntry, 
 			continue
 		}
 		for _, s := range read(area) {
+			if s.IsASBR && s.ASBR != (types.RouterID{}) && in.knownOrigins != nil {
+				in.knownOrigins[s.ASBR] = struct{}{}
+			}
 			if s.AdvertisingRouter == in.Root {
 				continue
 			}
@@ -253,6 +259,7 @@ func intraAreaBorderRouters(res *Result, root types.RouterID, resolver Interface
 type borderKey struct {
 	kind BorderRouterKind
 	rid  types.RouterID
+	area types.AreaID
 }
 
 func selectBorderRouters(in []BorderRouterEntry, maxPaths int) []BorderRouterEntry {
@@ -266,16 +273,13 @@ func selectBorderRouters(in []BorderRouterEntry, maxPaths int) []BorderRouterEnt
 		}
 		b.NextHops = capNextHops(b.NextHops, maxPaths)
 		sortNextHops(b.NextHops)
-		k := borderKey{kind: b.Kind, rid: b.RouterID}
+		k := borderKey{kind: b.Kind, rid: b.RouterID, area: b.AreaID}
 		cur, ok := best[k]
 		switch {
 		case !ok || b.Metric < cur.Metric:
 			best[k] = b
 		case b.Metric == cur.Metric:
 			cur.NextHops, _ = mergeNextHops(cur.NextHops, b.NextHops, maxPaths)
-			if compare4(b.AreaID, cur.AreaID) < 0 {
-				cur.AreaID = b.AreaID
-			}
 			best[k] = cur
 		}
 	}
@@ -287,7 +291,10 @@ func selectBorderRouters(in []BorderRouterEntry, maxPaths int) []BorderRouterEnt
 		if out[i].Kind != out[j].Kind {
 			return out[i].Kind < out[j].Kind
 		}
-		return compare4(out[i].RouterID, out[j].RouterID) < 0
+		if out[i].RouterID != out[j].RouterID {
+			return compare4(out[i].RouterID, out[j].RouterID) < 0
+		}
+		return compare4(out[i].AreaID, out[j].AreaID) < 0
 	})
 	return out
 }

@@ -220,9 +220,11 @@ func (in *Installer) insert(r RouteEntry) {
 		// Mirror BGP rib_bestchange.go: InsertForward with a value-typed Path and no
 		// ForwardHandle. redistevents is not on the FIB install path.
 		in.insertPath(r.Prefix, locrib.Path{
-			Source:   ospfProtocolID,
-			Instance: instance,
-			NextHop:  nh.Addr,
+			Source:    ospfProtocolID,
+			Instance:  instance,
+			NextHop:   nh.Addr,
+			Interface: nh.Interface,
+			OnLink:    nh.Interface != "",
 			// The DECLARATION decides. locrib.selectBest ranks paths on what is
 			// stamped here and runs before sysrib sees the route, so
 			// `rib { distance { ospf N } }` has to reach this line to change

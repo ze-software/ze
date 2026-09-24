@@ -1,7 +1,6 @@
 // VALIDATES: computer.go RouterReachable (RFC 5250 Section 5 Type-11 opaque
-// reachability gate: root, reachable border router, or origin of an installed
-// route), the BorderRouterSnapshot method render, spf.go compareVertexID ordering,
-// and Trigger arming a throttled backbone SPF run.
+// reachability gate), the BorderRouterSnapshot method render, spf.go
+// compareVertexID ordering, and Trigger arming a throttled backbone SPF run.
 // PREVENTS: honoring an unreachable originator's opaque LSAs, a mis-rendered
 // border-router row, an unstable vertex tie-break, and a Trigger that never runs.
 package spf
@@ -16,46 +15,40 @@ import (
 )
 
 func TestRouterReachable(t *testing.T) {
-	root := testRID(t, "1.1.1.1")
-	reachableABR := testRID(t, "2.2.2.2")
-	costedOutABR := testRID(t, "3.3.3.3")
-	noHopABR := testRID(t, "4.4.4.4")
-	routeOrigin := testRID(t, "5.5.5.5")
-	danglingOrigin := testRID(t, "6.6.6.6")
-	unknown := testRID(t, "8.8.8.8")
-	hop := []NextHop{{Addr: netip.MustParseAddr("10.0.0.2")}}
-
-	c := &Computer{
-		root: root,
-		lastBorder: []BorderRouterEntry{
-			{RouterID: reachableABR, AreaID: testArea(), Kind: BorderRouterABR, Metric: 10, NextHops: hop},
-			{RouterID: costedOutABR, AreaID: testArea(), Kind: BorderRouterABR, Metric: LSInfinity, NextHops: hop},
-			{RouterID: noHopABR, AreaID: testArea(), Kind: BorderRouterABR, Metric: 10, NextHops: nil},
-		},
-		last: []RouteEntry{
-			{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Origin: routeOrigin, NextHops: hop},
-			{Prefix: netip.MustParsePrefix("198.51.100.0/24"), Origin: danglingOrigin, NextHops: nil},
-		},
+	area := testArea()
+	root, peer := testRID(t, "1.1.1.1"), testRID(t, "2.2.2.2")
+	disconnected := testRID(t, "3.3.3.3")
+	db := testSource(t, area,
+		routerLSA(t, "1.1.1.1", p2pLink(t, "2.2.2.2", "10.0.0.1", 10)),
+		routerLSA(t, "2.2.2.2", p2pLink(t, "1.1.1.1", "10.0.0.2", 10)),
+		routerLSA(t, "3.3.3.3"),
+	)
+	c := NewComputer(Config{Source: db, Root: root, Areas: []types.AreaID{area}})
+	t.Cleanup(c.Stop)
+	if c.RouterReachable(peer) {
+		t.Fatal("remote origin reachable before SPF completed")
 	}
-
-	cases := []struct {
-		name string
+	c.Run()
+	for _, tc := range []struct {
 		id   types.RouterID
 		want bool
 	}{
-		{"zero-router-id", types.RouterID{}, false},
-		{"local-root-always-reachable", root, true},
-		{"border-finite-metric-with-hops", reachableABR, true},
-		{"border-costed-out-LSInfinity", costedOutABR, false},
-		{"border-no-next-hops", noHopABR, false},
-		{"origin-of-installed-route", routeOrigin, true},
-		{"origin-with-no-next-hops", danglingOrigin, false},
-		{"unknown-router", unknown, false},
-	}
-	for _, tc := range cases {
+		{types.RouterID{}, false},
+		{root, true},
+		{peer, true},
+		{disconnected, false},
+		{testRID(t, "8.8.8.8"), false},
+	} {
 		if got := c.RouterReachable(tc.id); got != tc.want {
-			t.Fatalf("%s: RouterReachable(%s) = %v, want %v", tc.name, tc.id, got, tc.want)
+			t.Fatalf("RouterReachable(%s) = %v, want %v", tc.id, got, tc.want)
 		}
+	}
+	if len(c.Routes()) != 0 {
+		t.Fatal("fixture must establish reachability without IP prefixes")
+	}
+	c.SetAreas(nil)
+	if c.RouterReachable(peer) {
+		t.Fatal("removed area's old SPF still permits its opaque originator")
 	}
 }
 

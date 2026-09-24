@@ -129,7 +129,14 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 		}
 		keep[ospflsdb.SelfLSARef{Area: area, Key: v6RouterKey(router)}] = struct{}{}
 
-		if prefixes := v6InterfacePrefixes(ifaces); len(prefixes) > 0 {
+		prefixes := v6InterfacePrefixes(ifaces)
+		for _, link := range cfg.VirtualLinks {
+			if link.TransitArea == area {
+				prefixes = v6AddVirtualEndpoint(prefixes, ifaces)
+				break
+			}
+		}
+		if len(prefixes) > 0 {
 			if _, ok := e.v6OriginateIntraAreaPrefix(area, router, prefixes); ok {
 				count++
 			}

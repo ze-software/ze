@@ -23,8 +23,13 @@ func (d *LSDB) OriginateNSSA(area types.AreaID, router types.RouterID, network, 
 	// caller can bypass it. The P-bit (propagate) requires a non-zero forwarding address, and
 	// it MUST be clear when this router also originates a Type 5 AS-External LSA for the same
 	// network (the Type 5 already carries the route into the backbone).
-	if propagate && (fwd == ([4]byte{}) || d.selfOriginatesType5(network, router)) {
-		propagate = false
+	if propagate {
+		if d.selfOriginatesType5(network, router) {
+			propagate = false
+		} else if fwd == ([4]byte{}) {
+			changed := d.PurgeNSSA(area, router, network)
+			return packet.LSAHeader{}, changed
+		}
 	}
 	key := types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID(network), AdvertisingRouter: router}
 	body := packet.ExternalLSA{

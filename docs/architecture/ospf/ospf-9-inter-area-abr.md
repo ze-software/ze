@@ -21,6 +21,10 @@ area ranges.
   loop-freedom rule (Section 16.3).** Border-router reachability is collected
   across all areas, and inter-area routes are computed ONLY from backbone
   (area 0) summaries.
+  The border-router result retains a separate entry for each area. Collapsing
+  by Router ID here would let a cheap backbone path erase the NSSA path which
+  RFC 3101 Section 2.5 requires when the external stage processes a Type 7.
+  <!-- source: internal/plugins/ospf/spf/interarea.go -- selectBorderRouters -->
 
 ## Traps
 

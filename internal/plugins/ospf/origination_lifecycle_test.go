@@ -139,7 +139,7 @@ func TestDeferredOriginationJoinsTheEngine(t *testing.T) {
 			startShutdown()
 			<-stopped
 		}()
-		sink := nsmAdapter{table: eng.neighbors, onChange: eng.originateSelfLSAs, onChangeDeferred: eng.originateSelfLSAsDeferred, auth: eng.auth}
+		sink := nsmAdapter{table: eng.neighbors, onChange: eng.originateSelfLSAsDeferred, auth: eng.auth}
 
 		sink.InterfaceDown("eth0")
 		synctest.Wait()

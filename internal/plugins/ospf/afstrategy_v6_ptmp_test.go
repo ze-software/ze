@@ -66,7 +66,7 @@ func TestOSPFv3PtMPNextHop(t *testing.T) {
 	tbl.SetSender(nopNbrSender{})
 	tbl.ConfigureInterface(neighbor.InterfaceConfig{
 		Name: "eth0", AreaID: area, RouterID: self, NetworkType: types.NetworkPointToMultipoint,
-		InterfaceMTU: 1500, DeadInterval: 40,
+		InterfaceID: 7, InterfaceMTU: 1500, DeadInterval: 40,
 	})
 	now := time.Unix(1, 0)
 	if reason := tbl.Hello(neighbor.HelloInput{
@@ -76,16 +76,22 @@ func TestOSPFv3PtMPNextHop(t *testing.T) {
 	}); reason != "" {
 		t.Fatalf("Hello: %s", reason)
 	}
-	// Drive the DD exchange to Exchange so AddressOf exposes the neighbor's link-local.
+	// A usable SPF next-hop requires the adjacency to finish database exchange.
 	if reason := tbl.HandleDBDesc("eth0", neighborID, packet.DBDesc{
 		InterfaceMTU: 1500, Options: types.OptionE,
 		Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7,
 	}); reason != "" {
 		t.Fatalf("HandleDBDesc: %s", reason)
 	}
+	if reason := tbl.HandleDBDesc("eth0", neighborID, packet.DBDesc{
+		InterfaceMTU: 1500, Options: types.OptionE,
+		Flags: packet.DDFlagMaster, DDSequence: 8,
+	}); reason != "" {
+		t.Fatalf("finish DBDesc: %s", reason)
+	}
 	nh := v6NextHop{neighbors: tbl}
-	got, ok := nh.P2PNextHop(g, neighborID, self)
-	if !ok || got != ll {
-		t.Fatalf("v6 PtMP next-hop = %v ok=%v, want neighbor link-local %v", got, ok, ll)
+	got, ok := nh.P2PNextHop(g, neighborID, self, rv.Links[0])
+	if !ok || got.Addr != ll || got.Interface != "eth0" {
+		t.Fatalf("v6 PtMP next-hop = %v ok=%v, want %v on eth0", got, ok, ll)
 	}
 }

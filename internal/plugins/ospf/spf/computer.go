@@ -6,6 +6,7 @@ package spf
 
 import (
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -56,28 +57,33 @@ type Computer struct {
 	// RFC 6138 cut-edge queries can be answered from the last SPF result without a
 	// second Dijkstra pass (Appendix A: "a cut-edge computation should not require any
 	// extra SPF runs"). Read-only after assignment; IsCutEdge only traverses it.
-	lastGraphs   map[types.AreaID]*Graph
-	onChange     func(RouteDelta)
-	postRun      func()
-	delay        time.Duration
-	hold         time.Duration
-	maxHold      time.Duration
-	currentDelay time.Duration
-	lastTrigger  time.Time
-	timer        timerHandle
-	pending      bool
-	dirty        map[types.AreaID]struct{}
-	stopped      bool
-	runWG        sync.WaitGroup
-	afterFunc    func(time.Duration, func()) timerHandle
-	now          func() time.Time
+	lastGraphs map[types.AreaID]*Graph
+	// reachability retains immutable native SPF results from the same published
+	// run as lastBorder. Configuration changes invalidate new query snapshots.
+	reachability     ReachabilitySnapshot
+	configGeneration uint64
+	nextRun          uint64
+	publishedRun     uint64
+	onChange         func(RouteDelta)
+	postRun          func()
+	delay            time.Duration
+	hold             time.Duration
+	maxHold          time.Duration
+	currentDelay     time.Duration
+	lastTrigger      time.Time
+	timer            timerHandle
+	pending          bool
+	dirty            map[types.AreaID]struct{}
+	stopped          bool
+	runWG            sync.WaitGroup
+	afterFunc        func(time.Duration, func()) timerHandle
+	now              func() time.Time
 
 	state map[types.AreaID]spfState
 
-	// virtualLinks are the configured virtual links resolved against their transit
-	// area's SPF result each run (RFC 2328 sec 16.1). onVirtual fires with the resolved
-	// set when it changes (drives the engine's synthetic virtual interface); lastVirtual
-	// is the previous resolution, so an unchanged cost/reachability does not flap.
+	// virtualLinks are resolved against the transit area's SPF result each run.
+	// onVirtual also reconciles endpoint-address changes when the path is unchanged;
+	// lastVirtual retains the completed resolution for operational snapshots.
 	virtualLinks []VirtualLinkRequest
 	onVirtual    func([]VirtualNeighborResult)
 	lastVirtual  map[VirtualLinkRequest]VirtualNeighborResult
@@ -295,7 +301,10 @@ func (c *Computer) SetInstallSuppress(fn func() bool) { c.installer.setSuppress(
 // SetRoot updates the local Router ID used as the SPF root.
 func (c *Computer) SetRoot(root types.RouterID) {
 	c.mu.Lock()
-	c.root = root
+	if c.root != root {
+		c.root = root
+		c.configGeneration++
+	}
 	c.mu.Unlock()
 }
 
@@ -303,7 +312,10 @@ func (c *Computer) SetRoot(root types.RouterID) {
 // and the next Run withdraws previously installed routes.
 func (c *Computer) SetAreas(areas []types.AreaID) {
 	c.mu.Lock()
-	c.areas = append([]types.AreaID(nil), areas...)
+	if !slices.Equal(c.areas, areas) {
+		c.areas = append([]types.AreaID(nil), areas...)
+		c.configGeneration++
+	}
 	c.mu.Unlock()
 }
 
@@ -311,6 +323,10 @@ func (c *Computer) SetAreas(areas []types.AreaID) {
 func (c *Computer) SetAreaConfigs(configs []AreaConfig) {
 	options, ranges, policies := areaConfigMaps(configs)
 	c.mu.Lock()
+	if !maps.Equal(c.areaOptions, options) || !maps.Equal(c.areaPolicies, policies) ||
+		!maps.EqualFunc(c.areaRanges, ranges, func(a, b []AreaRange) bool { return slices.Equal(a, b) }) {
+		c.configGeneration++
+	}
 	c.areaOptions = options
 	c.areaRanges = ranges
 	c.areaPolicies = policies
@@ -327,14 +343,11 @@ func (c *Computer) SetOnChange(fn func(RouteDelta)) {
 	c.mu.Unlock()
 }
 
-// SetPostRun registers a read-only callback invoked after EVERY SPF run, AFTER the
-// Installer has applied the IP route delta. It is the seam Segment Routing uses to
-// (re)compute MPLS label entries that ride on top of the just-installed IP routes,
-// so an SR push can never be emitted before its underlying IP route exists
-// (spec-ospf-ext-5 R-8). Unlike SetOnChange it fires on every run, not only when the
-// route set changed, because a remote SR LSA change with an unchanged IP route table
-// must still be reflected. A nil callback disables it. The callback MUST NOT mutate
-// SPF state; it reads Routes()/Snapshot() only.
+// SetPostRun registers a read-only callback after each published SPF run and after
+// the Installer has applied its IP route delta. Segment Routing uses it to install
+// labels over the new IP routes; BGP-LS uses it to publish native reachability even
+// when no selected IP prefix changed. A nil callback disables it. The callback
+// MUST NOT mutate SPF state; it may use Routes, Snapshot and Reachability.
 func (c *Computer) SetPostRun(fn func()) {
 	c.mu.Lock()
 	c.postRun = fn
@@ -423,6 +436,8 @@ func (c *Computer) Run() RouteDelta {
 		return RouteDelta{}
 	}
 	root := c.root
+	c.nextRun++
+	runID, generation := c.nextRun, c.configGeneration
 	areas := append([]types.AreaID(nil), c.areas...)
 	virtualLinks := append([]VirtualLinkRequest(nil), c.virtualLinks...)
 	maxPaths := c.maxPaths
@@ -465,10 +480,14 @@ func (c *Computer) Run() RouteDelta {
 	// backbone Router-LSA carries the V-bit), treat the backbone as an active area so the
 	// endpoint participates as backbone-attached in the inter-area computation below.
 	virtualResults := resolveVirtualNeighbors(virtualLinks, results)
+	for i := range virtualResults {
+		virtualResults[i].NextHops = decorateNextHops(virtualResults[i].NextHops, c.resolver, maxPaths)
+	}
 	if len(virtualLinks) > 0 && rootVirtualBackboneAttached(results, root) {
 		activeAreas = canonicalAreas(append(activeAreas, types.BackboneArea))
 	}
-	inter, border := c.strategy.ComputeInterArea(InterAreaInput{Source: c.src, Root: root, Areas: activeAreas, Results: results, Ranges: areaRanges, Resolver: c.resolver, MaxPaths: maxPaths})
+	knownOrigins := make(map[types.RouterID]struct{})
+	inter, border := c.strategy.ComputeInterArea(InterAreaInput{Source: c.src, Root: root, Areas: activeAreas, Results: results, Ranges: areaRanges, Resolver: c.resolver, MaxPaths: maxPaths, knownOrigins: knownOrigins})
 	candidates = append(candidates, inter...)
 	// RFC 2328 sec 16.3: on a transit area (TransitCapability TRUE) re-examine its
 	// Summary-LSAs to IMPROVE already-reachable backbone routes and resolve the real
@@ -494,7 +513,7 @@ func (c *Computer) Run() RouteDelta {
 			nssaAreas = append(nssaAreas, area)
 		}
 	}
-	external := c.strategy.ComputeExternal(ExternalInput{Source: c.src, Root: root, BorderRouters: border, Routes: internal, Resolver: c.resolver, MaxPaths: maxPaths, NSSAAreas: nssaAreas, NSSAPolicies: areaPolicies, NSSABorderRouter: IsABR(activeAreas)})
+	external := c.strategy.ComputeExternal(ExternalInput{Source: c.src, Root: root, BorderRouters: border, Routes: candidates, Resolver: c.resolver, MaxPaths: maxPaths, NSSAAreas: nssaAreas, NSSAPolicies: areaPolicies, NSSABorderRouter: IsABR(activeAreas), knownOrigins: knownOrigins})
 	selected := selectBestRoutes(append(internal, external...), maxPaths)
 	// spec-ospf-ext-14: retain every candidate route (raw intra/inter + external, before
 	// the per-prefix collapse) so the read-only explain view can show what each winner beat.
@@ -521,7 +540,7 @@ func (c *Computer) Run() RouteDelta {
 	}
 
 	c.mu.Lock()
-	if c.stopped {
+	if c.stopped || runID < c.publishedRun || generation != c.configGeneration {
 		c.mu.Unlock()
 		return RouteDelta{}
 	}
@@ -531,6 +550,8 @@ func (c *Computer) Run() RouteDelta {
 	c.runs++
 	c.lastBorder = border
 	c.lastGraphs = graphs
+	c.publishedRun = runID
+	c.reachability = ReachabilitySnapshot{root: root, results: results, border: border, knownOrigins: knownOrigins, generation: generation}
 	c.summaryAreas = activeAreas
 	for area, st := range states {
 		st.Pending = c.pending
@@ -540,7 +561,7 @@ func (c *Computer) Run() RouteDelta {
 	}
 	onChange := c.onChange
 	postRun := c.postRun
-	onVirtual, virtualChanged := c.updateVirtualLocked(virtualResults)
+	onVirtual := c.updateVirtualLocked(virtualResults)
 	c.mu.Unlock()
 
 	// Redistribution producer trigger (OSPF -> BGP), outside the lock so the
@@ -555,10 +576,9 @@ func (c *Computer) Run() RouteDelta {
 	if postRun != nil {
 		postRun()
 	}
-	// Virtual-link resolution change (drives the engine's synthetic interface up/down and
-	// cost), outside the lock. Fires only when the resolved set changed, so an unchanged
-	// transit cost does not flap the virtual link (spec-ospf-ext-7 R-7).
-	if onVirtual != nil && virtualChanged {
+	// Endpoint address LSAs can change without changing transit cost or next
+	// hops. Let the engine reconcile them after every completed SPF.
+	if onVirtual != nil {
 		onVirtual(virtualResults)
 	}
 	return delta
@@ -571,13 +591,9 @@ func (c *Computer) Routes() []RouteEntry {
 	return append([]RouteEntry(nil), c.last...)
 }
 
-// RouterReachable reports whether an originating router is reachable in the last SPF
-// computation, for the RFC 5250 §5 Type-11 opaque-LSA reachability gate. It reuses the
-// reachability the SPF run already produced: the local root is always reachable; a border
-// router (ABR/ASBR) with a finite metric and a resolved next-hop is reachable (the same
-// ASBR reachability used to validate Type-5 AS-External LSAs); and any router that
-// originates an installed route is reachable. An unreachable originator's Type-11 opaque
-// LSAs must not be used (RFC 5250 §5).
+// RouterReachable reports native router reachability for the RFC 5250 Section 5
+// Type-11 opaque-LSA gate. A router can be reachable without originating a
+// selected IP prefix, so this uses the completed SPF graph and ASBR paths.
 func (c *Computer) RouterReachable(id types.RouterID) bool {
 	if id == (types.RouterID{}) {
 		return false
@@ -587,17 +603,7 @@ func (c *Computer) RouterReachable(id types.RouterID) bool {
 	if id == c.root {
 		return true
 	}
-	for _, b := range c.lastBorder {
-		if b.RouterID == id && b.Metric < LSInfinity && len(b.NextHops) > 0 {
-			return true
-		}
-	}
-	for _, r := range c.last {
-		if r.Origin == id && len(r.NextHops) > 0 {
-			return true
-		}
-	}
-	return false
+	return c.reachability.generation == c.configGeneration && c.reachability.RouterReachableAny(id)
 }
 
 // Snapshot returns the `show ospf route` snapshot.
@@ -660,6 +666,7 @@ func (c *Computer) Stop() {
 	c.installer.RemoveAll()
 	c.last = nil
 	c.lastBorder = nil
+	c.reachability = ReachabilitySnapshot{}
 	c.summaryAreas = nil
 	c.mu.Unlock()
 	c.runWG.Wait()

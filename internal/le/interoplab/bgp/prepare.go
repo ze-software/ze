@@ -47,7 +47,7 @@ environment {
 
 var containerRoles = []string{
 	"ze", peerFRR, peerBIRD, peerGoBGP, peerBMP, peerRPKI, peerInject, peerSpeaker,
-	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT,
+	peerSpeaker2, peerKeepalived, peerStayRTR, peerPMACCT, peerFRRTransit,
 }
 
 func scenarioPlans(root, producer, suffix string, sources []interoplab.ScenarioSource) ([]interoplab.ScenarioPlan, error) {
@@ -336,7 +336,15 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		peers = append(peers, interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
 			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
 	}
-	if path := filepath.Join(scenario, "frr.conf"); regularFile(path) {
+	for _, frr := range []struct {
+		name   string
+		config string
+		host   uint8
+	}{{peerFRR, "frr.conf", 3}, {peerFRRTransit, virtualLinkTransitConfig, 14}} {
+		path := filepath.Join(scenario, frr.config)
+		if !regularFile(path) {
+			continue
+		}
 		// The shared daemons file names which FRR daemons run and what each one
 		// is started with. A scenario needing a bgpd MODULE, `-M bmp` for one
 		// that drives ze's BMP receiver, carries its own copy rather than adding
@@ -345,7 +353,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		if scenarioDaemons := filepath.Join(scenario, "daemons"); regularFile(scenarioDaemons) {
 			daemons = scenarioDaemons
 		}
-		peers = append(peers, interoplab.PeerConfig{Name: peerFRR, Container: containerName(peerFRR, suffix), Image: peerFRR, Host: 3,
+		peers = append(peers, interoplab.PeerConfig{Name: frr.name, Container: containerName(frr.name, suffix), Image: peerFRR, Host: frr.host,
 			Mounts:       []interoplab.Mount{mount(path, "/etc/frr/frr.conf"), mount(daemons, "/etc/frr/daemons"), mount(filepath.Join(producer, "vtysh.conf"), "/etc/frr/vtysh.conf")},
 			Capabilities: []string{capabilityNetAdmin, "SYS_ADMIN"}, Arguments: ipv6Sysctls(), Ready: ready(cmdVtysh, "-c", "show version")})
 	}
@@ -361,7 +369,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		peers = append(peers, interoplab.PeerConfig{Name: peerGoBGP, Container: containerName(peerGoBGP, suffix), Image: peerGoBGP, Host: 5,
 			Mounts: []interoplab.Mount{mount(path, "/etc/gobgp/gobgp.toml")}, Capabilities: []string{capabilityNetAdmin}})
 	}
-	return peers, nil
+	return prepareVirtualLinkPeers(peers, scenario)
 }
 
 func ipv6Sysctls() []string {

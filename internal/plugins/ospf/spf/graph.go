@@ -63,6 +63,17 @@ type Graph struct {
 	Area     types.AreaID
 	Routers  map[types.RouterID]*RouterVertex
 	Networks map[types.LinkStateID]*NetworkVertex
+
+	// Advertisers observed in the native source input, including RI-only routers
+	// with no Router-LSA vertex. These sets are immutable after graph construction.
+	knownOrigins   map[types.RouterID]struct{}
+	knownASOrigins map[types.RouterID]struct{}
+	knownNetworks  map[networkOrigin]struct{}
+}
+
+type networkOrigin struct {
+	dr types.RouterID
+	id types.LinkStateID
 }
 
 // Source is the narrow LSDB read API SPF needs. The OSPF LSDB implements it;
@@ -81,6 +92,36 @@ func NewGraph(area types.AreaID) *Graph {
 	}
 }
 
+// ObserveSourceHeader records a live advertiser from the source used to build this
+// graph. Address-family builders call it before filtering for transit LSA types.
+// It must not be called on a published graph or its post-convergence clones.
+func (g *Graph) ObserveSourceHeader(h packet.LSAHeader) {
+	if h.Age.IsMaxAge() || h.AdvertisingRouter == (types.RouterID{}) || h.Type.LinkLocal() {
+		return
+	}
+	if h.Type.ASWide() || h.Type == types.LSTypeOpaqueAS {
+		if g.knownASOrigins == nil {
+			g.knownASOrigins = make(map[types.RouterID]struct{})
+		}
+		g.knownASOrigins[h.AdvertisingRouter] = struct{}{}
+		return
+	}
+	if g.knownOrigins == nil {
+		g.knownOrigins = make(map[types.RouterID]struct{})
+	}
+	g.knownOrigins[h.AdvertisingRouter] = struct{}{}
+}
+
+// ObserveNetwork records the exact identity of a successfully decoded Network-LSA,
+// before graph-key selection can replace another advertiser of the same v2 LAN ID.
+// The ID is the native LSA ID, never the synthetic OSPFv3 graph key.
+func (g *Graph) ObserveNetwork(dr types.RouterID, id types.LinkStateID) {
+	if g.knownNetworks == nil {
+		g.knownNetworks = make(map[networkOrigin]struct{})
+	}
+	g.knownNetworks[networkOrigin{dr: dr, id: id}] = struct{}{}
+}
+
 // BuildGraph reads one area's LSDB once and decodes only Router-LSAs and
 // Network-LSAs. A malformed LSA excludes that vertex, not the whole run.
 func BuildGraph(src Source, area types.AreaID) *Graph {
@@ -89,6 +130,7 @@ func BuildGraph(src Source, area types.AreaID) *Graph {
 		return g
 	}
 	for _, h := range src.Summary(area) {
+		g.ObserveSourceHeader(h)
 		if h.Age.IsMaxAge() {
 			continue
 		}
@@ -114,6 +156,7 @@ func BuildGraph(src Source, area types.AreaID) *Graph {
 			if err != nil {
 				continue
 			}
+			g.ObserveNetwork(h.AdvertisingRouter, h.LinkStateID)
 			attached := make([]types.RouterID, len(body.AttachedRouters))
 			copy(attached, body.AttachedRouters)
 			g.Networks[h.LinkStateID] = &NetworkVertex{
@@ -133,8 +176,12 @@ func BuildGraph(src Source, area types.AreaID) *Graph {
 // their per-vertex Links / AttachedRouters slices are copied, so a subsequent
 // excludeLink / excludeRouter mutation for a TI-LFA post-convergence SPF never
 // touches the live graph the Computer retains.
+// Immutable source-origin membership is shared with the clone.
 func (g *Graph) Clone() *Graph {
 	out := NewGraph(g.Area)
+	out.knownOrigins = g.knownOrigins
+	out.knownASOrigins = g.knownASOrigins
+	out.knownNetworks = g.knownNetworks
 	for id, r := range g.Routers {
 		if r == nil {
 			continue

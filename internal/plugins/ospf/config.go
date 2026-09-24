@@ -273,10 +273,11 @@ func (r routerInformationConfig) HasScope(s OpaqueScope) bool {
 }
 
 type redistributeConfig struct {
-	Source     string
-	Metric     uint32
-	MetricType string
-	Tag        uint32
+	Source        string
+	Metric        uint32
+	MetricType    string
+	Tag           uint32
+	NSSAPropagate bool
 }
 
 type rangeConfig struct {
@@ -1247,6 +1248,8 @@ func parseRedistribute(entry listEntry) redistributeConfig {
 	if v, ok := configUint32(entry.data["tag"]); ok {
 		r.Tag = v
 	}
+	// RFC 3101 Appendix D: "Without configuration, the default setting of the P-bit is clear."
+	r.NSSAPropagate = configBool(entry.data["nssa-propagate"], false)
 	return r
 }
 

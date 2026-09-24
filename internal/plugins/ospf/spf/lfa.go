@@ -390,13 +390,14 @@ func neighborLinks(g *Graph, root types.RouterID, nh NextHopSource, resolver Int
 			if !twoWayRouterLink(g, root, nb) {
 				continue
 			}
-			addr, ok := nh.P2PNextHop(g, nb, root)
+			hop, ok := nh.P2PNextHop(g, nb, root, l)
 			if !ok {
 				continue
 			}
 			out = append(out, candLink{
 				neighbor:    nb,
-				addr:        addr,
+				addr:        hop.Addr,
+				iface:       hop.Interface,
 				forwardCost: uint64(l.Metric),
 				reverseCost: reverseP2PCost(g, nb, root),
 			})
@@ -410,13 +411,14 @@ func neighborLinks(g *Graph, root types.RouterID, nh NextHopSource, resolver Int
 				if other == root || !twoWayRouterNetworkLink(g, other, nw) {
 					continue
 				}
-				addr, ok := nh.TransitNextHop(g, other, nw)
+				hop, ok := nh.TransitNextHop(g, other, root, l)
 				if !ok {
 					continue
 				}
 				out = append(out, candLink{
 					neighbor:    other,
-					addr:        addr,
+					addr:        hop.Addr,
+					iface:       hop.Interface,
 					forwardCost: uint64(l.Metric),
 					reverseCost: reverseTransitCost(g, other, nw),
 					broadcast:   true,
@@ -427,6 +429,9 @@ func neighborLinks(g *Graph, root types.RouterID, nh NextHopSource, resolver Int
 	}
 	if resolver != nil {
 		for i := range out {
+			if out[i].iface != "" {
+				continue
+			}
 			if iface, ok := resolver.ResolveInterface(out[i].addr); ok {
 				out[i].iface = iface
 			}

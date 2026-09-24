@@ -105,7 +105,7 @@ func (e *engine) applyNSSADefaults() {
 	// dispatch: an OSPFv3 engine that reached the OSPFv2 producer would key its default 0x0007,
 	// which RFC 5340 Appendix A.4.2.1 reads as function code 7 at link-local flooding scope
 	// rather than the NSSA-LSA (0x2007), so the NSSA's internal routers would see no default.
-	var originate func(area types.AreaID, metric uint32, propagate bool) bool
+	var originate func(area types.AreaID, type2 bool, metric, tag uint32, propagate bool) bool
 	var purge func(area types.AreaID) bool
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		nssas, _ := e.externalScopeV6For(cfg, running, activeIfaces)
@@ -115,8 +115,8 @@ func (e *engine) applyNSSADefaults() {
 			hasFA[n.area] = n.hasFA
 			scope[n.area] = n
 		}
-		originate = func(area types.AreaID, metric uint32, propagate bool) bool {
-			return e.v6OriginateNSSADefault(area, self, metric, scope[area].fa, scope[area].hasFA, propagate)
+		originate = func(area types.AreaID, type2 bool, metric, tag uint32, propagate bool) bool {
+			return e.v6OriginateNSSALSA(area, self, v6NSSADefaultLSID, ospfv3packet.Prefix{}, type2, metric, scope[area].fa, scope[area].hasFA, tag, propagate)
 		}
 		purge = func(area types.AreaID) bool {
 			return db.PurgeNSSAKey(area, v6NSSAKey(self, v6NSSADefaultLSID))
@@ -129,8 +129,8 @@ func (e *engine) applyNSSADefaults() {
 			hasFA[n.area] = n.fa != ([4]byte{})
 			faByArea[n.area] = n.fa
 		}
-		originate = func(area types.AreaID, metric uint32, propagate bool) bool {
-			_, c := db.OriginateNSSA(area, self, [4]byte{}, [4]byte{}, false, metric, faByArea[area], 0, propagate)
+		originate = func(area types.AreaID, type2 bool, metric, tag uint32, propagate bool) bool {
+			_, c := db.OriginateNSSA(area, self, [4]byte{}, [4]byte{}, type2, metric, faByArea[area], tag, propagate)
 			return c
 		}
 		purge = func(area types.AreaID) bool {
@@ -139,14 +139,28 @@ func (e *engine) applyNSSADefaults() {
 	}
 	desired := make(map[types.AreaID]struct{}, len(cfg.Areas))
 	changed := false
+	defaultPrefix, _ := e.defaultRoute()
+	imported, hasImport := e.externalImports[defaultPrefix]
 	for _, a := range cfg.Areas {
 		if a.AreaType != types.AreaTypeNSSA || !attached[a.AreaID] {
 			continue
 		}
 		wantType7 := wantsType7Default(isABR, a.NoSummary, a.NSSADefaultOriginate, hasFA[a.AreaID])
+		type2, metric, tag := false, a.DefaultCost, uint32(0)
+		propagate := !isABR
+		if !isABR {
+			if hasImport {
+				type2, metric, tag = externalParams(cfg, imported.source, imported.tag)
+				propagate = externalPropagate(cfg, imported.source, false)
+				wantType7 = !a.NoSummary
+				if propagate {
+					wantType7 = wantType7 && hasFA[a.AreaID]
+				}
+			}
+		}
 		if wantType7 {
 			desired[a.AreaID] = struct{}{}
-			if originate(a.AreaID, a.DefaultCost, !isABR) {
+			if originate(a.AreaID, type2, metric, tag, propagate) {
 				changed = true
 			}
 		} else if purge(a.AreaID) {

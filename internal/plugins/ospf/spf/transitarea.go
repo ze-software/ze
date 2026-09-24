@@ -13,6 +13,7 @@ package spf
 
 import (
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -32,9 +33,12 @@ type VirtualLinkRequest struct {
 type VirtualNeighborResult struct {
 	TransitArea types.AreaID
 	Neighbor    types.RouterID
-	Reachable   bool
-	Cost        uint64
-	NextHops    []NextHop
+	// Address is the OSPFv2 endpoint's own address on the shortest transit path.
+	// OSPFv3 resolves its global endpoint from Intra-Area-Prefix-LSAs separately.
+	Address   netip.Addr
+	Reachable bool
+	Cost      uint64
+	NextHops  []NextHop
 }
 
 // SetVirtualLinks configures the virtual links resolved each SPF run against their transit
@@ -42,13 +46,16 @@ type VirtualNeighborResult struct {
 // behavior).
 func (c *Computer) SetVirtualLinks(reqs []VirtualLinkRequest) {
 	c.mu.Lock()
-	c.virtualLinks = append([]VirtualLinkRequest(nil), reqs...)
+	if !slices.Equal(c.virtualLinks, reqs) {
+		c.virtualLinks = append([]VirtualLinkRequest(nil), reqs...)
+		c.configGeneration++
+	}
 	c.mu.Unlock()
 }
 
-// SetOnVirtualLinks registers a callback invoked after an SPF run whose resolved virtual
-// neighbor set changed (reachability, cost, or next hops). It drives the engine's synthetic
-// virtual interface up/down and its cost; a nil callback disables it.
+// SetOnVirtualLinks registers a callback invoked after each completed SPF run.
+// The engine also resolves endpoint addresses from LSAs, so unchanged transit
+// paths still require reconciliation. A nil callback disables notification.
 func (c *Computer) SetOnVirtualLinks(fn func([]VirtualNeighborResult)) {
 	c.mu.Lock()
 	c.onVirtual = fn
@@ -75,7 +82,55 @@ func resolveVirtualNeighbor(res *Result, neighbor types.RouterID) VirtualNeighbo
 	out.Reachable = true
 	out.Cost = nr.Metric
 	out.NextHops = append([]NextHop(nil), nr.NextHops...)
+	if nr.NextHops[0].Addr.Is4() {
+		out.Address = virtualEndpointAddress(res, neighbor)
+		out.Reachable = out.Address.IsValid()
+	}
 	return out
+}
+
+// virtualEndpointAddress derives the far endpoint from its reciprocal link on
+// a shortest path. The first next hop belongs to an intermediate router on a
+// multi-hop transit path and cannot be used as the OSPF packet destination.
+// RFC 2328 Section 16.1: "the virtual neighbor's IP address is set to
+// Router X's interface address (contained in Router X's router-LSA) that
+// points back to the root of the shortest-path tree".
+func virtualEndpointAddress(res *Result, neighbor types.RouterID) netip.Addr {
+	distance := res.Nodes[routerVertex(neighbor)].Metric
+	var address netip.Addr
+	for _, link := range res.Graph.Routers[neighbor].Links {
+		onPath := false
+		switch link.Type {
+		case packet.RouterLinkTypeP2P:
+			parent := res.Nodes[routerVertex(types.RouterID(link.LinkID))]
+			router := res.Graph.Routers[types.RouterID(link.LinkID)]
+			if parent == nil || router == nil {
+				continue
+			}
+			for _, reverse := range router.Links {
+				if reverse.Type == packet.RouterLinkTypeP2P && reverse.LinkID == types.LinkStateID(neighbor) {
+					if parent.Metric+uint64(reverse.Metric) == distance {
+						onPath = true
+						break
+					}
+				}
+			}
+		case packet.RouterLinkTypeTransit:
+			parent := res.Nodes[networkVertex(link.LinkID)]
+			onPath = parent != nil && parent.Metric == distance
+		}
+		if !onPath {
+			continue
+		}
+		candidate := netip.AddrFrom4(link.LinkData)
+		if !candidate.IsGlobalUnicast() {
+			continue
+		}
+		if !address.IsValid() || candidate.Less(address) {
+			address = candidate
+		}
+	}
+	return address
 }
 
 // TransitCapability reports RFC 2328 Section 16.3 TransitCapability for an area: TRUE iff
@@ -110,32 +165,15 @@ func resolveVirtualNeighbors(reqs []VirtualLinkRequest, results map[types.AreaID
 	return out
 }
 
-// updateVirtualLocked replaces the cached resolution with the new one and returns the
-// callback plus whether anything changed. It runs under c.mu.
-func (c *Computer) updateVirtualLocked(results []VirtualNeighborResult) (func([]VirtualNeighborResult), bool) {
+// updateVirtualLocked replaces the cached resolution and returns the callback.
+// It runs under c.mu.
+func (c *Computer) updateVirtualLocked(results []VirtualNeighborResult) func([]VirtualNeighborResult) {
 	next := make(map[VirtualLinkRequest]VirtualNeighborResult, len(results))
-	changed := len(results) != len(c.lastVirtual)
 	for _, vr := range results {
-		key := VirtualLinkRequest{TransitArea: vr.TransitArea, Neighbor: vr.Neighbor}
-		next[key] = vr
-		if prev, ok := c.lastVirtual[key]; !ok || !virtualResultEqual(prev, vr) {
-			changed = true
-		}
+		next[VirtualLinkRequest{TransitArea: vr.TransitArea, Neighbor: vr.Neighbor}] = vr
 	}
 	c.lastVirtual = next
-	return c.onVirtual, changed
-}
-
-func virtualResultEqual(a, b VirtualNeighborResult) bool {
-	if a.Reachable != b.Reachable || a.Cost != b.Cost || len(a.NextHops) != len(b.NextHops) {
-		return false
-	}
-	for i := range a.NextHops {
-		if a.NextHops[i] != b.NextHops[i] {
-			return false
-		}
-	}
-	return true
+	return c.onVirtual
 }
 
 // rootVirtualBackboneAttached reports RFC 5340 Section 3.5 backbone attachment: the local

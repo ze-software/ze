@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5340",
+  "records": [
+    {
+      "rid": "RFC5340-A.4.8-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress",
+      "unit-sha": "5c2c0322be771194",
+      "claim-sha": "8661064ed72e168d",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/origination_v6_nssa.go::v6OriginateNSSALSA",
+      "producer-sha": "b5f8dda8f28cab22",
+      "break": "line 131: \"!hasFA\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC5340-A.4.8-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress",
+      "unit-sha": "5c2c0322be771194",
+      "claim-sha": "c041b8570b1f8b7b",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/origination_v6_nssa.go::v6OriginateNSSALSA",
+      "producer-sha": "b5f8dda8f28cab22",
+      "break": "line 136: \"propagate\" -\u003e \"false\""
+    }
+  ]
+}

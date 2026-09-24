@@ -20,12 +20,12 @@ func TestOSPFNSSAPBitBoundaryPolicy(t *testing.T) {
 	mask := ip4("255.255.255.0")
 	fa := ip4("10.0.0.9")
 
-	// P=1 with a zero forwarding address -> P cleared (RFC 3101 §2.3).
-	// RFC requirement: RFC3101-2.4-2 negative -- a P=1 request with a zero forwarding address
-	// originates a Type-7 with the P-bit forced clear (a P=1 Type-7 needs a non-zero FA).
-	h, _ := db.OriginateNSSA(a, self, ip4("203.0.113.0"), mask, true, 20, [4]byte{}, 0, true)
-	if h.Options.Has(types.OptionNP) {
-		t.Fatalf("AC-12: P-bit set despite a zero forwarding address")
+	// RFC requirement: RFC3101-2.4-2 negative -- a requested P-set route with
+	// no forwarding address is not originated, as Section 2.3 requires.
+	db.OriginateNSSA(a, self, ip4("203.0.113.0"), mask, true, 20, [4]byte{}, 0, true)
+	key := types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID(ip4("203.0.113.0")), AdvertisingRouter: self}
+	if _, exists := db.LookupLSA(a, key); exists {
+		t.Fatal("P-set route with no forwarding address was originated")
 	}
 
 	// P=1 with a non-zero forwarding address and no Type 5 -> P set.
@@ -33,7 +33,7 @@ func TestOSPFNSSAPBitBoundaryPolicy(t *testing.T) {
 	// address keeps the P-bit set.
 	// RFC requirement: RFC3101-2.4-3 positive -- with no self Type-5 for the network, a P=1
 	// Type-7 keeps the P-bit set.
-	h, _ = db.OriginateNSSA(a, self, ip4("203.0.113.16"), mask, true, 20, fa, 0, true)
+	h, _ := db.OriginateNSSA(a, self, ip4("203.0.113.16"), mask, true, 20, fa, 0, true)
 	if !h.Options.Has(types.OptionNP) {
 		t.Fatalf("AC-12: P-bit clear despite a non-zero forwarding address and no Type 5")
 	}

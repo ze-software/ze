@@ -10,12 +10,21 @@ import (
 	"net/netip"
 	"sort"
 
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 var errEngineNotReady = errors.New("ospf: engine not ready for external origination")
+
+// externalImport retains the source policy and originated NSSA scopes until
+// withdrawal. The redistribution table bounds this state. Guarded by nssaMu.
+type externalImport struct {
+	source string
+	tag    uint32
+	areas  []types.AreaID
+}
 
 // InjectExternal implements ospfredistribute.ExternalInjector: it originates a Type
 // 5 AS-External-LSA for prefix learned from source, applying the per-source metric /
@@ -30,6 +39,14 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uin
 	if prefix.IsValid() && prefix.Bits() == 0 {
 		return e.injectDefaultExternal(prefix, source, routeTag)
 	}
+	e.nssaMu.Lock()
+	defer e.nssaMu.Unlock()
+	return e.injectExternalLocked(prefix, source, routeTag)
+}
+
+// injectExternalLocked MUST be called with nssaMu held, including replay after
+// an interface or source-policy change.
+func (e *engine) injectExternalLocked(prefix netip.Prefix, source string, routeTag uint32) error {
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.v6InjectExternal(prefix, source, routeTag)
 	}
@@ -48,19 +65,24 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uin
 	network := prefix.Addr().As4()
 	mask := maskBytes(prefix.Bits())
 	nssas, canType5 := e.externalScope()
-	// RFC 3101 sec 2: a redistributed route is advertised as a Type 7 inside each
-	// attached NSSA (Type 5 is blocked there). The P (propagate) bit is set only when
-	// this router cannot inject a Type 5 directly AND it has a non-zero intra-NSSA
-	// forwarding address -- a P=1 Type 7 with a zero FA is not translatable.
+	areas := make([]types.AreaID, 0, len(nssas))
+	propagate := externalPropagate(cfg, source, canType5)
+	changed := false
+	if !canType5 {
+		changed = db.PurgeExternal(cfg.RouterID, network)
+	}
 	for _, n := range nssas {
-		propagate := !canType5 && n.fa != ([4]byte{})
-		db.OriginateNSSA(n.area, cfg.RouterID, network, mask, type2, metric, n.fa, tag, propagate)
+		areas = append(areas, n.area)
+		if _, originated := db.OriginateNSSA(n.area, cfg.RouterID, network, mask, type2, metric, n.fa, tag, propagate); originated {
+			changed = true
+		}
 	}
 	// RFC 2328 sec 12.4.4: a Type 5 (Forwarding Address 0.0.0.0, forward via this ASBR)
 	// is originated AS-wide when this router can inject it directly (normal/backbone
 	// attachment, or no NSSA attachment at all).
 	if canType5 {
-		if _, _, err := db.OriginateExternal(cfg.RouterID, network, mask, types.OptionE, type2, metric, [4]byte{}, tag); err != nil {
+		_, originated, err := db.OriginateExternal(cfg.RouterID, network, mask, types.OptionE, type2, metric, [4]byte{}, tag)
+		if err != nil {
 			// The Type 5 was not installed (AS-external store full). Drop any redistribute
 			// claim for this network and surface the failure so the consumer logs it and
 			// does NOT count the route as injected (ze_ospf_redist_injected_total).
@@ -69,6 +91,7 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uin
 			e.mu.Unlock()
 			return err
 		}
+		changed = changed || originated
 	}
 	// Record (or clear) the redistribute claim on this Type 5 key so the NSSA translator
 	// does not also translate/purge a network this router already redistributes (RFC 3101
@@ -80,8 +103,14 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uin
 		delete(e.redistExternals, network)
 	}
 	e.mu.Unlock()
-	e.originateSelfLSAs()
-	e.refreshExternalMetrics(db, cfg.RouterID)
+	if e.rememberExternalImport(prefix, source, routeTag, areas,
+		types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID(network), AdvertisingRouter: cfg.RouterID}) {
+		changed = true
+	}
+	if changed {
+		e.originateSelfLSAs()
+		e.refreshExternalMetrics(db, cfg.RouterID)
+	}
 	return nil
 }
 
@@ -98,14 +127,83 @@ type nssaAttachment struct {
 // (it can flood Type 5 into a non-stub/non-NSSA area) OR has no NSSA attachment at all
 // (plain ASBR behavior, preserved for routers with no NSSA areas).
 func (e *engine) externalScope() ([]nssaAttachment, bool) {
+	cfg, running := e.externalInterfaces()
+	return e.externalScopeFor(cfg, running, nil)
+}
+
+// externalInterfaces excludes Down interfaces even while their configured
+// runtime remains in running. Passive interfaces still advertise stub networks.
+func (e *engine) externalInterfaces() (ospfConfig, []interfaceConfig) {
 	e.mu.Lock()
-	cfg := e.cfg
+	defer e.mu.Unlock()
 	running := make([]interfaceConfig, 0, len(e.running))
 	for _, ic := range e.running {
+		if !ic.Passive {
+			if rt := e.interfaces[ic.Name]; rt != nil {
+				if rt.State() == ospfiface.StateDown {
+					continue
+				}
+			}
+		}
 		running = append(running, ic)
 	}
-	e.mu.Unlock()
-	return e.externalScopeFor(cfg, running, nil)
+	return e.cfg, running
+}
+
+// externalPropagate implements RFC 3101 Appendix D's explicit, P-clear-default
+// source policy. A Type-5 twin takes precedence over the operator's P-bit request.
+func externalPropagate(cfg ospfConfig, source string, canType5 bool) bool {
+	if canType5 {
+		return false
+	}
+	for _, rule := range cfg.Redistribute {
+		if rule.Source == source {
+			return rule.NSSAPropagate
+		}
+	}
+	return false
+}
+
+// rememberExternalImport MUST run under nssaMu. Its caller has originated the
+// current scopes; this removes copies in NSSAs no longer attached.
+func (e *engine) rememberExternalImport(prefix netip.Prefix, source string, tag uint32, areas []types.AreaID, key types.LSAKey) bool {
+	changed := false
+	for _, previous := range e.externalImports[prefix].areas {
+		found := false
+		for _, area := range areas {
+			if area == previous {
+				found = true
+				break
+			}
+		}
+		if !found {
+			if e.lsdb.PurgeNSSAKey(previous, key) {
+				changed = true
+			}
+		}
+	}
+	if e.externalImports == nil {
+		e.externalImports = make(map[netip.Prefix]externalImport)
+	}
+	e.externalImports[prefix] = externalImport{source: source, tag: tag, areas: areas}
+	return changed
+}
+
+// reconcileExternalImports MUST serialize with injection and withdrawal under
+// nssaMu. Replaying retained intents also retries a MinLSInterval-delayed update.
+func (e *engine) reconcileExternalImports() {
+	e.nssaMu.Lock()
+	for prefix, imported := range e.externalImports {
+		if prefix.Bits() == 0 {
+			continue // The default coordinator owns its Type-5 and Type-7 copies.
+		}
+		if err := e.injectExternalLocked(prefix, imported.source, imported.tag); err != nil {
+			e.log.Warn("OSPF external re-origination failed", "prefix", prefix, "error", err)
+		}
+	}
+	e.nssaMu.Unlock()
+	e.applyDefaultInformation()
+	e.applyNSSADefaults()
 }
 
 func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, activeIfaces map[string]bool) (nssas []nssaAttachment, canType5 bool) {
@@ -133,7 +231,15 @@ func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, act
 			attachedNormal = true
 		}
 	}
-	return nssas, attachedNormal || len(nssas) == 0
+	if attachedNormal {
+		return nssas, true
+	}
+	for _, area := range cfg.Areas {
+		if area.AreaType == types.AreaTypeNSSA {
+			return nssas, false
+		}
+	}
+	return nssas, len(nssas) == 0
 }
 
 // nssaIPv4Address is this router's OSPFv2 Type-7 forwarding address on name: its IPv4
@@ -160,6 +266,8 @@ func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
 	if prefix.IsValid() && prefix.Bits() == 0 {
 		return e.withdrawDefaultExternal(prefix)
 	}
+	e.nssaMu.Lock()
+	defer e.nssaMu.Unlock()
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.v6WithdrawExternal(prefix)
 	}
@@ -178,13 +286,12 @@ func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
 	delete(e.redistExternals, network)
 	e.mu.Unlock()
 	removed := db.PurgeExternal(cfg.RouterID, network)
-	// Purge the Type 7 from every attached NSSA the inject may have originated into.
-	nssas, _ := e.externalScope()
-	for _, n := range nssas {
-		if db.PurgeNSSA(n.area, cfg.RouterID, network) {
+	for _, area := range e.externalImports[prefix].areas {
+		if db.PurgeNSSA(area, cfg.RouterID, network) {
 			removed = true
 		}
 	}
+	delete(e.externalImports, prefix)
 	if removed {
 		e.originateSelfLSAs()
 		e.refreshExternalMetrics(db, cfg.RouterID)

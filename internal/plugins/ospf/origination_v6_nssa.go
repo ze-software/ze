@@ -43,13 +43,7 @@ func (e *engine) forwardingAddressForAF(name string) ([16]byte, bool) {
 }
 
 func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
-	e.mu.Lock()
-	cfg := e.cfg
-	running := make([]interfaceConfig, 0, len(e.running))
-	for _, ic := range e.running {
-		running = append(running, ic)
-	}
-	e.mu.Unlock()
+	cfg, running := e.externalInterfaces()
 	return e.externalScopeV6For(cfg, running, nil)
 }
 
@@ -88,7 +82,15 @@ func (e *engine) externalScopeV6For(cfg ospfConfig, running []interfaceConfig, a
 			attachedNormal = true
 		}
 	}
-	return nssas, attachedNormal || len(nssas) == 0
+	if attachedNormal {
+		return nssas, true
+	}
+	for _, area := range cfg.Areas {
+		if area.AreaType == types.AreaTypeNSSA {
+			return nssas, false
+		}
+	}
+	return nssas, len(nssas) == 0
 }
 
 func v6NSSAKey(router types.RouterID, lsid types.LinkStateID) types.LSAKey {
@@ -124,10 +126,10 @@ func (e *engine) v6OriginateNSSALSA(area types.AreaID, router types.RouterID, ls
 	// for OSPFv3, requires a non-zero Forwarding Address, and is cleared when a
 	// local Type-5 twin already advertises this LSID into the AS-wide store.
 	if propagate {
-		if !hasFA {
+		if lsa, ok := e.lsdb.LookupLSA(types.BackboneArea, v6ExternalKey(router, lsid)); ok && !lsa.Header.Age.IsMaxAge() {
 			propagate = false
-		} else if lsa, ok := e.lsdb.LookupLSA(types.BackboneArea, v6ExternalKey(router, lsid)); ok && !lsa.Header.Age.IsMaxAge() {
-			propagate = false
+		} else if !hasFA {
+			return e.lsdb.PurgeNSSAKey(area, v6NSSAKey(router, lsid))
 		}
 	}
 	bodyPrefix := prefix

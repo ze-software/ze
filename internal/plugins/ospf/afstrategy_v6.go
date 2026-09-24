@@ -64,6 +64,7 @@ func (v6Strategy) BuildGraph(src ospfspf.Source, area types.AreaID) *ospfspf.Gra
 	netID := make(map[v6NetKey]types.LinkStateID)
 	var counter uint32
 	for _, h := range headers {
+		g.ObserveSourceHeader(h)
 		if h.Age.IsMaxAge() || ospfv3types.LSType(h.Type) != ospfv3types.LSTypeNetwork {
 			continue
 		}
@@ -79,6 +80,7 @@ func (v6Strategy) BuildGraph(src ospfspf.Source, area types.AreaID) *ospfspf.Gra
 		if err != nil {
 			continue
 		}
+		g.ObserveNetwork(h.AdvertisingRouter, h.LinkStateID)
 		attached := make([]types.RouterID, len(body.AttachedRouters))
 		for i, r := range body.AttachedRouters {
 			attached[i] = types.RouterID(r)
@@ -124,15 +126,18 @@ func (v6Strategy) BuildGraph(src ospfspf.Source, area types.AreaID) *ospfspf.Gra
 // Network vertex's synthetic graph ID via (NeighborRouterID, NeighborInterfaceID) (RFC 5340
 // App A.4.3) -- a transit link whose Network-LSA is absent is dropped (the network is not yet
 // reachable). The two-way check and Dijkstra then run unchanged on the shared graph.
+// Graph-only LinkData preserves the local Interface ID for scoped adjacency lookup;
+// it is not an IPv4 address and is never written back into an OSPFv3 packet.
 func v6RouterLinks(in []ospfv3packet.RouterLink, netID map[v6NetKey]types.LinkStateID) []packet.RouterLink {
 	out := make([]packet.RouterLink, 0, len(in))
 	for _, l := range in {
 		switch l.Type {
 		case ospfv3packet.RouterLinkTypeP2P:
 			out = append(out, packet.RouterLink{
-				Type:   packet.RouterLinkTypeP2P,
-				LinkID: types.LinkStateID(l.NeighborRouterID),
-				Metric: types.Metric(l.Metric),
+				Type:     packet.RouterLinkTypeP2P,
+				LinkID:   types.LinkStateID(l.NeighborRouterID),
+				LinkData: [4]byte(v6SummaryLSID(uint32(l.InterfaceID))),
+				Metric:   types.Metric(l.Metric),
 			})
 		case ospfv3packet.RouterLinkTypeVirtual:
 			// RFC 5340 App A.4.3: a virtual link keys the neighbor by its Router ID, exactly
@@ -141,9 +146,10 @@ func v6RouterLinks(in []ospfv3packet.RouterLink, netID map[v6NetKey]types.LinkSt
 			// router vertex. The virtual next hop (transit-area next hop) is resolved in the
 			// RFC 2328 sec 16.3 transit-area pass, not here.
 			out = append(out, packet.RouterLink{
-				Type:   packet.RouterLinkTypeVirtual,
-				LinkID: types.LinkStateID(l.NeighborRouterID),
-				Metric: types.Metric(l.Metric),
+				Type:     packet.RouterLinkTypeVirtual,
+				LinkID:   types.LinkStateID(l.NeighborRouterID),
+				LinkData: [4]byte(v6SummaryLSID(uint32(l.InterfaceID))),
+				Metric:   types.Metric(l.Metric),
 			})
 		case ospfv3packet.RouterLinkTypeTransit:
 			syn, ok := netID[v6NetKey{dr: types.RouterID(l.NeighborRouterID), ifaceID: uint32(l.NeighborInterfaceID)}]
@@ -151,9 +157,10 @@ func v6RouterLinks(in []ospfv3packet.RouterLink, netID map[v6NetKey]types.LinkSt
 				continue
 			}
 			out = append(out, packet.RouterLink{
-				Type:   packet.RouterLinkTypeTransit,
-				LinkID: syn,
-				Metric: types.Metric(l.Metric),
+				Type:     packet.RouterLinkTypeTransit,
+				LinkID:   syn,
+				LinkData: [4]byte(v6SummaryLSID(uint32(l.InterfaceID))),
+				Metric:   types.Metric(l.Metric),
 			})
 		}
 	}
@@ -421,36 +428,39 @@ func (s v6Strategy) OriginateSummaries(in ospfspf.SummaryInput) ospfspf.SummaryO
 	return s.eng.v6OriginateSummaries(in)
 }
 
-// NextHopSource resolves the OSPFv3 next-hop: the neighbor's IPv6 link-local from
-// the adjacency table (RFC 5340 sec 3.8.1 -- v3 next-hops come from the adjacency,
-// not the LSA, which is address-free).
+// NextHopSource resolves OSPFv3 next hops from the adjacency on the exact
+// local interface advertised in the root Router-LSA.
 func (s v6Strategy) NextHopSource() ospfspf.NextHopSource {
 	if s.eng == nil {
 		return v6NextHop{}
 	}
-	// Read the engine's current neighbor table: NextHopSource is invoked per SPF run,
-	// after the table is established, so the read is fresh (not a stale capture).
 	return v6NextHop{neighbors: s.eng.neighbors}
 }
 
-// v6NextHop resolves the next-hop to a directly-reached OSPFv3 neighbor by looking up
-// its link-local in the adjacency table by Router ID.
 type v6NextHop struct {
 	neighbors *ospfneighbor.Table
 }
 
-func (n v6NextHop) P2PNextHop(_ *ospfspf.Graph, neighbor, _ types.RouterID) (netip.Addr, bool) {
-	if n.neighbors == nil {
-		return netip.Addr{}, false
-	}
-	return n.neighbors.AddressOf(neighbor)
+func (n v6NextHop) P2PNextHop(g *ospfspf.Graph, neighbor, root types.RouterID, link packet.RouterLink) (ospfspf.NextHop, bool) {
+	return n.onLink(g, neighbor, root, link)
 }
 
-func (n v6NextHop) TransitNextHop(_ *ospfspf.Graph, router types.RouterID, _ types.LinkStateID) (netip.Addr, bool) {
-	if n.neighbors == nil {
-		return netip.Addr{}, false
+func (n v6NextHop) TransitNextHop(g *ospfspf.Graph, router, root types.RouterID, link packet.RouterLink) (ospfspf.NextHop, bool) {
+	return n.onLink(g, router, root, link)
+}
+
+func (n v6NextHop) onLink(g *ospfspf.Graph, router, root types.RouterID, link packet.RouterLink) (ospfspf.NextHop, bool) {
+	if n.neighbors == nil || g == nil {
+		return ospfspf.NextHop{}, false
 	}
-	return n.neighbors.AddressOf(router)
+	localID := v6LSIDToUint32(types.LinkStateID(link.LinkData))
+	addr, iface, ok := n.neighbors.NextHopOnLink(g.Area, root, localID, router)
+	if link.Type == packet.RouterLinkTypeVirtual {
+		// A synthetic virtual interface cannot be installed in the FIB. Its global
+		// endpoint is recursively resolved through the transit area's physical route.
+		iface = ""
+	}
+	return ospfspf.NextHop{Addr: addr, Interface: iface, Router: router}, ok
 }
 
 // SummaryReader supplies the OSPFv3 inter-area summary decode for the RFC 2328 sec 16.3

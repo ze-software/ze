@@ -109,9 +109,9 @@ func interfaceMTU(name string) uint16 {
 	return 1500
 }
 
-// interfaceIndex returns the OS ifindex for an interface, the value the engine uses as
-// the OSPFv3 Interface ID (RFC 5340 sec 3.4.3) in both the Hello and the Router-LSA so
-// the two agree. It returns 0 when the interface is not found (OSPFv2 ignores it).
+// interfaceIndex returns the live OS ifindex, the default OSPFv3 Interface ID
+// (RFC 5340 sec 3.4.3). grInterfaceID substitutes a restored protocol ID after a
+// graceful restart. It returns 0 when the interface is not found.
 func interfaceIndex(name string) uint32 {
 	infos, err := ifcomp.ListInterfaces()
 	if err != nil {

@@ -5,6 +5,7 @@ package neighbor
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -160,6 +161,12 @@ func (t *Table) hello(in HelloInput) (eventEmission, string) {
 		n.hasLastDD = false
 		return t.setStateLocked(n, stateInit), ""
 	}
+	return t.twoWayReceivedLocked(cfg, n), ""
+}
+
+// RFC 2328 Sections 10.3 and 10.6: a DD received in Init supplies the same
+// 2-WayReceived event as a Hello that lists this router.
+func (t *Table) twoWayReceivedLocked(cfg InterfaceConfig, n *Neighbor) eventEmission {
 	t.recordNeighborEventLocked(n, "2-way-received")
 	if n.State == stateInit {
 		t.setStateLocked(n, stateTwoWay)
@@ -167,9 +174,9 @@ func (t *Table) hello(in HelloInput) (eventEmission, string) {
 	if shouldAdj(cfg, n) && n.State == stateTwoWay {
 		t.startExchangeLocked(cfg, n)
 		t.sendInitialDDLocked(cfg, n)
-		return t.setStateLocked(n, stateExStart), ""
+		return t.setStateLocked(n, stateExStart)
 	}
-	return eventEmission{}, ""
+	return eventEmission{}
 }
 
 func (t *Table) AdjOK(interfaceName string, dr, bdr types.RouterID) {
@@ -354,20 +361,21 @@ func (t *Table) Lookup(interfaceName string, id types.RouterID) (Snapshot, bool)
 	return snapshotOf(n, t.now()), true
 }
 
-// AddressOf returns the reachable source address of the neighbor with the given
-// Router ID (any interface), used as the OSPFv3 SPF next-hop (the neighbor's IPv6
-// link-local). Only adjacencies at Exchange or beyond have a usable address. On a
-// point-to-point link a Router ID appears on a single interface, so the first match
-// is unambiguous.
-func (t *Table) AddressOf(id types.RouterID) (netip.Addr, bool) {
+// NextHopOnLink resolves a Full adjacency on the advertised local OSPFv3
+// interface. Link-local addresses and Router IDs can both repeat across links.
+func (t *Table) NextHopOnLink(area types.AreaID, root types.RouterID, localID uint32, id types.RouterID) (netip.Addr, string, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	for key, n := range t.neighbors {
-		if key.router == id && n.State >= stateExchange && n.Address.IsValid() {
-			return n.Address, true
+	for name, cfg := range t.cfg {
+		if cfg.AreaID != area || cfg.RouterID != root || cfg.InterfaceID != localID {
+			continue
+		}
+		n := t.neighbors[tableKey{iface: name, router: id}]
+		if n != nil && n.State == stateFull && n.Address.IsValid() {
+			return n.Address.WithZone(""), name, true
 		}
 	}
-	return netip.Addr{}, false
+	return netip.Addr{}, "", false
 }
 
 // NeighborAddress returns the raw reachable source address of the neighbor identified by
@@ -457,6 +465,13 @@ func (t *Table) startExchangeLocked(cfg InterfaceConfig, n *Neighbor) {
 
 func (t *Table) databaseSummaryLocked(cfg InterfaceConfig) []packet.LSAHeader {
 	out := t.lsdb.Summary(cfg.AreaID)
+	// RFC 5250 Section 3.2: "AS External and type-11 Opaque LSAs MUST be
+	// omitted from a virtual neighbor's Database summary list."
+	if cfg.NetworkType == types.NetworkVirtual {
+		out = slices.DeleteFunc(out, func(h packet.LSAHeader) bool {
+			return h.Type.ASExternal() || h.Type == types.LSTypeOpaqueAS
+		})
+	}
 	linkDB, ok := t.lsdb.(linkScopeLSDB)
 	if !ok {
 		return out

@@ -3,7 +3,7 @@
 
 FROM alpine:3.21
 
-RUN apk add --no-cache bird tini
+RUN apk add --no-cache bird iproute2 tini
 
 ENTRYPOINT ["tini", "--", "bird"]
 CMD ["-f", "-c", "/etc/bird/bird.conf"]

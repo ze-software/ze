@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -16,14 +17,14 @@ import (
 // are AF-neutral; only the next-hop addresses differ by family.
 type v6NHSeam struct{ addrs map[types.RouterID]netip.Addr }
 
-func (s v6NHSeam) P2PNextHop(_ *Graph, neighbor, _ types.RouterID) (netip.Addr, bool) {
+func (s v6NHSeam) P2PNextHop(_ *Graph, neighbor, _ types.RouterID, _ packet.RouterLink) (NextHop, bool) {
 	a, ok := s.addrs[neighbor]
-	return a, ok
+	return NextHop{Addr: a, Router: neighbor}, ok
 }
 
-func (s v6NHSeam) TransitNextHop(_ *Graph, router types.RouterID, _ types.LinkStateID) (netip.Addr, bool) {
+func (s v6NHSeam) TransitNextHop(_ *Graph, router, _ types.RouterID, _ packet.RouterLink) (NextHop, bool) {
 	a, ok := s.addrs[router]
-	return a, ok
+	return NextHop{Addr: a, Router: router}, ok
 }
 
 func TestLFAv6NextHopSelection(t *testing.T) {

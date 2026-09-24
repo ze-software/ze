@@ -16,7 +16,7 @@ import (
 // the OSPFv2 and OSPFv3 families share it.
 func shouldAdj(cfg InterfaceConfig, n *Neighbor) bool {
 	switch cfg.NetworkType {
-	case types.NetworkPointToPoint, types.NetworkPointToMultipoint:
+	case types.NetworkPointToPoint, types.NetworkPointToMultipoint, types.NetworkVirtual:
 		return true
 	case types.NetworkBroadcast, types.NetworkNBMA, "":
 		return cfg.RouterID == cfg.LocalDR || cfg.RouterID == cfg.LocalBDR || n.RouterID == cfg.LocalDR || n.RouterID == cfg.LocalBDR

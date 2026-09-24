@@ -29,13 +29,32 @@ func TestVirtualNeighborResolvedFromTransitSPF(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	neighbor := testRID(t, "9.9.9.9")
 	nh := netip.MustParseAddr("10.1.0.2")
-	res := resultWithRouter(transit, root, neighbor, 30, nh, 0)
+	src := testSource(t, transit,
+		routerLSA(t, "1.1.1.1", p2pLink(t, "9.9.9.9", "10.1.0.1", 30)),
+		routerLSA(t, "9.9.9.9", p2pLink(t, "1.1.1.1", "10.1.0.2", 30)),
+	)
+	res := Compute(BuildGraph(src, transit), root, DefaultMaxPaths)
 	vr := resolveVirtualNeighbor(res, neighbor)
 	if !vr.Reachable || vr.Cost != 30 {
 		t.Fatalf("resolve = %+v, want reachable cost 30", vr)
 	}
 	if len(vr.NextHops) != 1 || vr.NextHops[0].Addr != nh {
 		t.Fatalf("next hops = %+v, want [%s]", vr.NextHops, nh)
+	}
+}
+
+func TestVirtualEndpointDiffersFromTransitNextHop(t *testing.T) {
+	transit := areaID(t, "0.0.0.1")
+	src := testSource(t, transit,
+		routerLSA(t, "1.1.1.1", p2pLink(t, "2.2.2.2", "10.0.0.1", 10)),
+		routerLSA(t, "2.2.2.2", p2pLink(t, "1.1.1.1", "10.0.0.2", 10), p2pLink(t, "9.9.9.9", "10.0.1.2", 20)),
+		routerLSA(t, "9.9.9.9", p2pLink(t, "2.2.2.2", "10.0.1.9", 20)),
+	)
+	res := Compute(BuildGraph(src, transit), testRID(t, "1.1.1.1"), DefaultMaxPaths)
+	neighbor := resolveVirtualNeighbor(res, testRID(t, "9.9.9.9"))
+	if !neighbor.Reachable || neighbor.Cost != 30 || neighbor.Address != netip.MustParseAddr("10.0.1.9") ||
+		len(neighbor.NextHops) != 1 || neighbor.NextHops[0].Addr != netip.MustParseAddr("10.0.0.2") {
+		t.Fatalf("multi-hop virtual endpoint = %+v", neighbor)
 	}
 }
 
@@ -124,30 +143,6 @@ func TestTransitAreaPassOnlyImprovesReachable(t *testing.T) {
 	}
 	if added {
 		t.Fatalf("transit pass added an unreachable destination (violates improve-only)")
-	}
-}
-
-func TestVirtualLinkCostUpdateNoFlap(t *testing.T) {
-	c := NewComputer(Config{})
-	transit := areaID(t, "0.0.0.1")
-	neighbor := testRID(t, "9.9.9.9")
-	vr := VirtualNeighborResult{TransitArea: transit, Neighbor: neighbor, Reachable: true, Cost: 10, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.1.0.2")}}}
-	if _, changed := c.updateVirtualLocked([]VirtualNeighborResult{vr}); !changed {
-		t.Fatalf("first resolution should register as changed")
-	}
-	if _, changed := c.updateVirtualLocked([]VirtualNeighborResult{vr}); changed {
-		t.Fatalf("an unchanged resolution flapped the virtual link")
-	}
-}
-
-func TestVirtualLinkCostTracksTransitTopology(t *testing.T) {
-	c := NewComputer(Config{})
-	transit := areaID(t, "0.0.0.1")
-	neighbor := testRID(t, "9.9.9.9")
-	nh := []NextHop{{Addr: netip.MustParseAddr("10.1.0.2")}}
-	c.updateVirtualLocked([]VirtualNeighborResult{{TransitArea: transit, Neighbor: neighbor, Reachable: true, Cost: 10, NextHops: nh}})
-	if _, changed := c.updateVirtualLocked([]VirtualNeighborResult{{TransitArea: transit, Neighbor: neighbor, Reachable: true, Cost: 20, NextHops: nh}}); !changed {
-		t.Fatalf("a transit cost change must update the virtual link")
 	}
 }
 

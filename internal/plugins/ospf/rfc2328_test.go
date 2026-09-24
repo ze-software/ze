@@ -49,6 +49,7 @@ func TestRFC2328VirtualInterfaceHasNoMTU(t *testing.T) {
 
 	eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
 		TransitArea: transit, Neighbor: peer, Reachable: true, Cost: 10,
+		Address:  netip.MustParseAddr("192.0.2.2"),
 		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
 	}})
 	vlname := virtualLinkName(virtualLinkKey{transit: transit, neighbor: peer})

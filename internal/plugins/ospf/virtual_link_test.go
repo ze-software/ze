@@ -7,7 +7,9 @@ package ospf
 import (
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
@@ -110,6 +112,7 @@ func TestVirtualLinkResolutionDrivesRuntime(t *testing.T) {
 
 	e.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
 		TransitArea: transit, Neighbor: neighbor, Reachable: true, Cost: 42,
+		Address:  netip.MustParseAddr("10.1.0.2"),
 		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("10.1.0.2"), Interface: "eth1"}},
 	}})
 	e.mu.Lock()
@@ -224,77 +227,149 @@ func vlDecodeRouter(t *testing.T, db *ospflsdb.LSDB, area types.AreaID, rid type
 	return body
 }
 
+type vlRoutedPacket struct {
+	egress  string
+	dst     netip.Addr
+	payload []byte
+}
+
+type vlRoutedTransport struct {
+	Transport
+	mu      sync.Mutex
+	packets []vlRoutedPacket
+}
+
+func (r *vlRoutedTransport) SendPacketRouted(egress string, dst, _ netip.Addr, payload []byte) error {
+	r.mu.Lock()
+	r.packets = append(r.packets, vlRoutedPacket{egress: egress, dst: dst, payload: append([]byte(nil), payload...)})
+	r.mu.Unlock()
+	return nil
+}
+
 // VALIDATES: spec-ospf-ext-7 AC-6 -- an OSPFv2 virtual link reaches Full over routed IP: a
 // backbone Hello + DD exchange from the virtual neighbor, arriving on the TRANSIT ifindex,
 // is demuxed to the synthetic virtual interface and drives its NSM to Full, after which the
 // backbone Router-LSA carries the Type-4 virtual record and the transit-area Router-LSA
 // carries the V-bit.
 func TestVirtualLinkAdjacencyReachesFull(t *testing.T) {
-	const j = `{"ospf":{"router-id":"10.0.0.1",
+	synctest.Test(t, func(t *testing.T) {
+		const j = `{"ospf":{"router-id":"10.0.0.1",
 		"areas":{"area":{
 			"0.0.0.0":{"area-id":"0.0.0.0"},
 			"0.0.0.1":{"area-id":"0.0.0.1","virtual-link":{"10.0.0.2":{}}}}},
 		"interfaces":{"interface":{
 			"eth0":{"area":"0.0.0.1","network-type":"point-to-point"},
 			"lo":{"area":"0.0.0.0","network-type":"loopback"}}}}}`
-	eng, fb := vlEngine(t, j)
-	defer eng.shutdown()
-	ifindex := vlIfindex(t, fb, "eth0")
-
-	self := vlRID(t, "10.0.0.1")
-	peer := vlRID(t, "10.0.0.2")
-	transit := vlArea(t, "0.0.0.1")
-	backbone := types.BackboneArea
-
-	// The transit-area SPF resolved the virtual neighbor reachable: bring the link up.
-	eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
-		TransitArea: transit, Neighbor: peer, Reachable: true, Cost: 10,
-		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
-	}})
-	vlname := virtualLinkName(virtualLinkKey{transit: transit, neighbor: peer})
-
-	// A backbone Hello + DD from the virtual neighbor, arriving on the transit ifindex.
-	dispatchVirtualHello(t, eng, ifindex, peer, backbone, netip.MustParseAddr("192.0.2.2"), self)
-	dispatchDBDesc(t, eng, ifindex, peer, backbone, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7})
-	dispatchDBDesc(t, eng, ifindex, peer, backbone, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagMaster, DDSequence: 8})
-
-	full := false
-	for _, row := range eng.neighborSnapshot() {
-		snap, ok := row.(ospfneighbor.Snapshot)
-		if ok && snap.Interface == vlname && snap.RouterID == "10.0.0.2" && snap.State == ospflsdb.NeighborStateFull {
-			full = true
+		cfg, err := parseOSPFConfig(ospfSec(j), nil)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	if !full {
-		t.Fatalf("virtual neighbor did not reach Full on %s: %+v", vlname, eng.neighborSnapshot())
-	}
-
-	// The FSM reached Full. Feed the engine's live topology (now carrying the Full virtual
-	// neighbor) through a fresh, unthrottled LSDB to assert origination content -- the
-	// engine LSDB's RFC 2328 MinLSInterval reorigination throttle (fixed 5s) would otherwise
-	// defer the update past the sub-second test.
-	topo := eng.lsdbTopology()
-	db := ospflsdb.New(func() time.Time { return time.Unix(0, 0) })
-	db.SetTopology(func() []ospflsdb.InterfaceInfo { return topo })
-	db.OriginateFromTopology(self, false)
-
-	bb := vlDecodeRouter(t, db, backbone, self)
-	if bb.Flags&packet.RouterFlagV != 0 {
-		t.Fatalf("backbone Router-LSA must NOT carry the V-bit (it belongs to the transit area): flags = %#x", bb.Flags)
-	}
-	found := false
-	for _, l := range bb.Links {
-		if l.Type == packet.RouterLinkTypeVirtual && l.LinkID == types.LinkStateID(peer) {
-			found = true
+		fb := &fakeBackend{}
+		tx := &vlRoutedTransport{Transport: transport.New(fb)}
+		eng := newEngine(tx)
+		// This fixture supplies transit resolution rather than a transit SPF graph.
+		eng.spf.Stop()
+		eng.setConfig(cfg)
+		if err := eng.openInterfaces(); err != nil {
+			t.Fatal(err)
 		}
-	}
-	if !found {
-		t.Fatalf("backbone Router-LSA missing the Type-4 virtual record: %+v", bb.Links)
-	}
-	tr := vlDecodeRouter(t, db, transit, self)
-	if tr.Flags&packet.RouterFlagV == 0 {
-		t.Fatalf("transit-area Router-LSA must carry the V-bit: flags = %#x", tr.Flags)
-	}
+		defer eng.shutdown()
+		ifindex := vlIfindex(t, fb, "eth0")
+
+		self := vlRID(t, "10.0.0.1")
+		peer := vlRID(t, "10.0.0.2")
+		transit := vlArea(t, "0.0.0.1")
+		backbone := types.BackboneArea
+
+		// The transit-area SPF resolved the virtual neighbor reachable: bring the link up.
+		eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
+			TransitArea: transit, Neighbor: peer, Reachable: true, Cost: 10,
+			Address:  netip.MustParseAddr("192.0.2.2"),
+			NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
+		}})
+		vlname := virtualLinkName(virtualLinkKey{transit: transit, neighbor: peer})
+
+		// A backbone Hello + DD from the virtual neighbor, arriving on the transit ifindex.
+		dispatchVirtualHello(t, eng, ifindex, peer, backbone, netip.MustParseAddr("192.0.2.2"), self)
+		dispatchDBDesc(t, eng, ifindex, peer, backbone, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7})
+		dispatchDBDesc(t, eng, ifindex, peer, backbone, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagMaster, DDSequence: 8})
+
+		full := false
+		for _, row := range eng.neighborSnapshot() {
+			snap, ok := row.(ospfneighbor.Snapshot)
+			if ok && snap.Interface == vlname && snap.RouterID == "10.0.0.2" && snap.State == ospflsdb.NeighborStateFull {
+				full = true
+			}
+		}
+		if !full {
+			t.Fatalf("virtual neighbor did not reach Full on %s: %+v", vlname, eng.neighborSnapshot())
+		}
+
+		// Let the production worker publish after MinLSInterval. A fresh LSDB would
+		// miss the routed flooding path that must deliver this update to the peer.
+		time.Sleep(6 * time.Second)
+		synctest.Wait()
+		bb := vlDecodeRouter(t, eng.lsdb, backbone, self)
+		if bb.Flags&packet.RouterFlagV != 0 {
+			t.Fatalf("backbone Router-LSA must NOT carry the V-bit (it belongs to the transit area): flags = %#x", bb.Flags)
+		}
+		found := false
+		for _, l := range bb.Links {
+			if l.Type == packet.RouterLinkTypeVirtual && l.LinkID == types.LinkStateID(peer) {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("backbone Router-LSA missing the Type-4 virtual record: %+v", bb.Links)
+		}
+		tr := vlDecodeRouter(t, eng.lsdb, transit, self)
+		if tr.Flags&packet.RouterFlagV == 0 {
+			t.Fatalf("transit-area Router-LSA must carry the V-bit: flags = %#x", tr.Flags)
+		}
+
+		// AS-external flooding must remain on physical interfaces, even though the
+		// virtual backbone adjacency can carry Router-LSA updates (RFC 2328 §13.3).
+		if _, originated, err := eng.lsdb.OriginateExternal(self, [4]byte{203, 0, 113, 0}, [4]byte{255, 255, 255, 0}, types.OptionE, false, 10, [4]byte{}, 0); err != nil || !originated {
+			t.Fatalf("originate external LSA: originated=%v err=%v", originated, err)
+		}
+
+		tx.mu.Lock()
+		packets := tx.packets
+		tx.mu.Unlock()
+		flooded := false
+		for _, sent := range packets {
+			p, err := packet.DecodePacket(sent.payload)
+			if err != nil {
+				t.Fatalf("decode routed packet: %v", err)
+			}
+			if p.Header.AreaID != backbone || p.LSUpdate == nil {
+				continue
+			}
+			for _, lsa := range p.LSUpdate.LSAs {
+				if lsa.Header.Type == types.LSTypeASExternal {
+					t.Fatal("AS-external LSA flooded over the virtual link")
+				}
+				if lsa.Header.Type != types.LSTypeRouter || lsa.Header.AdvertisingRouter != self {
+					continue
+				}
+				router, err := packet.DecodeRouterLSA(lsa.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, link := range router.Links {
+					if link.Type == packet.RouterLinkTypeVirtual && link.LinkID == types.LinkStateID(peer) {
+						if sent.egress != "eth0" || sent.dst != netip.MustParseAddr("192.0.2.2") {
+							t.Fatalf("virtual Router-LSA flooded via %s to %s", sent.egress, sent.dst)
+						}
+						flooded = true
+					}
+				}
+			}
+		}
+		if !flooded {
+			t.Fatal("peer received no routed backbone Router-LSA with the Full virtual edge")
+		}
+	})
 }
 
 // VALIDATES: spec-ospf-ext-7 R-9 -- a backbone packet from the virtual neighbor on the
@@ -316,6 +391,7 @@ func TestVirtualLinkPacketDemux(t *testing.T) {
 	transit := vlArea(t, "0.0.0.1")
 	eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
 		TransitArea: transit, Neighbor: peer, Reachable: true, Cost: 10,
+		Address:  netip.MustParseAddr("192.0.2.2"),
 		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
 	}})
 	vlname := virtualLinkName(virtualLinkKey{transit: transit, neighbor: peer})
@@ -368,6 +444,7 @@ func TestVirtualLinkUsesTransitAreaAuth(t *testing.T) {
 	// signed with eth0's chain -- the transit area's kc1.
 	eng.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
 		TransitArea: transit, Neighbor: peer, Reachable: true, Cost: 10,
+		Address:  netip.MustParseAddr("192.0.2.2"),
 		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
 	}})
 	eng.mu.Lock()
@@ -400,6 +477,9 @@ func installV6IntraPrefix(t *testing.T, db *ospflsdb.LSDB, area types.AreaID, ro
 	p, ok := netipToV6Prefix(netip.MustParsePrefix(cidr), 0)
 	if !ok {
 		t.Fatalf("netipToV6Prefix(%s)", cidr)
+	}
+	if p.Length == ospfv3types.MaxPrefixLength {
+		p.Options |= ospfv3types.OptPrefixLA
 	}
 	body := ospfv3packet.IntraAreaPrefixLSA{
 		ReferencedLSType:    ospfv3types.LSTypeRouter,
@@ -507,6 +587,9 @@ func TestV6VirtualAdjacencyReachesFull(t *testing.T) {
 	}
 	fb := &fakeBackend{}
 	eng := newEngineWithCodecAF(transport.New(fb), v6Codec{}, afIPv6Unicast)
+	// This fixture supplies transit resolution below; it does not advertise a
+	// transit Router-LSA graph for the asynchronous SPF timer to recompute.
+	eng.spf.Stop()
 	eng.setConfig(cfg)
 	if err := eng.openInterfaces(); err != nil {
 		t.Fatalf("openInterfaces: %v", err)
@@ -598,5 +681,121 @@ func TestNoVirtualLinkBehaviorUnchanged(t *testing.T) {
 	e.configureVirtualLinks(cfg)
 	if got := e.virtualLinkTopology(); len(got) != 0 {
 		t.Fatalf("virtualLinkTopology after empty config = %+v, want empty", got)
+	}
+}
+
+func TestV6VirtualEndpointRequiresAddressPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prefix  string
+		options ospfv3types.PrefixOptions
+	}{
+		{"subnet-with-LA", "2001:db8:1::/64", ospfv3types.OptPrefixLA},
+		{"host-without-LA", "2001:db8:1::1/128", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newV6OriginEngine()
+			area, self := vlArea(t, "0.0.0.1"), vlRID(t, "10.0.0.1")
+			prefix, ok := netipToV6Prefix(netip.MustParsePrefix(tc.prefix), 0)
+			if !ok {
+				t.Fatal("invalid fixture prefix")
+			}
+			prefix.Options = tc.options
+			e.v6OriginateIntraAreaPrefix(area, self, []ospfv3packet.Prefix{prefix})
+			if address, ok := v6RouterGlobalAddr(e.lsdb, area, self); ok {
+				t.Fatalf("non-address prefix became a virtual endpoint: %s", address)
+			}
+		})
+	}
+}
+
+func TestV6VirtualEndpointHostAdvertisedOnTransitInterface(t *testing.T) {
+	e := newV6OriginEngine()
+	area, self := vlArea(t, "0.0.0.1"), vlRID(t, "10.0.0.1")
+	address := netip.MustParseAddr("2001:db8:1::123")
+	iface := ospflsdb.InterfaceInfo{
+		Name: "transit", AreaID: area, NetworkType: types.NetworkBroadcast,
+		State: ospflsdb.InterfaceStateDR, IPv6Addresses: []netip.Addr{address},
+	}
+	prefixes := v6AddVirtualEndpoint(nil, []ospflsdb.InterfaceInfo{iface})
+	e.v6OriginateIntraAreaPrefix(area, self, prefixes)
+	if got, ok := v6RouterGlobalAddr(e.lsdb, area, self); !ok || got != address {
+		t.Fatalf("originated virtual endpoint = %s, present=%v, want %s", got, ok, address)
+	}
+	iface.State = ospflsdb.InterfaceStateDown
+	if got := v6AddVirtualEndpoint(nil, []ospflsdb.InterfaceInfo{iface}); len(got) != 0 {
+		t.Fatal("down transit interface still supplied a virtual endpoint")
+	}
+}
+
+func TestV6VirtualEndpointAddressLifecycle(t *testing.T) {
+	e := newEngineWithCodecAF(nil, v6Codec{}, afIPv6Unicast)
+	e.spf.Stop()
+	t.Cleanup(e.shutdown)
+	area, self, peer := vlArea(t, "0.0.0.1"), vlRID(t, "10.0.0.1"), vlRID(t, "10.0.0.2")
+	cfg := defaultOSPFConfig()
+	cfg.RouterID = self
+	cfg.VirtualLinks = []virtualLinkConfig{{TransitArea: area, RemoteRouterID: peer}}
+	e.cfg = cfg
+	e.configureVirtualLinks(cfg)
+	installV6IntraPrefix(t, e.lsdb, area, self, "2001:db8:1::1/128")
+	result := []ospfspf.VirtualNeighborResult{{
+		TransitArea: area, Neighbor: peer, Reachable: true, Cost: 10,
+		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("fe80::2"), Interface: "eth0"}},
+	}}
+	runtime := e.virtualLinks[virtualLinkKey{transit: area, neighbor: peer}]
+	e.onVirtualLinksResolved(result)
+	if runtime.reachable || runtime.iface != nil {
+		t.Fatal("virtual interface started before the peer endpoint address arrived")
+	}
+	installV6IntraPrefix(t, e.lsdb, area, peer, "2001:db8:2::2/128")
+	e.onVirtualLinksResolved(result)
+	original := runtime.iface
+	if !runtime.reachable || original == nil {
+		t.Fatal("unchanged transit path did not accept the newly learned endpoint")
+	}
+	e.onVirtualLinksResolved(result)
+	if runtime.iface != original {
+		t.Fatal("unchanged endpoint and path replaced the virtual interface")
+	}
+	result[0].Cost = 77
+	e.onVirtualLinksResolved(result)
+	if runtime.iface != original || original.Snapshot().Cost != 77 {
+		t.Fatal("transit cost update failed to reprice the existing interface")
+	}
+	if !e.lsdb.Delete(area, v6IntraAreaPrefixKey(peer)) {
+		t.Fatal("peer address LSA missing")
+	}
+	e.onVirtualLinksResolved(result)
+	if runtime.reachable || runtime.iface != nil || runtime.neighborAddr.IsValid() {
+		t.Fatal("withdrawn endpoint left a usable virtual interface")
+	}
+}
+
+func TestVirtualLinkRemovalStopsSyntheticInterface(t *testing.T) {
+	e := newEngine(nil)
+	e.spf.Stop()
+	t.Cleanup(e.shutdown)
+	area, self, peer := vlArea(t, "0.0.0.1"), vlRID(t, "10.0.0.1"), vlRID(t, "10.0.0.2")
+	cfg := defaultOSPFConfig()
+	cfg.RouterID = self
+	cfg.VirtualLinks = []virtualLinkConfig{{TransitArea: area, RemoteRouterID: peer}}
+	e.cfg = cfg
+	e.configureVirtualLinks(cfg)
+	e.onVirtualLinksResolved([]ospfspf.VirtualNeighborResult{{
+		TransitArea: area, Neighbor: peer, Reachable: true, Cost: 10,
+		Address:  netip.MustParseAddr("192.0.2.2"),
+		NextHops: []ospfspf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2"), Interface: "eth0"}},
+	}})
+	key := virtualLinkKey{transit: area, neighbor: peer}
+	runtime := e.virtualLinks[key]
+	if runtime.iface == nil {
+		t.Fatal("virtual interface did not start")
+	}
+	original := runtime.iface
+	cfg.VirtualLinks = nil
+	e.configureVirtualLinks(cfg)
+	if original.State().String() != ospflsdb.InterfaceStateDown || e.interfaces[runtime.name] != nil {
+		t.Fatal("removed virtual link retained its synthetic interface")
 	}
 }

@@ -8,7 +8,12 @@ package ospf
 import (
 	"net/netip"
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/locrib"
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
+	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -221,7 +226,7 @@ func TestOSPFv6ComputeExternalNSSA(t *testing.T) {
 		Source:        src,
 		Root:          types.RouterID{1, 1, 1, 1},
 		NSSAAreas:     []types.AreaID{nssaArea},
-		BorderRouters: []ospfspf.BorderRouterEntry{{RouterID: asbr, Kind: ospfspf.BorderRouterASBR, Metric: 10, NextHops: []ospfspf.NextHop{{Addr: nh}}}},
+		BorderRouters: []ospfspf.BorderRouterEntry{{RouterID: asbr, AreaID: nssaArea, Kind: ospfspf.BorderRouterASBR, Metric: 10, NextHops: []ospfspf.NextHop{{Addr: nh}}}},
 	}
 
 	routes := v6Strategy{}.ComputeExternal(in)
@@ -378,7 +383,7 @@ func TestIPv4OverV3NextHop(t *testing.T) {
 		t.Error("v6NextHop is not bound to the engine's neighbor table")
 	}
 	// An unknown neighbor resolves to no next-hop (no adjacency yet).
-	if _, ok := nh.P2PNextHop(nil, types.RouterID{9, 9, 9, 9}, types.RouterID{}); ok {
+	if _, ok := nh.P2PNextHop(nil, types.RouterID{9, 9, 9, 9}, types.RouterID{}, packet.RouterLink{}); ok {
 		t.Error("resolved a next-hop for an unknown neighbor")
 	}
 }
@@ -574,4 +579,140 @@ func TestOSPFv6InstallNetworkReferencedPrefix(t *testing.T) {
 	if len(route.NextHops) != 1 || route.NextHops[0].Addr != nh {
 		t.Fatalf("next-hops = %+v, want %s", route.NextHops, nh)
 	}
+}
+
+func TestV6NativeSPFRepeatedLinkLocalInterfaces(t *testing.T) {
+	t.Run("point-to-point", func(t *testing.T) { testV6NativeScopedSPF(t, false) })
+	t.Run("broadcast", func(t *testing.T) { testV6NativeScopedSPF(t, true) })
+}
+
+func testV6NativeScopedSPF(t *testing.T, broadcast bool) {
+	t.Helper()
+	e := newV6OriginEngine()
+	e.af = afIPv6Unicast
+	e.neighbors = ospfneighbor.NewTable(ospfneighbor.NopMetrics())
+	e.neighbors.SetSender(nopNbrSender{})
+	area := types.BackboneArea
+	self := types.RouterID{1, 1, 1, 1}
+	second, third := types.RouterID{2, 2, 2, 2}, types.RouterID{3, 3, 3, 3}
+	linkLocal := netip.MustParseAddr("fe80::1")
+	links := []struct {
+		name          string
+		local, remote uint32
+		peer          types.RouterID
+	}{
+		{"eth0", 11, 21, second},
+		{"eth1", 12, 31, third},
+		{"eth2", 13, 22, second},
+	}
+	connect := func(index int) {
+		t.Helper()
+		link := links[index]
+		cfg := neighborInterfaceConfig(ospfiface.Config{
+			Name: link.name, AreaID: area, RouterID: self,
+			NetworkType: types.NetworkPointToPoint, InterfaceID: link.local,
+			InterfaceMTU: 1500, DeadInterval: 40,
+		}, false)
+		if broadcast {
+			cfg.NetworkType = types.NetworkBroadcast
+			cfg.LocalDR = link.peer
+		}
+		e.neighbors.ConfigureInterface(cfg)
+		if reason := e.neighbors.Hello(ospfneighbor.HelloInput{
+			InterfaceName: link.name, AreaID: area, LocalRouterID: self,
+			NeighborID: link.peer, Address: linkLocal, InterfaceID: link.remote,
+			TwoWay: true, Now: time.Unix(1, 0),
+		}); reason != "" {
+			t.Fatalf("%s Hello: %s", link.name, reason)
+		}
+		for _, dd := range []packet.DBDesc{
+			{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7},
+			{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagMaster, DDSequence: 8},
+		} {
+			if reason := e.neighbors.HandleDBDesc(link.name, link.peer, dd); reason != "" {
+				t.Fatalf("%s DD: %s", link.name, reason)
+			}
+		}
+		if row, ok := e.neighbors.Lookup(link.name, link.peer); !ok || row.State != neighborStateFull {
+			t.Fatalf("%s adjacency did not reach Full: %+v", link.name, row)
+		}
+	}
+	routerLinks := make(map[types.RouterID][]ospfv3packet.RouterLink)
+	for i, link := range links {
+		connect(i)
+		forward := ospfv3packet.RouterLink{
+			Type: ospfv3packet.RouterLinkTypeP2P, Metric: 10,
+			InterfaceID: ospfv3types.InterfaceID(link.local), NeighborInterfaceID: ospfv3types.InterfaceID(link.remote),
+			NeighborRouterID: ospfv3types.RouterID(link.peer),
+		}
+		reverse := ospfv3packet.RouterLink{
+			Type: ospfv3packet.RouterLinkTypeP2P, Metric: 10,
+			InterfaceID: ospfv3types.InterfaceID(link.remote), NeighborInterfaceID: ospfv3types.InterfaceID(link.local),
+			NeighborRouterID: ospfv3types.RouterID(self),
+		}
+		if broadcast {
+			forward.Type = ospfv3packet.RouterLinkTypeTransit
+			reverse.Type = ospfv3packet.RouterLinkTypeTransit
+			reverse.NeighborRouterID = ospfv3types.RouterID(link.peer)
+			reverse.NeighborInterfaceID = ospfv3types.InterfaceID(link.remote)
+			network := v6SelfLSA(ospfv3packet.LSA{
+				Header: v6OriginHeader(ospfv3types.LSTypeNetwork, ospfv3types.LinkStateID(v6SummaryLSID(link.remote)), link.peer, types.InitialSequenceNumber, false),
+				Network: &ospfv3packet.NetworkLSA{
+					Options:         ospfv3types.OptV6 | ospfv3types.OptR,
+					AttachedRouters: []ospfv3types.RouterID{ospfv3types.RouterID(self), ospfv3types.RouterID(link.peer)},
+				},
+			})
+			if !e.lsdb.Install(area, network) {
+				t.Fatalf("install Network-LSA on %s", link.name)
+			}
+		}
+		routerLinks[self] = append(routerLinks[self], forward)
+		routerLinks[link.peer] = append(routerLinks[link.peer], reverse)
+	}
+	for router, entries := range routerLinks {
+		lsa := v6SelfLSA(ospfv3packet.LSA{
+			Header: v6OriginHeader(ospfv3types.LSTypeRouter, ospfv3types.LinkStateID{}, router, types.InitialSequenceNumber, false),
+			Router: &ospfv3packet.RouterLSA{Options: ospfv3types.OptV6 | ospfv3types.OptR, Links: entries},
+		})
+		if !e.lsdb.Install(area, lsa) {
+			t.Fatalf("install Router-LSA %s", router)
+		}
+	}
+	prefix := netip.MustParsePrefix("2001:db8:100::/64")
+	installV6IntraPrefix(t, e.lsdb, area, second, prefix.String())
+	installV6IntraPrefix(t, e.lsdb, area, third, prefix.String())
+	loc := locrib.NewRIB()
+	computer := ospfspf.NewComputer(ospfspf.Config{
+		Source: e.lsdb, Root: self, Areas: []types.AreaID{area},
+		Strategy: v6Strategy{eng: e}, Resolver: (*ospfNextHopResolver)(e),
+		Installer: ospfspf.NewInstallerFamily(loc, family.IPv6Unicast),
+	})
+	t.Cleanup(computer.Stop)
+	check := func(want ...string) {
+		t.Helper()
+		computer.Run()
+		group, ok := loc.Lookup(family.IPv6Unicast, prefix)
+		if !ok || len(group.Paths) != len(want) {
+			t.Fatalf("native SPF paths = %+v, want interfaces %v", group.Paths, want)
+		}
+		best, ok := loc.Best(family.IPv6Unicast, prefix)
+		if !ok || len(group.ECMPNextHops(best)) != len(want)-1 {
+			t.Fatalf("native SPF lost forwarding ECMP siblings: %+v", group)
+		}
+		remaining := make(map[string]bool, len(want))
+		for _, iface := range want {
+			remaining[iface] = true
+		}
+		for _, path := range group.Paths {
+			if !remaining[path.Interface] || path.NextHop != linkLocal || !path.OnLink || path.MetricRecursive {
+				t.Fatalf("native SPF emitted wrong adjacency scope: %+v", path)
+			}
+			delete(remaining, path.Interface)
+		}
+	}
+	check("eth0", "eth1", "eth2")
+	e.neighbors.NeighborDown("eth0", second)
+	check("eth1", "eth2")
+	connect(0)
+	check("eth0", "eth1", "eth2")
 }

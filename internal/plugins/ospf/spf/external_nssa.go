@@ -3,10 +3,9 @@
 
 package spf
 
-// External-LSA source preference (RFC 3101 sec 2.5): when the same external prefix is
-// reachable via more than one LSA, a Type 7 with the P-bit set is preferred over a Type
-// 5, which is preferred over a Type 7 with the P-bit clear. Lower value = preferred; it
-// is the PRIMARY external key, ahead of the sec 16.4 E1/E2 cost.
+// External-LSA source preference applies only after metric type and cost tie
+// and the LSAs share a non-zero forwarding address (RFC 3101 Section 2.5(6)(e)).
+// Lower value is preferred. Otherwise equal external paths can provide ECMP.
 const (
 	prefType7P1 uint8 = 0
 	prefType5   uint8 = 1

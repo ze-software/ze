@@ -41,34 +41,53 @@ and Type 7 to Type 5 translation.
   installs the P-clear default its border router originated.
   <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
   <!-- source: internal/plugins/ospf/types/lstype.go -- LSType.NSSA -->
-- **The P-bit rule decides the need for translation at ORIGINATION time.** The
-  external scope function returns the attached NSSAs with a representative
-  intra-NSSA forwarding address, and whether this router can inject a Type 5
-  directly. A redistributed route becomes a Type 7 in each NSSA with
-  `P = cannot-inject-Type-5 AND forwarding address is non-zero`, and a Type 5
-  AS-wide only when it can inject directly.
-  <!-- source: internal/plugins/ospf/redist_wiring.go -- externalScope, externalScopeFor -->
+- **The source's `nssa-propagate` setting controls imported Type-7 propagation.**
+  The P-bit defaults to clear, as RFC 3101 Appendix D requires. An explicit
+  per-source request sets it only while the router cannot inject a Type 5
+  directly; a Type-5 twin clears it. A requested P-set route with no usable
+  forwarding address is withdrawn rather than silently changed to P-clear.
+  Redistributed defaults use the same source policy on an internal NSSA router,
+  while border-router defaults retain the mandatory P-clear area policy.
+  <!-- source: internal/plugins/ospf/redist_wiring.go -- externalPropagate, InjectExternal -->
+  <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+- **Redistribution retains its source intent until withdrawal.** Interface-down,
+  interface-up and configuration reconciliation replay those intents using
+  live interface states. An interface that has gone Down cannot supply the
+  replacement forwarding address. The periodic pass retries re-origination
+  delayed by MinLSInterval; withdrawal removes the intent so a later interface
+  event cannot resurrect it.
+  <!-- source: internal/plugins/ospf/redist_wiring.go -- externalInterfaces, reconcileExternalImports -->
 - **The translator election is computed locally** from the NSSA Router-LSAs
   whose flags carry BOTH the B-bit and the RFC 3101 Nt-bit. The highest Router
   ID wins, with `always` and `never` overrides. Requiring the Nt-bit matters: a
   filter on the B-bit alone lets a higher-Router-ID `translate never` ABR wedge
   translation off. A stability grace keeps a router translating after it loses
   the election, so a transient flap opens no Type 5 gap.
-- **RFC 3101 Section 2.5 preference is a NEW primary key on the external
-  candidate**, compared ahead of the Section 16.4 E1 and E2 rank and cost:
-  Type 7 with P=1, then Type 5, then Type 7 with P=0.
-  <!-- source: internal/plugins/ospf/spf/external_nssa.go -- ExternalPrefType7P1, ExternalPrefType5, ExternalPrefType7P0 -->
+- **External metrics precede NSSA source preference.** RFC 3101 Section 2.5
+  compares E1/E2 path type and cost first. Only functionally equivalent LSAs
+  with the same non-zero forwarding address use the Type-7 P=1, Type-5,
+  higher-Router-ID tie-break. Other equal-cost paths can provide ECMP.
+  <!-- source: internal/plugins/ospf/spf/external.go -- betterExternal, sameExternalPref -->
+- **ASBR reachability is retained per area until external calculation.** A
+  Type 7 requires its ASBR in the originating NSSA even when the forwarding
+  address is non-zero. Its forwarding address must resolve through an
+  intra-area path in that NSSA. A Type 5 requires both lookups through
+  Type-5-capable areas. External computation receives the per-area internal
+  candidates before cross-area selection can discard an eligible path.
+  <!-- source: internal/plugins/ospf/spf/interarea.go -- selectBorderRouters -->
+  <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith, resolveForwarding -->
+  <!-- source: internal/plugins/ospf/spf/computer.go -- Run -->
 
 ## Traps
 
 - **NSSA reconciliation runs from two goroutines**, the config-apply path and
   the 1-second tick. Its read, compute and write spans a lock release, so it is
-  serialized by a dedicated NSSA mutex. Lock order: NSSA mutex, then engine
-  mutex, then LSDB mutex. LSDB origination and purge run with the engine mutex
-  released, and the NSSA and default-information mutexes are never held
-  together.
+  serialized by a dedicated NSSA mutex. The default coordinator may acquire it
+  under the default-information mutex; NSSA work never acquires that outer
+  mutex while holding the NSSA mutex. The remaining lock order is engine mutex
+  followed by LSDB mutex, with engine mutex released for origination and purge.
 - **A P-bit toggle on an unchanged body must still re-originate.** A body-only
-  comparison drops a `candidate` to `always` transition silently. The stored
+  comparison drops a source-policy propagation toggle silently. The stored
   header P-bit is compared as well.
 - **A translated Type 5 shares the AS-wide store and key with a self-redistributed
   Type 5.** Without an ownership protocol the translator clobbers a network it

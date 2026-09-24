@@ -138,11 +138,13 @@ func encodeV4(p packet.Packet) []byte {
 }
 
 type InterfaceConfig struct {
-	Name               string
-	AreaID             types.AreaID
-	RouterID           types.RouterID
-	NetworkType        string
-	InterfaceAddress   [4]byte
+	Name             string
+	AreaID           types.AreaID
+	RouterID         types.RouterID
+	NetworkType      string
+	InterfaceAddress [4]byte
+	// InterfaceID identifies this local OSPFv3 link in the Router-LSA.
+	InterfaceID        uint32
 	Options            types.Options
 	InterfaceMTU       uint16
 	MTUIgnore          bool

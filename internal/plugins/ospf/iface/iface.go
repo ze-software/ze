@@ -104,9 +104,9 @@ type Config struct {
 	IsV6 bool
 	// InterfaceID is the OSPFv3 Interface ID (RFC 5340 sec 3.4.3) advertised in this
 	// interface's Hellos; it must match the Interface ID the engine uses for this
-	// interface's links in the Router-LSA. The engine sets it to the OS ifindex. It is
-	// OSPFv3-only: the OSPFv2 wire carries a Network Mask in its place, so the v2 encoder
-	// ignores it.
+	// interface's links in the Router-LSA. It defaults to the OS ifindex but keeps
+	// the restored protocol ID after graceful restart. It is OSPFv3-only: the v2
+	// encoder ignores it because OSPFv2 carries a Network Mask instead.
 	InterfaceID uint32
 	// InstanceID is the RFC 6549 OSPFv2 Interface Instance ID stamped into every packet
 	// this interface transmits (header offset 14). The default v4 Hello encoder is built
@@ -379,7 +379,7 @@ func (i *Interface) Start() {
 			i.state = StateLoopback
 			i.setUpLocked(false)
 			startTimers = false
-		case types.NetworkPointToPoint, types.NetworkPointToMultipoint:
+		case types.NetworkPointToPoint, types.NetworkPointToMultipoint, types.NetworkVirtual:
 			// RFC 2328 sec 9.5: point-to-multipoint is treated as a collection of
 			// point-to-point links -- the point-to-point ISM state, no Waiting, no
 			// DR/BDR election.

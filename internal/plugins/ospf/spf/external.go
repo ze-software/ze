@@ -17,18 +17,32 @@ import (
 type ExternalInput struct {
 	Source           Source
 	Root             types.RouterID
-	BorderRouters    []BorderRouterEntry // ASBR reachability (router-id -> cost + next-hops), from ComputeInterArea
-	Routes           []RouteEntry        // resolved intra + inter route table, for forwarding-address resolution
+	BorderRouters    []BorderRouterEntry // per-area ASBR reachability from ComputeInterArea
+	Routes           []RouteEntry        // intra/inter-area candidates, before cross-area selection
 	Resolver         InterfaceResolver
 	MaxPaths         int
 	NSSAAreas        []types.AreaID                     // attached NSSA areas whose Type 7 LSAs also yield externals (RFC 3101)
 	NSSAPolicies     map[types.AreaID]AreaSummaryPolicy // per-NSSA summary-import policy
 	NSSABorderRouter bool                               // the calculating router is an ABR attached to an NSSA
+
+	// Native-run AS-scope inputs remain known even without a resolved ASBR path.
+	knownOrigins map[types.RouterID]struct{}
 }
 
 type asbrReach struct {
+	area     types.AreaID
 	metric   uint64
 	nextHops []NextHop
+}
+
+type asbrKey struct {
+	area   types.AreaID
+	router types.RouterID
+}
+
+type externalKey struct {
+	prefix netip.Prefix
+	fa     netip.Addr
 }
 
 type externalCand struct {
@@ -38,6 +52,7 @@ type externalCand struct {
 	fwdDist  uint64 // distance to the forwarding target (E2 tie-break)
 	origin   types.RouterID
 	nextHops []NextHop
+	fa       netip.Addr
 	pref     uint8        // RFC 3101 sec 2.5 source preference (Type7 P=1 < Type5 < Type7 P=0)
 	area     types.AreaID // origin area (backbone for Type 5, the NSSA for Type 7)
 }
@@ -82,31 +97,50 @@ func ComputeExternalWith(in ExternalInput, read ExternalReader) []RouteEntry {
 	if maxPaths <= 0 {
 		maxPaths = DefaultMaxPaths
 	}
-	reach := make(map[types.RouterID]asbrReach)
+	reach := make(map[asbrKey]asbrReach)
 	for _, b := range in.BorderRouters {
 		if b.Kind != BorderRouterASBR || b.RouterID == (types.RouterID{}) || len(b.NextHops) == 0 || b.Metric >= LSInfinity {
 			continue
 		}
-		if cur, ok := reach[b.RouterID]; !ok || b.Metric < cur.metric {
-			reach[b.RouterID] = asbrReach{metric: b.Metric, nextHops: b.NextHops}
+		area := b.AreaID
+		if in.type5Capable(area) {
+			area = types.BackboneArea
+		} else if !in.nssaArea(area) {
+			continue
 		}
+		key := asbrKey{area: area, router: b.RouterID}
+		cur, exists := reach[key]
+		if exists {
+			if b.Metric > cur.metric {
+				continue
+			}
+			if b.Metric == cur.metric {
+				if compare4(b.AreaID, cur.area) <= 0 {
+					continue
+				}
+			}
+		}
+		reach[key] = asbrReach{area: b.AreaID, metric: b.Metric, nextHops: b.NextHops}
 	}
 
-	best := make(map[netip.Prefix]externalCand)
+	byForwarding := make(map[externalKey]externalCand)
 	// AS-External-LSAs from the AS-wide store (OSPFv2 Type 5 / OSPFv3 0x4005).
 	for _, h := range in.Source.Summary(types.BackboneArea) {
+		if !h.Age.IsMaxAge() && h.AdvertisingRouter != (types.RouterID{}) &&
+			(h.Type.ASWide() || h.Type == types.LSTypeOpaqueAS) && in.knownOrigins != nil {
+			in.knownOrigins[h.AdvertisingRouter] = struct{}{}
+		}
 		if !h.Type.ASExternal() || h.Age.IsMaxAge() || h.AdvertisingRouter == in.Root {
 			continue
 		}
 		if rec, ok := read(types.BackboneArea, h); ok {
 			if cand, ok := in.externalCandidateFrom(types.BackboneArea, rec, reach, maxPaths); ok {
-				keepBestExternal(best, cand, maxPaths)
+				keepBestExternal(byForwarding, cand, maxPaths)
 			}
 		}
 	}
-	// Type 7 NSSA-LSAs in each attached NSSA (RFC 3101): they also yield externals and,
-	// for a prefix known both ways, the sec 2.5 source preference (carried in cand.pref)
-	// resolves the winner ahead of the sec 16.4 cost.
+	// RFC 3101 Section 2.5 runs the same external calculation for every attached
+	// NSSA, with ASBR and forwarding-address lookups confined to that NSSA.
 	for _, area := range in.NSSAAreas {
 		for _, h := range in.Source.Summary(area) {
 			if !h.Type.NSSA() || h.Age.IsMaxAge() || h.AdvertisingRouter == in.Root {
@@ -127,10 +161,18 @@ func ComputeExternalWith(in ExternalInput, read ExternalReader) []RouteEntry {
 					}
 				}
 				if cand, ok := in.externalCandidateFrom(area, rec, reach, maxPaths); ok {
-					keepBestExternal(best, cand, maxPaths)
+					keepBestExternal(byForwarding, cand, maxPaths)
 				}
 			}
 		}
+	}
+	// Apply equivalence tie-breaks within each forwarding-address group before
+	// merging equal-cost exits. Replacing one group's Type 5 with its Type 7
+	// must not discard an unrelated, equal-cost forwarding address.
+	best := make(map[externalKey]externalCand)
+	for _, candidate := range byForwarding {
+		candidate.fa = netip.Addr{}
+		keepBestExternal(best, candidate, maxPaths)
 	}
 
 	out := make([]RouteEntry, 0, len(best))
@@ -180,15 +222,21 @@ func v4ExternalReader(src Source) ExternalReader {
 // externalCandidateFrom builds the RFC 2328 sec 16.4 external candidate from a decoded
 // ExternalRecord, resolving the forwarding next-hops and computing the E1/E2 cost. Returns
 // false when the external is unusable (LSInfinity metric, unreachable forwarding target).
-func (in ExternalInput) externalCandidateFrom(area types.AreaID, rec ExternalRecord, reach map[types.RouterID]asbrReach, maxPaths int) (externalCand, bool) {
+func (in ExternalInput) externalCandidateFrom(area types.AreaID, rec ExternalRecord, reach map[asbrKey]asbrReach, maxPaths int) (externalCand, bool) {
 	if rec.Metric >= LSInfinity || !rec.Prefix.IsValid() {
 		return externalCand{}, false
 	}
-	baseCost, nextHops, ok := in.resolveForwarding(rec.ForwardingAddr, rec.Origin, reach, maxPaths)
+	// RFC 3101 Section 2.5(3) requires a reachable ASBR even when a non-zero
+	// forwarding address supplies the next hop.
+	asbr, exists := reach[asbrKey{area: area, router: rec.Origin}]
+	if !exists {
+		return externalCand{}, false
+	}
+	baseCost, nextHops, ok := in.resolveForwarding(area, rec.ForwardingAddr, asbr, maxPaths)
 	if !ok {
 		return externalCand{}, false // ASBR or forwarding address unreachable
 	}
-	cand := externalCand{prefix: rec.Prefix, origin: rec.Origin, nextHops: nextHops, fwdDist: baseCost, pref: rec.Pref, area: area}
+	cand := externalCand{prefix: rec.Prefix, origin: rec.Origin, nextHops: nextHops, fwdDist: baseCost, pref: rec.Pref, area: area, fa: rec.ForwardingAddr}
 	if rec.Type2 {
 		cand.metric = rec.Metric
 		cand.rtype = RouteExternalType2
@@ -202,54 +250,116 @@ func (in ExternalInput) externalCandidateFrom(area types.AreaID, rec ExternalRec
 	return cand, true
 }
 
-// resolveForwarding returns the base cost and next-hops to the forwarding target. An
-// invalid/zero Forwarding Address forwards via the advertising ASBR; a set one must itself
-// be reachable via an intra/inter-area route (else the external is skipped).
-func (in ExternalInput) resolveForwarding(fa netip.Addr, asbr types.RouterID, reach map[types.RouterID]asbrReach, maxPaths int) (uint64, []NextHop, bool) {
+// resolveForwarding applies RFC 3101 Section 2.5(3). A Type-7 forwarding
+// address needs an intra-area route in its own NSSA. A Type-5 forwarding
+// address needs an internal route through a Type-5 capable area.
+func (in ExternalInput) resolveForwarding(area types.AreaID, fa netip.Addr, asbr asbrReach, maxPaths int) (uint64, []NextHop, bool) {
 	if !fa.IsValid() || fa.IsUnspecified() {
-		p, ok := reach[asbr]
-		if !ok || len(p.nextHops) == 0 {
-			return 0, nil, false
-		}
-		return p.metric, decorateNextHops(p.nextHops, in.Resolver, maxPaths), true
+		return asbr.metric, decorateNextHops(asbr.nextHops, in.Resolver, maxPaths), true
 	}
-	route, ok := routeToAddr(in.Routes, fa)
-	if !ok || len(route.NextHops) == 0 {
+	var best *RouteEntry
+	var nextHops []NextHop
+	for idx := range in.Routes {
+		route := &in.Routes[idx]
+		if route.Type != RouteIntraArea {
+			if route.Type != RouteInterArea {
+				continue
+			}
+		}
+		if area == types.BackboneArea {
+			if !in.type5Capable(route.AreaID) {
+				continue
+			}
+		} else {
+			if route.AreaID != area {
+				continue
+			}
+			if route.Type != RouteIntraArea {
+				continue
+			}
+		}
+		if !route.Prefix.IsValid() {
+			continue
+		}
+		if route.Prefix.Bits() == 0 {
+			continue
+		}
+		if !route.Prefix.Contains(fa) {
+			continue
+		}
+		if route.Metric >= LSInfinity {
+			continue
+		}
+		if len(route.NextHops) == 0 {
+			continue
+		}
+		if best != nil {
+			if route.Prefix.Bits() < best.Prefix.Bits() {
+				continue
+			}
+			if route.Prefix.Bits() == best.Prefix.Bits() {
+				if routeSamePreference(*route, *best) {
+					nextHops, _ = mergeNextHops(nextHops, route.NextHops, maxPaths)
+					continue
+				}
+				if !routeBetter(*route, *best) {
+					continue
+				}
+			}
+		}
+		best = route
+		nextHops = route.NextHops
+	}
+	if best == nil {
 		return 0, nil, false
 	}
-	return route.Metric, decorateNextHops(route.NextHops, in.Resolver, maxPaths), true
+	return best.Metric, decorateNextHops(nextHops, in.Resolver, maxPaths), true
 }
 
-func keepBestExternal(best map[netip.Prefix]externalCand, c externalCand, maxPaths int) {
+func (in ExternalInput) nssaArea(area types.AreaID) bool {
+	if in.NSSAPolicies[area].Type == types.AreaTypeNSSA {
+		return true
+	}
+	for _, nssa := range in.NSSAAreas {
+		if nssa == area {
+			return true
+		}
+	}
+	return false
+}
+
+func (in ExternalInput) type5Capable(area types.AreaID) bool {
+	if in.nssaArea(area) {
+		return false
+	}
+	return in.NSSAPolicies[area].Type != types.AreaTypeStub
+}
+
+func keepBestExternal(best map[externalKey]externalCand, c externalCand, maxPaths int) {
 	c.nextHops = capNextHops(c.nextHops, maxPaths)
 	sortNextHops(c.nextHops)
 	if len(c.nextHops) == 0 {
 		return
 	}
-	cur, ok := best[c.prefix]
+	key := externalKey{prefix: c.prefix, fa: c.fa}
+	cur, ok := best[key]
 	switch {
 	case !ok || betterExternal(c, cur):
-		best[c.prefix] = c
+		best[key] = c
 	case sameExternalPref(c, cur):
 		cur.nextHops, _ = mergeNextHops(cur.nextHops, c.nextHops, maxPaths)
 		if compare4(c.origin, cur.origin) < 0 {
 			cur.origin = c.origin
 		}
-		best[c.prefix] = cur
+		best[key] = cur
 	}
 }
 
-// betterExternal orders external candidates. The NSSA source preference (Type-7 P=1 > Type-5
-// > Type-7 P=0, RFC 3101 sec 2.5) is the PRIMARY key by deliberate design (see
-// TestOSPFNSSAPreference): a router prefers the NSSA-local Type-7 P=1 route even over a
-// lower-cost Type-5, keeping NSSA traffic on the local exit. Below that it follows RFC 2328 sec
-// 16.4: a Type-1 (E1) path beats a Type-2 (E2), then lower cost, then (E2 only) lower forwarding
-// distance. (The review flagged the source-pref-primary order as a possible RFC 2328 sec 16.4(b)
-// inversion; it is intentional and spec-defensible under RFC 3101 NSSA locality, so it stands.)
+// betterExternal follows RFC 3101 Section 2.5(6): metric type and cost are
+// compared before source preference. The Type-7 P=1 / Type-5 / higher-RID
+// tie-break applies only to functionally equivalent LSAs with a shared,
+// non-zero forwarding address.
 func betterExternal(a, b externalCand) bool {
-	if a.pref != b.pref {
-		return a.pref < b.pref
-	}
 	if routeTypeRank(a.rtype) != routeTypeRank(b.rtype) {
 		return routeTypeRank(a.rtype) < routeTypeRank(b.rtype)
 	}
@@ -262,19 +372,17 @@ func betterExternal(a, b externalCand) bool {
 	if a.rtype == RouteExternalType2 && a.fwdDist != b.fwdDist {
 		return a.fwdDist < b.fwdDist
 	}
-	return false
+	if !a.fa.IsValid() || a.fa.IsUnspecified() || a.fa != b.fa {
+		return false
+	}
+	if a.pref != b.pref {
+		return a.pref < b.pref
+	}
+	return compare4(a.origin, b.origin) > 0
 }
 
 func sameExternalPref(a, b externalCand) bool {
-	if a.pref != b.pref || routeTypeRank(a.rtype) != routeTypeRank(b.rtype) || a.metric != b.metric {
-		return false
-	}
-	// fwdDist distinguishes preference only for E2 (RFC 2328 sec 16.4 step (d)); equal-cost E1
-	// paths are ECMP-equal whatever their forwarding distance.
-	if a.rtype == RouteExternalType2 && a.fwdDist != b.fwdDist {
-		return false
-	}
-	return true
+	return !betterExternal(a, b) && !betterExternal(b, a)
 }
 
 func externalBody(lsa packet.LSA) (packet.ExternalLSA, error) {
@@ -282,23 +390,4 @@ func externalBody(lsa packet.LSA) (packet.ExternalLSA, error) {
 		return *lsa.External, nil
 	}
 	return lsa.DecodeExternal()
-}
-
-// routeToAddr returns the longest-prefix-match route covering addr, used only to resolve
-// an AS-external LSA's non-zero forwarding address. RFC 2328 sec 16.4: the forwarding
-// address must resolve to a specific intra/inter-area route; the default route does not
-// count (in.Routes already excludes external routes, so the remaining exclusion is /0).
-// Matching a default would make an otherwise-unreachable forwarding address appear
-// reachable whenever any default exists, defeating the reachability check (the LSA is
-// skipped when this returns false).
-func routeToAddr(routes []RouteEntry, addr netip.Addr) (RouteEntry, bool) {
-	best := RouteEntry{}
-	bestBits := -1
-	for _, r := range routes {
-		if r.Prefix.IsValid() && r.Prefix.Bits() > 0 && r.Prefix.Contains(addr) && r.Prefix.Bits() > bestBits {
-			best = r
-			bestBits = r.Prefix.Bits()
-		}
-	}
-	return best, bestBits >= 0
 }

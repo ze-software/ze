@@ -24,17 +24,17 @@ const DefaultMaxPaths = 8
 // NextHop is one resolved equal-cost OSPF next-hop. Router is the Router ID at
 // the far end of the FIRST hop toward the destination (the SPF next-hop router):
 // for a vertex reached directly from root it is the neighbor; for a deeper vertex
-// it is inherited from the first hop. It is a deterministic function of Addr (the
-// router owning that interface address) and drives the RFC 8665 §5 / RFC 8666 §6
-// SR-MPLS label source (the next-hop router's SRGB, not the SID originator's).
+// it is inherited from the first hop. IPv6 link-local addresses require Interface
+// to identify the adjacency. Router drives the RFC 8665 §5 / RFC 8666 §6 SR-MPLS
+// label source (the next-hop router's SRGB, not the SID originator's).
 type NextHop struct {
 	Addr      netip.Addr
 	Interface string
 	Router    types.RouterID
 }
 
-// InterfaceResolver optionally maps a next-hop address to an outgoing interface
-// name for snapshots. The SPF next-hop address itself comes from LSAs.
+// InterfaceResolver optionally fills an unscoped IPv4 next-hop's outgoing interface.
+// IPv6 adjacency scope comes from NextHopSource, never an address-only lookup.
 type InterfaceResolver interface {
 	ResolveInterface(netip.Addr) (string, bool)
 }
@@ -118,30 +118,29 @@ func (h *spfHeap) pop() heapItem {
 	return it
 }
 
-// NextHopSource resolves the SPF next-hop address for a vertex reached directly
-// from the root. OSPFv2 reads the neighbor's interface address from the
-// reciprocal Router-LSA link data (carried in the graph); OSPFv3 Router-LSAs have
-// no per-link address, so the v6 source resolves the neighbor's IPv6 link-local
-// from the adjacency table. The address is AF-neutral (netip.Addr); only its
-// source differs, which is why this is the one AF seam inside the Dijkstra.
+// NextHopSource resolves the first-hop adjacency on a root Router-LSA link.
+// OSPFv2 obtains its address from the reciprocal link; OSPFv3 resolves its address
+// and interface from the local adjacency identified by the graph link's LinkData.
 type NextHopSource interface {
 	// P2PNextHop returns the next-hop to a point-to-point neighbor reached from root.
-	P2PNextHop(g *Graph, neighbor, root types.RouterID) (netip.Addr, bool)
+	P2PNextHop(g *Graph, neighbor, root types.RouterID, link packet.RouterLink) (NextHop, bool)
 	// TransitNextHop returns the next-hop to a router reached via a root-attached
 	// transit network.
-	TransitNextHop(g *Graph, router types.RouterID, network types.LinkStateID) (netip.Addr, bool)
+	TransitNextHop(g *Graph, router, root types.RouterID, link packet.RouterLink) (NextHop, bool)
 }
 
 // v4NextHop is the OSPFv2 NextHopSource: the next-hop is the neighbor's IPv4
 // interface address carried in the reciprocal Router-LSA link data.
 type v4NextHop struct{}
 
-func (v4NextHop) P2PNextHop(g *Graph, neighbor, root types.RouterID) (netip.Addr, bool) {
-	return p2pNeighborAddress(g, neighbor, root)
+func (v4NextHop) P2PNextHop(g *Graph, neighbor, root types.RouterID, _ packet.RouterLink) (NextHop, bool) {
+	addr, ok := p2pNeighborAddress(g, neighbor, root)
+	return NextHop{Addr: addr, Router: neighbor}, ok
 }
 
-func (v4NextHop) TransitNextHop(g *Graph, router types.RouterID, network types.LinkStateID) (netip.Addr, bool) {
-	return transitRouterAddress(g, router, network)
+func (v4NextHop) TransitNextHop(g *Graph, router, _ types.RouterID, link packet.RouterLink) (NextHop, bool) {
+	addr, ok := transitRouterAddress(g, router, link.LinkID)
+	return NextHop{Addr: addr, Router: router}, ok
 }
 
 // Compute runs RFC 2328 Section 16.1 stage 1 for one area with the OSPFv2 next-hop
@@ -217,7 +216,7 @@ func transitEdges(g *Graph, from VertexID, cur *tent, rootID VertexID, nh NextHo
 				if !twoWayRouterLink(g, from.Router, toRouter) {
 					continue
 				}
-				hops := nextHopsForP2P(g, cur, from, rootID, toRouter, nh)
+				hops := nextHopsForP2P(g, cur, from, rootID, toRouter, l, nh)
 				out = append(out, edge{to: to, metric: uint64(l.Metric), nextHops: hops})
 			case packet.RouterLinkTypeTransit:
 				to := networkVertex(l.LinkID)
@@ -239,7 +238,7 @@ func transitEdges(g *Graph, from VertexID, cur *tent, rootID VertexID, nh NextHo
 			if !twoWayRouterNetworkLink(g, rid, from.Network) {
 				continue
 			}
-			hops := nextHopsForNetwork(g, cur, from, rid, nh)
+			hops := nextHopsForNetwork(g, cur, from, rootID, rid, nh)
 			out = append(out, edge{to: routerVertex(rid), metric: 0, nextHops: hops})
 		}
 		return out
@@ -321,12 +320,12 @@ func twoWayRouterNetworkLink(g *Graph, router types.RouterID, network types.Link
 // RFC 2328 Section 16.1.1: when the parent is the root, the P2P next-hop is the
 // neighbor's interface address from the neighbor's reciprocal Router-LSA link.
 // Deeper vertices inherit the parent's next-hop set.
-func nextHopsForP2P(g *Graph, cur *tent, from, rootID VertexID, to types.RouterID, nh NextHopSource) []NextHop {
+func nextHopsForP2P(g *Graph, cur *tent, from, rootID VertexID, to types.RouterID, link packet.RouterLink, nh NextHopSource) []NextHop {
 	if from == rootID {
 		// Directly-reached neighbor: the next-hop router IS `to`. Record it so the SR
 		// installer can source the label from this neighbor's SRGB (RFC 8665 §5).
-		if addr, ok := nh.P2PNextHop(g, to, rootID.Router); ok {
-			return []NextHop{{Addr: addr, Router: to}}
+		if hop, ok := nh.P2PNextHop(g, to, rootID.Router, link); ok {
+			return []NextHop{hop}
 		}
 		return nil
 	}
@@ -336,14 +335,22 @@ func nextHopsForP2P(g *Graph, cur *tent, from, rootID VertexID, to types.RouterI
 // RFC 2328 Section 16.1.1: for a router reached through a root-attached transit
 // network, the next hop is that router's interface address on the network,
 // carried in the router's transit Router-LSA link data. Deeper vertices inherit.
-func nextHopsForNetwork(g *Graph, cur *tent, from VertexID, to types.RouterID, nh NextHopSource) []NextHop {
+func nextHopsForNetwork(g *Graph, cur *tent, from, rootID VertexID, to types.RouterID, nh NextHopSource) []NextHop {
 	if from.Kind == VertexNetwork && len(cur.nextHops) == 0 {
-		// Router reached through a root-attached transit network: the next-hop router
-		// IS `to` (the attached router). Record it for the SR label source (RFC 8665 §5).
-		if addr, ok := nh.TransitNextHop(g, to, from.Network); ok {
-			return []NextHop{{Addr: addr, Router: to}}
+		root := g.Routers[rootID.Router]
+		if root == nil {
+			return nil
 		}
-		return nil
+		var hops []NextHop
+		for _, link := range root.Links {
+			if link.Type != packet.RouterLinkTypeTransit || link.LinkID != from.Network || uint64(link.Metric) != cur.dist {
+				continue
+			}
+			if hop, ok := nh.TransitNextHop(g, to, rootID.Router, link); ok && !containsNextHop(hops, hop) {
+				hops = append(hops, hop)
+			}
+		}
+		return hops
 	}
 	return inheritedHops(cur)
 }

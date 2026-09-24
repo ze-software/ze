@@ -23,16 +23,14 @@ var defaultV4Prefix = netip.PrefixFrom(netip.AddrFrom4([4]byte{}), 0)
 // originate` as an OSPFv3 AS-External-LSA (LS Type 0x4005, RFC 5340 Section 4.4.3.6).
 var defaultV6Prefix = netip.PrefixFrom(netip.IPv6Unspecified(), 0)
 
-// defaultRoute returns the default prefix this engine advertises and the Loc-RIB family the
-// condition on `default-information originate` is evaluated against: 0.0.0.0/0 in IPv4
-// unicast for OSPFv2, ::/0 in IPv6 unicast for OSPFv3. Every default-route decision in this
-// file asks this question first, because an OSPFv3 engine that took the OSPFv2 answer would
-// watch the wrong RIB table and key the wrong LSA.
+// defaultRoute returns the default prefix and Loc-RIB family for this engine's AF.
+// IPv4 instances use 0.0.0.0/0, including OSPFv3 instances under RFC 5838;
+// IPv6 instances use ::/0. Unicast and multicast retain their own RIB families.
 func (e *engine) defaultRoute() (netip.Prefix, family.Family) {
-	if e.dispatch != nil && e.dispatch.codec.IsV6() {
-		return defaultV6Prefix, family.IPv6Unicast
+	if !e.af.isIPv4() {
+		return defaultV6Prefix, e.af.family()
 	}
-	return defaultV4Prefix, family.IPv4Unicast
+	return defaultV4Prefix, e.af.family()
 }
 
 // originateDefaultExternal originates or refreshes the one AS-External-LSA carrying the
@@ -45,6 +43,10 @@ func (e *engine) defaultRoute() (netip.Prefix, family.Family) {
 // originated the OSPFv2 Type 5 would put its default on the wire in a form that reaches no
 // router past the first hop.
 func (e *engine) originateDefaultExternal(router types.RouterID, type2 bool, metric, tag uint32) (bool, error) {
+	_, canType5 := e.externalScope()
+	if !canType5 {
+		return e.purgeDefaultExternal(router), nil
+	}
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.v6OriginateDefaultExternal(router, type2, metric, tag)
 	}
@@ -61,9 +63,10 @@ func (e *engine) originateDefaultExternal(router types.RouterID, type2 bool, met
 // purgeDefaultExternal MaxAge-purges the default route's AS-External-LSA in this engine's
 // address family and reports whether a live self LSA existed to purge.
 func (e *engine) purgeDefaultExternal(router types.RouterID) bool {
+	prefix, _ := e.defaultRoute()
 	e.mu.Lock()
 	db := e.lsdb
-	lsid, hasLSID := e.redistV6[defaultV6Prefix]
+	lsid, hasLSID := e.redistV6[prefix]
 	e.mu.Unlock()
 	if db == nil {
 		return false
@@ -92,8 +95,7 @@ func (e *engine) injectDefaultExternal(prefix netip.Prefix, source string, route
 	if db == nil || cfg.RouterID == (types.RouterID{}) {
 		return errEngineNotReady
 	}
-	type2, metric, tag := externalParams(cfg, source, routeTag)
-	e.injectRedistDefault(cfg.RouterID, type2, metric, tag)
+	e.injectRedistDefault(cfg.RouterID, source, routeTag)
 	return nil
 }
 
@@ -114,11 +116,11 @@ func (e *engine) withdrawDefaultExternal(prefix netip.Prefix) (bool, error) {
 	return e.withdrawRedistDefault(cfg.RouterID), nil
 }
 
-// checkDefaultFamily rejects a default prefix from the wrong address family. An OSPFv2
-// engine advertises 0.0.0.0/0 and an OSPFv3 engine ::/0, and a prefix from the other family
-// would otherwise be encoded into an LSA body no peer in this family can read.
+// checkDefaultFamily rejects a default prefix from the wrong address family.
+// OSPFv3 carries both IPv4 and IPv6 under RFC 5838, so the engine's AF selects
+// the prefix width independently of the wire codec.
 func (e *engine) checkDefaultFamily(prefix netip.Prefix) error {
-	if e.dispatch != nil && e.dispatch.codec.IsV6() {
+	if !e.af.isIPv4() {
 		if prefix.Addr().Is4() {
 			return fmt.Errorf("ospf: default prefix %q is not IPv6", prefix)
 		}
@@ -138,17 +140,18 @@ func (e *engine) checkDefaultFamily(prefix netip.Prefix) error {
 // share the one default LSA, exactly as they share the 0.0.0.0/0 key in OSPFv2, and holding
 // the entry also keeps the LSA inside the keep-set v6WithdrawExternal builds.
 func (e *engine) v6OriginateDefaultExternal(router types.RouterID, type2 bool, metric, tag uint32) (bool, error) {
-	wirePrefix, ok := netipToV6Prefix(defaultV6Prefix, 0)
+	prefix, _ := e.defaultRoute()
+	wirePrefix, ok := netipToV6Prefix(prefix, 0)
 	if !ok {
-		return false, fmt.Errorf("ospf: default prefix %q is not a usable IPv6 prefix", defaultV6Prefix)
+		return false, fmt.Errorf("ospf: default prefix %q cannot be encoded", prefix)
 	}
 	e.mu.Lock()
 	db := e.lsdb
-	lsid, assigned := e.redistV6[defaultV6Prefix]
+	lsid, assigned := e.redistV6[prefix]
 	if !assigned {
 		e.redistV6Next++
 		lsid = v6SummaryLSID(e.redistV6Next)
-		e.redistV6[defaultV6Prefix] = lsid
+		e.redistV6[prefix] = lsid
 	}
 	e.mu.Unlock()
 	if db == nil {
@@ -204,6 +207,22 @@ func (e *engine) applyDefaultInformation() {
 			e.originateSelfLSAs()
 			e.refreshExternalMetrics(db, cfg.RouterID)
 		}
+	case redistOwns:
+		e.nssaMu.Lock()
+		imported := e.externalImports[prefix]
+		e.nssaMu.Unlock()
+		type2, metric, tag := externalParams(cfg, imported.source, imported.tag)
+		changed, err := e.originateDefaultExternal(cfg.RouterID, type2, metric, tag)
+		if err != nil {
+			slog.Warn("ospf redistributed default origination failed", "error", err)
+		}
+		e.mu.Lock()
+		e.defaultInfoOriginated = false
+		e.mu.Unlock()
+		if changed {
+			e.originateSelfLSAs()
+			e.refreshExternalMetrics(db, cfg.RouterID)
+		}
 	default:
 		// default-information no longer wants the default. Purge the AS-External-LSA ONLY
 		// if a `redistribute` rule does not also currently inject the default (the two
@@ -227,16 +246,26 @@ func (e *engine) applyDefaultInformation() {
 // engine's address family. Serialized with applyDefaultInformation via defaultInfoMu so the
 // two default-route intents (default-information and redistribute) never race on the one
 // shared default LSA.
-func (e *engine) injectRedistDefault(router types.RouterID, type2 bool, metric, tag uint32) {
+func (e *engine) injectRedistDefault(router types.RouterID, source string, routeTag uint32) {
 	e.defaultInfoMu.Lock()
 	defer e.defaultInfoMu.Unlock()
+	prefix, _ := e.defaultRoute()
+	e.nssaMu.Lock()
+	if e.externalImports == nil {
+		e.externalImports = make(map[netip.Prefix]externalImport)
+	}
+	e.externalImports[prefix] = externalImport{source: source, tag: routeTag}
+	e.nssaMu.Unlock()
+	defer e.applyNSSADefaults()
 	e.mu.Lock()
 	db := e.lsdb
+	cfg := e.cfg
 	e.redistDefaultInjected = true
 	e.mu.Unlock()
 	if db == nil {
 		return
 	}
+	type2, metric, tag := externalParams(cfg, source, routeTag)
 	changed, err := e.originateDefaultExternal(router, type2, metric, tag)
 	if err != nil {
 		slog.Warn("ospf default-information: redistributed default origination failed", "error", err)
@@ -254,6 +283,11 @@ func (e *engine) injectRedistDefault(router types.RouterID, type2 bool, metric, 
 func (e *engine) withdrawRedistDefault(router types.RouterID) bool {
 	e.defaultInfoMu.Lock()
 	defer e.defaultInfoMu.Unlock()
+	prefix, _ := e.defaultRoute()
+	e.nssaMu.Lock()
+	delete(e.externalImports, prefix)
+	e.nssaMu.Unlock()
+	defer e.applyNSSADefaults()
 	e.mu.Lock()
 	db := e.lsdb
 	wasInjected := e.redistDefaultInjected

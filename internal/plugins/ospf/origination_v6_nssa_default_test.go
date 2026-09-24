@@ -197,9 +197,7 @@ func TestOSPFv3NSSADefaultPBitFollowsForwardingAddress(t *testing.T) {
 	assert.Equal(t, uint32(42), body.Metric)
 
 	require.True(t, eng.v6OriginateNSSADefault(nssa, rid, 42, [16]byte{}, false, true))
-	body, ok = decodeV6External(t, eng, nssa, v6NSSAKey(rid, v6NSSADefaultLSID))
+	withdrawn, ok := eng.lsdb.LookupLSA(nssa, v6NSSAKey(rid, v6NSSADefaultLSID))
 	require.True(t, ok)
-	assert.Zero(t, body.Prefix.Options&ospfv3types.OptPrefixP,
-		"a zero forwarding address clears the P-bit at the origination boundary")
-	assert.False(t, body.HasForwardingAddr)
+	assert.True(t, withdrawn.Header.Age.IsMaxAge(), "loss of the forwarding address flushes the P-set LSA")
 }

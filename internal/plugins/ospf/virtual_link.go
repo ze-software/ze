@@ -118,24 +118,44 @@ func (e *engine) virtualLinkTargetLocked(ifindex int, h Header) *virtualLinkRunt
 // (RFC 2328 sec 16.1). Existing runtime state for an unchanged (transit, neighbor) key is
 // preserved so a reconfigure of an unrelated link does not flap it.
 func (e *engine) configureVirtualLinks(cfg ospfConfig) {
+	e.virtualMu.Lock()
+	defer e.virtualMu.Unlock()
 	requests := make([]ospfspf.VirtualLinkRequest, 0, len(cfg.VirtualLinks))
 	next := make(map[virtualLinkKey]*virtualLinkRuntime, len(cfg.VirtualLinks))
 	e.mu.Lock()
 	old := e.virtualLinks
+	var retired []*virtualLinkRuntime
+	usedIDs := make(map[uint32]bool, len(old))
+	for _, rt := range old {
+		usedIDs[rt.ifaceID] = true
+	}
 	idx := uint32(0)
 	for _, vl := range cfg.VirtualLinks {
 		key := virtualLinkKey{transit: vl.TransitArea, neighbor: vl.RemoteRouterID}
 		rt := old[key]
 		if rt == nil {
+			for usedIDs[virtualIfaceIDBase+idx] {
+				idx++
+			}
 			rt = &virtualLinkRuntime{name: virtualLinkName(key), ifaceID: virtualIfaceIDBase + idx}
+			usedIDs[rt.ifaceID] = true
+		} else if rt.cfg != vl {
+			retired = append(retired, rt)
 		}
 		rt.cfg = vl
 		next[key] = rt
 		requests = append(requests, ospfspf.VirtualLinkRequest{TransitArea: vl.TransitArea, Neighbor: vl.RemoteRouterID})
-		idx++
+	}
+	for key, rt := range old {
+		if next[key] == nil {
+			retired = append(retired, rt)
+		}
 	}
 	e.virtualLinks = next
 	e.mu.Unlock()
+	for _, rt := range retired {
+		e.stopVirtualInterface(rt)
+	}
 	if e.spf != nil {
 		e.spf.SetVirtualLinks(requests)
 	}
@@ -144,9 +164,11 @@ func (e *engine) configureVirtualLinks(cfg ospfConfig) {
 // onVirtualLinksResolved is the SPF callback (RFC 2328 sec 16.1): it drives each configured
 // virtual link up (reachable, with the transit cost + next hop) or down from its transit
 // area's SPF result, then re-originates the backbone Router-LSA (the virtual record / V-bit
-// changes with reachability) and re-runs SPF. It fires only when the resolved set changed
-// (the SPF computer suppresses no-op runs), so an unchanged cost does not flap the link.
+// changes with reachability) and re-runs SPF. Unchanged endpoint state preserves
+// the existing interface and adjacency.
 func (e *engine) onVirtualLinksResolved(results []ospfspf.VirtualNeighborResult) {
+	e.virtualMu.Lock()
+	defer e.virtualMu.Unlock()
 	var toStart, toStop []*virtualLinkRuntime
 	changed := false
 	e.mu.Lock()
@@ -157,30 +179,42 @@ func (e *engine) onVirtualLinksResolved(results []ospfspf.VirtualNeighborResult)
 			continue
 		}
 		wasReachable := rt.reachable
-		rt.reachable = r.Reachable
-		if r.Reachable {
-			rt.cost = clampVirtualCost(r.Cost)
+		oldCost, oldNextHop := rt.cost, rt.transitNextHop
+		oldLocal, oldNeighbor := rt.localAddr, rt.neighborAddr
+		rt.reachable = r.Reachable && r.Cost <= uint64(^uint16(0))
+		if rt.reachable {
+			rt.cost = uint16(r.Cost)
 			if len(r.NextHops) > 0 {
 				rt.transitNextHop = r.NextHops[0]
 			}
 			if e.dispatch != nil && e.dispatch.codec.IsV6() {
-				// RFC 5340 sec 2.9: resolve the global source + global destination from the
-				// transit area's Intra-Area-Prefix-LSAs; keep the prior addresses until both
-				// are learned (re-resolved on the next transit SPF run).
-				if src, dst, resolved := e.v6ResolveVirtualEndpointLocked(rt); resolved {
-					rt.localAddr, rt.neighborAddr = src, dst
-				}
+				// RFC 5340 Sections 4.4.3.9 and 4.8.1 require advertised
+				// global endpoint addresses before the virtual link is usable.
+				rt.localAddr, rt.neighborAddr, rt.reachable = e.v6ResolveVirtualEndpointLocked(rt)
 			} else {
 				rt.localAddr = e.virtualLocalAddrLocked(rt)
-				rt.neighborAddr = virtualNeighborAddr(r)
+				rt.neighborAddr = r.Address
 			}
-			if rt.iface == nil {
+		}
+		if rt.reachable {
+			if rt.iface != nil {
+				rt.iface.SetCost(rt.cost)
+			} else {
 				toStart = append(toStart, rt)
 			}
-		} else if rt.iface != nil {
-			toStop = append(toStop, rt)
+		} else {
+			rt.localAddr, rt.neighborAddr = netip.Addr{}, netip.Addr{}
+			if rt.iface != nil {
+				toStop = append(toStop, rt)
+			}
 		}
-		if wasReachable != r.Reachable {
+		// RFC 2328 Section 16.7: "If the cost of the entry has changed, and
+		// there is a fully established virtual adjacency, a new router-LSA
+		// for the backbone must be originated."
+		if oldCost != rt.cost || oldNextHop != rt.transitNextHop || oldLocal != rt.localAddr || oldNeighbor != rt.neighborAddr {
+			changed = true
+		}
+		if wasReachable != rt.reachable {
 			changed = true
 			e.recordVirtualAdjChangeLocked(key)
 		}
@@ -202,18 +236,6 @@ func (e *engine) onVirtualLinksResolved(results []ospfspf.VirtualNeighborResult)
 	}
 }
 
-// virtualNeighborAddr is the routed unicast destination for a virtual link: the neighbor's
-// reachable address across the transit area. On a directly-adjacent transit (the shipped
-// interop topology) the transit next hop IS the neighbor's transit/global address; a
-// multi-hop transit path refines this to the neighbor's own address (its Intra-Area-Prefix
-// for IPv6) under QEMU.
-func virtualNeighborAddr(r ospfspf.VirtualNeighborResult) netip.Addr {
-	if len(r.NextHops) == 0 {
-		return netip.Addr{}
-	}
-	return r.NextHops[0].Addr
-}
-
 // startVirtualInterface creates and starts the synthetic backbone point-to-point interface
 // for a reachable virtual link (RFC 2328 section 15): it runs the shared ISM/NSM, sends its
 // packets ROUTED to the neighbor's address (via the transit egress), and inherits the
@@ -221,7 +243,8 @@ func virtualNeighborAddr(r ospfspf.VirtualNeighborResult) netip.Addr {
 // receives are verified against the transit interface.
 func (e *engine) startVirtualInterface(rt *virtualLinkRuntime) {
 	e.mu.Lock()
-	if rt.iface != nil {
+	key := virtualLinkKey{transit: rt.cfg.TransitArea, neighbor: rt.cfg.RemoteRouterID}
+	if rt.iface != nil || !rt.reachable || e.virtualLinks[key] != rt || e.ctx.Err() != nil {
 		e.mu.Unlock()
 		return
 	}
@@ -231,7 +254,7 @@ func (e *engine) startVirtualInterface(rt *virtualLinkRuntime) {
 		RouterID:           e.cfg.RouterID,
 		AreaID:             types.BackboneArea,
 		AreaType:           types.AreaTypeNormal,
-		NetworkType:        types.NetworkPointToPoint,
+		NetworkType:        types.NetworkVirtual,
 		Cost:               rt.cost,
 		HelloInterval:      rt.cfg.HelloInterval,
 		DeadInterval:       rt.cfg.DeadInterval,
@@ -256,7 +279,7 @@ func (e *engine) startVirtualInterface(rt *virtualLinkRuntime) {
 	// interface" for a virtual link, keyed on the global endpoint addresses, and ze
 	// configures no such SA (rfc/short/rfc4552.md, RFC4552-9-1). The interface installer
 	// holds nothing under a virtual link's name, so wiring it here would protect nothing.
-	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
+	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAsDeferred, auth: e.auth})
 	rt.iface = ifc
 	e.interfaces[rt.name] = ifc
 	if e.neighbors != nil {
@@ -284,17 +307,18 @@ func (e *engine) stopVirtualInterface(rt *virtualLinkRuntime) {
 
 // stopVirtualInterfaces stops every synthetic virtual interface (engine shutdown).
 func (e *engine) stopVirtualInterfaces() {
+	e.virtualMu.Lock()
+	defer e.virtualMu.Unlock()
 	e.mu.Lock()
-	ifaces := make([]*ospfiface.Interface, 0, len(e.virtualLinks))
+	runtimes := make([]*virtualLinkRuntime, 0, len(e.virtualLinks))
 	for _, rt := range e.virtualLinks {
-		if rt.iface != nil {
-			ifaces = append(ifaces, rt.iface)
-			rt.iface = nil
-		}
+		rt.reachable = false
+		runtimes = append(runtimes, rt)
 	}
+	e.virtualLinks = nil
 	e.mu.Unlock()
-	for _, ifc := range ifaces {
-		ifc.Stop()
+	for _, rt := range runtimes {
+		e.stopVirtualInterface(rt)
 	}
 }
 
@@ -353,18 +377,6 @@ func (e *engine) sendVirtualLink(name string, payload []byte) error {
 	egress, dst, src := rt.transitNextHop.Interface, rt.neighborAddr, rt.localAddr
 	e.mu.Unlock()
 	return e.transport.SendPacketRouted(egress, dst, src, payload)
-}
-
-// clampVirtualCost maps the 64-bit SPF cost to the 16-bit interface cost the origination
-// topology carries; an at/over-ceiling cost means the neighbor is effectively unreachable.
-func clampVirtualCost(cost uint64) uint16 {
-	if cost >= uint64(^uint16(0)) {
-		return ^uint16(0) - 1
-	}
-	if cost == 0 {
-		return 1
-	}
-	return uint16(cost)
 }
 
 // virtualLocalAddrLocked resolves the OSPFv2 local source address used to reach the
@@ -495,23 +507,22 @@ func (e *engine) recordVirtualMetrics() {
 	if e.mVirtualLinks == nil {
 		return
 	}
-	up := make(map[types.AreaID]float64)
-	down := make(map[types.AreaID]float64)
+	counts := make(map[types.AreaID][2]float64)
 	for key, rt := range e.virtualLinks {
+		n := counts[key.transit]
 		if rt.reachable {
-			up[key.transit]++
+			n[0]++
 			if e.mVirtualCost != nil {
 				e.mVirtualCost.With(key.transit.String(), key.neighbor.String()).Set(float64(rt.cost))
 			}
 		} else {
-			down[key.transit]++
+			n[1]++
 		}
+		counts[key.transit] = n
 	}
-	for area, n := range up {
-		e.mVirtualLinks.With(area.String(), "up").Set(n)
-	}
-	for area, n := range down {
-		e.mVirtualLinks.With(area.String(), ospflsdb.InterfaceStateDown).Set(n)
+	for area, n := range counts {
+		e.mVirtualLinks.With(area.String(), "up").Set(n[0])
+		e.mVirtualLinks.With(area.String(), ospflsdb.InterfaceStateDown).Set(n[1])
 	}
 }
 

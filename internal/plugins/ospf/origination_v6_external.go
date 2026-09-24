@@ -31,14 +31,8 @@ var v6ExternalSelfTypes = map[types.LSType]struct{}{
 // v6InjectExternal originates (or refreshes) an OSPFv3 external LSA for a redistributed IPv6
 // prefix and re-originates the Router-LSA so its E-bit reflects ASBR status. The LSID is
 // assigned once per prefix and remembered for withdrawal.
+// The caller MUST hold nssaMu through origination and ownership recording.
 func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
-	// Serialize with the NSSA Type-7->Type-5 translation flush (translateNSSAV6, also under
-	// nssaMu): that per-second pass snapshots redistV6 into a keep-set, then FlushStaleSelfLSAs
-	// purges any self AS-External not in it. Without this lock an injection that lands in the
-	// snapshot->flush window is purged and stays withdrawn until the next redistribution event.
-	// Lock order is nssaMu -> e.mu, matching translateNSSA.
-	e.nssaMu.Lock()
-	defer e.nssaMu.Unlock()
 	e.mu.Lock()
 	cfg := e.cfg
 	db := e.lsdb
@@ -68,30 +62,43 @@ func (e *engine) v6InjectExternal(prefix netip.Prefix, source string, routeTag u
 
 	type2, metric, tag := externalParams(cfg, source, routeTag)
 	nssas, canType5 := e.externalScopeV6()
+	areas := make([]types.AreaID, 0, len(nssas))
+	propagate := externalPropagate(cfg, source, canType5)
+	changed := false
+	if !canType5 {
+		_, changed = db.WithdrawSelf(types.BackboneArea, v6ExternalKey(router, lsid))
+	}
 	for _, n := range nssas {
-		propagate := !canType5 && n.hasFA
-		e.v6OriginateNSSALSA(n.area, router, lsid, wirePrefix, type2, metric, n.fa, n.hasFA, tag, propagate)
+		areas = append(areas, n.area)
+		if e.v6OriginateNSSALSA(n.area, router, lsid, wirePrefix, type2, metric, n.fa, n.hasFA, tag, propagate) {
+			changed = true
+		}
 	}
 	if canType5 {
-		e.v6OriginateExternalLSA(router, lsid, wirePrefix, type2, metric, tag)
+		if e.v6OriginateExternalLSA(router, lsid, wirePrefix, type2, metric, tag) {
+			changed = true
+		}
 	}
-	e.originateSelfLSAs()
-	e.refreshExternalMetrics(db, router)
+	if e.rememberExternalImport(prefix, source, routeTag, areas, v6NSSAKey(router, lsid)) {
+		changed = true
+	}
+	if changed {
+		e.originateSelfLSAs()
+		e.refreshExternalMetrics(db, router)
+	}
 	return nil
 }
 
 // v6WithdrawExternal MaxAge-purges the OSPFv3 AS-External/NSSA-LSA previously originated for
 // prefix and re-originates the Router-LSA (clearing the E-bit when the last external is gone).
+// The caller MUST hold nssaMu through withdrawal and the keep-set sweep.
 func (e *engine) v6WithdrawExternal(prefix netip.Prefix) (bool, error) {
-	// Same nssaMu serialization as v6InjectExternal: the withdrawal builds its own keep-set and
-	// flushes, so it must not interleave with the NSSA translation flush (nssaMu -> e.mu order).
-	e.nssaMu.Lock()
-	defer e.nssaMu.Unlock()
 	e.mu.Lock()
 	cfg := e.cfg
 	db := e.lsdb
 	prefix = prefix.Masked()
 	delete(e.redistV6, prefix)
+	delete(e.externalImports, prefix)
 	router := cfg.RouterID
 	redist := make([]types.LinkStateID, 0, len(e.redistV6))
 	for _, lsid := range e.redistV6 {

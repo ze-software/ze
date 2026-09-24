@@ -335,11 +335,10 @@ func TestRFC5340ForwardingAddressIsGlobal(t *testing.T) {
 
 // RFC requirement: RFC5340-A.4.8-1 positive -- an NSSA-LSA that is to be propagated by the NSSA
 // area border router carries a global IPv6 forwarding address together with the P-bit that
-// requests the propagation (v6OriginateNSSALSA propagate branch, origination_v6_nssa.go:78-90).
-// RFC requirement: RFC5340-A.4.8-1 negative -- without a usable global forwarding address the
-// LSA is NOT marked for propagation: the P-bit is cleared and no forwarding address is
-// advertised, so a propagated NSSA-LSA can never lack the required global address
-// (v6OriginateNSSALSA, origination_v6_nssa.go:79-80, 88-90).
+// requests the propagation.
+// RFC requirement: RFC5340-A.4.8-1 negative -- without a usable global forwarding
+// address, propagation originates no LSA and MaxAge-withdraws a previously
+// originated LSA.
 func TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress(t *testing.T) {
 	e := newV6OriginEngine()
 	nssa := types.AreaID{0, 0, 0, 9}
@@ -355,12 +354,14 @@ func TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("2001:db8:9::1"), netip.AddrFrom16(body.ForwardingAddr))
 	assert.NotZero(t, body.Prefix.Options&ospfv3types.OptPrefixP, "propagation is requested via the P-bit")
 
-	require.True(t, e.v6OriginateNSSALSA(nssa, self, types.LinkStateID{0, 0, 0, 2}, prefix, false, 20, [16]byte{}, false, 0, true))
-	none, ok := decodeV6External(t, e, nssa, v6NSSAKey(self, types.LinkStateID{0, 0, 0, 2}))
-	require.True(t, ok)
-	assert.False(t, none.HasForwardingAddr, "no global address means no forwarding address")
-	assert.Zero(t, none.Prefix.Options&ospfv3types.OptPrefixP,
-		"without a global forwarding address the NSSA-LSA must not be marked for propagation")
+	require.False(t, e.v6OriginateNSSALSA(nssa, self, types.LinkStateID{0, 0, 0, 2}, prefix, false, 20, [16]byte{}, false, 0, true))
+	_, exists := e.lsdb.LookupLSA(nssa, v6NSSAKey(self, types.LinkStateID{0, 0, 0, 2}))
+	assert.False(t, exists, "without a global forwarding address no propagated NSSA-LSA is originated")
+
+	require.True(t, e.v6OriginateNSSALSA(nssa, self, types.LinkStateID{0, 0, 0, 1}, prefix, false, 20, [16]byte{}, false, 0, true))
+	withdrawn, exists := e.lsdb.LookupLSA(nssa, v6NSSAKey(self, types.LinkStateID{0, 0, 0, 1}))
+	require.True(t, exists)
+	assert.True(t, withdrawn.Header.Age.IsMaxAge(), "losing the forwarding address withdraws the prior NSSA-LSA")
 }
 
 // RFC requirement: RFC5340-A.3.1-2 positive -- the reserved header field is ignored on receive:

@@ -12,6 +12,11 @@ computation, bidirectional redistribution, and `default-information originate`.
   winning `locrib.Path` per prefix. Path TYPE is the primary key: E1 always
   beats E2 whatever the cost.
   <!-- source: internal/plugins/ospf/spf/external.go -- betterExternal -->
+  NSSA source preference is a final tie-break for functionally equivalent
+  LSAs with a shared non-zero forwarding address. It cannot override metric
+  type or cost. The forwarding lookup retains area identity: Type 7 uses its
+  own NSSA, and Type 5 uses a Type-5-capable area.
+  <!-- source: internal/plugins/ospf/spf/external.go -- resolveForwarding, betterExternal -->
   <!-- source: internal/plugins/ospf/redistribute/redistribute.go -- ExternalInjector, OptionalInjector -->
 - **The redistribution source name and the consumer name are both the single
   string `ospf`.** The generic loop-prevention evaluator then rejects OSPF
@@ -26,13 +31,12 @@ computation, bidirectional redistribution, and `default-information originate`.
   singleton, so the engine reads the RIB directly.
   <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
 - **Every default-route decision asks the address family first.** One function
-  answers which prefix this engine advertises and which Loc-RIB table its
-  condition reads: 0.0.0.0/0 in IPv4 unicast for OSPFv2, ::/0 in IPv6 unicast for
-  OSPFv3. Origination then picks the LS Type the family needs, the OSPFv2 Type 5
-  or the OSPFv3 0x4005 AS-External-LSA (RFC 5340 Section 4.4.3.6). RFC 5340
-  Appendix A.4.2.1 reads the OSPFv2 value 0x0005 as U=0 with S2S1=00, link-local
-  flooding scope, so an OSPFv3 engine originating the OSPFv2 type puts a default
-  on the wire that reaches no router past the first hop.
+  answers which default prefix this engine advertises and which Loc-RIB family
+  its condition reads. IPv4 OSPFv2 and IPv4-over-OSPFv3 instances use 0.0.0.0/0;
+  IPv6 instances use ::/0. The multicast instances retain their own Loc-RIB
+  family. Wire origination then chooses Type 5 or the OSPFv3 0x4005 LSA.
+  An NSSA-only router suppresses that AS-wide copy, and an imported default
+  is reconciled as Type 7 under the source's propagation policy.
   <!-- source: internal/plugins/ospf/default.go -- defaultRoute, originateDefaultExternal -->
 - **The OSPFv3 default takes its Link State ID from the redistribution table.**
   RFC 5340 Section 4.4.3.6 strips the OSPFv3 external Link State ID of all
@@ -60,11 +64,11 @@ computation, bidirectional redistribution, and `default-information originate`.
   default-route mutations are serialized under one mutex, and the redistribution
   entry points hand the default to that coordinator BEFORE the address-family
   split, so neither family gets the coordination and the other the race.
-- **A method called from two goroutines that reads, decides and writes shared
-  state is serialized end to end.** Per-field locking left a window in which a
-  stale watcher run re-originated a default that a concurrent config disable had
-  just withdrawn. Lock order: default-information mutex, then engine mutex, then
-  LSDB mutex.
+- **A read-decide-write operation is serialized end to end.** A stale watcher
+  must not re-originate a default that configuration has just withdrawn.
+  Lock order is default-information mutex, then NSSA mutex when accessing
+  redistribution intent, then engine mutex, then LSDB mutex. The external
+  replay pass releases the NSSA mutex before entering the default coordinator.
 - **A Loc-RIB change handler runs UNDER the shard write lock and must not
   re-enter the RIB.** The handler does a non-blocking send to a coalescing
   buffered channel, and a long-lived worker does the work outside the lock.
