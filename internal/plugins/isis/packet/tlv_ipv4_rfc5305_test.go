@@ -1,4 +1,4 @@
-// Design: docs/architecture/isis/isis-3-lsp.md -- TLV 135 encoding.
+// Design: docs/architecture/wire/isis.md -- TLV 135 encoding.
 // RFC: rfc/short/rfc5305.md -- Section 4.2 (the sub-TLV presence bit of TLV 135).
 package packet
 

@@ -16,7 +16,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// Design: the RFC 7854 obligations the 2026-09-21 extraction walk added, each
+// Design: docs/guide/bmp.md -- RFC 7854 obligations
+//
+// The RFC 7854 obligations the 2026-09-21 extraction walk added, each
 // proven at the boundary Ze owns. A sender obligation is read off the collector
 // end of a pipe; a receiver obligation is proven by whether the session survives
 // the message, which net.Pipe makes deterministic: a write after the receiver

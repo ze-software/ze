@@ -1,6 +1,8 @@
 package l2tp
 
-// Design: tagged proofs of RFC 2661 obligations the header codec and the
+// Design: docs/architecture/wire/l2tp.md -- RFC 2661 header and message codec proofs
+//
+// Tagged proofs of RFC 2661 obligations the header codec and the
 // per-message body writers and parsers already meet. Each tag names the
 // exact assertion its body makes; a claim wider than the body is a lie the
 // discrimination record exists to refuse.

@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf/ospf-sr-1-segment-routing.md -- SR TLV and sub-TLV codec.
+// Design: docs/architecture/wire/ospf.md -- SR TLV and sub-TLV codec.
 // RFC: rfc/short/rfc8665.md -- Reserved fields of the SR TLVs (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2).
 package sr
 

@@ -1,4 +1,6 @@
-// Design: RFC 5036 session procedures that ze proves at the boundary it owns.
+// Design: docs/architecture/ldp/mpls-ldp.md -- RFC 5036 session procedures
+//
+// RFC 5036 session procedures that ze proves at the boundary it owns.
 // Each test drives processMessages over a net.Pipe and reads what ze writes
 // back, so the assertion is the wire: the Notification's status code and the
 // message it refers to, or the absence of any Notification.

@@ -1,6 +1,8 @@
 package rsvpte
 
-// Design: RFC 4090 head-end (Section 5), PLR (Section 6) and downstream (Section
+// Design: docs/architecture/rsvpte/mpls-rsvp-te.md -- RFC 4090 fast reroute obligations
+//
+// RFC 4090 head-end (Section 5), PLR (Section 6) and downstream (Section
 // 7.2) obligations, each driven through the engine's packet entry points and
 // asserted on the wire message or table state the engine produces.
 // Related: frr_test.go carries the facility-backup helpers these tests reuse.

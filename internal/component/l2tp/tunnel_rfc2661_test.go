@@ -1,6 +1,8 @@
 package l2tp
 
-// Design: tagged proofs of RFC 2661 obligations the tunnel and session FSMs
+// Design: docs/architecture/wire/l2tp.md -- RFC 2661 tunnel and session FSM proofs
+//
+// Tagged proofs of RFC 2661 obligations the tunnel and session FSMs
 // already meet: the Tunnel ID and Session ID a header carries before and
 // after the peer assigns one, the Challenge and Challenge Response exchange,
 // the capability masks an outgoing call is checked against, and the clean-up
