@@ -23,7 +23,12 @@ func Compare(a, b *FlowSpec) int {
 			return -1
 		}
 		if lp, ok := left.(*prefixComponent); ok {
-			rp := right.(*prefixComponent)
+			// componentOfType selects both sides by one type code, and the parser
+			// builds one Go type for each code, so only a Ze defect differs here.
+			rp, same := right.(*prefixComponent)
+			if !same {
+				panic("BUG: flowspec components of one type code have different Go types")
+			}
 			// RFC 8956 Section 4: lower offsets have higher precedence.
 			if order := cmp.Compare(lp.offset, rp.offset); order != 0 {
 				return order

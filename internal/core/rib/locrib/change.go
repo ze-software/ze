@@ -156,10 +156,10 @@ func (s *subscriberList) replace(entries []subEntry) {
 	s.list.Store(&next)
 }
 
-// dispatch fires every handler with c. Runs under the RIB's write lock.
-func (s *subscriberList) dispatch(c Change) {
+// dispatch fires every handler with a copy of *c. Runs under the RIB's write lock.
+func (s *subscriberList) dispatch(c *Change) {
 	for _, e := range s.load() {
-		e.fn(c)
+		e.fn(*c)
 	}
 }
 

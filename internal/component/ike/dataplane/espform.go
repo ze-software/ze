@@ -83,16 +83,6 @@ func (r *espFormRegistry) target(spi uint32) (espFormTarget, bool) {
 	return t, ok
 }
 
-// retarget updates an existing registration after a MOBIKE address or port change.
-// It does not create a watch or change the receiver's socket lifetime.
-func (r *espFormRegistry) retarget(spi uint32, target espFormTarget) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, watched := r.watched[spi]; watched {
-		r.watched[spi] = target
-	}
-}
-
 // espFormLimiter is the token bucket behind espFormRate. The clock is a parameter so the
 // bound is testable without sleeping (ai/rules/completion.md).
 //

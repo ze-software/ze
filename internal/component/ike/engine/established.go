@@ -376,7 +376,7 @@ func (ps *PeerSession) maintainSA(
 				return errTimeout
 			}
 
-			ps.serviceMobike(sa, tr, dp, now, log)
+			ps.serviceMobike(sa, tr, now, log)
 			if sa.State == StateDead {
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout

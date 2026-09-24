@@ -327,12 +327,13 @@ func assertRTRTLSRefused(t *testing.T, session *RTRSession, peer *rtrTLSPeer) {
 	if err := session.syncOnce(); err == nil {
 		t.Error("unauthenticated cache sync succeeded")
 	}
-	for _, observed := range peer.stop() {
+	observeds := peer.stop()
+	for index := range observeds {
+		observed := &observeds[index]
 		if observed.queryBytes != 0 {
 			t.Errorf("unauthenticated cache received %d RTR query bytes", observed.queryBytes)
 		}
-		var timeout net.Error
-		if errors.As(observed.err, &timeout) {
+		if timeout, ok := errors.AsType[net.Error](observed.err); ok {
 			if timeout.Timeout() {
 				t.Errorf("cache timed out instead of observing transport refusal: %v", observed.err)
 			}

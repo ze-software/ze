@@ -1351,7 +1351,7 @@ func (s *sysRIB) run(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case c := <-changeCh:
-					s.processLocRIBChange(c)
+					s.processLocRIBChange(&c)
 				}
 			}
 		})
@@ -1384,7 +1384,7 @@ func (s *sysRIB) run(ctx context.Context) {
 // the internal batch shape, runs distance arbitration, publishes
 // downstream, and triggers NH cascade if the changed prefix covers any
 // tracked next-hops.
-func (s *sysRIB) processLocRIBChange(c locrib.Change) {
+func (s *sysRIB) processLocRIBChange(c *locrib.Change) {
 	batch := changeToBatch(c)
 	if batch == nil {
 		return
@@ -1517,7 +1517,7 @@ func (s *sysRIB) showRIB() (any, error) {
 // changeToBatch converts a locrib.Change into the BestChangeBatch shape
 // sysrib's processEvent consumes. One Change -> one single-entry batch.
 // Returns nil for unspecified / unrecognized ChangeKind.
-func changeToBatch(c locrib.Change) *incomingBatch {
+func changeToBatch(c *locrib.Change) *incomingBatch {
 	var action routeaction.Action
 	switch c.Kind {
 	case locrib.ChangeAdd:
@@ -1617,7 +1617,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 // supplied from the PathGroup snapshot so pre-existing multipath groups do not
 // collapse to the primary next-hop on replay.
 func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, ecmp []nexthop.NextHop) {
-	batch := changeToBatch(locrib.Change{
+	batch := changeToBatch(&locrib.Change{
 		Family: fam,
 		Prefix: pfx,
 		Kind:   locrib.ChangeAdd,

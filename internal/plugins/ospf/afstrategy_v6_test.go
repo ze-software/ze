@@ -703,7 +703,8 @@ func testV6NativeScopedSPF(t *testing.T, broadcast bool) {
 		for _, iface := range want {
 			remaining[iface] = true
 		}
-		for _, path := range group.Paths {
+		for index := range group.Paths {
+			path := &group.Paths[index]
 			if !remaining[path.Interface] || path.NextHop != linkLocal || !path.OnLink || path.MetricRecursive {
 				t.Fatalf("native SPF emitted wrong adjacency scope: %+v", path)
 			}

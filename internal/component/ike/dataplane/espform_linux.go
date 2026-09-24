@@ -371,3 +371,14 @@ func (r *espFormReceiver) run(conn net.PacketConn, inj espFormInjector, stop <-c
 		}
 	}
 }
+
+// retarget updates an existing registration after a MOBIKE address or port change.
+// It does not create a watch or change the receiver's socket lifetime. It lives
+// here because only the Linux XFRM backend moves an SA.
+func (r *espFormRegistry) retarget(spi uint32, target espFormTarget) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, watched := r.watched[spi]; watched {
+		r.watched[spi] = target
+	}
+}

@@ -97,7 +97,7 @@ func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) err
 	wantSend := map[string]uint16{familyIPv4Unicast: 1, familyIPv6Unicast: 2}
 	wantReceive := map[string]uint16{familyIPv4Unicast: 9, familyIPv6Unicast: 9}
 	for _, surface := range []string{"capabilities", "detail"} {
-		args := []string{"show", namespaceBGP, "peer", "127.0.0.1", surface, "|", "json"}
+		args := []string{"show", namespaceBGP, "peer", addrLoopback, surface, "|", "json"}
 		result := session.run(ctx, args...)
 		if result.code != 0 {
 			return fmt.Errorf("peer %s JSON exit=%d: %s", surface, result.code, result.out)
@@ -114,7 +114,7 @@ func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) err
 			if err := json.Unmarshal([]byte(result.out), &answer); err != nil {
 				return fmt.Errorf("peer capabilities JSON: %w: %s", err, result.out)
 			}
-			if len(answer) != 1 || answer[0].Peer != "127.0.0.1" || !answer[0].NegotiationComplete {
+			if len(answer) != 1 || answer[0].Peer != addrLoopback || !answer[0].NegotiationComplete {
 				return fmt.Errorf("peer capabilities lost established peer: %s", result.out)
 			}
 			limits = answer[0].Negotiated.PathsLimit
@@ -130,7 +130,7 @@ func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) err
 			if err := json.Unmarshal([]byte(result.out), &answer); err != nil {
 				return fmt.Errorf("peer detail JSON: %w: %s", err, result.out)
 			}
-			peer, ok := answer.Peers["127.0.0.1"]
+			peer, ok := answer.Peers[addrLoopback]
 			if !ok || !peer.Capabilities.NegotiationComplete {
 				return fmt.Errorf("peer detail lost established peer: %s", result.out)
 			}

@@ -168,7 +168,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 				r.handlePPPEvent(firstV6)
 				r.handlePPPEvent(ppp.EventSessionUp{TunnelID: tid, SessionID: sid})
 				require.Len(t, up, 1)
-				assertL2TPLifetimeAddresses(t, up[0], first, firstV6)
+				assertL2TPLifetimeAddresses(t, &up[0], first, firstV6)
 				require.Equal(t, "old-pool", up[0].PoolName)
 				require.Equal(t, baseline+1, l2tpActiveSubscribers(t))
 				// Wrap the real timeout owners so cancellation is observable without
@@ -220,7 +220,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			r.handlePPPEvent(second)
 			r.handlePPPEvent(ppp.EventSessionUp{TunnelID: tid, SessionID: sid})
 			latest := up[len(up)-1]
-			assertL2TPLifetimeAddresses(t, latest, second, secondV6)
+			assertL2TPLifetimeAddresses(t, &latest, second, secondV6)
 			require.Equal(t, "new-user", latest.Username)
 			require.Equal(t, "new-pool", latest.PoolName)
 			require.Equal(t, baseline+1, l2tpActiveSubscribers(t))
@@ -303,7 +303,7 @@ func TestL2TPAssignedPrincipalAndProxyLifetime(t *testing.T) {
 	}
 }
 
-func assertL2TPLifetimeAddresses(t *testing.T, sess subscriber.Session, v4, v6 ppp.EventSessionIPAssigned) {
+func assertL2TPLifetimeAddresses(t *testing.T, sess *subscriber.Session, v4, v6 ppp.EventSessionIPAssigned) {
 	t.Helper()
 	require.Equal(t, subscriber.StateActive, sess.State)
 	require.Equal(t, v4.Peer, sess.IPv4Addr)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"

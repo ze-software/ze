@@ -82,7 +82,7 @@ type BGPLSSRv6SID struct {
 // newBGPLSSRv6SID creates a new SRv6 SID NLRI.
 // RFC 9514 - SRv6 SID NLRI (Type 6).
 func newBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid SRv6SIDDescriptor) *BGPLSSRv6SID {
-	return &BGPLSSRv6SID{bgplsBase: bgplsBase{nlriType: BGPLSSRv6SIDNLRI, protocolID: proto, identifier: id}, LocalNode: node,
+	return &BGPLSSRv6SID{nlriType: BGPLSSRv6SIDNLRI, protocolID: proto, identifier: id, LocalNode: node,
 		SRv6SID: sid}
 }
 

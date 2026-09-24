@@ -279,7 +279,7 @@ func TestOnChangeCarriesECMPSiblings(t *testing.T) {
 	r.Insert(famV4, ecmpPfx, isis(0, nh1, 20))
 	require.Len(t, changes, 3)
 	assert.Equal(t, ChangeUpdate, changes[2].Kind)
-	assertECMPGroup(t, changes[2], nh1, nh2)
+	assertECMPGroup(t, &changes[2], nh1, nh2)
 
 	// Remove() fallback: drop the current best; the surviving Path is the only
 	// remaining member, so the synthesized ChangeUpdate carries nil ECMP (no
@@ -367,7 +367,7 @@ func TestOnChangeDispatchesECMPMembershipChanges(t *testing.T) {
 	require.Len(t, changes, 2, "adding an equal-cost sibling must dispatch")
 	assert.Equal(t, ChangeUpdate, changes[1].Kind)
 	assert.Equal(t, nh1, changes[1].Best.NextHop, "first-seen best must stay stable")
-	assertECMPGroup(t, changes[1], nh1, nh2)
+	assertECMPGroup(t, &changes[1], nh1, nh2)
 
 	r.Insert(famV4, ecmpPfx, path(2, nh3))
 	require.Len(t, changes, 3, "adding another equal-cost sibling must dispatch")
@@ -392,7 +392,7 @@ func TestOnChangeDispatchesECMPMembershipChanges(t *testing.T) {
 // {a, b}: Best.NextHop is one of them, ECMP holds exactly the other, and ECMP
 // never contains Best.NextHop. Order-independent so it does not depend on the
 // internal slice ordering of selectBest.
-func assertECMPGroup(t *testing.T, c Change, a, b netip.Addr) {
+func assertECMPGroup(t *testing.T, c *Change, a, b netip.Addr) {
 	t.Helper()
 	best := c.Best.NextHop
 	if best != a && best != b {

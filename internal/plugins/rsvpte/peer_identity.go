@@ -152,7 +152,8 @@ func visitPeerAddresses(snapshot *linkstateevents.Snapshot, visit func([]byte, n
 			}
 		}
 	}
-	for _, link := range snapshot.Links {
+	for i := range snapshot.Links {
+		link := &snapshot.Links[i]
 		for _, address := range link.LocalAddresses {
 			visit(link.Local.RouterID, address)
 		}

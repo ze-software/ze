@@ -458,7 +458,8 @@ func (t *Transport) SendPDU(name string, level Level, pdu []byte) error {
 
 // SendISH sends an ISO 9542 ISH using the AllESs group and the same OSI framing
 // as IS-IS. RFC 1195 Section 4.4: "All IS-IS routers are therefore required to
-// transmit and receive ISO 9542 ISH packets on point-to-point links."
+// transmit and receive ISO 9542 ISH packets on point-to-point links." This is
+// the transmit half.
 func (t *Transport) SendISH(name string, pdu []byte) error {
 	return t.sendTo(name, AllESs, pdu)
 }

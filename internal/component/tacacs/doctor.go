@@ -25,7 +25,7 @@ import (
 const codeTACACSUnreachable = "doctor-tacacs-unreachable"
 
 // codeTACACSWeakSecret identifies a key below the RFC's recommended length.
-const codeTACACSWeakSecret = "doctor-tacacs-weak-secret"
+const codeTACACSWeakSecret = "doctor-tacacs-weak-secret" //nolint:gosec // a diagnostic code name, not a credential
 
 // tacacsTCPReachable is the probe checkTACACSServers runs. It is a variable so
 // a test can stand in an unreachable server; nothing else assigns it.

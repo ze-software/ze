@@ -74,7 +74,7 @@ const (
 func (s actionSource) String() string {
 	switch s {
 	case sourcePeer:
-		return "peer"
+		return subjectPeer
 	case sourceGroup:
 		return "group"
 	default:
@@ -187,7 +187,7 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	// Parse ASPA settings from rpki/aspa container.
 	if aspaMap, ok := rpkiMap["aspa"].(map[string]any); ok {
 		if valStr, ok := aspaMap["validation"].(string); ok {
-			cfg.ASPAValidation = valStr == "true" || valStr == "1"
+			cfg.ASPAValidation = valStr == leafTrue || valStr == "1"
 		}
 		if actionMap, ok := aspaMap["action"].(map[string]any); ok {
 			if action, set := parseActionLeaf(actionMap, "invalid"); set {
@@ -226,7 +226,7 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		}
 		switch trusted := serverMap["trusted-network"].(type) {
 		case string:
-			cs.TrustedNetwork = trusted == "true" || trusted == "1"
+			cs.TrustedNetwork = trusted == leafTrue || trusted == "1"
 		case bool:
 			cs.TrustedNetwork = trusted
 		}
@@ -346,7 +346,7 @@ func subjectKind(key configjson.PeerConfigKey) string {
 	if key.Template {
 		return "group"
 	}
-	return "peer"
+	return subjectPeer
 }
 
 // parsePeerActions walks every peer in the config and builds the per-peer resolved action map,
@@ -485,7 +485,7 @@ func parseBoolLeaf(v any) *bool {
 		return &b
 	case string:
 		switch b {
-		case "true":
+		case leafTrue:
 			t := true
 			return &t
 		case "false":

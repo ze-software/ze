@@ -132,7 +132,8 @@ func objectBytes(raw []byte, classNum uint8) ([]byte, bool) {
 func (f *fakeTransport) lastSentPayload(msgType uint8) ([]byte, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	for _, sent := range slices.Backward(f.sent) {
+	for index := range slices.Backward(f.sent) {
+		sent := &f.sent[index]
 		msg, err := DecodeMessage(sent.payload)
 		if err == nil && msg.Header.MsgType == msgType {
 			return sent.payload, true

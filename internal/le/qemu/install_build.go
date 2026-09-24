@@ -47,7 +47,7 @@ func (installer *Installer) buildHostZeEnv(ctx context.Context, work string, ext
 	hostEnv := installEnvWithoutTarget(installer.ops.Environ())
 	hostEnv = installEnvSet(hostEnv, extraEnv...)
 	result, err := installer.run(ctx, commandSpec{
-		Name: "go", Args: []string{goCommandBuild, "-tags", "ze_core,ze_setup", "-o", ze, "./cmd/ze"},
+		Name: "go", Args: []string{goCommandBuild, tagsFlag, "ze_core,ze_setup", "-o", ze, zeMainPackage},
 		Dir: installer.Tree, Env: hostEnv,
 	})
 	if err != nil {

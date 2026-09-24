@@ -13,11 +13,6 @@ import (
 const mplsContextMark = uint32(0x5a000000)
 const mplsContextMask = uint32(0xffff0000)
 
-type mplsPushKey struct {
-	tableID uint32
-	fec     netip.Prefix
-}
-
 // mplsContextBackend acknowledges a push only after both route and selector are
 // usable. Close removes each private context, but fixed namespace guards remain
 // fail-closed across concurrent producer shutdown and owner restart.

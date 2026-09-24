@@ -57,7 +57,7 @@ func TestFlowExportDaemonCounterGeneration(t *testing.T) {
 	if err := netlink.LinkSetUp(lo); err != nil {
 		t.Fatal(err)
 	}
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "counter0", Index: 77}}
+	link := &netlink.Dummy{Name: "counter0", Index: 77}
 	addLink := func() {
 		if err := netlink.LinkAdd(link); err != nil {
 			t.Fatal(err)
@@ -72,6 +72,14 @@ func TestFlowExportDaemonCounterGeneration(t *testing.T) {
 	ipfix := exportProducerListener(t)
 	work := t.TempDir()
 	configPath := filepath.Join(work, "ze.conf")
+	sflowAddr, ok := sflow.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("sFlow collector address is %T", sflow.LocalAddr())
+	}
+	ipfixAddr, ok := ipfix.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("IPFIX collector address is %T", ipfix.LocalAddr())
+	}
 	config := fmt.Sprintf(`flow-export {
     collector sflow {
         address 127.0.0.1
@@ -88,7 +96,7 @@ func TestFlowExportDaemonCounterGeneration(t *testing.T) {
         polling-interval 1
     }
 }
-`, sflow.LocalAddr().(*net.UDPAddr).Port, ipfix.LocalAddr().(*net.UDPAddr).Port)
+`, sflowAddr.Port, ipfixAddr.Port)
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +222,7 @@ func exportPauseDaemon(t *testing.T, daemon *exportCollector) {
 		t.Fatal(err)
 	}
 	daemon.wait(t, "stopped daemon", 5*time.Second, func(context.Context) (bool, error) {
-		root := filepath.Join("/proc", strconv.Itoa(daemon.cmd.Process.Pid), "task")
+		root := "/proc/" + strconv.Itoa(daemon.cmd.Process.Pid) + "/task"
 		threads, err := os.ReadDir(root)
 		if err != nil {
 			return false, err

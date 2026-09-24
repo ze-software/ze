@@ -66,7 +66,7 @@ func TestHandleLinkUpdate_Create(t *testing.T) {
 	m, bus := newTestMonitor()
 
 	lu := netlink.LinkUpdate{
-		Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "eth0", Index: 5, MTU: 1500, OperState: netlink.OperDown}},
+		Link: &netlink.Dummy{Name: "eth0", Index: 5, MTU: 1500, OperState: netlink.OperDown},
 	}
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 

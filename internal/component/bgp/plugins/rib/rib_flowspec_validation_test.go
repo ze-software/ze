@@ -47,7 +47,8 @@ func flowValidationAttrs(path []byte, originator netip.Addr, med uint32, communi
 
 // flowValidationReceive drives the structured UPDATE entrypoint with the same
 // generation and peer metadata the reactor supplies. No helper writes RIB state.
-func flowValidationReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerAS, localAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool) *rpc.StructuredEvent {
+func flowValidationReceive(t *testing.T, r *RIBManager, peer netip.Addr, peerAS uint32, id uint64, fam family.Family, raw, attrs []byte, withdraw bool) *rpc.StructuredEvent {
+	const localAS uint32 = 65000
 	t.Helper()
 	attrs = bytes.Clone(attrs)
 	mp := []byte{byte(fam.AFI >> 8), byte(fam.AFI), byte(fam.SAFI)}
@@ -162,16 +163,16 @@ func TestFlowSpecAuthorizationFromReceivedUpdates(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r, bus := flowValidationFixture(t)
 			if tc.unicast {
-				flowValidationReceive(t, r, unicastPeer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, tc.uniOrigin, 0, nil), false)
+				flowValidationReceive(t, r, unicastPeer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(sequence, tc.uniOrigin, 0, nil), false)
 			}
 			if tc.specificAS != 0 {
-				flowValidationReceive(t, r, otherPeer, tc.specificAS, 65000, 2, family.IPv4Unicast, []byte{24, 10, 1, 1}, flowValidationAttrs(flowValidationPath(2, tc.specificAS), netip.Addr{}, 0, nil), false)
+				flowValidationReceive(t, r, otherPeer, tc.specificAS, 2, family.IPv4Unicast, []byte{24, 10, 1, 1}, flowValidationAttrs(flowValidationPath(2, tc.specificAS), netip.Addr{}, 0, nil), false)
 			}
 			raw := []byte{3, 3, 0x81, 6}
 			if tc.destination {
 				raw = flowspecNLRI(16, 10, 1)
 			}
-			flowValidationReceive(t, r, tc.peer, tc.peerAS, 65000, 3, flowspecFamily, raw, flowValidationAttrs(tc.path, tc.flowOrigin, 100, drop), false)
+			flowValidationReceive(t, r, tc.peer, tc.peerAS, 3, flowspecFamily, raw, flowValidationAttrs(tc.path, tc.flowOrigin, 100, drop), false)
 			key := ribevents.ValidationRoute{Peer: tc.peer, Family: flowspecFamily, NLRI: string(raw)}
 			if got := ribevents.RouteEligible(key, 3); got != tc.want {
 				t.Fatalf("eligibility = %v, want %v", got, tc.want)
@@ -208,7 +209,7 @@ func TestFlowSpecUnicastLifecycleRevalidatesRetainedRule(t *testing.T) {
 	path := flowValidationPath(2, 65001)
 	attrs := flowValidationAttrs(path, netip.Addr{}, 100, nil)
 	raw := flowspecNLRI(16, 10, 1)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, flowspecFamily, raw, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 1, flowspecFamily, raw, attrs, false)
 	if len(flowValidationEvents(bus)) != 0 {
 		t.Fatal("rule installed before its unicast route")
 	}
@@ -219,15 +220,15 @@ func TestFlowSpecUnicastLifecycleRevalidatesRetainedRule(t *testing.T) {
 			t.Fatalf("events = %+v, want count %d and withdraw %v", events, count, withdraw)
 		}
 	}
-	flowValidationReceive(t, r, peer, 65001, 65000, 2, family.IPv4Unicast, []byte{8, 10}, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 2, family.IPv4Unicast, []byte{8, 10}, attrs, false)
 	assertLast(1, false)
-	flowValidationReceive(t, r, foreign, 65002, 65000, 3, family.IPv4Unicast, []byte{24, 10, 1, 1}, flowValidationAttrs(flowValidationPath(2, 65002), netip.Addr{}, 0, nil), false)
+	flowValidationReceive(t, r, foreign, 65002, 3, family.IPv4Unicast, []byte{24, 10, 1, 1}, flowValidationAttrs(flowValidationPath(2, 65002), netip.Addr{}, 0, nil), false)
 	assertLast(2, true)
-	flowValidationReceive(t, r, foreign, 65002, 65000, 4, family.IPv4Unicast, []byte{24, 10, 1, 1}, nil, true)
+	flowValidationReceive(t, r, foreign, 65002, 4, family.IPv4Unicast, []byte{24, 10, 1, 1}, nil, true)
 	assertLast(3, false)
-	flowValidationReceive(t, r, peer, 65001, 65000, 5, family.IPv4Unicast, []byte{8, 10}, nil, true)
+	flowValidationReceive(t, r, peer, 65001, 5, family.IPv4Unicast, []byte{8, 10}, nil, true)
 	assertLast(4, true)
-	flowValidationReceive(t, r, peer, 65001, 65000, 6, family.IPv4Unicast, []byte{8, 10}, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 6, family.IPv4Unicast, []byte{8, 10}, attrs, false)
 	assertLast(5, false)
 	eligible := false
 	ribevents.RegisterValidationLookup(func(key ribevents.ValidationRoute, _ uint64) bool {
@@ -255,13 +256,13 @@ func TestFlowSpecSelectedCommunitiesReplacementAndReplay(t *testing.T) {
 	drop := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
 	mark := []byte{0x80, 9, 0, 0, 0, 0, 0, 46}
 	raw := flowspecNLRI(24, 10, 0, 0)
-	flowValidationReceive(t, r, peerA, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(path, origin, 0, nil), false)
-	flowValidationReceive(t, r, peerA, 65001, 65000, 2, flowspecFamily, raw, flowValidationAttrs(path, origin, 100, drop), false)
-	flowValidationReceive(t, r, peerB, 65001, 65000, 3, flowspecFamily, raw, flowValidationAttrs(path, origin, 200, mark), false)
+	flowValidationReceive(t, r, peerA, 65001, 1, family.IPv4Unicast, []byte{8, 10}, flowValidationAttrs(path, origin, 0, nil), false)
+	flowValidationReceive(t, r, peerA, 65001, 2, flowspecFamily, raw, flowValidationAttrs(path, origin, 100, drop), false)
+	flowValidationReceive(t, r, peerB, 65001, 3, flowspecFamily, raw, flowValidationAttrs(path, origin, 200, mark), false)
 	if events := flowValidationEvents(bus); len(events) != 1 || !bytes.Equal(events[0].ExtendedCommunities, drop) {
 		t.Fatalf("losing source replaced selected actions: %+v", events)
 	}
-	flowValidationReceive(t, r, peerA, 65001, 65000, 4, flowspecFamily, raw, flowValidationAttrs(path, origin, 100, mark), false)
+	flowValidationReceive(t, r, peerA, 65001, 4, flowspecFamily, raw, flowValidationAttrs(path, origin, 100, mark), false)
 	if events := flowValidationEvents(bus); len(events) != 2 || !bytes.Equal(events[1].ExtendedCommunities, mark) || !bytes.Equal(events[0].ExtendedCommunities, drop) {
 		t.Fatalf("community-only update lost or changed earlier owned event: %+v", events)
 	}
@@ -273,7 +274,7 @@ func TestFlowSpecSelectedCommunitiesReplacementAndReplay(t *testing.T) {
 	if len(events) != 3 || events[2].Withdraw || !bytes.Equal(events[2].ExtendedCommunities, mark) || !bytes.Equal(events[2].NLRI, raw) {
 		t.Fatalf("replay did not carry selected actions: %+v", events)
 	}
-	flowValidationReceive(t, r, peerA, 65001, 65000, 5, flowspecFamily, raw, nil, true)
+	flowValidationReceive(t, r, peerA, 65001, 5, flowspecFamily, raw, nil, true)
 	if events = flowValidationEvents(bus); len(events) != 4 || events[3].Withdraw || !bytes.Equal(events[3].ExtendedCommunities, mark) {
 		t.Fatalf("withdrawal failed to select surviving eligible source: %+v", events)
 	}
@@ -302,13 +303,13 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 			wrongRD := bytes.Clone(vpn)
 			wrongRD[11] = 2
 			attrs := flowValidationAttrs(flowValidationPath(2, 65001), netip.Addr{}, 0, nil)
-			flowValidationReceive(t, r, peer, 65001, 65000, 1, flowFamily, raw, attrs, false)
-			flowValidationReceive(t, r, peer, 65001, 65000, 2, family.Family{AFI: afi, SAFI: family.SAFIUnicast}, prefix, attrs, false)
-			flowValidationReceive(t, r, peer, 65001, 65000, 3, vpnFamily, wrongRD, attrs, false)
+			flowValidationReceive(t, r, peer, 65001, 1, flowFamily, raw, attrs, false)
+			flowValidationReceive(t, r, peer, 65001, 2, family.Family{AFI: afi, SAFI: family.SAFIUnicast}, prefix, attrs, false)
+			flowValidationReceive(t, r, peer, 65001, 3, vpnFamily, wrongRD, attrs, false)
 			if len(flowValidationEvents(bus)) != 0 {
 				t.Fatal("global unicast or another RD authorized VPN FlowSpec")
 			}
-			flowValidationReceive(t, r, peer, 65001, 65000, 4, vpnFamily, vpn, attrs, false)
+			flowValidationReceive(t, r, peer, 65001, 4, vpnFamily, vpn, attrs, false)
 			events := flowValidationEvents(bus)
 			if len(events) != 1 || events[0].Family != flowFamily || !bytes.Equal(events[0].NLRI, raw) {
 				t.Fatalf("same-domain VPN route did not authorize: %+v", events)
@@ -317,11 +318,11 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 				// A default route makes offset, not missing unicast coverage, the
 				// reason the otherwise legal shortened pattern is infeasible.
 				vpnDefault := append([]byte{88, 0, 1, 1}, rd...)
-				flowValidationReceive(t, r, peer, 65001, 65000, 5, vpnFamily, vpnDefault, attrs, false)
+				flowValidationReceive(t, r, peer, 65001, 5, vpnFamily, vpnDefault, attrs, false)
 				offsetComponent := []byte{1, 64, 32, 0, 1, 0, 0}
 				offsetRaw := append([]byte{byte(len(rd) + len(offsetComponent))}, rd...)
 				offsetRaw = append(offsetRaw, offsetComponent...)
-				flowValidationReceive(t, r, peer, 65001, 65000, 6, flowFamily, offsetRaw, attrs, false)
+				flowValidationReceive(t, r, peer, 65001, 6, flowFamily, offsetRaw, attrs, false)
 				key := ribevents.ValidationRoute{Peer: peer, Family: flowFamily, NLRI: string(offsetRaw)}
 				if !ribevents.RoutePresent(key) {
 					t.Fatal("legal four-byte offset pattern was rejected instead of retained")
@@ -341,7 +342,7 @@ func TestFlowSpecVPNValidationSeparatesAFIAndRD(t *testing.T) {
 func TestFlowSpecAddPathCandidatesShareOneNativeRule(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer := netip.MustParseAddr("192.0.2.1")
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(flowValidationPath(2, 65001), netip.MustParseAddr("1.1.1.1"), 0, nil), false)
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{flowspecFamily: true}))
 	if err != nil {
@@ -373,7 +374,7 @@ func TestFlowSpecReentrantWithdrawalOrdersReplayAfterChange(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	raw := flowspecNLRI(24, 10, 0, 0)
 	attrs := flowValidationAttrs(flowValidationPath(2, 65001), netip.Addr{}, 0, nil)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, flowspecFamily, raw, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 1, flowspecFamily, raw, attrs, false)
 	ribevents.FlowSpecChanged.Subscribe(bus, func(change *ribevents.FlowSpecChange) {
 		if change.Withdraw {
 			return
@@ -381,9 +382,9 @@ func TestFlowSpecReentrantWithdrawalOrdersReplayAfterChange(t *testing.T) {
 		// A subscriber may request startup replay while another producer changes
 		// the unicast topology. Neither callback may run under a RIB lock.
 		_, _ = ribevents.ReplayRequest.Emit(bus, &replay.Request{ReplayID: replay.Broadcast})
-		flowValidationReceive(t, r, peer, 65001, 65000, 3, family.IPv4Unicast, []byte{8, 10}, nil, true)
+		flowValidationReceive(t, r, peer, 65001, 3, family.IPv4Unicast, []byte{8, 10}, nil, true)
 	})
-	flowValidationReceive(t, r, peer, 65001, 65000, 2, family.IPv4Unicast, []byte{8, 10}, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 2, family.IPv4Unicast, []byte{8, 10}, attrs, false)
 	events := flowValidationEvents(bus)
 	if len(events) != 2 || events[0].Withdraw || !events[1].Withdraw ||
 		!bytes.Equal(events[0].NLRI, raw) || !bytes.Equal(events[1].NLRI, raw) {
@@ -395,19 +396,19 @@ func TestFlowSpecForeignMoreSpecificLosingPathInvalidatesRule(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer, foreign := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")
 	attrs := flowValidationAttrs(flowValidationPath(2, 65001), netip.Addr{}, 100, nil)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10}, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, attrs, false)
 	raw := flowspecNLRI(16, 10, 1)
-	flowValidationReceive(t, r, peer, 65001, 65000, 2, flowspecFamily, raw, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, raw, attrs, false)
 	specific := []byte{24, 10, 1, 1}
-	flowValidationReceive(t, r, peer, 65001, 65000, 3, family.IPv4Unicast, specific, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 3, family.IPv4Unicast, specific, attrs, false)
 	// A longer AS_PATH loses unicast selection regardless of the peer tie-break.
-	flowValidationReceive(t, r, foreign, 65002, 65000, 4, family.IPv4Unicast, specific,
+	flowValidationReceive(t, r, foreign, 65002, 4, family.IPv4Unicast, specific,
 		flowValidationAttrs(flowValidationPath(2, 65002, 65003), netip.Addr{}, 200, nil), false)
 	events := flowValidationEvents(bus)
 	if len(events) != 2 || events[0].Withdraw || !events[1].Withdraw {
 		t.Fatalf("losing foreign more-specific was ignored: %+v", events)
 	}
-	flowValidationReceive(t, r, foreign, 65002, 65000, 5, family.IPv4Unicast, specific, nil, true)
+	flowValidationReceive(t, r, foreign, 65002, 5, family.IPv4Unicast, specific, nil, true)
 	events = flowValidationEvents(bus)
 	if len(events) != 3 || events[2].Withdraw || !bytes.Equal(events[2].NLRI, raw) {
 		t.Fatalf("removing the losing path did not restore authorization: %+v", events)
@@ -422,7 +423,7 @@ func TestFlowSpecAuthorizationSurvivesRealRPKIDisableAndRefresh(t *testing.T) {
 		[]byte{0x80, 6, 0, 0, 0, 0, 0, 0})
 	deliver := func(id uint64, fam family.Family, raw []byte) {
 		t.Helper()
-		event := flowValidationReceive(t, r, peer, 65001, 65000, id, fam, raw, attrs, false)
+		event := flowValidationReceive(t, r, peer, 65001, id, fam, raw, attrs, false)
 		if err := bridge.DeliverStructured([]any{event}); err != nil {
 			t.Fatal(err)
 		}
@@ -479,7 +480,7 @@ func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer := netip.MustParseAddr("192.0.2.1")
 	originAttrs := flowValidationAttrs(flowValidationPath(2, 65001), netip.Addr{}, 0, nil)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10}, originAttrs, false)
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10}, originAttrs, false)
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	if err != nil {
 		t.Fatal(err)
@@ -526,15 +527,15 @@ func TestFlowSpecLengthEncodingSharesRetainedGeneration(t *testing.T) {
 	r, bus := flowValidationFixture(t)
 	peer := netip.MustParseAddr("192.0.2.1")
 	path := flowValidationPath(2, 65001)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
 	short := flowspecNLRI(24, 10, 0, 0)
 	extended := append([]byte{0xf0}, short...)
 	drop := []byte{0x80, 6, 0, 0, 0, 0, 0, 0}
 	mark := []byte{0x80, 9, 0, 0, 0, 0, 0, 46}
-	flowValidationReceive(t, r, peer, 65001, 65000, 2, flowspecFamily, short,
+	flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, short,
 		flowValidationAttrs(path, netip.Addr{}, 100, drop), false)
-	flowValidationReceive(t, r, peer, 65001, 65000, 3, flowspecFamily, extended,
+	flowValidationReceive(t, r, peer, 65001, 3, flowspecFamily, extended,
 		flowValidationAttrs(path, netip.Addr{}, 100, mark), false)
 	events := flowValidationEvents(bus)
 	if len(events) != 2 || events[1].Withdraw || !bytes.Equal(events[1].NLRI, short) ||
@@ -549,7 +550,7 @@ func TestFlowSpecLengthEncodingSharesRetainedGeneration(t *testing.T) {
 	if !present || current.MsgID != 3 {
 		t.Fatalf("canonical replay lost the current received path: %+v/%v", current, present)
 	}
-	flowValidationReceive(t, r, peer, 65001, 65000, 4, flowspecFamily, short, nil, true)
+	flowValidationReceive(t, r, peer, 65001, 4, flowspecFamily, short, nil, true)
 	events = flowValidationEvents(bus)
 	if len(events) != 3 || !events[2].Withdraw || !bytes.Equal(events[2].NLRI, short) {
 		t.Fatalf("short-form withdrawal left the extended-form rule installed: %+v", events)
@@ -564,7 +565,7 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	raw := flowspecNLRI(24, 10, 0, 0)
 	path := flowValidationPath(2, 65001)
-	flowValidationReceive(t, r, peer, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10},
+	flowValidationReceive(t, r, peer, 65001, 1, family.IPv4Unicast, []byte{8, 10},
 		flowValidationAttrs(path, netip.Addr{}, 0, nil), false)
 	redirect, err := attribute.FlowSpecRedirectToIPv6(netip.MustParseAddr("2001:db8::1"))
 	if err != nil {
@@ -573,7 +574,7 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 	attrs := flowValidationAttrs(path, netip.Addr{}, 100, nil)
 	attrs = append(attrs, 0xc0, byte(attribute.AttrIPv6ExtCommunity), byte(len(redirect)))
 	attrs = append(attrs, redirect[:]...)
-	flowValidationReceive(t, r, peer, 65001, 65000, 2, flowspecFamily, raw, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 2, flowspecFamily, raw, attrs, false)
 	events := flowValidationEvents(bus)
 	if len(events) != 1 || events[0].Withdraw || !bytes.Equal(events[0].IPv6ExtendedCommunities, redirect[:]) {
 		t.Fatalf("selected IPv6 redirect was lost: %+v", events)
@@ -592,12 +593,12 @@ func TestFlowSpecIPv6ActionReplacementAndReplay(t *testing.T) {
 	replacement := redirect
 	replacement[17] = 2
 	copy(attrs[len(attrs)-len(replacement):], replacement[:])
-	flowValidationReceive(t, r, peer, 65001, 65000, 3, flowspecFamily, raw, attrs, false)
+	flowValidationReceive(t, r, peer, 65001, 3, flowspecFamily, raw, attrs, false)
 	events = flowValidationEvents(bus)
 	if len(events) != 3 || events[2].Withdraw || !bytes.Equal(events[2].IPv6ExtendedCommunities, replacement[:]) {
 		t.Fatalf("IPv6-action-only replacement did not publish: %+v", events)
 	}
-	flowValidationReceive(t, r, peer, 65001, 65000, 4, flowspecFamily, raw, nil, true)
+	flowValidationReceive(t, r, peer, 65001, 4, flowspecFamily, raw, nil, true)
 	events = flowValidationEvents(bus)
 	if len(events) != 4 || !events[3].Withdraw || !bytes.Equal(events[3].NLRI, raw) {
 		t.Fatalf("IPv6-action rule was not withdrawn: %+v", events)

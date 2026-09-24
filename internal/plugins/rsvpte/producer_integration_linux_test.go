@@ -490,7 +490,7 @@ func newRSVPProducerLab(t *testing.T) *rsvpProducerLab {
 
 func (lab *rsvpProducerLab) link(t *testing.T, left, right *rsvpProducerNode, name string, subnet byte) {
 	t.Helper()
-	veth := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name, MTU: 1500}, PeerName: name + "-peer", PeerNamespace: netlink.NsFd(right.ns), PeerMTU: 1500}
+	veth := &netlink.Veth{Name: name, MTU: 1500, PeerName: name + "-peer", PeerNamespace: netlink.NsFd(right.ns), PeerMTU: 1500}
 	if err := left.routes.LinkAdd(veth); err != nil {
 		t.Fatal(err)
 	}
@@ -634,8 +634,9 @@ func (node *rsvpProducerNode) start(t *testing.T, config string) {
 		}
 	})
 	// The test context is canceled before cleanup. Let stopDaemon own the
-	// shutdown signal so cancellation cannot force a second-signal exit.
-	node.command = exec.Command("ip", "netns", "exec", node.name, *rsvpProducerDaemon, "start", node.config)
+	// shutdown signal so cancellation cannot force a second-signal exit: the
+	// command context keeps the test values but never cancels.
+	node.command = exec.CommandContext(context.WithoutCancel(t.Context()), "ip", "netns", "exec", node.name, *rsvpProducerDaemon, "start", node.config)
 	node.command.Dir = node.dir
 	for _, item := range os.Environ() {
 		key, _, _ := strings.Cut(item, "=")
@@ -1145,7 +1146,11 @@ func (lab *rsvpProducerLab) deliver(t *testing.T, destination netip.Addr, table 
 	if err != nil {
 		t.Fatal(err)
 	}
-	port := address.(*unix.SockaddrInet4).Port
+	inet4, ok := address.(*unix.SockaddrInet4)
+	if !ok {
+		t.Fatalf("socket address is %T", address)
+	}
+	port := inet4.Port
 	tx := rsvpProducerSocket(t, lab.head, lab.head.id, 0, table)
 	mark := lab.mark()
 	if err := unix.Sendto(tx, []byte(payload), 0, &unix.SockaddrInet4{Addr: destination.As4(), Port: port}); err != nil {
@@ -1327,7 +1332,8 @@ func rsvpProducerObserve(path string) error {
 				row.Error = err.Error()
 				return write(row)
 			}
-			for _, route := range routes {
+			for i := range routes {
+				route := &routes[i]
 				item := rsvpProducerRoute{Table: route.Table, Link: route.LinkIndex, Protocol: int(route.Protocol), MTU: route.MTU}
 				if route.Dst != nil {
 					item.Prefix = route.Dst.String()

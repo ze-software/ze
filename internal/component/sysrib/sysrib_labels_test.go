@@ -26,7 +26,7 @@ func TestChangeToBatchCarriesLabels(t *testing.T) {
 		},
 	}
 
-	batch := changeToBatch(c)
+	batch := changeToBatch(&c)
 	require.NotNil(t, batch)
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, []uint32{1000, 2000}, batch.Changes[0].Labels,
@@ -35,7 +35,7 @@ func TestChangeToBatchCarriesLabels(t *testing.T) {
 
 // VALIDATES: F1 -- a withdraw carries no labels (the prefix is being removed).
 func TestChangeToBatchRemoveHasNoLabels(t *testing.T) {
-	batch := changeToBatch(locrib.Change{
+	batch := changeToBatch(&locrib.Change{
 		Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("10.1.0.0/24"),
 		Kind:   locrib.ChangeRemove,

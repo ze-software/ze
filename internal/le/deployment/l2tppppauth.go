@@ -128,7 +128,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 		if fatal := fresh.firstSeen(forbidden); fatal != "" {
 			return errors.New("wrong-secret session produced forbidden observation: " + fatal)
 		}
-		body, err := os.ReadFile(filepath.Join(work, "pppd.log"))
+		body, err := os.ReadFile(filepath.Join(work, "pppd.log")) //nolint:gosec // the path is this run's own work directory
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
@@ -160,7 +160,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 	if fatal := l2tpPPPSince(seen, mark).firstSeen(forbidden); fatal != "" {
 		return errors.New("wrong-secret session produced forbidden observation: " + fatal)
 	}
-	body, err := os.ReadFile(filepath.Join(work, "pppd.log"))
+	body, err := os.ReadFile(filepath.Join(work, "pppd.log")) //nolint:gosec // the path is this run's own work directory
 	if err != nil {
 		return err
 	}

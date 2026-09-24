@@ -455,7 +455,7 @@ func (h *Hugepages) buildHostZe(work string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), hostBuildTimeout)
 	defer cancel()
 
-	build := exec.CommandContext(ctx, "go", goCommandBuild, "-tags", "ze_core,ze_setup", "-o", host, "./cmd/ze") //nolint:gosec // host is a path under the work directory this run made
+	build := exec.CommandContext(ctx, "go", goCommandBuild, tagsFlag, "ze_core,ze_setup", "-o", host, zeMainPackage) //nolint:gosec // host is a path under the work directory this run made
 	build.Dir = h.Tree
 	build.Env = append(os.Environ(), "CGO_ENABLED=0")
 	out, err := build.CombinedOutput()

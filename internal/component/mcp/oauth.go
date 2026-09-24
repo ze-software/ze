@@ -67,27 +67,27 @@ func (a oauthAuthenticator) Authenticate(r *http.Request) (Identity, *authError)
 func (a oauthAuthenticator) mapVerifyError(err error) *authError {
 	switch {
 	case errors.Is(err, errJWTAlgNone):
-		return a.challengeError("invalid_token", "alg=none is not accepted")
+		return a.challengeError(errorCodeInvalidToken, "alg=none is not accepted")
 	case errors.Is(err, errJWTAlgUnsupported):
-		return a.challengeError("invalid_token", "unsupported alg")
+		return a.challengeError(errorCodeInvalidToken, "unsupported alg")
 	case errors.Is(err, errJWTExpired):
-		return a.challengeError("invalid_token", "token expired")
+		return a.challengeError(errorCodeInvalidToken, "token expired")
 	case errors.Is(err, errJWTNotYetValid):
-		return a.challengeError("invalid_token", "token not yet valid")
+		return a.challengeError(errorCodeInvalidToken, "token not yet valid")
 	case errors.Is(err, errJWTMissingExp):
-		return a.challengeError("invalid_token", "missing exp claim")
+		return a.challengeError(errorCodeInvalidToken, "missing exp claim")
 	case errors.Is(err, errJWTMissingSub):
-		return a.challengeError("invalid_token", "missing sub claim")
+		return a.challengeError(errorCodeInvalidToken, "missing sub claim")
 	case errors.Is(err, errJWTUnsafeSub):
-		return a.challengeError("invalid_token", "sub claim contains control characters")
+		return a.challengeError(errorCodeInvalidToken, "sub claim contains control characters")
 	case errors.Is(err, errJWTIssuerMismatch):
-		return a.challengeError("invalid_token", "invalid issuer")
+		return a.challengeError(errorCodeInvalidToken, "invalid issuer")
 	case errors.Is(err, errJWTAudienceMismatch):
-		return a.challengeError("invalid_token", "invalid audience")
+		return a.challengeError(errorCodeInvalidToken, "invalid audience")
 	case errors.Is(err, errJWTBadSignature):
-		return a.challengeError("invalid_token", "signature does not verify")
+		return a.challengeError(errorCodeInvalidToken, "signature does not verify")
 	case errors.Is(err, errJWTUnknownKid):
-		return a.challengeError("invalid_token", "unknown key")
+		return a.challengeError(errorCodeInvalidToken, "unknown key")
 	case errors.Is(err, errJWTInsufficientScope):
 		scope := ""
 		if len(a.requiredScopes) > 0 {
@@ -109,7 +109,7 @@ func (a oauthAuthenticator) mapVerifyError(err error) *authError {
 		// internal infrastructure details (JWKS URLs, fetch failure text)
 		// never appear in the HTTP response. The underlying error is
 		// available to operators via structured logs if needed.
-		return a.challengeError("invalid_token", "token rejected")
+		return a.challengeError(errorCodeInvalidToken, "token rejected")
 	}
 }
 
@@ -197,7 +197,7 @@ func writeResourceMetadata(w http.ResponseWriter, cfg OAuthConfig) {
 		http.Error(w, "encode error", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", mediaTypeJSON)
 	w.Header().Set("Cache-Control", "max-age=300")
 	if _, werr := w.Write(body); werr != nil {
 		// Client closed the connection; nothing we can do.

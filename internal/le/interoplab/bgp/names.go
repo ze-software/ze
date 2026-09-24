@@ -93,8 +93,11 @@ const (
 	containerInterface = "eth0"
 	ipActionSet        = "set"
 	ipFamilyInet       = "inet"
+	ipActionShow       = "show"
 	ipObjectAddr       = "addr"
+	ipObjectAddress    = "address"
 	ipObjectLink       = "link"
+	ipObjectRoute      = "route"
 	ipObjectXfrm       = "xfrm"
 	linkDown           = "down"
 )
@@ -478,3 +481,19 @@ const (
 
 	frrShowMixedWidthPrefixJSON = "show bgp ipv4 unicast " + mixedWidthPrefix + " json"
 )
+
+// flowspecMatchSCTP is the protocol word nft(8) prints for the SCTP match the
+// flowspec scenario lowers, and whose absence proves the rule was withdrawn.
+const flowspecMatchSCTP = "sctp"
+
+// virtualLinkTransitArea is the OSPF transit area of the virtual link, as the
+// transit_area label of the virtual-link metrics the scenario reads.
+const virtualLinkTransitArea = "0.0.0.1"
+
+// shellErrexitCommand makes sh(1) run the next argument as a script and stop
+// at its first failing command.
+const shellErrexitCommand = "-ec"
+
+// transitAreaLabel is the metric label that carries a virtual link's transit
+// area on the OSPF virtual-link metrics the scenario reads.
+const transitAreaLabel = "transit_area"

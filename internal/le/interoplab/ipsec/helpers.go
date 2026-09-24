@@ -135,7 +135,7 @@ func (l *scenarioLab) waitLog(ctx context.Context, peer, needle string, timeout 
 }
 
 func (l *scenarioLab) listSAs(ctx context.Context) (string, error) {
-	return l.exec(ctx, swanPeer, "swanctl", "--list-sas")
+	return l.exec(ctx, swanPeer, cmdSwanctl, "--list-sas")
 }
 
 func (l *scenarioLab) waitSA(ctx context.Context, timeout time.Duration) error {
@@ -1104,10 +1104,10 @@ func saFlagsTrue(record map[string]any, fields []string) bool {
 // ones in the lab a translation cannot move, which is exactly what makes it the control:
 // a substitution that leaked into tunnel mode would change them and nothing else would.
 func (l *scenarioLab) natInnerAddress(ctx context.Context, peer, local, remote string) error {
-	if _, err := l.exec(ctx, peer, "ip", "address", "replace", local+"/32", "dev", "lo"); err != nil {
+	if _, err := l.exec(ctx, peer, "ip", ipObjectAddress, "replace", local+"/32", ipArgDev, "lo"); err != nil {
 		return fmt.Errorf("install inner address %s on %s: %w", local, peer, err)
 	}
-	if _, err := l.exec(ctx, peer, "ip", "route", "replace", remote+"/32", "dev", "eth0", "src", local); err != nil {
+	if _, err := l.exec(ctx, peer, "ip", "route", "replace", remote+"/32", ipArgDev, containerInterface, "src", local); err != nil {
 		return fmt.Errorf("install inner route to %s on %s: %w", remote, peer, err)
 	}
 	return nil
@@ -1624,7 +1624,7 @@ func (l *scenarioLab) requireUnreadableDataplane(ctx context.Context, wantBefore
 // pingCommand is the argv of one probe: count echo requests, a two-second wait, the
 // source when the probe names one, and the size with Don't Fragment when it names one.
 func pingCommand(probe pingProbe, count int) []string {
-	command := []string{"ping", "-c", strconv.Itoa(count), "-W", "2"}
+	command := []string{cmdPing, "-c", strconv.Itoa(count), "-W", "2"}
 	if probe.source != "" {
 		command = append(command, "-I", probe.source)
 	}
@@ -1656,7 +1656,7 @@ func (l *scenarioLab) requireLossyPing(ctx context.Context, probe pingProbe) err
 // Don't Fragment set is refused with an ICMP frag-needed naming the clamp.
 func (l *scenarioLab) clampForwardedPath(ctx context.Context) error {
 	for _, real := range []string{zeIP, swanIP} {
-		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", "dev", "eth0", "mtu", strconv.Itoa(mtuClampedPath)); err != nil {
+		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", ipArgDev, containerInterface, "mtu", strconv.Itoa(mtuClampedPath)); err != nil {
 			return fmt.Errorf("clamp the forwarded path to %s on the NAT box: %w", real, err)
 		}
 	}
@@ -1666,10 +1666,10 @@ func (l *scenarioLab) clampForwardedPath(ctx context.Context) error {
 // xfrmInnerAddress is natInnerAddress for a tunnel bound to the xfrm interface: the
 // inner route leaves by that interface, which is what selects the if_id-bound policy.
 func (l *scenarioLab) xfrmInnerAddress(ctx context.Context, local, remote string) error {
-	if _, err := l.exec(ctx, zePeer, "ip", "address", "replace", local+"/32", "dev", "lo"); err != nil {
+	if _, err := l.exec(ctx, zePeer, "ip", ipObjectAddress, "replace", local+"/32", ipArgDev, "lo"); err != nil {
 		return fmt.Errorf("install inner address %s on ze: %w", local, err)
 	}
-	if _, err := l.exec(ctx, zePeer, "ip", "route", "replace", remote+"/32", "dev", mtuXfrmInterface, "src", local); err != nil {
+	if _, err := l.exec(ctx, zePeer, "ip", "route", "replace", remote+"/32", ipArgDev, mtuXfrmInterface, "src", local); err != nil {
 		return fmt.Errorf("install inner route to %s over %s on ze: %w", remote, mtuXfrmInterface, err)
 	}
 	return nil
@@ -1899,7 +1899,7 @@ var peerReassemblyMarks = []string{"net.ipv4.ipfrag_high_thresh", "net.ipv4.ipfr
 // on the tunnel's own channel meets the clamp.
 func (l *scenarioLab) exemptICMPFromClamp(ctx context.Context) error {
 	for _, real := range []string{zeIP, swanIP} {
-		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", "dev", "eth0", "table", icmpRouteTable); err != nil {
+		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", ipArgDev, containerInterface, "table", icmpRouteTable); err != nil {
 			return fmt.Errorf("install the unclamped ICMP route to %s on the NAT box: %w", real, err)
 		}
 	}
@@ -1999,7 +1999,7 @@ func (l *scenarioLab) zeShowMTUDetached(ctx context.Context, during func(context
 // a request that is not a Delete (task_manager_v2.c reject_request), which is the
 // race R-5 names.
 func (l *scenarioLab) swanRekeyIKE(ctx context.Context) error {
-	if _, err := l.exec(ctx, swanPeer, "swanctl", "--rekey", "--ike", swanConnection); err != nil {
+	if _, err := l.exec(ctx, swanPeer, cmdSwanctl, "--rekey", "--ike", swanConnection); err != nil {
 		return fmt.Errorf("swanctl --rekey --ike %s: %w", swanConnection, err)
 	}
 	return nil

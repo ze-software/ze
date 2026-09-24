@@ -82,7 +82,8 @@ func (f *fakeTransport) Close() error        { close(f.recvCh); return nil }
 func (f *fakeTransport) lastByType(msgType uint8) (*ParsedMessage, netip.Addr, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	for _, sent := range slices.Backward(f.sent) {
+	for index := range slices.Backward(f.sent) {
+		sent := &f.sent[index]
 		msg, err := DecodeMessage(sent.payload)
 		if err == nil && msg.Header.MsgType == msgType {
 			return msg, sent.dst, true

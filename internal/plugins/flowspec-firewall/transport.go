@@ -9,6 +9,12 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 )
 
+// Protocol names a lowered match carries, as the firewall backend reads them.
+const (
+	protocolTCP = "tcp"
+	protocolUDP = "udp"
+)
+
 func transportProtocols(fs *flowspec.FlowSpec, current []firewall.MatchProtocol) ([]firewall.MatchProtocol, error) {
 	ports, tcp, icmp := false, false, false
 	for _, c := range fs.Components() {
@@ -31,17 +37,17 @@ func transportProtocols(fs *flowspec.FlowSpec, current []firewall.MatchProtocol)
 		icmpName = "icmpv6"
 	}
 	if len(current) == 0 {
-		current = []firewall.MatchProtocol{{Protocol: "tcp"}, {Protocol: "udp"}, {Protocol: icmpName}}
+		current = []firewall.MatchProtocol{{Protocol: protocolTCP}, {Protocol: protocolUDP}, {Protocol: icmpName}}
 	}
 	out := current[:0]
 	// RFC 8955 Sections 4.2.2.4-9: transport components never match a packet
 	// of a different protocol. The constraints are intersected, even when
 	// the NLRI omits the explicit IP-protocol component.
 	for _, p := range current {
-		if ports && p.Protocol != "tcp" && p.Protocol != "udp" {
+		if ports && p.Protocol != protocolTCP && p.Protocol != protocolUDP {
 			continue
 		}
-		if tcp && p.Protocol != "tcp" {
+		if tcp && p.Protocol != protocolTCP {
 			continue
 		}
 		if icmp && p.Protocol != icmpName {

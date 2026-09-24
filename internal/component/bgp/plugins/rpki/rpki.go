@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -46,6 +47,13 @@ const (
 	commandShowRPKI = "show bgp rpki"
 	shapeTab        = "tab"
 	columnAddress   = "address"
+	columnState     = "state"
+
+	// subjectPeer names a peer to the operator, beside "group" for a template.
+	subjectPeer = "peer"
+
+	// leafTrue is how the config framework spells a YANG boolean true.
+	leafTrue = "true"
 )
 
 // rpkiMetrics holds Prometheus metrics for the RPKI plugin.
@@ -214,7 +222,7 @@ func commandDecls() []sdk.CommandDecl {
 			// names the row keys: the aggregate half carries none of them, so
 			// it keeps the alphabetical rendering it has today.
 			Shape:         shapeTab,
-			Columns:       []string{columnAddress, "port", "state", "synced", "version"},
+			Columns:       []string{columnAddress, "port", columnState, "synced", "version"},
 			AddressFields: []string{columnAddress},
 		},
 		{
@@ -233,7 +241,7 @@ func commandDecls() []sdk.CommandDecl {
 			// session to what the overview carries.
 			Shape: shapeTab,
 			Columns: []string{
-				columnAddress, "port", "preference", "state", "synced", "version",
+				columnAddress, "port", "preference", columnState, "synced", "version",
 				"session-id", "serial", "refresh-interval", "retry-interval",
 				"expire-interval",
 			},
@@ -650,9 +658,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 			prefixes := rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
 				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, mpASPAState, carriesBlackhole)
 			if existing := results[fam.String()]; existing != nil {
-				for prefix, state := range prefixes {
-					existing[prefix] = state
-				}
+				maps.Copy(existing, prefixes)
 			} else {
 				results[fam.String()] = prefixes
 			}

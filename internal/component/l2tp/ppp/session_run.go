@@ -1238,7 +1238,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// zero while the peer requests none: RFC 1661 Section 6.4 holds every
 	// Echo packet the peer sends to that value.
 	if ev == LCPEventRCRPlus {
-		s.peerMagic, _ = lookupOptionUint32(peerOpts, LCPOptMagic)
+		s.peerMagic, _ = lookupMagicNumber(peerOpts)
 	}
 	// RFC 1661 Section 5.8: the option is "successfully negotiated" when
 	// the peer acknowledges the Configure-Request that carried it. The
@@ -1264,7 +1264,7 @@ func (s *pppSession) redrawMagicOnNak(nak LCPPacket) bool {
 	if err != nil {
 		return true
 	}
-	if _, ok := lookupOptionUint32(opts, LCPOptMagic); !ok {
+	if _, ok := lookupMagicNumber(opts); !ok {
 		return true
 	}
 	// Bound repeated draws even if the entropy source keeps returning

@@ -694,7 +694,7 @@ func writeJSONResponseStatus(w http.ResponseWriter, status int, v any) {
 		http.Error(w, "encode error", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", mediaTypeJSON)
 	w.WriteHeader(status)
 	if _, writeErr := w.Write(data); writeErr != nil {
 		return

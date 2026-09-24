@@ -181,7 +181,7 @@ only `send [ raw ]` does not suppress Adj-RIB-In's self-replay.
 If a reflector joins later or restarts, its post-startup callback uses the
 existing `claim-replay` command to notify a receive store that is already
 running. The startup declaration still provides ordering for the first peer.
-<!-- source: internal/component/bgp/plugins/rr/register.go -- Registration.Claims -->
+<!-- source: internal/component/bgp/plugins/rr/register.go -- init -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- applyStartupClaims, replayDrivenElsewhere -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector OnAllPluginsReady -->
 <!-- source: internal/component/bgp/server/events.go -- onPeerStateChange -->

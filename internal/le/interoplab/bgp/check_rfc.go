@@ -807,7 +807,7 @@ func checkRFC7999Blackhole(ctx context.Context, check *interoplab.CheckContext) 
 	blackholed := netip.MustParseAddr(blackholedAddress)
 	uncovered := netip.MustParseAddr(uncoveredAddress)
 	unagreed := netip.MustParseAddr(unagreedAddress)
-	showKernelRoutes := []string{"ip", "-4", "route", "show"}
+	showKernelRoutes := []string{"ip", "-4", ipObjectRoute, ipActionShow}
 	table, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     90 * time.Second,
 		Interval:    2 * time.Second,

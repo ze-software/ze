@@ -31,7 +31,7 @@ var mimeByExt = map[string]string{
 	".htm":   "text/html",
 	".css":   "text/css",
 	".js":    "application/javascript",
-	".json":  "application/json",
+	".json":  mediaTypeJSON,
 	".svg":   "image/svg+xml",
 	".png":   "image/png",
 	".jpg":   "image/jpeg",
@@ -43,7 +43,7 @@ var mimeByExt = map[string]string{
 	".ttf":   "font/ttf",
 }
 
-var textMIMEPrefixes = []string{"text/", "application/javascript", "application/json", "image/svg+xml"}
+var textMIMEPrefixes = []string{"text/", "application/javascript", mediaTypeJSON, "image/svg+xml"}
 
 func sniffMIME(name string) string {
 	ext := path.Ext(name)

@@ -36,7 +36,7 @@ func TestUnknownMessageTypeClearsTunnelWhenMandatory(t *testing.T) {
 		now := time.Now()
 		tun, defaults := dialedTunnel(t, now)
 
-		pkt := controlBody(messageTypeBody(true, unknownType), 100)
+		pkt := controlBody(messageTypeBody(true, unknownType))
 		hdr, err := ParseMessageHeader(pkt)
 		require.NoError(t, err)
 		out := tun.Process(hdr, pkt[hdr.PayloadOff:hdr.Length], now, defaults, nil)
@@ -58,7 +58,7 @@ func TestUnknownMessageTypeClearsTunnelWhenMandatory(t *testing.T) {
 		tun, defaults := dialedTunnel(t, now)
 		before := tun.state
 
-		pkt := controlBody(messageTypeBody(false, unknownType), 100)
+		pkt := controlBody(messageTypeBody(false, unknownType))
 		hdr, err := ParseMessageHeader(pkt)
 		require.NoError(t, err)
 		out := tun.Process(hdr, pkt[hdr.PayloadOff:hdr.Length], now, defaults, nil)
@@ -94,7 +94,7 @@ func TestHiddenMessageTypeClearsTunnel(t *testing.T) {
 		tun, defaults := dialedTunnel(t, now)
 		body := messageTypeBody(false, msgType)
 		body[0] |= 0x40
-		pkt := controlBody(body, 100)
+		pkt := controlBody(body)
 		hdr, err := ParseMessageHeader(pkt)
 		require.NoError(t, err)
 		out := tun.Process(hdr, pkt[hdr.PayloadOff:hdr.Length], now, defaults, nil)

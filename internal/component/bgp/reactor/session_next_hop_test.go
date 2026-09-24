@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )

@@ -545,7 +545,8 @@ func TestRFC7854BGPPeerUpCarriesTransportPorts(t *testing.T) {
 	defer closeLog(client, "client")
 
 	bp := newPipeSender(client, false)
-	var local [16]byte
+	// A non-zero Local Address proves the field reaches the wire unchanged.
+	local := [16]byte{12: 192, 13: 0, 14: 2, 15: 1}
 	open := makeBGPOpen(65001, 0x01020304)
 	if err := bp.senders[0].writePeerUp(testPeerHeader(), local, 179, 40000, open, open); err != nil {
 		t.Fatalf("writePeerUp: %v", err)
@@ -560,5 +561,8 @@ func TestRFC7854BGPPeerUpCarriesTransportPorts(t *testing.T) {
 	}
 	if up.LocalPort != 179 || up.RemotePort != 40000 {
 		t.Errorf("BGP peer Peer Up ports = %d/%d, want 179/40000", up.LocalPort, up.RemotePort)
+	}
+	if up.LocalAddress != local {
+		t.Errorf("BGP peer Peer Up local address = %v, want %v", up.LocalAddress, local)
 	}
 }

@@ -588,7 +588,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 			log.Warn("rsvp-te: no router-id configured, engine idle")
 			return nil
 		}
-		ctx, stopWorkers = context.WithCancel(ctx)
+		ctx, stopWorkers = context.WithCancel(ctx) //nolint:gosec // the deferred cleanup at the top of this function calls stopWorkers
 
 		// Open the raw IP transport (protocol 46). On platforms without it, or
 		// without CAP_NET_RAW, the component stays up for config/show but cannot

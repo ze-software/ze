@@ -42,7 +42,7 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 		return statusError, nil, fmt.Errorf("replay-path pathID: %w", err)
 	}
 	if destination == source {
-		return statusDone, map[string]any{"replayed": 0}, nil
+		return statusDone, map[string]any{replayKeyReplayed: 0}, nil
 	}
 	key := compactRouteKey{Fam: fam, Prefix: prefix, PathID: uint32(pathID)}
 	route := rpc.StoredRoute{
@@ -69,7 +69,7 @@ func (r *AdjRIBInManager) replayPathCommand(args []string) (string, any, error) 
 	if err := r.relayRoutes(args[0], []rpc.StoredRoute{route}); err != nil {
 		return statusError, nil, err
 	}
-	return statusDone, map[string]any{"replayed": 1}, nil
+	return statusDone, map[string]any{replayKeyReplayed: 1}, nil
 }
 
 // replayFlowSpecs supplies self-owned peer-up replay from the mandatory

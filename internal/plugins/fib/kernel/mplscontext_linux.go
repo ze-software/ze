@@ -355,3 +355,9 @@ func (n *netlinkBackend) closeMPLSContexts() error {
 	}
 	return result
 }
+
+// mplsPushKey identifies one private push context: its routing table and FEC.
+type mplsPushKey struct {
+	tableID uint32
+	fec     netip.Prefix
+}

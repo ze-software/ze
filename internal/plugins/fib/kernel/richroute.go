@@ -28,7 +28,7 @@ type RichRoute struct {
 	Labels    []uint32
 	// PathMTU is a labeled path's frame budget, before MPLS encapsulation.
 	// Linux's IP MTU calculation subtracts the LWT label headroom.
-	PathMTU uint32
+	PathMTU   uint32
 	SRv6SID   netip.Addr
 	ECMPPaths []sysribevents.ECMPPath
 	// Backup is the fast-reroute backup next-hop set: programmed as link-down /

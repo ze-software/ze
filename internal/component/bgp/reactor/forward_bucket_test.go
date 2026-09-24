@@ -158,7 +158,8 @@ var (
 func countBodiesWithAttrs(t *testing.T, items []fwdItem, attrs []byte) int {
 	t.Helper()
 	count := 0
-	for i, it := range items {
+	for i := range items {
+		it := &items[i]
 		for _, body := range it.rawBodies {
 			parts, ok := parseBucketBody(body)
 			if !ok {

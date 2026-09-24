@@ -48,7 +48,9 @@ func pppoeActiveSubscribers(t *testing.T) float64 {
 	subscriber.BindMetrics(pppoeLifetimeMetrics)
 	gauge := pppoeLifetimeMetrics.GaugeVec("ze_subscriber_sessions", "Number of active subscriber sessions.", []string{"access_type"}).With(string(subscriber.AccessPPPoE))
 	var sample dto.Metric
-	require.NoError(t, gauge.(interface{ Write(*dto.Metric) error }).Write(&sample))
+	writer, ok := gauge.(interface{ Write(*dto.Metric) error })
+	require.True(t, ok, "gauge %T cannot write a dto.Metric", gauge)
+	require.NoError(t, writer.Write(&sample))
 	return sample.GetGauge().GetValue()
 }
 
@@ -115,7 +117,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 				sub.handlePPPEvent(firstV6)
 				sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
 				require.Len(t, up, 1)
-				assertPPPoELifetimeAddresses(t, up[0], first, firstV6)
+				assertPPPoELifetimeAddresses(t, &up[0], first, firstV6)
 				require.Equal(t, uint64(20_000_000), up[0].DownloadRate)
 				require.Equal(t, uint64(5_000_000), up[0].UploadRate)
 				require.Equal(t, baseline+1, pppoeActiveSubscribers(t))
@@ -158,7 +160,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			sub.handlePPPEvent(second)
 			sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
 			latest := up[len(up)-1]
-			assertPPPoELifetimeAddresses(t, latest, second, secondV6)
+			assertPPPoELifetimeAddresses(t, &latest, second, secondV6)
 			require.Equal(t, "new-user", latest.Username)
 			require.Equal(t, "pap", latest.AuthMethod)
 			require.Equal(t, uint64(30_000_000), latest.DownloadRate)
@@ -185,7 +187,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 	}
 }
 
-func assertPPPoELifetimeAddresses(t *testing.T, sess subscriber.Session, v4, v6 ppp.EventSessionIPAssigned) {
+func assertPPPoELifetimeAddresses(t *testing.T, sess *subscriber.Session, v4, v6 ppp.EventSessionIPAssigned) {
 	t.Helper()
 	require.Equal(t, subscriber.StateActive, sess.State)
 	require.Equal(t, v4.Peer, sess.IPv4Addr)

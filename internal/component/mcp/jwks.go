@@ -163,7 +163,7 @@ func (c *jwksCache) fetch() (map[string]crypto.PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("jwks: build request: %w", err)
 	}
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", mediaTypeJSON)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("jwks: fetch: %w", redact.URLError(err))

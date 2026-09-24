@@ -83,7 +83,7 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 
 	fsOff, sampleLengthOff, numRecordsOff := writeFlowSample(
 		b, off, seq, sample.IfIndex, sample.Rate, pool, 0, sample.IfIndex, sample.Output)
-	off = writeSampledHeader(b, fsOff, HeaderProtocolEthernet, sample.OrigSize+ethernetFCSOctets, ethernetFCSOctets, hdr)
+	off = writeSampledHeader(b, fsOff, sample.OrigSize+ethernetFCSOctets, ethernetFCSOctets, hdr)
 	backfillFlowSample(b, sampleLengthOff, numRecordsOff, off, 1)
 
 	sender.AdvanceSequence(1)

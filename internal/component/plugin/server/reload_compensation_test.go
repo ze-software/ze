@@ -23,7 +23,7 @@ func TestRejectedReloadScopePreservesNewerAcceptedTree(t *testing.T) {
 	for _, next := range []int{2, 3} {
 		t.Run(fmt.Sprintf("accepted=%d", next), func(t *testing.T) {
 			s, _ := newLifecycleStartupServer(t)
-			reactor := &removalRecoveryReactor{mockReloadReactor: mockReloadReactor{tree: map[string]any{"revision": 1}}}
+			reactor := &removalRecoveryReactor{tree: map[string]any{"revision": 1}}
 			s.reactor = reactor
 			ctx, finish := s.DeferReloadAcceptance(t.Context())
 			defer finish(false)
@@ -44,7 +44,7 @@ func TestRejectedReloadScopesRestorePredecessorOwnership(t *testing.T) {
 			initial := map[string]any{"revision": 1}
 			parentTree := map[string]any{"revision": 2}
 			childTree := map[string]any{"revision": 3}
-			reactor := &removalRecoveryReactor{mockReloadReactor: mockReloadReactor{tree: initial}}
+			reactor := &removalRecoveryReactor{tree: initial}
 			s.reactor = reactor
 			parent, rejectParent := s.DeferReloadAcceptance(t.Context())
 			defer rejectParent(false)
@@ -143,7 +143,7 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 			committed := map[string]any{root: map[string]any{"value": int64(42)}}
 			candidate := map[string]any{root: map[string]any{"value": int64(99)}}
 			reactor := &refusingCompensationReactor{
-				removalRecoveryReactor: removalRecoveryReactor{mockReloadReactor: mockReloadReactor{tree: committed}},
+				tree: committed,
 				refuse: func(tree map[string]any) bool {
 					if !reactorFailure || !refuse.Load() {
 						return false

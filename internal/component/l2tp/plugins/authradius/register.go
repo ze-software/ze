@@ -126,11 +126,9 @@ func runPlugin(conn net.Conn) int {
 	}
 	retireAccounting := func() {
 		if retired := acctInstance.detach(); retired != nil {
-			retirements.Add(1)
-			go func() {
-				defer retirements.Done()
+			retirements.Go(func() {
 				retired.stopDetached()
-			}()
+			})
 		}
 	}
 	eventBusMu.Lock()

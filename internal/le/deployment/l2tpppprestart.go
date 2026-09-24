@@ -142,11 +142,11 @@ func l2tpPPPExchange(log, protocol, direction, replyDirection string) bool {
 		return false
 	}
 	request := log[start+len(prefix):]
-	end := strings.IndexByte(request, '\n')
-	if end < 0 {
+	before, after, ok := strings.Cut(request, "\n")
+	if !ok {
 		return false
 	}
-	return strings.Contains(request[end+1:], replyDirection+" ["+protocol+" ConfAck "+request[:end]+"\n")
+	return strings.Contains(after, replyDirection+" ["+protocol+" ConfAck "+before+"\n")
 }
 
 func l2tpPPPRestartProgress(log, authentication string) string {

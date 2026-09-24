@@ -52,7 +52,7 @@ type rpkiReloadSink struct {
 // each phase requires a synchronized, usable copy of the same StayRTR payload set.
 func checkRPKIPolicyReload(ctx context.Context, check *interoplab.CheckContext) error {
 	// Preserve the existing independent RTR and per-prefix validation checks.
-	for index, op := range []operation{
+	initial := []operation{
 		{kind: opWaitContains, peer: peerStayRTR, command: []string{"wget", "-q", "-O", "-", "http://127.0.0.1:9847/rpki.json"}, contains: []string{"prefix"}},
 		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rpki status"), minimum: map[string]int{"vrp-count-ipv4": 2, "vrp-count-ipv6": 2}, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: "ze", command: zeCommand("show bgp rpki roa"), contains: []string{"9.58.0.0/16", "10.58.0.0/16", "2001:db8:58::/48", "2001:db8:59::/48", "4200000001", "65001"}},
@@ -70,8 +70,9 @@ func checkRPKIPolicyReload(ctx context.Context, check *interoplab.CheckContext) 
 		{kind: opBIRDSession, argument: birdZeProtocol},
 		{kind: opFRRRoute, argument: rpkiReloadInvalid},
 		{kind: opFRRRoute, argument: rpkiReloadControl},
-	} {
-		if err := runOperation(ctx, check.Network, check.Lab, &op); err != nil {
+	}
+	for index := range initial {
+		if err := runOperation(ctx, check.Network, check.Lab, &initial[index]); err != nil {
 			return checkerFailure(ctx, check.Lab, rpkiReloadScenario, index+1, err)
 		}
 	}

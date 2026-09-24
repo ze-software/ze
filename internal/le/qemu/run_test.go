@@ -21,13 +21,13 @@ import (
 // PREVENTS: a missing guest proof or renamed action.
 func TestQEMUActionsIncludeTheHostRun(t *testing.T) {
 	rows := Actions().Actions
-	if len(rows) != 11 {
-		t.Fatalf("qemu actions = %d, want 11", len(rows))
+	if len(rows) != 12 {
+		t.Fatalf("qemu actions = %d, want 12", len(rows))
 	}
 	want := []string{
 		"vpp-hugepages-test", "run", "install-test", "install-iso-test",
 		"install-scenarios-test", "install-ventoy-test", "vrrp-keepalived-test",
-		"pppoe-accel-test", "netns-test", "pppoe-test", "all-tests",
+		"ipsec-mobike-test", "pppoe-accel-test", "netns-test", "pppoe-test", "all-tests",
 	}
 	for index, verb := range want {
 		if rows[index].Verb != verb {

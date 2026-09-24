@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/ze-software/ze/internal/component/bgp/message"
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/bgp/message"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"

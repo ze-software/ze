@@ -3,13 +3,13 @@ package bgpconfig
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
-	"slices"
 )
 
 func requireRIBDelivery(plugins []plugin.PluginConfig, peers []*reactor.PeerSettings, feature string, internalOnly bool) error {

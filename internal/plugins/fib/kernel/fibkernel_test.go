@@ -630,10 +630,8 @@ type richMockBackend struct {
 
 func newRichMockBackend() *richMockBackend {
 	return &richMockBackend{
-		mockBackend: mockBackend{
-			added:    make(map[string]string),
-			replaced: make(map[string]string),
-		},
+		added:    make(map[string]string),
+		replaced: make(map[string]string),
 	}
 }
 

@@ -159,11 +159,18 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 	if !selection.changed {
 		return wu, nil, nil
 	}
-	selected, err := validationBuildWire(update, spans, payload[attrStart:attrEnd], v4Withdraw, v4Announce, mpWithdraw, mpAnnounce, unreachFamily, reachFamily, nextHop)
-	if err != nil {
-		return nil, nil, err
+	// A nil UPDATE is the outcome "nothing to send": selection removed every
+	// NLRI from that side, so no UPDATE is built for it.
+	var selected, denied *wireu.WireUpdate
+	if len(v4Withdraw)+len(v4Announce)+len(mpWithdraw)+len(mpAnnounce) > 0 {
+		selected, err = validationBuildWire(update, spans, payload[attrStart:attrEnd], v4Withdraw, v4Announce, mpWithdraw, mpAnnounce, unreachFamily, reachFamily, nextHop)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	denied, err := validationBuildWire(update, nil, nil, v4Denied, nil, mpDenied, nil, reachFamily, family.Family{}, nil)
+	if len(v4Denied)+len(mpDenied) > 0 {
+		denied, err = validationBuildWire(update, nil, nil, v4Denied, nil, mpDenied, nil, reachFamily, family.Family{}, nil)
+	}
 	return selected, denied, err
 }
 
@@ -309,10 +316,9 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 //
 // RFC 4760 Sections 3/4 carry MP NLRI in attributes 14/15. Existing attribute
 // order and values are preserved; only the two NLRI-bearing values are replaced.
+// The caller MUST pass at least one non-empty NLRI section: an UPDATE with no
+// NLRI is not built, and the caller names that outcome itself.
 func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, withdrawn, announced, mpWithdraw, mpAnnounce []byte, withdrawFamily, announceFamily family.Family, nextHop []byte) (*wireu.WireUpdate, error) {
-	if len(withdrawn)+len(announced)+len(mpWithdraw)+len(mpAnnounce) == 0 {
-		return nil, nil
-	}
 	// Each output is at most the received body's size: selection removes NLRI,
 	// and MP_UNREACH replaces MP_REACH's next-hop field with a shorter header.
 	size := len(update.WireUpdate.Payload())

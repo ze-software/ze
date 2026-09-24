@@ -18,7 +18,7 @@ func virtualLinkTransitGateway(ctx context.Context, lab interoplab.CheckerLab, v
 	}
 	gateway, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 30 * time.Second, Interval: time.Second, Description: "transit IPv6 link-local gateway"},
 		func(ctx context.Context) (netip.Addr, error) {
-			answer, err := lab.Query(ctx, peerFRRTransit, []string{"ip", "-j", "-6", "address", "show", "dev", "eth1"}, nil)
+			answer, err := lab.Query(ctx, peerFRRTransit, []string{"ip", "-j", "-6", ipObjectAddress, ipActionShow, "dev", "eth1"}, nil)
 			if err != nil {
 				return netip.Addr{}, err
 			}
@@ -64,7 +64,7 @@ func waitVirtualLinkKernelRoute(ctx context.Context, lab interoplab.CheckerLab, 
 	var last string
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 90 * time.Second, Interval: time.Second, Description: "Ze kernel transit route via intermediate router"},
 		func(ctx context.Context) (bool, error) {
-			answer, err := lab.Query(ctx, "ze", []string{"ip", "-j", family, "route", "show", "exact", prefix}, nil)
+			answer, err := lab.Query(ctx, "ze", []string{"ip", "-j", family, ipObjectRoute, ipActionShow, "exact", prefix}, nil)
 			last = answer
 			if err != nil {
 				return false, err

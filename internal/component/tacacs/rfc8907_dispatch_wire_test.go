@@ -30,7 +30,8 @@ type dispatchWireRecord struct {
 // dispatchWireServer records decrypted packets, not bridge arguments. Each
 // request gets its own TCP connection, so accounting and authorization can run
 // concurrently without sharing a synthetic response or bypassing the codecs.
-func dispatchWireServer(t *testing.T, authorStatus uint8) (string, <-chan dispatchWireRecord) {
+func dispatchWireServer(t *testing.T) (string, <-chan dispatchWireRecord) {
+	const authorStatus uint8 = AuthorStatusPassAdd
 	t.Helper()
 	listener := listenTCP(t)
 	records := make(chan dispatchWireRecord, 64)
@@ -43,9 +44,7 @@ func dispatchWireServer(t *testing.T, authorStatus uint8) (string, <-chan dispat
 			if err != nil {
 				return
 			}
-			connections.Add(1)
-			go func() {
-				defer connections.Done()
+			connections.Go(func() {
 				defer closeIgnore(conn)
 				if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 					t.Error(err)
@@ -87,7 +86,7 @@ func dispatchWireServer(t *testing.T, authorStatus uint8) (string, <-chan dispat
 				if _, err := conn.Write(append(hdr.MarshalBinary(), reply...)); err != nil {
 					t.Error(err)
 				}
-			}()
+			})
 		}
 	}()
 	t.Cleanup(func() {
@@ -162,8 +161,8 @@ func dispatchWireClient(t *testing.T, address string) *TacacsClient {
 
 func wireArgument(args []string, name string) string {
 	for _, arg := range args {
-		if strings.HasPrefix(arg, name+"=") {
-			return strings.TrimPrefix(arg, name+"=")
+		if after, ok := strings.CutPrefix(arg, name+"="); ok {
+			return after
 		}
 	}
 	return ""
@@ -172,7 +171,7 @@ func wireArgument(args []string, name string) string {
 // RFC requirement: RFC8907-8.3-4 positive -- trusted plugin and shared-token dispatch contexts produce actual START/STOP packets with distinct printable identities; their command is also authorized on the socket.
 // RFC requirement: RFC8907-3.7-2 positive -- a Unicode command argument reaches the accounting and authorization sockets as reversible printable ASCII, while the handler receives the original argument.
 func TestRFC8907TrustedDispatchIdentitiesReachWire(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	client := dispatchWireClient(t, address)
 	accountant := NewTacacsAccountant(client, nil)
 	accountant.Start()
@@ -231,7 +230,7 @@ func TestRFC8907TrustedDispatchIdentitiesReachWire(t *testing.T) {
 }
 
 func TestTACACSWireIdentityCannotForgeLocalTrust(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	accountingClient := dispatchWireClient(t, address)
 	accountant := NewTacacsAccountant(accountingClient, nil)
 	accountant.Start()
@@ -296,7 +295,7 @@ func TestTACACSWireIdentityCannotForgeLocalTrust(t *testing.T) {
 
 // RFC requirement: RFC8907-8.3-4 negative -- oversized redacted displays still produce a bounded START/STOP pair rather than disappearing at the uint8 field/count limits.
 func TestRFC8907OversizedCommandAccountingStillReachesWire(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	client := dispatchWireClient(t, address)
 	accountant := NewTacacsAccountant(client, nil)
 	accountant.Start()
@@ -350,7 +349,7 @@ func TestRFC8907OversizedCommandAccountingStillReachesWire(t *testing.T) {
 }
 
 func TestTACACSDisplayDigestOnlyUsesRedactedArguments(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	accountant := NewTacacsAccountant(dispatchWireClient(t, address), nil)
 	accountant.Start()
 	t.Cleanup(accountant.Stop)
@@ -391,7 +390,7 @@ func TestTACACSDisplayDigestOnlyUsesRedactedArguments(t *testing.T) {
 }
 
 func TestTACACSIdentityEncodingLengthLimit(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	client := dispatchWireClient(t, address)
 	identity := aaa.ReservedInternalPrefix + strings.Repeat("x", 186-len(aaa.ReservedInternalPrefix))
 	if _, err := client.SendAuthorization(&AuthorRequest{User: identity, Args: []string{"service=shell", "cmd=show"}}); err != nil {
@@ -420,7 +419,7 @@ func TestTACACSDisplayDigestPreservesArgumentBoundaries(t *testing.T) {
 // Control characters in command values use reversible ASCII display on the
 // authorization socket without changing the command's argument boundaries.
 func TestTACACSCommandControlCharacterDisplayReachesWire(t *testing.T) {
-	address, records := dispatchWireServer(t, AuthorStatusPassAdd)
+	address, records := dispatchWireServer(t)
 	authorizer := newTacacsAuthorizer(dispatchWireClient(t, address), nil)
 	if !authorizer.AuthorizeCommandArgs("alice", "", "show", []string{"two\nlines"}, "", true) {
 		t.Fatal("a losslessly escaped command argument was refused")

@@ -52,7 +52,10 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	require.NoError(t, err)
 	pending, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
 	require.Empty(t, pending, "reload holds received routes until the new policy decides")
-	rows := snapshot.(map[string]any)["routes"].([]map[string]any)
+	snapshotBody, ok := snapshot.(map[string]any)
+	require.True(t, ok, "snapshot is %T", snapshot)
+	rows, ok := snapshotBody["routes"].([]map[string]any)
+	require.True(t, ok, "routes are %T", snapshotBody["routes"])
 	var latest map[string]any
 	for _, row := range rows {
 		if row["path-id"] == uint32(0) {
@@ -117,7 +120,11 @@ func TestReplayDelegatesFlowSpecToSelectingRIB(t *testing.T) {
 	retainedReceive(t, r, 42, body)
 	_, snapshot, err := r.handleCommand("show bgp adj-rib-in status", nil, "")
 	require.NoError(t, err)
-	require.Equal(t, 2, snapshot.(map[string]any)["peers"].(map[string]int)["192.0.2.1"],
+	statusBody, ok := snapshot.(map[string]any)
+	require.True(t, ok, "status is %T", snapshot)
+	peerCounts, ok := statusBody["peers"].(map[string]int)
+	require.True(t, ok, "peers are %T", statusBody["peers"])
+	require.Equal(t, 2, peerCounts["192.0.2.1"],
 		"both the unicast and FlowSpec routes must be present before replay")
 	routes, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99")
 	require.Len(t, routes, 1)

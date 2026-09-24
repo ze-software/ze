@@ -52,7 +52,7 @@ func TestSysribCarriesRouteTypeFromEventBus(t *testing.T) {
 // into the batch processEvent consumes. A field it drops is invisible to every
 // in-process deployment.
 func TestSysribCarriesRouteTypeFromLocRIB(t *testing.T) {
-	batch := changeToBatch(locrib.Change{
+	batch := changeToBatch(&locrib.Change{
 		Family: routeTypeFamily,
 		Prefix: netip.MustParsePrefix("192.0.2.1/32"),
 		Kind:   locrib.ChangeAdd,

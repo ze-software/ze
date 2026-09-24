@@ -355,7 +355,7 @@ func mplsMTUInject(bed *mplsTestbed, labels []uint32, packet []byte, v6 bool) {
 		protocol = unix.ETH_P_IPV6
 	}
 	binary.BigEndian.PutUint16(frame[12:14], protocol)
-	address := &unix.SockaddrLinklayer{Protocol: htons(unix.ETH_P_ALL), Ifindex: bed.peerIndex, Halen: 6}
+	address := &unix.SockaddrLinklayer{Protocol: ethPAllNetworkOrder, Ifindex: bed.peerIndex, Halen: 6}
 	copy(address.Addr[:], bed.zeMAC)
 	require.NoError(bed.t, unix.Sendto(bed.injectFD, frame, 0, address))
 }

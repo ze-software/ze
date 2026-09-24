@@ -71,7 +71,7 @@ func (a bearerAuthenticator) Authenticate(r *http.Request) (Identity, *authError
 			Status:           http.StatusUnauthorized,
 			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
-			ErrorCode:        "invalid_token",
+			ErrorCode:        errorCodeInvalidToken,
 			ErrorDescription: "bearer token does not match",
 		}
 	}
@@ -122,7 +122,7 @@ func (a bearerListAuthenticator) Authenticate(r *http.Request) (Identity, *authE
 			Status:           http.StatusUnauthorized,
 			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
-			ErrorCode:        "invalid_token",
+			ErrorCode:        errorCodeInvalidToken,
 			ErrorDescription: "bearer token does not match any identity",
 		}
 	}

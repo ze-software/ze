@@ -38,7 +38,11 @@ func newTrustedTLSServer(t *testing.T, handler http.Handler) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewTLSServer(handler)
 	original := http.DefaultTransport
-	transport := original.(*http.Transport).Clone()
+	base, ok := original.(*http.Transport)
+	if !ok {
+		t.Fatalf("http.DefaultTransport = %T, want *http.Transport", original)
+	}
+	transport := base.Clone()
 	if transport.TLSClientConfig == nil {
 		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	}

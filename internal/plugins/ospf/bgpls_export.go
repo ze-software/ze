@@ -413,7 +413,7 @@ func (a *bgplsArea) node(id linkstateevents.NodeID) *linkstateevents.Node {
 	return &a.snapshot.Nodes[len(a.snapshot.Nodes)-1]
 }
 
-func (a *bgplsArea) link(link linkstateevents.Link, topology uint16) *linkstateevents.Link {
+func (a *bgplsArea) link(link *linkstateevents.Link, topology uint16) *linkstateevents.Link {
 	key := bgplsLinkKey{local: bgplsNodeIdentity(&link.Local), remote: bgplsNodeIdentity(&link.Remote),
 		localID: link.LocalID, remoteID: link.RemoteID, topology: topology}
 	if len(link.LocalAddresses) != 0 {
@@ -422,10 +422,11 @@ func (a *bgplsArea) link(link linkstateevents.Link, topology uint16) *linkstatee
 	if index, ok := a.links[key]; ok {
 		return &a.snapshot.Links[index]
 	}
-	link.Topologies = []uint16{topology}
 	a.links[key] = len(a.snapshot.Links)
-	a.snapshot.Links = append(a.snapshot.Links, link)
-	return &a.snapshot.Links[len(a.snapshot.Links)-1]
+	a.snapshot.Links = append(a.snapshot.Links, *link)
+	stored := &a.snapshot.Links[len(a.snapshot.Links)-1]
+	stored.Topologies = []uint16{topology}
+	return stored
 }
 
 func (a *bgplsArea) prefix(node linkstateevents.NodeID, prefix netip.Prefix, topology uint16, route uint8) *linkstateevents.Prefix {
@@ -508,7 +509,7 @@ func (a *bgplsArea) v2(v *ospflsdb.NativeLSAView, views []ospflsdb.NativeLSAView
 		pseudo := a.nodeID(v.AdvertisingRouter, &v.LinkStateID, true)
 		a.node(pseudo)
 		for _, router := range network.AttachedRouters {
-			link := a.link(linkstateevents.Link{Local: pseudo, Remote: a.nodeID(router, nil, true)}, 0)
+			link := a.link(&linkstateevents.Link{Local: pseudo, Remote: a.nodeID(router, nil, true)}, 0)
 			bgplsMetric(&link.Attributes, 1095, 0)
 		}
 		if prefix, ok := bgplsV4Prefix(v.LinkStateID, network.NetworkMask); ok {
@@ -616,7 +617,7 @@ func (a *bgplsArea) v2RouterLink(v *ospflsdb.NativeLSAView, native *packet.Route
 	if !ok {
 		return
 	}
-	bgplsMetric(&a.link(link, topology).Attributes, 1095, metric)
+	bgplsMetric(&a.link(&link, topology).Attributes, 1095, metric)
 }
 
 func (a *bgplsArea) v3(v *ospflsdb.NativeLSAView) {
@@ -641,7 +642,7 @@ func (a *bgplsArea) v3(v *ospflsdb.NativeLSAView) {
 		pseudo := a.nodeID(v.AdvertisingRouter, &v.LinkStateID, true)
 		a.node(pseudo)
 		for _, router := range network.AttachedRouters {
-			bgplsMetric(&a.link(linkstateevents.Link{Local: pseudo, Remote: a.nodeID(types.RouterID(router), nil, true)}, 0).Attributes, 1095, 0)
+			bgplsMetric(&a.link(&linkstateevents.Link{Local: pseudo, Remote: a.nodeID(types.RouterID(router), nil, true)}, 0).Attributes, 1095, 0)
 		}
 	case v3types.LSTypeIntraAreaPrefix:
 		intra, err := lsa.DecodeIntraAreaPrefix()
@@ -698,7 +699,7 @@ func (a *bgplsArea) v3RouterLink(id linkstateevents.NodeID, native *v3packet.Rou
 		binary.BigEndian.PutUint32(pseudo[:], uint32(native.NeighborInterfaceID))
 		remote = a.nodeID(types.RouterID(native.NeighborRouterID), &pseudo, true)
 	}
-	link := a.link(linkstateevents.Link{Local: id, Remote: remote,
+	link := a.link(&linkstateevents.Link{Local: id, Remote: remote,
 		LocalID: uint32(native.InterfaceID), RemoteID: uint32(native.NeighborInterfaceID), HasLinkIDs: true}, 0)
 	bgplsMetric(&link.Attributes, 1095, uint32(native.Metric))
 	return link
@@ -835,7 +836,7 @@ func (a *bgplsArea) trafficEngineering(v *ospflsdb.NativeLSAView, id linkstateev
 			link.RemoteAddresses[i] = netip.AddrFrom4(ip)
 		}
 	}
-	out := a.link(link, 0)
+	out := a.link(&link, 0)
 	for _, attr := range link.Attributes {
 		bgplsAddAttribute(&out.Attributes, attr.Type, attr.Value)
 	}
@@ -899,7 +900,7 @@ func (a *bgplsArea) extendedV2Link(v *ospflsdb.NativeLSAView, views []ospflsdb.N
 				continue
 			}
 			topology := uint16(sid.MTID)
-			target := a.link(link, topology)
+			target := a.link(&link, topology)
 			target.Attributes = append(target.Attributes, bgplsAdjAttribute(&sid, sub.Value[0]))
 			if !slices.Contains(topologies, topology) {
 				topologies = append(topologies, topology)
@@ -909,7 +910,7 @@ func (a *bgplsArea) extendedV2Link(v *ospflsdb.NativeLSAView, views []ospflsdb.N
 		}
 	}
 	for _, topology := range topologies {
-		target := a.link(link, topology)
+		target := a.link(&link, topology)
 		target.Opaque = append(target.Opaque, opaque...)
 	}
 }
@@ -1070,7 +1071,7 @@ func (a *bgplsArea) v2PrefixRouteTypes(id linkstateevents.NodeID, prefix netip.P
 		if v.Type != types.LSTypeASExternal && v.Type != types.LSTypeNSSA {
 			continue
 		}
-		if native != 0 && native != uint8(v.Type) {
+		if native != 0 && types.LSType(native) != v.Type {
 			continue
 		}
 		external, err := packet.DecodeExternalLSA(v.Body)
@@ -1182,7 +1183,7 @@ func (a *bgplsArea) extendedV3(v *ospflsdb.NativeLSAView, id linkstateevents.Nod
 			for offset := 0; offset < len(tlv.Value); offset += 4 {
 				var router types.RouterID
 				copy(router[:], tlv.Value[offset:offset+4])
-				bgplsMetric(&a.link(linkstateevents.Link{Local: id, Remote: a.nodeID(router, nil, true)}, 0).Attributes, 1095, 0)
+				bgplsMetric(&a.link(&linkstateevents.Link{Local: id, Remote: a.nodeID(router, nil, true)}, 0).Attributes, 1095, 0)
 			}
 		case typ == v3types.LSTypeEIntraAreaPrefix && tlv.Type == 6:
 			a.extendedV3Prefix(id, &tlv, 1, linkstateevents.OSPFv3ExtendedIntraAreaPrefix)
@@ -1433,17 +1434,18 @@ func (a *bgplsArea) markUnreachable(reachability ospfspf.ReachabilitySnapshot, p
 		var area types.AreaID
 		binary.BigEndian.PutUint32(area[:], id.Area)
 		var known, reachable bool
-		if ready && len(id.RouterID) == 8 {
+		switch {
+		case ready && len(id.RouterID) == 8:
 			var network types.LinkStateID
 			copy(network[:], id.RouterID[4:])
 			v3 := a.snapshot.Domain.Protocol == linkstateevents.OSPFv3
 			known, reachable = bgplsPseudonodeReachability(
 				reachability.RouterKnown(area, router), reachability.RouterReachable(area, router),
 				reachability.NetworkKnown(area, router, network, v3), reachability.NetworkReachable(area, router, network, v3))
-		} else if ready && id.HasArea {
+		case ready && id.HasArea:
 			known = reachability.RouterKnown(area, router)
 			reachable = known && reachability.RouterReachable(area, router)
-		} else if ready {
+		case ready:
 			// ASBRs need not have a Router-LSA in an attached area: native
 			// inter-area ASBR paths also establish AS-scope reachability.
 			known = reachability.RouterKnownAny(router)
@@ -1463,14 +1465,14 @@ func (a *bgplsArea) markUnreachable(reachability ospfspf.ReachabilitySnapshot, p
 			unreachable[key] = struct{}{}
 		}
 	}
-	for _, node := range a.snapshot.Nodes {
-		consider(node.ID)
+	for i := range a.snapshot.Nodes {
+		consider(a.snapshot.Nodes[i].ID)
 	}
-	for _, link := range a.snapshot.Links {
-		consider(link.Local)
+	for i := range a.snapshot.Links {
+		consider(a.snapshot.Links[i].Local)
 	}
-	for _, prefix := range a.snapshot.Prefixes {
-		consider(prefix.Node)
+	for i := range a.snapshot.Prefixes {
+		consider(a.snapshot.Prefixes[i].Node)
 	}
 	for _, sid := range a.snapshot.SIDs {
 		consider(sid.Node)

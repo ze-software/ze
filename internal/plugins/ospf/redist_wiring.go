@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"sort"
 
 	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
@@ -169,13 +170,7 @@ func externalPropagate(cfg ospfConfig, source string, canType5 bool) bool {
 func (e *engine) rememberExternalImport(prefix netip.Prefix, source string, tag uint32, areas []types.AreaID, key types.LSAKey) bool {
 	changed := false
 	for _, previous := range e.externalImports[prefix].areas {
-		found := false
-		for _, area := range areas {
-			if area == previous {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(areas, previous)
 		if !found {
 			if e.lsdb.PurgeNSSAKey(previous, key) {
 				changed = true

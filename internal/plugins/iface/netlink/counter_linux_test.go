@@ -18,7 +18,7 @@ import (
 func TestCounterGenerationReusedIndex(t *testing.T) {
 	var source counterSource
 	first := counterDump{sequence: 11}
-	if err := source.consume(&first, counterLinkMessage(11, unix.RTM_NEWLINK, 7, 100)); err != nil {
+	if err := source.consume(&first, counterLinkMessage(11, unix.RTM_NEWLINK, 100)); err != nil {
 		t.Fatal(err)
 	}
 	if len(first.links) != 1 {
@@ -31,9 +31,9 @@ func TestCounterGenerationReusedIndex(t *testing.T) {
 
 	second := counterDump{sequence: 12}
 	for _, message := range []syscall.NetlinkMessage{
-		counterLinkMessage(0, unix.RTM_DELLINK, 7, 100),
-		counterLinkMessage(0, unix.RTM_NEWLINK, 7, 200),
-		counterLinkMessage(12, unix.RTM_NEWLINK, 7, 300),
+		counterLinkMessage(0, unix.RTM_DELLINK, 100),
+		counterLinkMessage(0, unix.RTM_NEWLINK, 200),
+		counterLinkMessage(12, unix.RTM_NEWLINK, 300),
 	} {
 		if err := source.consume(&second, message); err != nil {
 			t.Fatal(err)
@@ -56,17 +56,17 @@ func TestCounterGenerationReusedIndex(t *testing.T) {
 func TestCounterGenerationPreservesContinuity(t *testing.T) {
 	var source counterSource
 	first := counterDump{sequence: 21}
-	if err := source.consume(&first, counterLinkMessage(21, unix.RTM_NEWLINK, 7, 100)); err != nil {
+	if err := source.consume(&first, counterLinkMessage(21, unix.RTM_NEWLINK, 100)); err != nil {
 		t.Fatal(err)
 	}
 	before := first.links[0].generation
 	second := counterDump{sequence: 22}
-	bridge := counterLinkMessage(0, unix.RTM_DELLINK, 7, 150)
+	bridge := counterLinkMessage(0, unix.RTM_DELLINK, 150)
 	bridge.Data[0] = unix.AF_BRIDGE
 	for _, message := range []syscall.NetlinkMessage{
-		counterLinkMessage(0, unix.RTM_NEWLINK, 7, 150),
+		counterLinkMessage(0, unix.RTM_NEWLINK, 150),
 		bridge,
-		counterLinkMessage(22, unix.RTM_NEWLINK, 7, 200),
+		counterLinkMessage(22, unix.RTM_NEWLINK, 200),
 	} {
 		if err := source.consume(&second, message); err != nil {
 			t.Fatal(err)
@@ -82,7 +82,7 @@ func TestCounterGenerationPreservesContinuity(t *testing.T) {
 func TestCounterGenerationLossStartsNewEpoch(t *testing.T) {
 	var source counterSource
 	first := counterDump{sequence: 31}
-	if err := source.consume(&first, counterLinkMessage(31, unix.RTM_NEWLINK, 7, 100)); err != nil {
+	if err := source.consume(&first, counterLinkMessage(31, unix.RTM_NEWLINK, 100)); err != nil {
 		t.Fatal(err)
 	}
 	before := first.links[0].generation
@@ -93,7 +93,7 @@ func TestCounterGenerationLossStartsNewEpoch(t *testing.T) {
 	}
 	source.invalidate()
 	second := counterDump{sequence: 32}
-	if err := source.consume(&second, counterLinkMessage(32, unix.RTM_NEWLINK, 7, 200)); err != nil {
+	if err := source.consume(&second, counterLinkMessage(32, unix.RTM_NEWLINK, 200)); err != nil {
 		t.Fatal(err)
 	}
 	if second.links[0].generation == before {
@@ -106,7 +106,7 @@ func TestCounterGenerationLossStartsNewEpoch(t *testing.T) {
 func TestCounterDumpInterrupted(t *testing.T) {
 	var source counterSource
 	dump := counterDump{sequence: 41}
-	message := counterLinkMessage(41, unix.RTM_NEWLINK, 7, 100)
+	message := counterLinkMessage(41, unix.RTM_NEWLINK, 100)
 	message.Header.Flags |= unix.NLM_F_DUMP_INTR
 	if err := source.consume(&dump, message); err != nil {
 		t.Fatal(err)
@@ -139,14 +139,14 @@ func TestCounterDumpRejectsMalformedMessages(t *testing.T) {
 func TestCounterGenerationRawDecrease(t *testing.T) {
 	var source counterSource
 	first := counterDump{sequence: 61}
-	message := counterLinkMessage(61, unix.RTM_NEWLINK, 7, 100)
+	message := counterLinkMessage(61, unix.RTM_NEWLINK, 100)
 	nl.NativeEndian().PutUint64(message.Data[len(message.Data)-24*8:], (1<<32)-1)
 	if err := source.consume(&first, message); err != nil {
 		t.Fatal(err)
 	}
 	before := first.links[0].generation
 	second := counterDump{sequence: 62}
-	message = counterLinkMessage(62, unix.RTM_NEWLINK, 7, 200)
+	message = counterLinkMessage(62, unix.RTM_NEWLINK, 200)
 	nl.NativeEndian().PutUint64(message.Data[len(message.Data)-24*8:], (1<<32)+1)
 	if err := source.consume(&second, message); err != nil {
 		t.Fatal(err)
@@ -155,7 +155,7 @@ func TestCounterGenerationRawDecrease(t *testing.T) {
 		t.Fatal("32-bit packet-counter wrap reset raw continuity")
 	}
 	third := counterDump{sequence: 63}
-	message = counterLinkMessage(63, unix.RTM_NEWLINK, 7, 300)
+	message = counterLinkMessage(63, unix.RTM_NEWLINK, 300)
 	nl.NativeEndian().PutUint64(message.Data[len(message.Data)-24*8:], 4)
 	if err := source.consume(&third, message); err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ func TestCounterGenerationRawDecrease(t *testing.T) {
 func TestCounterDumpForeignSequence(t *testing.T) {
 	var source counterSource
 	dump := counterDump{sequence: 71, portID: 100}
-	message := counterLinkMessage(71, unix.RTM_NEWLINK, 7, 100)
+	message := counterLinkMessage(71, unix.RTM_NEWLINK, 100)
 	message.Header.Pid = 200
 	if err := source.consume(&dump, message); err != nil {
 		t.Fatal(err)
@@ -192,13 +192,13 @@ func TestCounterDumpForeignSequence(t *testing.T) {
 func TestCounterGenerationInterleavedDump(t *testing.T) {
 	var source counterSource
 	dump := counterDump{sequence: 81}
-	if err := source.consume(&dump, counterLinkMessage(81, unix.RTM_NEWLINK, 7, 100)); err != nil {
+	if err := source.consume(&dump, counterLinkMessage(81, unix.RTM_NEWLINK, 100)); err != nil {
 		t.Fatal(err)
 	}
 	before := dump.links[0].generation
 	for _, message := range []syscall.NetlinkMessage{
-		counterLinkMessage(0, unix.RTM_DELLINK, 7, 100),
-		counterLinkMessage(0, unix.RTM_NEWLINK, 7, 200),
+		counterLinkMessage(0, unix.RTM_DELLINK, 100),
+		counterLinkMessage(0, unix.RTM_NEWLINK, 200),
 		{Header: syscall.NlMsghdr{Type: unix.NLMSG_DONE, Seq: 81}},
 	} {
 		if err := source.consume(&dump, message); err != nil {
@@ -212,7 +212,7 @@ func TestCounterGenerationInterleavedDump(t *testing.T) {
 		t.Fatal("old sampled counters were reassigned to the replacement")
 	}
 	next := counterDump{sequence: 82}
-	if err := source.consume(&next, counterLinkMessage(82, unix.RTM_NEWLINK, 7, 300)); err != nil {
+	if err := source.consume(&next, counterLinkMessage(82, unix.RTM_NEWLINK, 300)); err != nil {
 		t.Fatal(err)
 	}
 	if next.links[0].generation == before {
@@ -231,7 +231,8 @@ func TestCounterSourceClose(t *testing.T) {
 	source.close()
 }
 
-func counterLinkMessage(sequence uint32, kind uint16, index int32, rxBytes uint64) syscall.NetlinkMessage {
+func counterLinkMessage(sequence uint32, kind uint16, rxBytes uint64) syscall.NetlinkMessage {
+	const index int32 = 7
 	message := nl.NewIfInfomsg(unix.AF_UNSPEC)
 	message.Index = index
 	data := append([]byte(nil), message.Serialize()...)

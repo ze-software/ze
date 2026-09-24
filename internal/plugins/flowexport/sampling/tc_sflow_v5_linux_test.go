@@ -53,8 +53,8 @@ func TestSampleFilterKernelLifecycle(t *testing.T) {
 	}
 	t.Cleanup(h.Close)
 	links := []*netlink.Dummy{
-		{LinkAttrs: netlink.LinkAttrs{Name: "zsf0"}},
-		{LinkAttrs: netlink.LinkAttrs{Name: "zsf1"}},
+		{Name: "zsf0"},
+		{Name: "zsf1"},
 	}
 	for _, link := range links {
 		if err := h.LinkAdd(link); err != nil {

@@ -128,9 +128,9 @@ func checkMOBIKE(ctx context.Context, lab *scenarioLab, moving, moved string) er
 // owns and destroys the network namespaces, so no host address is changed.
 func (l *scenarioLab) mobikeMove(ctx context.Context, peer, old, moved, fixed string) error {
 	commands := [][]string{
-		{"ip", "address", "add", moved + "/32", "dev", "eth0"},
-		{"ip", "route", "replace", fixed + "/32", "dev", "eth0", "src", moved},
-		{"ip", "address", "del", old + "/24", "dev", "eth0"},
+		{"ip", ipObjectAddress, "add", moved + "/32", ipArgDev, containerInterface},
+		{"ip", "route", "replace", fixed + "/32", ipArgDev, containerInterface, "src", moved},
+		{"ip", ipObjectAddress, "del", old + "/24", ipArgDev, containerInterface},
 	}
 	for _, command := range commands {
 		if _, err := l.exec(ctx, peer, command...); err != nil {
@@ -154,7 +154,7 @@ func (l *scenarioLab) mobikeMove(ctx context.Context, peer, old, moved, fixed st
 	if routes[0].Source != moved {
 		return fmt.Errorf("%s did not select new source %s: %s", peer, moved, answer)
 	}
-	if routes[0].Device != "eth0" {
+	if routes[0].Device != containerInterface {
 		return fmt.Errorf("%s route no longer uses the lab bridge: %s", peer, answer)
 	}
 	return nil
@@ -206,10 +206,10 @@ func mobikeZeIdentity(answer, remote string, initiator bool) (mobikeIdentity, er
 		return mobikeIdentity{}, fmt.Errorf("ze has no Child SA: %s", answer)
 	}
 	if sa.Child.InboundSPI == 0 || sa.Child.OutboundSPI == 0 {
-		return mobikeIdentity{}, fmt.Errorf("Ze reported an unkeyed Child SA: %s", answer)
+		return mobikeIdentity{}, fmt.Errorf("ze reported an unkeyed Child SA: %s", answer)
 	}
 	if sa.Child.Mode != "tunnel" || sa.Child.Remote != remote {
-		return mobikeIdentity{}, fmt.Errorf("Ze Child SA did not reach tunnel endpoint %s: %s", remote, answer)
+		return mobikeIdentity{}, fmt.Errorf("ze Child SA did not reach tunnel endpoint %s: %s", remote, answer)
 	}
 	if sa.Child.LocalTS != natTunnelZeInner+"/32" || sa.Child.RemoteTS != natTunnelSwanInner+"/32" {
 		return mobikeIdentity{}, fmt.Errorf("MOBIKE changed the inner traffic selectors: %s", answer)
@@ -229,7 +229,7 @@ func requireMOBIKESwan(answer, local, remote string, initiator bool, identity mo
 	}
 	match := matches[0]
 	if match[1] != identity.initiatorSPI || match[3] != identity.responderSPI {
-		return fmt.Errorf("Ze and strongSwan disagree on IKE SPIs: %s", answer)
+		return fmt.Errorf("ze and strongSwan disagree on IKE SPIs: %s", answer)
 	}
 	starI, starR := "*", ""
 	if initiator {

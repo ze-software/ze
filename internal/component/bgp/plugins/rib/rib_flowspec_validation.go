@@ -50,7 +50,7 @@ type flowSpecWinner struct {
 // Their size is bounded by the routes currently retained in bgpPeers.
 type flowSpecState struct {
 	paths map[ribevents.ValidationRoute]flowSpecVerdict
-	best  map[flowSpecRule]flowSpecWinner
+	best  map[flowSpecRule]*flowSpecWinner
 }
 
 type flowSpecRoute struct {
@@ -424,7 +424,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		}
 	}
 	r.peerMu.RUnlock()
-	next := &flowSpecState{paths: make(map[ribevents.ValidationRoute]flowSpecVerdict, len(flows)), best: make(map[flowSpecRule]flowSpecWinner)}
+	next := &flowSpecState{paths: make(map[ribevents.ValidationRoute]flowSpecVerdict, len(flows)), best: make(map[flowSpecRule]*flowSpecWinner)}
 	winners := make(map[flowSpecRule]*flowSpecRoute)
 	for i := range flows {
 		flow := &flows[i]
@@ -459,7 +459,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		}
 		change := bestChangeEntry{Action: routeaction.Add, NLRI: []byte(rule.nlri), Metric: flow.candidate.MED,
 			Priority: priority, ProtocolType: protoType, AIGP: flow.candidate.AIGP, AIGPPresent: flow.candidate.HasAIGP}
-		next.best[rule] = flowSpecWinner{key: flow.key, communities: communities, ipv6Communities: ipv6Communities, change: change}
+		next.best[rule] = &flowSpecWinner{key: flow.key, communities: communities, ipv6Communities: ipv6Communities, change: change}
 	}
 	for i := range flows {
 		flows[i].entry.Release()

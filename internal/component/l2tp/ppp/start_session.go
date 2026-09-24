@@ -137,12 +137,12 @@ type StartSession struct {
 func (s *StartSession) closeFiles() {
 	if s.ChanFD > 0 {
 		if channel := newChanFileFn(s.ChanFD, "ppp.unstarted.chan"); channel != nil {
-			_ = channel.Close() //nolint:errcheck // rejected or cancelled setup
+			_ = channel.Close() //nolint:errcheck // rejected or canceled setup
 		}
 	}
 	if s.UnitFD > 0 && s.UnitFD != s.ChanFD {
 		if unit := newUnitFileFn(s.UnitFD); unit != nil {
-			_ = unit.Close() //nolint:errcheck // rejected or cancelled setup
+			_ = unit.Close() //nolint:errcheck // rejected or canceled setup
 		}
 	}
 	s.ChanFD, s.UnitFD = -1, -1

@@ -213,8 +213,8 @@ func firewallLegacySeed(ctx context.Context, _ []string) error {
 		{argAdd, nftChain, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, nftForwardHookSpec},
 		{argAdd, nftRule, nftFamilyInet, nftTableFlowspec, nftChainFlowspecForward, "ip", nftMatchDestination, "198.51.100.0/24", nftVerdictDrop},
 		{argAdd, nftTable, "ip", nftTableAnomalyShape},
-		{argAdd, nftChain, "ip", nftTableAnomalyShape, "forward", nftForwardHookSpec},
-		{argAdd, nftRule, "ip", nftTableAnomalyShape, "forward", "ip", nftMatchDestination, "203.0.113.0/24", nftVerdictDrop},
+		{argAdd, nftChain, "ip", nftTableAnomalyShape, nftChainForward, nftForwardHookSpec},
+		{argAdd, nftRule, "ip", nftTableAnomalyShape, nftChainForward, "ip", nftMatchDestination, "203.0.113.0/24", nftVerdictDrop},
 	}
 	for _, args := range commands {
 		if _, err := netfilterCommandOutput(ctx, "nft", args...); err != nil {

@@ -18,7 +18,7 @@ import (
 )
 
 func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
-	if args.One("kernel") == "" {
+	if args.One(keywordKernel) == "" {
 		leaction.ReportError(errors.New("MOBIKE proof requires kernel <vmlinuz-path>; the Alpine kernel is not a substitute"))
 		return nil, 2
 	}
@@ -52,9 +52,9 @@ func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
 	command := shellQuote(filepath.Join(guestArtifacts, "le")) +
 		" deployment ipsec-mobike-test daemon " + shellQuote(filepath.Join(guestArtifacts, "ze"))
 	runArgs := leaction.Arguments{
-		"command":  {command},
-		"kernel":   {args.One("kernel")},
-		"packages": {"iproute2 iputils util-linux strongswan"},
+		keywordCommand: {command},
+		keywordKernel:  {args.One(keywordKernel)},
+		"packages":     {"iproute2 iputils util-linux strongswan"},
 	}
 	if timeout := args.One("timeout"); timeout != "" {
 		runArgs["timeout"] = []string{timeout}
@@ -112,7 +112,7 @@ func buildMOBIKEGuests(ctx context.Context, root, directory string) error {
 			return err
 		}
 		output := filepath.Join(directory, binary.name)
-		argv := []string{"go", "build", "-tags", tags, "-ldflags", toolchain.LDFlags(), "-o", output, "./cmd/ze"}
+		argv := []string{"go", "build", tagsFlag, tags, "-ldflags", toolchain.LDFlags(), "-o", output, zeMainPackage}
 		_, code := admission.Run("mobike-build-"+binary.name, argv, root, environment)
 		if code != 0 {
 			return fmt.Errorf("build MOBIKE guest %s for linux/%s exited %d", binary.name, architecture, code)

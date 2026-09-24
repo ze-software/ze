@@ -81,7 +81,7 @@ func newRSVPWireLab(t *testing.T) *rsvpWireLab {
 	for i := range lab.links {
 		name, peerName := fmt.Sprintf("rsvp%d", i), fmt.Sprintf("peer%d", i)
 		veth := &netlink.Veth{
-			LinkAttrs:     netlink.LinkAttrs{Name: name, MTU: 9000},
+			Name: name, MTU: 9000,
 			PeerName:      peerName,
 			PeerNamespace: netlink.NsFd(peerNS),
 			PeerMTU:       9000,
@@ -596,9 +596,7 @@ func TestIntegrationRSVPSelectedBypass(t *testing.T) {
 	var workers sync.WaitGroup
 	errorsCh := make(chan error, 3)
 	for i := range routes {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
+		workers.Go(func() {
 			for range sends {
 				if err := lab.sender.SendPath(PathRoute{
 					Source: rsvpWireSource, Destination: rsvpWireEndpoint,
@@ -608,19 +606,17 @@ func TestIntegrationRSVPSelectedBypass(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 	reply := encodeMessage(MsgTypeResv, defaultIPTTL, nil)
-	workers.Add(1)
-	go func() {
-		defer workers.Done()
+	workers.Go(func() {
 		for range sends {
 			if err := lab.sender.Send(lab.links[0].peerAddr, reply); err != nil {
 				errorsCh <- err
 				return
 			}
 		}
-	}()
+	})
 	workers.Wait()
 	close(errorsCh)
 	for err := range errorsCh {
@@ -712,7 +708,10 @@ func TestIntegrationRSVPReceiveOversize(t *testing.T) {
 	binary.BigEndian.PutUint16(oversized[6:8], uint16(len(oversized)))
 	// Inject a peer datagram below IPv4's absolute limit without using the
 	// production sender, which correctly refuses this carrier-sized message.
-	raw := lab.sender.(*rawTransport)
+	raw, ok := lab.sender.(*rawTransport)
+	if !ok {
+		t.Fatalf("lab sender is %T", lab.sender)
+	}
 	if err := unix.SetsockoptInt(raw.sendFD, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER, unix.IP_PMTUDISC_DONT); err != nil {
 		t.Fatal(err)
 	}

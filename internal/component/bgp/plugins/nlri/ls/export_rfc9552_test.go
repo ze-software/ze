@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -40,16 +41,17 @@ func exportCommandBytes(t *testing.T, command, field string) []byte {
 	t.Helper()
 	parts := strings.Fields(command)
 	for i, part := range parts {
-		if part == field {
-			offset := 2
-			if field == "nlri" {
-				offset = 3
-			}
-			require.Greater(t, len(parts), i+offset)
-			wire, err := hex.DecodeString(parts[i+offset])
-			require.NoError(t, err)
-			return wire
+		if part != field {
+			continue
 		}
+		offset := 2
+		if field == "nlri" {
+			offset = 3
+		}
+		require.Greater(t, len(parts), i+offset)
+		wire, err := hex.DecodeString(parts[i+offset])
+		require.NoError(t, err)
+		return wire
 	}
 	t.Fatalf("command lacks %s: %s", field, command)
 	return nil

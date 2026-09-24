@@ -29,7 +29,7 @@ func TestCounterGenerationKernelIndexReuse(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "counter0", Index: 77}}
+		link := &netlink.Dummy{Name: "counter0", Index: 77}
 		if err := netlink.LinkAdd(link); err != nil {
 			t.Fatal(err)
 		}

@@ -412,7 +412,8 @@ func (b *bgplsBuilder) extendedLinks(node *linkstateevents.Node, value []byte, t
 // RFC 9552 section 5.2.2 descriptors and section 5.3.2 attributes share native
 // IS-IS value formats except the 24-bit TE metric, expanded to four octets.
 func (b *bgplsBuilder) linkAttribute(link *linkstateevents.Link, typ uint8, value []byte) bool {
-	attribute, length := uint16(0), 0
+	var attribute uint16
+	length := 0
 	switch typ {
 	case 4:
 		if len(value) != 8 {
@@ -1021,7 +1022,7 @@ func (b *bgplsBuilder) adjacencySIDv6(link *linkstateevents.Link, typ uint8, nat
 // Unknown sub-sub-TLVs are reported to the caller so it retains the native
 // parent envelope. SID attributes have no generic opaque envelope of their own.
 func bgplsSIDStructure(subs []byte) (structure []byte, known, valid bool) {
-	known, valid = true, true
+	known = true
 	it := packet.NewTLVIterator(subs)
 	for {
 		typ, value, ok := it.Next()

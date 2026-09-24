@@ -96,27 +96,27 @@ func TestRPKIResultRequiresRetainedIneligibleInvalid(t *testing.T) {
 	}
 	for _, test := range []struct {
 		name   string
-		mutate func(map[string]any, []any)
+		mutate func(*testing.T, map[string]any, []any)
 	}{
-		{"invalid removed", func(peers map[string]any, routes []any) {
+		{"invalid removed", func(_ *testing.T, peers map[string]any, routes []any) {
 			peers["172.30.0.3"] = []any{routes[0], routes[2]}
 		}},
-		{"invalid eligible", func(_ map[string]any, routes []any) {
-			routes[1].(map[string]any)["ineligible"] = false
+		{"invalid eligible", func(t *testing.T, _ map[string]any, routes []any) {
+			jsonObject(t, routes[1])["ineligible"] = false
 		}},
-		{"invalid state lost", func(_ map[string]any, routes []any) {
-			routes[1].(map[string]any)["validation-state"] = float64(0)
+		{"invalid state lost", func(t *testing.T, _ map[string]any, routes []any) {
+			jsonObject(t, routes[1])["validation-state"] = float64(0)
 		}},
-		{"valid ineligible", func(_ map[string]any, routes []any) {
-			routes[0].(map[string]any)["ineligible"] = true
+		{"valid ineligible", func(t *testing.T, _ map[string]any, routes []any) {
+			jsonObject(t, routes[0])["ineligible"] = true
 		}},
-		{"notfound ineligible", func(_ map[string]any, routes []any) {
-			routes[2].(map[string]any)["ineligible"] = true
+		{"notfound ineligible", func(t *testing.T, _ map[string]any, routes []any) {
+			jsonObject(t, routes[2])["ineligible"] = true
 		}},
-		{"eligibility missing", func(_ map[string]any, routes []any) {
-			delete(routes[0].(map[string]any), "ineligible")
+		{"eligibility missing", func(t *testing.T, _ map[string]any, routes []any) {
+			delete(jsonObject(t, routes[0]), "ineligible")
 		}},
-		{"eligible invalid sibling", func(peers map[string]any, routes []any) {
+		{"eligible invalid sibling", func(_ *testing.T, peers map[string]any, routes []any) {
 			peers["172.30.0.3"] = append(routes, map[string]any{
 				"key": "ipv4/unicast:10.43.0.0/24:1", "validation-state": float64(3), "ineligible": false,
 			})
@@ -127,9 +127,13 @@ func TestRPKIResultRequiresRetainedIneligibleInvalid(t *testing.T) {
 			if err := json.Unmarshal([]byte(rpkiRetainedObservation), &result); err != nil {
 				t.Fatal(err)
 			}
-			detail := result["detail"].(map[string]any)
-			peers := detail["adj-rib-in"].(map[string]any)["adj-rib-in"].(map[string]any)
-			test.mutate(peers, peers["172.30.0.3"].([]any))
+			detail := jsonObject(t, result["detail"])
+			peers := jsonObject(t, jsonObject(t, detail["adj-rib-in"])["adj-rib-in"])
+			routes, ok := peers["172.30.0.3"].([]any)
+			if !ok {
+				t.Fatalf("peer 172.30.0.3 routes = %T, want []any", peers["172.30.0.3"])
+			}
+			test.mutate(t, peers, routes)
 			output, err := json.Marshal(result)
 			if err != nil {
 				t.Fatal(err)
@@ -437,4 +441,14 @@ func buildSpeakerUpdate(attributes, nlri []byte) []byte {
 	body := []byte{0, 0, byte(len(attributes) >> 8), byte(len(attributes))}
 	body = append(body, attributes...)
 	return append(body, nlri...)
+}
+
+// jsonObject asserts that a decoded JSON value is an object.
+func jsonObject(t *testing.T, value any) map[string]any {
+	t.Helper()
+	object, ok := value.(map[string]any)
+	if !ok {
+		t.Fatalf("JSON value = %T, want object", value)
+	}
+	return object
 }

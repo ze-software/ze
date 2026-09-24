@@ -6,6 +6,7 @@ package isis
 
 import (
 	"bytes"
+	"slices"
 	"sync"
 	"testing"
 
@@ -100,18 +101,20 @@ func protocolLastHello(t *testing.T, c *protocolCapture) []byte {
 	t.Helper()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for i := len(c.sent) - 1; i >= 0; i-- {
-		p, err := packet.DecodePDU(c.sent[i])
+	for _, v := range slices.Backward(c.sent) {
+		p, err := packet.DecodePDU(v)
 		if err != nil {
 			continue
 		}
 		if p.LANHello != nil {
-			defer packet.ReleaseTLVs(p.LANHello.TLVs)
-			return protocolTLV(t, p.LANHello.TLVs)
+			protocols := protocolTLV(t, p.LANHello.TLVs)
+			packet.ReleaseTLVs(p.LANHello.TLVs)
+			return protocols
 		}
 		if p.P2PHello != nil {
-			defer packet.ReleaseTLVs(p.P2PHello.TLVs)
-			return protocolTLV(t, p.P2PHello.TLVs)
+			protocols := protocolTLV(t, p.P2PHello.TLVs)
+			packet.ReleaseTLVs(p.P2PHello.TLVs)
+			return protocols
 		}
 		if p.LSP != nil {
 			packet.ReleaseTLVs(p.LSP.TLVs)

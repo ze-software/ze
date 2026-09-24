@@ -115,13 +115,13 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 	}
 
 	// Peer's Magic from its last CONFREQ toward LAC.
-	if v, ok := lookupOptionUint32(recvOpts, LCPOptMagic); ok {
+	if v, ok := lookupMagicNumber(recvOpts); ok {
 		out.PeerMagic = v
 	}
 
 	// The LAC's Magic from its last CONFREQ toward the peer, which the
 	// peer acknowledged; the LNS inherits it as its own negotiated value.
-	if v, ok := lookupOptionUint32(sentOpts, LCPOptMagic); ok {
+	if v, ok := lookupMagicNumber(sentOpts); ok {
 		out.LocalMagic = v
 	}
 
@@ -149,10 +149,10 @@ func lookupMRUOption(opts []LCPOption) (uint16, bool) {
 	return binary.BigEndian.Uint16(d[:2]), true
 }
 
-// lookupOptionUint32 returns the option's first four bytes as a
+// lookupMagicNumber returns the Magic-Number option's first four bytes as a
 // big-endian uint32, or (0, false) if absent or shorter than 4 bytes.
-func lookupOptionUint32(opts []LCPOption, optType uint8) (uint32, bool) {
-	d, ok := lookupOption(opts, optType)
+func lookupMagicNumber(opts []LCPOption) (uint32, bool) {
+	d, ok := lookupOption(opts, LCPOptMagic)
 	if !ok || len(d) < 4 {
 		return 0, false
 	}

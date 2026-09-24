@@ -103,9 +103,11 @@ func peerCounter(ctx context.Context, plugin *sdk.Plugin, selector, counter stri
 	return int64(value)
 }
 
-func waitPeerCounter(ctx context.Context, plugin *sdk.Plugin, selector, counter string, want int64, attempts int) bool {
+// waitPeerEORSent polls until the peers matching selector have sent at least
+// one End-of-RIB marker.
+func waitPeerEORSent(ctx context.Context, plugin *sdk.Plugin, selector string, attempts int) bool {
 	return Poll(ctx, attempts, 100*time.Millisecond, func() bool {
-		return peerCounter(ctx, plugin, selector, counter) >= want
+		return peerCounter(ctx, plugin, selector, "eor-sent") >= 1
 	})
 }
 
@@ -121,7 +123,7 @@ func quiesce(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func watchdogScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	if !waitPeerCounter(ctx, plugin, "*", "eor-sent", 1, 100) {
+	if !waitPeerEORSent(ctx, plugin, "*", 100) {
 		return errors.New("initial-sync EOR never reached the wire")
 	}
 	for range 3 {
@@ -320,7 +322,7 @@ func reloadPrefixScenario(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func signalQuitScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	if !waitPeerCounter(ctx, plugin, "peer1", "eor-sent", 1, 40) {
+	if !waitPeerEORSent(ctx, plugin, "peer1", 40) {
 		return errors.New("initial-sync EOR never reached the wire")
 	}
 	status, err := Dispatch(ctx, plugin, "request halt", nil)
@@ -335,7 +337,7 @@ func signalQuitScenario(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 func sinkJSONScenario(ctx context.Context, plugin *sdk.Plugin) error {
-	if !waitPeerCounter(ctx, plugin, "*", "eor-sent", 1, 100) {
+	if !waitPeerEORSent(ctx, plugin, "*", 100) {
 		return errors.New("peer never reported eor-sent")
 	}
 	fmt.Fprintln(os.Stderr, "OK: eor-sent observed")

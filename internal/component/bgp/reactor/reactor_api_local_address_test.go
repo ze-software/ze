@@ -81,8 +81,12 @@ func TestEstablishedStateEventUsesConnectedLocalAddress(t *testing.T) {
 	require.Equal(t, "127.0.0.1", event.BGP.Peer.Local.Address)
 	// Structured in-process events consume the textual endpoint accessor instead.
 	require.Equal(t, "127.0.0.1", info.LocalAddrStr())
-	localEndpoint := connected.LocalAddr().(*net.TCPAddr).AddrPort()
-	remoteEndpoint := connected.RemoteAddr().(*net.TCPAddr).AddrPort()
+	localAddr, ok := connected.LocalAddr().(*net.TCPAddr)
+	require.True(t, ok, "local address is %T", connected.LocalAddr())
+	remoteAddr, ok := connected.RemoteAddr().(*net.TCPAddr)
+	require.True(t, ok, "remote address is %T", connected.RemoteAddr())
+	localEndpoint := localAddr.AddrPort()
+	remoteEndpoint := remoteAddr.AddrPort()
 	require.Equal(t, localEndpoint.Port(), info.LocalPort)
 	require.Equal(t, remoteEndpoint.Port(), info.RemotePort)
 
@@ -285,7 +289,7 @@ func TestStaticSelfStaysOnCapturedSession(t *testing.T) {
 			session.SetMessageCallback(r.notifyMessageReceiver)
 			var routes []StaticRoute
 			want := make(map[string]bool)
-			for i := byte(0); i < 16; i++ {
+			for i := range byte(16) {
 				routes = append(routes, StaticRoute{
 					Prefix:  netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 20, i, 0}), 24),
 					NextHop: bgptypes.NewNextHopSelf(),

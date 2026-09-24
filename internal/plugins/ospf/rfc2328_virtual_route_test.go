@@ -40,7 +40,9 @@ func establishVirtualRoute(t *testing.T, eng *engine, backend *fakeBackend, resu
 	dispatchDBDesc(t, eng, index, result.Neighbor, types.BackboneArea, packet.DBDesc{Options: options, Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7})
 	dispatchDBDesc(t, eng, index, result.Neighbor, types.BackboneArea, packet.DBDesc{Options: options, Flags: packet.DDFlagMaster, DDSequence: 8})
 	name := virtualLinkName(virtualLinkKey{transit: result.TransitArea, neighbor: result.Neighbor})
-	for _, row := range eng.neighbors.Snapshot() {
+	rows := eng.neighbors.Snapshot()
+	for index := range rows {
+		row := &rows[index]
 		if row.Interface == name && row.State == ospflsdb.NeighborStateFull {
 			// Drain initial Full-state origination without waiting for the maintenance tick.
 			eng.originateSelfLSAs()

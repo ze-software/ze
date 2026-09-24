@@ -61,10 +61,12 @@ func TestSelectedFlowSpecKernelPacketSemantics(t *testing.T) {
 	var sockerr error
 	require.NoError(t, raw.Control(func(fd uintptr) { sockerr = unix.SetsockoptInt(int(fd), unix.IPPROTO_IP, unix.IP_RECVTOS, 1) }))
 	require.NoError(t, sockerr)
-	sender, err := net.DialUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2), Port: receiver.LocalAddr().(*net.UDPAddr).Port}, receiver.LocalAddr().(*net.UDPAddr))
+	receiverAddr, ok := receiver.LocalAddr().(*net.UDPAddr)
+	require.True(t, ok, "receiver address is %T", receiver.LocalAddr())
+	sender, err := net.DialUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2), Port: receiverAddr.Port}, receiverAddr)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = sender.Close() })
-	port := receiver.LocalAddr().(*net.UDPAddr).Port
+	port := receiverAddr.Port
 	components := []byte{3, 0x81, 17, 4, 0x91, byte(port >> 8), byte(port)}
 	narrow := append([]byte{13, 1, 32, 127, 0, 0, 1}, components...)
 	broad := append([]byte{10, 1, 8, 127}, components...)

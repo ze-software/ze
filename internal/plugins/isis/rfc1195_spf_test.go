@@ -419,15 +419,16 @@ func TestRFC1195InternalOriginatorClearsExternalMetric(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer packet.ReleaseTLVs(pdu.LSP.TLVs)
 		for _, tlv := range pdu.LSP.TLVs {
 			if tlv.Type == packet.TLVIPInternalReachability {
 				if tlv.Value[0]&0x40 != 0 {
 					t.Fatal("internal prefix emitted an external metric")
 				}
+				packet.ReleaseTLVs(pdu.LSP.TLVs)
 				return
 			}
 		}
+		packet.ReleaseTLVs(pdu.LSP.TLVs)
 	}
 	t.Fatal("internal prefix was not originated")
 }
@@ -463,7 +464,6 @@ func TestRFC1195PseudonodeCannotInheritRouterPrefixes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer packet.ReleaseTLVs(pdu.LSP.TLVs)
 		for _, tlv := range pdu.LSP.TLVs {
 			if pdu.LSP.LSPID.PseudonodeID() == 0 {
 				routerTypes[tlv.Type] = true
@@ -484,6 +484,7 @@ func TestRFC1195PseudonodeCannotInheritRouterPrefixes(t *testing.T) {
 				}
 			}
 		}
+		packet.ReleaseTLVs(pdu.LSP.TLVs)
 	}
 	if !neighborSeen || !routerTypes[packet.TLVIPInternalReachability] || !routerTypes[packet.TLVIPExternalReachability] {
 		t.Fatalf("router prefixes or pseudonode connectivity missing: router=%v neighbor=%v", routerTypes, neighborSeen)

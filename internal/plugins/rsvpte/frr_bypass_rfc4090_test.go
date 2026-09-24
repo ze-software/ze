@@ -121,7 +121,8 @@ func lastResvFor(t *testing.T, ft *fakeTransport, sender netip.Addr) []byte {
 	t.Helper()
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
-	for _, sent := range slices.Backward(ft.sent) {
+	for index := range slices.Backward(ft.sent) {
+		sent := &ft.sent[index]
 		msg, err := DecodeMessage(sent.payload)
 		if err != nil || msg.Header.MsgType != MsgTypeResv {
 			continue

@@ -56,7 +56,16 @@ func nssaImportEngine(t *testing.T, f nssaTestFamily) (*engine, *time.Time) {
 	return eng, &now
 }
 
-func nssaImportedLSA(t *testing.T, eng *engine, f nssaTestFamily, prefix netip.Prefix) (packet.LSAHeader, netip.Addr, bool, uint32, uint32, bool) {
+// nssaImport is the decoded view of one imported NSSA LSA.
+type nssaImport struct {
+	header     packet.LSAHeader
+	forwarding netip.Addr
+	propagate  bool
+	metric     uint32
+	tag        uint32
+}
+
+func nssaImportedLSA(t *testing.T, eng *engine, f nssaTestFamily, prefix netip.Prefix) (nssaImport, bool) {
 	t.Helper()
 	key := types.LSAKey{Type: types.LSTypeNSSA, AdvertisingRouter: eng.cfg.RouterID}
 	if f.v3 {
@@ -70,7 +79,7 @@ func nssaImportedLSA(t *testing.T, eng *engine, f nssaTestFamily, prefix netip.P
 	}
 	lsa, exists := eng.lsdb.LookupLSA(types.AreaID{0, 0, 0, 7}, key)
 	if !exists {
-		return packet.LSAHeader{}, netip.Addr{}, false, 0, 0, false
+		return nssaImport{}, false
 	}
 	if f.v3 {
 		decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
@@ -81,13 +90,15 @@ func nssaImportedLSA(t *testing.T, eng *engine, f nssaTestFamily, prefix netip.P
 		if err != nil {
 			t.Fatal(err)
 		}
-		return lsa.Header, v6ForwardingAddr(body.ForwardingAddr, f.af), ospfv3packet.NSSAPropagate(body), body.Metric, body.ExternalRouteTag, true
+		return nssaImport{header: lsa.Header, forwarding: v6ForwardingAddr(body.ForwardingAddr, f.af),
+			propagate: ospfv3packet.NSSAPropagate(body), metric: body.Metric, tag: body.ExternalRouteTag}, true
 	}
 	body, err := lsa.DecodeExternal()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return lsa.Header, netip.AddrFrom4(body.ForwardingAddr), lsa.Header.Options.Has(types.OptionNP), body.Metric, body.ExternalRouteTag, true
+	return nssaImport{header: lsa.Header, forwarding: netip.AddrFrom4(body.ForwardingAddr),
+		propagate: lsa.Header.Options.Has(types.OptionNP), metric: body.Metric, tag: body.ExternalRouteTag}, true
 }
 
 func nssaImportPrefix(f nssaTestFamily) netip.Prefix {
@@ -107,21 +118,30 @@ func TestNSSAImportReoriginatesAfterForwardingInterfaceDown(t *testing.T) {
 			if err := eng.InjectExternal(prefix, "static", 91); err != nil {
 				t.Fatal(err)
 			}
-			before, fa, propagate, _, _, exists := nssaImportedLSA(t, eng, f, prefix)
+			imported, exists := nssaImportedLSA(t, eng, f, prefix)
+			before := imported.header
+			fa := imported.forwarding
+			propagate := imported.propagate
 			first, _ := eng.forwardingAddress("a")
 			if !exists || fa != first || !propagate {
 				t.Fatalf("initial Type-7 exists=%v fa=%v P=%v", exists, fa, propagate)
 			}
 			*now = now.Add(6 * time.Second)
 			eng.onInterfaceDown(1, "a")
-			after, fa, propagate, metric, tag, exists := nssaImportedLSA(t, eng, f, prefix)
+			imported, exists = nssaImportedLSA(t, eng, f, prefix)
+			after := imported.header
+			fa = imported.forwarding
+			propagate = imported.propagate
+			metric := imported.metric
+			tag := imported.tag
 			second, _ := eng.forwardingAddress("b")
 			if !exists || after.Age.IsMaxAge() || after.Sequence != before.Sequence.Next() || fa != second || !propagate || metric != 33 || tag != 91 {
 				t.Fatalf("replacement header=%+v fa=%v P=%v metric=%d tag=%d exists=%v", after, fa, propagate, metric, tag, exists)
 			}
 			*now = now.Add(6 * time.Second)
 			eng.onInterfaceDown(2, "b")
-			withdrawn, _, _, _, _, exists := nssaImportedLSA(t, eng, f, prefix)
+			imported, exists = nssaImportedLSA(t, eng, f, prefix)
+			withdrawn := imported.header
 			if !exists || !withdrawn.Age.IsMaxAge() {
 				t.Fatalf("last forwarding address lost: header=%+v exists=%v, want MaxAge", withdrawn, exists)
 			}
@@ -139,10 +159,14 @@ func TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent(t *testing.T) {
 			if err := eng.InjectExternal(prefix, "static", 0); err != nil {
 				t.Fatal(err)
 			}
-			before, beforeFA, _, _, _, _ := nssaImportedLSA(t, eng, f, prefix)
+			imported, _ := nssaImportedLSA(t, eng, f, prefix)
+			before := imported.header
+			beforeFA := imported.forwarding
 			*now = now.Add(6 * time.Second)
 			eng.onInterfaceDown(3, "unused")
-			after, fa, _, _, _, exists := nssaImportedLSA(t, eng, f, prefix)
+			imported, exists := nssaImportedLSA(t, eng, f, prefix)
+			after := imported.header
+			fa := imported.forwarding
 			if !exists || after.Sequence != before.Sequence || after.Age.IsMaxAge() || fa != beforeFA {
 				t.Fatalf("unrelated interface changed Type-7: before=%+v after=%+v fa=%v", before, after, fa)
 			}
@@ -151,7 +175,8 @@ func TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent(t *testing.T) {
 			}
 			*now = now.Add(6 * time.Second)
 			eng.onInterfaceDown(1, "a")
-			after, _, _, _, _, exists = nssaImportedLSA(t, eng, f, prefix)
+			imported, exists = nssaImportedLSA(t, eng, f, prefix)
+			after = imported.header
 			if exists && !after.Age.IsMaxAge() {
 				t.Fatalf("withdrawn route replayed: %+v", after)
 			}
@@ -170,7 +195,12 @@ func TestNSSAPerSourcePropagationEnabled(t *testing.T) {
 				if err := eng.InjectExternal(route, "static", 0); err != nil {
 					t.Fatal(err)
 				}
-				h, fa, propagate, metric, tag, exists := nssaImportedLSA(t, eng, f, route)
+				imported, exists := nssaImportedLSA(t, eng, f, route)
+				h := imported.header
+				fa := imported.forwarding
+				propagate := imported.propagate
+				metric := imported.metric
+				tag := imported.tag
 				if !exists || h.Age.IsMaxAge() || !propagate || !fa.IsValid() || fa.IsUnspecified() || metric != 33 || tag != 77 {
 					t.Fatalf("configured source %s: header=%+v fa=%v P=%v metric=%d tag=%d exists=%v", route, h, fa, propagate, metric, tag, exists)
 				}
@@ -190,7 +220,9 @@ func TestNSSAPerSourcePropagationDisabled(t *testing.T) {
 				if err := eng.InjectExternal(prefix, source, 0); err != nil {
 					t.Fatal(err)
 				}
-				h, _, propagate, _, _, exists := nssaImportedLSA(t, eng, f, prefix)
+				imported, exists := nssaImportedLSA(t, eng, f, prefix)
+				h := imported.header
+				propagate := imported.propagate
 				if !exists || h.Age.IsMaxAge() || propagate {
 					t.Fatalf("source %s: exists=%v header=%+v P=%v, want live P-clear Type-7", source, exists, h, propagate)
 				}
@@ -213,7 +245,9 @@ func TestNSSAPerSourcePropagationCannotOverrideType5(t *testing.T) {
 			if err := eng.InjectExternal(prefix, "static", 0); err != nil {
 				t.Fatal(err)
 			}
-			header, _, propagate, _, _, exists := nssaImportedLSA(t, eng, f, prefix)
+			imported, exists := nssaImportedLSA(t, eng, f, prefix)
+			header := imported.header
+			propagate := imported.propagate
 			if !exists || header.Age.IsMaxAge() || propagate {
 				t.Fatalf("Type-7 twin: header=%+v P=%v exists=%v, want live P-clear", header, propagate, exists)
 			}

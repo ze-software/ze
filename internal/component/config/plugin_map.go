@@ -28,8 +28,8 @@ func TreeFromPluginMap(m map[string]any) (*Tree, error) {
 	for next := 0; next < len(pending); next++ {
 		item := pending[next]
 		for key, value := range item.source {
-			if strings.HasPrefix(key, configorder.KeyPrefix) {
-				listName := strings.TrimPrefix(key, configorder.KeyPrefix)
+			if after, ok := strings.CutPrefix(key, configorder.KeyPrefix); ok {
+				listName := after
 				if _, ok := item.source[listName].(map[string]any); !ok {
 					return nil, fmt.Errorf("%s: order has no keyed list", key)
 				}

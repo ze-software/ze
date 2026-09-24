@@ -540,7 +540,7 @@ func TestStaleDrainDoesNotDiscardTheNextSessionsQueue(t *testing.T) {
 	ss.connMu.Lock()
 	ss.conn = fresh
 	ss.connMu.Unlock()
-	if err := ss.writePeerUp(peer, [16]byte{}, 179, 0, makeBGPOpen(65001, 1), makeBGPOpen(65002, 2)); err != nil {
+	if err := ss.writePeerUp(peer, [16]byte{}, 54321, 179, makeBGPOpen(65001, 1), makeBGPOpen(65002, 2)); err != nil {
 		t.Fatalf("priming the new session: %v", err)
 	}
 

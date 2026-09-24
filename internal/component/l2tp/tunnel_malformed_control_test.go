@@ -14,7 +14,8 @@ import (
 // controlBody wraps a control message body in the header a peer of the dialed
 // tunnel sends: the tunnel's own local id, Ns 0 and Nr 1, which is what
 // dialedTunnel's engine expects next.
-func controlBody(body []byte, ourLocalTID uint16) []byte {
+func controlBody(body []byte) []byte {
+	const ourLocalTID uint16 = 100
 	pkt := make([]byte, ControlHeaderLen+len(body))
 	WriteControlHeader(pkt, 0, uint16(ControlHeaderLen+len(body)), ourLocalTID, 0, 0, 1)
 	copy(pkt[ControlHeaderLen:], body)
@@ -61,7 +62,7 @@ func TestMalformedControlMessageClearsTheControlConnection(t *testing.T) {
 			now := time.Now()
 			tun, defaults := dialedTunnel(t, now)
 
-			pkt := controlBody(tc.body, 100)
+			pkt := controlBody(tc.body)
 			hdr, err := ParseMessageHeader(pkt)
 			require.NoError(t, err)
 			out := tun.Process(hdr, pkt[hdr.PayloadOff:hdr.Length], now, defaults, nil)
@@ -99,7 +100,7 @@ func TestZeroLengthBodyIsNotMalformed(t *testing.T) {
 	now := time.Now()
 	tun, defaults := dialedTunnel(t, now)
 
-	pkt := controlBody(nil, 100)
+	pkt := controlBody(nil)
 	hdr, err := ParseMessageHeader(pkt)
 	require.NoError(t, err)
 	out := tun.Process(hdr, pkt[hdr.PayloadOff:hdr.Length], now, defaults, nil)

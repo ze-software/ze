@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
-	"golang.org/x/sys/unix"
 )
 
 // Authentication completes before interface configuration. The nil embedded

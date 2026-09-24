@@ -107,7 +107,7 @@ func backfillFlowSample(buf []byte, sampleLengthOff, numRecordsOff, endOff int, 
 // sFlow v5: sampled_header = enterprise 0, format 1.
 // XDR encoding: header bytes are prefixed with a 4-byte count and padded to
 // a 4-byte boundary.
-func writeSampledHeader(buf []byte, off int, protocol, frameLength, stripped uint32, header []byte) int {
+func writeSampledHeader(buf []byte, off int, frameLength, stripped uint32, header []byte) int {
 	// Record data_format
 	binary.BigEndian.PutUint32(buf[off:], DataFormatSampledHeader)
 	off += 4
@@ -116,8 +116,8 @@ func writeSampledHeader(buf []byte, off int, protocol, frameLength, stripped uin
 	recordLengthOff := off
 	off += 4
 
-	// header_protocol (1 = Ethernet)
-	binary.BigEndian.PutUint32(buf[off:], protocol)
+	// header_protocol: Ze samples Ethernet frames only.
+	binary.BigEndian.PutUint32(buf[off:], HeaderProtocolEthernet)
 	off += 4
 
 	// frame_length (original frame size on wire)

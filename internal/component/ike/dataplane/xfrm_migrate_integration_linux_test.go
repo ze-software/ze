@@ -498,12 +498,12 @@ func migrationPeerCapture(t *testing.T, ifID uint32) (*net.UDPConn, *net.IPConn)
 	if err := netns.Set(local); err != nil {
 		t.Fatal(err)
 	}
-	link := &netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: "mobike0"}, PeerName: "mobike1", PeerNamespace: netlink.NsFd(int(peer))}
+	link := &netlink.Veth{Name: "mobike0", PeerName: "mobike1", PeerNamespace: netlink.NsFd(int(peer))}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Fatal(err)
 	}
 	underlay := migrationLinkAddrs(t, "mobike0", "198.51.100.1/24", "192.0.2.1/24")
-	xfrmi := &netlink.Xfrmi{LinkAttrs: netlink.LinkAttrs{Name: "mobike-xfrm", ParentIndex: underlay.Attrs().Index}, Ifid: ifID}
+	xfrmi := &netlink.Xfrmi{Name: "mobike-xfrm", ParentIndex: underlay.Attrs().Index, Ifid: ifID}
 	if err := netlink.LinkAdd(xfrmi); err != nil {
 		t.Fatal(err)
 	}

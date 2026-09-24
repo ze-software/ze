@@ -29,10 +29,11 @@ func lastPathCarriage(t *testing.T, ft *fakeTransport, kind uint8, tunnel uint16
 	t.Helper()
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
-	for _, sent := range slices.Backward(ft.sent) {
+	for index := range slices.Backward(ft.sent) {
+		sent := &ft.sent[index]
 		msg, err := DecodeMessage(sent.payload)
 		if err == nil && msg.Header.MsgType == kind && msg.Session.TunnelID == tunnel {
-			return sent
+			return *sent
 		}
 	}
 	t.Fatalf("no message type %d for tunnel %d", kind, tunnel)

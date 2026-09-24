@@ -5,6 +5,7 @@ package spf
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
@@ -320,12 +321,7 @@ func (in ExternalInput) nssaArea(area types.AreaID) bool {
 	if in.NSSAPolicies[area].Type == types.AreaTypeNSSA {
 		return true
 	}
-	for _, nssa := range in.NSSAAreas {
-		if nssa == area {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(in.NSSAAreas, area)
 }
 
 func (in ExternalInput) type5Capable(area types.AreaID) bool {

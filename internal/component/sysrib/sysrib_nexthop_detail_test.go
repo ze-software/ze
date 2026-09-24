@@ -155,7 +155,7 @@ func TestSysRIBEmitsNoTableID(t *testing.T) {
 // Loc-RIB Change into what sysrib consumes. A field dropped here is invisible to
 // every in-process deployment.
 func TestChangeToBatchCarriesTheDeviceAndWeight(t *testing.T) {
-	batch := changeToBatch(locrib.Change{
+	batch := changeToBatch(&locrib.Change{
 		Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("10.0.0.0/8"),
 		Kind:   locrib.ChangeAdd,

@@ -18,7 +18,7 @@ import (
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
 
-func contextPush(table uint32, label uint32) mplsfibevents.Entry {
+func contextPush(table, label uint32) mplsfibevents.Entry {
 	return mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPush,
 		FEC: netip.MustParsePrefix("10.9.0.9/32"), TableID: table,
 		NextHop: netip.MustParseAddr("10.0.0.2"), OutLabels: []uint32{label}}
@@ -275,7 +275,11 @@ func TestMPLSIntegration_ScopedShutdown(t *testing.T) {
 			t.Fatal(err)
 		}
 		restarted := &netlinkBackend{handle: restartedHandle}
-		defer restarted.close()
+		defer func() {
+			if err := restarted.close(); err != nil {
+				t.Error(err)
+			}
+		}()
 		restartedBus := newMPLSApplyBus(t, newFIBKernel(restarted))
 		if err := mplsfibevents.Apply(restartedBus, []mplsfibevents.Entry{entry}); err != nil {
 			t.Fatalf("restarted owner cannot reuse the namespace guard: %v", err)

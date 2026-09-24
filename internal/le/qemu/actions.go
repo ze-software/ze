@@ -31,6 +31,16 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
+// The run and install actions share these keywords, and the code that reads an
+// argument names the same constant the action declares.
+const (
+	keywordCommand = "command"
+	keywordKernel  = "kernel"
+)
+
+// zeMainPackage is the package path of the ze binary each build here compiles.
+const zeMainPackage = "./cmd/ze"
+
 // area is the name this command is typed as, and the prefix leaction removes
 // from each gate name to derive its verb.
 const area = "qemu"
@@ -55,10 +65,10 @@ var actions = leaction.New(area,
 			// A run needs command or keep-alive, and parseRunArguments is
 			// what refuses one carrying neither. The keyword is optional
 			// because the switch beside it can answer for it.
-			{Keyword: "command", Value: "command", Requirement: leaction.Optional},
+			{Keyword: keywordCommand, Value: "command", Requirement: leaction.Optional},
 			{Keyword: "packages", Value: "space-separated-packages", Requirement: leaction.Optional},
 			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
-			{Keyword: "kernel", Value: "path", Requirement: leaction.Optional},
+			{Keyword: keywordKernel, Value: "path", Requirement: leaction.Optional},
 			{Keyword: "keep-alive"},
 		},
 		AnswerArgs: runQEMUHere,
@@ -101,7 +111,7 @@ var actions = leaction.New(area,
 		Why: "target-build Ze and the native runner, boot the supplied runtime kernel," +
 			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
 		Parameters: []leaction.Parameter{
-			{Keyword: "kernel", Value: "vmlinuz-path", Requirement: leaction.Required},
+			{Keyword: keywordKernel, Value: "vmlinuz-path", Requirement: leaction.Required},
 			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runIPsecMOBIKEHere,

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"

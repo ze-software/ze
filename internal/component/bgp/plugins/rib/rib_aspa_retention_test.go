@@ -208,7 +208,10 @@ func TestASPARetentionReceiveRecovery(t *testing.T) {
 					validationDecision(t, bridge, ctx, text, "i", 10)
 				}
 				stored := validationStored(t, bridge, ctx)
-				msg := event.RawMessage.(*bgptypes.RawMessage)
+				msg, ok := event.RawMessage.(*bgptypes.RawMessage)
+				if !ok {
+					t.Fatalf("raw message is %T", event.RawMessage)
+				}
 				if len(stored) != 1 || !stored[0].Ineligible || stored[0].AttrHex != hex.EncodeToString(msg.AttrsWire.Packed()) ||
 					stored[0].NLRIHex != "18cb0071" || stored[0].NextHopHex != "c0000209" {
 					t.Fatalf("Invalid route bytes were not retained: %+v", stored)
@@ -252,7 +255,10 @@ func TestASPARetentionReplacementWithdrawal(t *testing.T) {
 			switch removal {
 			case "withdraw":
 				body := []byte{0, 4, 24, 203, 0, 113, 0, 0}
-				msg := event.RawMessage.(*bgptypes.RawMessage)
+				msg, ok := event.RawMessage.(*bgptypes.RawMessage)
+				if !ok {
+					t.Fatalf("raw message is %T", event.RawMessage)
+				}
 				wu := wireu.NewWireUpdate(body, msg.WireUpdate.SourceCtxID())
 				event.RawMessage = &bgptypes.RawMessage{MessageID: 12, RawBytes: body, WireUpdate: wu}
 				r.handleReceivedStructured(event)

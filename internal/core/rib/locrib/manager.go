@@ -217,13 +217,13 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	}
 	switch {
 	case !hadBest:
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
 	case bestChanged:
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward, ECMP: ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
 	case ecmpChanged:
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
 		retBest = newBest
 	default:
 		retBest = newBest
@@ -371,7 +371,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 
 	if !newHad {
 		if hadBest {
-			sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+			sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
 		}
 		sh.mu.Unlock()
 		recordRemove(family, shardIdx)
@@ -384,7 +384,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		return Path{}, hadBest
 	}
 	if changed || ecmpChanged {
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
+		sh.subs.dispatch(&Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
 	}
 	sh.mu.Unlock()
 	recordRemove(family, shardIdx)

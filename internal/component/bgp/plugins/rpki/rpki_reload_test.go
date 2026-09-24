@@ -366,7 +366,11 @@ func rpkiReloadRejectSection(t *testing.T, ctx context.Context) rpc.ConfigSectio
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = listener.Close() })
-	port := listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address is %T", listener.Addr())
+	}
+	port := tcpAddr.Port
 	return rpc.ConfigSection{Root: configRootBGP, Data: fmt.Sprintf(
 		`{"bgp":{"rpki":{"cache-server":{"127.0.0.1":{"port":"%d","trusted-network":"true"}},"action":{"not-found":"reject"}}}}`, port)}
 }

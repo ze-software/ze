@@ -324,7 +324,7 @@ func (c *Computer) SetAreaConfigs(configs []AreaConfig) {
 	options, ranges, policies := areaConfigMaps(configs)
 	c.mu.Lock()
 	if !maps.Equal(c.areaOptions, options) || !maps.Equal(c.areaPolicies, policies) ||
-		!maps.EqualFunc(c.areaRanges, ranges, func(a, b []AreaRange) bool { return slices.Equal(a, b) }) {
+		!maps.EqualFunc(c.areaRanges, ranges, slices.Equal[[]AreaRange]) {
 		c.configGeneration++
 	}
 	c.areaOptions = options

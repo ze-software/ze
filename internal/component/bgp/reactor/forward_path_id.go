@@ -598,7 +598,7 @@ func fwdReleaseSection(src source.SourceID, peer netip.Addr, fam family.Family, 
 // splitter rejects malformed native framing before an unrelated key is freed.
 func fwdAnnouncedPaths(fam family.Family, section []byte) (map[fwdPathKey]struct{}, error) {
 	if len(section) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // A nil map is the empty set, documented above: every lookup answers "no".
 	}
 	split := nlrisplit.Get(fam)
 	if split == nil {

@@ -101,7 +101,7 @@ func TestSFlowFlowSampleFullWidthInterfaces(t *testing.T) {
 				buf[i] = 0xFF
 			}
 			off, lengthOff, countOff := writeFlowSample(buf, start, 9, tt.source, 64, 128, 2, tt.input, tt.output)
-			off = writeSampledHeader(buf, off, HeaderProtocolEthernet, 64, 4, []byte{1, 2, 3})
+			off = writeSampledHeader(buf, off, 64, 4, []byte{1, 2, 3})
 			backfillFlowSample(buf, lengthOff, countOff, off, 1)
 			if off != len(buf) {
 				t.Fatalf("encoded end = %d, allocated end %d", off, len(buf))
@@ -136,7 +136,7 @@ func TestSFlowSampledHeader(t *testing.T) {
 		0x08, 0x00, // ethertype IPv4
 	}
 
-	off := writeSampledHeader(buf, 0, HeaderProtocolEthernet, 128, 0, ethHdr)
+	off := writeSampledHeader(buf, 0, 128, 0, ethHdr)
 
 	// data_format = sampled_header (enterprise 0, format 1)
 	if got := binary.BigEndian.Uint32(buf[0:]); got != 0x00000001 {
@@ -191,7 +191,7 @@ func TestSFlowSampledHeaderAligned(t *testing.T) {
 		hdr[i] = byte(i)
 	}
 
-	off := writeSampledHeader(buf, 0, HeaderProtocolEthernet, 64, 4, hdr)
+	off := writeSampledHeader(buf, 0, 64, 4, hdr)
 
 	// Total: 4 + 4 + 4 + 4 + 4 + 4 + 16 + 0(no pad) = 40
 	if off != 40 {

@@ -168,14 +168,14 @@ func (b *mplsTestbed) enableInput() {
 func (b *mplsTestbed) openPacketSocket() int {
 	b.t.Helper()
 
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(ethPAllNetworkOrder))
 	if err != nil {
 		b.t.Skipf("needs CAP_NET_RAW to open a packet socket: %v", err)
 	}
 	b.t.Cleanup(func() { unix.Close(fd) }) //nolint:errcheck // best-effort cleanup
 
 	addr := &unix.SockaddrLinklayer{
-		Protocol: htons(unix.ETH_P_ALL),
+		Protocol: ethPAllNetworkOrder,
 		Ifindex:  b.peerIndex,
 	}
 	require.NoError(b.t, unix.Bind(fd, addr), "bind packet socket to %s", mplsPeerLink)
@@ -184,8 +184,9 @@ func (b *mplsTestbed) openPacketSocket() int {
 	return fd
 }
 
-// htons is the byte order a packet socket's protocol field is given in.
-func htons(v uint16) uint16 { return v<<8 | v>>8 }
+// ethPAllNetworkOrder is ETH_P_ALL in network byte order, the order a packet
+// socket's protocol field is given in.
+const ethPAllNetworkOrder = uint16(unix.ETH_P_ALL)<<8 | uint16(unix.ETH_P_ALL)>>8
 
 // inject writes one labeled frame out of the peer end, so the kernel receives
 // it on ze's end. The frame is addressed to ze's own hardware address: the
@@ -195,7 +196,7 @@ func (b *mplsTestbed) inject(labels []uint32, payload []byte) {
 
 	frame := mplsFrame(b.zeMAC, labels, payload)
 	addr := &unix.SockaddrLinklayer{
-		Protocol: htons(unix.ETH_P_ALL),
+		Protocol: ethPAllNetworkOrder,
 		Ifindex:  b.peerIndex,
 		Halen:    6,
 	}

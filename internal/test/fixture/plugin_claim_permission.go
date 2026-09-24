@@ -60,7 +60,7 @@ func observeReplayClaimPermissions(ctx context.Context, p *sdk.Plugin, events <-
 	// The peer carriers assert their EOR. Do not shut down after observing only
 	// our metadata while those independent wire assertions are still pending.
 	for _, name := range []string{"observer", "raw-only", "writer"} {
-		if !waitPeerCounter(ctx, p, name, "eor-sent", 1, 50) {
+		if !waitPeerEORSent(ctx, p, name, 50) {
 			return fmt.Errorf("peer %s did not receive its initial-sync EOR", name)
 		}
 	}

@@ -44,7 +44,7 @@ func TestFIBOnLinkAdjacencyAndUnsupportedPrefix(t *testing.T) {
 		defer h.Close()
 
 		const device = "ze-onlink"
-		link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: device}}
+		link := &netlink.Dummy{Name: device}
 		err = h.LinkAdd(link)
 		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
 			t.Skipf("requires CAP_NET_ADMIN in the test network namespace to create %s: %v", device, err)

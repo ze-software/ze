@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -239,9 +240,7 @@ func (e *topologyExporter) reconcile(ctx context.Context) error {
 	e.mu.Lock()
 	desired := make(map[string]exportedRoute)
 	for _, domain := range e.domains {
-		for key, route := range domain.routes {
-			desired[key] = route
-		}
+		maps.Copy(desired, domain.routes)
 	}
 	peers := make([]string, 0, len(e.peers))
 	sessions := make(map[string]*exportPeer, len(e.peers))

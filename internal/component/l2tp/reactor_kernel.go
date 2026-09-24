@@ -155,8 +155,8 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	select {
 	case r.pppDriver.SessionsIn() <- start:
 	case <-r.stop:
-		_ = ppp.NewFDFile(unitFD, "ppp.cancelled.unit").Close() //nolint:errcheck // cancelled ownership transfer
-		_ = ppp.NewFDFile(chanFD, "ppp.cancelled.chan").Close() //nolint:errcheck // cancelled ownership transfer
+		_ = ppp.NewFDFile(unitFD, "ppp.canceled.unit").Close() //nolint:errcheck // canceled ownership transfer
+		_ = ppp.NewFDFile(chanFD, "ppp.canceled.chan").Close() //nolint:errcheck // canceled ownership transfer
 	}
 }
 

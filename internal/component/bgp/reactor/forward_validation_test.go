@@ -42,7 +42,8 @@ func validationForwardFixture(t *testing.T, addPath bool) (*reactorAPIAdapter, *
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		capture.mu.Lock()
 		defer capture.mu.Unlock()
-		for _, item := range items {
+		for index := range items {
+			item := &items[index]
 			for _, body := range item.rawBodies {
 				capture.bodies = append(capture.bodies, bytes.Clone(body))
 			}

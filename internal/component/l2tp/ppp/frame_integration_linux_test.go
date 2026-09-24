@@ -72,10 +72,10 @@ func TestPPPStoppedDispatcherClosesQueuedDescriptors(t *testing.T) {
 		t.Fatal(err)
 	}
 	driver := &Driver{
-		sessionsIn: make(chan StartSession, 1),
-		stopCh: make(chan struct{}),
+		sessionsIn:   make(chan StartSession, 1),
+		stopCh:       make(chan struct{}),
 		dispatchDone: make(chan struct{}),
-		stopped: true,
+		stopped:      true,
 	}
 	driver.sessionsIn <- StartSession{ChanFD: channel, UnitFD: unit}
 	close(driver.stopCh)

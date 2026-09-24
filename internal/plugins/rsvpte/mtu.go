@@ -31,6 +31,8 @@ var errIntserv = errors.New("rsvp: malformed IntServ object")
 // Byte 28: | Param=8   | flags=0       | Words=1  | Latency at 32
 // Byte 36: | Param=10  | flags=0       | Words=1  | Path MTU at 40
 // Byte 44: | Service=5 or 6 | flags=0   | Words=0  |
+//
+// Offsets are relative to the start of the object.
 func encodeAdspec(buf []byte, mtu uint32, service uint8) int {
 	if mtu == 0 {
 		return 0

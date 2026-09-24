@@ -536,7 +536,7 @@ func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
 		return err
 	}
-	if _, err := lab.exec(ctx, swanPeer, "swanctl", "--terminate", "--ike", "ze"); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, cmdSwanctl, "--terminate", "--ike", "ze"); err != nil {
 		return err
 	}
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
@@ -561,7 +561,7 @@ func checkResponderEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	defer lab.execQuiet(context.Background(), swanPeer, "iptables", "-D", "INPUT", "-s", zeIP, "-p", "udp", "--sport", "4500", "-j", "DROP")
-	if err := lab.check.Lab.ExecDetached(ctx, swanPeer, []string{"swanctl", "--initiate", "--child", "ze-child"}, nil); err != nil {
+	if err := lab.check.Lab.ExecDetached(ctx, swanPeer, []string{cmdSwanctl, "--initiate", "--child", "ze-child"}, nil); err != nil {
 		return err
 	}
 	if err := waitDuration(ctx, 8*time.Second); err != nil {
@@ -738,9 +738,9 @@ func checkResponderAcceptsReinit(ctx context.Context, lab *scenarioLab) error {
 	if err := lab.breakLink(ctx); err != nil {
 		return err
 	}
-	lab.execQuiet(ctx, swanPeer, "swanctl", "--terminate", "--ike", "ze")
+	lab.execQuiet(ctx, swanPeer, cmdSwanctl, "--terminate", "--ike", "ze")
 	lab.restoreLink(ctx)
-	if _, err := lab.exec(ctx, swanPeer, "swanctl", "--initiate", "--child", "ze-child"); err != nil {
+	if _, err := lab.exec(ctx, swanPeer, cmdSwanctl, "--initiate", "--child", "ze-child"); err != nil {
 		return err
 	}
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
@@ -830,7 +830,7 @@ func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 	if _, err := lab.exec(ctx, swanPeer, "sh", "-c", command); err != nil {
 		return err
 	}
-	loaded, err := lab.query(ctx, swanPeer, "swanctl", "--load-conns")
+	loaded, err := lab.query(ctx, swanPeer, cmdSwanctl, "--load-conns")
 	if err != nil {
 		return err
 	}
@@ -1797,7 +1797,7 @@ func readbackAsymmetricTraffic(ctx context.Context, lab *scenarioLab) (result er
 	}()
 	// Requests still cross ESP, but the peer drops only their echo replies.
 	// The earlier lossless bidirectional probe remains a separate assertion.
-	output := lab.execQuiet(ctx, zePeer, "ping", "-c", "3", "-W", "1", swanIP)
+	output := lab.execQuiet(ctx, zePeer, cmdPing, "-c", "3", "-W", "1", swanIP)
 	loss, err := pingLoss(output)
 	if err != nil {
 		return err

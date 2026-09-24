@@ -232,6 +232,13 @@ const (
 // jsonRPCVersion is the only JSON-RPC version this server speaks.
 const jsonRPCVersion = "2.0"
 
+// mediaTypeJSON is the JSON media type this server sends and accepts.
+const mediaTypeJSON = "application/json"
+
+// errorCodeInvalidToken is the RFC 6750 Section 3.1 error code for a bearer
+// token that is expired, revoked, malformed, or invalid for another reason.
+const errorCodeInvalidToken = "invalid_token"
+
 // contentTypeText names a text content block, and is also the key that block
 // carries its text under.
 const contentTypeText = "text"

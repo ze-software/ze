@@ -81,7 +81,7 @@ func checkOSPFVirtualLink(ctx context.Context, check *interoplab.CheckContext) e
 	if err := waitVirtualLinkRoute(ctx, check.Lab, v6, true); err != nil {
 		return fail(5, err)
 	}
-	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", "link", "set", "eth2", "down"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", ipObjectLink, "set", "eth2", "down"}, nil); err != nil {
 		return fail(6, err)
 	}
 	down, err := waitVirtualLink(ctx, check.Lab, remote, v6, 0, false)
@@ -97,7 +97,7 @@ func checkOSPFVirtualLink(ctx context.Context, check *interoplab.CheckContext) e
 	if err := waitVirtualLinkRoute(ctx, check.Lab, v6, false); err != nil {
 		return fail(8, err)
 	}
-	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", "link", "set", "eth2", "up"}, nil); err != nil {
+	if _, err := check.Lab.Exec(ctx, peerFRRTransit, []string{"ip", ipObjectLink, "set", "eth2", "up"}, nil); err != nil {
 		return fail(9, err)
 	}
 	if err := waitVirtualLinkKernelRoute(ctx, check.Lab, v6, gateway, true); err != nil {
@@ -224,8 +224,8 @@ func decodeVirtualLinkMetrics(answer, remote string, v6 bool) (virtualLinkObserv
 		prefix, neighborLabel = "ze_ospfv3", "remote_router_id"
 		changesName = "ze_ospfv3_virtual_link_reresolves_total"
 	}
-	area := map[string]string{"transit_area": "0.0.0.1"}
-	endpoint := map[string]string{"transit_area": "0.0.0.1", neighborLabel: remote}
+	area := map[string]string{transitAreaLabel: virtualLinkTransitArea}
+	endpoint := map[string]string{transitAreaLabel: virtualLinkTransitArea, neighborLabel: remote}
 	changesLabels := endpoint
 	if v6 {
 		changesLabels = area
@@ -237,8 +237,8 @@ func decodeVirtualLinkMetrics(answer, remote string, v6 bool) (virtualLinkObserv
 		out    *float64
 	}{
 		{prefix + "_virtual_link_cost", endpoint, &observation.Cost},
-		{prefix + "_virtual_links", map[string]string{"transit_area": "0.0.0.1", "state": "up"}, &observation.Up},
-		{prefix + "_virtual_links", map[string]string{"transit_area": "0.0.0.1", "state": "down"}, &observation.Down},
+		{prefix + "_virtual_links", map[string]string{transitAreaLabel: virtualLinkTransitArea, "state": "up"}, &observation.Up},
+		{prefix + "_virtual_links", map[string]string{transitAreaLabel: virtualLinkTransitArea, "state": "down"}, &observation.Down},
 		{changesName, changesLabels, &observation.Changes},
 	} {
 		value, err := virtualLinkMetric(families[wanted.name], wanted.labels)

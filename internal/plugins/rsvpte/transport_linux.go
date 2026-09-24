@@ -155,7 +155,7 @@ func (t *rawTransport) Send(dst netip.Addr, msg []byte) error {
 // outgoingSource chooses an address actually assigned to the selected link.
 // A route's preferred source alone is insufficient: it may name a loopback.
 func (t *rawTransport) outgoingSource(route *netlink.Route) (netip.Addr, error) {
-	link := &netlink.Device{LinkAttrs: netlink.LinkAttrs{Index: route.LinkIndex}}
+	link := &netlink.Device{Index: route.LinkIndex}
 	addresses, err := t.routes.AddrList(link, unix.AF_INET)
 	if err != nil {
 		return netip.Addr{}, fmt.Errorf("rsvp-te: interface %d addresses: %w", route.LinkIndex, err)
@@ -422,7 +422,8 @@ func (t *rawTransport) ResolveRoute(target netip.Prefix, destination netip.Addr,
 			if err != nil {
 				return RouteInfo{}, err
 			}
-			for _, neighbor := range neighbors {
+			for i := range neighbors {
+				neighbor := &neighbors[i]
 				address, ok := netip.AddrFromSlice(neighbor.IP)
 				address = address.Unmap()
 				if ok && target.Contains(address) && neighbor.State&(netlink.NUD_INCOMPLETE|netlink.NUD_FAILED) == 0 &&

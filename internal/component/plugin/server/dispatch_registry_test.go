@@ -374,7 +374,7 @@ func TestUpdateRouteDirectCancellation(t *testing.T) {
 			case err := <-done:
 				require.ErrorIs(t, err, context.Canceled)
 			case <-time.After(5 * time.Second):
-				t.Fatal("cancelled route call left its engine operation running")
+				t.Fatal("canceled route call left its engine operation running")
 			}
 		})
 	}

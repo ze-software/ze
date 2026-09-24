@@ -85,7 +85,7 @@ func bgplsReload(ctx context.Context, p *sdk.Plugin, source string) error {
 	if err != nil {
 		return err
 	}
-	data, err := os.ReadFile(source)
+	data, err := os.ReadFile(source) //nolint:gosec // the path is a fixture file the test scenario names
 	if err != nil {
 		return err
 	}

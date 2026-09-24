@@ -391,7 +391,7 @@ func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 			Status:           http.StatusUnauthorized,
 			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
-			ErrorCode:        "invalid_token",
+			ErrorCode:        errorCodeInvalidToken,
 			ErrorDescription: "authentication unavailable",
 		}
 	}
@@ -415,7 +415,7 @@ func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	setMainPathCORS(w, r)
 	ct := r.Header.Get("Content-Type")
-	if ct != "" && !strings.HasPrefix(ct, "application/json") {
+	if ct != "" && !strings.HasPrefix(ct, mediaTypeJSON) {
 		http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
 		return
 	}

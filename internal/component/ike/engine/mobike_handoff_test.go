@@ -112,7 +112,7 @@ func TestMobikeParallelAuthKeepsPromotedPolicyEndpoints(t *testing.T) {
 			ps.handleOwnedInbound(resp, transport.Packet{Data: update, LocalAddr: local, RemoteAddr: remote, NATT: true}, respTr, dp, log)
 			mbResponse(t, ini, mbReceive(t, moved).Data, parseMsg(t, update).Header.MessageID)
 			resp.mobike.lastKeepalive = time.Now()
-			ps.serviceMobike(resp, respTr, dp, time.Now(), log)
+			ps.serviceMobike(resp, respTr, time.Now(), log)
 			check := mbReceive(t, moved)
 			cookie := mbRequireNotify(t, mbDecrypt(t, ini, check.Data), wire.NotifyCookie2).NotificationData
 			answer := mbInformational(t, ini, parseMsg(t, check.Data).Header.MessageID, true,

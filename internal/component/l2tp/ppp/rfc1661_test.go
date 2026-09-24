@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -98,9 +99,9 @@ func findCode(t *testing.T, r *frameRecorder, code uint8) (LCPPacket, bool) {
 func lastLCPConfigureRequest(t *testing.T, rec *frameRecorder) LCPPacket {
 	t.Helper()
 	frames := decodeFrames(t, rec)
-	for i := len(frames) - 1; i >= 0; i-- {
-		if frames[i].Proto == ProtoLCP && frames[i].Pkt.Code == LCPConfigureRequest {
-			return frames[i].Pkt
+	for _, frame := range slices.Backward(frames) {
+		if frame.Proto == ProtoLCP && frame.Pkt.Code == LCPConfigureRequest {
+			return frame.Pkt
 		}
 	}
 	t.Fatal("no LCP Configure-Request transmitted")

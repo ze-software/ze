@@ -415,7 +415,7 @@ func TestRemovePointToPointAddressAllowsReuse(t *testing.T) {
 			localCIDR = "192.0.2.1/32"
 			peerCIDR  = "198.51.100.2/32"
 		)
-		if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: ifname}}); err != nil {
+		if err := netlink.LinkAdd(&netlink.Dummy{Name: ifname}); err != nil {
 			t.Fatalf("add retained interface: %v", err)
 		}
 		link, err := netlink.LinkByName(ifname)

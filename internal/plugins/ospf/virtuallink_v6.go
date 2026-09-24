@@ -85,11 +85,12 @@ func v6AddVirtualEndpoint(prefixes []ospfv3packet.Prefix, ifaces []ospflsdb.Inte
 	}
 	var best ospfv3packet.Prefix
 	var address netip.Addr
-	for _, iface := range ifaces {
-		if !v6AdvertiseInterface(iface) || iface.NetworkType == types.NetworkVirtual {
+	for i := range ifaces {
+		iface := &ifaces[i]
+		if !v6AdvertiseInterface(*iface) || iface.NetworkType == types.NetworkVirtual {
 			continue
 		}
-		for _, host := range v6HostPrefixes(iface) {
+		for _, host := range v6HostPrefixes(*iface) {
 			prefix, ok := v6PrefixToNetip(host, afIPv6Unicast)
 			if ok && (!address.IsValid() || prefix.Addr().Less(address)) {
 				best, address = host, prefix.Addr()

@@ -828,7 +828,7 @@ func TestMobikeNoNATsUpdateWaitsForRoutability(t *testing.T) {
 	if f.dp.count != 0 {
 		t.Fatal("valid NO_NATS update migrated before return routability completed")
 	}
-	f.ps.serviceMobike(f.local, f.myTr, f.dp, time.Now(), log)
+	f.ps.serviceMobike(f.local, f.myTr, time.Now(), log)
 	check := mbReceive(t, f.peerTr)
 	checkID := parseMsg(t, check.Data).Header.MessageID
 	if parseMsg(t, check.Data).Header.Flags&wire.FlagResponse != 0 {
@@ -1714,7 +1714,7 @@ func TestMobikePendingCheckSurvivesIKEPromotion(t *testing.T) {
 		t.Fatal("old-SA Delete did not promote the negotiated IKE replacement")
 	}
 	mbResponse(t, f.peer, mbReceive(t, nextTr).Data, parseMsg(t, del).Header.MessageID)
-	f.ps.serviceMobike(out.newSA, f.myTr, f.dp, time.Now(), log)
+	f.ps.serviceMobike(out.newSA, f.myTr, time.Now(), log)
 	check := mbReceive(t, nextTr)
 	inner := mbDecrypt(t, newPeer, check.Data)
 	cookie := mbRequireNotify(t, inner, wire.NotifyCookie2)

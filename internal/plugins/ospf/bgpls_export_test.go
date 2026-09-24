@@ -71,7 +71,8 @@ func bgplsAwait(t *testing.T, events <-chan linkstateevents.Snapshot, accept fun
 
 // Replay is synchronous. Drain earlier notifications as well so a transition
 // assertion cannot accidentally accept the preceding SPF result from the queue.
-func bgplsReplaySnapshot(t *testing.T, bus *fakeBus, events <-chan linkstateevents.Snapshot, area uint32) linkstateevents.Snapshot {
+func bgplsReplaySnapshot(t *testing.T, bus *fakeBus, events <-chan linkstateevents.Snapshot) linkstateevents.Snapshot {
+	const area uint32 = 0
 	t.Helper()
 	if _, err := linkstateevents.Request.Emit(bus); err != nil {
 		t.Fatal(err)
@@ -427,7 +428,8 @@ func TestBGPLSNativeV2PseudonodeAndPrefixClasses(t *testing.T) {
 	snapshot := bgplsAwait(t, events, func(s *linkstateevents.Snapshot) bool { return len(s.Prefixes) == 4 && len(s.Links) == 4 })
 	pseudo := []byte{4, 4, 4, 4, 10, 1, 0, 1}
 	var forward, reverse bool
-	for _, link := range snapshot.Links {
+	for index := range snapshot.Links {
+		link := &snapshot.Links[index]
 		if bytes.Equal(link.Remote.RouterID, pseudo) {
 			forward = bytes.Equal(link.Local.RouterID, []byte{2, 2, 2, 2})
 		}
@@ -595,7 +597,8 @@ func TestBGPLSNativeInterASIPv6IdentityCorrelation(t *testing.T) {
 	bgplsAwait(t, events, func(s *linkstateevents.Snapshot) bool { return s.Generation > restored.Generation && len(s.Links) == 0 })
 }
 
-func bgplsReachabilityRouter(router types.RouterID, sequence types.LSSequenceNumber, links ...packet.RouterLink) packet.LSA {
+func bgplsReachabilityRouter(router types.RouterID, links ...packet.RouterLink) packet.LSA {
+	const sequence = types.InitialSequenceNumber
 	return packet.LSA{Header: packet.LSAHeader{Type: types.LSTypeRouter, LinkStateID: types.LinkStateID(router),
 		AdvertisingRouter: router, Sequence: sequence}, Router: &packet.RouterLSA{Links: links}}
 }
@@ -612,8 +615,8 @@ func bgplsOriginUnreachable(snapshot *linkstateevents.Snapshot, id linkstateeven
 
 func bgplsLocalLinkCount(snapshot *linkstateevents.Snapshot, router []byte) int {
 	count := 0
-	for _, link := range snapshot.Links {
-		if bytes.Equal(link.Local.RouterID, router) {
+	for i := range snapshot.Links {
+		if bytes.Equal(snapshot.Links[i].Local.RouterID, router) {
 			count++
 		}
 	}
@@ -636,11 +639,11 @@ func TestBGPLSNativeSPFPartitionRestoresStaleOrigins(t *testing.T) {
 		Timers: timerConfig{SPFDelayMS: 3600000, SPFHoldMS: 3600000, SPFMaxHoldMS: 3600000}})
 	rootLink := packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{2, 2, 2, 2},
 		LinkData: [4]byte{10, 0, 0, 1}, Metric: 10}
-	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, types.InitialSequenceNumber, rootLink)
-	transit := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2}, types.InitialSequenceNumber,
+	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, rootLink)
+	transit := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{1, 1, 1, 1}, LinkData: [4]byte{10, 0, 0, 2}, Metric: 10},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{3, 3, 3, 3}, LinkData: [4]byte{10, 0, 1, 2}, Metric: 10})
-	remote := bgplsReachabilityRouter(types.RouterID{3, 3, 3, 3}, types.InitialSequenceNumber,
+	remote := bgplsReachabilityRouter(types.RouterID{3, 3, 3, 3},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{2, 2, 2, 2}, LinkData: [4]byte{10, 0, 1, 3}, Metric: 10},
 		packet.RouterLink{Type: packet.RouterLinkTypeStub, LinkID: types.LinkStateID{192, 0, 2, 0}, LinkData: [4]byte{255, 255, 255, 0}, Metric: 20},
 		packet.RouterLink{Type: packet.RouterLinkTypeTransit, LinkID: types.LinkStateID{10, 3, 0, 3}, LinkData: [4]byte{10, 3, 0, 3}, Metric: 5})
@@ -652,8 +655,8 @@ func TestBGPLSNativeSPFPartitionRestoresStaleOrigins(t *testing.T) {
 			t.Fatal("install native topology")
 		}
 	}
-	if !e.lsdb.Install(otherArea, bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, types.InitialSequenceNumber)) ||
-		!e.lsdb.Install(otherArea, bgplsReachabilityRouter(types.RouterID{3, 3, 3, 3}, types.InitialSequenceNumber,
+	if !e.lsdb.Install(otherArea, bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1})) ||
+		!e.lsdb.Install(otherArea, bgplsReachabilityRouter(types.RouterID{3, 3, 3, 3},
 			packet.RouterLink{Type: packet.RouterLinkTypeStub, LinkID: types.LinkStateID{198, 51, 100, 0}, LinkData: [4]byte{255, 255, 255, 0}, Metric: 20})) {
 		t.Fatal("install isolated area")
 	}
@@ -665,7 +668,7 @@ func TestBGPLSNativeSPFPartitionRestoresStaleOrigins(t *testing.T) {
 		!bytes.Equal(isolated.Unreachable[0].RouterID, []byte{3, 3, 3, 3}) {
 		t.Fatalf("wrong area identity: %+v", isolated.Unreachable)
 	}
-	connected := bgplsReplaySnapshot(t, bus, events, 0)
+	connected := bgplsReplaySnapshot(t, bus, events)
 	if connected.Generation <= isolated.Generation || len(connected.Unreachable) != 0 || len(connected.Nodes) != 4 || len(connected.Links) != 6 || len(connected.Prefixes) != 2 {
 		t.Fatalf("connected native SPF view: %+v", connected)
 	}
@@ -705,7 +708,7 @@ func TestBGPLSNativeSPFPartitionRestoresStaleOrigins(t *testing.T) {
 	if len(pending.Unreachable) != 3 {
 		t.Fatalf("pending SPF falsely restored origins: %+v", pending.Unreachable)
 	}
-	replayed := bgplsReplaySnapshot(t, bus, events, 0)
+	replayed := bgplsReplaySnapshot(t, bus, events)
 	if replayed.Generation <= pending.Generation || len(replayed.Unreachable) != 3 {
 		t.Fatalf("unready SPF replay restored origins: %+v", replayed.Unreachable)
 	}
@@ -737,8 +740,8 @@ func TestBGPLSNativeSPFPartitionRestoresStaleOrigins(t *testing.T) {
 func TestBGPLSNativeSPFInterAreaASBROrigin(t *testing.T) {
 	e, _, events := bgplsTestSource(t, false)
 	rootLink := packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{2, 2, 2, 2}, LinkData: [4]byte{10, 0, 0, 1}, Metric: 10}
-	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, types.InitialSequenceNumber, rootLink)
-	abr := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2}, types.InitialSequenceNumber,
+	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, rootLink)
+	abr := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{1, 1, 1, 1}, LinkData: [4]byte{10, 0, 0, 2}, Metric: 10})
 	abr.Router.Flags = packet.RouterFlagB
 	summary := packet.LSA{Header: packet.LSAHeader{Type: types.LSTypeSummaryASBR, LinkStateID: types.LinkStateID{9, 9, 9, 9},
@@ -859,14 +862,14 @@ func TestBGPLSNativeV3SPFPseudonodeRestoration(t *testing.T) {
 // RFC requirement: RFC9552-5.9-1 negative -- new unknown origins are not declared unreachable and prior source withdrawals survive ready-but-unknown SPF results.
 func TestBGPLSNativeSPFUnknownOriginsWaitForComputation(t *testing.T) {
 	e, bus, events := bgplsTestSource(t, false)
-	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, types.InitialSequenceNumber)
+	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1})
 	if !e.lsdb.Install(types.BackboneArea, root) {
 		t.Fatal("install local router")
 	}
 	before := bgplsAwait(t, events, func(s *linkstateevents.Snapshot) bool { return len(s.Nodes) == 1 })
 	e.spf.Run()
 	computed := bgplsAwait(t, events, func(s *linkstateevents.Snapshot) bool { return s.Generation > before.Generation })
-	remote := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2}, types.InitialSequenceNumber)
+	remote := bgplsReachabilityRouter(types.RouterID{2, 2, 2, 2})
 	external := packet.LSA{Header: packet.LSAHeader{Type: types.LSTypeASExternal,
 		LinkStateID: types.LinkStateID{203, 0, 113, 0}, AdvertisingRouter: types.RouterID{9, 9, 9, 9}, Sequence: types.InitialSequenceNumber},
 		External: &packet.ExternalLSA{NetworkMask: [4]byte{255, 255, 255, 0}, Metric: 20}}
@@ -931,7 +934,7 @@ func TestBGPLSNativeSPFUnknownOriginsWaitForComputation(t *testing.T) {
 		return false
 	})
 	e.spf.Run()
-	stillWithdrawn := bgplsReplaySnapshot(t, bus, events, 0)
+	stillWithdrawn := bgplsReplaySnapshot(t, bus, events)
 	if stillWithdrawn.Generation <= beforeUnknown.Generation || !bgplsOriginUnreachable(&stillWithdrawn, linkstateevents.NodeID{RouterID: []byte{2, 2, 2, 2}, HasArea: true}) {
 		t.Fatalf("ready but unknown origin falsely recovered: %+v", stillWithdrawn.Unreachable)
 	}
@@ -942,7 +945,7 @@ func TestBGPLSNativeSPFUnknownOriginsWaitForComputation(t *testing.T) {
 // reachable; only the old eight-octet pseudonode identity must be suppressed.
 func TestBGPLSNativeSPFOldDRPseudonodeIdentity(t *testing.T) {
 	e, _, events := bgplsTestSource(t, false)
-	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1}, types.InitialSequenceNumber,
+	root := bgplsReachabilityRouter(types.RouterID{1, 1, 1, 1},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{3, 3, 3, 3}, LinkData: [4]byte{10, 0, 3, 1}, Metric: 10},
 		packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{4, 4, 4, 4}, LinkData: [4]byte{10, 0, 4, 1}, Metric: 10})
 	if !e.lsdb.Install(types.BackboneArea, root) {
@@ -951,7 +954,7 @@ func TestBGPLSNativeSPFOldDRPseudonodeIdentity(t *testing.T) {
 	lan := types.LinkStateID{10, 3, 0, 3}
 	for _, octet := range []byte{3, 4} {
 		router := types.RouterID{octet, octet, octet, octet}
-		lsa := bgplsReachabilityRouter(router, types.InitialSequenceNumber,
+		lsa := bgplsReachabilityRouter(router,
 			packet.RouterLink{Type: packet.RouterLinkTypeP2P, LinkID: types.LinkStateID{1, 1, 1, 1}, LinkData: [4]byte{10, 0, octet, octet}, Metric: 10},
 			packet.RouterLink{Type: packet.RouterLinkTypeTransit, LinkID: lan, LinkData: [4]byte(lan), Metric: 5})
 		network := packet.LSA{Header: packet.LSAHeader{Type: types.LSTypeNetwork, LinkStateID: lan,
@@ -1021,7 +1024,7 @@ func TestBGPLSNativeRestartAdvancesGeneration(t *testing.T) {
 		t.Fatal("install restarted state")
 	}
 	restored := bgplsAwait(t, events, func(s *linkstateevents.Snapshot) bool { return len(s.Prefixes) == 1 })
-	replayed := bgplsReplaySnapshot(t, bus, events, 0)
+	replayed := bgplsReplaySnapshot(t, bus, events)
 	if restored.Generation <= started.Generation || replayed.Generation <= restored.Generation || replayed.Domain != old.Domain || len(replayed.Prefixes) != 1 ||
 		!bytes.Equal(bgplsTestAttribute(replayed.Prefixes[0].Attributes, 1155), []byte{0, 0, 0, 42}) {
 		t.Fatalf("new-engine replay lost native state/order: start=%d restored=%d replay=%+v", started.Generation, restored.Generation, replayed)

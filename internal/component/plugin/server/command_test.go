@@ -1230,7 +1230,7 @@ func TestDispatcherAccountsRefusedCommands(t *testing.T) {
 		d.SetAuthorizer(&mockAuthorizer{allow: false})
 		d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 			t.Fatal("denied handler ran")
-			return nil, nil
+			return nil, errors.New("denied handler ran")
 		}, "")
 		_, err := d.Dispatch(&CommandContext{Username: "alice"}, input)
 		require.Error(t, err)
@@ -2797,7 +2797,7 @@ func TestDispatcherRedactsDeniedSecretCommand(t *testing.T) {
 	d.SetAccountingHook(accountant)
 	d.Register("set", func(*CommandContext, []string) (*plugin.Response, error) {
 		t.Fatal("denied command executed")
-		return nil, nil
+		return nil, errors.New("denied command executed")
 	}, "Set configuration")
 	input := `set system authentication tacacs server 192.0.2.1 key "private first middle tail-value"`
 	response, err := d.Dispatch(&CommandContext{Username: "alice"}, input)

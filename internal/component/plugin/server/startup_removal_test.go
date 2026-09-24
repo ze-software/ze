@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -143,10 +144,7 @@ func TestConfigRemovalReleasesStateBeforeDependenciesStop(t *testing.T) {
 			p.OnBye(func(string) error {
 				stateMu.Lock()
 				backendClosed = true
-				left := make(map[string]bool, len(installed))
-				for name, present := range installed {
-					left[name] = present
-				}
+				left := maps.Clone(installed)
 				stateMu.Unlock()
 				residue <- left
 				callbacks <- nil
@@ -423,7 +421,7 @@ func TestReloadRemovalFailureRecoversCommittedService(t *testing.T) {
 					committed[counterRoot] = map[string]any{"value": int64(42)}
 					candidate[counterRoot] = map[string]any{"value": int64(99)}
 				}
-				reactor := &removalRecoveryReactor{mockReloadReactor: mockReloadReactor{tree: committed}}
+				reactor := &removalRecoveryReactor{tree: committed}
 				s.reactor = reactor
 				unexpectedShutdown := make(chan struct{}, 1)
 				s.SetShutdownFunc(func() { unexpectedShutdown <- struct{}{} })

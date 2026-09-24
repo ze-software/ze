@@ -245,7 +245,11 @@ func exportInteropPort(t *testing.T) int {
 	if err != nil {
 		t.Fatalf("allocate collector UDP port: %v", err)
 	}
-	port := conn.LocalAddr().(*net.UDPAddr).Port
+	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatalf("collector address is %T", conn.LocalAddr())
+	}
+	port := udpAddr.Port
 	if err := conn.Close(); err != nil {
 		t.Fatalf("release collector UDP port: %v", err)
 	}
@@ -341,7 +345,7 @@ func (p *exportCollector) stop() error {
 	defer p.cancel()
 	select {
 	case <-p.done:
-		return fmt.Errorf("%s exited before requested shutdown: %v", p.cmd.Path, p.waitErr)
+		return errors.Join(fmt.Errorf("%s exited before requested shutdown", p.cmd.Path), p.waitErr)
 	default:
 	}
 	signalErr := p.cmd.Process.Signal(syscall.SIGTERM)
@@ -358,8 +362,7 @@ func (p *exportCollector) stop() error {
 		if p.waitErr == nil {
 			return nil
 		}
-		var exit *exec.ExitError
-		if errors.As(p.waitErr, &exit) {
+		if exit, ok := errors.AsType[*exec.ExitError](p.waitErr); ok {
 			if status, ok := exit.Sys().(syscall.WaitStatus); ok {
 				if status.Signaled() && status.Signal() == syscall.SIGTERM {
 					return nil // sflowtool exits on the requested signal.
@@ -411,7 +414,7 @@ func (p *exportCollector) wait(t *testing.T, description string, timeout time.Du
 }
 
 func exportCollectorListening(pid, port int) (bool, error) {
-	proc := filepath.Join("/proc", strconv.Itoa(pid))
+	proc := "/proc/" + strconv.Itoa(pid)
 	fds, err := os.ReadDir(filepath.Join(proc, "fd"))
 	if err != nil {
 		return false, fmt.Errorf("read collector descriptors: %w", err)
@@ -436,7 +439,7 @@ func exportCollectorListening(pid, port int) (bool, error) {
 	local := fmt.Sprintf("%08X:%04X", binary.NativeEndian.Uint32([]byte{127, 0, 0, 1}), port)
 	// /proc/PID/net/udp is namespace-wide. The fd inode intersection is what
 	// proves this child owns the socket rather than another concurrent test.
-	for _, line := range strings.Split(string(table), "\n") {
+	for line := range strings.SplitSeq(string(table), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 10 {
 			continue
@@ -473,7 +476,7 @@ func (p *exportCollector) diagnostics() string {
 	return out.String()
 }
 
-var exportNFCapdFile = regexp.MustCompile(`^nfcapd\.[0-9]{12}([0-9]{2})?$`)
+var exportNFCapdFile = regexp.MustCompile(`^nfcapd\.\d{12}(\d{2})?$`)
 
 func exportNFDumpRecords(ctx context.Context, nfdump, dir string, seen map[string]bool) ([]map[string]json.RawMessage, error) {
 	files, err := os.ReadDir(dir)

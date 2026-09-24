@@ -42,7 +42,7 @@ func TestFIBRecursiveIPv4ViaIPv6(t *testing.T) {
 		devices := []string{"ze-via-a", "ze-via-b"}
 		indices := make([]int, len(devices))
 		for index, device := range devices {
-			link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: device}}
+			link := &netlink.Dummy{Name: device}
 			err = h.LinkAdd(link)
 			if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
 				t.Skipf("requires CAP_NET_ADMIN to create %s: %v", device, err)

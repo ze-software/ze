@@ -68,7 +68,7 @@ func TestSysRIBReplayClassifiesOverriddenAdminDistance(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 200}
 
 	pfx := netip.MustParsePrefix("10.0.0.0/24")
-	batch := changeToBatch(locrib.Change{
+	batch := changeToBatch(&locrib.Change{
 		Family: family.IPv4Unicast,
 		Prefix: pfx,
 		Kind:   locrib.ChangeAdd,

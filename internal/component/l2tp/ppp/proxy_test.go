@@ -166,7 +166,7 @@ func TestProxyLCPShortAuthProto(t *testing.T) {
 	}
 }
 
-// VALIDATES: lookupMRUOption / lookupOptionUint32 helpers handle
+// VALIDATES: lookupMRUOption / lookupMagicNumber helpers handle
 //
 //	missing or short options as (0, false).
 func TestProxyLCPHelpers(t *testing.T) {
@@ -174,7 +174,7 @@ func TestProxyLCPHelpers(t *testing.T) {
 	if v, ok := lookupMRUOption(opts); !ok || v != 1500 {
 		t.Errorf("MRU lookup wrong: v=%d ok=%v", v, ok)
 	}
-	if v, ok := lookupOptionUint32(opts, LCPOptMagic); !ok || v != 0xCAFEBABE {
+	if v, ok := lookupMagicNumber(opts); !ok || v != 0xCAFEBABE {
 		t.Errorf("Magic lookup wrong: v=0x%08x ok=%v", v, ok)
 	}
 	if _, ok := lookupOption(opts, LCPOptAuthProto); ok {

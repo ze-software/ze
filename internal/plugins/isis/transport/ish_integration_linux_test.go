@@ -59,14 +59,17 @@ func TestRFC1195ISHVethTransport(t *testing.T) {
 				if frame.DstMAC != AllESs || !bytes.Equal(frame.PDU, pdu) {
 					t.Fatalf("wire ISH mismatch: destination=%x PDU=%x", frame.DstMAC, frame.PDU)
 				}
-				got, err := packet.DecodeISH(frame.PDU)
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer packet.ReleaseTLVs(got.TLVs)
-				if !got.NET.Equal(net) || got.HoldingTime != 30 {
-					t.Fatalf("decoded wire identity: NET=%s hold=%d", got.NET, got.HoldingTime)
-				}
+				// The closure scopes the TLV release to this frame rather than to the loop.
+				func() {
+					got, err := packet.DecodeISH(frame.PDU)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer packet.ReleaseTLVs(got.TLVs)
+					if !got.NET.Equal(net) || got.HoldingTime != 30 {
+						t.Fatalf("decoded wire identity: NET=%s hold=%d", got.NET, got.HoldingTime)
+					}
+				}()
 				return
 			case <-deadline.C:
 				t.Fatal("peer did not receive ISO 9542 multicast")

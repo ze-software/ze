@@ -229,6 +229,7 @@ const (
 	ipWordVia                    = "via"
 	nftChain                     = "chain"
 	nftChainFlowspecForward      = "flowspec-fwd"
+	nftChainForward              = "forward"
 	nftChainInput                = "input" // The nftables chain.
 	nftFamilyInet                = "inet"
 	nftForwardHookSpec           = "{ type filter hook forward priority -1 ; policy accept ; }"

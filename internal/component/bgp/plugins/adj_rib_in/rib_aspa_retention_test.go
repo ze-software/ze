@@ -50,7 +50,9 @@ func retainedRelay(t *testing.T, r *AdjRIBInManager, command string, args ...str
 	}
 	_, result, err := r.handleCommand(command, args, "")
 	require.NoError(t, err)
-	return relayed, result.(map[string]any)
+	fields, ok := result.(map[string]any)
+	require.True(t, ok, "command result is %T", result)
+	return relayed, fields
 }
 
 // RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1 positive — retained

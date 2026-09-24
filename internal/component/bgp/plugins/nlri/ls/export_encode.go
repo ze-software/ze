@@ -99,7 +99,8 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 			return nil, err
 		}
 	}
-	for _, link := range snapshot.Links {
+	for i := range snapshot.Links {
+		link := &snapshot.Links[i]
 		// The advertising node owns the object. A reachable node may still
 		// describe a half-link to an unreachable neighbor (RFC 9552 §5.9).
 		if excluded(link.Local) {
@@ -130,7 +131,8 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 			}
 		}
 	}
-	for _, prefix := range snapshot.Prefixes {
+	for i := range snapshot.Prefixes {
+		prefix := &snapshot.Prefixes[i]
 		if excluded(prefix.Node) {
 			continue
 		}
@@ -186,7 +188,7 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 	return routes, nil
 }
 
-func encodeNativeLink(protocol BGPLSProtocolID, identifier uint64, link linkstateevents.Link, topology uint16) ([]byte, error) {
+func encodeNativeLink(protocol BGPLSProtocolID, identifier uint64, link *linkstateevents.Link, topology uint16) ([]byte, error) {
 	descriptors := make([]linkstateevents.TLV, 0, len(link.LocalAddresses)+len(link.RemoteAddresses)+2)
 	for _, addr := range link.LocalAddresses {
 		if !addr.IsValid() {

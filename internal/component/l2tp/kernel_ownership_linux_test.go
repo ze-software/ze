@@ -10,18 +10,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 	t.Helper()
 	fds := &pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1}
 	worker := &kernelWorker{
-		logger: discardLoggerForTest(),
+		logger:   discardLoggerForTest(),
 		sessions: map[sessionKey]*pppSessionFDs{{1, 2}: fds},
 		ops: kernelOps{
-			closeFD: unix.Close,
+			closeFD:       unix.Close,
 			sessionDelete: func(uint16, uint16) error { return nil },
 		},
 	}
@@ -104,7 +105,7 @@ func TestKernelSuccessCancellationReleasesClaimedDescriptors(t *testing.T) {
 	reactor.handleKernelSuccess(event)
 	for _, fd := range []int{event.fds.chanFD, event.fds.unitFD} {
 		if _, err := unix.Write(fd, []byte{1}); !errors.Is(err, unix.EBADF) {
-			t.Fatalf("cancelled transfer retained descriptor %d: %v", fd, err)
+			t.Fatalf("canceled transfer retained descriptor %d: %v", fd, err)
 		}
 	}
 }
@@ -165,7 +166,7 @@ func TestKernelClaimProceedsWhileReportingBlocked(t *testing.T) {
 			<-created
 			type claim struct {
 				channel, unit int
-				ok bool
+				ok            bool
 			}
 			claimed := make(chan claim, 1)
 			go func() {

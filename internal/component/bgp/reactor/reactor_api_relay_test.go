@@ -891,8 +891,8 @@ func relayAwaitDispatchedPaths(dispatched *[]fwdItem, mu *sync.Mutex, want int) 
 // first element would pass while the rest were silently dropped.
 func relayDispatchedPaths(items []fwdItem) map[uint32]string {
 	paths := make(map[uint32]string)
-	for _, item := range items {
-		nlri := relayDispatchedBytes(item)
+	for index := range items {
+		nlri := relayDispatchedBytes(&items[index])
 		for off := 0; off+relayPathIDLen < len(nlri); {
 			id := binary.BigEndian.Uint32(nlri[off:])
 			off += relayPathIDLen
@@ -909,7 +909,7 @@ func relayDispatchedPaths(items []fwdItem) map[uint32]string {
 
 // relayDispatchedBytes is relayDispatchedNLRI without the *testing.T, for the
 // polling reader above.
-func relayDispatchedBytes(item fwdItem) []byte {
+func relayDispatchedBytes(item *fwdItem) []byte {
 	if len(item.rawBodies) > 0 {
 		return relayBodyNLRIBytes(item.rawBodies[0])
 	}

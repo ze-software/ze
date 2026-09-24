@@ -17,6 +17,20 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// JSON keys of a route in the adj-rib-in command and validation answers. Each
+// key is named once so the show, dump and validation payloads cannot drift.
+const (
+	routeKeyFamily          = "family"
+	routeKeyAttrHex         = "attr-hex"
+	routeKeyNHopHex         = "nhop-hex"
+	routeKeyNLRIHex         = "nlri-hex"
+	routeKeyValidationState = "validation-state"
+	routeKeyIneligible      = "ineligible"
+
+	// replayKeyReplayed counts the routes a replay sent.
+	replayKeyReplayed = "replayed"
+)
+
 var (
 	errAdjRibInReplayRequiresTarget         = errors.New("request bgp adj-rib-in replay requires target peer address")
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
@@ -219,14 +233,14 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 				keyStr += ":" + textbuf.StringUint32(key.PathID)
 			}
 			routeMap := map[string]any{
-				"family":           rt.Family.String(),
-				"key":              keyStr,
-				"nhop-hex":         rt.NHopHex,
-				"attr-hex":         rt.AttrHex,
-				"nlri-hex":         rt.NLRIHex,
-				"seq-index":        seq,
-				"validation-state": rt.ValidationState,
-				"ineligible":       rt.Ineligible,
+				routeKeyFamily:          rt.Family.String(),
+				"key":                   keyStr,
+				routeKeyNHopHex:         rt.NHopHex,
+				routeKeyAttrHex:         rt.AttrHex,
+				routeKeyNLRIHex:         rt.NLRIHex,
+				"seq-index":             seq,
+				routeKeyValidationState: rt.ValidationState,
+				routeKeyIneligible:      rt.Ineligible,
 			}
 			routeList = append(routeList, routeMap)
 			return true
@@ -300,7 +314,7 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 	//
 	// Omitted rather than zeroed when untracked: 0 is the real "nothing ingested
 	// yet" and is precisely the losing case (see replay_cut.go).
-	result := map[string]any{"last-index": maxSeq, "replayed": len(routes)}
+	result := map[string]any{"last-index": maxSeq, replayKeyReplayed: len(routes)}
 	if pos, tracked := r.ingestPosition(); tracked {
 		result["ingested-msg-id"] = pos
 	}
@@ -485,16 +499,16 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 				return true
 			}
 			routes = append(routes, map[string]any{
-				"peer":             peer.String(),
-				"family":           famStr,
-				"prefix":           key.Prefix.String(),
-				"attr-hex":         rt.AttrHex,
-				"nhop-hex":         rt.NHopHex,
-				"nlri-hex":         rt.NLRIHex,
-				"validation-state": rt.ValidationState,
-				"ineligible":       rt.Ineligible,
-				"path-id":          rt.PathID,
-				"msg-id":           rt.MsgID,
+				"peer":                  peer.String(),
+				routeKeyFamily:          famStr,
+				"prefix":                key.Prefix.String(),
+				routeKeyAttrHex:         rt.AttrHex,
+				routeKeyNHopHex:         rt.NHopHex,
+				routeKeyNLRIHex:         rt.NLRIHex,
+				routeKeyValidationState: rt.ValidationState,
+				routeKeyIneligible:      rt.Ineligible,
+				"path-id":               rt.PathID,
+				"msg-id":                rt.MsgID,
 			})
 			return true
 		})

@@ -116,8 +116,7 @@ func mobikeNativeCommand(ctx context.Context, argv, environ []string, directory 
 		return result, nil
 	}
 	result.ExitCode = 1
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		result.ExitCode = exit.ExitCode()
 	}
 	if ctx.Err() != nil {
@@ -221,7 +220,7 @@ func (l *mobikeNativeLab) peerCommand(name string, argv []string, environ []inte
 	if path, ok := l.binaries[argv[0]]; ok {
 		command[4] = path
 	}
-	if argv[0] == "swanctl" {
+	if argv[0] == cmdSwanctl {
 		command = append(command, "--uri", l.viciURI())
 	}
 	// The shared checker uses its Docker-local store path in a shell command.

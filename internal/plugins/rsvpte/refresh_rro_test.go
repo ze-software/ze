@@ -16,7 +16,8 @@ func (f *fakeTransport) countByType(msgType uint8) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	n := 0
-	for _, s := range f.sent {
+	for index := range f.sent {
+		s := &f.sent[index]
 		if msg, err := DecodeMessage(s.payload); err == nil && msg.Header.MsgType == msgType {
 			n++
 		}

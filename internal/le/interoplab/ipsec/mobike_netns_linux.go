@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -68,8 +69,8 @@ func mobikeNativeBinaries(daemonPath, charonPath, swanctlPath string) (map[strin
 		return nil, errors.New("native MOBIKE requires root with network and mount namespace privileges")
 	}
 	paths := map[string]string{
-		zePeer: daemonPath, "charon": charonPath, "swanctl": swanctlPath,
-		"ip": "ip", "ping": "ping", "unshare": "unshare", "mount": "mount", "sh": "sh",
+		zePeer: daemonPath, "charon": charonPath, cmdSwanctl: swanctlPath,
+		"ip": "ip", cmdPing: cmdPing, "unshare": "unshare", "mount": "mount", "sh": "sh",
 	}
 	for name, path := range paths {
 		if path == "" {
@@ -172,7 +173,7 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 		namespace := filepath.Base(l.directory) + "-" + peer
 		// Record ownership before ip runs: cancellation may arrive after the
 		// kernel created the namespace but before the command reports success.
-		if _, err := os.Lstat(filepath.Join("/run", "netns", namespace)); err == nil {
+		if _, err := os.Lstat("/run/netns/" + namespace); err == nil {
 			return fmt.Errorf("native MOBIKE namespace already exists: %s", namespace)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("inspect native MOBIKE namespace: %w", err)
@@ -185,8 +186,8 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 	}
 	// Both veth ends are created directly in their final namespaces. A failed
 	// setup cannot strand a link in the guest's SSH network namespace.
-	if _, err := l.host(ctx, "link", "add", "name", "eth0", "netns", l.peers[zePeer].namespace,
-		"type", "veth", "peer", "name", "eth0", "netns", l.peers[swanPeer].namespace); err != nil {
+	if _, err := l.host(ctx, "link", "add", "name", containerInterface, "netns", l.peers[zePeer].namespace,
+		"type", "veth", "peer", "name", containerInterface, "netns", l.peers[swanPeer].namespace); err != nil {
 		return err
 	}
 	for _, endpoint := range []struct{ peer, address string }{
@@ -194,8 +195,8 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 	} {
 		for _, argv := range [][]string{
 			{"ip", "link", "set", "lo", "up"},
-			{"ip", "address", "add", endpoint.address + "/24", "dev", "eth0"},
-			{"ip", "link", "set", "eth0", "up"},
+			{"ip", ipObjectAddress, "add", endpoint.address + "/24", ipArgDev, containerInterface},
+			{"ip", "link", "set", containerInterface, "up"},
 		} {
 			if _, err := l.Exec(ctx, endpoint.peer, argv, nil); err != nil {
 				return err
@@ -212,7 +213,7 @@ func (l *mobikeNativeLab) writeSwanConfig(root, source string) error {
 		filepath.Join(root, "test", "interop-ipsec", swanLabConfig),
 		filepath.Join(source, "strongswan.conf"),
 	} {
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) //nolint:gosec // the path comes from the checkout and the lab source directory listed above
 		if err != nil {
 			return fmt.Errorf("read native strongSwan settings: %w", err)
 		}
@@ -246,14 +247,14 @@ func (l *mobikeNativeLab) startPeers(ctx context.Context, source, zeConfig strin
 		Timeout: mobikeNativeReadyTimeout, Interval: 200 * time.Millisecond,
 		Description: "private strongSwan VICI socket",
 	}, func(probe context.Context) (string, error) {
-		return l.Query(probe, swanPeer, []string{"swanctl", "--stats"}, nil)
+		return l.Query(probe, swanPeer, []string{cmdSwanctl, "--stats"}, nil)
 	}, func(answer string) bool { return strings.Contains(answer, "uptime") })
 	if err != nil {
 		return err
 	}
 	// Load before starting Ze, matching the Docker lab. A strongSwan initiator
 	// retries its first request while the responding Ze process starts.
-	if _, err := l.Exec(ctx, swanPeer, []string{"swanctl", "--load-all", "--file", filepath.Join(source, "swanctl.conf")}, nil); err != nil {
+	if _, err := l.Exec(ctx, swanPeer, []string{cmdSwanctl, "--load-all", "--file", filepath.Join(source, "swanctl.conf")}, nil); err != nil {
 		return err
 	}
 	ze := l.peers[zePeer]
@@ -289,7 +290,8 @@ func (l *mobikeNativeLab) environment(extra []string) []string {
 				kept = append(kept, inherited)
 			}
 		}
-		environ = append(kept, variable)
+		kept = append(kept, variable)
+		environ = kept
 	}
 	return environ
 }
@@ -330,11 +332,11 @@ func (l *mobikeNativeLab) close() []string {
 			failures = append(failures, name+": "+err.Error())
 		}
 	}
-	for index := len(l.namespaces) - 1; index >= 0; index-- {
-		if _, err := os.Lstat(filepath.Join("/run", "netns", l.namespaces[index])); errors.Is(err, os.ErrNotExist) {
+	for _, v := range slices.Backward(l.namespaces) {
+		if _, err := os.Lstat("/run/netns/" + v); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		if _, err := l.host(context.Background(), "netns", "delete", l.namespaces[index]); err != nil {
+		if _, err := l.host(context.Background(), "netns", "delete", v); err != nil {
 			failures = append(failures, err.Error())
 		}
 	}

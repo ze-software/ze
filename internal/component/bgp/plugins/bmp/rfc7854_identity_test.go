@@ -322,7 +322,11 @@ func identityCollector(t *testing.T, name, domain string) (*reloadEngine, *sende
 	if err := engine.reloadSections(sections); err != nil {
 		t.Fatal(err)
 	}
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("listener is %T", listener)
+	}
+	if err := tcpListener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	conn, err := listener.Accept()

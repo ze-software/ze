@@ -93,7 +93,7 @@ func (t *forwardStateTracker) Enabled() bool { return t.enabled.Load() }
 // and a non-blocking enqueue. All byte reading and map mutation happen off-lock
 // in run(); this never takes t.mu, so it cannot contend the worker under the
 // RIB write lock.
-func (t *forwardStateTracker) onChange(c locrib.Change) {
+func (t *forwardStateTracker) onChange(c locrib.Change) { //nolint:gocritic // hugeParam: locrib.ChangeHandler fixes the value signature; a pointer through that func value escapes and allocates per change
 	if !t.enabled.Load() {
 		return
 	}

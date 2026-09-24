@@ -48,7 +48,8 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			blocks[epeNodeKey{asn: node.ID.ASN, routerID: node.ID.BGPRouterID}] = total
 		}
 	}
-	for _, link := range snapshot.Links {
+	for i := range snapshot.Links {
+		link := &snapshot.Links[i]
 		if !validEPENode(link.Local) || !validEPENode(link.Remote) {
 			return errors.New("native BGP link requires local and remote ASN and BGP Router-ID")
 		}

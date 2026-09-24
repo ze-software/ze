@@ -46,7 +46,9 @@ func TestFlowSpecNumericReservedAndEightOctetOperand(t *testing.T) {
 	wire := []byte{10, 5, 0xf9, 1, 0, 0, 0, 0, 0, 0, 7}
 	fs, err := ParseFlowSpec(IPv4FlowSpec, wire)
 	require.NoError(t, err)
-	matches := fs.Components()[0].(*numericComponent).Matches()
+	numeric, ok := fs.Components()[0].(*numericComponent)
+	require.True(t, ok, "component is %T", fs.Components()[0])
+	matches := numeric.Matches()
 	require.Equal(t, []FlowMatch{{Op: FlowOpEqual, Value: 1<<56 | 7}}, matches)
 	require.Equal(t, []byte{10, 5, 0xb1, 1, 0, 0, 0, 0, 0, 0, 7}, fs.Bytes())
 	_, err = ParseFlowSpec(IPv4FlowSpec, []byte{3, 5, 0x01, 80})

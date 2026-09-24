@@ -140,7 +140,7 @@ func TestExporterTemplateFailureRetriesBeforeData(t *testing.T) {
 				t.Fatalf("status = %v, want %d packets/sequence and %d bytes", status, len(want), totalBytes)
 			}
 			scrape := httptest.NewRecorder()
-			reg.Handler().ServeHTTP(scrape, httptest.NewRequest("GET", "/metrics", http.NoBody))
+			reg.Handler().ServeHTTP(scrape, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
 			wantDatagrams := `ze_flowexport_datagrams_total{collector="c1",protocol="netflow9"} 2`
 			wantBytes := `ze_flowexport_bytes_total{collector="c1",protocol="netflow9"} 12`
 			if flow {

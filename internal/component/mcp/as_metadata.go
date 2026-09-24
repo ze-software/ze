@@ -66,7 +66,7 @@ func fetchASMetadata(ctx context.Context, client *http.Client, baseURL string) (
 	if err != nil {
 		return asMetadata{}, fmt.Errorf("as-metadata: build request: %w", err)
 	}
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", mediaTypeJSON)
 	resp, err := client.Do(req)
 	if err != nil {
 		return asMetadata{}, fmt.Errorf("as-metadata: GET %s: %w", metadataURL, redact.URLError(err))
@@ -82,7 +82,7 @@ func fetchASMetadata(ctx context.Context, client *http.Client, baseURL string) (
 	if err != nil {
 		return asMetadata{}, fmt.Errorf("as-metadata: %s: expected application/json", metadataURL)
 	}
-	if mediaType != "application/json" {
+	if mediaType != mediaTypeJSON {
 		return asMetadata{}, fmt.Errorf("as-metadata: %s: expected application/json", metadataURL)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxASMetadataSize+1))

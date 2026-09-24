@@ -7,11 +7,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/mplsfib"
@@ -27,7 +29,10 @@ type epeProofBus struct {
 
 func (b *epeProofBus) Emit(namespace, _ string, payload any) (int, error) {
 	if namespace == mplsfib.Namespace {
-		batch := payload.(*mplsfib.EntryBatch)
+		batch, ok := payload.(*mplsfib.EntryBatch)
+		if !ok {
+			return 0, fmt.Errorf("epe proof bus: %s payload is %T", namespace, payload)
+		}
 		rejected := b.reject
 		action := batch.Entries[0].Action
 		if action == mplsfib.ActionRemoveLabelSource {
@@ -59,7 +64,11 @@ func (b *epeProofBus) Emit(namespace, _ string, payload any) (int, error) {
 		}
 		return 0, nil
 	}
-	return 0, b.exporter.replace(namespace, payload.(*linkstateevents.Snapshot))
+	snapshot, ok := payload.(*linkstateevents.Snapshot)
+	if !ok {
+		return 0, fmt.Errorf("epe proof bus: %s payload is %T", namespace, payload)
+	}
+	return 0, b.exporter.replace(namespace, snapshot)
 }
 
 func (*epeProofBus) Subscribe(string, string, func(any)) func() { return func() {} }

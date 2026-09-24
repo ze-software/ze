@@ -17,7 +17,8 @@ import (
 
 // readIntOption reads one integer socket option back off the transport's
 // socket.
-func readIntOption(t *testing.T, tr *UDPTransport, level, opt int) int {
+func readIntOption(t *testing.T, tr *UDPTransport, opt int) int {
+	const level = unix.IPPROTO_IP
 	t.Helper()
 	sc, ok := any(tr.Conn()).(syscall.Conn)
 	if !ok {
@@ -61,7 +62,7 @@ func TestDFSendRestoresSocketMode(t *testing.T) {
 		t.Fatalf("NewUDPTransport: %v", err)
 	}
 	t.Cleanup(func() { _ = tr.Close() })
-	prior := readIntOption(t, tr, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER)
+	prior := readIntOption(t, tr, unix.IP_MTU_DISCOVER)
 
 	for _, df := range []probe.DFMode{probe.DFHonorCache, probe.DFBypassCache, probe.DFOff} {
 		msg := make([]byte, 28)
@@ -69,7 +70,7 @@ func TestDFSendRestoresSocketMode(t *testing.T) {
 		if err := tr.SendDF(msg, nil, recvAddr, df); err != nil {
 			t.Fatalf("SendDF(%v): %v", df, err)
 		}
-		if after := readIntOption(t, tr, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER); after != prior {
+		if after := readIntOption(t, tr, unix.IP_MTU_DISCOVER); after != prior {
 			t.Errorf("%v: IP_MTU_DISCOVER after SendDF = %d, want the prior %d", df, after, prior)
 		}
 		buf := make([]byte, MaxMsgSize)
@@ -105,7 +106,7 @@ func TestTransportInstallsErrorQueue(t *testing.T) {
 			t.Fatalf("%s: open: %v", c.name, err)
 		}
 		t.Cleanup(func() { _ = tr.Close() })
-		if got := readIntOption(t, tr, unix.IPPROTO_IP, unix.IP_RECVERR); got != 1 {
+		if got := readIntOption(t, tr, unix.IP_RECVERR); got != 1 {
 			t.Errorf("%s: IP_RECVERR = %d, want 1", c.name, got)
 		}
 	}
@@ -280,7 +281,7 @@ func TestDFSendExplicitSource(t *testing.T) {
 	if !ok {
 		t.Fatal("peer address is not *net.UDPAddr")
 	}
-	prior := readIntOption(t, tr, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER)
+	prior := readIntOption(t, tr, unix.IP_MTU_DISCOVER)
 	invalid := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2)}
 	if err := tr.SendDF(prtIKEDatagram(0xad), invalid, remote, probe.DFOff); !errors.Is(err, ErrSendFailed) {
 		t.Fatalf("SendDF with invalid source port = %v, want ErrSendFailed", err)
@@ -308,7 +309,7 @@ func TestDFSendExplicitSource(t *testing.T) {
 		if response[0] != want[0] {
 			t.Fatalf("DF datagram marker = %x, want %x", response[0], want[0])
 		}
-		if after := readIntOption(t, tr, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER); after != prior {
+		if after := readIntOption(t, tr, unix.IP_MTU_DISCOVER); after != prior {
 			t.Fatalf("DF mode after explicit-source send = %d, want %d", after, prior)
 		}
 	}

@@ -40,7 +40,7 @@ func srv6ServiceExportControl(ctx context.Context, p *sdk.Plugin) error {
 		address string
 		updates int
 	}{
-		{"127.0.0.1", 1},
+		{addrLoopback, 1},
 		{"127.0.0.2", 2},
 	} {
 		row, err := peerRow07(ctx, p, peer.address)

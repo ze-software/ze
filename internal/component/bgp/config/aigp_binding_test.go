@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )

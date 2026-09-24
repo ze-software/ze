@@ -320,7 +320,7 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 	switch nlriType { //nolint:exhaustive // Unsupported types handled in default
 	case BGPLSNodeNLRI:
 		// RFC 7752 Section 3.2.1 - Node NLRI (Type 1)
-		node := &BGPLSNode{bgplsBase: bgplsBase{nlriType: nlriType, protocolID: proto, identifier: identifier}}
+		node := &BGPLSNode{nlriType: nlriType, protocolID: proto, identifier: identifier}
 		// RFC 7752 Section 3.2.1.2 - Parse Local Node Descriptors
 		if err := parseNodeDescriptorTLVs(body[9:], &node.LocalNode); err != nil {
 			return nil, err
@@ -330,19 +330,19 @@ func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
 
 	case BGPLSLinkNLRI:
 		// RFC 7752 Section 3.2.2 - Link NLRI (Type 2)
-		link := &BGPLSLink{bgplsBase: bgplsBase{nlriType: nlriType, protocolID: proto, identifier: identifier}}
+		link := &BGPLSLink{nlriType: nlriType, protocolID: proto, identifier: identifier}
 		link.cached = data[:4+nlriLen]
 		return link, nil
 
 	case BGPLSPrefixV4NLRI, BGPLSPrefixV6NLRI:
 		// RFC 7752 Section 3.2.3 - Prefix NLRI (Types 3 and 4)
-		prefix := &BGPLSPrefix{bgplsBase: bgplsBase{nlriType: nlriType, protocolID: proto, identifier: identifier}}
+		prefix := &BGPLSPrefix{nlriType: nlriType, protocolID: proto, identifier: identifier}
 		prefix.cached = data[:4+nlriLen]
 		return prefix, nil
 
 	case BGPLSSRv6SIDNLRI:
 		// RFC 9514 - SRv6 SID NLRI (Type 6)
-		srv6 := &BGPLSSRv6SID{bgplsBase: bgplsBase{nlriType: nlriType, protocolID: proto, identifier: identifier}}
+		srv6 := &BGPLSSRv6SID{nlriType: nlriType, protocolID: proto, identifier: identifier}
 		// Parse Local Node Descriptors (same format as RFC 7752)
 		if err := parseNodeDescriptorTLVs(body[9:], &srv6.LocalNode); err != nil {
 			return nil, err

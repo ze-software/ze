@@ -537,7 +537,7 @@ func (ps *PeerSession) migrateMobikePair(sa *SA, child *ChildSA, policies []data
 
 // serviceMobike uses the existing one-second owner tick. An unavailable source
 // triggers route selection, then a protected update before any Child SA moves.
-func (ps *PeerSession) serviceMobike(sa *SA, tr *transport.UDPTransport, dp dataplane.Dataplane, now time.Time, log *slog.Logger) {
+func (ps *PeerSession) serviceMobike(sa *SA, tr *transport.UDPTransport, now time.Time, log *slog.Logger) {
 	if !sa.mobike.enabled {
 		return
 	}

@@ -165,7 +165,7 @@ func TestLocRIBServiceSIDLifecycle(t *testing.T) {
 	unsubscribe := loc.OnChange(func(c locrib.Change) { change = c })
 	defer unsubscribe()
 	loc.Insert(family.IPv4Unicast, prefix, path)
-	s.processLocRIBChange(change)
+	s.processLocRIBChange(&change)
 	if got := publishedChanges(t, bus); len(got) != 0 {
 		t.Fatalf("unreachable SID installed: %+v", got)
 	}

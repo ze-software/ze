@@ -32,9 +32,9 @@ func (r *AdjRIBInManager) validationRouteData(peer netip.Addr, key compactRouteK
 	return map[string]any{
 		"peer": peer.String(), "peer-name": identity.Name, "peer-group": identity.Group,
 		"peer-as": identity.ASN, "local-as": identity.LocalAS,
-		"family": route.Family.String(), "prefix": key.Prefix.String(),
-		"attr-hex": route.AttrHex, "nhop-hex": route.NHopHex, "nlri-hex": route.NLRIHex,
-		"validation-state": route.ValidationState, "ineligible": route.Ineligible,
+		routeKeyFamily: route.Family.String(), "prefix": key.Prefix.String(),
+		routeKeyAttrHex: route.AttrHex, routeKeyNHopHex: route.NHopHex, routeKeyNLRIHex: route.NLRIHex,
+		routeKeyValidationState: route.ValidationState, routeKeyIneligible: route.Ineligible,
 		"path-id": route.PathID, "msg-id": route.MsgID,
 	}
 }
