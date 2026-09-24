@@ -23,7 +23,10 @@ const area = "doc check"
 type action struct {
 	verb string
 	why  string
-	run  func(string) (any, int)
+	// keyword is the one word the action requires after its verb. An action
+	// with none takes no value at all.
+	keyword string
+	run     func(string) (any, int)
 }
 
 var actions = [...]action{
@@ -41,6 +44,12 @@ var actions = [...]action{
 		verb: "templ-output",
 		why:  "generated templ output matches its sources",
 		run:  docwiring.TemplOutput,
+	},
+	{
+		verb:    "retired-commands",
+		why:     "report: every tracked line that still names a form the subject-first rename retires",
+		keyword: "report",
+		run:     runRetiredReport,
 	},
 }
 
@@ -97,8 +106,7 @@ func Answer(args []string) (any, int) {
 		if args[0] != one.verb {
 			continue
 		}
-		if len(args) > 1 {
-			fmt.Fprintf(os.Stderr, "error: %s takes no value: %s\n", one.verb, args[1]) //nolint:errcheck // CLI output
+		if refused := refuseActionWords(one, args[1:]); refused {
 			return nil, 2
 		}
 		root, err := lepath.Root()
@@ -111,6 +119,25 @@ func Answer(args []string) (any, int) {
 	fmt.Fprintf(os.Stderr, "error: no such action in %s: %s\n", area, args[0]) //nolint:errcheck // CLI output
 	fmt.Fprintln(os.Stderr, "try one of:", Subs())                             //nolint:errcheck // CLI output
 	return nil, 2
+}
+
+// refuseActionWords reports whether the words after a verb are not the ones
+// the action takes, and says why on stderr: an action with a keyword requires
+// exactly that word, and one without takes nothing.
+func refuseActionWords(one action, words []string) bool {
+	if one.keyword == "" {
+		if len(words) == 0 {
+			return false
+		}
+		fmt.Fprintf(os.Stderr, "error: %s takes no value: %s\n", one.verb, words[0]) //nolint:errcheck // CLI output
+		return true
+	}
+	if len(words) == 1 && words[0] == one.keyword {
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "error: %s needs the keyword %s and nothing else, got %q\n", //nolint:errcheck // CLI output
+		one.verb, one.keyword, strings.Join(words, " "))
+	return true
 }
 
 func runLinks(root string) (any, int) {

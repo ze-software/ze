@@ -329,29 +329,8 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 	for _, rel := range corpusFiles {
 		corpus[rel] = true
 	}
-	repository, err := os.OpenRoot(root)
-	if err != nil {
-		return trackedSweep{}, fmt.Errorf("opening repository root: %w", err)
-	}
-	defer func() {
-		err = errors.Join(err, repository.Close())
-	}()
-
 	var tb textbuf.Buffer
-	for _, rel := range files {
-		if sweepExcluded(rel) {
-			continue
-		}
-		raw, readErr := repository.ReadFile(filepath.FromSlash(rel))
-		if os.IsNotExist(readErr) {
-			continue
-		}
-		if readErr != nil {
-			result.unreadable = append(result.unreadable, tb.Reset().
-				Str(rel).Str(": cannot read for the tracked-file sweep: ").Err(readErr).
-				Str(" -- every marker and every path reference it carries would go unchecked").String())
-			continue
-		}
+	unreadable, err := walkTracked(root, files, sweepExcluded, func(rel string, raw []byte) error {
 		readMarkers := strings.Contains(string(raw), "doc-links: ignore")
 		readCitations := !corpus[rel]
 		if hasPrefix(rel, citationExcludePrefixes) {
@@ -359,7 +338,7 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 		}
 		if !readMarkers {
 			if !readCitations {
-				continue
+				return nil
 			}
 		}
 		text := strings.ToValidUTF8(string(raw), "�")
@@ -385,13 +364,22 @@ func sweepTracked(root string, _ bool) (result trackedSweep, err error) {
 			for _, target := range lineCitations(root, line) {
 				resolves, err := pathResolves(root, target)
 				if err != nil {
-					return trackedSweep{}, fmt.Errorf("resolving %s from %s: %w", target, rel, err)
+					return fmt.Errorf("resolving %s from %s: %w", target, rel, err)
 				}
 				if !resolves {
 					result.dead = append(result.dead, deadCitation{citer: rel, line: lineNo, target: target})
 				}
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return trackedSweep{}, err
+	}
+	for _, file := range unreadable {
+		result.unreadable = append(result.unreadable, tb.Reset().
+			Str(file.rel).Str(": cannot read for the tracked-file sweep: ").Err(file.err).
+			Str(" -- every marker and every path reference it carries would go unchecked").String())
 	}
 	return result, nil
 }

@@ -75,6 +75,34 @@ the six `test-*` commands keep their hyphen; there is no `dash` object, and the
 grammar gate (`./le cli-grammar`) derives le's namespaces from the live
 registry and refuses a root that hyphenates an object to its member.
 
+**A bare namespace token is a question, answered with exit 0.** `le spec` names
+no command, and `spec` holds `spec citation`, `spec status` and the rest, so the
+dispatcher prints that namespace's page: every member with the summary it
+registered. The exit code is 0, as for a bare `le`. A word after the token that
+names no member, as in `le spec nosuch`, is a mistake: it is refused with the
+members it could have been, and exit 1. A first word that holds no members is
+`unknown command`, exit 1.
+<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->
+
+**A retired name runs as the command that replaced it.** The subject-first
+rename (`plan/spec-le-subject-first-command-tree.md`) moves every le command to
+`le <subject> <action>`. `internal/le/leroot/retired.go` declares the rename map
+once: each row maps a retired command, or one retired action of a command, to
+the command and action that replace it, and a second table lists the retired
+programs, build tags, harness file names and harness variables. When argv starts
+with a retired row and the row's new command is registered, `Dispatch` writes
+one stderr line, `warning: le <old> is renamed: run le <new>`, rewrites the
+leading words and resolves the result as any other invocation. The output, the
+pipe rendering and the exit code are therefore the new command's. Until a
+family moves, its new command is not registered, and the old name runs its own
+handler with no line. A retired name is never registered, so it is absent from
+`./le '|' json` and from the help page. `le doc check retired-commands report`
+reads the same map and lists every tracked line that still names an old form;
+it exits 0 while the rename runs. Phase 3 of that spec deletes the rewrite and
+turns the report into a gate.
+<!-- source: internal/le/leroot/retired.go -- Renames -->
+<!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
+
 Registration also states which of five groups the area belongs to, and help
 prints one section for each group in that order. The group is a parameter of
 `leroot.Register`, so a new area cannot compile without one.

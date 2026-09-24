@@ -1,7 +1,8 @@
 // VALIDATES: dispatch resolves a command of more than one word, bounds what it
 // offers the matcher, and answers a bare namespace token with its members.
 // PREVENTS: a value further along the line read as a command word. A pipe
-// operator read as a namespace member. A namespace token refused as a typo.
+// operator read as a namespace member. A namespace token refused as a typo,
+// or answered with a failing exit code when it asked a question.
 // A second resolver drifting from this one.
 package leroot
 
@@ -95,12 +96,26 @@ func TestBareNamespaceTokenListsItsMembers(t *testing.T) {
 	registerProbe(t, "probe-bare alpha", GroupGate)
 	registerProbe(t, "probe-bare beta", GroupGate)
 
+	// A bare token asks what the namespace holds, so it is answered with the
+	// members and the summary each registered, and exit 0 (AC-31).
 	code := 0
 	stderr := captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare"}) })
-	if code != 1 {
-		t.Errorf("a bare namespace token answered %d, want 1", code)
+	if code != 0 {
+		t.Errorf("a bare namespace token answered %d, want 0", code)
 	}
-	for _, want := range []string{"alpha", "beta", "namespace"} {
+	for _, want := range []string{"alpha", "beta", "a namespace probe"} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("the listing does not name %q: %s", want, stderr)
+		}
+	}
+
+	// A word after the token that names no member is a mistake, not a
+	// question, so it is still refused with the members it could have been.
+	stderr = captureStderr(t, func() { code = Dispatch("le", []string{"probe-bare", "gamma"}) })
+	if code != 1 {
+		t.Errorf("a namespace token with an unknown member answered %d, want 1", code)
+	}
+	for _, want := range []string{"alpha", "beta", "is a namespace"} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("the refusal does not name %q: %s", want, stderr)
 		}

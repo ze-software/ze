@@ -132,6 +132,14 @@ func Dispatch(program string, args []string) int {
 	if own, _ := splitChain(args); len(own) == 0 {
 		return Run("", func([]string) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
 	}
+	// A retired name runs as the command that replaced it, after one stderr
+	// line that names the new words (retired.go). The rewritten argv then takes
+	// the path every other invocation takes, so the new command's output, pipe
+	// chain and exit code are the answer, and the alias owns none of its own.
+	if rewritten, row, retired := retiredRewrite(args); retired {
+		noteRetired(program, row)
+		args = rewritten
+	}
 	if isHelpArg(args[0]) {
 		if len(args) == 1 {
 			Usage(program)
@@ -154,10 +162,14 @@ func Dispatch(program string, args []string) int {
 		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
 	}
 
-	// A namespace token is not an unknown command, it is an incomplete one.
-	// Naming the members it holds is the difference between a typo and a
-	// command the reader has half typed.
+	// A namespace token is not an unknown command, it is a question: what does
+	// this namespace hold. It is answered with the members and their summaries
+	// and exit 0 (owner decision, 2026-09-24), as a bare `le` is. A word typed
+	// after the token that names no member is a mistake, and is refused.
 	if held := members(args[0]); len(held) != 0 {
+		if len(args) == 1 {
+			return helpNode(program, args[0])
+		}
 		if len(args) == 2 && isHelpArg(args[1]) {
 			return helpNode(program, args[0])
 		}

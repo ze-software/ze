@@ -129,3 +129,47 @@ func checkIgnored(root string, paths []string) (map[string]bool, error) {
 	}
 	return ignored, nil
 }
+
+// unreadableFile is a tracked file the sweep could not read, and why.
+type unreadableFile struct {
+	rel string
+	err error
+}
+
+// walkTracked hands every file in files that exclude does not name to visit,
+// with its bytes. It is the one tracked-file walk: the links sweep and the
+// retired-name sweep read the same population the same way.
+//
+// A file the index names and the tree lacks is skipped, as trackedFiles does.
+// A file that cannot be read is answered in unreadable rather than skipped, so
+// the caller can say its judgement is incomplete. An error from visit stops
+// the walk and is returned.
+func walkTracked(root string, files []string, exclude func(string) bool,
+	visit func(rel string, raw []byte) error,
+) (unreadable []unreadableFile, err error) {
+	repository, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+	defer func() {
+		err = errors.Join(err, repository.Close())
+	}()
+
+	for _, rel := range files {
+		if exclude(rel) {
+			continue
+		}
+		raw, readErr := repository.ReadFile(filepath.FromSlash(rel))
+		if os.IsNotExist(readErr) {
+			continue
+		}
+		if readErr != nil {
+			unreadable = append(unreadable, unreadableFile{rel: rel, err: readErr})
+			continue
+		}
+		if visitErr := visit(rel, raw); visitErr != nil {
+			return nil, visitErr
+		}
+	}
+	return unreadable, nil
+}

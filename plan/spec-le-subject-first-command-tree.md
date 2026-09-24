@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1a/5 |
 | Handoff | - |
 | Updated | 2026-09-24 |
 
@@ -406,7 +406,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An alias registered from the `init` of `internal/le/register.go` sees every new name, because that `init` runs after all blank imports | Go init order; `internal/le/register.go` already registers root `le` there | the alias of a name whose area has not registered misroutes | `TestEveryRetiredNameRunsItsNewCommand` over the full map | unvalidated |
+| A-1 | An alias registered from the `init` of `internal/le/register.go` sees every new name, because that `init` runs after all blank imports | Go init order; `internal/le/register.go` already registers root `le` there | the alias of a name whose area has not registered misroutes | `TestEveryRetiredNameRunsItsNewCommand` over the full map | confirmed, moot (Phase 1a): no alias is registered. `leroot.Dispatch` reads the map through `retiredRewrite` (`internal/le/leroot/retired.go`) at call time, after every `init`, and rewrites only when the row's new command is registered, so `internal/le/register.go` needs no change |
 | A-2 | A directory named `go` under `internal/le` builds. Only a package NAMED `go` is illegal, and no `register.go` lives at `internal/le/go` | Go spec: `go` is a keyword; directory names are free | the `go` family needs another directory | `go build ./internal/le/go/...` in Phase 1 | unvalidated |
 | A-3 | `internal/test/cli` cannot be imported into `internal/le` | root `bgp` is registered by `internal/component/bgp/cli/register.go` and by `internal/test/cli/register.go`; `MustRegisterRootHandler` panics on a duplicate (`internal/component/command/registry/registry.go`) | an in-process harness would be simpler | read of both registrations, 2026-09-24 | validated |
 | A-4 | The host-built `le` runs inside the terminal-demo container, as `ze-terminal-pty` does today | both are host-built Go binaries from one toolchain (`internal/le/terminaldemo/actions.go`) | the demo image needs its own `le` build | `./le site terminal-demo check-all` after the Phase 1 move | unvalidated |

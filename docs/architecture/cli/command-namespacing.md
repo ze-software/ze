@@ -209,6 +209,12 @@ Namespace Split").
 The same rule over the ROOT namespace, and the gate that enforces it, live in
 [`root-namespace-grammar.md`](root-namespace-grammar.md).
 
+The development tool `le` follows the same rule, subject first:
+`le verify lint`, not `le verify-lint`. A bare `le` namespace token answers its
+members with exit 0, and an old le command name runs as its new one after one
+stderr line, until the rename finishes. Both are described in
+[`core-design.md`](../core-design.md).
+
 ## Filters are keyword grammar, never `--flags`
 
 The through-line across every vendor above: the family / instance / table
