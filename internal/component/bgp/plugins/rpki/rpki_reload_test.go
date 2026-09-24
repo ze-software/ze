@@ -630,7 +630,8 @@ func TestRPKIUpdatePublicationReachesDecorator(t *testing.T) {
 				}}}}`, hex.EncodeToString(attrs.Packed()))
 
 			var adj *rpc.DirectBridge
-			if boundary == "startup-snapshot" {
+			switch boundary {
+			case "startup-snapshot":
 				adj = startRPKIReloadReceiver(t, ctx)
 				if err := adj.DeliverStructured([]any{update}); err != nil {
 					t.Fatal(err)
@@ -643,7 +644,7 @@ func TestRPKIUpdatePublicationReachesDecorator(t *testing.T) {
 					}
 					return &rpc.DispatchCommandOutput{Status: out.Status, Data: out.Data}, nil
 				})
-			} else if boundary == "roa-change" || boundary == "aspa-change" {
+			case "roa-change", "aspa-change":
 				rp.handleStructuredUpdate(update)
 				drainRequests(rp.validateCh)
 			}

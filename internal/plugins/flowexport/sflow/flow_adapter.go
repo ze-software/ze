@@ -48,7 +48,7 @@ func NewFlowEncoder(agentAddr netip.Addr, subAgentID uint32, startTime time.Time
 // layer 2 header_protocol is "total number of octets of data received on the
 // network (excluding framing bits but including FCS octets)", and "Any
 // octets added to the frame_length to compensate for encapsulations removed
-// by the underlying hardware must also be added to the stripped count."
+// by the underlying hardware must also be added to the stripped count.".
 const ethernetFCSOctets = 4
 
 // EncodeFlowSample assembles and sends one sFlow v5 flow_sample datagram.

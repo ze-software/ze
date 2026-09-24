@@ -638,7 +638,7 @@ func TestRSVPObjectLengthMultipleOfFour(t *testing.T) {
 	msgs := map[string][]byte{
 		"PATH":    buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64),
 		"RESV":    buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.2")),
-		"PathErr": buildPathErr(psb.Session, filter, psb.SenderTSpec, es, netip.MustParseAddr("10.0.0.1")),
+		"PathErr": buildPathErr(psb.Session, filter, psb.SenderTSpec, es),
 	}
 
 	for name, raw := range msgs {

@@ -36,7 +36,7 @@ func sessionFromKey(k lspKey) sessionID {
 }
 
 type reservationCharge struct {
-	style uint32
+	style     uint32
 	bandwidth float64
 }
 

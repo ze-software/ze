@@ -97,7 +97,7 @@ func TestRFC8907SharedSecretDiagnosticRedaction(t *testing.T) {
 	slog.New(slog.NewJSONHandler(&log, nil)).Info("configuration", "server", cfg.Servers[0], "config", cfg)
 	outputs := []string{fmt.Sprintf("%v", cfg), fmt.Sprintf("%+v", cfg), fmt.Sprintf("%#v", cfg), string(encoded), log.String()}
 	for _, output := range outputs {
-		for _, exposed := range []string{key, base64.StdEncoding.EncodeToString([]byte(key)), fmt.Sprint([]byte(key))} {
+		for _, exposed := range []string{key, base64.StdEncoding.EncodeToString([]byte(key)), fmt.Sprint([]byte(key))} { //nolint:staticcheck // QF1010: the decimal byte-list rendering of the key is one of the exposures this test forbids.
 			if strings.Contains(output, exposed) {
 				t.Fatalf("diagnostic output exposes a shared secret: %s", output)
 			}

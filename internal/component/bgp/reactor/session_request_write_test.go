@@ -90,9 +90,9 @@ func TestBatchRequestCancelsWriterWait(t *testing.T) {
 			case err := <-done:
 				require.ErrorIs(t, err, context.Canceled)
 			case <-time.After(5 * time.Second):
-				t.Fatal("cancelled request is still waiting for the session writer")
+				t.Fatal("canceled request is still waiting for the session writer")
 			}
-			require.Equal(t, before, conn.written(), "the cancelled request must add no wire output")
+			require.Equal(t, before, conn.written(), "the canceled request must add no wire output")
 			peer.session.writeMu.Unlock()
 			locked = false
 			require.NoError(t, send(t.Context(), selector.All(), batch, plugin.OperatorSender()))
@@ -113,8 +113,8 @@ func (c *observedWriteConn) Write(p []byte) (int, error) {
 	return c.Conn.Write(p)
 }
 
-// VALIDATES: cancelling a request interrupts its actual blocked socket flush.
-// PREVENTS: cancelling only the RPC wait while the BGP writer lives on and holds
+// VALIDATES: canceling a request interrupts its actual blocked socket flush.
+// PREVENTS: canceling only the RPC wait while the BGP writer lives on and holds
 // the session's write gate indefinitely.
 func TestBatchRequestCancelsBlockedFlush(t *testing.T) {
 	api, peer, _, batch := requestWriteFixture(t)
@@ -137,16 +137,16 @@ func TestBatchRequestCancelsBlockedFlush(t *testing.T) {
 	case err := <-done:
 		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(5 * time.Second):
-		t.Fatal("cancelled request left a socket writer running")
+		t.Fatal("canceled request left a socket writer running")
 	}
 	// Another request must return an error for the unusable connection rather
-	// than wait behind a cancelled writer that survived its original request.
+	// than wait behind a canceled writer that survived its original request.
 	go func() { done <- api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()) }()
 	select {
 	case err := <-done:
 		require.Error(t, err)
 	case <-time.After(5 * time.Second):
-		t.Fatal("a later request is stuck behind the cancelled writer")
+		t.Fatal("a later request is stuck behind the canceled writer")
 	}
 	// Interrupted BGP frames cannot be resumed by a later request.
 	var header [message.HeaderLen]byte

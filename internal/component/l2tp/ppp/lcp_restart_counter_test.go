@@ -147,7 +147,7 @@ func TestLCPPeerTerminateRestartTimer(t *testing.T) {
 				if !ok || ack.Identifier != 7 {
 					t.Fatal("peer termination did not receive its matching Ack")
 				}
-				time.Sleep(defaultRestartTimer-time.Nanosecond)
+				time.Sleep(defaultRestartTimer - time.Nanosecond)
 				select {
 				case <-s.restartTimer.C:
 					t.Fatal("Restart timer expired before the termination grace period")

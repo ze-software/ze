@@ -23,7 +23,6 @@ type busFIB struct {
 	bus ze.EventBus
 }
 
-
 func (b *busFIB) emit(e mplsfibevents.Entry) error {
 	e.Source = mplsSourceRSVPTE
 	return mplsfibevents.Apply(b.bus, []mplsfibevents.Entry{e})

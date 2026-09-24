@@ -87,8 +87,10 @@ func TestASPARetainedPathReplayRecovery(t *testing.T) {
 	}}, retained, "targeted reconciliation retains original bytes for the reactor gate")
 
 	retainedDecision(t, r, "a", 0, 40)
+	lastIndex, ok := firstReplay["last-index"].(uint64)
+	require.True(t, ok, "replay last-index is %T, want uint64", firstReplay["last-index"])
 	delta, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99",
-		strconv.FormatUint(firstReplay["last-index"].(uint64), 10))
+		strconv.FormatUint(lastIndex, 10))
 	require.Equal(t, retained, delta, "acceptance rediscovers only the recovered path without an UPDATE")
 
 	retainedReceive(t, r, 41, []byte{0, 8, 0, 0, 0, 0, 24, 203, 0, 113, 0, 0})

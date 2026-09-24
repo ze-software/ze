@@ -180,7 +180,7 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	originalAddresses := listener.Addresses()
 	_, webPort, err := net.SplitHostPort(originalAddresses[0])
 	require.NoError(t, err)
-	occupied, err := net.Listen("tcp4", "127.0.0.1:0")
+	occupied, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = occupied.Close() })
 	_, occupiedPort, err := net.SplitHostPort(occupied.Addr().String())
@@ -238,7 +238,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 			probeTree := zeconfig.NewTree()
 			probeTree.Set("revision", "0")
 			tree.SetContainer(radiusReloadProbeRoot, probeTree)
-			return tree.ToPluginMap(), tree, nil
+			pluginMap := tree.ToPluginMap()
+			return pluginMap, tree, nil
 		}
 	}
 	migrator := &listenerMigrator{web: listener}

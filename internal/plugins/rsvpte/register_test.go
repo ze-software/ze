@@ -195,7 +195,8 @@ func TestReconcileTunnelsWithdrawsReoptimizedGenerations(t *testing.T) {
 
 			lsp := mustLSP(t, e, original)
 			notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
-				errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}, lsp.NextHop)
+				errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired})
+
 			e.handlePacket(Packet{Src: lsp.NextHop, Payload: notify})
 			replacement := original
 			replacement.LSPID++
@@ -293,7 +294,8 @@ func TestReconcileTunnelsUpdatesCurrentGeneration(t *testing.T) {
 	// generation 4, even though its immediately following generation is gone.
 	lsp := mustLSP(t, e, current)
 	notify := buildPathErr(lsp.PSB.Session, lsp.PSB.SenderTemplate, lsp.PSB.SenderTSpec,
-		errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}, lsp.NextHop)
+		errorSpec{ErrorNode: lsp.NextHop, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired})
+
 	mark = ft.countByType(MsgTypePath)
 	e.handlePacket(Packet{Src: lsp.NextHop, Payload: notify})
 	assert.Equal(t, mark, ft.countByType(MsgTypePath), "repeated Notify cannot restart the abandoned generation")

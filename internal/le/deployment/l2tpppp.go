@@ -76,6 +76,13 @@ const (
 	L2TPPPPPoolEnd   = "10.100.0.10"
 )
 
+// The two l2tp-ppp scenarios: an unauthenticated session, and one that CHAP
+// with MD5 authenticates.
+const (
+	l2tpPPPScenarioNoAuth = "no-auth"
+	l2tpPPPScenarioCHAP   = "chap-md5"
+)
+
 var (
 	l2tpPPPPrefixEntry = stringSetting(L2TPPPPPrefixKey, L2TPPPPPrefix,
 		"the prefix length of the underlay the on-host L2TP PPP proof builds")
@@ -89,7 +96,7 @@ var (
 		"the port ze binds its L2TP listener to in the on-host L2TP PPP proof")
 	l2tpPPPPeerPortEntry = stringSetting(L2TPPPPPeerPortKey, L2TPPPPPeerPort,
 		"the port the xl2tpd peer binds in the on-host L2TP PPP proof")
-	l2tpPPPScenarioEntry = stringSetting(L2TPPPPScenarioKey, "no-auth",
+	l2tpPPPScenarioEntry = stringSetting(L2TPPPPScenarioKey, l2tpPPPScenarioNoAuth,
 		"native L2TP PPP scenario: no-auth or chap-md5 (valid secret, restart, wrong secret)")
 )
 
@@ -198,7 +205,7 @@ func NewL2TPPPP(tree string) *L2TPPPP {
 	var tb textbuf.Buffer
 	run := &L2TPPPP{
 		Tree:       tree,
-		Scenario:   setting(l2tpPPPScenarioEntry.Key, "no-auth"),
+		Scenario:   setting(l2tpPPPScenarioEntry.Key, l2tpPPPScenarioNoAuth),
 		Prefix:     setting(l2tpPPPPrefixEntry.Key, L2TPPPPPrefix),
 		ZeIP:       zeIP,
 		LACIP:      setting(l2tpPPPLACIPEntry.Key, L2TPPPPLACIP),
@@ -238,7 +245,7 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 		PeerAddress:  L2TPPPPPeerAddr,
 	}
 	switch l.Scenario {
-	case "no-auth", "chap-md5":
+	case l2tpPPPScenarioNoAuth, l2tpPPPScenarioCHAP:
 	default:
 		return report, errors.New("unknown native L2TP PPP scenario: " + l.Scenario)
 	}
@@ -426,7 +433,7 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	if !proven {
 		return report, nil
 	}
-	if l.Scenario == "chap-md5" {
+	if l.Scenario == l2tpPPPScenarioCHAP {
 		if verdict, ok := l.step(seen, report, ze, []string{pppCHAPAcceptedLine}, preSession,
 			l.NCPWait, "local CHAP-MD5 acceptance was not observed"); !ok {
 			return verdict, nil
@@ -452,7 +459,7 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	if err := awaitTeardown([]pppBaseline{zeBase, lacBase}, l.CleanupWait); err != nil {
 		return l.fail(report, seen, err.Error()), nil
 	}
-	if l.Scenario == "chap-md5" {
+	if l.Scenario == l2tpPPPScenarioCHAP {
 		if err := l.assertWrongSecret(seen, ze, work, baselines); err != nil {
 			return l.fail(report, seen, "wrong-secret CHAP-MD5: "+err.Error()), nil
 		}

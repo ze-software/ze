@@ -141,6 +141,8 @@ func runTopologyExporter(conn net.Conn) int {
 					exporter.peerRefresh(peer)
 				}
 			}
+		default:
+			// Other event kinds carry no BGP-LS export state.
 		}
 		return nil
 	})

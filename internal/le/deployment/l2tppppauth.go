@@ -122,7 +122,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 	defer poll.Stop()
 	for {
 		if ze.exited() {
-			return errors.New("Ze exited before completing wrong-secret rejection")
+			return errors.New("ze exited before completing wrong-secret rejection")
 		}
 		fresh := l2tpPPPSince(seen, mark)
 		if fatal := fresh.firstSeen(forbidden); fatal != "" {
@@ -172,7 +172,7 @@ func (l *L2TPPPP) assertWrongSecret(seen *collector, ze *running, work string, b
 		return errors.New("final peer log lost the CHAP rejection exchange")
 	}
 	if ze.exited() {
-		return errors.New("Ze exited during wrong-secret cleanup")
+		return errors.New("ze exited during wrong-secret cleanup")
 	}
 	writeProgress(l.Progress, "wrong-secret CHAP-MD5 rejected without IPCP, address assignment, subscriber route, or surviving PPP/L2TP session")
 	return nil

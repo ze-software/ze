@@ -193,7 +193,7 @@ func TestExtIngressMalformedDiscard(t *testing.T) {
 }
 
 // TestExtIngressValidCarriage checks that the reject gate leaves valid framing and
-// unrecognised opaque applications eligible for storage, acknowledgement and scoped flooding.
+// unrecognized opaque applications eligible for storage, acknowledgement and scoped flooding.
 // MUTATION: make validateExtLSA reject every extended LSA or validate unknown application bodies.
 // RFC requirement: RFC7684-5-3 positive -- valid extended prefix/link LSAs, including unknown TLVs and padded sub-TLVs, are stored byte-for-byte, acknowledged and flooded within their area or AS scope even after a malformed LSA in the same update; unknown opaque application bytes retain the same carrier behavior.
 func TestExtIngressValidCarriage(t *testing.T) {

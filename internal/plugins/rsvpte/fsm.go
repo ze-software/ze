@@ -101,13 +101,13 @@ type pathStateBlock struct {
 	ERO            []eroHop
 	// RRO holds the PATH route including this node, ready for relay. RecordRoute
 	// distinguishes a request whose RRO overflowed from a PATH with no request.
-	RRO            []rroEntry
-	RecordRoute    bool
-	RecordLabels   bool
-	SenderTSpec    FlowSpec
-	LabelRequest   labelRequest
-	RefreshPeriod  time.Duration
-	LastRefresh    time.Time
+	RRO           []rroEntry
+	RecordRoute   bool
+	RecordLabels  bool
+	SenderTSpec   FlowSpec
+	LabelRequest  labelRequest
+	RefreshPeriod time.Duration
+	LastRefresh   time.Time
 	// Protection, when set, requests RFC 4090 local protection for this LSP: PATH
 	// then carries SESSION_ATTRIBUTE (protection-desired flags) and FAST_REROUTE.
 	// A transit node fills it from the received PATH (protectionFromPath).
@@ -119,9 +119,9 @@ type pathStateBlock struct {
 	// unmodified", so the relay copies these bytes rather than rebuilding the
 	// object from the decoded fields (which would drop a C-Type 1 peer's
 	// resource affinities and rewrite its flags).
-	SessionAttr []byte
-	Route RouteInfo
-	Adspec []byte
+	SessionAttr    []byte
+	Route          RouteInfo
+	Adspec         []byte
 	ReceivedAdspec []byte
 	SenderTSpecRaw []byte
 	ForwardObjects [][]byte
@@ -139,13 +139,13 @@ type resvStateBlock struct {
 	ResvConfirm netip.Addr
 	// RRODropped suppresses later RESV recording after a local route overflow.
 	// A PATH that withdraws route recording also clears the cached RRO.
-	RRODropped bool
-	PathMTU uint32
-	FlowSpecRaw []byte
+	RRODropped     bool
+	PathMTU        uint32
+	FlowSpecRaw    []byte
 	ForwardObjects [][]byte
-	RefreshPeriod time.Duration
-	Blockade FlowSpec
-	BlockadeUntil time.Time
+	RefreshPeriod  time.Duration
+	Blockade       FlowSpec
+	BlockadeUntil  time.Time
 
 	LastRefresh time.Time
 }
@@ -154,12 +154,12 @@ type resvStateBlock struct {
 // Each branch expires independently; the protected PSB remains the downstream
 // identity while any branch is alive (RFC 4090 Section 7.1.1).
 type mergedPath struct {
-	PrevHop netip.Addr
-	LastRefresh time.Time
-	RefreshPeriod time.Duration
-	RecordRoute bool
-	Hop rsvpHop
-	Adspec []byte
+	PrevHop        netip.Addr
+	LastRefresh    time.Time
+	RefreshPeriod  time.Duration
+	RecordRoute    bool
+	Hop            rsvpHop
+	Adspec         []byte
 	ForwardObjects [][]byte
 }
 
@@ -216,8 +216,8 @@ type LSP struct {
 	ProtectionInUse bool
 	IsBypass        bool
 	BackupLabel     uint32
-	RepairSender netip.Addr // alternate local address when the head-end is the PLR
-	RepairPathMTU uint32
+	RepairSender    netip.Addr // alternate local address when the head-end is the PLR
+	RepairPathMTU   uint32
 	// MergedPaths is populated at an MP when backup senders join the protected
 	// PATH. It includes the original sender until that branch tears or expires.
 	MergedPaths map[senderTemplateIPv4]mergedPath

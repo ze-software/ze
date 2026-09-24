@@ -114,7 +114,7 @@ func validateAdspec(raw []byte) error {
 			return errIntserv
 		}
 		if service == serviceGeneral || service == serviceControlledLoad || service == serviceNull {
-			if err := validateAdspecParameters(raw[off:off+n]); err != nil {
+			if err := validateAdspecParameters(raw[off : off+n]); err != nil {
 				return err
 			}
 		}
@@ -180,7 +180,7 @@ func updateAdspec(raw []byte, outgoingMTU uint32) error {
 			for parameter := off + 4; parameter < off+n; {
 				length := 4 + int(binary.BigEndian.Uint16(raw[parameter+2:parameter+4]))*4
 				if length == 8 {
-					value := binary.BigEndian.Uint32(raw[parameter+4:parameter+8])
+					value := binary.BigEndian.Uint32(raw[parameter+4 : parameter+8])
 					switch raw[parameter] {
 					case 4:
 						value = min(value, uint32(254)) + 1
@@ -237,7 +237,7 @@ func adspecPathMTU(raw []byte, service uint8) uint32 {
 					if raw[parameter+1]&intservBreak != 0 {
 						return 0
 					}
-					value := binary.BigEndian.Uint32(raw[parameter+4:parameter+8])
+					value := binary.BigEndian.Uint32(raw[parameter+4 : parameter+8])
 					if mtu == 0 {
 						mtu = value
 					} else {

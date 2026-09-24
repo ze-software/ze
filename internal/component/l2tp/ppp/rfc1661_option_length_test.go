@@ -604,7 +604,7 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 		if term := s.handleFrame(lcpFrame(ProtoLCP, LCPConfigureAck, request.Identifier, pastEnd)); term {
 			t.Fatal("session terminated on a Configure-Ack RFC 1661 Section 6 discards")
 		}
-		if n := rec.count()-before; n != 0 {
+		if n := rec.count() - before; n != 0 {
 			t.Fatalf("ze answered a truncated Configure-Ack with %d frame(s)", n)
 		}
 		if got := s.currentState(); got != LCPStateReqSent {
@@ -644,7 +644,7 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 			if term := s.handleFrame(lcpFrame(ProtoLCP, code.code, request.Identifier, pastEnd)); term {
 				t.Fatalf("session terminated on a %s RFC 1661 Section 6 discards", code.name)
 			}
-			if n := rec.count()-before; n != 0 {
+			if n := rec.count() - before; n != 0 {
 				t.Fatalf("ze answered a truncated %s with %d frame(s); RFC 1661 Section 4.1 makes RCN in ack-rcvd resend the Configure-Request", code.name, n)
 			}
 			if got := s.currentState(); got != LCPStateAckRcvd {

@@ -173,7 +173,8 @@ func (c candidate) mergeEqual(o candidate) candidate {
 		}
 	}
 	merged = append(merged, c.nextHops[i:]...)
-	c.nextHops = append(merged, o.nextHops[j:]...)
+	merged = append(merged, o.nextHops[j:]...)
+	c.nextHops = merged
 	return c
 }
 

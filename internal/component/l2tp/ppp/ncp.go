@@ -1222,7 +1222,7 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 // resetNCP ends the NCP lifetime when LCP leaves Opened. It MUST tear down
 // resources before clearing the addresses and FSM state teardown reads.
 // RFC 1661 Section 4.4, This-Layer-Down: "This action indicates to the upper
-// layers that the automaton is leaving the Opened state."
+// layers that the automaton is leaving the Opened state.".
 func (s *pppSession) resetNCP() bool {
 	s.ncpStarted = false
 	s.authenticatedUsername = ""

@@ -579,7 +579,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 boo
 
 // RFC 7311 Section 3.2: "When receiving a BGP Update message containing a
 // malformed AIGP attribute, the attribute MUST be treated exactly as if it
-// were an unrecognized non-transitive attribute."
+// were an unrecognized non-transitive attribute.".
 func validateAIGPAttr(code uint8, _ int, data []byte, _, _ bool) *RFC7606ValidationResult {
 	if _, err := attribute.AIGPMetricOffset(data); err != nil {
 		return &RFC7606ValidationResult{

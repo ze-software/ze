@@ -236,7 +236,7 @@ func TestRFC4090ProtectedPathSurvivesRepair(t *testing.T) {
 			assert.Len(t, fib.swapped, swaps, "a late normal RESV cannot undo local repair")
 			assert.Equal(t, []uint32{5000, 21000}, fib.backups[len(fib.backups)-1].out)
 			problem := errorSpec{ErrorNode: mpAddr, ErrorCode: ErrCodeRoutingProblem, ErrorValue: ErrValueNoRouteAvailable}
-			plr.handlePacket(Packet{Src: mpAddr, Payload: buildPathErr(psb.Session, backup.SenderTemplate, psb.SenderTSpec, problem, mpAddr)})
+			plr.handlePacket(Packet{Src: mpAddr, Payload: buildPathErr(psb.Session, backup.SenderTemplate, psb.SenderTSpec, problem)})
 			relayedErr, errDst, ok := pt.lastByType(MsgTypePathErr)
 			require.True(t, ok)
 			assert.Equal(t, ingress, errDst)

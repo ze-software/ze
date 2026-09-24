@@ -8,6 +8,7 @@ package ppp
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 )
 
@@ -285,7 +286,7 @@ func TestFullInformationFieldReceived(t *testing.T) {
 	}
 
 	over := make([]byte, ProtoFieldLen+1501)
-	if _, _, _, err := ParseFrame(over); err != errFrameTooLong {
+	if _, _, _, err := ParseFrame(over); !errors.Is(err, errFrameTooLong) {
 		t.Fatalf("ParseFrame(1501-octet Information field) err = %v, want errFrameTooLong", err)
 	}
 }

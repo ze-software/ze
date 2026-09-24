@@ -75,8 +75,8 @@ func prepareVirtualLinkPeers(peers []interoplab.PeerConfig, scenario string) ([]
 			// Docker applies namespace sysctls before mounting /proc/sys read-only.
 			peer.Arguments = append(peer.Arguments,
 				"--sysctl", "net.ipv4.ip_forward=1",
-				"--sysctl", "net.ipv6.conf.all.forwarding=1")
-			peer.Arguments = append(peer.Arguments, dockerEntrypointFlag, "/bin/sh")
+				"--sysctl", "net.ipv6.conf.all.forwarding=1",
+				dockerEntrypointFlag, "/bin/sh")
 			peer.Command = []string{"-ec", virtualLinkTransitSetup + "exec /sbin/tini -- /usr/lib/frr/docker-start"}
 		}
 	}

@@ -51,7 +51,9 @@ func l2tpActiveSubscribers(t *testing.T) float64 {
 	subscriber.BindMetrics(l2tpLifetimeMetrics)
 	gauge := l2tpLifetimeMetrics.GaugeVec("ze_subscriber_sessions", "Number of active subscriber sessions.", []string{"access_type"}).With(string(subscriber.AccessL2TP))
 	var sample dto.Metric
-	require.NoError(t, gauge.(interface{ Write(*dto.Metric) error }).Write(&sample))
+	writer, ok := gauge.(interface{ Write(*dto.Metric) error })
+	require.True(t, ok, "gauge %T cannot write a metric sample", gauge)
+	require.NoError(t, writer.Write(&sample))
 	return sample.GetGauge().GetValue()
 }
 
@@ -101,7 +103,11 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			liveRoutes := make(map[netip.Prefix]bool)
 			var removed []netip.Prefix
 			bus.Subscribe(l2tpevents.Namespace, redistevents.EventType, func(payload any) {
-				batch := payload.(*redistevents.RouteChangeBatch)
+				batch, ok := payload.(*redistevents.RouteChangeBatch)
+				if !ok {
+					t.Errorf("route event payload is %T, want *redistevents.RouteChangeBatch", payload)
+					return
+				}
 				for _, entry := range batch.Entries {
 					switch entry.Action {
 					case redistevents.ActionAdd:
@@ -109,6 +115,8 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 					case redistevents.ActionRemove:
 						delete(liveRoutes, entry.Prefix)
 						removed = append(removed, entry.Prefix)
+					default:
+						t.Errorf("unexpected route action %v for %s", entry.Action, entry.Prefix)
 					}
 				}
 			})
@@ -365,7 +373,12 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	transport.sessionTimeoutCancel = cancel
 	var removed []netip.Prefix
 	bus.Subscribe(l2tpevents.Namespace, redistevents.EventType, func(payload any) {
-		for _, entry := range payload.(*redistevents.RouteChangeBatch).Entries {
+		batch, ok := payload.(*redistevents.RouteChangeBatch)
+		if !ok {
+			t.Errorf("route event payload is %T, want *redistevents.RouteChangeBatch", payload)
+			return
+		}
+		for _, entry := range batch.Entries {
 			if entry.Action == redistevents.ActionRemove {
 				removed = append(removed, entry.Prefix)
 			}

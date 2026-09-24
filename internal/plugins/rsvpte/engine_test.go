@@ -207,9 +207,10 @@ func TestAssignedInterfaceAddressIsLocalRSVPHop(t *testing.T) {
 			ft.localAddresses = append(ft.localAddresses, local)
 			e.admission.setInterface("eth0", 1e9, 1e9)
 			endpoint := netip.MustParseAddr("10.0.0.9")
-			if role == "egress" {
+			switch role {
+			case "egress":
 				endpoint = local
-			} else if role == "prefix-only" {
+			case "prefix-only":
 				endpoint = e.cfg().Interfaces[0].Prefix.Addr()
 			}
 			psb := &pathStateBlock{

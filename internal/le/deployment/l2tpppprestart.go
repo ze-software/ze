@@ -156,7 +156,7 @@ func l2tpPPPRestartProgress(log, authentication string) string {
 		}
 	}
 	var auth []string
-	if authentication == "chap-md5" {
+	if authentication == l2tpPPPScenarioCHAP {
 		auth = []string{"<auth chap MD5>", "rcvd [CHAP Challenge ", "sent [CHAP Response ", "rcvd [CHAP Success "}
 	}
 	remaining := log
@@ -211,8 +211,8 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		return fail(errors.New("pppd log has no complete initial observation boundary"))
 	}
 	authentication := "none"
-	if l.Scenario == "chap-md5" {
-		authentication = "chap-md5"
+	if l.Scenario == l2tpPPPScenarioCHAP {
+		authentication = l2tpPPPScenarioCHAP
 	} else if strings.Contains(string(initial), "<auth ") {
 		return fail(errors.New("unexpected authentication in the no-auth native peer input"))
 	}
@@ -252,7 +252,7 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 			return fail(errors.New("transport ended or was replaced: " + fatal))
 		}
 		if ze.exited() || dialer.exited() {
-			return fail(errors.New("Ze or xl2tpd exited during renegotiation"))
+			return fail(errors.New("ze or xl2tpd exited during renegotiation"))
 		}
 		info, err := log.Stat()
 		if err != nil {
@@ -273,7 +273,7 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		}
 		missing := l2tpPPPRestartProgress(freshLog, authentication)
 		wanted := []string{pppWithdrawLine, pppIPLine, pppRouteLine, pppUpLine}
-		if l.Scenario == "chap-md5" {
+		if l.Scenario == l2tpPPPScenarioCHAP {
 			wanted = append(wanted, pppCHAPAcceptedLine)
 		}
 		if missing == "" && fresh.sawAll(wanted) {
@@ -335,7 +335,7 @@ func awaitL2TPPPPWithdrawal(seen *collector, mark map[string]int, ze *running, t
 			return nil
 		}
 		if ze.exited() {
-			return errors.New("Ze exited before the final subscriber route withdrawal")
+			return errors.New("ze exited before the final subscriber route withdrawal")
 		}
 		select {
 		case <-deadline.C:

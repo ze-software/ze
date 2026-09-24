@@ -1292,7 +1292,7 @@ func (s *pppSession) redrawMagicOnNak(nak LCPPacket) bool {
 // transmitMagic is the Magic-Number ze puts in an Echo-Request, Echo-Reply
 // or Discard-Request. RFC 1661 Section 5.8: "Until the Magic-Number
 // Configuration Option has been successfully negotiated, the Magic-Number
-// MUST be transmitted as zero."
+// MUST be transmitted as zero.".
 func (s *pppSession) transmitMagic() uint32 {
 	if !s.magicNegotiated {
 		return 0

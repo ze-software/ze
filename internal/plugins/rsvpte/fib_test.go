@@ -37,11 +37,12 @@ func TestForwardingAcceptancePrecedesReservation(t *testing.T) {
 			parsed, err := DecodeMessage(path)
 			require.NoError(t, err)
 			key := keyFromMessage(parsed)
-			if role == "ingress" {
+			switch role {
+			case "ingress":
 				lsp, _ := e.table.GetOrCreate(key)
 				lsp.Role, lsp.PSB = RoleIngress, psb
 				lsp.setState(LSPStatePathSent)
-			} else if role == "transit" {
+			case "transit":
 				e.handlePacket(Packet{Src: psb.SenderTemplate.SenderAddr, Payload: path})
 			}
 			// A transport delivery or published event is not native FIB acceptance.

@@ -706,6 +706,8 @@ func negotiateIPCP(w io.Writer, frames <-chan readFrame, buf []byte, magic uint3
 						return ipcpResult{}, err
 					}
 					state = ppp.LCPStateReqSent
+				default:
+					// An Ack outside the three negotiation states changes nothing here.
 				}
 			case ppp.LCPConfigureNak:
 				options, err := ppp.ParseIPCPOptions(pkt.Data)

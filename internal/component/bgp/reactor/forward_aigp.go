@@ -82,7 +82,7 @@ func aigpMetricValue(value []byte) (uint64, bool) {
 	return binary.BigEndian.Uint64(value[offset:]), true
 }
 
-func aigpIncrement(nh netip.Addr, sourcePeer netip.Addr, sourceLinkMetric uint64) (uint64, bool) {
+func aigpIncrement(nh, sourcePeer netip.Addr, sourceLinkMetric uint64) (uint64, bool) {
 	distance := igpcost.Lookup(nh)
 	if distance.MissingAIGP {
 		return 0, false

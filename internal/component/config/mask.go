@@ -77,7 +77,7 @@ func DisplayValueAtPath(schema *Schema, path []string, value string) string {
 }
 
 // DisplayCommand masks configuration assignments using the same schema as
-// DisplayValueAtPath. It recognises set, config set and ze config set, including
+// DisplayValueAtPath. It recognizes set, config set and ze config set, including
 // peer-scoped display forms. The latter two forms may carry a config-file
 // argument before the tree path. Unknown paths and unavailable schemas fail closed.
 // Only a display copy is changed; execution retains the original arguments.

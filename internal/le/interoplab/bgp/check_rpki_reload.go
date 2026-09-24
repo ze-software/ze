@@ -422,7 +422,7 @@ func readRPKIReloadSink(ctx context.Context, check *interoplab.CheckContext) (rp
 	result.RemotePort, remoteOK = number(peer["remote-port"])
 	if peer["state"] != "established" || result.LocalAddress != networkHostAddress(check.Network, 2) ||
 		!localOK || !remoteOK || result.LocalPort <= 0 || result.RemotePort <= 0 {
-		return result, fmt.Errorf("Ze has no established BIRD sink connection identity: %v", peer)
+		return result, fmt.Errorf("no established BIRD sink connection identity in Ze: %v", peer)
 	}
 	// UPDATEs must remain free to carry the acceptance and withdrawal. Only
 	// lifetime connection/drop and OPEN counters fence a reconnect/replay here.

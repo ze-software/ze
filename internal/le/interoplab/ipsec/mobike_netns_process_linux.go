@@ -158,7 +158,7 @@ func (p *mobikeNativeProcess) running() bool {
 
 func (p *mobikeNativeProcess) signal(signal syscall.Signal) error {
 	if !p.running() {
-		return fmt.Errorf("native MOBIKE process exited: %v", p.waitErr)
+		return fmt.Errorf("native MOBIKE process exited: %v", p.waitErr) //nolint:errorlint // A clean exit leaves the wait error nil; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.
 	}
 	if err := syscall.Kill(-p.command.Process.Pid, signal); err != nil {
 		return fmt.Errorf("signal native MOBIKE process: %w", err)
@@ -300,7 +300,7 @@ func (l *mobikeNativeLab) PeerPID(ctx context.Context, name string) (int, error)
 		return 0, fmt.Errorf("native MOBIKE peer %s has not started", name)
 	}
 	if !peer.process.running() {
-		return 0, fmt.Errorf("native MOBIKE peer %s exited: %v", name, peer.process.waitErr)
+		return 0, fmt.Errorf("native MOBIKE peer %s exited: %v", name, peer.process.waitErr) //nolint:errorlint // A clean exit leaves the wait error nil; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.
 	}
 	return peer.process.command.Process.Pid, nil
 }

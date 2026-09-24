@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -174,7 +175,7 @@ func TestASPAProviderListErrorOnWire(t *testing.T) {
 	require.NoError(t, <-serverErr)
 	report := <-reported
 	assert.Equal(t, byte(2), report[0])
-	assert.Equal(t, byte(pduErrorRpt), report[1])
+	assert.Equal(t, pduErrorRpt, report[1])
 	assert.Equal(t, uint16(9), binary.BigEndian.Uint16(report[2:4]))
 	assert.Equal(t, bad, report[12:12+len(bad)])
 	assert.Equal(t, uint32(0), binary.BigEndian.Uint32(report[12+len(bad):]))
@@ -366,8 +367,8 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 		response[0], end[0] = 1, 1
 		binary.BigEndian.PutUint32(end[8:12], 77)
 		prefix := []byte{1, pduIPv4Prefix, 0, 0, 0, 0, 0, 20, 1, 24, 24, 0, 192, 0, 2, 0, 0, 0, 0xfb, 0xf4}
-		payload := append(response, prefix...)
-		if _, err := conn.Write(append(payload, end...)); err != nil {
+		payload := slices.Concat(response, prefix, end)
+		if _, err := conn.Write(payload); err != nil {
 			return
 		}
 	})

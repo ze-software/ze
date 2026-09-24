@@ -172,7 +172,7 @@ func (l *mobikeNativeLab) prepare(ctx context.Context, root, source string, stat
 		namespace := filepath.Base(l.directory) + "-" + peer
 		// Record ownership before ip runs: cancellation may arrive after the
 		// kernel created the namespace but before the command reports success.
-		if _, err := os.Lstat(filepath.Join("/run/netns", namespace)); err == nil {
+		if _, err := os.Lstat(filepath.Join("/run", "netns", namespace)); err == nil {
 			return fmt.Errorf("native MOBIKE namespace already exists: %s", namespace)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("inspect native MOBIKE namespace: %w", err)
@@ -331,7 +331,7 @@ func (l *mobikeNativeLab) close() []string {
 		}
 	}
 	for index := len(l.namespaces) - 1; index >= 0; index-- {
-		if _, err := os.Lstat(filepath.Join("/run/netns", l.namespaces[index])); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Lstat(filepath.Join("/run", "netns", l.namespaces[index])); errors.Is(err, os.ErrNotExist) {
 			continue
 		}
 		if _, err := l.host(context.Background(), "netns", "delete", l.namespaces[index]); err != nil {

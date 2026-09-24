@@ -666,7 +666,12 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 		Name:        pluginName,
 		Description: "bridge drain test plugin",
 		RunEngine: func(conn net.Conn) int {
-			bridge := conn.(rpc.Bridger).Bridge()
+			bridger, ok := conn.(rpc.Bridger)
+			if !ok {
+				t.Errorf("engine connection %T carries no bridge", conn)
+				return 1
+			}
+			bridge := bridger.Bridge()
 			if cb, ok := <-bridge.CallbackCh(); ok {
 				cb.Result <- rpc.BridgeCallbackResult{}
 			}

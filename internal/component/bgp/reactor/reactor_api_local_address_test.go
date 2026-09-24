@@ -5,14 +5,17 @@ package reactor
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -29,7 +32,7 @@ import (
 
 func newConnectedLocalSession(t *testing.T, settings *PeerSettings, local string) (*Session, net.Conn) {
 	t.Helper()
-	listener, err := net.Listen("tcp4", net.JoinHostPort(local, "0"))
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp4", net.JoinHostPort(local, "0"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = listener.Close() })
 	var dialer net.Dialer
@@ -231,7 +234,7 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 				packet, err := core4271ReadMessage(oldClient)
 				require.NoError(t, err)
 				require.Equal(t, byte(msgtype.TypeUPDATE), packet[18])
-				batch.NLRIs = append(seed.NLRIs, route)
+				batch.NLRIs = append(slices.Clip(seed.NLRIs), route)
 				route.beforeReplacement = 1 // Replace during the partial rebuild, not the shared build.
 			}
 			if tc.stale {
@@ -297,7 +300,7 @@ func TestStaticSelfStaysOnCapturedSession(t *testing.T) {
 			frames := 0
 			for {
 				packet, err := core4271ReadMessage(client)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				require.NoError(t, err)

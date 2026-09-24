@@ -71,7 +71,7 @@ func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updat
 // Draft ASPA verification -28 Section 5.7: "If the AS_PATH is determined to be
 // Invalid, then the route SHOULD be considered ineligible for route selection
 // (see Section 3) and MUST be kept in the Adj-RIB-In for potential future
-// re-evaluation (see [RFC9324])."
+// re-evaluation (see [RFC9324]).".
 func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.WireUpdate, error) {
 	wu := update.WireUpdate
 	if !ribevents.ValidationEnabled() && !flowSpecUpdate(wu) {

@@ -27,7 +27,7 @@ func TestRTRTLSCandidatePKIIsIsolated(t *testing.T) {
 				name = "absent-router"
 			}
 			sections := []sdk.ConfigSection{
-				{Root: configRootBGP, Data: fmt.Sprintf(`{"bgp":{"rpki":{"cache-server":{"127.0.0.1":{"port":"%d","tls":{"ca-certificate":"cache-ca","certificate":"%s","server-name":"cache.rtr.test"}}}}}}`, peer.port, name)},
+				{Root: configRootBGP, Data: fmt.Sprintf(`{"bgp":{"rpki":{"cache-server":{"127.0.0.1":{"port":"%d","tls":{"ca-certificate":"cache-ca","certificate":%q,"server-name":"cache.rtr.test"}}}}}}`, peer.port, name)},
 				{Root: configRootPKI, Data: rtrPKISection(t, candidate.store)},
 			}
 			cfg, err := parseRPKISections(sections, nil)

@@ -5,6 +5,7 @@ package engine
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -377,7 +378,7 @@ func TestMobikeCookie2IgnoresForgedAndUnrelatedAnswers(t *testing.T) {
 			t.Fatal("an unauthenticated or unrelated answer requested teardown")
 		}
 		if f.dp.count != 0 {
-			t.Fatal("an unauthenticated or unrelated answer authorised migration")
+			t.Fatal("an unauthenticated or unrelated answer authorized migration")
 		}
 	}
 	f.ps.handleOwnedInbound(f.local, transport.Packet{
@@ -538,7 +539,7 @@ func TestMobikeNoNATsIPv6Tuple(t *testing.T) {
 }
 
 // TestMobikeAdvertisementAfterSourceChange checks the wire history of an update
-// retransmitted from a second source. The old answer cannot authorise migration;
+// retransmitted from a second source. The old answer cannot authorize migration;
 // a new request must advertise the current source and carry a fresh COOKIE2.
 // RFC requirement: RFC4555-4.2.5-1 positive -- consecutive generated COOKIE2 values
 // differ, and the fresh token remains within the 8..64-octet bounds.
@@ -608,7 +609,7 @@ func TestMobikeAdvertisementAfterSourceChange(t *testing.T) {
 				return
 			}
 			if f.dp.count != 0 {
-				t.Fatal("an answer to the source-ambiguous request authorised migration")
+				t.Fatal("an answer to the source-ambiguous request authorized migration")
 			}
 			fresh := mbReceive(t, f.peerTr)
 			mbEndpoint(t, fresh.RemoteAddr, currentLocal)
@@ -1018,7 +1019,7 @@ func TestMobikeChangedPathStillChecksCookie2(t *testing.T) {
 		t.Fatal("path change let a mismatched COOKIE2 avoid owner-loop teardown")
 	}
 	if f.dp.count != 0 {
-		t.Fatal("path change let a mismatched COOKIE2 authorise migration")
+		t.Fatal("path change let a mismatched COOKIE2 authorize migration")
 	}
 }
 
@@ -1142,7 +1143,7 @@ func TestMobikeAuthRetransmitKeepsProtectedTuple(t *testing.T) {
 		tick <- time.Now()
 		return tick
 	}
-	if err := ps.runInitiator(iniPeer, group, table, nil, nil, log); err != errStopped {
+	if err := ps.runInitiator(iniPeer, group, table, nil, nil, log); !errors.Is(err, errStopped) {
 		t.Fatalf("handshake stop: %v", err)
 	}
 	if round != 2 {

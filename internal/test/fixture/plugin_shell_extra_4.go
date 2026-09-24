@@ -268,7 +268,8 @@ func pluginShellExtra4StartTacacs(ctx context.Context, port, user string, option
 	}
 	addrFile := fmt.Sprintf("tacacs-extra-4-%d.addr", os.Getpid())
 	_ = os.Remove(addrFile)
-	arguments := []string{"--port", port, "--key", "ze-mock-key", "--user", user, "--addr-file", addrFile}
+	arguments := make([]string, 0, 8+len(options))
+	arguments = append(arguments, "--port", port, "--key", "ze-mock-key", "--user", user, "--addr-file", addrFile)
 	arguments = append(arguments, options...)
 	done := make(chan int, 1)
 	go func() { done <- tacacsmock.Run(arguments) }()

@@ -24,7 +24,9 @@ func buildResvConf(msg *ParsedMessage, descriptor *flowDescriptor, origin netip.
 	}
 	encoders = append(encoders,
 		func(b []byte) int { return encodeStyle(b, msg.Style) },
-		func(b []byte) int { return encodeFlowSpecWithRaw(b, ClassFlowSpec, descriptor.FlowSpec, descriptor.FlowSpecRaw) },
+		func(b []byte) int {
+			return encodeFlowSpecWithRaw(b, ClassFlowSpec, descriptor.FlowSpec, descriptor.FlowSpecRaw)
+		},
 	)
 	for _, filter := range descriptor.Filters {
 		encoders = append(encoders, func(b []byte) int { return encodeFilterSpec(b, filter.Filter) })

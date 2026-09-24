@@ -26,7 +26,7 @@ func prepareUsername(value string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid TACACS+ username: %w", err)
 	}
-	if len(username) == 0 {
+	if username == "" {
 		return "", fmt.Errorf("empty TACACS+ username after preparation")
 	}
 	if len(username) > 255 {

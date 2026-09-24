@@ -12,7 +12,7 @@ import (
 // VALIDATES: an SRv6 service route selects IPv6 encapsulation even when its
 // NLRI label field carries transposition bits.
 // PREVENTS: transmitting an MPLS packet with the SID's function as its label.
-// RFC requirement: RFC9252-5-3 positive
+// RFC requirement: RFC9252-5-3 positive.
 func TestSRv6ServiceSIDSelectsIPv6Encapsulation(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8:1:2:abcd::")
 	route, err := buildRichRoute(RichRoute{
@@ -36,7 +36,7 @@ func TestSRv6ServiceSIDSelectsIPv6Encapsulation(t *testing.T) {
 // VALIDATES: ordinary labeled routes retain MPLS encapsulation when no Service
 // SID is present.
 // PREVENTS: treating every NLRI label as transposed SRv6 information.
-// RFC requirement: RFC9252-5-3 negative
+// RFC requirement: RFC9252-5-3 negative.
 func TestRouteWithoutServiceSIDKeepsMPLSEncapsulation(t *testing.T) {
 	route, err := buildRichRoute(RichRoute{
 		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),

@@ -26,40 +26,40 @@ type Protocol uint8
 const (
 	ISISLevel1 Protocol = 1
 	ISISLevel2 Protocol = 2
-	OSPFv2 Protocol = 3
-	Direct Protocol = 4
-	Static Protocol = 5
-	OSPFv3 Protocol = 6
-	BGP Protocol = 7
+	OSPFv2     Protocol = 3
+	Direct     Protocol = 4
+	Static     Protocol = 5
+	OSPFv3     Protocol = 6
+	BGP        Protocol = 7
 )
 
 // Domain distinguishes independently replaceable databases. Instance identifies
 // a source's configured instance; Area identifies an OSPF area or IS-IS level.
 // Identifier is the RFC 9552 routing-universe identifier placed in the NLRI.
 type Domain struct {
-	Protocol Protocol
-	Instance uint64
-	Area uint32
+	Protocol   Protocol
+	Instance   uint64
+	Area       uint32
 	Identifier uint64
 }
 
 // NodeID contains source identity, not a BGP next hop. RouterID holds the IGP
 // router identifier, including the pseudonode suffix when present.
 type NodeID struct {
-	ASN uint32
-	BGPLSID uint32
-	HasBGPLSID bool
-	Area uint32
-	HasArea bool
-	RouterID []byte
-	BGPRouterID netip.Addr
+	ASN           uint32
+	BGPLSID       uint32
+	HasBGPLSID    bool
+	Area          uint32
+	HasArea       bool
+	RouterID      []byte
+	BGPRouterID   netip.Addr
 	Confederation uint32
 }
 
 // TLV is a recognized BGP-LS attribute value translated by the source adapter.
 // Unknown IGP TLVs belong in Opaque with their native provenance instead.
 type TLV struct {
-	Type uint16
+	Type  uint16
 	Value []byte
 }
 
@@ -82,47 +82,47 @@ const (
 
 type Opaque struct {
 	Source Provenance
-	Value []byte
+	Value  []byte
 }
 
 type Node struct {
-	ID NodeID
+	ID         NodeID
 	Attributes []TLV
-	Opaque []Opaque
+	Opaque     []Opaque
 }
 
 // Link.Topologies lists every topology containing this directed link. Empty
 // means the default topology. The exporter emits one NLRI per distinct ID.
 type Link struct {
-	Local NodeID
-	Remote NodeID
-	LocalID uint32
-	RemoteID uint32
-	HasLinkIDs bool
-	LocalAddresses []netip.Addr
+	Local           NodeID
+	Remote          NodeID
+	LocalID         uint32
+	RemoteID        uint32
+	HasLinkIDs      bool
+	LocalAddresses  []netip.Addr
 	RemoteAddresses []netip.Addr
-	Topologies []uint16
-	Attributes []TLV
-	Opaque []Opaque
+	Topologies      []uint16
+	Attributes      []TLV
+	Opaque          []Opaque
 }
 
 // Prefix.Topology is explicit even when the source uses a shared reachability
 // encoding. RouteType is the OSPF Route Type descriptor; zero omits it.
 type Prefix struct {
-	Node NodeID
-	Prefix netip.Prefix
-	Topology uint16
-	RouteType uint8
+	Node       NodeID
+	Prefix     netip.Prefix
+	Topology   uint16
+	RouteType  uint8
 	Attributes []TLV
-	Opaque []Opaque
+	Opaque     []Opaque
 }
 
 // SID describes a native SRv6 endpoint. Attributes include its mandatory
 // Endpoint Behavior TLV and any source-advertised structure or peer attributes.
 type SID struct {
-	Node NodeID
-	SID netip.Addr
-	Topology uint16
+	Node       NodeID
+	SID        netip.Addr
+	Topology   uint16
 	Attributes []TLV
 }
 
@@ -130,12 +130,12 @@ type SID struct {
 // increases across mutations within one running source; zero is allowed on
 // initial publication. Consumers never infer withdrawals from partial batches.
 type Snapshot struct {
-	Domain Domain
+	Domain     Domain
 	Generation uint64
-	Nodes []Node
-	Links []Link
-	Prefixes []Prefix
-	SIDs []SID
+	Nodes      []Node
+	Links      []Link
+	Prefixes   []Prefix
+	SIDs       []SID
 	// Unreachable names originators which native IGP SPF currently determines
 	// are unreachable. Objects remain in this complete LSDB view for consumers
 	// that need database provenance; BGP-LS suppresses their advertisements.

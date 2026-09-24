@@ -23,8 +23,8 @@ const (
 var (
 	mobikeSwanIKE    = regexp.MustCompile(`(?m)^ze: #[0-9]+, ESTABLISHED, IKEv2, ([0-9a-fA-F]{16})_i(\*?) ([0-9a-fA-F]{16})_r(\*?)$`)
 	mobikeSwanChild  = regexp.MustCompile(`(?m)^  ze-child: #[0-9]+, reqid [0-9]+, INSTALLED, TUNNEL(?:-in-UDP)?, ESP:`)
-	mobikeSwanLocal  = regexp.MustCompile(`(?m)^  local  '[^']*' @ ([^\s\[]+)\[([0-9]+)\]`)
-	mobikeSwanRemote = regexp.MustCompile(`(?m)^  remote '[^']*' @ ([^\s\[]+)\[([0-9]+)\]`)
+	mobikeSwanLocal  = regexp.MustCompile(`(?m)^ {2}local {2}'[^']*' @ ([^\s\[]+)\[(\d+)\]`)
+	mobikeSwanRemote = regexp.MustCompile(`(?m)^ {2}remote '[^']*' @ ([^\s\[]+)\[(\d+)\]`)
 )
 
 type mobikeIdentity struct {
@@ -194,16 +194,16 @@ func mobikeZeIdentity(answer, remote string, initiator bool) (mobikeIdentity, er
 	}
 	sa := &records[0]
 	if sa.Peer != swanConfigPeer || sa.State != "established" || sa.Initiator != initiator {
-		return mobikeIdentity{}, fmt.Errorf("Ze IKE SA is not established in the expected role: %s", answer)
+		return mobikeIdentity{}, fmt.Errorf("the ze IKE SA is not established in the expected role: %s", answer)
 	}
 	for _, spi := range []string{sa.InitiatorSPI, sa.ResponderSPI} {
 		value, err := strconv.ParseUint(spi, 16, 64)
 		if err != nil || len(spi) != 16 || value == 0 {
-			return mobikeIdentity{}, fmt.Errorf("Ze reported invalid IKE SPI %q", spi)
+			return mobikeIdentity{}, fmt.Errorf("ze reported invalid IKE SPI %q", spi)
 		}
 	}
 	if sa.Child == nil {
-		return mobikeIdentity{}, fmt.Errorf("Ze has no Child SA: %s", answer)
+		return mobikeIdentity{}, fmt.Errorf("ze has no Child SA: %s", answer)
 	}
 	if sa.Child.InboundSPI == 0 || sa.Child.OutboundSPI == 0 {
 		return mobikeIdentity{}, fmt.Errorf("Ze reported an unkeyed Child SA: %s", answer)

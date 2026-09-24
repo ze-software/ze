@@ -505,10 +505,14 @@ func startRTRTLSPeer(t *testing.T, config *tls.Config) *rtrTLSPeer {
 	if err != nil {
 		t.Fatal(err)
 	}
+	address, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listener address is %T, want *net.TCPAddr", listener.Addr())
+	}
 	peer := &rtrTLSPeer{
 		listener: listener, done: make(chan struct{}),
 		handshakeGate: make(chan *rtrTLSHandshakeGate, 1),
-		port:          uint16(listener.Addr().(*net.TCPAddr).Port), //nolint:gosec // TCP port fits uint16.
+		port:          uint16(address.Port), //nolint:gosec // TCP port fits uint16.
 	}
 	go peer.serve(config)
 	t.Cleanup(func() { peer.stop() })
@@ -564,7 +568,7 @@ func (p *rtrTLSPeer) exchange(conn net.Conn, config *tls.Config) rtrTLSObservati
 	}
 	if config != nil {
 		secure := tls.Server(conn, config)
-		if err := secure.Handshake(); err != nil {
+		if err := secure.HandshakeContext(context.Background()); err != nil {
 			result.err = err
 			return result
 		}

@@ -2,6 +2,7 @@
 package reactor
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -139,7 +141,7 @@ func TestSessionRFC4271RevisedAttributeErrors(t *testing.T) {
 			bad := append(append(append(append([]byte{}, tc.origin...), tc.path...), tc.nextHop...), tc.optional...)
 			for _, attrs := range [][]byte{good, bad, good} {
 				wu := firstASReceive(t, s, client, makeUpdateBody(nil, attrs, prefix))
-				if len(attrs) == len(bad) && string(attrs) == string(bad) {
+				if bytes.Equal(attrs, bad) {
 					require.Equal(t, makeUpdateBody(prefix, nil, nil), wu.Payload())
 				} else {
 					nlri, err := wu.NLRI()

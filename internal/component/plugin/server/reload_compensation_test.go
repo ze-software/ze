@@ -145,7 +145,15 @@ func TestFailedReloadCompensationRetainsRetry(t *testing.T) {
 			reactor := &refusingCompensationReactor{
 				removalRecoveryReactor: removalRecoveryReactor{mockReloadReactor: mockReloadReactor{tree: committed}},
 				refuse: func(tree map[string]any) bool {
-					return reactorFailure && refuse.Load() && tree[root].(map[string]any)["value"] == int64(42)
+					if !reactorFailure || !refuse.Load() {
+						return false
+					}
+					container, ok := tree[root].(map[string]any)
+					if !ok {
+						t.Errorf("candidate %s is %T, want a map", root, tree[root])
+						return false
+					}
+					return container["value"] == int64(42)
 				},
 			}
 			s.reactor = reactor

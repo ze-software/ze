@@ -227,14 +227,14 @@ func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, 
 	// remain a terminal local refusal even when no server is configured.
 	bodyLen, err := marshalBody(buf[hdrLen:])
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
+		return nil, fmt.Errorf("%w: %w", errRequestInvalid, err)
 	}
 	for index, srv := range c.config.Servers {
 		if index > 0 {
 			// The preceding exchange overwrote the plaintext in this buffer.
 			bodyLen, err = marshalBody(buf[hdrLen:])
 			if err != nil {
-				return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
+				return nil, fmt.Errorf("%w: %w", errRequestInvalid, err)
 			}
 		}
 		sessionID, err := randomSessionID()
@@ -327,7 +327,7 @@ func (c *TacacsClient) sendReceive(buf []byte, marshalBody func([]byte) (int, er
 	pkt.Header.SessionID = sessionID
 	bodyLen, err := marshalBody(buf[hdrLen:])
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
+		return nil, fmt.Errorf("%w: %w", errRequestInvalid, err)
 	}
 	pkt.Body = buf[hdrLen : hdrLen+bodyLen]
 	return c.trySend(buf, srv, pkt, false)

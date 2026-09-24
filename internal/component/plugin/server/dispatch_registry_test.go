@@ -322,7 +322,7 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 	require.NoError(t, <-done)
 }
 
-// Cancelling an SDK route push must release the actual registered command,
+// Canceling an SDK route push must release the actual registered command,
 // including the typed selector path; timing out only the caller would leave an
 // old export writing after its collector or configuration was removed.
 func TestUpdateRouteDirectCancellation(t *testing.T) {

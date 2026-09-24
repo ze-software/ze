@@ -7,7 +7,7 @@ import (
 )
 
 // sessionWriteMutex has zero-value mutex semantics and cancellable acquisition.
-// Its token is allocated once per session, never once per message. A cancelled
+// Its token is allocated once per session, never once per message. A canceled
 // waiter never acquires ownership later or interrupts the current writer.
 type sessionWriteMutex struct {
 	once  sync.Once

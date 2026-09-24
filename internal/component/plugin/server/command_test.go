@@ -2814,7 +2814,7 @@ func TestDispatcherRedactsDeniedSecretCommand(t *testing.T) {
 }
 
 // Peer scoping adds a prefix to typed accounting. It must not prevent the
-// schema from recognising an assignment to a credential leaf.
+// schema from recognizing an assignment to a credential leaf.
 func TestPeerScopedAccountingMasksCredential(t *testing.T) {
 	d := NewDispatcher()
 	accountant := &fakeAccountant{}

@@ -4,6 +4,7 @@
 package pppoeclient
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 
@@ -118,7 +119,7 @@ func TestRFC2516ClientRejectsForbiddenLCPOptions(t *testing.T) {
 			if len(opts) != 1 || opts[0].Type != tc.data[0] {
 				t.Fatalf("rejected options = %+v, want option %d", opts, tc.data[0])
 			}
-			if string(opts[0].Data) != string(tc.data[2:]) {
+			if !bytes.Equal(opts[0].Data, tc.data[2:]) {
 				t.Fatalf("rejected data = %x, want %x", opts[0].Data, tc.data[2:])
 			}
 			foundRequest := false

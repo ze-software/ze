@@ -19,7 +19,11 @@ func TestLCPRestartEndsSessionWhenAddressRemovalFails(t *testing.T) {
 	s.ipcpState = LCPStateOpened
 	s.localIPv4 = netip.MustParseAddr("192.0.2.1")
 	s.peerIPv4 = netip.MustParseAddr("192.0.2.2")
-	s.backend.(*fakeBackend).removeAddrErr = net.ErrClosed
+	backend, ok := s.backend.(*fakeBackend)
+	if !ok {
+		t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+	}
+	backend.removeAddrErr = net.ErrClosed
 	stopRelay := relayLifecycleEvents(s)
 	defer stopRelay()
 
@@ -138,7 +142,10 @@ func TestPendingNCPCompletionFollowsLCPLifetime(t *testing.T) {
 					s.echoInterval = time.Hour
 					s.disableIPCP = family != AddressFamilyIPv4
 					s.disableIPv6CP = family != AddressFamilyIPv6
-					backend := s.backend.(*fakeBackend)
+					backend, ok := s.backend.(*fakeBackend)
+					if !ok {
+						t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+					}
 					auth := make(chan AuthEvent, 16)
 					ips := make(chan IPEvent, 4)
 					s.authEventsOut = auth
@@ -316,7 +323,7 @@ func answerLifecycleChallenge(t *testing.T, s *pppSession, peer net.Conn, auth <
 					t.Fatalf("unexpected authentication request: %+v", req)
 				}
 				s.authRespCh <- authResponseMsg{accept: accept, authResponseBlob: make([]byte, mschapv2AuthenticatorResponseLen)}
-				code := uint8(CHAPCodeFailure)
+				code := CHAPCodeFailure
 				if accept {
 					code = CHAPCodeSuccess
 				}
@@ -477,7 +484,10 @@ func TestNCPRepliesCannotCompleteReplacementLifetime(t *testing.T) {
 					s.echoInterval = time.Hour
 					s.disableIPCP = family != AddressFamilyIPv4
 					s.disableIPv6CP = family != AddressFamilyIPv6
-					backend := s.backend.(*fakeBackend)
+					backend, ok := s.backend.(*fakeBackend)
+					if !ok {
+						t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+					}
 					auth := make(chan AuthEvent, 16)
 					ips := make(chan IPEvent, 4)
 					s.authEventsOut = auth
@@ -497,7 +507,7 @@ func TestNCPRepliesCannotCompleteReplacementLifetime(t *testing.T) {
 						t.Fatal("replacement NCP request reused the interrupted request's identifier")
 					}
 
-					code, id, data := uint8(LCPConfigureAck), old.Identifier, old.Data
+					code, id, data := LCPConfigureAck, old.Identifier, old.Data
 					switch reply {
 					case "stale-nak":
 						code = LCPConfigureNak

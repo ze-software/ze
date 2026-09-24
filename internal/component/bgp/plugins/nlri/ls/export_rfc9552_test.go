@@ -19,7 +19,7 @@ import (
 
 type exportCapture struct{ commands []string }
 
-func (c *exportCapture) UpdateRouteWithMeta(_ context.Context, _ string, command string, _ map[string]any) (uint32, uint32, error) {
+func (c *exportCapture) UpdateRouteWithMeta(_ context.Context, _, command string, _ map[string]any) (uint32, uint32, error) {
 	c.commands = append(c.commands, command)
 	if strings.Contains(command, " del ") {
 		return 0, 1, nil

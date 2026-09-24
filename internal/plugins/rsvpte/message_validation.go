@@ -10,17 +10,17 @@ import "fmt"
 // FF: FLOWSPEC FILTER_SPEC LABEL [RRO] [FLOWSPEC] FILTER_SPEC LABEL [RRO] ...
 // SE: FLOWSPEC FILTER_SPEC LABEL [RRO] FILTER_SPEC LABEL [RRO] ...
 type flowDescriptor struct {
-	FlowSpec FlowSpec
+	FlowSpec    FlowSpec
 	FlowSpecRaw []byte
-	Filters []reservationFilter
+	Filters     []reservationFilter
 }
 
 type reservationFilter struct {
-	Filter senderTemplateIPv4
-	Label labelObject
+	Filter   senderTemplateIPv4
+	Label    labelObject
 	HasLabel bool
-	RRO []rroEntry
-	HasRRO bool
+	RRO      []rroEntry
+	HasRRO   bool
 }
 
 func reservationMessage(kind uint8) bool {

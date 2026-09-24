@@ -325,9 +325,10 @@ func TestRFC8907BundleRetirementWaitsForAccountingPair(t *testing.T) {
 	resetAAABundleForTest(t)
 	var closed bool
 	provider := &blockedStartAccountant{
-		infraBootAccountant: infraBootAccountant{name: "old", closed: &closed},
-		entered:             make(chan struct{}),
-		release:             make(chan struct{}),
+		name:    "old",
+		closed:  &closed,
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
 	}
 	swapAAABundle(buildInfraBootBundle(t, &infraBootBackend{
 		name: "old", authenticator: &stubAuthn{}, accountant: provider, closed: &closed,

@@ -64,6 +64,8 @@ func encodeTopology(snapshot *linkstateevents.Snapshot) (map[string]exportedRout
 				unreachable[nativeOrigin(id)] = struct{}{}
 			}
 		}
+	default:
+		// Direct, static and BGP domains report no unreachable IGP nodes.
 	}
 	excluded := func(id linkstateevents.NodeID) bool {
 		if len(unreachable) == 0 {

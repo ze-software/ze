@@ -61,7 +61,7 @@ func bgplsExportLifecycle(ctx context.Context, p *sdk.Plugin) error {
 			return lastErr == nil && number07(row["eor-sent"]) == 1 && number07(row["updates-sent"]) >= step.updates
 		}) {
 			database := command07(ctx, p, "show isis database detail")
-			return fmt.Errorf("native topology lifecycle did not reach UPDATE %d: peer=%v error=%v; IS-IS database status=%s data=%v error=%v", step.updates, row, lastErr, database.status, database.data, database.err)
+			return fmt.Errorf("native topology lifecycle did not reach UPDATE %d: peer=%v error=%v; IS-IS database status=%s data=%v error=%v", step.updates, row, lastErr, database.status, database.data, database.err) //nolint:errorlint // Either poll error may be nil here; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.
 		}
 		if got := number07(row["updates-sent"]); got != step.updates {
 			return fmt.Errorf("native topology lifecycle sent %d UPDATEs, want %d", got, step.updates)
@@ -103,7 +103,7 @@ func bgplsReload(ctx context.Context, p *sdk.Plugin, source string) error {
 		status, result, err = dispatchMap(ctx, p, "show reload-status")
 		return err == nil && status == statusDone && int64(number07(result["generation"])) > baseline
 	}) {
-		return fmt.Errorf("%s: reload did not complete after generation %d: status=%s data=%v error=%v", source, baseline, status, result, err)
+		return fmt.Errorf("%s: reload did not complete after generation %d: status=%s data=%v error=%v", source, baseline, status, result, err) //nolint:errorlint // The last poll error may be nil here; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.
 	}
 	if result["last-outcome"] != "applied" {
 		return fmt.Errorf("%s: reload was not applied: %v", source, result)

@@ -314,7 +314,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		UnitFD:          unitFD,
 		UnitNum:         unitNum,
 		LNSMode:         true,
-		PPPoE:          true,
+		PPPoE:           true,
 		AuthMethod:      s.authMethod,
 		AuthRequired:    s.authRequired,
 		MaxMRU:          PPPoEMaxMTU,

@@ -486,7 +486,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 		unitFD:               start.UnitFD,
 		unitNum:              start.UnitNum,
 		lnsMode:              start.LNSMode,
-		pppoe:               start.PPPoE,
+		pppoe:                start.PPPoE,
 		maxMRU:               maxMRU,
 		echoInterval:         start.EchoInterval,
 		echoFailures:         start.EchoFailures,

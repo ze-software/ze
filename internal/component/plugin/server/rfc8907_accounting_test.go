@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"slices"
 	"testing"
@@ -42,7 +43,7 @@ func TestRFC8907TypedDispatchAccountsDeniedCommand(t *testing.T) {
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 	args := []string{"two words", `quote"inside`, `slash\inside`}
 	_, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", args, "*")
-	if err != ErrUnauthorized {
+	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("dispatch error = %v, want denial", err)
 	}
 	want := [][]string{{"request", "target", "echo", "two words", `quote"inside`, `slash\inside`}}

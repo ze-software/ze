@@ -96,7 +96,7 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 // handlePass obtains the session policy before granting profiles. PAP reply
 // data is not a privilege assignment: RFC 8907 Section 9 states, "This privilege
 // level is returned by the server in a session-based shell authorization (when
-// \"service\" equals \"shell\" and \"cmd\" is empty)."
+// \"service\" equals \"shell\" and \"cmd\" is empty).".
 func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest) (aaa.AuthResult, error) {
 	args := []string{"service=shell", "cmd="}
 	reply, err := a.client.SendAuthorization(&AuthorRequest{
@@ -165,7 +165,7 @@ func parsePrivLvl(value string) (int, bool) {
 	// RFC 8907 Section 8.1: "All arguments include a length field, and
 	// TACACS+ implementations MUST verify that they can accommodate the
 	// lengths of numeric arguments before attempting to process them."
-	if len(value) == 0 || len(value) > 2 {
+	if value == "" || len(value) > 2 {
 		return 0, false
 	}
 	level := 0

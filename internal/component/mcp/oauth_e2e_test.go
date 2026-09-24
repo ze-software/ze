@@ -937,7 +937,7 @@ func TestRFC8414JWKSMetadataSecurity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rsa: %v", err)
 	}
-	for _, scenario := range []string{"labelled keys", "missing use", "HTTP keys", "redirect to HTTP"} {
+	for _, scenario := range []string{"labeled keys", "missing use", "HTTP keys", "redirect to HTTP"} {
 		t.Run(scenario, func(t *testing.T) {
 			var plainHits atomic.Int64
 			plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -979,7 +979,7 @@ func TestRFC8414JWKSMetadataSecurity(t *testing.T) {
 				AuthMode: AuthOAuth,
 				OAuth:    OAuthConfig{AuthorizationServer: issuer, Audience: "https://mcp.example/mcp"},
 			})
-			if scenario != "labelled keys" {
+			if scenario != "labeled keys" {
 				if s != nil {
 					s.Close()
 					t.Fatal("unsafe metadata returned a server")

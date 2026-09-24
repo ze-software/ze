@@ -246,7 +246,7 @@ func (v *Validator) validateYangType(path string, yangType *yang.YangType, value
 // of decimal digits." A sequence holds at least one digit, so RFC 7950
 // Section 9.3.2: "there MUST be at least one digit before and after the
 // decimal point".
-var decimal64Lexical = regexp.MustCompile(`^[+-]?[0-9]+(\.[0-9]+)?$`)
+var decimal64Lexical = regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
 
 // validateDecimal64 validates a decimal64 value: its lexical form, its
 // fraction digits against the type's fraction-digits, and its value against

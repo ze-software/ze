@@ -162,7 +162,7 @@ func waitVirtualLink(ctx context.Context, lab interoplab.CheckerLab, remote stri
 			return observation.Neighbor.Address == address
 		})
 	if err != nil {
-		return observation, fmt.Errorf("%w; last completed probe error: %v; last virtual-link observation: %+v", err, lastProbeError, observation)
+		return observation, fmt.Errorf("%w; last completed probe error: %v; last virtual-link observation: %+v", err, lastProbeError, observation) //nolint:errorlint // The last probe error may be nil here; %w would print %!w(<nil>), and it is diagnostic context, not a cause a caller unwraps.
 	}
 	return observation, nil
 }

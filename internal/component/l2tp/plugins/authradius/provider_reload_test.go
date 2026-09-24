@@ -3,6 +3,7 @@ package l2tpauthradius
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -95,7 +96,7 @@ func TestRegisteredRadiusExternalStartupRefused(t *testing.T) {
 	}
 	var first [1]byte
 	n, err := engineEnd.Read(first[:])
-	if n != 0 || err != io.EOF {
+	if n != 0 || !errors.Is(err, io.EOF) {
 		t.Errorf("external provider started RPC instead of refusing startup: bytes=%d error=%v", n, err)
 	}
 	_ = engineEnd.Close()

@@ -855,7 +855,7 @@ func TestOSPFDDRejectedBeforeShouldAdj(t *testing.T) {
 				t.Fatalf("state = %s, want %s", snap.State, want)
 			}
 			if len(sender.sent) != 0 {
-				t.Fatalf("non-adjacent neighbour emitted %d packets", len(sender.sent))
+				t.Fatalf("non-adjacent neighbor emitted %d packets", len(sender.sent))
 			}
 		})
 	}

@@ -174,7 +174,8 @@ func TestBackupReplyAcceptsOnlyKnownMergePointAddresses(t *testing.T) {
 	reply(alias, 21000)
 	assert.Equal(t, []uint32{5000, 21000}, fib.backups[len(fib.backups)-1].out)
 	errRaw := buildPathErr(psb.Session, filter, psb.SenderTSpec,
-		errorSpec{ErrorNode: selected.TunnelEndpoint, ErrorCode: ErrCodeRoutingProblem}, selected.TunnelEndpoint)
+		errorSpec{ErrorNode: selected.TunnelEndpoint, ErrorCode: ErrCodeRoutingProblem})
+
 	e.handlePacket(Packet{Src: alias, Payload: errRaw})
 	pathErr, dst, ok := ft.lastByType(MsgTypePathErr)
 	require.True(t, ok)

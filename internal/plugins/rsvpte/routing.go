@@ -7,8 +7,8 @@ import (
 )
 
 type pathSelection struct {
-	Route RouteInfo
-	ERO []eroHop
+	Route      RouteInfo
+	ERO        []eroHop
 	ErrorValue uint16
 }
 

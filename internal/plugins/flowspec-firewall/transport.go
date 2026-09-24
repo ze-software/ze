@@ -19,6 +19,8 @@ func transportProtocols(fs *flowspec.FlowSpec, current []firewall.MatchProtocol)
 			tcp = true
 		case flowspec.FlowICMPType, flowspec.FlowICMPCode:
 			icmp = true
+		default:
+			// Other components do not constrain the transport protocol.
 		}
 	}
 	if !ports && !tcp && !icmp {
@@ -90,6 +92,8 @@ func tcpFlagsMatch(comp flowspec.FlowComponent) (firewall.MatchTCPFlags, error) 
 			return firewall.MatchTCPFlags{Flags: flags, Mask: flags}, nil
 		}
 		return firewall.MatchTCPFlags{Mask: flags}, nil
+	default:
+		// No other operator reduces to one masked equality, so the refusal below answers it.
 	}
 	return firewall.MatchTCPFlags{}, fmt.Errorf("%w: tcp-flags bitmask cannot be represented exactly", errUnsupportedComponent)
 }

@@ -137,7 +137,9 @@ func buildPath(psb *pathStateBlock, hop netip.Addr, ttl uint8) []byte {
 	}
 	encoders = append(encoders,
 		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
-		func(b []byte) int { return encodeFlowSpecWithRaw(b, ClassSenderTSpec, psb.SenderTSpec, psb.SenderTSpecRaw) },
+		func(b []byte) int {
+			return encodeFlowSpecWithRaw(b, ClassSenderTSpec, psb.SenderTSpec, psb.SenderTSpecRaw)
+		},
 	)
 	if len(psb.Adspec) > 0 {
 		encoders = append(encoders, func(b []byte) int { return encodeOpaqueObject(b, psb.Adspec) })
@@ -197,12 +199,15 @@ func buildResv(rsb *resvStateBlock, filter senderTemplateIPv4, refresh time.Dura
 // SESSION, RSVP_HOP and the sender descriptor so the path state is removed
 // hop-by-hop downstream.
 func buildPathTear(psb *pathStateBlock, hop netip.Addr) []byte {
-	encoders := []objEncoder{
+	encoders := make([]objEncoder, 0, 4+len(psb.ForwardObjects))
+	encoders = append(encoders,
 		func(b []byte) int { return encodeSessionIPv4(b, psb.Session) },
 		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
 		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
-		func(b []byte) int { return encodeFlowSpecWithRaw(b, ClassSenderTSpec, psb.SenderTSpec, psb.SenderTSpecRaw) },
-	}
+		func(b []byte) int {
+			return encodeFlowSpecWithRaw(b, ClassSenderTSpec, psb.SenderTSpec, psb.SenderTSpecRaw)
+		},
+	)
 	for _, raw := range psb.ForwardObjects {
 		encoders = append(encoders, func(b []byte) int { return encodeOpaqueObject(b, raw) })
 	}
@@ -214,13 +219,14 @@ func buildPathTear(psb *pathStateBlock, hop netip.Addr) []byte {
 // RFC 2205 Section 3.1.3: SESSION, ERROR_SPEC, then the sender descriptor. Like
 // buildResv/buildPathTear it uses defaultIPTTL: a PathErr is addressed to the
 // previous hop, not per-hop TTL-stepped.
-func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, hop netip.Addr, forward ...[]byte) []byte {
-	encoders := []objEncoder{
+func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, forward ...[]byte) []byte {
+	encoders := make([]objEncoder, 0, 4+len(forward))
+	encoders = append(encoders,
 		func(b []byte) int { return encodeSessionIPv4(b, session) },
 		func(b []byte) int { return encodeErrorSpec(b, es) },
 		func(b []byte) int { return encodeSenderTemplate(b, sender) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, tspec) },
-	}
+	)
 	for _, raw := range forward {
 		encoders = append(encoders, func(b []byte) int { return encodeOpaqueObject(b, raw) })
 	}
@@ -281,16 +287,16 @@ func encodeFlowSpecWithRaw(buf []byte, class uint8, fs FlowSpec, raw []byte) int
 // bandwidth; RoutingProblem (with BadEROObject) reports an ERO that cannot be
 // satisfied at a transit node.
 const (
-	ErrCodeAdmissionControlFailure uint8  = 1
+	ErrCodeAdmissionControlFailure uint8 = 1
 	// RFC 2205 Appendix B: "Error Code = 02: Policy Control failure".
-	ErrCodePolicyControlFailure    uint8  = 2
-	ErrValueRequestedBandwidth     uint16 = 2
-	ErrCodeRoutingProblem          uint8  = 24
+	ErrCodePolicyControlFailure uint8  = 2
+	ErrValueRequestedBandwidth  uint16 = 2
+	ErrCodeRoutingProblem       uint8  = 24
 	// RFC 3209 Section 4.6: Routing Problem error values 1 through 4.
-	ErrValueBadEROObject           uint16 = 1
-	ErrValueBadStrictNode          uint16 = 2
-	ErrValueBadLooseNode           uint16 = 3
-	ErrValueBadInitialSubobject    uint16 = 4
+	ErrValueBadEROObject        uint16 = 1
+	ErrValueBadStrictNode       uint16 = 2
+	ErrValueBadLooseNode        uint16 = 3
+	ErrValueBadInitialSubobject uint16 = 4
 	// ErrValueNoRouteAvailable reports that the path toward the destination is
 	// gone (e.g. a link on the LSP failed) -- RFC 3209 Section 4.3.5 value 5.
 	ErrValueNoRouteAvailable uint16 = 5
@@ -304,12 +310,12 @@ const (
 	// RFC 2205 sends it only when the message is rejected, as the high-order bits
 	// of the Class-Num decide. RFC 4090 Section 4.2 requires this PathErr from an
 	// LSR that does not support the DETOUR object.
-	ErrCodeUnknownObjectClass uint8 = 13
-	ErrCodeUnknownCType uint8 = 14
-	ErrCodeNoPath uint8 = 3
-	ErrCodeNoSender uint8 = 4
-	ErrCodeConflictingStyle uint8 = 5
-	ErrCodeUnknownStyle uint8 = 6
+	ErrCodeUnknownObjectClass   uint8 = 13
+	ErrCodeUnknownCType         uint8 = 14
+	ErrCodeNoPath               uint8 = 3
+	ErrCodeNoSender             uint8 = 4
+	ErrCodeConflictingStyle     uint8 = 5
+	ErrCodeUnknownStyle         uint8 = 6
 	ErrCodeTrafficControlSystem uint8 = 22
-	ErrFlagInPlace uint8 = 1
+	ErrFlagInPlace              uint8 = 1
 )

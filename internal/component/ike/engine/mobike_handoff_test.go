@@ -69,10 +69,8 @@ func TestMobikeInitialResponsesUseReceivedDestination(t *testing.T) {
 				pkt := mbReceive(t, serverTr)
 				if attempt == 1 && mode == "success" {
 					routeInbound(ps.getSA(), pkt, table, serverTr, log)
-				} else {
-					if !tryResponderSAInit(pkt, ini.InitiatorSPI, [8]byte{}, table, serverTr, log) {
-						t.Fatal("initial request was not consumed")
-					}
+				} else if !tryResponderSAInit(pkt, ini.InitiatorSPI, [8]byte{}, table, serverTr, log) {
+					t.Fatal("initial request was not consumed")
 				}
 				answer := mbReceive(t, peerTr)
 				mbEndpoint(t, answer.RemoteAddr, local)

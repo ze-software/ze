@@ -11,6 +11,7 @@ func TestVirtualLinkMetricsRequireEndpointEvidence(t *testing.T) {
 	t.Parallel()
 	for _, v6 := range []bool{false, true} {
 		t.Run(fmt.Sprint(v6), func(t *testing.T) {
+			t.Parallel()
 			prefix, label := "ze_ospf", "neighbor"
 			changes := "ze_ospf_virtual_link_adjacency_changes_total"
 			changesLabels := `transit_area="0.0.0.1",neighbor="172.30.0.3"`
@@ -66,6 +67,7 @@ func TestVirtualLinkContinuityRejectsRecoveredFlap(t *testing.T) {
 		{"new interface", func(o *virtualLinkObservation) { o.Neighbor.Interface = "replacement" }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			changed := after
 			test.change(&changed)
 			if err := requireVirtualLinkContinuity(before, changed); err == nil {
@@ -93,6 +95,7 @@ func TestVirtualLinkKernelRouteRequiresIntermediateGateway(t *testing.T) {
 		{"covering route", `[{"dst":"10.200.0.0/16","gateway":"10.200.0.2","dev":"eth1"}]`, false, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			present, err := virtualLinkKernelRoutePresent(test.answer, prefix, gateway)
 			if (err == nil) != test.valid {
 				t.Fatalf("route evidence error = %v, valid = %v", err, test.valid)
@@ -118,6 +121,7 @@ func TestVirtualLinkBIRDRouteRequiresExactOSPFRoute(t *testing.T) {
 		{"prefix only in attributes", "2001:db8:20::1/128 unicast [vlink_ospf 12:00:00] * I (150/20)\n\tvia 2001:db8:10::1/128", false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if present := virtualLinkBIRDRoutePresent(test.answer); present != test.present {
 				t.Fatalf("backbone route present = %v, want %v", present, test.present)
 			}

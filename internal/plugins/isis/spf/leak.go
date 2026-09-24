@@ -152,7 +152,7 @@ func leakInto(src *Result, g *Graph, setDownBit, v6 bool) []LeakedPrefix {
 			// (down) bit MUST NOT be re-leaked back up, and re-leaking it down is
 			// pointless churn -- skip it in both directions so the leak is a
 			// one-pass fixpoint.
-			if p.UpDown && !(p.Narrow && src.Level == Level2) {
+			if p.UpDown && (!p.Narrow || src.Level != Level2) {
 				continue
 			}
 			total := clampMetric(nr.Metric, uint64(p.Metric))

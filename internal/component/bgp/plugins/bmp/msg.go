@@ -327,7 +327,7 @@ func decodeStatisticsReport(buf []byte, off, end int) (*statisticsReport, error)
 		return nil, fmt.Errorf("%w: stats count %d exceeds message", errShortMsg, count)
 	}
 	stats := make([]StatEntry, 0, int(count))
-	for i := uint32(0); i < count; i++ {
+	for i := range count {
 		if end-off < TLVHeaderSize {
 			return nil, fmt.Errorf("%w: stat entry %d truncated", errShortMsg, i)
 		}

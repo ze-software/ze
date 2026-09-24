@@ -27,7 +27,7 @@ type rtrTLSSettings struct {
 
 // rtrServerName is a DNS reference identifier, never the endpoint's IP address.
 // RFC 8210 Section 9.2: "The client router MUST set its 'reference identifier'
-// to the DNS name of the rpki-rtr cache."
+// to the DNS name of the rpki-rtr cache.".
 func rtrServerName(name string) (string, error) {
 	name = strings.TrimSuffix(name, ".")
 	ascii, err := idna.Lookup.ToASCII(name)
@@ -44,7 +44,7 @@ func rtrServerName(name string) (string, error) {
 		return "", errors.New("rtr: cache DNS reference name exceeds 253 bytes")
 	}
 	for label := range strings.SplitSeq(ascii, ".") {
-		if len(label) == 0 || len(label) > 63 {
+		if label == "" || len(label) > 63 {
 			return "", errors.New("rtr: cache DNS reference labels must contain 1 to 63 bytes")
 		}
 	}

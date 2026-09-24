@@ -17,7 +17,7 @@ type kernelSetupEvent struct {
 	// Session identification.
 	localSID  uint16
 	remoteSID uint16
-	session *L2TPSession // identity retained across asynchronous setup
+	session   *L2TPSession // identity retained across asynchronous setup
 
 	// UDP socket fd for L2TP_CMD_TUNNEL_CREATE. Obtained from the
 	// listener's SocketFD() method.
@@ -72,7 +72,7 @@ type kernelSetupSucceeded struct {
 	sequencing bool
 	fds        pppSessionFDs
 	// owner identifies this exact setup, not merely a reused tunnel/session ID.
-	owner *pppSessionFDs
+	owner   *pppSessionFDs
 	session *L2TPSession
 
 	// RFC 2661 Section 18: proxy LCP AVPs sourced from L2TPSession at the

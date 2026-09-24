@@ -67,7 +67,7 @@ func virtualRouterMetric(t *testing.T, eng *engine, peer types.RouterID) (uint16
 // in the backbone Router-LSA without recreating the adjacency.
 // RFC requirement: RFC4577-4.1.4-2 positive -- an ordinary CE can establish its
 // backbone adjacency over a virtual link; real Hello/DD ingress reaches Full and
-// the backbone Router-LSA advertises the virtual neighbour.
+// the backbone Router-LSA advertises the virtual neighbor.
 func TestRFC2328VirtualCostChangeReoriginatesBackbone(t *testing.T) {
 	eng, backend, result := virtualRouteEngine(t)
 	name := establishVirtualRoute(t, eng, backend, result)

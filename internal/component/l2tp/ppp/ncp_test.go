@@ -299,7 +299,7 @@ func ipv6cpInterfaceIDOption(id [ipv6cpInterfaceIDLen]byte) []byte {
 //
 // RFC requirement: RFC1877-x-1 positive -- IPv4 negotiation completes when the
 // peer requests the configured DNS addresses and when it requests only an
-// IP address. RFC 1877 Section 1.1: "By default, no primary DNS address is provided."
+// IP address. RFC 1877 Section 1.1: "By default, no primary DNS address is provided.".
 func TestIPCPDNSIsOptional(t *testing.T) {
 	t.Run("requested DNS addresses", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})

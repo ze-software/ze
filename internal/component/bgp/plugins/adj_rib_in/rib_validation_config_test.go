@@ -174,10 +174,11 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 				bridge.SetReady()
 				r := newTestManager(t)
 				r.plugin = plugin
-				if ownership == "route-server" {
+				switch ownership {
+				case "route-server":
 					_, _, err := r.handleCommand("request bgp adj-rib-in claim-replay", nil, "")
 					require.NoError(t, err)
-				} else if ownership == "route-reflector" || ownership == "unheld-reflector" {
+				case "route-reflector", "unheld-reflector":
 					// Feed the real RR registration through the same claim
 					// decision used during the Stage-2 configure callback.
 					claims := registry.ClaimsFor("bgp-rr")

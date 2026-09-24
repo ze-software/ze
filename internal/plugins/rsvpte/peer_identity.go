@@ -16,7 +16,7 @@ type peerDomain struct {
 
 type peerIdentity struct {
 	sync.RWMutex
-	local []InterfaceAddress
+	local   []InterfaceAddress
 	domains map[peerDomain]map[netip.Addr]map[netip.Addr]struct{}
 }
 

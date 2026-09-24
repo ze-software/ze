@@ -54,7 +54,11 @@ func TestTreeFromPluginMapPreservesDeliveredOrder(t *testing.T) {
 		if got, ok := rules[1].Value.Get("action"); !ok || got != "allow" {
 			t.Fatalf("wire=%t: scalar action changed: %q, present=%t", wire, got, ok)
 		}
-		entries, err := configorder.Entries(restored.ToPluginMap()["policy"].(map[string]any), "rule", "name")
+		policy, ok := restored.ToPluginMap()["policy"].(map[string]any)
+		if !ok {
+			t.Fatalf("wire=%t: policy is not a map: %#v", wire, restored.ToPluginMap()["policy"])
+		}
+		entries, err := configorder.Entries(policy, "rule", "name")
 		if err != nil {
 			t.Fatal(err)
 		}

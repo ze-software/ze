@@ -247,7 +247,7 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 	switch routeType {
 	case routeTypeToken1:
 		if len(p.labels) > 1 {
-			return nil, errors.New("Ethernet A-D requires exactly one label field")
+			return nil, errors.New("an Ethernet A-D route requires exactly one label field")
 		}
 		var label uint32
 		if len(p.labels) == 1 {
@@ -270,7 +270,7 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 		return NewEVPNType3(p.rd, p.ethernetTag, p.ip), nil
 	case routeTypeToken4:
 		if !p.ip.IsValid() {
-			return nil, errors.New("Ethernet Segment route requires an originating router IP")
+			return nil, errors.New("an Ethernet Segment route requires an originating router IP")
 		}
 		return NewEVPNType4(p.rd, p.esi, p.ip), nil
 	case routeTypeToken5:

@@ -366,6 +366,8 @@ func (a *bgplsArea) indexV2(views []ospflsdb.NativeLSAView) {
 			if _, err := packet.DecodeNetworkLSA(v.Body); err == nil {
 				a.v2Networks[v.LinkStateID] = v
 			}
+		default:
+			// Other LSA types carry no topology this index reads.
 		}
 	}
 }
@@ -459,7 +461,7 @@ func bgplsMetric(attrs *[]linkstateevents.TLV, typ uint16, metric uint32) {
 	bgplsAttribute(attrs, typ, value[:])
 }
 
-func bgplsV4Prefix(id [4]byte, mask [4]byte) (netip.Prefix, bool) {
+func bgplsV4Prefix(id, mask [4]byte) (netip.Prefix, bool) {
 	value := binary.BigEndian.Uint32(mask[:])
 	length := bits.OnesCount32(value)
 	if value != ^uint32(0)<<(32-length) {
@@ -547,6 +549,8 @@ func (a *bgplsArea) v2(v *ospflsdb.NativeLSAView, views []ospflsdb.NativeLSAView
 		case packet.ExtLinkOpaqueType:
 			a.extendedV2Link(v, views)
 		}
+	default:
+		// Other LSA types carry no BGP-LS topology.
 	}
 }
 
@@ -1109,6 +1113,8 @@ func (a *bgplsArea) extendedV3(v *ospflsdb.NativeLSAView, id linkstateevents.Nod
 		offset = 4
 	case v3types.LSTypeEIntraAreaPrefix:
 		offset = 12
+	default:
+		// Every other type decodes its TLV stream from offset zero.
 	}
 	if len(v.Body) < offset {
 		return
@@ -1272,7 +1278,7 @@ func (a *bgplsArea) resolveV3Links(views []ospflsdb.NativeLSAView) {
 	interfaces := make(map[interfaceKey]interfaceData)
 	for i := range views {
 		v := &views[i]
-		if v.Age >= uint16(types.MaxAge) || binary.BigEndian.Uint32(v.Area[:]) != a.snapshot.Domain.Area {
+		if v.Age >= types.MaxAge || binary.BigEndian.Uint32(v.Area[:]) != a.snapshot.Domain.Area {
 			continue
 		}
 		key := interfaceKey{router: v.AdvertisingRouter, id: binary.BigEndian.Uint32(v.LinkStateID[:])}
@@ -1325,6 +1331,8 @@ func (a *bgplsArea) resolveV3Links(views []ospflsdb.NativeLSAView) {
 				data.addresses = interfaces[key].addresses
 			}
 			interfaces[key] = data
+		default:
+			// Other LSA types carry no interface address or TLV data.
 		}
 	}
 	for i := range a.snapshot.Links {

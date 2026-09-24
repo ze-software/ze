@@ -409,8 +409,8 @@ func TestRFC1661RepeatedOptionDrawsOneNakEntry(t *testing.T) {
 func TestLCPRepliesMatchOutstandingRequest(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name string
-		code uint8
+		name       string
+		code       uint8
 		breakReply func(*LCPPacket)
 	}{
 		{"Ack wrong Identifier", LCPConfigureAck, func(p *LCPPacket) { p.Identifier++ }},
@@ -435,6 +435,7 @@ func TestLCPRepliesMatchOutstandingRequest(t *testing.T) {
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			s, rec, _ := newRFC1661Session(LCPStateReqSent)
 			if !s.sendConfigureRequest() {
 				t.Fatal("initial request failed")

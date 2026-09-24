@@ -57,8 +57,8 @@ const (
 	ClassLabelRequest   uint8 = 19
 	ClassLabel          uint8 = 16
 	ClassSessionAttr    uint8 = 207
-	ClassResvConfirm uint8 = 15 // RFC 2205 Section A.14: reservation-confirmation receiver.
-	ClassAdspec      uint8 = 13 // RFC 2210 Section 3.3: IntServ path characterization.
+	ClassResvConfirm    uint8 = 15 // RFC 2205 Section A.14: reservation-confirmation receiver.
+	ClassAdspec         uint8 = 13 // RFC 2210 Section 3.3: IntServ path characterization.
 	// RFC 4090 Section 4: Fast Reroute object classes.
 	ClassFastReroute uint8 = 205
 	ClassDetour      uint8 = 63
@@ -76,10 +76,10 @@ const (
 // multiple of 4. A NULL object may appear anywhere in a sequence of objects,
 // and its contents will be ignored by the receiver.".
 const (
-	ClassNull        uint8 = 0  // RFC 2205 Section 3.1: padding; its contents are ignored.
-	ClassIntegrity   uint8 = 4  // RFC 2205 Section A.3: ze implements no RSVP authentication.
-	ClassScope       uint8 = 7  // RFC 2205 Section A.6: WF style only; ze signals FF and SE LSPs.
-	ClassPolicyData  uint8 = 14 // RFC 2205 Section A.13: ze runs no policy module.
+	ClassNull       uint8 = 0  // RFC 2205 Section 3.1: padding; its contents are ignored.
+	ClassIntegrity  uint8 = 4  // RFC 2205 Section A.3: ze implements no RSVP authentication.
+	ClassScope      uint8 = 7  // RFC 2205 Section A.6: WF style only; ze signals FF and SE LSPs.
+	ClassPolicyData uint8 = 14 // RFC 2205 Section A.13: ze runs no policy module.
 )
 
 // classNumIgnoreBit is the high-order bit of the Class-Num. RFC 2205 Section
@@ -183,7 +183,7 @@ var (
 	errShortRRO     = errors.New("rsvp: RRO subobject too short")
 	errBadBandwidth = errors.New("rsvp: invalid token rate")
 	errObjectAbsent = errors.New("rsvp: mandatory object absent")
-	errBadChecksum = errors.New("rsvp: invalid checksum")
+	errBadChecksum  = errors.New("rsvp: invalid checksum")
 )
 
 // Header is the RSVP common header (RFC 2205 Section 3.1).
@@ -763,11 +763,11 @@ func decodeFlowSpec(body []byte) (FlowSpec, error) {
 				binary.BigEndian.Uint16(body[off+6:off+8]) != 5 {
 				return fs, errIntserv
 			}
-			current.TokenRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+8:off+12]))
-			current.TokenBucket = math.Float32frombits(binary.BigEndian.Uint32(body[off+12:off+16]))
-			current.PeakRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+16:off+20]))
-			current.MinPolicedUnit = binary.BigEndian.Uint32(body[off+20:off+24])
-			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+24:off+28])
+			current.TokenRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+8 : off+12]))
+			current.TokenBucket = math.Float32frombits(binary.BigEndian.Uint32(body[off+12 : off+16]))
+			current.PeakRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+16 : off+20]))
+			current.MinPolicedUnit = binary.BigEndian.Uint32(body[off+20 : off+24])
+			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+24 : off+28])
 			if current.TokenRate < 0 || math.IsNaN(float64(current.TokenRate)) ||
 				math.IsInf(float64(current.TokenRate), 0) {
 				return fs, errBadBandwidth
@@ -777,7 +777,7 @@ func decodeFlowSpec(body []byte) (FlowSpec, error) {
 				binary.BigEndian.Uint16(body[off+6:off+8]) != 1 {
 				return fs, errIntserv
 			}
-			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+8:off+12])
+			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+8 : off+12])
 		default:
 			return fs, errIntserv
 		}
@@ -859,7 +859,7 @@ type ParsedMessage struct {
 	AdspecRaw      []byte
 	SenderTSpecRaw []byte
 	// ForwardObjects retains unknown 11bbbbbb classes and opaque POLICY_DATA.
-	ForwardObjects [][]byte
+	ForwardObjects  [][]byte
 	FlowDescriptors []flowDescriptor
 	// PathMTU comes only from a usable ADSPEC, including its service override.
 	// Zero means no complete advertisement. The value includes MPLS labels.
@@ -877,8 +877,8 @@ type ParsedMessage struct {
 	HasStyle          bool
 	HasFastReroute    bool
 	HasSessionAttr    bool
-	HasResvConfirm bool
-	HasAdspec bool
+	HasResvConfirm    bool
+	HasAdspec         bool
 
 	// UnknownObject is the header of the first object whose class ze does not
 	// implement and whose Class-Num high-order bit is zero. RFC 2205 Section 3.10
@@ -888,7 +888,7 @@ type ParsedMessage struct {
 	// SENDER_TEMPLATE that follow it to address the error message.
 	UnknownObject    objectHeader
 	HasUnknownObject bool
-	UnknownCType bool
+	UnknownCType     bool
 }
 
 // classifyUnknownClass reports whether an object of this class, for which

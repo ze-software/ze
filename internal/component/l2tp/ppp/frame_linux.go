@@ -25,4 +25,3 @@ func NewFDFile(fd int, name string) io.ReadWriteCloser {
 	unix.SetNonblock(fd, false) //nolint:errcheck // best-effort
 	return os.NewFile(uintptr(fd), name)
 }
-

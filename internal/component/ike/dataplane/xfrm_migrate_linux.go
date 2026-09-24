@@ -29,7 +29,7 @@ import (
 //	56..63   old mark              64..119  unchanged xfrm_selector
 //
 // 120..123  unchanged reqid      124..127  flags (zero)
-// 128..129  new family           130..131  reserved (zero)
+// 128..129  new family           130..131  reserved (zero).
 const (
 	xfrmMsgMigrateState = 0x29
 	xfrmMigrateStateLen = 132

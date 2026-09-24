@@ -528,7 +528,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	// RFC 4555 Section 3.9 protects the first AUTH independently of whether the
 	// peer advertises MOBIKE. An absent capability cannot waive local NAT policy.
 	if sa.PeerCfg.ProhibitNAT && (sa.NATDetected || notifyOf(inner, wire.NotifyNoNATsAllowed) == nil) {
-		notify := uint16(wire.NotifyAuthenticationFailed)
+		notify := wire.NotifyAuthenticationFailed
 		// RFC 7296 Section 2.21.2 forbids fatal extension errors until the
 		// peer has shown it understands them. Either RFC 4555 notification
 		// demonstrates that understanding; policy alone cannot manufacture it.

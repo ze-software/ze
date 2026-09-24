@@ -24,10 +24,10 @@ const (
 // LCP option header: Type + Length. Length is the TOTAL option length
 // including the two header bytes. RFC 1661 Section 6.
 //
-// Byte offset: 0       1          2
-//             +-------+----------+----------------------+
-//             | Type  | Length   | Data (Length - 2)    |
-//             +-------+----------+----------------------+
+//	0       1          2   (byte offset)
+//	+-------+----------+----------------------+
+//	| Type  | Length   | Data (Length - 2)    |
+//	+-------+----------+----------------------+
 const lcpOptHeaderLen = 2
 
 // errOptionTooShort means a buffer cannot fit even the option header, so

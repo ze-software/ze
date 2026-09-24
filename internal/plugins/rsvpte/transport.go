@@ -27,11 +27,11 @@ type Packet struct {
 // Lookup is the native route's lookup destination; IfIndex pins its output link.
 type PathRoute struct {
 	Destination netip.Addr
-	Source netip.Addr
-	NextHop netip.Addr
-	TableID uint32
-	IfIndex int
-	Lookup netip.Addr
+	Source      netip.Addr
+	NextHop     netip.Addr
+	TableID     uint32
+	IfIndex     int
+	Lookup      netip.Addr
 }
 
 // RouteInfo is a native route toward one member of an ERO abstract node.
@@ -40,8 +40,8 @@ type PathRoute struct {
 type RouteInfo struct {
 	NextHop netip.Addr
 	IfIndex int
-	Lookup netip.Addr
-	MTU uint32
+	Lookup  netip.Addr
+	MTU     uint32
 }
 
 // InterfaceAddress distinguishes address ownership from usable source links.
@@ -49,8 +49,8 @@ type RouteInfo struct {
 type InterfaceAddress struct {
 	Address netip.Addr
 	IfIndex int
-	Up bool
-	MTU uint32
+	Up      bool
+	MTU     uint32
 }
 
 // Transport sends and receives raw RSVP messages. Implementations are

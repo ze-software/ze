@@ -54,7 +54,7 @@ const (
 type ECMPPath struct {
 	NextHop   netip.Addr `json:"next-hop"`
 	Interface string     `json:"interface,omitempty"`
-	OnLink    bool      `json:"on-link,omitempty"`
+	OnLink    bool       `json:"on-link,omitempty"`
 	Weight    uint8      `json:"weight,omitempty"`
 	Labels    []uint32   `json:"labels,omitempty"`
 }
@@ -75,7 +75,7 @@ type BestChangeEntry struct {
 	// gateway is directly reachable on Interface even outside its IP subnet.
 	// A device-only route leaves NextHop invalid and names its device here.
 	Interface string     `json:"interface,omitempty"`
-	OnLink    bool      `json:"on-link,omitempty"`
+	OnLink    bool       `json:"on-link,omitempty"`
 	Weight    uint8      `json:"weight,omitempty"`
 	Protocol  string     `json:"protocol"`
 	Labels    []uint32   `json:"labels,omitempty"`

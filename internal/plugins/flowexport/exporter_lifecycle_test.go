@@ -3,6 +3,7 @@ package flowexport
 import (
 	"context"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -74,8 +75,12 @@ func TestExporterTemplateFailureRetriesBeforeData(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = pc.Close() })
+			collector, ok := pc.LocalAddr().(*net.UDPAddr)
+			if !ok {
+				t.Fatalf("collector address is %T, want *net.UDPAddr", pc.LocalAddr())
+			}
 			exp, err := newExporter(&Config{Collectors: []CollectorConfig{{
-				Name: "c1", Address: "127.0.0.1", Port: pc.LocalAddr().(*net.UDPAddr).Port,
+				Name: "c1", Address: "127.0.0.1", Port: collector.Port,
 				Protocol: "netflow9", PollingInterval: 1, TemplateRefresh: 600,
 				MaxDatagramSize: DatagramSizeDefault,
 			}}})
@@ -135,7 +140,7 @@ func TestExporterTemplateFailureRetriesBeforeData(t *testing.T) {
 				t.Fatalf("status = %v, want %d packets/sequence and %d bytes", status, len(want), totalBytes)
 			}
 			scrape := httptest.NewRecorder()
-			reg.Handler().ServeHTTP(scrape, httptest.NewRequest("GET", "/metrics", nil))
+			reg.Handler().ServeHTTP(scrape, httptest.NewRequest("GET", "/metrics", http.NoBody))
 			wantDatagrams := `ze_flowexport_datagrams_total{collector="c1",protocol="netflow9"} 2`
 			wantBytes := `ze_flowexport_bytes_total{collector="c1",protocol="netflow9"} 12`
 			if flow {

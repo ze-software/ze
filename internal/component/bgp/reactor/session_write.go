@@ -675,11 +675,11 @@ func (s *Session) sendUpdateCounted(ctx context.Context, update *message.Update,
 		err = s.flushWrites()
 	}
 	if err != nil {
-		if cancelled := ctx.Err(); cancelled != nil {
-			// A cancelled write may have emitted only part of a BGP frame.
+		if canceled := ctx.Err(); canceled != nil {
+			// A canceled write may have emitted only part of a BGP frame.
 			// Let the reader retire it rather than reusing a partial stream.
 			closeConnQuietly(conn)
-			return cancelled
+			return canceled
 		}
 		// The socket deadline can fire before the context timer goroutine.
 		if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
@@ -708,14 +708,14 @@ func requestWriteDeadline(ctx context.Context, conn net.Conn) (func(), error) {
 			return nil, err
 		}
 	}
-	cancelled := make(chan struct{})
+	canceled := make(chan struct{})
 	stop := context.AfterFunc(ctx, func() {
 		_ = conn.SetWriteDeadline(time.Now())
-		close(cancelled)
+		close(canceled)
 	})
 	return func() {
 		if !stop() {
-			<-cancelled
+			<-canceled
 		}
 		_ = conn.SetWriteDeadline(time.Time{})
 	}, nil

@@ -73,7 +73,7 @@ func (l *L2TPPPP) writeInputs(work string) error {
 // Credentialed attempts do not redial: rejection must end that one session.
 func (l *L2TPPPP) peerConfig(work string) string {
 	redial := "yes"
-	if l.Scenario == "chap-md5" {
+	if l.Scenario == l2tpPPPScenarioCHAP {
 		redial = "no"
 	}
 	var tb textbuf.Buffer
@@ -95,7 +95,7 @@ func (l *L2TPPPP) peerConfig(work string) string {
 func (l *L2TPPPP) pppOptions(work, password string) string {
 	var tb textbuf.Buffer
 	tb.Str("noauth\nname alice\npassword ").Str(password).Byte('\n')
-	if l.Scenario == "chap-md5" {
+	if l.Scenario == l2tpPPPScenarioCHAP {
 		tb.Str("refuse-pap\nrefuse-mschap\nrefuse-mschap-v2\n")
 	}
 	return tb.Str("refuse-eap\nnodefaultroute\n").
@@ -108,7 +108,7 @@ func (l *L2TPPPP) pppOptions(work, password string) string {
 func (l *L2TPPPP) daemonConfig() string {
 	var tb textbuf.Buffer
 	tb.Str("l2tp {\n    enabled true;\n")
-	if l.Scenario == "chap-md5" {
+	if l.Scenario == l2tpPPPScenarioCHAP {
 		tb.Str("    auth-method chap-md5;\n    allow-no-auth false;\n").
 			Str("    auth {\n        local {\n            user alice {\n                password s3cr3t;\n            }\n        }\n    }\n")
 	} else {

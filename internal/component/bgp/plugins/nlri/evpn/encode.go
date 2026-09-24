@@ -125,7 +125,7 @@ func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 			originator = r.NextHop
 		}
 		if !originator.IsValid() {
-			return p, errors.New("Ethernet Segment route requires an originating router IP")
+			return p, errors.New("an Ethernet Segment route requires an originating router IP")
 		}
 		evpnNLRI = NewEVPNType4(rd, esiArr, originator)
 	case RouteNameIPPrefix:
