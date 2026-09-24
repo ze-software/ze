@@ -23,6 +23,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -174,12 +175,16 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 		if err != nil {
 			return nil, err
 		}
+		// A BGP route arrives owned by "bgp", while the declaration names its
+		// two classes. routeaction.ProtocolType holds those names, so this
+		// forwarder translates the class and never spells a name of its own.
 		distanceProtocol := e.Protocol
 		if e.IsBGP || e.IsEBGP {
-			distanceProtocol = "ibgp"
+			class := routeaction.ProtocolIBGP
 			if e.IsEBGP {
-				distanceProtocol = "ebgp"
+				class = routeaction.ProtocolEBGP
 			}
+			distanceProtocol = class.String()
 		}
 		ops = append(ops, installOp{
 			fam:    family.Family{AFI: family.AFI(e.AFI), SAFI: family.SAFI(e.SAFI)},

@@ -199,6 +199,9 @@ The RIB reads interior distances from the engine's registered `route-metrics`
 RPC when it runs in a subprocess. A one-second revision poll invalidates its
 next-hop cache and reruns selection, including recursive BGP metric changes.
 Selected paths and withdrawals return through `route-install` and `route-remove`.
+The subprocess remembers the last path it sent for each route. It skips a path
+the engine Loc-RIB would treat as unchanged, so an UPDATE that keeps the same
+best path sends no RPC.
 Failure of the mandatory metric feed terminates the subprocess connection.
 AIGP derives received-UPDATE and state delivery to the RIB from every peer.
 An explicit binding that omits these inputs is refused; no Adj-RIB-In replay

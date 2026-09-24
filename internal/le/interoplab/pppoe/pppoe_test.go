@@ -119,7 +119,7 @@ func TestZeClientScenarioProvesAccelAndDataplane(t *testing.T) {
 			return interoplab.CommandResult{Stdout: "12: ppp0: <POINTOPOINT> mtu 1492\n"}, nil
 		case "ip -o addr show dev ppp0":
 			return interoplab.CommandResult{Stdout: "12: ppp0 inet 10.11.0.2 peer 10.11.0.1/32\n"}, nil
-		case "ip -o route show 10.11.0.1 dev ppp0":
+		case "ip -o route show 10.11.0.1":
 			return interoplab.CommandResult{Stdout: "10.11.0.1 dev ppp0 scope link src 10.11.0.2\n"}, nil
 		case "ping -c 3 -W 3 10.11.0.1":
 			pinged = true
@@ -274,7 +274,7 @@ func TestZeAccessConcentratorScenarioExercisesEveryStage(t *testing.T) {
 			return interoplab.CommandResult{}, nil
 		case "ip -o addr show dev ppp0":
 			return interoplab.CommandResult{Stdout: "9: ppp0 inet 10.20.0.2 peer 10.20.0.1/32\n"}, nil
-		case "ip -o route show 10.20.0.1 dev ppp0":
+		case "ip -o route show 10.20.0.1":
 			return interoplab.CommandResult{Stdout: "10.20.0.1 dev ppp0 scope link src 10.20.0.2\n"}, nil
 		case "ping -c 3 -W 3 -I ppp0 10.20.0.1":
 			pinged = true

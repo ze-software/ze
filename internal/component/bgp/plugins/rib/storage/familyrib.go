@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/attrpool"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/pool"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/rib/store"
 )
@@ -33,7 +34,8 @@ import (
 //
 // Non-CIDR families (flow, EVPN, VPN, MVPN, MUP, RTC, bgp-ls) have NLRIs
 // with arbitrary internal structure. They go in a plain map keyed by the
-// full wire bytes; ADD-PATH path-ids are already part of those bytes, so
+// full wire bytes (FlowSpec with its shortest length field, see
+// opaqueKey); ADD-PATH path-ids are already part of those bytes, so
 // one map entry per (NLRI, path-id) pair works without a pathSet layer.
 // Specialised per-family indexes (e.g. EVPN route-type hashing, flowspec
 // component decoding) can be added behind this same API without touching
@@ -277,11 +279,40 @@ func (r *FamilyRIB) InsertEntry(nlriBytes []byte, entry RouteEntry, fp uint64, a
 	r.direct.Insert(pfx, clone)
 }
 
+// opaqueKey returns the opaque-map identity of one wire NLRI. It is the whole
+// wire form, except that FlowSpec takes the shortest length encoding: RFC 8955
+// Section 4 lets a rule under 240 octets use either length field, and both
+// name one rule, so a replacement or a withdrawal in the other framing MUST
+// reach the stored route. The key stays valid wire NLRI, because iteration
+// hands map keys back to callers as NLRI bytes. The ADD-PATH identifier stays
+// in front of the canonical rule.
+func (r *FamilyRIB) opaqueKey(nlriBytes []byte) string {
+	if !ribevents.IsFlowSpec(r.fam) {
+		return string(nlriBytes)
+	}
+	rule := nlriBytes
+	head := 0
+	if r.addPath {
+		if len(nlriBytes) < 4 {
+			return string(nlriBytes)
+		}
+		head = 4
+		rule = nlriBytes[4:]
+	}
+	// FlowSpecKey answers "" for a malformed length. The splitter already
+	// refused such an NLRI, so the whole wire form stays its own identity.
+	canonical := ribevents.FlowSpecKey(rule)
+	if canonical == "" || len(canonical) == len(rule) {
+		return string(nlriBytes)
+	}
+	return string(nlriBytes[:head]) + canonical
+}
+
 // insertOpaque upserts newEntry keyed by raw NLRI bytes for non-CIDR
 // families. ADD-PATH path-ids are part of those bytes, so no separate
 // per-path-id dispatch is needed.
 func (r *FamilyRIB) insertOpaque(nlriBytes []byte, newEntry RouteEntry) {
-	key := string(nlriBytes)
+	key := r.opaqueKey(nlriBytes)
 	if oldEntry, exists := r.opaque[key]; exists {
 		if entriesEqual(oldEntry, newEntry) {
 			oldEntry.StaleLevel = StaleLevelFresh
@@ -321,7 +352,7 @@ func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteE
 // Remove withdraws an NLRI from the RIB. Returns true if the NLRI existed.
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 	if !r.cidr {
-		key := string(nlriBytes)
+		key := r.opaqueKey(nlriBytes)
 		entry, exists := r.opaque[key]
 		if !exists {
 			return false
@@ -369,7 +400,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 // safe for read-only use.
 func (r *FamilyRIB) lookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 	if !r.cidr {
-		e, ok := r.opaque[string(nlriBytes)]
+		e, ok := r.opaque[r.opaqueKey(nlriBytes)]
 		return e, ok
 	}
 	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
@@ -492,7 +523,7 @@ func (r *FamilyRIB) Release() {
 // does not exist.
 func (r *FamilyRIB) modifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
 	if !r.cidr {
-		key := string(nlriBytes)
+		key := r.opaqueKey(nlriBytes)
 		e, ok := r.opaque[key]
 		if !ok {
 			return false
@@ -733,7 +764,7 @@ func attrFingerprint(attrBytes []byte) uint64 {
 // insertOpaqueNoOp checks if the opaque entry exists with a matching
 // fingerprint+length. If so, clears stale (if needed) and returns true.
 func (r *FamilyRIB) insertOpaqueNoOp(nlriBytes []byte, fp uint64, attrLen uint32) bool {
-	key := string(nlriBytes)
+	key := r.opaqueKey(nlriBytes)
 	if oldEntry, exists := r.opaque[key]; exists {
 		if oldEntry.AttrFingerprint != 0 && oldEntry.AttrFingerprint == fp && oldEntry.AttrLen == attrLen {
 			if oldEntry.StaleLevel != StaleLevelFresh {

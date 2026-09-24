@@ -726,7 +726,9 @@ key collision between the two wire shapes.
 Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
 with a route type, so `store.NLRIToPrefix` names no `netip.Prefix` for it. The
-key is the full wire bytes, which already carry the ADD-PATH path-id, and
+key is the full wire bytes, which already carry the ADD-PATH path-id. In
+`FamilyRIB`, a FlowSpec key uses the shortest length field, so both framings of
+one rule share one stored route (`FamilyRIB.opaqueKey`), and
 `storage.IsCIDRFamily` is the one predicate both stores partition by. Such a
 route is published on `(bgp-rib, best-change)` through
 `ribevents.BestChangeEntry.NLRI` with a zero `Prefix`, and it is NOT mirrored
