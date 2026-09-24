@@ -81,3 +81,19 @@ func TestExtLinkSingleTLVEnforced(t *testing.T) {
 		t.Fatalf("extra link TLVs = %d, want 1", out.ExtraLinkTLVs)
 	}
 }
+
+// TestExtLinkMalformedDuplicate checks that ignoring a duplicate link does not
+// conceal a sub-TLV overrun from direct codec callers.
+func TestExtLinkMalformedDuplicate(t *testing.T) {
+	first := EncodeExtLinkLSA(ExtLinkTLV{LinkType: RouterLinkTypeP2P})
+	duplicate := []byte{
+		0, 1, 0, 16, // A complete Extended Link TLV with a 16-octet value.
+		1, 0, 0, 0, // Link type and reserved fields.
+		2, 2, 2, 2, // Link ID.
+		10, 0, 0, 1, // Link data.
+		0, 99, 0, 4, // Sub-TLV declares four absent value octets.
+	}
+	if _, err := DecodeExtLinkLSA(append(first, duplicate...)); err == nil {
+		t.Fatal("malformed duplicate link was accepted")
+	}
+}

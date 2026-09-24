@@ -78,9 +78,9 @@ func (e *engine) restorePrefixLSIDs(m map[string]uint32) {
 	}
 }
 
-// restoreInterfaceIDs stores the preserved OSPFv3 Interface IDs so grInterfaceID returns them
-// for the grace window, keeping re-originated Link/Network/Router LSAs matching neighbor
-// adjacency state (RFC 5187 sec 3.2).
+// restoreInterfaceIDs restores the protocol Interface IDs for this engine's lifetime,
+// including after graceful-restart suppression ends. Hellos, adjacency lookup and
+// Link/Network/Router LSAs must retain the same identity (RFC 5187 sec 3.2).
 func (e *engine) restoreInterfaceIDs(m map[string]uint32) {
 	if e.gr == nil || len(m) == 0 {
 		return
@@ -93,9 +93,10 @@ func (e *engine) restoreInterfaceIDs(m map[string]uint32) {
 	maps.Copy(e.gr.preservedIfaceIDs, m)
 }
 
-// grInterfaceID returns the OSPFv3 Interface ID for an interface: the preserved value while a
-// restart-fact pins it (RFC 5187 sec 3.2), else the live kernel ifindex. lsdbTopology uses it
-// so re-originated OSPFv3 LSAs carry the pre-restart Interface IDs.
+// grInterfaceID returns the protocol Interface ID restored at startup (RFC 5187
+// sec 3.2), or the live kernel ifindex when none was restored. The kernel transport
+// index remains independent. Callers may hold e.mu; GR callbacks must release
+// gr.mu before looking up engine state.
 func (e *engine) grInterfaceID(name string) uint32 {
 	if e.gr != nil {
 		e.gr.mu.Lock()

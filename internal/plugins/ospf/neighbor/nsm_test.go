@@ -348,7 +348,7 @@ func TestOSPFLocalMasterSendsNextDDAfterNegotiation(t *testing.T) {
 		t.Fatalf("sent DD count = %d, want initial plus next DD", len(sender.sent))
 	}
 	p := sentPacket(t, sender, 1)
-	if p.DBDesc == nil || p.DBDesc.Flags != 0 || p.DBDesc.DDSequence != initial+1 {
+	if p.DBDesc == nil || p.DBDesc.Flags != packet.DDFlagMaster || p.DBDesc.DDSequence != initial+1 {
 		t.Fatalf("next DD = %+v, want final master DD seq %d", p.DBDesc, initial+1)
 	}
 	if got := tbl.HandleDBDesc(cfg.Name, peer, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, DDSequence: initial + 1}); got != "" {
@@ -357,6 +357,170 @@ func TestOSPFLocalMasterSendsNextDDAfterNegotiation(t *testing.T) {
 	snap, _ := tbl.Lookup(cfg.Name, peer)
 	if snap.State != "full" {
 		t.Fatalf("state = %s, want full", snap.State)
+	}
+}
+
+// Exchange the producers' encoded DDs so the peer's role check also validates
+// the first summary, subsequent pages and the cached retransmission.
+// RFC 2328 Sections 10.6, 10.8 and Appendix A.3.3.
+func TestOSPFDDPeerExchange(t *testing.T) {
+	master, masterCfg := testTable(t, types.NetworkPointToPoint)
+	slave, slaveCfg := testTable(t, types.NetworkPointToPoint)
+	masterCfg.RouterID = rid(t, "198.18.2.1")
+	slaveCfg.RouterID = rid(t, "198.18.1.1")
+	// One LSA header fits in each DD, forcing the continuation send path.
+	masterCfg.InterfaceMTU = 72
+	slaveCfg.InterfaceMTU = 72
+	masterCfg.RetransmitInterval = 5
+	master.ConfigureInterface(masterCfg)
+	slave.ConfigureInterface(slaveCfg)
+	db := fakeLSDB{}
+	for i := range 3 {
+		h := testHeaderIndex(t, i)
+		db[h.Key()] = packet.LSA{Header: h}
+	}
+	master.SetLSDB(db)
+	slave.SetLSDB(db)
+	masterSender, slaveSender := &fakeSender{}, &fakeSender{}
+	master.SetSender(masterSender)
+	slave.SetSender(slaveSender)
+	start := time.Unix(1, 0)
+	for _, side := range []struct {
+		table *Table
+		cfg   InterfaceConfig
+		peer  types.RouterID
+	}{
+		{master, masterCfg, slaveCfg.RouterID},
+		{slave, slaveCfg, masterCfg.RouterID},
+	} {
+		if reason := side.table.Hello(hello(side.cfg, side.peer, true, start)); reason != "" {
+			t.Fatalf("Hello on %s: %s", side.cfg.RouterID, reason)
+		}
+	}
+	deliver := func(sender *fakeSender, receiver *Table, cfg InterfaceConfig) {
+		t.Helper()
+		p := sentPacket(t, sender, len(sender.sent)-1)
+		if p.DBDesc == nil {
+			t.Fatalf("packet from %s is not a DD", p.Header.RouterID)
+		}
+		if reason := receiver.HandleDBDesc(cfg.Name, p.Header.RouterID, *p.DBDesc); reason != "" {
+			t.Fatalf("DD from %s to %s: flags=%#x seq=%d: %s",
+				p.Header.RouterID, cfg.RouterID, p.DBDesc.Flags, p.DBDesc.DDSequence, reason)
+		}
+	}
+	deliver(masterSender, slave, slaveCfg)
+	deliver(slaveSender, master, masterCfg)
+
+	// Drop the first Exchange DD and deliver its retransmission instead.
+	first := sentPacket(t, masterSender, len(masterSender.sent)-1).DBDesc
+	if got := master.Retransmit(start.Add(5 * time.Second)); got != 1 {
+		t.Fatalf("master retransmissions = %d, want 1", got)
+	}
+	repeated := sentPacket(t, masterSender, len(masterSender.sent)-1).DBDesc
+	if first == nil || repeated == nil || !sameDD(*first, *repeated) {
+		t.Fatalf("retransmitted DD = %+v, want %+v", repeated, first)
+	}
+	for range 3 {
+		deliver(masterSender, slave, slaveCfg)
+		deliver(slaveSender, master, masterCfg)
+	}
+	for _, side := range []struct {
+		table *Table
+		cfg   InterfaceConfig
+		peer  types.RouterID
+	}{
+		{master, masterCfg, slaveCfg.RouterID},
+		{slave, slaveCfg, masterCfg.RouterID},
+	} {
+		snap, ok := side.table.Lookup(side.cfg.Name, side.peer)
+		if !ok || snap.State != "full" {
+			t.Fatalf("peer %s on %s: state=%s, present=%v, want full",
+				side.peer, side.cfg.RouterID, snap.State, ok)
+		}
+	}
+}
+
+// RFC 2328 Section 10.6: the first DD can arrive after a one-way Hello but
+// before the next Hello lists this router. Attempt005 observed this ordering
+// on all three native RSVP links after the master-bit repair.
+func TestOSPFDDPeerExchangeFromInit(t *testing.T) {
+	for _, initRole := range []string{"slave", "master"} {
+		t.Run(initRole, func(t *testing.T) {
+			master, masterCfg := testTable(t, types.NetworkPointToPoint)
+			slave, slaveCfg := testTable(t, types.NetworkPointToPoint)
+			masterCfg.RouterID = rid(t, "198.18.2.1")
+			slaveCfg.RouterID = rid(t, "198.18.1.1")
+			masterCfg.RetransmitInterval = 5
+			slaveCfg.RetransmitInterval = 5
+			master.ConfigureInterface(masterCfg)
+			slave.ConfigureInterface(slaveCfg)
+			h := testHeader(t, types.InitialSequenceNumber)
+			db := fakeLSDB{h.Key(): packet.LSA{Header: h}}
+			master.SetLSDB(db)
+			slave.SetLSDB(db)
+			masterSender, slaveSender := &fakeSender{}, &fakeSender{}
+			master.SetSender(masterSender)
+			slave.SetSender(slaveSender)
+			start := time.Unix(1, 0)
+			if reason := master.Hello(hello(masterCfg, slaveCfg.RouterID, initRole != "master", start)); reason != "" {
+				t.Fatalf("master Hello: %s", reason)
+			}
+			if reason := slave.Hello(hello(slaveCfg, masterCfg.RouterID, initRole != "slave", start)); reason != "" {
+				t.Fatalf("slave Hello: %s", reason)
+			}
+			deliver := func(sender *fakeSender, index int, receiver *Table, cfg InterfaceConfig, want string) {
+				t.Helper()
+				p := sentPacket(t, sender, index)
+				if p.DBDesc == nil {
+					t.Fatalf("packet from %s is not a DD", p.Header.RouterID)
+				}
+				if reason := receiver.HandleDBDesc(cfg.Name, p.Header.RouterID, *p.DBDesc); reason != want {
+					t.Fatalf("DD from %s to %s: flags=%#x seq=%d: %s, want %q",
+						p.Header.RouterID, cfg.RouterID, p.DBDesc.Flags, p.DBDesc.DDSequence, reason, want)
+				}
+			}
+			if initRole == "master" {
+				// The slave's initial proposal cannot negotiate the local master,
+				// but proves two-way communication and starts its own proposal.
+				deliver(slaveSender, 0, master, masterCfg, reasonNegotiation)
+				deliver(masterSender, 0, slave, slaveCfg, "")
+			} else {
+				// The master proposal must be processed in this same receive,
+				// without waiting for a two-way Hello or a retransmit tick.
+				deliver(masterSender, 0, slave, slaveCfg, "")
+				deliver(slaveSender, 0, master, masterCfg, reasonNegotiation)
+			}
+			deliver(slaveSender, 1, master, masterCfg, "")
+			deliver(masterSender, 1, slave, slaveCfg, "")
+
+			// Lose the final slave reply. A repeated master DD must elicit the
+			// same reply even after the slave reached Full.
+			reply := sentPacket(t, slaveSender, 2).DBDesc
+			if got := master.Retransmit(start.Add(5 * time.Second)); got != 1 {
+				t.Fatalf("master retransmissions = %d, want 1", got)
+			}
+			deliver(masterSender, 2, slave, slaveCfg, "duplicate-resend")
+			repeated := sentPacket(t, slaveSender, 3).DBDesc
+			if reply == nil || repeated == nil || !sameDD(*reply, *repeated) {
+				t.Fatalf("repeated final reply = %+v, want %+v", repeated, reply)
+			}
+			deliver(slaveSender, 3, master, masterCfg, "")
+			deliver(slaveSender, 3, master, masterCfg, "duplicate-drop")
+			for _, side := range []struct {
+				table *Table
+				cfg   InterfaceConfig
+				peer  types.RouterID
+			}{
+				{master, masterCfg, slaveCfg.RouterID},
+				{slave, slaveCfg, masterCfg.RouterID},
+			} {
+				snap, ok := side.table.Lookup(side.cfg.Name, side.peer)
+				if !ok || snap.State != "full" {
+					t.Fatalf("peer %s on %s: state=%s, present=%v, want full",
+						side.peer, side.cfg.RouterID, snap.State, ok)
+				}
+			}
+		})
 	}
 }
 
@@ -536,30 +700,34 @@ func TestOSPFv3LinkScopedLSAsEnterDDDatabaseSummary(t *testing.T) {
 	}
 }
 
-func TestOSPFv3LinkScopedLoadingDrainToFull(t *testing.T) {
-	tbl, cfg := testTable(t, types.NetworkPointToPoint)
-	peer := rid(t, "10.0.0.2")
-	h := testHeader(t, types.InitialSequenceNumber+1)
-	h.Type = types.LSTypeLink
-	h.LinkStateID = types.LinkStateID{0, 0, 0, 2}
-	db := &fakeScopedLSDB{area: fakeLSDB{}, links: map[string]fakeLSDB{cfg.Name: {}}}
-	tbl.SetLSDB(db)
-
-	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
-	driveNegotiation(t, tbl, cfg, peer)
-	finishExchange(t, tbl, cfg, peer, h)
-	snap, _ := tbl.Lookup(cfg.Name, peer)
-	if snap.State != "loading" || snap.RequestCount != 1 {
-		t.Fatalf("snapshot = %+v, want loading with one link-scoped request", snap)
-	}
-
-	db.links[cfg.Name][h.Key()] = packet.LSA{Header: h}
-	if got := tbl.HandleLSUpdate(cfg.Name, peer, packet.LSUpdate{LSAs: []packet.LSA{{Header: h}}}); got != "" {
-		t.Fatalf("LSUpdate: %s", got)
-	}
-	snap, _ = tbl.Lookup(cfg.Name, peer)
-	if snap.State != "full" || snap.RequestCount != 0 {
-		t.Fatalf("snapshot = %+v, want full after link-scoped request is satisfied", snap)
+func TestOSPFLinkScopedLoadingDrainToFull(t *testing.T) {
+	for _, scope := range []types.LSType{types.LSTypeLink, types.LSTypeOpaqueLink, 0x8028} {
+		t.Run(scope.String(), func(t *testing.T) {
+			tbl, cfg := testTable(t, types.NetworkPointToPoint)
+			peer := rid(t, "10.0.0.2")
+			h := testHeader(t, types.InitialSequenceNumber+1)
+			h.Type = scope
+			h.LinkStateID = types.LinkStateID{0, 0, 0, 2}
+			db := &fakeScopedLSDB{area: fakeLSDB{}, links: map[string]fakeLSDB{
+				cfg.Name: {}, "other-link": {h.Key(): {Header: h}},
+			}}
+			tbl.SetLSDB(db)
+			_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
+			driveNegotiation(t, tbl, cfg, peer)
+			finishExchange(t, tbl, cfg, peer, h)
+			snap, _ := tbl.Lookup(cfg.Name, peer)
+			if snap.State != "loading" || snap.RequestCount != 1 {
+				t.Fatalf("another link satisfied this adjacency's request: %+v", snap)
+			}
+			db.links[cfg.Name][h.Key()] = packet.LSA{Header: h}
+			if got := tbl.HandleLSUpdate(cfg.Name, peer, packet.LSUpdate{LSAs: []packet.LSA{{Header: h}}}); got != "" {
+				t.Fatalf("LSUpdate: %s", got)
+			}
+			snap, _ = tbl.Lookup(cfg.Name, peer)
+			if snap.State != "full" || snap.RequestCount != 0 {
+				t.Fatalf("snapshot = %+v, want Full after this link's LSA arrived", snap)
+			}
+		})
 	}
 }
 
@@ -665,15 +833,31 @@ func TestOSPFDDChunkedByInterfaceMTU(t *testing.T) {
 }
 
 func TestOSPFDDRejectedBeforeShouldAdj(t *testing.T) {
-	tbl, cfg := testTable(t, types.NetworkBroadcast)
-	peer := rid(t, "10.0.0.2")
-	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
-	if got := tbl.HandleDBDesc(cfg.Name, peer, peerExStartDD()); got != "adjacency-not-ready" {
-		t.Fatalf("DD result = %q, want adjacency-not-ready", got)
-	}
-	snap, _ := tbl.Lookup(cfg.Name, peer)
-	if snap.State != "2-way" {
-		t.Fatalf("state = %s, want 2-way", snap.State)
+	for _, initial := range []string{"down", "init", "2-way"} {
+		t.Run(initial, func(t *testing.T) {
+			tbl, cfg := testTable(t, types.NetworkBroadcast)
+			sender := &fakeSender{}
+			tbl.SetSender(sender)
+			peer := rid(t, "10.0.0.2")
+			_ = tbl.Hello(hello(cfg, peer, initial == "2-way", time.Unix(1, 0)))
+			if initial == "down" {
+				tbl.NeighborDown(cfg.Name, peer)
+			}
+			if got := tbl.HandleDBDesc(cfg.Name, peer, peerExStartDD()); got != "adjacency-not-ready" {
+				t.Fatalf("DD result = %q, want adjacency-not-ready", got)
+			}
+			want := initial
+			if initial == "init" {
+				want = "2-way"
+			}
+			snap, _ := tbl.Lookup(cfg.Name, peer)
+			if snap.State != want {
+				t.Fatalf("state = %s, want %s", snap.State, want)
+			}
+			if len(sender.sent) != 0 {
+				t.Fatalf("non-adjacent neighbour emitted %d packets", len(sender.sent))
+			}
+		})
 	}
 }
 

@@ -104,7 +104,7 @@ func (m *grManager) onGraceReceived(g graceReceived) {
 	}
 	key := helperKey{iface: g.iface, router: g.advRouter}
 	if g.withdrawn {
-		m.helperExit(key, grExitFlushed)
+		m.helperExit(key, nil, grExitFlushed)
 		return
 	}
 	if _, ok := m.helperGraceEnd(key); ok {
@@ -173,15 +173,16 @@ func (m *grManager) updateGrace(key helperKey, g graceReceived) {
 
 // helperGraceExpired is the RFC 3623 sec 3.2 grace-expiry exit trigger (the grace clock, LS age
 // vs Grace Period, elapsed).
-func (m *grManager) helperGraceExpired(key helperKey) { m.helperExit(key, grExitGraceExpiry) }
+func (m *grManager) helperGraceExpired(key helperKey) { m.helperExit(key, nil, grExitGraceExpiry) }
 
 // helperExit ends a helper session (RFC 3623 sec 3.2): stop the timer, drop the session, then
 // re-originate self-LSAs and recompute SPF so the frozen adjacency view is corrected (DR
-// recalc + Router/Network-LSA re-origination).
-func (m *grManager) helperExit(key helperKey, reason string) {
+// recalc + Router/Network-LSA re-origination). A non-nil expected session prevents
+// an exit derived from an old snapshot from removing a replacement at the same key.
+func (m *grManager) helperExit(key helperKey, expected *helperSession, reason string) {
 	m.mu.Lock()
 	s, ok := m.helping[key]
-	if !ok {
+	if !ok || (expected != nil && s != expected) {
 		m.mu.Unlock()
 		return
 	}
@@ -199,30 +200,33 @@ func (m *grManager) helperExit(key helperKey, reason string) {
 
 // onContentChange is the RFC 3623 sec 3.2 strict-LSA-checking exit driver (fed by the LSDB
 // post-install content-change observer). For every helper session it exits when a changed LSA
-// would have flooded to X, honoring the stub-area external exception (AC-20). It also feeds
-// the restarter's inconsistent-LSA trigger while this router is itself restarting.
+// would have flooded to X, honoring the stub-area external exception (AC-20).
 func (m *grManager) onContentChange(area ospftypes.AreaID, lsType ospftypes.LSType) {
 	if m == nil {
 		return
 	}
 	m.mu.Lock()
 	strict := m.cfg.StrictLSAChecking
-	type victim struct {
-		key      helperKey
-		areaType string
+	if !strict {
+		m.mu.Unlock()
+		return
 	}
-	var victims []victim
-	for key, s := range m.helping {
-		areaType := m.e.interfaceAreaType(s.iface)
-		if lsType.ASExternal() || sameHelperArea(m.e, s.iface, area) {
-			if helperShouldExitOnChange(strict, areaType, lsType, wouldFloodToHelper(lsType, areaType, s.iface, area, m.e)) {
-				victims = append(victims, victim{key: key, areaType: areaType})
-			}
-		}
+	type candidate struct {
+		key     helperKey
+		session *helperSession
+	}
+	candidates := make([]candidate, 0, len(m.helping))
+	for key, session := range m.helping {
+		candidates = append(candidates, candidate{key: key, session: session})
 	}
 	m.mu.Unlock()
-	for _, v := range victims {
-		m.helperExit(v.key, grExitTopologyChange)
+	// Topology lookups acquire the engine lock and consult this manager again.
+	// Never call them while holding the GR lock.
+	for _, c := range candidates {
+		areaType := m.e.interfaceAreaType(c.key.iface)
+		if helperShouldExitOnChange(strict, areaType, lsType, wouldFloodToHelper(lsType, areaType, c.key.iface, area, m.e)) {
+			m.helperExit(c.key, c.session, grExitTopologyChange)
+		}
 	}
 }
 

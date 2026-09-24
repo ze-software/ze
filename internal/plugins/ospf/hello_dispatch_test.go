@@ -8,6 +8,7 @@ package ospf
 import (
 	"net/netip"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
@@ -322,43 +323,51 @@ func bringV6NeighborFull(t *testing.T) (eng *engine, ifindex int, peer types.Rou
 // lookup (the stored LSA's 16-bit LS Type survives LookupLSA). The end-to-end FRR interop is
 // the QEMU lab; this is the strongest single-host proof of the v6 origination path.
 func TestOSPFEngineIPv6AdjacencyFull(t *testing.T) {
-	eng, _, peer, _, area := bringV6NeighborFull(t)
-	local := ridOf("10.0.0.1")
+	synctest.Test(t, func(t *testing.T) {
+		eng, _, peer, _, area := bringV6NeighborFull(t)
+		local := ridOf("10.0.0.1")
 
-	rows := eng.neighborSnapshot()
-	if len(rows) != 1 {
-		t.Fatalf("neighbor rows = %d, want 1", len(rows))
-	}
-	snap, ok := rows[0].(ospfneighbor.Snapshot)
-	if !ok {
-		t.Fatalf("snapshot row type = %T, want neighbor.Snapshot", rows[0])
-	}
-	if snap.State != ospflsdb.NeighborStateFull || snap.RouterID != "10.0.0.2" {
-		t.Fatalf("neighbor snapshot = %+v, want full peer 10.0.0.2 over the v6 codec", snap)
-	}
+		rows := eng.neighborSnapshot()
+		if len(rows) != 1 {
+			t.Fatalf("neighbor rows = %d, want 1", len(rows))
+		}
+		snap, ok := rows[0].(ospfneighbor.Snapshot)
+		if !ok {
+			t.Fatalf("snapshot row type = %T, want neighbor.Snapshot", rows[0])
+		}
+		if snap.State != ospflsdb.NeighborStateFull || snap.RouterID != "10.0.0.2" {
+			t.Fatalf("neighbor snapshot = %+v, want full peer 10.0.0.2 over the v6 codec", snap)
+		}
+		// Full queues origination on the maintenance worker; it does not publish
+		// synchronously in the receive goroutine. Advance through its retry tick so
+		// an earlier Hello-originated instance cannot hide this update behind MinLSInterval.
+		// sleep(protocol): virtual time only, matching the native maintenance cadence.
+		time.Sleep(time.Second)
+		synctest.Wait()
 
-	// The self-origination produced this router's address-free Router-LSA with the adjacency.
-	lsa, found := eng.lsdb.LookupLSA(area, v6RouterKey(local))
-	if !found {
-		t.Fatalf("v6 Router-LSA not self-originated after reaching Full")
-	}
-	if lsa.Header.Type != types.LSType(ospfv3types.LSTypeRouter) {
-		t.Fatalf("self Router-LSA neutral type = %#x, want 0x2001 (LookupLSA must keep the v6 LS Type)", uint16(lsa.Header.Type))
-	}
-	if !ospfv3packet.VerifyLSAChecksum(lsa.RawBytes) {
-		t.Fatalf("self-originated v6 Router-LSA has an invalid Fletcher checksum")
-	}
-	decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
-	if err != nil {
-		t.Fatalf("DecodeLSA: %v", err)
-	}
-	body, err := decoded.DecodeRouter()
-	if err != nil {
-		t.Fatalf("DecodeRouter: %v", err)
-	}
-	if len(body.Links) != 1 || body.Links[0].Type != ospfv3packet.RouterLinkTypeP2P || body.Links[0].NeighborRouterID != ospfv3types.RouterID(peer) {
-		t.Fatalf("self Router-LSA links = %+v, want one point-to-point link to the peer", body.Links)
-	}
+		// The self-origination produced this router's address-free Router-LSA with the adjacency.
+		lsa, found := eng.lsdb.LookupLSA(area, v6RouterKey(local))
+		if !found {
+			t.Fatalf("v6 Router-LSA not self-originated after reaching Full")
+		}
+		if lsa.Header.Type != types.LSType(ospfv3types.LSTypeRouter) {
+			t.Fatalf("self Router-LSA neutral type = %#x, want 0x2001 (LookupLSA must keep the v6 LS Type)", uint16(lsa.Header.Type))
+		}
+		if !ospfv3packet.VerifyLSAChecksum(lsa.RawBytes) {
+			t.Fatalf("self-originated v6 Router-LSA has an invalid Fletcher checksum")
+		}
+		decoded, err := ospfv3packet.DecodeLSA(lsa.RawBytes)
+		if err != nil {
+			t.Fatalf("DecodeLSA: %v", err)
+		}
+		body, err := decoded.DecodeRouter()
+		if err != nil {
+			t.Fatalf("DecodeRouter: %v", err)
+		}
+		if len(body.Links) != 1 || body.Links[0].Type != ospfv3packet.RouterLinkTypeP2P || body.Links[0].NeighborRouterID != ospfv3types.RouterID(peer) {
+			t.Fatalf("self Router-LSA links = %+v, want one point-to-point link to the peer", body.Links)
+		}
+	})
 }
 
 // dispatchLSUpdateV6 floods one or more OSPFv3 LSAs to the engine through its real receive

@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func authCfg(keys ...keyConfig) ospfConfig {
@@ -378,7 +379,7 @@ func TestSetBootCountSeedsSequence(t *testing.T) {
 		Areas:      []areaConfig{{AreaID: types.BackboneArea, AuthKeyChain: "kc1"}},
 		Interfaces: []interfaceConfig{{Name: "eth0", AreaID: types.BackboneArea, Authentication: authConfig{Mode: "inherit"}}},
 	})
-	s.setBootCount(0x1234)
+	s.setBootCount(0x1234, nil)
 
 	_, au, seq, _, ok := s.signKey("eth0")
 	require.True(t, ok)
@@ -391,13 +392,18 @@ func TestOSPFAuthESNCounterWrapAdvancesBootCount(t *testing.T) {
 	// RFC 7474: when the 32-bit per-packet counter wraps back to 0, the boot count (high word)
 	// must advance so the 64-bit sequence stays strictly increasing -- a regression would look
 	// like a replay to the peer.
+	installDaemonState(t)
+	store := daemonStateClient{}
+	require.NoError(t, store.StatePut(context.Background(), zefs.KeyOSPFAuthBootCount.Key(), []byte{0, 0, 0x12, 0x34}))
 	s := newAuthStore()
 	s.configure(ospfConfig{
 		KeyChains:  []keyChainConfig{{Name: "kc1", ExtendedSequence: true, Keys: []keyConfig{{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "k"}}}},
 		Areas:      []areaConfig{{AreaID: types.BackboneArea, AuthKeyChain: "kc1"}},
 		Interfaces: []interfaceConfig{{Name: "eth0", AreaID: types.BackboneArea, Authentication: authConfig{Mode: "inherit"}}},
 	})
-	s.setBootCount(0x1234)
+	s.setBootCount(0x1234, func() (uint32, error) {
+		return loadOSPFBootCount(context.Background(), store)
+	})
 	s.mu.Lock()
 	s.sendSeq["eth0"] = 0xFFFFFFFF // the next send wraps the low word to 0
 	s.mu.Unlock()

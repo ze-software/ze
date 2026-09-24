@@ -105,6 +105,54 @@ func decodeExtSubTLVs(region []byte) ([]ExtSubTLV, error) {
 	return out, it.Err()
 }
 
+// ValidateExtLSABody checks RFC 7684 container framing without allocating decoded
+// attributes. Unknown opaque applications and unknown top-level TLVs remain opaque.
+//
+// RFC 7684 Sections 2.1 and 3.1, offsets within each top-level TLV:
+//
+//	+0       +2       +4                    +12/+16
+//	+--------+--------+---------------------+------------------+
+//	| Type   | Length | Prefix/Link fields  | Nested sub-TLVs  |
+//	+--------+--------+---------------------+------------------+
+//
+// Prefix fixed fields occupy 8 value octets; link fixed fields occupy 12.
+// Length excludes the four-octet TLV header and alignment padding.
+func ValidateExtLSABody(opaqueType uint8, body []byte) error {
+	var fixedLen int
+	switch opaqueType {
+	case ExtPrefixOpaqueType:
+		fixedLen = extPrefixTLVFixedLen
+	case ExtLinkOpaqueType:
+		fixedLen = extLinkTLVFixedLen
+	default:
+		return nil
+	}
+	it := newOpaqueTLVIterator(body)
+	// Each iteration consumes a complete TLV, bounded by the enclosing LSA body.
+	for it.Next() {
+		// Both RFC 7684 registries assign their container TLV type 1.
+		if it.Type() != ExtPrefixTLVType {
+			continue
+		}
+		if err := validateExtTLV(it.Value(), fixedLen); err != nil {
+			return err
+		}
+	}
+	return it.Err()
+}
+
+// validateExtTLV checks a known container without retaining its sub-TLVs.
+func validateExtTLV(value []byte, fixedLen int) error {
+	if len(value) < fixedLen {
+		return ErrLength
+	}
+	sub := newOpaqueTLVIterator(value[fixedLen:])
+	// Each sub-TLV consumes at least its header within the enclosing value.
+	for sub.Next() {
+	}
+	return sub.Err()
+}
+
 // encodeValue renders the Extended Prefix TLV value (fixed fields + aligned sub-TLVs). The
 // 32-bit Address Prefix is written for AF=0 regardless of Prefix Length (RFC 7684 sec 2.1).
 func (t ExtPrefixTLV) encodeValue() []byte {

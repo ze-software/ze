@@ -113,7 +113,7 @@ func (e *engine) neighborEventSinkValue() neighborEventSink {
 		sink:     e.sink,
 		onFull:   e.onNeighborFull,
 		onLost:   e.bfdNeighborLost,
-		onChange: e.originateSelfLSAs,
+		onChange: e.originateSelfLSAsDeferred,
 	}
 }
 

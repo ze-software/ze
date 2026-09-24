@@ -17,17 +17,23 @@ func (e *engine) initializeState() error {
 		return nil
 	}
 	e.stateOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
-		defer cancel()
-		boot, err := loadOSPFBootCount(ctx, e.state)
+		boot, err := e.incrementBootCount()
 		if err != nil {
 			e.stateErr = fmt.Errorf("ospf: initialize durable boot count: %w", err)
 			return
 		}
-		e.auth.setBootCount(boot)
+		e.auth.setBootCount(boot, e.incrementBootCount)
 		if err := e.gr.resumeFromNVS(); err != nil {
 			e.stateErr = fmt.Errorf("ospf: read graceful restart state: %w", err)
 		}
 	})
 	return e.stateErr
+}
+
+// incrementBootCount is used at startup and at sequence wrap. The caller MUST
+// withhold packets until this durable increment succeeds.
+func (e *engine) incrementBootCount() (uint32, error) {
+	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
+	defer cancel()
+	return loadOSPFBootCount(ctx, e.state)
 }

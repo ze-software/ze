@@ -18,6 +18,13 @@ ABR support treats a router as area-border only when it is active in the backbon
 <!-- source: internal/plugins/ospf/spf/summary.go -- OriginateSummaries -->
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateSummary and FlushStaleSummaryLSAs -->
 
+Neighbor changes queue self-LSA origination on the engine's maintenance worker.
+Hello processing can therefore continue while that worker reads live interface
+addresses and link speeds. Changes during an active pass queue another pass;
+MinLSInterval still limits publication, and the maintenance timer retries it.
+<!-- source: internal/plugins/ospf/instance.go -- nsmAdapter, originateSelfLSAsDeferred, startNeighborRetransmitLoop -->
+<!-- source: internal/plugins/ospf/bfd_client.go -- neighborEventSinkValue -->
+
 ## Interface network types
 
 Each interface selects an RFC 2328 / RFC 5340 network type with `network-type`, in
@@ -156,6 +163,16 @@ An NSSA (`area-type nssa`, RFC 3101) is stub-like but permits local external red
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA, PurgeNSSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
 
+Per-source redistribution controls the Type-7 P-bit with `nssa-propagate true`;
+without it the P-bit is clear (RFC 3101 Appendix D). A router also originating
+a Type-5 copy clears the Type-7 P-bit. A requested P-set advertisement requires
+a usable forwarding address; losing that address withdraws it. Interface
+down/up and maintenance reconciliation replay retained import intent with live
+interface state, preserving the prefix identity, metric and tag. Withdrawn
+imports are not replayed.
+<!-- source: internal/plugins/ospf/config.go -- parseRedistribute -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- externalPropagate, reconcileExternalImports -->
+
 Every NSSA border router originates a default into each directly attached NSSA, in both address families and with no operator leaf to enable it (RFC 3101 §2.4). A regular NSSA gets a P-clear Type 7 default: an OSPFv2 Type 7 LSA, or the OSPFv3 NSSA-LSA (`0x2007`) that carries the P-bit in its prefix options rather than in the LSA header. A no-summary NSSA gets the default through the summary path instead, as an OSPFv2 Type 3 summary-LSA or the OSPFv3 `::/0` Inter-Area-Prefix-LSA, and gets no Type 7 default at all (RFC 3101 §2.7). In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled; a router that is not an NSSA border router installs them.
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSADefault -->
@@ -167,10 +184,31 @@ An internal NSSA router can originate a P-set default with `nssa { default-origi
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults, wantsType7Default -->
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA -->
 
-Among the ABRs attached to an NSSA, exactly one is elected the Type 7 to Type 5 translator (RFC 3101 §3.5): the translator-candidate ABR with the highest Router ID. Each ABR whose role is not `never` advertises the Nt-bit in its Router-LSA to stand as a candidate; a `never` ABR clears the Nt-bit and is excluded from the election, so it cannot wedge translation off for a willing lower-Router-ID candidate. The role is configurable per area (`nssa { translate-role candidate|always|never }`), sticky across a `stability-interval`. The elected translator re-originates each P=1, non-zero-FA Type 7 as a Type 5 onto the backbone (P cleared, Advertising Router set to the translator, forwarding address / metric / tag preserved), counted by `ze_ospf_nssa_translations_total{area}`. A non-elected ABR does not translate, so no duplicate Type 5 reaches the backbone. When the same external prefix is known via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation prefers them in that order (RFC 3101 §2.5) ahead of the §16.4 cost.
+Among the ABRs attached to an NSSA, the eligible translator-candidate with the highest Router ID is elected (RFC 3101 §3.5). The role is configurable per area (`nssa { translate-role candidate|always|never }`), with a `stability-interval` for handover. A `never` ABR does not stand for election. The translator re-originates a P-set, nonzero-forwarding-address Type 7 as a Type 5, preserving the forwarding address, metric and tag. External route selection compares E1/E2 type and cost first. Only equivalent advertisements sharing a nonzero forwarding address use the §2.5(6) tie-break: P-set Type 7, then Type 5, then the higher advertising Router ID.
 <!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator, translateNSSA, translatorEffective -->
 <!-- source: internal/plugins/ospf/spf/external_nssa.go -- RFC 3101 sec 2.5 source preference -->
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal Type 7 candidates, betterExternal -->
+
+Type-7 routes require the advertising ASBR to be reachable inside the
+originating NSSA, even when a forwarding address is present. Their nonzero
+forwarding address must resolve through an intra-area route in that NSSA.
+Type-5 ASBR and forwarding-address resolution use normal areas, not paths
+through an NSSA. SPF retains per-area candidates until these checks complete.
+<!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
+<!-- source: internal/plugins/ospf/spf/external.go -- externalCandidateFrom, resolveForwarding -->
+
+**Selected role (2026-09-21): ordinary OSPF, including CE operation.** Ze does
+not select RFC 4577's native VPN-PE role, VRF/domain VPN import/export or
+optional sham links. Section 1 says: "No special procedures are needed in the
+CE router though; CE routers just run whatever OSPF implementations they may
+have." Ordinary routing, authentication and backbone attachment remain
+required. When deploying Ze as a CE with a third-party PE, configure the
+backbone attachment required by RFC 4577 §4.1.4, directly or by virtual link.
+The plain-prefix redistribution metric/tag settings do not perform VPN-domain
+comparison or generate VPN-IPv4 metadata.
+<!-- source: internal/plugins/ospf/redist_wiring.go -- InjectExternal -->
+<!-- source: internal/plugins/ospf/config.go -- parseRedistribute -->
+<!-- source: internal/plugins/ospf/redistribute/source.go -- emitDelta -->
 
 ## Virtual links
 
@@ -200,6 +238,19 @@ The transit area must be declared and must not be the backbone `0.0.0.0`, a stub
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- routerLinks Type-4 virtual record, fullVirtualTransitAreas -->
 <!-- source: internal/plugins/ospf/origination_v6.go -- v6RouterLSABody RouterLinkTypeVirtual, v6FullVirtualTransitAreas -->
 
+An OSPFv3 virtual link requires global endpoint addresses. Each endpoint advertises
+one local `/128` with the LA bit in the transit area's Intra-Area-Prefix-LSA.
+Ze waits until both address advertisements are present and withdraws the virtual
+interface if either disappears. A subnet-only advertisement cannot supply a host
+address. Address changes are reconsidered after every SPF run; unchanged addresses
+and transit costs preserve the adjacency.
+<!-- source: internal/plugins/ospf/virtuallink_v6.go -- v6AddVirtualEndpoint, v6RouterGlobalAddr -->
+
+Removing a virtual-link configuration stops its synthetic interface and removes
+its neighbor state. Changing the Hello or dead timer recreates that interface;
+a transit cost change updates the existing interface without restarting it.
+<!-- source: internal/plugins/ospf/virtual_link.go -- configureVirtualLinks, onVirtualLinksResolved -->
+
 ## OSPFv3 Link-LSAs
 
 OSPFv3 Link-LSAs (`0x0008`) are stored in a link-scoped LSDB keyed by the receiving interface, not in the area or AS-wide stores. Ze originates one self Link-LSA per active OSPFv3 interface, carrying the interface link-local address and routable IPv6 prefixes, floods it only on that link, and releases the link store when the interface is removed. During database exchange, link-scoped LSAs participate in DD summaries and LS Request lookup using the interface context.
@@ -208,11 +259,11 @@ OSPFv3 Link-LSAs (`0x0008`) are stored in a link-scoped LSDB keyed by the receiv
 
 ## Opaque LSAs (RFC 5250)
 
-Ze implements the OSPFv2 opaque-LSA carrier framework (RFC 5250, which obsoletes RFC 2370): the substrate that later extensions (Traffic Engineering, Router-Information, Segment Routing, Grace-LSA) build on. The framework is a carrier only; it ships no opaque consumer and interprets no opaque body. It provides scope-correct storage and flooding for the three opaque scopes, the Opaque Type / Opaque ID split of the Link State ID, the O-bit capability negotiation, generic 4-byte-aligned TLV helpers, and a consumer registry.
+Ze implements the OSPFv2 opaque-LSA carrier framework (RFC 5250, which obsoletes RFC 2370) for Traffic Engineering, Router Information, Segment Routing and Grace-LSAs. The carrier provides scope-correct storage and flooding, the Opaque Type / Opaque ID split, O-bit capability negotiation and a consumer registry. Unknown application bodies remain uninterpreted; understood applications can reject malformed LSAs before storage, acknowledgement or flooding.
 
 The three opaque scopes map onto three stores: a Type 9 link-local opaque LSA lives in the per-interface link store and floods only on its arrival link; a Type 10 area opaque LSA lives in the per-area store; a Type 11 AS-wide opaque LSA lives in a dedicated AS-wide opaque store, parallel to the Type 5 AS-External store, and floods AS-wide but never into a stub or NSSA area. The 32-bit Link State ID splits into an 8-bit Opaque Type (an IANA registry selector) and a 24-bit Opaque ID (an application instance identifier). An opaque LSA never becomes an SPF vertex.
 
-Opaque capability is negotiated with the O-bit in the OSPF Options field. Enable it with `ospf { opaque true }`: Ze then sets the O-bit in its Database Description packets and floods opaque LSAs only to neighbours that likewise set the O-bit in their DD. The O-bit is a DD-only signal (it is not part of the Hello E/N option match), so enabling it does not break adjacency with a non-opaque peer. Received opaque LSAs are stored and re-flooded per scope regardless of the `opaque` leaf and regardless of whether a consumer is registered; disabling the leaf only stops advertising opaque capability and originating opaque LSAs. A received Type-11 opaque LSA is treated as usable only while its originating router is reachable (RFC 5250 §5, reusing the ASBR reachability computed for Type 5). Opaque activity is counted by `ze_ospf_opaque_lsas{scope,opaque_type}`, `ze_ospf_opaque_originations_total{opaque_type}`, `ze_ospf_opaque_received_total{opaque_type,registered}`, `ze_ospf_opaque_consumer_errors_total{opaque_type}`, and `ze_ospf_opaque_capable_neighbors{interface}`.
+Opaque capability is negotiated with the O-bit in the OSPF Options field. Enable it with `ospf { opaque true }`: Ze sets the O-bit in Database Description packets and floods opaque LSAs only to neighbours that also set it in their DD. The O-bit is a DD-only signal, not part of the Hello E/N option match. Received opaque LSAs are stored and re-flooded per scope regardless of the `opaque` leaf, subject to registered application validation. Disabling the leaf stops advertising opaque capability and originating opaque LSAs. A virtual neighbour's DD omits both Type-5 and Type-11 headers. A received Type-11 opaque LSA is usable only while its originating router is reachable (RFC 5250 §5). Opaque activity is counted by `ze_ospf_opaque_lsas{scope,opaque_type}`, `ze_ospf_opaque_originations_total{opaque_type}`, `ze_ospf_opaque_received_total{opaque_type,registered}`, `ze_ospf_opaque_consumer_errors_total{opaque_type}`, and `ze_ospf_opaque_capable_neighbors{interface}`.
 <!-- source: internal/plugins/ospf/lsdb/opaque_as.go -- OriginateOpaque, OpaqueDelivery, OpaqueLSACounts -->
 <!-- source: internal/plugins/ospf/opaque_registry.go -- registerOpaqueConsumer, OpaqueScope -->
 <!-- source: internal/plugins/ospf/opaque.go -- deliverOpaque, originateOpaqueLSAs, routerReachable -->
@@ -297,19 +348,38 @@ The Router Informational Capabilities TLV is always the first TLV in Instance 0 
 
 ## Extended Prefix/Link Attributes (RFC 7684)
 
-Ze implements the OSPFv2 Prefix/Link Attribute Advertisement (RFC 7684) as two consumers of the opaque carrier: the Extended Prefix Opaque LSA (Opaque type 7) and the Extended Link Opaque LSA (Opaque type 8). These are TLV containers that associate attributes with the router's prefixes and links; they are the foundation later applications (Segment Routing) attach their attribute sub-TLVs to. RFC 7684 defines only the containers, so Ze ships them empty (no sub-TLV values) and fully RFC-7684-conformant on their own. Extended Prefix/Link LSAs install no route and never enter SPF (RFC 5250 §3); their attributes are stored for consumer use only. Both require `opaque true`.
+Ze carries OSPFv2 prefix and link attributes in the Extended Prefix Opaque LSA (Opaque type 7) and Extended Link Opaque LSA (Opaque type 8), as defined by RFC 7684. Their TLV containers hold the prefix or link identity and application sub-TLVs, including Segment Routing attributes when configured. These LSAs do not themselves install IP routes or enter SPF. Origination requires `opaque true`.
 
 Origination is off by default and gated per type: `ospf { extended-prefix true }` originates Extended Prefix Opaque LSAs, `ospf { extended-link true }` originates Extended Link Opaque LSAs. Reception (decode, store, show) is always on once the plugin is built, regardless of these leaves. The advertised set is derived from the router's authoritative base LSAs, so the Route Type and Link identity correlate with what a peer already sees: each Extended Prefix TLV's Route Type comes from the originating LSA (intra-area from a Router-LSA stub link, inter-area from a self Type-3 summary, AS-external from a self Type-5), and each Extended Link TLV's Link Type / Link ID / Link Data are copied from the matching Router-LSA point-to-point or transit link (RFC 2328 §A.4.2). An Extended Prefix Opaque LSA is flooded at the scope its prefixes require: area (Type 10) for intra/inter-area prefixes, AS (Type 11) for AS-external prefixes; an Extended Link Opaque LSA is always area-scoped (RFC 7684 §3) and carries exactly one Extended Link TLV (§3.1 SHALL: one link per LSA, for fine-grained change handling). An ABR sets the A-Flag (0x80) on an inter-area prefix locally connected in another area, and preserves the N-Flag (0x40) when a host prefix is propagated between areas (§2.1). A prefix or link that disappears is MaxAge-withdrawn.
 
-On receipt Ze walks the top-level TLVs and their sub-TLVs with a bound-checked iterator: a TLV or sub-TLV that overruns the subsuming LSA/TLV, or trailing data smaller than a TLV header, makes the whole LSA malformed (§5) and it is counted and not applied. The N-Flag is ignored (not treated as malformed) on a non-host prefix (§2.1). When the same prefix appears in more than one Extended Prefix Opaque LSA from the same router, the lowest Opaque ID wins (§2); a duplicate prefix within one LSA uses the first instance and logs the rest. A downstream application registers a sub-TLV codec through a generic in-process hook (`registerPrefixSubTLV` / `registerLinkSubTLV`); the originator lets it contribute bytes and the receive path dispatches a matching sub-TLV to it, while an unknown sub-TLV is skipped by its Length. A registered codec that panics is recovered and counted, so one bad consumer cannot crash OSPF.
+On receipt, Ze validates top-level TLVs and nested sub-TLV framing before any LSDB processing. An overrun or trailing fragment shorter than a TLV header makes that LSA malformed: Ze counts and discards it without storage, acknowledgement or reflooding, including self-originated and MaxAge input and when origination is disabled (§5). Valid companion LSAs in the same update are still processed. Unknown opaque applications remain uninterpreted. For valid extended LSAs, the N-Flag is ignored on a non-host prefix (§2.1). When the same prefix appears in multiple Extended Prefix LSAs from one router, the lowest Opaque ID wins (§2); duplicate prefixes within one LSA use the first instance. Applications register sub-TLV codecs through `registerPrefixSubTLV` / `registerLinkSubTLV`; unknown sub-TLVs are skipped by Length, and a registered codec panic is recovered and counted.
 
 `show ospf database opaque-area` / `opaque-as` decode the stored Extended Prefix/Link bodies inline (Route Type, prefix, A/N flags, Link Type/ID/Data, and each sub-TLV as type/length/hex or a registered codec's string), not as raw opaque hex. Extended Prefix/Link activity is counted by `ze_ospf_ext_prefix_lsas{scope}`, `ze_ospf_ext_link_lsas`, `ze_ospf_ext_originations_total{opaque_type}`, `ze_ospf_ext_malformed_total{opaque_type}`, and `ze_ospf_ext_subtlv_errors_total{registry}`.
 <!-- source: internal/plugins/ospf/ext_prefix.go -- extPrefixOnOriginate, extPrefixOnReceive, selfPrefixAdverts -->
 <!-- source: internal/plugins/ospf/ext_link.go -- extLinkOnOriginate, extLinkOnReceive -->
 <!-- source: internal/plugins/ospf/ext_subtlv.go -- registerPrefixSubTLV, registerLinkSubTLV, dispatchPrefixSubTLV -->
 <!-- source: internal/plugins/ospf/ext.go -- registerExtConsumers, extMetrics, extReceiver -->
+<!-- source: internal/plugins/ospf/opaque.go -- wireOpaqueDelivery -->
+<!-- source: internal/plugins/ospf/ext.go -- validateExtLSA -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
+<!-- source: internal/plugins/ospf/packet/ext_prefix.go -- ValidateExtLSABody -->
 <!-- source: internal/plugins/ospf/packet/ext_prefix.go -- ExtPrefixTLV, EncodeExtPrefixLSA, DecodeExtPrefixLSA -->
 <!-- source: internal/plugins/ospf/packet/ext_link.go -- ExtLinkTLV, EncodeExtLinkLSA, DecodeExtLinkLSA -->
+
+## BGP Link-State export
+
+The OSPF engines publish native LSDB snapshots to the BGP-LS exporter. The
+snapshots include router and network-pseudonode identities, links and prefixes,
+with decoded TE and Segment Routing attributes where those LSAs provide them.
+OSPFv2 and OSPFv3 keep their protocol, instance and area identities separate.
+The exporter consumes completed SPF reachability, including routers that
+advertise no selected IP prefix, and receives an updated snapshot after an
+LSDB change or SPF run. Removing an area or stopping an engine withdraws its
+previous snapshot.
+<!-- source: internal/plugins/ospf/bgpls_export.go -- startBGPLS, publishBGPLSLocked, stopBGPLS -->
+
+The [BGP-LS architecture](../architecture/wire/nlri-bgpls.md) describes export
+configuration and how those snapshots become BGP Link-State NLRIs.
 
 ## Segment Routing (RFC 8665, RFC 8666)
 
@@ -338,7 +408,7 @@ ospf {
 }
 ```
 
-When enabled, the RI LSA advertises SR-Algorithm 0 (SPF) plus the SRGB, SRLB, and optional SR Mapping-Server preference TLVs (area-scoped); the Extended Prefix LSA carries a Prefix-SID sub-TLV for each configured node prefix; and the Extended Link LSA carries an Adjacency-SID (and a LAN-Adjacency-SID on broadcast/NBMA) allocated from the SRLB for each adjacency in state 2-Way or higher. The same registered RI capability builders emit into both the OSPFv2 and the OSPFv3 RI LSA, so the SR-Algorithm/SRGB/SRLB advertisement is shared across the two families (RFC 8666 §4). On reception Ze records each remote router's SR-Algorithm and ordered SRGB, computes the outgoing MPLS label for a reachable Prefix-SID, and applies the next-hop router's NP/E/M flags: NP=0 means penultimate-hop popping (forward as plain IP), NP=1/E=0 keeps the label, NP=1/E=1 uses the Explicit NULL label (0 for IPv4, 2 for IPv6), and the M-Flag makes NP and E ignored. A Prefix-SID for an algorithm the originator did not advertise, or a duplicate Prefix-SID for the same prefix/topology/algorithm, is recorded but not installed; an Adjacency-SID is withdrawn (and its SRLB label freed) when the adjacency drops below 2-Way (RFC 8665 §7.4.1 / RFC 8666 §8.4.1). Only V=0/L=0 (4-octet index) and V=1/L=1 (3-octet local label) are valid SID encodings; any other combination causes the SID advertisement to be ignored, and a malformed TLV/sub-TLV makes the whole LSA malformed and is counted, never crashing the parser.
+When enabled, the RI LSA advertises SR-Algorithm 0 (SPF) plus the SRGB, SRLB, and optional SR Mapping-Server preference TLVs (area-scoped); the Extended Prefix LSA carries a Prefix-SID sub-TLV for each configured node prefix; and the Extended Link LSA carries an Adjacency-SID (and a LAN-Adjacency-SID on broadcast/NBMA) allocated from the SRLB for each Full adjacency. The same registered RI capability builders emit into both the OSPFv2 and the OSPFv3 RI LSA, so the SR-Algorithm/SRGB/SRLB advertisement is shared across the two families (RFC 8666 §4). On reception Ze records each remote router's SR-Algorithm and ordered SRGB, computes the outgoing MPLS label for a reachable Prefix-SID, and applies the next-hop router's NP/E/M flags: NP=0 means penultimate-hop popping (forward as plain IP), NP=1/E=0 keeps the label, NP=1/E=1 uses the Explicit NULL label (0 for IPv4, 2 for IPv6), and the M-Flag makes NP and E ignored. A Prefix-SID for an algorithm the originator did not advertise, or a duplicate Prefix-SID for the same prefix/topology/algorithm, is recorded but not installed. When an adjacency leaves Full, its Adjacency-SID advertisement and forwarding entry are withdrawn before the SRLB label is freed for reuse. Only V=0/L=0 (4-octet index) and V=1/L=1 (3-octet local label) are valid SID encodings; any other combination causes the SID advertisement to be ignored, and a malformed TLV/sub-TLV makes the whole LSA malformed and is counted.
 
 MPLS forwarding is programmed through the shared `mpls-fib` bus with two SR source tags (OSPF-SR for IPv4, OSPFv3-SR for IPv6), the third producer alongside RSVP-TE and LDP; `fib-kernel` remains the single owner of kernel forwarding state. Prefix-SIDs install a push (ingress) or swap (transit) entry toward the SPF next-hop; Adjacency-SIDs install a pop/forward entry keyed by the local SRLB label. SR reads the shared SPF route table (read-only) through a post-run hook that fires after the IP-route Installer has applied, so an SR label push always rides an already-installed IP route. SR LSAs are never SPF vertices and never change the route table directly.
 
@@ -430,7 +500,10 @@ OSPFv2 packets can be authenticated per interface with a key chain (RFC 2328 App
 <!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
 <!-- source: internal/plugins/ospf/auth_wiring.go -- signPacket (TX), verifyPacket (RX) -->
 
-For cryptographic auth the OSPF common-header Checksum is zero (the appended digest provides integrity) and the OSPF Packet Length covers only the header and body; the digest (and, for AuType 3, a leading 64-bit sequence number) is appended after the body and counted only in the IP length. All digest and password comparisons are constant-time. The cryptographic sequence number is non-decreasing per neighbour, key-id, and packet type, so a replayed packet is rejected; the send counter is seeded from a monotonic clock so it does not regress across a restart (a peer enforcing a strictly-increasing sequence keeps the adjacency, RFC 7474). For AuType 3 the IP source address is bound into the digest (RFC 7474 §5 initialises the first four octets of Apad to the source address) so a spoofed source fails verification.
+For cryptographic auth the OSPF common-header Checksum is zero, and the OSPF Packet Length covers only the header and body. The digest, preceded by a 64-bit sequence number for AuType 3, follows the body and counts only in the IP length. Digest and password comparisons are constant-time. Receive sequence checks are per neighbour, key-id and packet type. AuType 3 binds the IP source address into Apad (RFC 7474 §5) and uses a boot-count high word durably reserved in the daemon-owned state store before packet processing. Low-word wrap reserves another durable boot count before transmitting the wrapped sequence. If that reservation fails or cannot advance, packets are suppressed until it succeeds; no clock-derived or memory-only fallback is used.
+<!-- source: internal/plugins/ospf/state.go -- initializeState, incrementBootCount -->
+
+After replacing the router or losing the non-volatile boot-count state, replace the OSPF authentication keys before resuming adjacencies (RFC 7474 §8). Stop affected OSPF instances, provision new shared secrets on this router and its peers, and retire the old keys from their accept windows before resuming. Restarting with an empty store cannot distinguish a new installation from lost state and does not make an old key safe to reuse.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- verify replay check, signKey sequence -->
 
 Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the key whose `send-lifetime` covers the current time signs, and every key whose `accept-lifetime` covers the current time is accepted on receive. RFC 7474 section 4 requires that window to include the current time for a key used on reception, so a packet made with a key outside its window is dropped and counted as `accept-lifetime` in `ze_ospf_auth_failures_total`. Configure the two windows to overlap and a key rolls over without dropping the adjacency; close an `accept-lifetime` and the key is retired without editing the chain. A key with no `accept-lifetime` is accepted at every time. A chain is bound per interface, or an interface set to `authentication { mode inherit }` uses the area-level default chain. Secrets are stored `$9$`-encoded and never appear in plaintext in `show configuration` or backups.

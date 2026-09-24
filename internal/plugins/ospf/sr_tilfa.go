@@ -159,6 +159,8 @@ func (m *srAdjManager) adjLabelForRouter(router types.RouterID) (uint32, bool) {
 	if m == nil {
 		return 0, false
 	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	for k, rec := range m.labels {
 		if k.router == router {
 			return rec.label, true

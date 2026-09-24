@@ -33,7 +33,8 @@ address-family-aware seams. This is the decision every later OSPF change inherit
 - Link-LSAs are interface-scoped. The DD summary, the LS Request lookup, the
   ack, the aging, the refresh, the release and the snapshots all need the
   arrival interface.
-  <!-- source: internal/plugins/ospf/lsdb/link_scope.go -- isLinkLSAType, installLink -->
+  <!-- source: internal/plugins/ospf/types/lstype.go -- LSType.LinkLocal -->
+  <!-- source: internal/plugins/ospf/lsdb/link_scope.go -- installLink -->
 - A BGP redistribution source registers at package init. Registration after peer
   parsing is too late for config validation.
 

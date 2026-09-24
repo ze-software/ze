@@ -83,6 +83,10 @@ func DecodeExtLinkLSA(body []byte) (ExtLinkLSA, error) {
 			continue // unknown top-level TLV: skip via Length (iterator advanced)
 		}
 		if out.HasLink {
+			// A duplicate is ignored only after its framing has been checked.
+			if err := validateExtTLV(it.Value(), extLinkTLVFixedLen); err != nil {
+				return ExtLinkLSA{}, err
+			}
 			out.ExtraLinkTLVs++ // §3.1: only one SHALL be advertised; use the first
 			continue
 		}

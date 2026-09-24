@@ -3,10 +3,12 @@ package ospf
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -175,5 +177,136 @@ func assertEngineBootSequence(t *testing.T, e *engine, want uint32) {
 	}
 	if got := uint32(sequence >> 32); got != want {
 		t.Fatalf("packet boot sequence = %d, want %d", got, want)
+	}
+}
+
+// TestOSPFESNWrapPersistsBeforeRestart exercises the runtime callback, signs on both
+// sides of a low-word wrap, then initializes another engine from the same store.
+// MUTATION: Increment bootCount only in memory in authStore.signKey.
+// RFC requirement: RFC7474-2-4 positive -- a packet sent after low-word wrap uses a durably advanced boot count, and a new engine's first packet sorts above the wrapped engine's final packet.
+func TestOSPFESNWrapPersistsBeforeRestart(t *testing.T) {
+	installDaemonState(t)
+	store := daemonStateClient{}
+	cfg := authCfg(keyConfig{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: "key"})
+	cfg.KeyChains[0].ExtendedSequence = true
+	first := newEngine(nil)
+	defer first.shutdown()
+	first.state = store
+	if err := first.initializeState(); err != nil {
+		t.Fatal(err)
+	}
+	first.auth.configure(cfg)
+	first.auth.sendSeq["eth0"] = ^uint32(0)
+	wrapped := first.signPacket("eth0", encodeHello(t))
+	sequence, ok := packet.Verify(wrapped, packet.AuTypeCryptographicESN,
+		packet.AuthKey{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: []byte("key")},
+		first.auth.srcByIface["eth0"])
+	if !ok {
+		t.Fatal("wrapped packet did not authenticate")
+	}
+	if sequence != uint64(2)<<32 {
+		t.Fatalf("wrapped sequence = %x, want 200000000", sequence)
+	}
+	counter, found, err := store.StateGet(context.Background(), zefs.KeyOSPFAuthBootCount.Key())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		t.Fatal("wrapped boot count was not persisted")
+	}
+	if len(counter) != 4 {
+		t.Fatalf("persisted counter length = %d, want 4", len(counter))
+	}
+	if got := binary.BigEndian.Uint32(counter); got != 2 {
+		t.Fatalf("persisted boot count = %d, want 2", got)
+	}
+	final := first.signPacket("eth0", encodeHello(t))
+	finalSequence, ok := packet.Verify(final, packet.AuTypeCryptographicESN,
+		packet.AuthKey{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: []byte("key")},
+		first.auth.srcByIface["eth0"])
+	if !ok {
+		t.Fatal("post-wrap successor did not authenticate")
+	}
+	if finalSequence != sequence+1 {
+		t.Fatalf("post-wrap sequence = %x, want %x", finalSequence, sequence+1)
+	}
+	second := newEngine(nil)
+	defer second.shutdown()
+	second.state = store
+	if err := second.initializeState(); err != nil {
+		t.Fatal(err)
+	}
+	second.auth.configure(cfg)
+	restarted := second.signPacket("eth0", encodeHello(t))
+	restartedSequence, ok := packet.Verify(restarted, packet.AuTypeCryptographicESN,
+		packet.AuthKey{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: []byte("key")},
+		second.auth.srcByIface["eth0"])
+	if !ok {
+		t.Fatal("restarted packet did not authenticate")
+	}
+	if restartedSequence != uint64(3)<<32|1 {
+		t.Fatalf("restarted sequence = %x, want 300000001", restartedSequence)
+	}
+	if restartedSequence <= finalSequence {
+		t.Fatal("restart reused the wrapped engine's sequence space")
+	}
+}
+
+// TestOSPFESNWrapFailureRefusesPackets keeps trying after a failed increment to
+// catch a low-word reset that lets the next packet bypass the persistence gate.
+// MUTATION: Advance sendSeq before checking the durable increment, or return the
+// unsigned payload from signPacket when signKey refuses a configured chain.
+// RFC requirement: RFC7474-2-4 negative -- unavailable, corrupt, failed, exhausted or non-increasing durable state refuses every attempted wrap packet instead of emitting a reused extended sequence.
+func TestOSPFESNWrapFailureRefusesPackets(t *testing.T) {
+	for _, failure := range []string{"unavailable", "corrupt", "persist-failed", "exhausted", "missing-increment", "non-increasing"} {
+		t.Run(failure, func(t *testing.T) {
+			installDaemonState(t)
+			store := daemonStateClient{}
+			if failure == "exhausted" {
+				if err := store.StatePut(context.Background(), zefs.KeyOSPFAuthBootCount.Key(), []byte{0xff, 0xff, 0xff, 0xfe}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			e := newEngine(nil)
+			defer e.shutdown()
+			e.state = store
+			if err := e.initializeState(); err != nil {
+				t.Fatal(err)
+			}
+			cfg := authCfg(keyConfig{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: "key"})
+			cfg.KeyChains[0].ExtendedSequence = true
+			e.auth.configure(cfg)
+			e.auth.sendSeq["eth0"] = ^uint32(0)
+			switch failure {
+			case "missing-increment":
+				e.auth.setBootCount(e.auth.bootCount, nil)
+			case "non-increasing":
+				e.auth.setBootCount(e.auth.bootCount, func() (uint32, error) { return 1, nil })
+			case "exhausted":
+				// The real daemon store refuses to increment past uint32's maximum.
+			default:
+				e.state = failedStateClient{fakeGRStore: newFakeGRStore(), err: errors.New(failure)}
+			}
+			for range 2 {
+				if signed := e.signPacket("eth0", encodeHello(t)); signed != nil {
+					t.Fatalf("signer emitted %d bytes after a failed durable increment", len(signed))
+				}
+			}
+			if failure == "exhausted" {
+				return
+			}
+			e.state = store
+			e.auth.setBootCount(e.auth.bootCount, e.incrementBootCount)
+			recovered := e.signPacket("eth0", encodeHello(t))
+			sequence, ok := packet.Verify(recovered, packet.AuTypeCryptographicESN,
+				packet.AuthKey{KeyID: 1, Algorithm: packet.AuthHMACSHA256, Secret: []byte("key")},
+				e.auth.srcByIface["eth0"])
+			if !ok {
+				t.Fatal("signing did not resume after a successful durable increment")
+			}
+			if sequence != uint64(2)<<32 {
+				t.Fatalf("recovered sequence = %x, want 200000000", sequence)
+			}
+		})
 	}
 }

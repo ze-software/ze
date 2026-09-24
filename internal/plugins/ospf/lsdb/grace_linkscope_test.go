@@ -13,18 +13,18 @@ import (
 )
 
 func TestGraceLSALinkScopeRouting(t *testing.T) {
-	if !isLinkLSAType(types.LSTypeGraceV6) {
+	if !types.LSTypeGraceV6.LinkLocal() {
 		t.Fatalf("LSTypeGraceV6 must be link-scoped so the OSPFv3 Grace-LSA routes through the link store")
 	}
-	if isLinkLSAType(types.LSTypeOpaqueAS) {
+	if types.LSTypeOpaqueAS.LinkLocal() {
 		t.Fatalf("Opaque-AS (Type 11) must NOT be link-scoped -- it is AS-wide")
 	}
 	// The two link-scoped OSPFv3 types (Link-LSA + Grace-LSA) and the Type-9 opaque LSA are
 	// the only link-scoped types; area/AS types are not.
-	if !isLinkLSAType(types.LSTypeLink) || !isLinkLSAType(types.LSTypeOpaqueLink) {
+	if !types.LSTypeLink.LinkLocal() || !types.LSTypeOpaqueLink.LinkLocal() {
 		t.Fatalf("Link-LSA and Type-9 opaque must remain link-scoped")
 	}
-	if isLinkLSAType(types.LSTypeASExternal) || isLinkLSAType(types.LSTypeOpaqueArea) {
+	if types.LSTypeASExternal.LinkLocal() || types.LSTypeOpaqueArea.LinkLocal() {
 		t.Fatalf("area/AS types must not be link-scoped")
 	}
 }

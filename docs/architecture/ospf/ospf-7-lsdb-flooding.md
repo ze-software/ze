@@ -12,6 +12,19 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
 - **Retransmit lists live in `lsdb`, not in `neighbor`.** Flooding policy, ack
   policy, purge retention and Type 5 AS-wide scope need one owner.
   <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck, RetransmitTick -->
+- **Application validation precedes every LS Update disposition.** A malformed
+  understood extension LSA is neither stored, acknowledged nor reflooded, even
+  when self-originated or MaxAge. Valid companion LSAs continue through the
+  update. Unknown opaque applications are not parsed as known extensions.
+  <!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate -->
+  <!-- source: internal/plugins/ospf/opaque.go -- wireOpaqueDelivery -->
+- **Native link-scope extension LSAs share the interface lifetime.** E-Link
+  and link-scope Router Information LSAs enter the link store, not the area
+  store. Origination, purge and interface release notify readers outside the
+  LSDB lock, including the asynchronous native BGP-LS snapshot publisher.
+  <!-- source: internal/plugins/ospf/types/lstype.go -- LSType.LinkLocal -->
+  <!-- source: internal/plugins/ospf/lsdb/link_scope.go -- installLinkOriginated, ReleaseLink -->
+  <!-- source: internal/plugins/ospf/neighbor/lsreq.go -- lookupLSAHeaderLocked, lookupLSALocked -->
 - **The neighbor Loading path drains an LS Request entry only after the LSDB
   confirms it accepted an equal or newer instance.** Otherwise Loading bypasses
   the flooding receive policy.
@@ -42,12 +55,24 @@ LSRefresh and MaxSequenceNumber restart (RFC 2328 Sections 12 to 14).
 - Stub and NSSA Type 5 filtering runs on receive AND on summary and lookup
   visibility, so the DD and LS Request paths cannot leak AS-external LSAs into
   those areas.
-- Interface-down callbacks MUST enqueue deferred origination because their
-  caller can hold the engine lock. Physical and virtual interfaces share one
-  capacity-one notification channel, and a full channel coalesces the request.
-  The maintenance worker consumes notifications outside that lock.
+- Neighbor and interface callbacks MUST enqueue self-LSA origination. Physical
+  and virtual interfaces share one capacity-one notification channel. The
+  maintenance worker consumes a request before reading current topology, so
+  changes during an active pass can queue another pass. A full channel
+  coalesces requests without blocking receive processing on topology queries.
+  Full-state transitions use the same queue. Interface-down callbacks can hold
+  the engine lock, so they also MUST return without inline origination.
   <!-- source: internal/plugins/ospf/instance.go -- originateSelfLSAsDeferred, startNeighborRetransmitLoop, startInterfaceLocked -->
   <!-- source: internal/plugins/ospf/virtual_link.go -- startVirtualInterface -->
+  <!-- source: internal/plugins/ospf/bfd_client.go -- neighborEventSinkValue -->
+- SR Adj-SID Full/Down hooks use the same origination queue after the label
+  lifecycle operation. The adjacency manager serializes allocation and
+  withdrawal with OSPFv3 origination and TI-LFA label reads. An install emission
+  completes before the label becomes visible to either address family's
+  origination. Withdrawal clears the advertisement and completes its FIB
+  emission before freeing the label for reuse.
+  <!-- source: internal/plugins/ospf/sr_adjsid.go -- srAdjManager, srAdjNeighborFull, srAdjNeighborLost -->
+  <!-- source: internal/plugins/ospf/sr_tilfa.go -- adjLabelForRouter -->
 - Lazy maintenance registration and shutdown cancellation share `spawnMu`.
   Nested locking MUST take `mu` before `spawnMu`. Shutdown MUST release
   `spawnMu` before taking `mu` or waiting for the worker. Cancellation prevents

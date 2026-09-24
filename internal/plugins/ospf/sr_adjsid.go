@@ -11,6 +11,7 @@ package ospf
 
 import (
 	"net/netip"
+	"sync"
 
 	ospfneighbor "github.com/ze-software/ze/internal/plugins/ospf/neighbor"
 	"github.com/ze-software/ze/internal/plugins/ospf/sr"
@@ -33,9 +34,10 @@ type srAdjRecord struct {
 }
 
 // srAdjManager owns the SRLB allocator, the Adj-SID store, and the mpls-fib pop
-// entries for one address family. It is not safe for concurrent use; the engine
-// serializes neighbor events on its run goroutine.
+// entries for one address family. Its lock serializes neighbor lifecycle changes
+// with maintenance-worker origination and SPF adjacency-label lookups.
 type srAdjManager struct {
+	mu     sync.RWMutex
 	alloc  *sr.LabelAllocator
 	fib    *srFIB
 	store  *srWireStore
@@ -48,6 +50,8 @@ type srAdjManager struct {
 // neighbor ID). It returns false when SR is disabled (nil allocator), the SRLB is
 // exhausted, or the adjacency already has an Adj-SID (idempotent).
 func (m *srAdjManager) neighborFull(iface string, router types.RouterID, linkData [4]byte, nh netip.Addr, lan bool, neighborID [4]byte) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.alloc == nil {
 		return false
 	}
@@ -67,19 +71,22 @@ func (m *srAdjManager) neighborFull(iface string, router types.RouterID, linkDat
 		IsLAN:      lan,
 		NeighborID: neighborID,
 	}
+	// Complete the install emission before either origination reader can see
+	// the label. The wire store has its own readers outside this manager's lock.
+	m.fib.installAdjSID(label, nh)
 	m.store.setAdj(m.self, linkData, adj)
 	m.labels[key] = srAdjRecord{label: label, linkData: linkData, adj: adj}
-	m.fib.installAdjSID(label, nh)
 	return true
 }
 
 // adjFor returns the Adj-SID allocated for one adjacency (interface + neighbor Router
-// ID), for the OSPFv3 E-Router-LSA origination that advertises it. It is read on the same
-// engine run goroutine that drives neighborFull/neighborLost, so it needs no extra lock.
+// ID), for OSPFv3 E-Router-LSA origination on the maintenance worker.
 func (m *srAdjManager) adjFor(iface string, router types.RouterID) (sr.AdjSID, bool) {
 	if m == nil {
 		return sr.AdjSID{}, false
 	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	rec, ok := m.labels[srAdjKey{iface: iface, router: router}]
 	if !ok {
 		return sr.AdjSID{}, false
@@ -89,11 +96,13 @@ func (m *srAdjManager) adjFor(iface string, router types.RouterID) (sr.AdjSID, b
 
 // neighborLost withdraws and frees the Adj-SID for a neighbor that left Full. It is a
 // no-op when the adjacency has no Adj-SID.
-func (m *srAdjManager) neighborLost(iface string, router types.RouterID) {
+func (m *srAdjManager) neighborLost(iface string, router types.RouterID) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	key := srAdjKey{iface: iface, router: router}
 	rec, ok := m.labels[key]
 	if !ok {
-		return
+		return false
 	}
 	delete(m.labels, key)
 	m.store.clearAdj(m.self, rec.linkData)
@@ -101,6 +110,7 @@ func (m *srAdjManager) neighborLost(iface string, router types.RouterID) {
 	if m.alloc != nil {
 		m.alloc.Free(rec.label)
 	}
+	return true
 }
 
 // inUse reports how many Adj-SID labels are currently allocated (metrics).
@@ -108,11 +118,16 @@ func (m *srAdjManager) inUse() int {
 	if m == nil {
 		return 0
 	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return len(m.labels)
 }
 
 // ensureAlloc seeds the SRLB allocator on first use (SR enabled with an SRLB range).
-func (m *srAdjManager) ensureAlloc(srlb []sr.LabelRange) {
+func (m *srAdjManager) ensureAlloc(self types.RouterID, srlb []sr.LabelRange) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.self = self
 	if m.alloc == nil && len(srlb) > 0 {
 		m.alloc = sr.NewLabelAllocator(srlb)
 	}
@@ -129,7 +144,10 @@ func (e *engine) srAdjNeighborFull(snap ospfneighbor.Snapshot) {
 	if e.srAdj == nil {
 		return
 	}
-	cfg, ok := srWire.get(e.cfg.RouterID)
+	e.mu.Lock()
+	self := e.cfg.RouterID
+	e.mu.Unlock()
+	cfg, ok := srWire.get(self)
 	if !ok || !cfg.Enabled || len(cfg.SRLB) == 0 {
 		return
 	}
@@ -145,11 +163,10 @@ func (e *engine) srAdjNeighborFull(snap ospfneighbor.Snapshot) {
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		linkData = [4]byte(router)
 	}
-	e.srAdj.self = e.cfg.RouterID
-	e.srAdj.ensureAlloc(cfg.SRLB)
+	e.srAdj.ensureAlloc(self, cfg.SRLB)
 	if e.srAdj.neighborFull(snap.Interface, router, linkData, nh, false, [4]byte(router)) {
 		srMetrics.Load().updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
-		e.originateSelfLSAs()
+		e.originateSelfLSAsDeferred()
 	}
 }
 
@@ -162,12 +179,14 @@ func (e *engine) srAdjNeighborLost(snap ospfneighbor.Snapshot) {
 	if err != nil {
 		return
 	}
-	before := e.srAdj.inUse()
-	e.srAdj.neighborLost(snap.Interface, router)
-	if e.srAdj.inUse() != before {
-		if cfg, ok := srWire.get(e.cfg.RouterID); ok {
+	if e.srAdj.neighborLost(snap.Interface, router) {
+		// Interface-down can call this hook while holding e.mu.
+		e.srAdj.mu.RLock()
+		self := e.srAdj.self
+		e.srAdj.mu.RUnlock()
+		if cfg, ok := srWire.get(self); ok {
 			srMetrics.Load().updateFromConfig(e.srAF(), cfg, e.srAdj.inUse())
 		}
-		e.originateSelfLSAs()
+		e.originateSelfLSAsDeferred()
 	}
 }

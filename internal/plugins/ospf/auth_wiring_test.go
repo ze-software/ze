@@ -125,3 +125,86 @@ func TestEngineVerifyPacketDropsAndCounts(t *testing.T) {
 		t.Fatalf("a passing packet must not bump auth failures: got %d", rec.authFailures)
 	}
 }
+
+// TestEngineReceiveSelectsSecurityAssociation exercises configured Key IDs through
+// the router receive hook. Valid packets under each algorithm pass; packets signed
+// for an unknown ID or with another association's algorithm or secret are counted
+// and dropped without advancing the legitimate sender's replay state.
+// MUTATION: Remove Verify's AuType-2 Key-ID comparison, skip authStore.verify in
+// verifyPacket, or update recvSeq before digest verification.
+// RFC requirement: RFC5709-3.4-2 positive -- the engine accepts SHA-256 and SHA-512 packets using the algorithm and secret configured for each packet's Key ID.
+// RFC requirement: RFC5709-3.4-2 negative -- the engine rejects unknown Key IDs and packets signed with another configured association's algorithm or secret, even though that other association could verify their digest.
+// RFC requirement: RFC5709-3.4-1 positive -- correctly authenticated packets pass the engine receive hook without incrementing authentication failures.
+// RFC requirement: RFC5709-3.4-1 negative -- incorrectly authenticated packets are dropped and counted, and their higher sequence numbers cannot prevent a later valid packet from being accepted.
+func TestEngineReceiveSelectsSecurityAssociation(t *testing.T) {
+	const data = `{"ospf":{"router-id":"10.0.0.1",` +
+		`"areas":{"area":{"0":{"area-id":"0","authentication":{"key-chain":"kc1"}}}},` +
+		`"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point","authentication":{"mode":"inherit"}}}},` +
+		`"key-chains":{"kc1":{"name":"kc1","key":{` +
+		`"7":{"key-id":"7","algorithm":"hmac-sha-256","secret":"shared-key"},` +
+		`"8":{"key-id":"8","algorithm":"hmac-sha-512","secret":"shared-key"},` +
+		`"9":{"key-id":"9","algorithm":"hmac-sha-256","secret":"other-key"}` +
+		`}}}}}`
+	cfg, err := parseOSPFConfig(ospfSec(data), nil)
+	require.NoError(t, err)
+	require.NoError(t, validateConfig(cfg))
+	fb := &fakeBackend{}
+	eng := newEngine(transport.New(fb))
+	defer eng.shutdown()
+	rec := &authFailRegistry{}
+	eng.setMetrics(rec)
+	eng.setConfig(cfg)
+	require.NoError(t, eng.openInterfaces())
+	fb.mu.Lock()
+	handle := fb.handles["eth0"]
+	fb.mu.Unlock()
+	require.NotNil(t, handle)
+	h := Header{RouterID: ridOf("2.2.2.2"), AreaID: cfg.Areas[0].AreaID}
+	cases := []struct {
+		name string
+		good packet.AuthKey
+		bad  packet.AuthKey
+	}{
+		{
+			name: "unknown-key-id",
+			good: packet.AuthKey{KeyID: 7, Algorithm: packet.AuthHMACSHA256, Secret: []byte("shared-key")},
+			bad:  packet.AuthKey{KeyID: 99, Algorithm: packet.AuthHMACSHA256, Secret: []byte("shared-key")},
+		},
+		{
+			name: "wrong-association-algorithm",
+			good: packet.AuthKey{KeyID: 8, Algorithm: packet.AuthHMACSHA512, Secret: []byte("shared-key")},
+			bad:  packet.AuthKey{KeyID: 8, Algorithm: packet.AuthHMACSHA256, Secret: []byte("shared-key")},
+		},
+		{
+			name: "wrong-association-secret",
+			good: packet.AuthKey{KeyID: 9, Algorithm: packet.AuthHMACSHA256, Secret: []byte("other-key")},
+			bad:  packet.AuthKey{KeyID: 9, Algorithm: packet.AuthHMACSHA256, Secret: []byte("shared-key")},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			failures := rec.authFailures
+			valid := signedHelloWith(t, tc.good, 10)
+			if !eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: valid}, h) {
+				t.Fatal("engine rejected the packet's configured security association")
+			}
+			if rec.authFailures != failures {
+				t.Fatal("engine counted a valid packet as an authentication failure")
+			}
+			forged := signedHelloWith(t, tc.bad, 100)
+			if eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: forged}, h) {
+				t.Fatal("engine accepted a packet outside its named security association")
+			}
+			if rec.authFailures != failures+1 {
+				t.Fatalf("authentication failures = %d, want %d", rec.authFailures, failures+1)
+			}
+			next := signedHelloWith(t, tc.good, 11)
+			if !eng.verifyPacket(transport.RawPacket{IfIndex: handle.ifindex, Payload: next}, h) {
+				t.Fatal("rejected packet poisoned the legitimate association's replay state")
+			}
+			if rec.authFailures != failures+1 {
+				t.Fatal("engine counted the legitimate successor as an authentication failure")
+			}
+		})
+	}
+}

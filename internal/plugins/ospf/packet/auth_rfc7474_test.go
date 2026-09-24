@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf/ospf-auth.md -- OSPFv2 cryptographic authentication.
+// Design: docs/architecture/ospf/ospf-12-auth.md -- OSPFv2 cryptographic authentication.
 // RFC: rfc/short/rfc7474.md -- Section 6 (Ko zero-padded to the Ipad/Opad length).
 package packet
 
@@ -36,9 +36,9 @@ func hmacWithPad(h func() hash.Hash, blockSize int, ko, msg []byte, pad byte) []
 	return outer.Sum(nil)
 }
 
-// rfc7474KoCases lists the SHA algorithms with their block sizes. The 5-octet secret is
-// shorter than every digest length L, so Ko is the secret zero-padded to L (RFC 5709
-// §3.3) and then shorter than B, which is where the §6 padding applies.
+// rfc7474KoCases covers both SHA block sizes. The short secret plus the protocol
+// ID is zero-padded to L independently of deriveKo, then the reference hash
+// explicitly pads Ko to B.
 var rfc7474KoCases = []struct {
 	algo      string
 	h         func() hash.Hash
@@ -48,54 +48,57 @@ var rfc7474KoCases = []struct {
 	{algo: AuthHMACSHA512, h: sha512.New, blockSize: 128},
 }
 
-// RFC requirement: RFC7474-6-2 positive -- the digest Sign writes equals an HMAC computed
-// with Ko explicitly padded with zeros to the Ipad/Opad length B (64 for SHA-256, 128 for
-// SHA-512) before the XOR, and Verify accepts it (hmacDigest, auth_verify.go, feeds the
-// L-octet Ko to crypto/hmac; deriveKo zero-pads the short secret to L).
+// MUTATION: Pad Ko with nonzero bytes to the hash block size in hmacDigest.
+// RFC requirement: RFC7474-6-2 positive -- AuType-3 Sign matches an independently constructed HMAC with Ko zero-padded to B before the Ipad/Opad XOR, and Verify accepts that digest for SHA-256 and SHA-512.
 func TestRFC7474KoZeroPaddedToBlockSize(t *testing.T) {
 	for _, tc := range rfc7474KoCases {
 		t.Run(tc.algo, func(t *testing.T) {
 			key := AuthKey{KeyID: 3, Algorithm: tc.algo, Secret: []byte("short")}
-			wire := helloWire(t, AuTypeCryptographic)
+			src := [4]byte{192, 0, 2, 1}
+			wire := helloWire(t, AuTypeCryptographicESN)
 			plen := len(wire)
-			signed, err := Sign(wire, AuTypeCryptographic, key, 9, [4]byte{})
+			signed, err := Sign(wire, AuTypeCryptographicESN, key, 9, src)
 			require.NoError(t, err)
 
-			l := authDigestLen(tc.algo)
-			ko := deriveKo(key.Secret, l, tc.h)
-			msg := append(append([]byte{}, signed[:plen]...), apad(l)...)
+			l := tc.h().Size()
+			ko := make([]byte, l)
+			copy(ko, []byte{'s', 'h', 'o', 'r', 't', 0, 1})
+			msg := append(bytes.Clone(signed[:plen+8]), bytes.Repeat([]byte{0x87, 0x8f, 0xe1, 0xf3}, l/4)...)
+			copy(msg[plen+8:plen+12], src[:])
 			want := hmacWithPad(tc.h, tc.blockSize, ko, msg, 0x00)
-			if !bytes.Equal(signed[plen:], want) {
-				t.Fatalf("wire digest %x != HMAC with zero-padded Ko %x", signed[plen:], want)
+			if !bytes.Equal(signed[plen+8:], want) {
+				t.Fatalf("wire digest %x != HMAC with zero-padded Ko %x", signed[plen+8:], want)
 			}
-			if _, ok := Verify(signed, AuTypeCryptographic, key, [4]byte{}); !ok {
+			if _, ok := Verify(signed, AuTypeCryptographicESN, key, src); !ok {
 				t.Fatalf("Verify rejected the zero-padded-Ko digest")
 			}
 		})
 	}
 }
 
-// RFC requirement: RFC7474-6-2 negative -- a digest computed with Ko padded to the
-// Ipad/Opad length with a non-zero octet (0xff) differs from the one Sign writes, and a
-// packet carrying that digest is rejected by Verify (hmacDigest and Verify, auth_verify.go).
+// MUTATION: Pad Ko with 0xff bytes to the hash block size in hmacDigest.
+// RFC requirement: RFC7474-6-2 negative -- AuType-3 Verify rejects SHA-256 and SHA-512 digests whose Ko uses 0xff padding to B instead of zero padding before the Ipad/Opad XOR.
 func TestRFC7474KoNonZeroPadRejected(t *testing.T) {
 	for _, tc := range rfc7474KoCases {
 		t.Run(tc.algo, func(t *testing.T) {
 			key := AuthKey{KeyID: 3, Algorithm: tc.algo, Secret: []byte("short")}
-			wire := helloWire(t, AuTypeCryptographic)
+			src := [4]byte{192, 0, 2, 1}
+			wire := helloWire(t, AuTypeCryptographicESN)
 			plen := len(wire)
-			signed, err := Sign(wire, AuTypeCryptographic, key, 9, [4]byte{})
+			signed, err := Sign(wire, AuTypeCryptographicESN, key, 9, src)
 			require.NoError(t, err)
 
-			l := authDigestLen(tc.algo)
-			ko := deriveKo(key.Secret, l, tc.h)
-			msg := append(append([]byte{}, signed[:plen]...), apad(l)...)
+			l := tc.h().Size()
+			ko := make([]byte, l)
+			copy(ko, []byte{'s', 'h', 'o', 'r', 't', 0, 1})
+			msg := append(bytes.Clone(signed[:plen+8]), bytes.Repeat([]byte{0x87, 0x8f, 0xe1, 0xf3}, l/4)...)
+			copy(msg[plen+8:plen+12], src[:])
 			bad := hmacWithPad(tc.h, tc.blockSize, ko, msg, 0xff)
-			if bytes.Equal(signed[plen:], bad) {
+			if bytes.Equal(signed[plen+8:], bad) {
 				t.Fatalf("wire digest equals the HMAC with a 0xff-padded Ko: the pad is not zero")
 			}
-			forged := append(append([]byte{}, signed[:plen]...), bad...)
-			if _, ok := Verify(forged, AuTypeCryptographic, key, [4]byte{}); ok {
+			forged := append(bytes.Clone(signed[:plen+8]), bad...)
+			if _, ok := Verify(forged, AuTypeCryptographicESN, key, src); ok {
 				t.Fatalf("Verify accepted a digest built from a 0xff-padded Ko")
 			}
 		})

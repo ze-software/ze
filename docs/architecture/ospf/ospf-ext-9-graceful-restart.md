@@ -44,6 +44,12 @@ the adjacency at Full for the grace period.
   <!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact -->
   <!-- source: internal/plugins/ospf/gr_preserve.go -- captureInterfaceIDs, capturePrefixLSIDs -->
   <!-- source: internal/plugins/ospf/gr_show.go -- grSnapshot -->
+- **A restored OSPFv3 Interface ID remains the protocol identity after restart.**
+  Runtime Hellos, the neighbor table and native LSAs use the same ID even when the
+  live kernel ifindex differs. Ending suppression does not renumber an adjacency;
+  transport receive/egress still uses the kernel index.
+  <!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology -->
+  <!-- source: internal/plugins/ospf/gr_preserve.go -- grInterfaceID -->
 
 ## Traps
 
@@ -63,3 +69,7 @@ the adjacency at Full for the grace period.
 - The carrier gained an additive LS-age field on a received opaque delivery, so
   the IPv4 helper can honour the grace clock. The v6 native path reads the LSA
   header age already. Other consumers ignore the field.
+- Helper content-change callbacks snapshot their sessions under the GR mutex,
+  then release it before looking up engine state or topology. An exit based on
+  that snapshot must not remove a newer helper session at the same key.
+  <!-- source: internal/plugins/ospf/gr_helper.go -- onContentChange, helperExit -->

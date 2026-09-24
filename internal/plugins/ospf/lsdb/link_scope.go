@@ -20,20 +20,6 @@ type LinkLSARef struct {
 	Key       types.LSAKey
 }
 
-// isLinkLSAType reports whether t is a link-local-scope LSA that lives in the
-// per-interface link store: the OSPFv3 Type-8 Link-LSA (RFC 5340) or the RFC 5250
-// Type-9 link-local opaque LSA. Both are bound to the single interface they arrive
-// on and are flooded only out that interface (floodLink), never area- or AS-wide.
-// RFC 5250 Section 3.1: a Type-9 opaque LSA "is not flooded beyond the local
-// (sub)network" -- routing it through installLink/floodLink enforces that bound.
-// The OSPFv3 Grace-LSA (RFC 5187 sec 2.1, wire LS Type 0x000B, function code 11,
-// link-local scope) is likewise link-scoped; the OSPFv3 codec maps it to the internal
-// LSTypeGraceV6 sentinel (0x000B numerically collides with the OSPFv2 Type-11 Opaque-AS,
-// so a distinct sentinel keeps the two apart), and it too routes through the link store.
-func isLinkLSAType(t types.LSType) bool {
-	return t == types.LSTypeLink || t == types.LSTypeOpaqueLink || t == types.LSTypeGraceV6
-}
-
 func (d *LSDB) linkForLocked(iface string) *areaDB {
 	store := d.links[iface]
 	if store == nil {
@@ -47,7 +33,7 @@ func (d *LSDB) linkForReadLocked(iface string) *areaDB { return d.links[iface] }
 
 func (d *LSDB) installLink(iface string, area types.AreaID, lsa packet.LSA, self, enforceMinArrival bool) (installResult, bool) {
 	raw, h, ok := normaliseLSA(lsa)
-	if !ok || !isLinkLSAType(h.Type) || iface == "" {
+	if !ok || !h.Type.LinkLocal() || iface == "" {
 		return installResult{Freshness: Older}, false
 	}
 	d.mu.Lock()
@@ -160,6 +146,7 @@ func (d *LSDB) ReleaseLink(iface string) int {
 		return 0
 	}
 	d.mu.Lock()
+	area := d.linkAreas[iface]
 	count := 0
 	if store := d.links[iface]; store != nil {
 		count = len(store.entries)
@@ -175,12 +162,15 @@ func (d *LSDB) ReleaseLink(iface string) int {
 		}
 	}
 	d.mu.Unlock()
+	if count != 0 {
+		d.notifyChange(area)
+	}
 	return count
 }
 
 // OriginateLinkSelf installs and floods one self-originated OSPFv3 Link-LSA on iface only.
 func (d *LSDB) OriginateLinkSelf(iface string, area types.AreaID, key types.LSAKey, body []byte, enc SelfLSAEncoder) (packet.LSAHeader, bool) {
-	if enc == nil || iface == "" || key.AdvertisingRouter == (types.RouterID{}) || !isLinkLSAType(key.Type) {
+	if enc == nil || iface == "" || key.AdvertisingRouter == (types.RouterID{}) || !key.Type.LinkLocal() {
 		return packet.LSAHeader{}, false
 	}
 	if h, same := d.existingLinkSelfBodyUnchanged(iface, key, body); same {
@@ -245,7 +235,7 @@ func (d *LSDB) nextLinkOwnSequence(iface string, key types.LSAKey) (types.LSSequ
 
 func (d *LSDB) installLinkOriginated(iface string, area types.AreaID, lsa packet.LSA, key types.LSAKey) (packet.LSAHeader, bool) {
 	raw, hdr, ok := normaliseLSA(lsa)
-	if !ok || !isLinkLSAType(hdr.Type) {
+	if !ok || !hdr.Type.LinkLocal() {
 		return packet.LSAHeader{}, false
 	}
 	d.mu.Lock()
@@ -258,6 +248,7 @@ func (d *LSDB) installLinkOriginated(iface string, area types.AreaID, lsa packet
 	d.mu.Unlock()
 	d.mOriginations.With(key.Type.String()).Inc()
 	d.floodLink(iface, area, key)
+	d.notifyChange(area)
 	return h, true
 }
 
@@ -317,7 +308,13 @@ func (d *LSDB) floodLink(ifaceName string, area types.AreaID, key types.LSAKey) 
 
 func (d *LSDB) deletePurgedLinkIfAcked(iface string, area types.AreaID, key types.LSAKey) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
+	changed := false
+	defer func() {
+		d.mu.Unlock()
+		if changed {
+			d.notifyChange(area)
+		}
+	}()
 	store := d.links[iface]
 	if store == nil {
 		return
@@ -332,6 +329,7 @@ func (d *LSDB) deletePurgedLinkIfAcked(iface string, area types.AreaID, key type
 		}
 	}
 	delete(store.entries, key)
+	changed = true
 	store.rebuildSortedLocked()
 	if own := d.linkOwn[iface]; own != nil {
 		delete(own, key)
@@ -400,7 +398,7 @@ func (d *LSDB) FlushStaleLinkSelfLSAs(router types.RouterID, keep map[LinkLSARef
 	var stale []LinkLSARef
 	for iface, own := range d.linkOwn {
 		for key := range own {
-			if key.AdvertisingRouter != router || !isLinkLSAType(key.Type) {
+			if key.AdvertisingRouter != router || !key.Type.LinkLocal() {
 				continue
 			}
 			ref := LinkLSARef{Interface: iface, Key: key}
@@ -421,12 +419,20 @@ func (d *LSDB) FlushStaleLinkSelfLSAs(router types.RouterID, keep map[LinkLSARef
 
 func (d *LSDB) deleteLinkLSA(iface string, key types.LSAKey) bool {
 	d.mu.Lock()
-	defer d.mu.Unlock()
+	area := d.linkAreas[iface]
+	changed := false
+	defer func() {
+		d.mu.Unlock()
+		if changed {
+			d.notifyChange(area)
+		}
+	}()
 	store := d.links[iface]
 	if store == nil || store.entries[key] == nil {
 		return false
 	}
 	delete(store.entries, key)
+	changed = true
 	store.rebuildSortedLocked()
 	if own := d.linkOwn[iface]; own != nil {
 		delete(own, key)

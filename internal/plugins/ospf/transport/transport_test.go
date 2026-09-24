@@ -238,6 +238,62 @@ func TestVirtualLinkSendUsesRoutedTTL(t *testing.T) {
 	}
 }
 
+// A signer refusal must never reach either socket send path, while a signer
+// returning wire bytes must still reach the selected path unchanged.
+func TestOSPFTransportSignerRefusal(t *testing.T) {
+	for _, routed := range []bool{false, true} {
+		name := "link-local"
+		if routed {
+			name = "routed"
+		}
+		t.Run(name, func(t *testing.T) {
+			fb := newFakeBackend()
+			tr := New(fb)
+			defer tr.Close()
+			tr.EnableInterface("eth0")
+			if err := tr.HandleLinkUp("eth0"); err != nil {
+				t.Fatal(err)
+			}
+			dst := netip.MustParseAddr("192.0.2.2")
+			payload := []byte{2, 1, 0, 24}
+			send := func() error {
+				if routed {
+					return tr.SendPacketRouted("eth0", dst, netip.Addr{}, payload)
+				}
+				return tr.SendPacket("eth0", dst, payload)
+			}
+			tr.SetSigner(func(string, []byte) []byte { return nil })
+			if err := send(); !errors.Is(err, errSigningRefused) {
+				t.Fatalf("refused send error = %v, want signing refusal", err)
+			}
+			h := fb.handles["eth0"]
+			if len(h.sends) != 0 {
+				t.Fatal("signer refusal reached the link-local socket")
+			}
+			if len(h.routed) != 0 {
+				t.Fatal("signer refusal reached the routed socket")
+			}
+			tr.SetSigner(func(_ string, wire []byte) []byte { return wire })
+			if err := send(); err != nil {
+				t.Fatal(err)
+			}
+			sends := h.sends
+			if routed {
+				sends = h.routed
+				if len(h.sends) != 0 {
+					t.Fatal("routed control packet reached the link-local socket")
+				}
+			}
+			if len(sends) != 1 {
+				t.Fatalf("socket sends = %d, want 1", len(sends))
+			}
+			if !bytes.Equal(sends[0].payload, payload) {
+				t.Fatalf("socket payload = %x, want %x", sends[0].payload, payload)
+			}
+		})
+	}
+}
+
 func TestOSPFTransportJoinLeaveAllDRouters(t *testing.T) {
 	fb := newFakeBackend()
 	tr := New(fb)

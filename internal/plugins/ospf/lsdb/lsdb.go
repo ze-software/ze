@@ -81,6 +81,9 @@ type LSDB struct {
 	// the engine can deliver it to the registered consumer (RFC 5250 §3). nil until the
 	// engine wires it; the store/flood path never depends on it.
 	opaqueDelivery func(OpaqueDelivery)
+	// receiveValidator rejects malformed application bodies before any receive
+	// side effect. It runs outside mu and is independent of opaque delivery.
+	receiveValidator ReceiveValidator
 
 	retransmit  map[NeighborKey]map[types.LSAKey]*retransmitEntry
 	delayedAck  map[string]map[types.LSAKey]packet.LSAHeader
@@ -215,6 +218,19 @@ func (d *LSDB) SetTopology(fn TopologyFunc) {
 func (d *LSDB) SetTx(tx TxFunc) {
 	d.mu.Lock()
 	d.tx = tx
+	d.mu.Unlock()
+}
+
+// ReceiveValidator checks a decoded LSA's application body before receive-side
+// storage, acknowledgements, self-originated handling or flooding. A nil validator
+// leaves application bodies uninterpreted. The callback runs outside the LSDB lock.
+type ReceiveValidator func(packet.LSAHeader, []byte) error
+
+// SetReceiveValidator installs the application's receive validator.
+// Safe for concurrent use; a received update uses one snapshot of the callback.
+func (d *LSDB) SetReceiveValidator(validate ReceiveValidator) {
+	d.mu.Lock()
+	d.receiveValidator = validate
 	d.mu.Unlock()
 }
 
@@ -353,7 +369,7 @@ func (d *LSDB) areaForLocked(area types.AreaID) *areaDB {
 // so the neighbor loading path can call it after the flooding path installed the
 // same instance.
 func (d *LSDB) Install(area types.AreaID, lsa packet.LSA) bool {
-	if isLinkLSAType(lsa.Header.Type) {
+	if lsa.Header.Type.LinkLocal() {
 		// Link-scoped LSAs (OSPFv3 Type 0x0008) live in the per-interface link store, not an
 		// area DB; they must be installed via installLink. Reject here so a misrouted caller
 		// cannot land a Link-LSA in dbForLocked's area store.

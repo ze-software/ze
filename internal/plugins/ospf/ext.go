@@ -83,6 +83,20 @@ func registerExtConsumers(e *engine) error {
 	return registerOpaqueConsumer(packet.ExtLinkOpaqueType, OpaqueScopeArea, e.extLinkOnOriginate, e.extLinkOnReceive)
 }
 
+// validateExtLSA checks understood opaque applications before the LSDB receive
+// procedure can store, acknowledge or flood them. Origination flags do not gate it.
+func (e *engine) validateExtLSA(h packet.LSAHeader, body []byte) error {
+	if !h.Type.IsOpaque() {
+		return nil
+	}
+	opaqueType := packet.OpaqueTypeOf(h.LinkStateID)
+	if err := packet.ValidateExtLSABody(opaqueType, body); err != nil {
+		e.ext.malformed.With(opaqueTypeLabel(opaqueType)).Inc()
+		return err
+	}
+	return nil
+}
+
 // refreshExtMetrics recomputes the ze_ospf_ext_prefix_lsas (by scope) and ze_ospf_ext_link_lsas
 // population gauges from the current LSDB. Cheap; called on each origination pass and receive.
 func (e *engine) refreshExtMetrics() {

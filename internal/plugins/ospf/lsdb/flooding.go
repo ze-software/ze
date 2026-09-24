@@ -147,14 +147,25 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 	if !ok {
 		return "interface"
 	}
+	d.mu.RLock()
+	validate := d.receiveValidator
+	d.mu.RUnlock()
 	for _, lsa := range in.Update.LSAs {
 		if !lsa.VerifyChecksum() {
 			return "bad-lsa-checksum"
 		}
+		// RFC 7684 Section 5: "Malformed LSAs MUST NOT be stored in the Link
+		// State Database (LSDB), acknowledged, or reflooded."
+		// Validate before every scope and before MaxAge or self-originated handling.
+		if validate != nil {
+			if err := validate(lsa.Header, lsa.Body); err != nil {
+				continue
+			}
+		}
 		if shouldDropByArea(iface.AreaType, lsa.Header.Type) {
 			continue
 		}
-		if isLinkLSAType(lsa.Header.Type) {
+		if lsa.Header.Type.LinkLocal() {
 			if d.handleSelfLinkReceived(in.Interface, lsa) {
 				continue
 			}
@@ -403,11 +414,11 @@ func eligibleInterface(iface InterfaceInfo, area types.AreaID, typ types.LSType)
 	stubLike := iface.AreaType == types.AreaTypeStub || iface.AreaType == types.AreaTypeNSSA
 	switch {
 	// RFC 5250 Section 3.1: Type-11 opaque flooding scope equals Type-5 AS-External --
-	// AS-wide (no area match) but never out a stub/NSSA interface (isASWideType covers both).
+	// AS-wide, but never over virtual links or into stub/NSSA areas (RFC 2328 §13.3).
 	// Type-10 opaque is area-scoped and Type-9 opaque is link-scoped (floodLink), so only the
 	// AS-wide types take this branch; Type-10 falls to the area-scoped default below.
 	case isASWideType(typ):
-		return !stubLike
+		return !stubLike && iface.NetworkType != types.NetworkVirtual
 	case typ.InterAreaRouter():
 		return iface.AreaID == area && !stubLike
 	case typ.NSSA():

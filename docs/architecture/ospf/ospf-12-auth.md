@@ -67,8 +67,31 @@ extended 64-bit cryptographic sequence).
   value cannot guarantee the order RFC 7474 Section 2 requires.
   <!-- source: internal/plugins/ospf/state.go -- engine.initializeState -->
   <!-- source: internal/core/statestore/statestore.go -- Increment -->
+  Low-word wrap requests another durable increment through the same runtime
+  client. Neither counter advances in memory until that reservation succeeds;
+  unavailable storage, exhausted counters and non-increasing returned values
+  refuse signing. The transport drops the refused packet, including routed
+  virtual-link sends, rather than sending the original unauthenticated payload.
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- authStore.signKey -->
+  <!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket, SendPacketRouted -->
+- **Storage loss and router replacement require new authentication keys.** RFC
+  7474 Section 8 requires the shared authentication keys to change if repair or
+  upgrade loses the non-volatile contents, or if the OSPFv2 router is replaced.
+  Before the affected router resumes OSPF, its peers must use the replacement
+  secrets and stop accepting the old ones. Changing only Key IDs does not change
+  the key material, and retaining old keys in an open accept window still permits
+  packets authenticated with those secrets.
+  The daemon starts an absent boot counter at one, as it does on first use.
+  Successful creation of that counter cannot distinguish a new deployment from
+  lost storage. Startup refuses reported storage errors; it neither detects every
+  storage-loss/replacement event nor rotates shared secrets on the peers.
+  <!-- source: internal/core/statestore/statestore.go -- Increment -->
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- loadOSPFBootCount, resolvedKey.acceptsAt -->
 - **`$9$` decode falls back to plaintext.** A non-`$9$` value is used raw, so a
   hand-written config before commit-time encoding still works.
-- **A sign-then-verify test with one key derivation cannot prove interop.** A
-  wrong Section 6 protocol-id suffix self-verifies and fails against another
-  implementation.
+- **Independent digest construction is needed for interop evidence.** Sign and
+  Verify share Ko derivation and Apad construction, so matching errors can pass a
+  round trip. SHA tests construct Ko, Ipad, Opad and Apad independently; the
+  AuType-3 padding tests also supply the source address and protocol-ID suffix.
+  <!-- source: internal/plugins/ospf/packet/auth_verify_test.go -- rfc5709ReferenceDigest, TestRFC5709ReceiveIndependentDigest, TestRFC5709ReceiveRejectsWrongHashConstruction -->
+  <!-- source: internal/plugins/ospf/packet/auth_rfc7474_test.go -- TestRFC7474KoZeroPaddedToBlockSize, TestRFC7474KoNonZeroPadRejected -->

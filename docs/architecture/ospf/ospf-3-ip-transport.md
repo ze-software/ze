@@ -25,6 +25,20 @@ the OSPF multicast groups and carries datagrams to and from the engine.
   Common-header dispatch and validation belong to the runtime packages. The
   transport owns receive-side malformed IPv4 drops before dispatch, counted as
   `ze_ospf_packets_dropped_total{reason="malformed-ipv4"}`.
+- **Receive validates the IPv4 envelope before queueing a payload.** It checks
+  version, header and total lengths, checksum, protocol 89, and destination.
+  The destination must be the interface address or an OSPF multicast group.
+  Source, destination and TTL remain available to the engine.
+  <!-- source: internal/plugins/ospf/transport/backend_linux.go -- receiveIPv4, deliverDatagram -->
+- **An active IPv4 interface needs an assigned unicast source address.**
+  An absent, unspecified or multicast address refuses socket startup.
+  <!-- source: internal/plugins/ospf/transport/backend_linux.go -- interfaceIPv4 -->
+- **A signer can refuse transmission.** A nil result from the configured signer
+  drops the packet before either the link-local or routed socket send. The caller
+  receives a signing error and `ze_ospf_packets_dropped_total{reason="send-error"}`
+  increments. With no authentication configured, the engine signer returns the
+  original payload instead.
+  <!-- source: internal/plugins/ospf/transport/transport.go -- SetSigner, SendPacket, SendPacketRouted -->
 
 ## Constraints on callers
 

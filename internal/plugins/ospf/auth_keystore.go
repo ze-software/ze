@@ -70,6 +70,9 @@ type authStore struct {
 	// bootCount is the durable RFC 7474 high-order word. Runtime engines MUST
 	// initialize it through the daemon before any packet is sent.
 	bootCount uint32
+	// nextBootCount advances the durable high word on low-word wrap. Runtime
+	// initialization MUST install it together with bootCount.
+	nextBootCount func() (uint32, error)
 	// now is the wall clock used for send-key selection and for the receive-side
 	// accept-lifetime gate. It defaults to time.Now and is overridden in tests for
 	// deterministic lifetime windows.
@@ -87,11 +90,13 @@ func newAuthStore() *authStore {
 	}
 }
 
-// setBootCount installs the durably incremented high word. Runtime callers MUST
-// finish this before enabling packet processing.
-func (s *authStore) setBootCount(bc uint32) {
+// setBootCount installs the durably incremented high word and the callback used
+// to advance it on wrap. Runtime callers MUST finish this before enabling packet
+// processing, and the callback MUST return only after the new value is durable.
+func (s *authStore) setBootCount(bc uint32, increment func() (uint32, error)) {
 	s.mu.Lock()
 	s.bootCount = bc
+	s.nextBootCount = increment
 	s.mu.Unlock()
 }
 
@@ -234,8 +239,9 @@ func selectSendKey(keys []resolvedKey, now time.Time) resolvedKey {
 }
 
 // signKey returns the active signing key, its AuType, the next cryptographic sequence
-// number, and the interface's IPv4 source address (for the AuType 3 Apad bind), or
-// ok=false when no chain is resolved (no auth).
+// number, and the interface's IPv4 source address (for the AuType 3 Apad bind).
+// A false result with AuTypeNull means no authentication is configured. A false
+// result with another AuType refuses signing; the caller MUST discard that packet.
 func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64, [4]byte, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -246,17 +252,23 @@ func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64
 	k := selectSendKey(keys, s.now())
 	var seq uint64
 	if k.auType != packet.AuTypeSimple {
-		s.sendSeq[iface]++
-		c := s.sendSeq[iface]
+		c := s.sendSeq[iface] + 1
 		if k.auType == packet.AuTypeCryptographicESN {
-			// RFC 7474: the 64-bit sequence is boot count (high word) | per-packet counter.
-			// When the 32-bit per-packet counter wraps back to 0, advance the boot count so the
-			// 64-bit sequence stays strictly increasing across the wrap (it never regresses,
-			// which would otherwise look like a replay to the peer). The boot count is re-seeded
-			// from a monotonic clock on every restart, so a mid-session bump cannot collide with
-			// a later boot.
+			// RFC 7474 §2: reserve the new high word durably BEFORE emitting the
+			// wrapped low word. Commit neither counter after a failed reservation,
+			// so a later packet cannot bypass this gate with a nonzero low word.
 			if c == 0 {
-				s.bootCount++
+				if s.nextBootCount == nil {
+					return packet.AuthKey{}, k.auType, 0, [4]byte{}, false
+				}
+				boot, err := s.nextBootCount()
+				if err != nil {
+					return packet.AuthKey{}, k.auType, 0, [4]byte{}, false
+				}
+				if boot <= s.bootCount {
+					return packet.AuthKey{}, k.auType, 0, [4]byte{}, false
+				}
+				s.bootCount = boot
 			}
 			seq = uint64(s.bootCount)<<32 | uint64(c)
 		} else {
@@ -266,6 +278,7 @@ func (s *authStore) signKey(iface string) (packet.AuthKey, packet.AuType, uint64
 			// AuType, which carries the full 64-bit sequence, to avoid the wrap entirely).
 			seq = uint64(s.bootCount + c)
 		}
+		s.sendSeq[iface] = c
 	}
 	return packet.AuthKey{KeyID: k.keyID, Algorithm: k.algo, Secret: k.secret}, k.auType, seq, s.srcByIface[iface], true
 }

@@ -6,6 +6,7 @@
 package transport
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 const (
@@ -224,7 +226,7 @@ func (li *linuxInterface) readLoop() {
 }
 
 func (li *linuxInterface) deliverDatagram(data []byte) bool {
-	payload, src, ok := StripIPv4Header(data)
+	payload, src, dst, ok := li.receiveIPv4(data)
 	if !ok {
 		if li.recordDrop != nil {
 			li.recordDrop(dropMalformedIPv4)
@@ -234,11 +236,42 @@ func (li *linuxInterface) deliverDatagram(data []byte) bool {
 	cp := make([]byte, len(payload))
 	copy(cp, payload)
 	select {
-	case li.recvCh <- RawPacket{IfIndex: li.ifindex, Src: src, Payload: cp}:
+	case li.recvCh <- RawPacket{IfIndex: li.ifindex, Src: src, Dst: dst, HopLimit: data[8], Payload: cp}:
 	case <-li.stop:
 		return false
 	}
 	return true
+}
+
+// receiveIPv4 checks the IP envelope before delivering any bytes to OSPF.
+// The fixed IPv4 header stores total length at 2:4, protocol at 9,
+// checksum at 10:12, source at 12:16 and destination at 16:20.
+func (li *linuxInterface) receiveIPv4(data []byte) ([]byte, netip.Addr, netip.Addr, bool) {
+	payload, src, ok := StripIPv4Header(data)
+	if !ok {
+		return nil, netip.Addr{}, netip.Addr{}, false
+	}
+	ihl := len(data) - len(payload)
+	if data[0]>>4 != 4 {
+		return nil, netip.Addr{}, netip.Addr{}, false
+	}
+	length := int(binary.BigEndian.Uint16(data[2:4]))
+	if length < ihl || length > len(data) {
+		return nil, netip.Addr{}, netip.Addr{}, false
+	}
+	// RFC 2328 Section 8.2: "The IP checksum must be correct."
+	// "The IP protocol specified must be OSPF (89)."
+	if data[9] != Protocol || !types.InternetChecksumPairValid(data[:ihl], nil) {
+		return nil, netip.Addr{}, netip.Addr{}, false
+	}
+	dst := netip.AddrFrom4([4]byte(data[16:20]))
+	// RFC 2328 Section 8.2: "The packet's IP destination address must be the IP
+	// address of the receiving interface, or one of the IP multicast addresses
+	// AllSPFRouters or AllDRouters."
+	if dst != netip.AddrFrom4(li.local) && !isOSPFMulticast(dst) {
+		return nil, netip.Addr{}, netip.Addr{}, false
+	}
+	return data[ihl:length], src, dst, true
 }
 
 func openInterfaceSocket(name string) (int, error) {
@@ -262,7 +295,9 @@ func interfaceIPv4(name string) ([4]byte, error) {
 			continue
 		}
 		ip, err := netip.ParseAddr(addr.Address)
-		if err == nil && ip.Is4() {
+		// RFC 2328 Section 8.1: "there must be at least one IP address assigned
+		// to the router." An unspecified or multicast value cannot be its source.
+		if err == nil && ip.Is4() && !ip.IsUnspecified() && !ip.IsMulticast() && ip.As4() != [4]byte{255, 255, 255, 255} {
 			return ip.As4(), nil
 		}
 	}

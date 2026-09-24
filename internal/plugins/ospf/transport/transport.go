@@ -37,8 +37,8 @@ func SetLogger(l *slog.Logger) {
 }
 
 // RawPacket is the AF-neutral received OSPF datagram, shared via the wire leaf so the
-// OSPFv2 and OSPFv3 transports return the same type to the engine. The IPv4 transport
-// leaves Dst/HopLimit zero (it strips the IP header); Payload is owned by the receiver
+// OSPFv2 and OSPFv3 transports return the same type to the engine. The transport
+// retains the IP source, destination and hop limit; Payload is owned by the receiver
 // (the Linux backend copies out of its shared receive buffer before queueing).
 type RawPacket = wire.RawPacket
 
@@ -164,7 +164,8 @@ func (t *Transport) DisableInterface(name string) {
 
 // SetSigner installs a hook that authenticates (signs) every outgoing OSPF packet
 // just before it is sent. The hook returns the wire bytes to transmit (the original
-// payload when no auth is configured for the interface). ospf-12 owns the signer.
+// payload when no auth is configured for the interface). A nil result refuses
+// transmission; both send paths MUST discard it. ospf-12 owns the signer.
 func (t *Transport) SetSigner(fn func(name string, payload []byte) []byte) {
 	t.mu.Lock()
 	t.signer = fn
@@ -389,6 +390,7 @@ var (
 	ErrNoBackend          = errors.New("ospf/transport: no backend")
 	ErrInterfaceNotOpen   = errors.New("ospf/transport: interface not open")
 	ErrInvalidDestination = errors.New("ospf/transport: invalid destination")
+	errSigningRefused     = errors.New("ospf/transport: packet signing refused")
 )
 
 // SendPacket sends final OSPF bytes to dst on name. The payload is sent
@@ -406,6 +408,10 @@ func (t *Transport) SendPacket(name string, dst netip.Addr, payload []byte) erro
 	}
 	if signer != nil {
 		payload = signer(name, payload)
+		if payload == nil {
+			t.metrics.packetsDropped.With(name, "send-error").Inc()
+			return errSigningRefused
+		}
 	}
 	if err := st.handle.Send(dst, payload); err != nil {
 		t.metrics.packetsDropped.With(name, "send-error").Inc()
@@ -440,6 +446,10 @@ func (t *Transport) SendPacketRouted(name string, dst, _ netip.Addr, payload []b
 	}
 	if signer != nil {
 		payload = signer(name, payload)
+		if payload == nil {
+			t.metrics.packetsDropped.With(name, "send-error").Inc()
+			return errSigningRefused
+		}
 	}
 	var err error
 	if rs, ok := st.handle.(routedSender); ok {

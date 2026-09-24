@@ -57,6 +57,14 @@ RFC 5709 or RFC 7474 digest and replay sequence.
 <!-- source: internal/plugins/ospf/auth_wiring.go -- installAuthHooks, signPacket, verifyPacket -->
 <!-- source: internal/plugins/ospf/dispatcher.go -- dispatcher.dispatch -->
 
+If the signer cannot reserve a durable boot count at an RFC 7474 low-word wrap,
+it refuses transmission. Both IPv4 send paths discard its nil result and report
+a send error; neither sends an empty packet or the original unauthenticated
+payload. An interface without authentication still passes its original payload
+through the signer.
+<!-- source: internal/plugins/ospf/auth_keystore.go -- authStore.signKey -->
+<!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket, SendPacketRouted -->
+
 ## LSA framing
 
 `DecodeLSA` reads the 20-byte LSA header and uses the Length field to retain the

@@ -46,6 +46,9 @@ func (t *Table) handleDBDesc(interfaceName string, router types.RouterID, dd pac
 		t.recordEventLocked("mtu-mismatch")
 		return eventEmission{}, "mtu-mismatch"
 	}
+	if n.State == stateInit {
+		t.twoWayReceivedLocked(cfg, n)
+	}
 	if n.State < stateExStart {
 		return eventEmission{}, "adjacency-not-ready"
 	}
@@ -163,6 +166,11 @@ func (t *Table) sendInitialDDLocked(cfg InterfaceConfig, n *Neighbor) {
 }
 
 func (t *Table) sendDBDescLocked(cfg InterfaceConfig, n *Neighbor, flags uint8) uint8 {
+	// RFC 2328 Appendix A.3.3: every master DD carries MS, including
+	// Exchange summaries and the packet cached for retransmission.
+	if n.Master {
+		flags |= packet.DDFlagMaster
+	}
 	headers := t.nextSummaryHeadersLocked(n, flags, cfg.InterfaceMTU)
 	if flags&packet.DDFlagInit == 0 && n.SummaryIndex < len(n.SummaryList) {
 		flags |= packet.DDFlagMore

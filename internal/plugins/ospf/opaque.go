@@ -100,10 +100,11 @@ func registeredLabel(registered bool) string {
 	return "false"
 }
 
-// wireOpaqueDelivery connects the LSDB's newer-opaque-install hook to this engine.
+// wireOpaqueDelivery connects receive validation and newer-opaque delivery to this engine.
 func (e *engine) wireOpaqueDelivery() {
 	if e.lsdb != nil {
 		e.lsdb.SetOpaqueDelivery(e.deliverOpaque)
+		e.lsdb.SetReceiveValidator(e.validateExtLSA)
 	}
 }
 

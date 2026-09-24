@@ -39,11 +39,18 @@ func (e *engine) installAuthHooks() {
 // The OSPF encoders default to AuType 0, so this rewrites the AuType, fixes the
 // checksum (recomputed for AuType 1, kept zero for crypto -- trap #10), sets the 8-byte
 // auth field, and appends any digest. Returns the original payload unchanged when no
-// auth chain is configured for the interface.
+// auth chain is configured for the interface. Signing failure returns nil, which
+// the transport MUST discard rather than send.
 func (e *engine) signPacket(name string, payload []byte) []byte {
 	key, au, seq, src, ok := e.auth.signKey(name)
-	if !ok || au == packet.AuTypeNull || len(payload) < packet.CommonHeaderLen {
+	if au == packet.AuTypeNull {
 		return payload
+	}
+	if !ok {
+		return nil
+	}
+	if len(payload) < packet.CommonHeaderLen {
+		return nil
 	}
 	// RFC 6549 sec 2: offset 14 is the Instance ID (already stamped by the encoder), offset
 	// 15 is the 8-bit AuType. Write only the AuType octet so the Instance ID is preserved --
@@ -60,7 +67,7 @@ func (e *engine) signPacket(name string, payload []byte) []byte {
 	}
 	signed, err := packet.Sign(payload, au, key, seq, src)
 	if err != nil {
-		return payload
+		return nil
 	}
 	return signed
 }
