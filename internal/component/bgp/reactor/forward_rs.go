@@ -735,7 +735,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				}
 				continue
 			}
-			handled, written, dstSession := tryDirectWriteNoFlush(&pending[i].item)
+			// Items already on the destination's worker channel gate the
+			// direct write too. TryDispatch took them when this rail's TryLock
+			// failed, and the overflow count does not see them, so a direct
+			// write now would reach the wire first (Peer.forwardChannelPending).
+			// TryDispatch below queues this item behind them instead.
+			var handled, written bool
+			var dstSession *Session
+			if dst == nil || !dst.forwardChannelPending() {
+				handled, written, dstSession = tryDirectWriteNoFlush(&pending[i].item)
+			}
 			switch {
 			case handled:
 				pending[i].item.done()

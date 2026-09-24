@@ -504,6 +504,12 @@ deleted, a swap carries one destroy and one create for each address with a singl
 edge between them, so there is no cycle to break and nothing relaxes one.
 `TopologicalSort` answers `ErrOperationCycle` for any graph it cannot order.
 
+The readiness event comes from the interface backend. The netlink backend's
+monitor reports each kernel address change. VPP sends no notification for an
+interface address, so the VPP backend emits `addr-added` and `addr-removed`
+itself once the synchronous binary API reply reports success.
+<!-- source: internal/plugins/iface/vpp/monitor.go -- emitAddress -->
+
 **Settlement waiters are armed before the apply**, so a readiness event that
 arrives fast is not missed.
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	vppcomp "github.com/ze-software/ze/internal/component/vpp"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -545,6 +546,7 @@ func (b *vppBackendImpl) AddAddress(ifaceName, cidr string) error {
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: AddAddress retval=%d", reply.Retval)
 	}
+	b.emitAddress(ifaceevents.EventAddrAdded, ifaceName, idx, prefix)
 	return nil
 }
 
@@ -569,6 +571,7 @@ func (b *vppBackendImpl) RemoveAddress(ifaceName, cidr string) error {
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: RemoveAddress retval=%d", reply.Retval)
 	}
+	b.emitAddress(ifaceevents.EventAddrRemoved, ifaceName, idx, prefix)
 	return nil
 }
 

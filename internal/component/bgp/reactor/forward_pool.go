@@ -83,6 +83,32 @@ type fwdItem struct {
 	// marker, and the worker meters or hands back its claim once the batch
 	// settles (settleEndOfRIB). Nil for every other item.
 	endOfRIB *fwdEndOfRIB
+
+	// channelCounted marks an item TryDispatch counted in its destination's
+	// Peer.fwdChannelPending. safeBatchHandle takes the count back once the
+	// item is written, and only for an item carrying this mark.
+	channelCounted bool
+}
+
+// countOnChannel counts the item in its destination's Peer.fwdChannelPending
+// before TryDispatch sends it, so no reader sees the item on the channel with
+// the count still at zero. A sentinel names no peer and carries no bytes, so it
+// is not counted.
+func (item *fwdItem) countOnChannel() {
+	if item.peer == nil {
+		return
+	}
+	item.channelCounted = true
+	item.peer.fwdChannelPending.Add(1)
+}
+
+// uncountOnChannel takes back countOnChannel for a send that did not happen.
+func (item *fwdItem) uncountOnChannel() {
+	if !item.channelCounted {
+		return
+	}
+	item.channelCounted = false
+	item.peer.fwdChannelPending.Add(-1)
 }
 
 // forwardSourceCurrent is lock-free because workers call it under the
@@ -650,12 +676,14 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 			return false
 		}
 
+		item.countOnChannel()
 		select {
 		case w.ch <- item:
 			w.pending.Add(-1)
 			fp.dispatchWG.Done()
 			return true
 		default:
+			item.uncountOnChannel()
 			w.pending.Add(-1)
 			fp.dispatchWG.Done()
 			return false
@@ -680,12 +708,14 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	}
 
 	// Fast path: non-blocking send under RLock.
+	item.countOnChannel()
 	select {
 	case w.ch <- item:
 		fp.mu.RUnlock()
 		fp.dispatchWG.Done()
 		return true
 	default: // channel full
+		item.uncountOnChannel()
 		fp.mu.RUnlock()
 		fp.dispatchWG.Done()
 
@@ -1051,6 +1081,10 @@ func (fp *fwdPool) removeSourceStats(sourcePeer netip.Addr) {
 func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 	defer func() {
 		for i := range items {
+			// The handler has returned, so a channel item's bytes are in the
+			// session's write buffer, or the item was discarded. Either way
+			// the destination is no longer owed it (Peer.fwdChannelPending).
+			items[i].uncountOnChannel()
 			if items[i].done != nil {
 				items[i].done()
 			}

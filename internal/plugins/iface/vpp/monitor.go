@@ -8,7 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"runtime/debug"
+	"strconv"
+	"strings"
 	"sync"
 
 	"go.fd.io/govpp/api"
@@ -48,6 +51,66 @@ type linkEventPayload struct {
 	Type  string `json:"type"`
 	Index int    `json:"index"`
 	MTU   int    `json:"mtu"`
+}
+
+// addrEventPayload matches the shape ifacenetlink emits on (interface,
+// addr-added/addr-removed), for the same reason as linkEventPayload.
+type addrEventPayload struct {
+	Name         string `json:"name"`
+	Unit         int    `json:"unit"`
+	Index        int    `json:"index"`
+	Address      string `json:"address"`
+	PrefixLength int    `json:"prefix-length"`
+	Family       string `json:"family"`
+	Origin       string `json:"origin,omitempty"`
+}
+
+// emitAddress announces an address change the backend has just made.
+//
+// VPP sends no notification for an interface address, so no monitor event can
+// report one. The binary API call is synchronous: a zero retval means the
+// address is on (or off) the interface when the call returns. So the backend
+// announces it itself, after that reply. Without it, the config transaction
+// waits for (interface, addr-added) until its settlement timeout and rolls the
+// whole reload back, and every other consumer of the event (the BGP listener
+// start, connected routes) never learns of the address.
+//
+// Nothing is emitted before StartMonitor has given the backend an event bus.
+func (b *vppBackendImpl) emitAddress(eventType, ifaceName string, idx interface_types.InterfaceIndex, prefix netip.Prefix) {
+	b.monMu.Lock()
+	m := b.mon
+	b.monMu.Unlock()
+	if m == nil {
+		return
+	}
+	parent, unit := splitUnit(ifaceName)
+	family := "ipv6"
+	if prefix.Addr().Is4() {
+		family = "ipv4"
+	}
+	m.emit(eventType, addrEventPayload{
+		Name:         parent,
+		Unit:         unit,
+		Index:        int(idx),
+		Address:      prefix.Addr().String(),
+		PrefixLength: prefix.Bits(),
+		Family:       family,
+		Origin:       "static",
+	})
+}
+
+// splitUnit splits "<parent>.<unit>" the way ifacenetlink names a VLAN unit
+// in its address events. A name with no numeric suffix is unit 0.
+func splitUnit(name string) (parent string, unit int) {
+	dot := strings.LastIndexByte(name, '.')
+	if dot <= 0 {
+		return name, 0
+	}
+	n, err := strconv.Atoi(name[dot+1:])
+	if err != nil || n < 0 {
+		return name, 0
+	}
+	return name[:dot], n
 }
 
 // stateEventPayload matches ifacenetlink's (interface, up/down) shape for

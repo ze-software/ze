@@ -550,6 +550,21 @@ type Peer struct {
 	// lookup. That rail exists to bypass the pool.
 	fwdOverflowPending atomic.Pointer[atomic.Int64]
 
+	// fwdChannelPending counts the forwarded items TryDispatch put straight on
+	// this peer's worker channel that the worker has not yet written. The
+	// overflow count above does not see them: TryDispatch refuses its channel
+	// only while overflow is owed, so an item that took the channel leaves that
+	// count at zero. Two consumers bypass the pool and must still queue behind
+	// these items: the route-server rail's direct write (forward_rs.go) and an
+	// announce-rail withdrawal (withdrawBehindForwards).
+	//
+	// TryDispatch adds one before its send and takes it back if the send
+	// fails. safeBatchHandle subtracts one for each counted item once the batch
+	// handler has returned, which is after the bytes are in the session's
+	// write buffer. Every item on a channel reaches safeBatchHandle, Stop
+	// included, because a closed channel still delivers what it holds.
+	fwdChannelPending atomic.Int64
+
 	// llScope holds the host facts RFC 2545 Section 3 needs to decide whether
 	// the link-local address belongs in the MP_REACH_NLRI Next Hop field. It is
 	// refreshed with fwdFacts; nil means the interface table has not been read
@@ -1972,6 +1987,15 @@ func (p *Peer) forwardOverflowPending() bool {
 	return c != nil && c.Load() > 0
 }
 
+// forwardChannelPending reports whether this peer's forward worker still owes
+// it an item that TryDispatch put on the worker's channel. The route-server
+// rail's direct write and an announce-rail withdrawal each bypass the pool, and
+// either one written now would reach the wire ahead of that item. One atomic
+// load: it runs per destination per UPDATE.
+func (p *Peer) forwardChannelPending() bool {
+	return p.fwdChannelPending.Load() > 0
+}
+
 // withdrawBehindForwards reports whether an announce-rail withdrawal for this
 // peer must join the peer's forward queue instead of reaching the wire at once
 // (reactorAPIAdapter.queueBehindForwards). A peer that is not Established has
@@ -1981,9 +2005,9 @@ func (p *Peer) forwardOverflowPending() bool {
 // (initialUpdateOwed), a withdrawal is a live change like any other: written at
 // once, it reaches the peer before the replayed announce of the same prefix,
 // which passes the fence later and leaves a withdrawn route installed. While
-// forwarded items are owed through overflow (forwardOverflowPending), a queued
-// forwarded announce of the same prefix would follow the withdrawal to the wire
-// and install it again. In both cases the withdrawal takes its place in the same
+// forwarded items are owed through overflow (forwardOverflowPending) or through
+// the worker's channel (forwardChannelPending), a queued forwarded announce of
+// the same prefix would follow the withdrawal to the wire and install it again. In both cases the withdrawal takes its place in the same
 // FIFO, and the fence holds it with the other live changes.
 //
 // A reactor without a forward pool holds no forwards, so nothing is owed ahead.
@@ -1994,7 +2018,13 @@ func (p *Peer) withdrawBehindForwards() bool {
 	if p.reactor == nil || p.reactor.fwdPool == nil {
 		return false
 	}
-	return p.initialUpdateOwed.Load() || p.forwardOverflowPending()
+	if p.initialUpdateOwed.Load() {
+		return true
+	}
+	if p.forwardOverflowPending() {
+		return true
+	}
+	return p.forwardChannelPending()
 }
 
 // wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's

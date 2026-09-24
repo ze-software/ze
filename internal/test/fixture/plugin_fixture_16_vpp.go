@@ -128,6 +128,35 @@ func plugin16StopProcess(cmd *exec.Cmd, done <-chan error) {
 	}
 }
 
+// plugin16ReloadOutcome waits until ze's stderr records how the SIGHUP reload
+// ended, and returns the line that says so, or "" when the wait ran out. The
+// reload is a transaction: stopping ze while it runs cancels it and rolls it
+// back, so the fixture must not stop ze before one of these lines appears.
+// sighupReload (cmd/ze/hub/main_reload.go) prints the first once the whole
+// reload has returned, and the second for a reload that failed.
+func plugin16ReloadOutcome(ctx context.Context, zeLog string, attempts int) string {
+	outcome := ""
+	Poll(ctx, attempts, 50*time.Millisecond, func() bool {
+		content, err := os.ReadFile(zeLog) //nolint:gosec // the path is the fixture's own scratch file
+		if err != nil {
+			return false
+		}
+		for _, line := range []string{plugin16ReloadCompleted, plugin16ReloadFailed} {
+			if strings.Contains(string(content), line) {
+				outcome = line
+				return true
+			}
+		}
+		return false
+	})
+	return outcome
+}
+
+const (
+	plugin16ReloadCompleted = "sighup reload complete"
+	plugin16ReloadFailed    = "reload error: "
+)
+
 func plugin16VPPFailure(reason, zeLog string, entries []plugin16VPPEntry) error {
 	fmt.Fprintf(os.Stderr, "FAIL: %s\n", reason)
 	for _, entry := range entries {
@@ -205,7 +234,8 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	// The first apply waits for the whole daemon start, which creates and
 	// fsyncs the store before any plugin runs. On a saturated disk that was
 	// measured past 40s, so both waits derive from the test budget: 45% for the
-	// start and 30% for the reload leave room for the stop below.
+	// start, 30% for the reload's address and 15% for the reload's outcome
+	// leave room for the stop below.
 	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", WaitAttempts(45, 50*time.Millisecond, 800))
 	if err != nil {
 		return err
@@ -245,6 +275,17 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	}
 	if len(adds) == 0 {
 		return plugin16VPPFailure("the second apply never programmed the address", zeLog, entries)
+	}
+	// The address is programmed during the reload's apply phase, before the
+	// transaction commits. Stopping ze now would cancel the reload and roll it
+	// back, so wait for the reload to report its outcome first.
+	switch plugin16ReloadOutcome(ctx, zeLog, WaitAttempts(15, 50*time.Millisecond, 400)) {
+	case plugin16ReloadCompleted:
+		// Committed: ze can stop, and the requests below are the whole reload.
+	case plugin16ReloadFailed:
+		return plugin16VPPFailure("the reload that programmed the address failed", zeLog, entries)
+	default:
+		return plugin16VPPFailure("the reload never reported its outcome", zeLog, entries)
 	}
 	problems := make([]string, 0, 2)
 	indices := make([]any, 0, len(creates))

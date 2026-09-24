@@ -79,6 +79,18 @@ holds: two atomic loads, with no pool lock and no key lookup. The worker keeps
 the count, and the peer keeps a handle to it, published when the first item is
 parked for that peer.
 
+The overflow count does not see an item that `TryDispatch` put straight on the
+channel. The fast path falls back to `TryDispatch` when its `TryLock` on
+`writeMu` fails, so the item waits on the channel with the overflow count at
+zero. Without a second count, the next UPDATE for that destination takes
+`writeMu` before the worker does and reaches the wire first. So the peer also
+counts its channel items (`fwdChannelPending`). `TryDispatch` adds one before
+the send, and `safeBatchHandle` takes it back after the batch handler returns,
+when the bytes are in the write buffer. While that count is nonzero, the fast
+path skips its direct write and goes through `TryDispatch`, behind the items on
+the channel. `TryDispatch` itself does not read this count: a send behind
+channel items keeps FIFO on its own.
+
 The hold ends when `sendInitialRoutes` clears the sync flag. It wakes the
 destination's worker at that point, because a worker whose channel is empty
 re-reads the hold only when something arrives on that channel.
@@ -88,7 +100,7 @@ every targeted peer has finished its initial sync, because the barrier sentinel
 queues behind the held items.
 
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- takeOverflowReleased, wakeOverflow, safeBatchHandle, dispatchOverflow -->
-<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, forwardOverflowPending, wakeForwardOverflow -->
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, forwardOverflowPending, forwardChannelPending, wakeForwardOverflow -->
 
 ### The replay fence
 
@@ -119,8 +131,8 @@ arrived. A sentinel queued behind a held item stays behind it, so `request peer
 A withdrawal on the announce rail joins the same queue. A route server's
 peer-down withdrawal leaves by selector on that rail, and a direct write would
 reach the peer before a replayed or held announce of the same prefix. So while
-the fence is up, or while the peer is owed forwarded items through overflow,
-`withdrawBatchFromPeers` queues the withdrawal as a live overflow item
+the fence is up, or while the peer is owed forwarded items through overflow or
+through the worker's channel, `withdrawBatchFromPeers` queues the withdrawal as a live overflow item
 (`queueBehindForwards`) instead of writing it. The worker writes it through the
 export chain, as the direct write would have. The "previously advertised" check
 treats such a peer as armed, because the items queued ahead of the withdrawal
@@ -134,7 +146,8 @@ initial routing update", and a receiver acts on it: a graceful-restart helper
 purges the stale routes it still holds. A direct write could reach the peer
 before replay items still in the worker's overflow or channel. So `AnnounceEOR`
 claims the family and queues the marker at the tail of the peer's forward queue
-(`queueEndOfRIB`), always, because the channel keeps no count of what it holds.
+(`queueEndOfRIB`), always, so it follows every item the worker holds without a
+read of either count.
 The item is marked as part of the initial update: it passes the fence behind
 the replay, and the live changes the fence holds follow it. The worker counts
 the marker as sent after the flush that writes it. When the write fails, the
