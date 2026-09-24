@@ -142,8 +142,8 @@ func EncodeLANAdjSIDValueV6(a AdjSID) []byte {
 	return b
 }
 
-// decodeLANAdjSIDValueV6 parses an OSPFv3 LAN-Adj-SID sub-TLV value.
-func decodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
+// DecodeLANAdjSIDValueV6 parses an OSPFv3 LAN-Adj-SID sub-TLV value.
+func DecodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
 	if len(v) < 8 {
 		return AdjSID{}, ErrMalformed
 	}

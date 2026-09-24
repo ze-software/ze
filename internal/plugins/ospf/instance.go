@@ -59,6 +59,8 @@ type engine struct {
 	// srAdj drives the Adj-SID lifecycle off the neighbor Full<->non-Full transition
 	// (SRLB allocation + pop/forward install + withdraw); nil until initSPF wires it.
 	srAdj *srAdjManager
+	// virtualMu serializes synthetic interface start/stop across SPF and config reload.
+	virtualMu sync.Mutex
 	// virtualLinks is the engine-side runtime of each configured OSPF virtual link
 	// (spec-ospf-ext-7), keyed by (transit area, neighbor). configureVirtualLinks builds it
 	// from config; onVirtualLinksResolved (the SPF callback) drives each link up/down from
@@ -113,6 +115,7 @@ type engine struct {
 	// opaqueReachableFn is the RFC 5250 §5 originator-reachability seam for Type-11
 	// opaque LSAs; set to spfRouterReachable in newEngine, overridable in tests.
 	opaqueReachableFn func(types.RouterID) bool
+	bgpls             bgplsSource
 	auth              *authStore
 	// state is attached before configuration; I/O starts only when interfaces
 	// start after the SDK handshake. Detached engines have no persistent state.
@@ -143,11 +146,16 @@ type engine struct {
 	// which runs from both the reconcile (config-apply) goroutine and the retransmit
 	// tick: without it two passes could interleave their read-compute-write of the
 	// translations / translator-grace maps and double-originate or lose a withdraw.
+	// When combined with default-route coordination, lock order is
+	// defaultInfoMu -> nssaMu -> mu; NSSA replay releases nssaMu before defaults.
 	nssaMu sync.Mutex
 	// nssaDefaultAreas tracks the areas where applyNSSADefaults owns a
 	// self-originated default. It lets reconciliation withdraw defaults from
 	// areas removed from config. Guarded by nssaMu.
 	nssaDefaultAreas map[types.AreaID]struct{}
+	// externalImports retains redistribution intent for forwarding-address and
+	// P-bit changes. The NSSA reconciler owns it under nssaMu.
+	externalImports map[netip.Prefix]externalImport
 	// forwardingAddress is the interface forwarding-address lookup, one seam for both
 	// address families. A nil value reads the live interface through interfaceIPv4Address
 	// or interfaceIPv6ForwardingAddress. A test sets it to a deterministic lookup, which
@@ -292,9 +300,9 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 	e.neighbors.SetLSDB(db)
 	e.neighbors.SetEventSink(e.neighborEventSinkValue())
 	if t != nil {
-		db.SetTx(t.SendPacket)
-		// The neighbor table sends DD/LSReq/LSUpdate for ALL interfaces through one sender;
-		// the virtual-aware sender routes virtual-link names and passes real names through.
+		// Floods, retransmissions, acknowledgments and database exchange all use
+		// the routed sender for virtual interfaces (RFC 2328 Section 15).
+		db.SetTx(e.virtualSender().SendPacket)
 		e.neighbors.SetSender(e.virtualSender())
 		t.OnInterfaceDown(e.onInterfaceDown)
 		t.OnInterfaceUp(e.onInterfaceUp)
@@ -519,6 +527,7 @@ func (e *engine) setConfig(cfg ospfConfig) {
 	if e.ipsec != nil {
 		e.ipsec.setConfig(cfg.Interfaces)
 	}
+	e.publishBGPLS()
 }
 
 func (e *engine) acceptsArea(ifindex int, h Header) bool {
@@ -788,7 +797,7 @@ func (e *engine) startNeighborRetransmitLoop() {
 						// transport interface joins the NSSA asynchronously (link-up after reconcile),
 						// so an ABR that became attached later would otherwise never originate the
 						// default. Idempotent (OriginateNSSA short-circuits an unchanged body).
-						e.applyNSSADefaults()
+						e.reconcileExternalImports()
 						e.translateNSSA(now)
 						topology := e.lsdbTopology()
 						for idx := range topology {
@@ -805,6 +814,7 @@ func (e *engine) startNeighborRetransmitLoop() {
 }
 
 func (e *engine) subscribeIfaceEvents(eb ze.EventBus) {
+	e.startBGPLS(eb)
 	if eb == nil || e.transport == nil {
 		return
 	}
@@ -878,12 +888,9 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 			e.mu.Unlock()
 		}
 	}
-	// Re-evaluate `default-information originate` against the new config: `always`
-	// originates immediately, the conditional form against the current Loc-RIB, and a
-	// removed/disabled rule withdraws. Live RIB changes are handled by watchDefaultRoute.
-	e.applyDefaultInformation()
-	// Reconcile mandatory ABR and configured internal-router Type 7 defaults.
-	e.applyNSSADefaults()
+	// Replay imports and reconcile both default-information and mandatory NSSA
+	// defaults against the new configuration. Live RIB changes use watchDefaultRoute.
+	e.reconcileExternalImports()
 	// Re-run translator election + Type 7 -> Type 5 translation (role/attachment change).
 	e.translateNSSA(time.Now())
 	// RFC 4552 AC-11: reconcile kernel IPsec against the new config (a changed SPI/key/
@@ -940,7 +947,7 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 		rt.SetEventSink(e.sink)
 	}
 	if e.neighbors != nil {
-		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, ipsec: e.ipsec, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
+		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, ipsec: e.ipsec, onChange: e.originateSelfLSAsDeferred, auth: e.auth})
 	}
 	e.interfaces[ic.Name] = rt
 	if ic.Passive || ic.NetworkType == types.NetworkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
@@ -998,7 +1005,7 @@ func (e *engine) interfaceRuntimeConfigLocked(ic interfaceConfig) ospfiface.Conf
 		MTUIgnore:          ic.MTUIgnore,
 		RetransmitInterval: ic.RetransmitInterval,
 		IsV6:               e.dispatch.codec.IsV6(),
-		InterfaceID:        interfaceIndex(ic.Name),
+		InterfaceID:        e.grInterfaceID(ic.Name),
 		// RFC 6549: the OSPFv2 interface stamps this engine's Instance ID into every Hello.
 		// The OSPFv3 family threads its Instance ID through the v6 encoder instead, so this
 		// stays 0 for the v6 engine (its Hello encoder is swapped in startInterfaceLocked).
@@ -1044,6 +1051,7 @@ func neighborInterfaceConfig(cfg ospfiface.Config, opaque bool) ospfneighbor.Int
 		RouterID:           cfg.RouterID,
 		NetworkType:        cfg.NetworkType,
 		InterfaceAddress:   cfg.InterfaceAddress,
+		InterfaceID:        cfg.InterfaceID,
 		Options:            opts,
 		InterfaceMTU:       cfg.InterfaceMTU,
 		MTUIgnore:          cfg.MTUIgnore,
@@ -1098,7 +1106,7 @@ func (s neighborEventSink) NeighborDown(snap ospfneighbor.Snapshot) {
 		s.onLost(snap)
 	}
 	if s.onChange != nil {
-		go s.onChange()
+		s.onChange()
 	}
 }
 
@@ -1108,12 +1116,11 @@ type nsmAdapter struct {
 	// and on a virtual link. It is told each neighbor's link-local by the Hello and each
 	// drop by the state machine, and installs and removes that neighbor's outbound SA.
 	ipsec *ipsecInstaller
-	// onChange re-originates the self-LSAs inline. onChangeDeferred does the same on a
-	// goroutine the engine joins, and InterfaceDown MUST use it: that callback arrives from
-	// under the engine's mu, which the origination itself takes.
-	onChange         func()
-	onChangeDeferred func()
-	auth             *authStore
+	// onChange queues a topology re-evaluation on the engine's maintenance worker.
+	// It MUST NOT originate inline: receive callbacks must return without waiting
+	// for topology queries, and InterfaceDown can arrive under the engine's mu.
+	onChange func()
+	auth     *authStore
 }
 
 var _ ospfiface.NeighborSink = nsmAdapter{}
@@ -1190,8 +1197,8 @@ func (a nsmAdapter) InterfaceDown(interfaceName string) {
 	if a.auth != nil {
 		a.auth.resetInterface(interfaceName)
 	}
-	if a.onChangeDeferred != nil {
-		a.onChangeDeferred()
+	if a.onChange != nil {
+		a.onChange()
 	}
 }
 
@@ -1209,6 +1216,7 @@ func (e *engine) onInterfaceDown(ifindex int, name string) {
 	e.mu.Lock()
 	e.markInterfaceDownLocked(name)
 	e.mu.Unlock()
+	e.reconcileExternalImports()
 	// RFC 5443 §2 / A-8: interface down resets the LDP-sync machine so the next
 	// bring-up starts not-synchronized (costed out). Called outside e.mu because the
 	// reset re-originates (re-enters e.mu).
@@ -1227,6 +1235,7 @@ func (e *engine) onInterfaceUp(ifindex int, name string) {
 	if e.startInterfaceUpLocked(name) {
 		// Bring the LDP-sync machine up in not-synchronized for a returning link.
 		e.updateLDPSyncMachines()
+		e.reconcileExternalImports()
 	}
 }
 
@@ -1305,6 +1314,7 @@ func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {
 // shutdown MUST cancel and join the maintenance worker started by
 // startNeighborRetransmitLoop. Callers MUST NOT hold mu or spawnMu.
 func (e *engine) shutdown() {
+	e.stopBGPLS()
 	// RFC 5443 R-7: drop the LDP event subscription and stop every per-interface timer
 	// first so no stale handler reads freed engine state during teardown.
 	if e.ldpSyncUnsub != nil {

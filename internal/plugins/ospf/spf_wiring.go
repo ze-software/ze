@@ -8,6 +8,7 @@ package ospf
 import (
 	"context"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/rib/locrib"
@@ -51,14 +52,20 @@ func (e *engine) initSPF() {
 	// in-restart or performing a graceful stop, so SPF still computes but the pre-restart FIB
 	// is retained (RFC 3623 sec 2/2.1).
 	e.spf.SetInstallSuppress(e.gr.suppressInstall)
-	e.lsdb.SetOnChange(e.triggerSPF)
+	e.lsdb.SetOnChange(func(area types.AreaID) {
+		e.requestBGPLS()
+		e.triggerSPF(area)
+	})
 	// Segment Routing (spec-ospf-ext-5): install SR MPLS labels from the post-SPF hook,
 	// AFTER the IP-route Installer applied, so a label push rides an existing IP route
 	// (R-8). The mpls-fib Source tag and the Explicit NULL label are address-family
 	// specific; the install decision is shared.
 	srFib := newSRFIB(getEventBus(), e.srSourceTag())
 	e.srInstaller = newSRInstaller(srFib, e.srAF(), e.srExplicitNull())
-	e.spf.SetPostRun(e.srInstallFromRoutes)
+	e.spf.SetPostRun(func() {
+		e.srInstallFromRoutes()
+		e.requestBGPLS()
+	})
 	// Adj-SID lifecycle (spec-ospf-ext-5 AC-12/AC-13): allocate from the SRLB on Full,
 	// withdraw below. The allocator is seeded lazily from the resolved SRLB config.
 	e.srAdj = &srAdjManager{fib: srFib, store: srWire, self: e.cfg.RouterID, labels: map[srAdjKey]srAdjRecord{}}
@@ -155,7 +162,7 @@ func spfRanges(in []rangeConfig) []ospfspf.AreaRange {
 type ospfNextHopResolver engine
 
 func (r *ospfNextHopResolver) ResolveInterface(addr netip.Addr) (string, bool) {
-	if !addr.IsValid() {
+	if !addr.Is4() {
 		return "", false
 	}
 	e := (*engine)(r)
@@ -165,7 +172,7 @@ func (r *ospfNextHopResolver) ResolveInterface(addr netip.Addr) (string, bool) {
 	want := addr.String()
 	rows := e.neighbors.Snapshot()
 	for i := range rows {
-		if rows[i].Address == want && rows[i].State == neighborStateFull {
+		if rows[i].Address == want && rows[i].State == neighborStateFull && !strings.HasPrefix(rows[i].Interface, virtualLinkNamePrefix) {
 			return rows[i].Interface, true
 		}
 	}
