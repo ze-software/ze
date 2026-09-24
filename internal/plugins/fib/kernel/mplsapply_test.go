@@ -35,6 +35,12 @@ func TestMPLSApplyRequiresOwner(t *testing.T) {
 	}
 }
 
+func TestMPLSRemoveLabelSourceRequiresOwner(t *testing.T) {
+	if err := mplsfibevents.RemoveLabelSource(newMPLSApplyBus(t, nil), 7); err == nil {
+		t.Fatal("source reset accepted without a native forwarding owner")
+	}
+}
+
 type refusingMPLSPushBackend struct {
 	*mplsMockBackend
 	err error

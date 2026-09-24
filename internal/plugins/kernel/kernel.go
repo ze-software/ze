@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/routewatch"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	kernelevents "github.com/ze-software/ze/internal/plugins/kernel/events"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -35,6 +36,9 @@ func newRouteObserver(bus ze.EventBus) *routeObserver {
 }
 
 func (o *routeObserver) handleRouteEvent(ev routewatch.RouteEvent) {
+	if rtproto.IsZe(ev.Protocol) {
+		return
+	}
 	if ev.Protocol == rtprotKernel || ev.Protocol == rtprotRedirect {
 		return
 	}

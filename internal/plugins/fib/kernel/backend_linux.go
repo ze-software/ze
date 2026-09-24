@@ -14,10 +14,12 @@ package fibkernel
 import (
 	"fmt"
 	"net"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 // rtprotZE is the custom rtm_protocol ID used for FIB-kernel routes.
@@ -80,7 +82,59 @@ func (n *netlinkBackend) replaceRoute(prefix, nextHop string) error {
 	if err != nil {
 		return err
 	}
-	return n.handle.RouteReplace(route)
+	return n.replaceOwnedRoute(route)
+}
+
+// replaceOwnedRoute never treats RTM_NEWROUTE's protocol field as an ownership
+// filter: Linux can replace another protocol's route at the same priority.
+// Check the current slot, then use an exclusive add for an empty slot. A metric
+// change creates a different slot, so remove superseded Ze entries only after
+// the new route is installed; unrelated protocols and tables stay untouched.
+func (n *netlinkBackend) replaceOwnedRoute(route *netlink.Route) error {
+	table := route.Table
+	if table == 0 {
+		table = unix.RT_TABLE_MAIN
+	}
+	family := netlink.FAMILY_V6
+	priority := route.Priority
+	if route.Dst.IP.To4() != nil {
+		family = netlink.FAMILY_V4
+	} else if priority == 0 {
+		// IPv6 gives an omitted metric the user-route default, unlike IPv4.
+		priority = 1024
+	}
+	current, err := n.handle.RouteListFiltered(family, &netlink.Route{Dst: route.Dst, Table: table, Tos: route.Tos},
+		netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE|netlink.RT_FILTER_TOS)
+	if err != nil {
+		return fmt.Errorf("route ownership lookup %s: %w", route.Dst, err)
+	}
+	replace := false
+	for i := range current {
+		if current[i].Priority != priority {
+			continue
+		}
+		if current[i].Protocol != rtprotZE {
+			return fmt.Errorf("route %s table %d priority %d belongs to protocol %d: %w",
+				route.Dst, table, priority, current[i].Protocol, unix.EEXIST)
+		}
+		replace = true
+	}
+	if replace {
+		err = n.handle.RouteReplace(route)
+	} else {
+		err = n.handle.RouteAdd(route)
+	}
+	if err != nil {
+		return err
+	}
+	for i := range current {
+		if current[i].Protocol == rtprotZE && current[i].Priority != priority {
+			if err := n.handle.RouteDel(&current[i]); err != nil {
+				return fmt.Errorf("remove superseded route %s priority %d: %w", route.Dst, current[i].Priority, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (n *netlinkBackend) listZeRoutes() ([]installedRoute, error) {
@@ -129,14 +183,21 @@ func buildRoute(prefix, nextHop string) (*netlink.Route, error) {
 		return nil, fmt.Errorf("parse prefix %q: %w", prefix, err)
 	}
 
-	gw := net.ParseIP(nextHop)
-	if gw == nil {
-		return nil, fmt.Errorf("parse next-hop %q: invalid IP", nextHop)
+	gateway, err := netip.ParseAddr(nextHop)
+	if err != nil {
+		return nil, fmt.Errorf("parse next-hop %q: %w", nextHop, err)
+	}
+	destination, _ := netip.AddrFromSlice(cidr.IP)
+	bits, _ := cidr.Mask.Size()
+	gw, via, err := buildGateway(netip.PrefixFrom(destination, bits), gateway)
+	if err != nil {
+		return nil, err
 	}
 
 	return &netlink.Route{
 		Dst:      cidr,
 		Gw:       gw,
+		Via:      via,
 		Protocol: rtprotZE,
 	}, nil
 }

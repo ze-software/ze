@@ -17,6 +17,8 @@ import (
 	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/routewatch"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // mockBackend records route operations for testing.
@@ -225,7 +227,10 @@ func TestFIBKernelMonitorReassert(t *testing.T) {
 	}))
 
 	// Simulate external change on managed prefix.
-	f.handleExternalChange("10.0.0.0/24", "1.2.3.4", 9)
+	f.handleExternalChange(routewatch.RouteEvent{
+		Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("1.2.3.4"),
+		Protocol: 9, TableID: 254, Action: routewatch.ActionAdd,
+	})
 
 	// Should have re-asserted ze's route.
 	assert.Equal(t, "192.168.1.1", backend.replaced["10.0.0.0/24"],
@@ -240,14 +245,17 @@ func TestFIBKernelMonitorIgnoreUnmanaged(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// No routes installed. External change on unmanaged prefix.
-	f.handleExternalChange("172.16.0.0/16", "1.2.3.4", 9)
+	f.handleExternalChange(routewatch.RouteEvent{
+		Prefix: netip.MustParsePrefix("172.16.0.0/16"), NextHop: netip.MustParseAddr("1.2.3.4"),
+		Protocol: 9, TableID: 254, Action: routewatch.ActionAdd,
+	})
 
 	// Should not have called replaceRoute.
 	assert.Empty(t, backend.replaced, "should not re-assert for unmanaged prefix")
 }
 
 // VALIDATES: AC-20 -- External process deletes ze route.
-// fib-kernel re-asserts when it sees an overwrite on a managed prefix.
+// fib-kernel restores the route when the owned deletion reaches its consumer.
 // PREVENTS: Route deletion going undetected.
 func TestFIBKernelMonitorReassertOnDelete(t *testing.T) {
 	backend := newMockBackend()
@@ -258,11 +266,71 @@ func TestFIBKernelMonitorReassertOnDelete(t *testing.T) {
 		{Action: routeaction.Add, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
-	// Simulate external delete (shown as overwrite with empty next-hop).
-	f.handleExternalChange("10.0.0.0/24", "", 0)
+	f.handleExternalChange(routewatch.RouteEvent{
+		Prefix: netip.MustParsePrefix("10.0.0.0/24"), Protocol: rtproto.FIBKernel,
+		TableID: 254, Action: routewatch.ActionRemove,
+	})
 
 	// Should re-assert.
 	assert.Equal(t, "192.168.1.1", backend.replaced["10.0.0.0/24"])
+}
+
+func TestFIBKernelMonitorCurrentOwnership(t *testing.T) {
+	for _, prefix := range []string{"198.51.100.0/24", "2001:db8:1::/64"} {
+		t.Run(prefix, func(t *testing.T) {
+			backend := newRichMockBackend()
+			f := newFIBKernel(backend)
+			change := incomingChange{
+				Action: routeaction.Add, Prefix: netip.MustParsePrefix(prefix),
+				Interface: "eth0", TableID: 100, Metric: 25,
+			}
+			f.processEvent(makeSysribPayload([]incomingChange{change}))
+			event := routewatch.RouteEvent{
+				Prefix: change.Prefix, Protocol: rtproto.FIBKernel,
+				TableID: 100, Metric: 25, Action: routewatch.ActionAdd,
+			}
+			f.handleExternalChange(event)
+			require.Empty(t, backend.richReplaced, "our own add must not trigger another write")
+
+			event.Action, event.TableID = routewatch.ActionRemove, 200
+			f.handleExternalChange(event)
+			require.Empty(t, backend.richReplaced, "another table must not trigger recovery")
+			event.TableID, event.Metric = 100, 50
+			f.handleExternalChange(event)
+			require.Empty(t, backend.richReplaced, "another priority must not trigger recovery")
+
+			change.Action, change.Metric = routeaction.Update, 50
+			f.processEvent(makeSysribPayload([]incomingChange{change}))
+			require.Len(t, backend.richReplaced, 1)
+			event.Metric = 25
+			f.handleExternalChange(event)
+			require.Len(t, backend.richReplaced, 1, "the retired priority must stay retired")
+			event.Metric = 50
+			f.handleExternalChange(event)
+			require.Len(t, backend.richReplaced, 2, "the current route must be restored")
+
+			change.Action = routeaction.Withdraw
+			f.processEvent(makeSysribPayload([]incomingChange{change}))
+			f.handleExternalChange(event)
+			require.Len(t, backend.richReplaced, 2, "a genuine withdrawal must stay withdrawn")
+		})
+	}
+}
+
+func TestFIBKernelMonitorIPv6DefaultPriority(t *testing.T) {
+	backend := newRichMockBackend()
+	f := newFIBKernel(backend)
+	change := incomingChange{
+		Action: routeaction.Add, Prefix: netip.MustParsePrefix("2001:db8:1::/64"),
+		Interface: "eth0",
+	}
+	f.processEvent(makeSysribPayload([]incomingChange{change}))
+	event := routewatch.RouteEvent{
+		Prefix: change.Prefix, Protocol: rtproto.FIBKernel,
+		TableID: 254, Metric: 1024, Action: routewatch.ActionRemove,
+	}
+	f.handleExternalChange(event)
+	require.Len(t, backend.richReplaced, 1, "match Linux's implicit IPv6 priority")
 }
 
 // TestFibKernelApplyJournal verifies that fib-kernel config apply via journal

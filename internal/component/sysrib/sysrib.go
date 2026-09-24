@@ -148,6 +148,7 @@ type protocolRoute struct {
 	nextHop          netip.Addr
 	nextHopInterface string // outgoing device for nextHop, empty for a gateway-only next-hop
 	nextHopWeight    uint8  // nextHop's share of the multipath group, 0 for an unweighted one
+	nextHopOnLink    bool   // protocol-established adjacency, never recursively replaced
 	priority         int    // effective admin distance (lower wins)
 	incomingPriority int    // original priority from protocol RIB (before override)
 	metric           uint32
@@ -215,7 +216,28 @@ type prefixKey struct {
 // either way.
 type installedPath struct {
 	nextHop netip.Addr
+	iface   string
+	weight  uint8
+	labels  []uint32
+	srv6SID netip.Addr
+	onLink  bool
 	proved  bool
+}
+
+// installedEntry retains the complete primary path so a cascade can observe
+// a device, label or weight change even when the resolved address is unchanged.
+func installedEntry(entry *outgoingChange, verdict fibVerdict) installedPath {
+	return installedPath{
+		nextHop: entry.NextHop, iface: entry.Interface, onLink: entry.OnLink,
+		weight: entry.Weight, labels: entry.Labels, srv6SID: entry.SRv6SID,
+		proved: verdict == fibProved,
+	}
+}
+
+func (p installedPath) matches(entry *outgoingChange) bool {
+	return p.nextHop == entry.NextHop && p.iface == entry.Interface &&
+		p.onLink == entry.OnLink && p.weight == entry.Weight &&
+		p.srv6SID == entry.SRv6SID && labelsEqual(p.labels, entry.Labels)
 }
 
 // sysRIB selects across protocols by admin distance.
@@ -475,6 +497,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				logger().Warn("sysrib: event missing protocol", "prefix", c.Prefix)
 				continue
 			}
+			// Release the old membership before replacing its protocol slot.
+			s.untrackNextHopGroup(key)
 			// Use per-change protocol type for admin distance override.
 			// Falls back to batch-level protocol if per-change type is absent.
 			protoType := c.ProtocolType.String()
@@ -501,6 +525,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				nextHop:          c.NextHop,
 				nextHopInterface: c.Interface,
 				nextHopWeight:    c.Weight,
+				nextHopOnLink:    c.OnLink,
 				priority:         priority,
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
@@ -528,6 +553,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				s.routes[key][proto] = pr
 			}
 		} else if c.Action == routeaction.Withdraw {
+			s.untrackNextHopGroup(key)
 			if proto == "" {
 				delete(s.routes, key)
 			} else if s.routes[key] != nil {
@@ -597,6 +623,8 @@ func (s *sysRIB) reapplyAdminDistances() map[family.Family][]outgoingChange {
 func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	protocols := s.routes[key]
 	prev := s.best[key]
+	s.untrackNextHopGroup(key)
+	defer s.trackNextHopGroup(key)
 
 	if len(protocols) == 0 {
 		if prev == nil {
@@ -649,16 +677,15 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		// entry below is an Add rather than an Update. The Add is unconditional
 		// on that invariant, which TestInstalledIsASubsetOfBest asserts.
 		s.best[key] = winner
-		trackNextHops(key.prefix, winner)
 		entry, verdict := s.fibEntry(key, winner)
-		// RFC 9252 Section 5: a route whose SRv6 SID does not resolve is not
-		// programmed. The tracking above stands, so the prefix is re-evaluated
+		// A route whose SRv6 SID does not resolve is not programmed. The
+		// deferred tracking stands, so the prefix is re-evaluated
 		// when the SID becomes reachable.
 		if verdict == fibForbidden {
 			return nil
 		}
 		s.lastECMP[key] = entry.ECMPPaths
-		s.installed[key] = installedPath{nextHop: entry.NextHop, proved: verdict == fibProved}
+		s.installed[key] = installedEntry(&entry, verdict)
 		return &entry
 	}
 
@@ -679,20 +706,6 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	// says the prefix is Ze's to program. installed says whether it is
 	// programmed now.
 	programmed := s.programmedByZe(key)
-	if r := getNHResolver(); r != nil {
-		if prev.nextHop.IsValid() && prev.nextHop != winner.nextHop {
-			r.Untrack(prev.nextHop, key.prefix)
-		}
-		if winner.nextHop.IsValid() && (!programmed || winner.nextHop != prev.nextHop) {
-			r.Track(winner.nextHop, key.prefix)
-		}
-		if prev.srv6SID.IsValid() && prev.srv6SID != winner.srv6SID {
-			r.Untrack(prev.srv6SID, key.prefix)
-		}
-		if winner.srv6SID.IsValid() && (!programmed || winner.srv6SID != prev.srv6SID) {
-			r.Track(winner.srv6SID, key.prefix)
-		}
-	}
 	s.best[key] = winner
 
 	// What the FIB owes is fibEntry's answer, the one the cascade and the
@@ -725,27 +738,26 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	// next-hop, metric and labels unchanged is a change the kernel must see.
 	// Leaving routeType out suppresses the case RFC 7999 exists for, and leaving
 	// the outgoing device or the weight out suppresses a route that moved to
-	// another interface or changed its share of a weighted group. What the
-	// RESOLVER decided is not compared here and MUST NOT be: this path runs on
-	// a producer's route change, and a resolution that moved under an unchanged
-	// route is the cascade's to publish. Comparing it here re-programs a prefix
-	// over a gateway the resolver proves nothing for at the moment the group
-	// loses its last resolved member, which is the moment
-	// TestCascadeWithdrawsAGroupPromotedToADeviceOnlyMember says the prefix
-	// must GO. The cost is in plan/journal/memo-suppresses-a-change-it-cannot-see.md:
-	// a member arriving beside an unresolvable winner does not reach the FIB
-	// until something else moves the prefix.
+	// another interface or changed its share of a weighted group.
+	// A proved alternate also compares the installed primary's full metadata:
+	// an unchanged configured gateway can resolve onto a different device or
+	// member. An unproved answer stays with the cascade, which withdraws a
+	// previously proved path rather than reinstalling its unresolved gateway.
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.nextHopInterface == winner.nextHopInterface &&
 		prev.nextHopWeight == winner.nextHopWeight &&
+		prev.nextHopOnLink == winner.nextHopOnLink &&
 		prev.priority == winner.priority && prev.metric == winner.metric &&
+		prev.backupNextHop == winner.backupNextHop &&
+		labelsEqual(prev.backupLabels, winner.backupLabels) &&
 		prev.srv6SID == winner.srv6SID && prev.routeType == winner.routeType &&
-		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
+		labelsEqual(prev.labels, winner.labels) && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) &&
+		(verdict != fibProved || s.installed[key].matches(&entry)) {
 		return nil
 	}
 
 	s.lastECMP[key] = entry.ECMPPaths
-	s.installed[key] = installedPath{nextHop: entry.NextHop, proved: verdict == fibProved}
+	s.installed[key] = installedEntry(&entry, verdict)
 	// An Update names an entry to replace, and a prefix Ze holds no install for
 	// has none: the previous winner's protocol was withheld, the OS owned the
 	// entry, or its next-hop stopped resolving. The two verbs reach the kernel
@@ -927,16 +939,18 @@ func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, f
 
 	protocols := s.routes[key]
 	r := getNHResolver()
-	if r == nil || !best.nextHop.IsValid() {
-		// Nothing to resolve. No resolver is wired, or the winner names a
-		// device alone and is already direct, so the entry is the winner's own
-		// path with the group SELECTION collected.
+	if r == nil {
 		return fibChange(key, best, routePath(best, best.nextHop), s.ecmpCollect(protocols, best)), fibProved
 	}
+	if !best.nextHop.IsValid() {
+		// Device-only and discard primaries need no gateway resolution, but
+		// recursive siblings still need their own reachability checked.
+		return fibChange(key, best, routePath(best, best.nextHop), s.ecmpCollectResolved(protocols, best, r)), fibProved
+	}
 
-	res := r.Resolve(best.nextHop)
-	if res.Resolved {
-		return fibChange(key, best, routePath(best, res.DirectNH), s.ecmpCollectResolved(protocols, best, r)), fibProved
+	path, reachable := resolveMember(routePath(best, best.nextHop), r)
+	if reachable {
+		return fibChange(key, best, path, s.ecmpCollectResolved(protocols, best, r)), fibProved
 	}
 
 	// The winner's gateway is unreachable, so an equal-cost member that still
@@ -971,7 +985,7 @@ func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, f
 // Caller MUST hold s.mu.
 func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 	best := s.best[key]
-	if best == nil || !best.nextHop.IsValid() {
+	if best == nil {
 		return nil
 	}
 
@@ -1017,6 +1031,11 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 	// indistinguishable at the address, because a gateway inside a connected
 	// covering route resolves to itself, which is why the install records
 	// which one it was (installedPath).
+	// A previous cascade may already have withdrawn this path. Another
+	// unresolved cover is not evidence to install it again; wait for proof.
+	if verdict == fibUnproved && !s.programmedByZe(key) {
+		return nil
+	}
 	if verdict == fibUnproved && s.installed[key].proved {
 		delete(s.installed, key)
 		delete(s.lastECMP, key)
@@ -1069,17 +1088,18 @@ func (s *sysRIB) fibInstall(key prefixKey, entry outgoingChange, verdict fibVerd
 		}
 	}
 
-	if programmed && entry.NextHop == s.installed[key].nextHop && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
+	if programmed && s.installed[key].matches(&entry) &&
+		!ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
 		// The FIB holds this entry already, so nothing is published. The PROOF
 		// can still have moved under an identical entry, because a gateway
 		// inside a connected covering route resolves to itself, and a cascade
 		// reads the proof to tell a path that was LOST from one the resolver
 		// never covered. So it is recorded whether or not anything is emitted.
-		s.installed[key] = installedPath{nextHop: entry.NextHop, proved: verdict == fibProved}
+		s.installed[key] = installedEntry(&entry, verdict)
 		return nil
 	}
 
-	s.installed[key] = installedPath{nextHop: entry.NextHop, proved: verdict == fibProved}
+	s.installed[key] = installedEntry(&entry, verdict)
 	s.lastECMP[key] = entry.ECMPPaths
 	// An Update names an entry to replace and a prefix Ze holds no install for
 	// has none, so the verb follows the install rather than the change:
@@ -1110,11 +1130,11 @@ func (s *sysRIB) ecmpCollectResolved(protocols map[string]*protocolRoute, winner
 		if !s.fibPermitted(route.protocol) {
 			continue
 		}
-		directNH, reachable := resolveMember(route.nextHop, route.nextHopInterface, r)
+		path, reachable := resolveMember(memberPath(route, route.nextHop, route.nextHopInterface, route.nextHopWeight, route.nextHopOnLink), r)
 		if !reachable {
 			continue
 		}
-		paths = append(paths, memberPath(route, directNH, route.nextHopInterface, route.nextHopWeight))
+		paths = append(paths, path)
 	}
 	// Intra-protocol equal-cost siblings of the winner (Loc-RIB path-group
 	// expansion, isis-9), filtered to those whose next-hop resolves.
@@ -1122,11 +1142,11 @@ func (s *sysRIB) ecmpCollectResolved(protocols map[string]*protocolRoute, winner
 		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
-		directNH, reachable := resolveMember(nh.Addr, nh.Interface, r)
+		path, reachable := resolveMember(memberPath(winner, nh.Addr, nh.Interface, nh.Weight, nh.OnLink), r)
 		if !reachable {
 			continue
 		}
-		paths = append(paths, memberPath(winner, directNH, nh.Interface, nh.Weight))
+		paths = append(paths, path)
 	}
 	return finishECMP(paths)
 }
@@ -1138,15 +1158,23 @@ func (s *sysRIB) ecmpCollectResolved(protocols map[string]*protocolRoute, winner
 // look up, so it is kept as it stands. Running it through the resolver would
 // report it unreachable and drop it, which is how a device-only next-hop
 // disappears from a group that names both kinds.
-func resolveMember(addr netip.Addr, iface string, r *nhResolver) (netip.Addr, bool) {
-	if !addr.IsValid() {
-		return addr, iface != ""
+func resolveMember(path forwardingPath, r *nhResolver) (forwardingPath, bool) {
+	if !path.NextHop.IsValid() {
+		return path, path.Interface != ""
 	}
-	res := r.Resolve(addr)
-	if !res.Resolved {
-		return netip.Addr{}, false
+	if path.OnLink {
+		return path, true
 	}
-	return res.DirectNH, true
+	resolved := r.Resolve(path.NextHop)
+	if !resolved.Resolved {
+		return forwardingPath{}, false
+	}
+	path.NextHop = resolved.DirectNH
+	if path.Interface == "" {
+		path.Interface = resolved.Interface
+	}
+	path.OnLink = resolved.OnLink
+	return path, true
 }
 
 // processCascade re-evaluates all prefixes that depend on the given NHs.
@@ -1516,6 +1544,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	var nextHop netip.Addr
 	var iface string
 	var weight uint8
+	var onLink bool
 	var priority int
 	var metric uint32
 	var labels []uint32
@@ -1528,6 +1557,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 		// asked for a proportion.
 		iface = c.Best.Interface
 		weight = c.Best.Weight
+		onLink = c.Best.OnLink
 		priority = int(c.Best.AdminDistance)
 		metric = c.Best.Metric
 		// Carry the MPLS label stack so labeled-unicast routes program a kernel
@@ -1562,9 +1592,11 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			NextHop:      nextHop,
 			Interface:    iface,
 			Weight:       weight,
+			OnLink:       onLink,
 			Priority:     priority,
 			Metric:       metric,
 			Labels:       labels,
+			SRv6SID:      c.Best.SRv6SID,
 			RouteType:    routeTyp,
 			ProtocolType: bgpProtocolTypeFromPath(c.Best),
 			// Intra-source equal-cost siblings computed at Loc-RIB emit; sysrib

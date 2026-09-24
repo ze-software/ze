@@ -150,47 +150,44 @@ func TestIntegration_FanoutFromNetlink(t *testing.T) {
 	})
 }
 
-func TestIntegration_FilterZeOwned(t *testing.T) {
+func TestIntegration_DeliverZeOwned(t *testing.T) {
 	withNetNS(t, func() {
 		h, err := netlink.NewHandle()
 		require.NoError(t, err)
 		defer h.Close()
-
 		addLoopback(t, h)
 
 		w := New()
 		rec := &eventRecorder{}
 		w.Register(rec.record)
+		w.Start(func(err error) { t.Logf("watcher error: %v", err) })
+		defer func() {
+			w.Stop()
+			w.Wait()
+		}()
 
-		w.Start(func(err error) {
-			t.Logf("watcher error: %v", err)
-		})
-		defer w.Stop()
-
-		// Ze-owned route first, then a marker route. The kernel delivers
-		// in order, so once the marker event arrives the filtered route
-		// would already have been delivered if the filter were broken.
-		_, zeCidr, _ := net.ParseCIDR("10.88.0.0/24")
-		require.NoError(t, h.RouteAdd(&netlink.Route{
-			Dst:      zeCidr,
-			Gw:       net.ParseIP("127.0.0.1"),
+		_, cidr, err := net.ParseCIDR("10.88.0.0/24")
+		require.NoError(t, err)
+		route := &netlink.Route{
+			Dst: cidr, Gw: net.ParseIP("127.0.0.1"),
 			Protocol: netlink.RouteProtocol(rtproto.FIBKernel),
-		}))
-		_, markerCidr, _ := net.ParseCIDR("10.89.0.0/24")
-		require.NoError(t, h.RouteAdd(&netlink.Route{
-			Dst:      markerCidr,
-			Gw:       net.ParseIP("127.0.0.1"),
-			Protocol: 16,
-		}))
-
+			Table:    100, Priority: 37,
+		}
+		require.NoError(t, h.RouteAdd(route))
 		events := rec.waitFor(t, func(evs []RouteEvent) bool {
-			return hasEvent(evs, "10.89.0.0/24", ActionAdd)
+			return hasEvent(evs, "10.88.0.0/24", ActionAdd)
 		})
-		require.True(t, hasEvent(events, "10.89.0.0/24", ActionAdd),
-			"marker route event not received: %v", events)
+		require.True(t, hasEvent(events, "10.88.0.0/24", ActionAdd))
+		require.NoError(t, h.RouteDel(route))
+		events = rec.waitFor(t, func(evs []RouteEvent) bool {
+			return hasEvent(evs, "10.88.0.0/24", ActionRemove)
+		})
+		require.True(t, hasEvent(events, "10.88.0.0/24", ActionRemove))
 		for _, ev := range events {
 			if ev.Prefix == netip.MustParsePrefix("10.88.0.0/24") {
-				t.Fatalf("Ze-owned route should have been filtered, got: %+v", ev)
+				require.Equal(t, rtproto.FIBKernel, ev.Protocol)
+				require.Equal(t, uint32(100), ev.TableID)
+				require.Equal(t, uint32(37), ev.Metric)
 			}
 		}
 	})

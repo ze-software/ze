@@ -50,15 +50,21 @@ type Path struct {
 
 	// Interface is the name of the outgoing interface for NextHop, for a
 	// producer that forwards out a named device rather than to a gateway a
-	// route lookup finds. Empty when the address alone names the next-hop,
-	// which is every protocol-learned path. The FIB resolves the name to a
-	// kernel ifindex; the Loc-RIB carries the NAME because an ifindex is not
-	// stable across a device replacement and the resolver lives in the FIB.
+	// route lookup finds. Empty when the address alone names the next-hop.
+	// Link-state protocols also name the device for an on-link adjacency.
+	// The FIB resolves the name to a kernel ifindex; the Loc-RIB carries the
+	// name because an ifindex is not stable across a device replacement.
 	//
 	// Carry-through metadata on the Labels contract: EXCLUDED from key(), so a
 	// source that moves a prefix to another device is the same path updated,
 	// and IS compared by Equal, because the FIB must observe the move.
 	Interface string
+
+	// OnLink means the protocol has established direct link-layer reachability
+	// to NextHop on Interface, even outside the interface's IP subnet. The
+	// resolver MUST NOT replace this adjacency with a recursively resolved hop.
+	// Excluded from key(), compared by Equal so changes reach the FIB.
+	OnLink bool
 
 	// Weight is this next-hop's share of a weighted multipath group, as the
 	// operator declared it. Zero means the producer states no weight, and the
@@ -86,6 +92,11 @@ type Path struct {
 	// BestChange path.
 	Labels []uint32
 
+	// SRv6SID is the Service SID selected from the route's Prefix-SID
+	// attribute. It is forwarding metadata, like Labels, and MUST survive
+	// local changes, replay and the forked route-install transport.
+	SRv6SID netip.Addr
+
 	// IsEBGP marks a BGP-sourced path learned from an external peer. Like
 	// Labels, it is carry-through metadata: Loc-RIB never uses it for
 	// arbitration (selection is AdminDistance then Metric). The producing BGP
@@ -96,6 +107,18 @@ type Path struct {
 	// (Source, Instance) cannot change its eBGP/iBGP class because a peer's
 	// ASN relationship is fixed.
 	IsEBGP bool
+
+	// IsBGP identifies a BGP route whose received AIGP metric participates in
+	// recursive distance computation. Absence is distinct from zero and makes
+	// AIGP next-hop-self propagation invalid.
+	IsBGP       bool
+	AIGP        uint64
+	AIGPPresent bool
+
+	// MetricRecursive means a non-BGP route's Metric is not an interior
+	// distance: follow NextHop instead. Static routes without an outgoing
+	// interface require this resolution; an IGP route's Metric is terminal.
+	MetricRecursive bool
 
 	// BackupNextHop is a pre-computed fast-reroute backup next-hop the FIB
 	// programs alongside NextHop as a link-down/backup path (an IP fast-reroute
@@ -160,9 +183,15 @@ func (p Path) Equal(q Path) bool {
 		p.Instance == q.Instance &&
 		p.NextHop == q.NextHop &&
 		p.Interface == q.Interface &&
+		p.OnLink == q.OnLink &&
 		p.Weight == q.Weight &&
 		p.AdminDistance == q.AdminDistance &&
 		p.Metric == q.Metric &&
+		p.IsBGP == q.IsBGP &&
+		p.AIGP == q.AIGP &&
+		p.AIGPPresent == q.AIGPPresent &&
+		p.MetricRecursive == q.MetricRecursive &&
+		p.SRv6SID == q.SRv6SID &&
 		p.BackupNextHop == q.BackupNextHop &&
 		p.RouteType == q.RouteType &&
 		slices.Equal(p.Labels, q.Labels) &&

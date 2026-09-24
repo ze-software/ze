@@ -87,18 +87,19 @@ type BestChangeEntry struct {
 	AddPath bool       `json:"add-path,omitempty"`
 	PathID  uint32     `json:"path-id,omitempty"`
 	NextHop netip.Addr `json:"next-hop,omitzero"`
-	// Interface is the outgoing device for NextHop and Weight is its share of a
-	// weighted multipath group, both carried from locrib.Path by sysrib's
-	// changeToBatch. A BGP path names a gateway address alone and leaves both
-	// zero; a producer whose one route names a device or a weight (the static
-	// plugin) reaches the FIB through here. In-process hints (json:"-"), like
-	// ECMPNextHops below: the forked event-bus path has no Loc-RIB to read them
-	// from.
-	Interface    string                   `json:"-"`
-	Weight       uint8                    `json:"-"`
+	// Interface, OnLink and Weight preserve the selected forwarding target.
+	// They also cross the event-bus wire so a forked protocol does not lose
+	// direct link-layer reachability or its outgoing device.
+	Interface    string                   `json:"interface,omitempty"`
+	OnLink       bool                     `json:"on-link,omitempty"`
+	Weight       uint8                    `json:"weight,omitempty"`
 	Priority     int                      `json:"priority"`
 	Metric       uint32                   `json:"metric"`
 	ProtocolType routeaction.ProtocolType `json:"protocol-type,omitempty"`
+	// AIGP carries the winning route's received metric, not MED and not its
+	// accumulated distance. Presence is distinct from a metric of zero.
+	AIGP        uint64 `json:"aigp,omitempty"`
+	AIGPPresent bool   `json:"aigp-present,omitempty"`
 	// RouteType is the forwarding action the FIB programs for this prefix: an
 	// ordinary next-hop, or a discard. Unset (omitted) means the producer has no
 	// opinion and the FIB installs an ordinary route, so every producer that

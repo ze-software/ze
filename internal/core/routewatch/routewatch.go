@@ -5,8 +5,6 @@ package routewatch
 import (
 	"net/netip"
 	"sync"
-
-	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 type Action uint8
@@ -21,6 +19,7 @@ type RouteEvent struct {
 	NextHop  netip.Addr
 	Protocol int
 	Metric   uint32
+	TableID  uint32
 	Action   Action
 }
 
@@ -101,9 +100,6 @@ func (w *Watcher) Wait() {
 
 func (w *Watcher) deliver(ev RouteEvent) {
 	if !ev.Prefix.IsValid() {
-		return
-	}
-	if rtproto.IsZe(ev.Protocol) {
 		return
 	}
 	w.mu.Lock()

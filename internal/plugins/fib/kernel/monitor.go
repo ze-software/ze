@@ -5,14 +5,16 @@
 // Related: monitor_other.go -- noop monitor for non-Linux platforms
 //
 // Platform-independent external route change handling.
-// When the kernel route monitor detects an external change on a ze-managed
-// prefix, handleExternalChange re-asserts ze's route and emits
-// (fib, external-change) on the EventBus for observability.
+// When the kernel route monitor detects an external change on a Ze-managed
+// prefix, handleExternalChange attempts an ownership-checked reassertion and
+// reports the result through (fib, external-change).
 package fibkernel
 
 import (
 	"encoding/json"
 
+	"github.com/ze-software/ze/internal/core/routewatch"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	fibevents "github.com/ze-software/ze/internal/plugins/fib/kernel/events"
 )
 
@@ -26,20 +28,38 @@ type externalChangeEvent struct {
 	Resolved         string `json:"resolved"`
 }
 
-// handleExternalChange checks if an external route change affects a ze-managed prefix.
-// If so, re-asserts ze's route and publishes a fib/external-change event.
-// Called by the platform-specific route monitor (monitor_linux.go, monitor_other.go).
-// Uses write lock for the entire read-check-replace to prevent TOCTOU races with processEvent.
-func (f *fibKernel) handleExternalChange(prefix, externalNextHop string, externalProto int) {
+// handleExternalChange restores a currently owned route after a matching kernel
+// event. processEvent holds the same lock through the write and cache update,
+// so notifications for withdrawn or superseded routes see the retired ownership.
+func (f *fibKernel) handleExternalChange(ev routewatch.RouteEvent) {
+	if rtproto.IsZe(ev.Protocol) {
+		if ev.Protocol != rtproto.FIBKernel || ev.Action != routewatch.ActionRemove {
+			return
+		}
+	}
+	prefix := ev.Prefix.String()
 	f.mu.Lock()
 	zeNextHop, managed := f.installed[prefix]
-	if !managed {
+	if !managed || f.stopped {
 		f.mu.Unlock()
-		return // Not our prefix, ignore.
+		return
+	}
+	change := f.forwarding[prefix]
+	table, priority := change.TableID, change.Metric
+	if table == 0 {
+		table = 254 // Linux RT_TABLE_MAIN.
+	}
+	if change.Prefix.Addr().Is6() && priority == 0 {
+		priority = 1024 // Linux's default priority for an IPv6 user route.
+	}
+	if ev.TableID != table || ev.Metric != priority {
+		f.mu.Unlock()
+		return
 	}
 
-	// Re-assert ze's route under lock to prevent race with processEvent.
-	reassertErr := f.backend.replaceRoute(prefix, zeNextHop)
+	// Reassert all accepted forwarding metadata. The backend checks the current
+	// kernel owner before replacement, including a foreign replacement.
+	reassertErr := f.replaceChange(&change, prefix, f.asRichBackend())
 	f.mu.Unlock()
 
 	resolved := "reasserted"
@@ -47,13 +67,15 @@ func (f *fibKernel) handleExternalChange(prefix, externalNextHop string, externa
 		logger().Error("fib-kernel: re-assert failed", "prefix", prefix, "error", reassertErr)
 		resolved = "failed"
 	}
+	var externalNextHop string
+	if ev.NextHop.IsValid() {
+		externalNextHop = ev.NextHop.String()
+	}
 
-	// Always publish the external change event, even if re-assert failed,
-	// so operators are aware of the conflict.
 	publishExternalChange(externalChangeEvent{
 		Prefix:           prefix,
 		Action:           "overwritten",
-		ExternalProtocol: externalProto,
+		ExternalProtocol: ev.Protocol,
 		ExternalNextHop:  externalNextHop,
 		ZeNextHop:        zeNextHop,
 		Resolved:         resolved,

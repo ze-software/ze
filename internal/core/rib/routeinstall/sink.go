@@ -31,6 +31,7 @@ var logger = slogutil.LazyLogger("routeinstall")
 type Client interface {
 	RouteInstall(ctx context.Context, routes []rpc.RouteInstallEntry) (uint32, error)
 	RouteRemove(ctx context.Context, routes []rpc.RouteRemoveEntry) (uint32, error)
+	Close() error
 }
 
 // Sink ships Loc-RIB install/remove operations to the engine over RPC. It matches
@@ -56,9 +57,8 @@ type Sink struct {
 const maxFlushAttempts = 3
 
 // New builds a Sink that dispatches over client using ctx for every RPC. The
-// forked OSPF/IS-IS wiring passes context.Background(): flush is best-effort and
-// bounded by the RPC layer's own per-call handling and by the mux closing on
-// plugin shutdown, not by ctx cancellation.
+// forked OSPF/IS-IS wiring passes context.Background(). RPC retries are bounded;
+// a persistent failure closes the client to force engine-side route withdrawal.
 func New(ctx context.Context, client Client) *Sink {
 	return &Sink{ctx: ctx, client: client}
 }
@@ -75,12 +75,18 @@ func (s *Sink) InsertForward(fam family.Family, prefix netip.Prefix, p locrib.Pa
 		Instance:           p.Instance,
 		NextHop:            addrString(p.NextHop),
 		Interface:          p.Interface,
+		OnLink:             p.OnLink,
 		Weight:             p.Weight,
 		RouteType:          uint8(p.RouteType),
 		AdminDistance:      p.AdminDistance,
 		Metric:             p.Metric,
 		Labels:             p.Labels,
+		SRv6SID:            addrString(p.SRv6SID),
 		IsEBGP:             p.IsEBGP,
+		IsBGP:              p.IsBGP,
+		AIGP:               p.AIGP,
+		AIGPPresent:        p.AIGPPresent,
+		MetricRecursive:    p.MetricRecursive,
 		ECMP:               wireNextHops(p.ECMP),
 		BackupNextHop:      addrString(p.BackupNextHop),
 		BackupRepairLabels: p.BackupRepairLabels,
@@ -112,12 +118,10 @@ func (s *Sink) Remove(fam family.Family, prefix netip.Prefix, source redistevent
 // swap against a future off-thread caller, not ordering across concurrent flushes).
 //
 // A transient RPC error is retried up to maxFlushAttempts (engine busy / timeout on
-// the local mux). A PERSISTENT error is logged and dropped, not returned: it means
-// the connection is dead, so the plugin's read loop exits, the engine withdraws
-// this plugin's routes on disconnect, and the respawned plugin re-installs from a
-// clean slate -- the batch is deferred to respawn, not silently lost. The ops are
-// idempotent (InsertForward upserts, Remove is (Source,Instance)-keyed), so a
-// re-sent batch is safe.
+// the local mux). A persistent error closes the client so the plugin's read loop
+// exits and engine-side disconnect cleanup withdraws its routes. An RPC refusal
+// does not itself mean the connection is dead. Without the explicit close a
+// failed withdrawal could leave a stale route indefinitely.
 func (s *Sink) Flush() {
 	s.mu.Lock()
 	installs := s.installs
@@ -127,10 +131,12 @@ func (s *Sink) Flush() {
 	s.mu.Unlock()
 
 	if len(installs) > 0 {
-		s.send("route-install", len(installs), func() error {
+		if !s.send("route-install", len(installs), func() error {
 			_, err := s.client.RouteInstall(s.ctx, installs)
 			return err
-		})
+		}) {
+			return
+		}
 	}
 	if len(removes) > 0 {
 		s.send("route-remove", len(removes), func() error {
@@ -142,14 +148,18 @@ func (s *Sink) Flush() {
 
 // send runs fn up to maxFlushAttempts times, tolerating a transient error. See
 // Flush for the persistent-failure recovery contract.
-func (s *Sink) send(op string, n int, fn func() error) {
+func (s *Sink) send(op string, n int, fn func() error) bool {
 	var err error
 	for attempt := 1; attempt <= maxFlushAttempts; attempt++ {
 		if err = fn(); err == nil {
-			return
+			return true
 		}
 	}
 	logger().Warn("forked route flush failed after retries", "op", op, "routes", n, "attempts", maxFlushAttempts, "error", err)
+	if closeErr := s.client.Close(); closeErr != nil {
+		logger().Warn("closing failed route-install connection", "error", closeErr)
+	}
+	return false
 }
 
 // wireNextHops renders a Path's equal-cost set for the wire. Nil stays nil, so a
@@ -163,6 +173,7 @@ func wireNextHops(set []nexthop.NextHop) []rpc.RouteNextHop {
 		out = append(out, rpc.RouteNextHop{
 			NextHop:   addrString(nh.Addr),
 			Interface: nh.Interface,
+			OnLink:    nh.OnLink,
 			Weight:    nh.Weight,
 		})
 	}

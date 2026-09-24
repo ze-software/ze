@@ -34,7 +34,7 @@ func (n *netlinkBackend) addRichRoute(r RichRoute) error {
 	// The kernel refuses a label the table has no room for, and its table is
 	// empty by default. Repair that before the push route goes in, not after
 	// (labelspace_linux.go).
-	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+	if needsLabelSpace(r) {
 		ensureLabelSpace()
 	}
 	return n.handle.RouteAdd(route)
@@ -62,10 +62,22 @@ func (n *netlinkBackend) replaceRichRoute(r RichRoute) error {
 	}
 	// The same repair as addRichRoute: a replace is the first programming of a
 	// label just as often as an add is (labelspace_linux.go).
-	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+	if needsLabelSpace(r) {
 		ensureLabelSpace()
 	}
-	return n.handle.RouteReplace(route)
+	return n.replaceOwnedRoute(route)
+}
+
+func needsLabelSpace(r RichRoute) bool {
+	if len(r.Labels) > 0 || len(r.Backup) > 0 {
+		return true
+	}
+	for i := range r.ECMPPaths {
+		if len(r.ECMPPaths[i].Labels) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // buildRichRoute translates a RichRoute into the netlink form.
@@ -124,8 +136,9 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 			return nil, err
 		}
 	} else {
-		if r.NextHop.IsValid() {
-			route.Gw = r.NextHop.AsSlice()
+		route.Gw, route.Via, err = buildGateway(r.Prefix, r.NextHop)
+		if err != nil {
+			return nil, err
 		}
 		if r.OnLink {
 			route.Flags |= unix.RTNH_F_ONLINK
@@ -142,12 +155,10 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		}
 	}
 
-	// RFC 9252 Section 5: the Service SID selects IPv6 encapsulation. The
-	// label field can carry transposed SID bits and must not select MPLS.
-	if r.SRv6SID.IsValid() && r.SRv6SID.Is6() && route.Type == unix.RTN_UNICAST {
-		route.Encap = buildSEG6Encap(r.SRv6SID)
-	} else if len(r.Labels) > 0 && route.Type == unix.RTN_UNICAST {
-		route.Encap = buildMPLSEncap(r.Labels)
+	// An ECMP member owns its encapsulation. A route-level stack would also
+	// apply to a member whose producer supplied a different stack or plain IP.
+	if len(route.MultiPath) == 0 && len(r.Backup) == 0 {
+		route.Encap = buildRouteEncap(r.Labels, r.SRv6SID)
 	}
 
 	// Fast-reroute backup (RFC 5286 / TI-LFA): program the backup next-hop(s) as
@@ -162,14 +173,15 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 			if err != nil {
 				return nil, err
 			}
-			if route.Encap != nil && len(route.MultiPath) > 0 {
-				route.MultiPath[0].Encap = route.Encap
-				route.Encap = nil
-			}
 			route.Gw = nil
+			route.Via = nil
 			route.Flags &^= unix.RTNH_F_ONLINK
 		}
-		route.MultiPath = append(route.MultiPath, buildBackupNexthops(r.Backup)...)
+		backup, backupErr := buildBackupNexthops(r.Prefix, r.Backup)
+		if backupErr != nil {
+			return nil, backupErr
+		}
+		route.MultiPath = append(route.MultiPath, backup...)
 	}
 
 	return route, nil
@@ -178,25 +190,20 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 // buildBackupNexthops builds the link-down/backup multipath next-hops for a
 // fast-reroute backup: each carries the RTNH_F_LINKDOWN flag (used only when the
 // primary link is down) and, for a TI-LFA repair, the SR repair MPLS encap.
-func buildBackupNexthops(backup []events.ECMPPath) []*netlink.NexthopInfo {
+func buildBackupNexthops(prefix netip.Prefix, backup []events.ECMPPath) ([]*netlink.NexthopInfo, error) {
 	out := make([]*netlink.NexthopInfo, 0, len(backup))
 	for _, b := range backup {
-		if !b.NextHop.IsValid() {
-			continue
+		nhi, err := buildNexthopInfo(prefix, b.NextHop, b.Interface, b.Weight, b.OnLink)
+		if err != nil {
+			return nil, err
 		}
-		nhi := &netlink.NexthopInfo{
-			Gw:    b.NextHop.AsSlice(),
-			Flags: int(unix.RTNH_F_LINKDOWN),
-		}
-		if b.OnLink {
-			nhi.Flags |= unix.RTNH_F_ONLINK
-		}
+		nhi.Flags |= unix.RTNH_F_LINKDOWN
 		if len(b.Labels) > 0 {
 			nhi.Encap = buildMPLSEncap(b.Labels)
 		}
 		out = append(out, nhi)
 	}
-	return out
+	return out, nil
 }
 
 func routeTypeToLinux(rt events.RouteType) int {
@@ -222,20 +229,19 @@ func routeTypeToLinux(rt events.RouteType) int {
 func buildMultiPath(r RichRoute, ecmpPaths []events.ECMPPath) ([]*netlink.NexthopInfo, error) {
 	paths := make([]*netlink.NexthopInfo, 0, len(ecmpPaths)+1)
 	if namesATarget(r.NextHop, r.Interface) {
-		primary, err := buildNexthopInfo(r.NextHop, r.Interface, r.Weight, r.OnLink)
+		primary, err := buildNexthopInfo(r.Prefix, r.NextHop, r.Interface, r.Weight, r.OnLink)
 		if err != nil {
 			return nil, err
 		}
+		primary.Encap = buildRouteEncap(r.Labels, r.SRv6SID)
 		paths = append(paths, primary)
 	}
 	for _, p := range ecmpPaths {
-		if !namesATarget(p.NextHop, p.Interface) {
-			continue
-		}
-		nhi, err := buildNexthopInfo(p.NextHop, p.Interface, p.Weight, p.OnLink)
+		nhi, err := buildNexthopInfo(r.Prefix, p.NextHop, p.Interface, p.Weight, p.OnLink)
 		if err != nil {
 			return nil, err
 		}
+		nhi.Encap = buildRouteEncap(p.Labels, r.SRv6SID)
 		paths = append(paths, nhi)
 	}
 	return paths, nil
@@ -250,15 +256,19 @@ func namesATarget(addr netip.Addr, ifaceName string) bool {
 
 // buildNexthopInfo renders one multipath member.
 //
-// REQUIRES: namesATarget reports true for (addr, ifaceName). A member that names
-// neither would otherwise become an entry the kernel refuses.
-func buildNexthopInfo(addr netip.Addr, ifaceName string, weight uint8, onLink bool) (*netlink.NexthopInfo, error) {
-	nhi := &netlink.NexthopInfo{}
+// A member without a gateway or device rejects the whole route, because
+// silently removing it would change the producer's forwarding decision.
+func buildNexthopInfo(prefix netip.Prefix, addr netip.Addr, ifaceName string, weight uint8, onLink bool) (*netlink.NexthopInfo, error) {
+	if !namesATarget(addr, ifaceName) {
+		return nil, fmt.Errorf("next hop for %s has no gateway or device", prefix)
+	}
+	gw, via, err := buildGateway(prefix, addr)
+	if err != nil {
+		return nil, err
+	}
+	nhi := &netlink.NexthopInfo{Gw: gw, Via: via}
 	if onLink {
 		nhi.Flags |= unix.RTNH_F_ONLINK
-	}
-	if addr.IsValid() {
-		nhi.Gw = addr.AsSlice()
 	}
 	if ifaceName != "" {
 		idx, err := iface.ResolveIndex(ifaceName)
@@ -271,6 +281,34 @@ func buildNexthopInfo(addr netip.Addr, ifaceName string, weight uint8, onLink bo
 		nhi.Hops = int(weight) - 1
 	}
 	return nhi, nil
+}
+
+// buildGateway selects the gateway attribute for the destination family.
+// Linux supports IPv4 forwarding through IPv6 gateways with RTA_VIA.
+func buildGateway(prefix netip.Prefix, addr netip.Addr) (net.IP, netlink.Destination, error) {
+	if !addr.IsValid() {
+		return nil, nil, nil
+	}
+	addr = addr.Unmap()
+	if prefix.Addr().Unmap().Is4() == addr.Is4() {
+		return addr.AsSlice(), nil, nil
+	}
+	if addr.Is6() {
+		return nil, &netlink.Via{AddrFamily: unix.AF_INET6, Addr: addr.AsSlice()}, nil
+	}
+	return nil, nil, fmt.Errorf("IPv6 route %s cannot use IPv4 gateway %s", prefix, addr)
+}
+
+// buildRouteEncap gives the Service SID precedence over NLRI label fields,
+// which can hold SID transposition bits (RFC 9252 Section 5; rfc/short/rfc9252.md).
+func buildRouteEncap(labels []uint32, sid netip.Addr) netlink.Encap {
+	if sid.Is6() {
+		return buildSEG6Encap(sid)
+	}
+	if len(labels) > 0 {
+		return buildMPLSEncap(labels)
+	}
+	return nil
 }
 
 func buildMPLSEncap(labels []uint32) *netlink.MPLSEncap {

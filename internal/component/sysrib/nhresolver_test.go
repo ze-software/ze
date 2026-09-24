@@ -163,13 +163,13 @@ func TestNHResolver_IGPMetric(t *testing.T) {
 
 	resolver := newNHResolver(rib)
 	metric := resolver.IGPMetric(netip.MustParseAddr("10.0.0.5"))
-	if metric != 42 {
-		t.Errorf("IGPMetric = %d, want 42", metric)
+	if metric.Cost != 42 || !metric.Resolved {
+		t.Errorf("IGPMetric = %+v, want resolved cost 42", metric)
 	}
 
 	metric = resolver.IGPMetric(netip.MustParseAddr("172.16.0.1"))
-	if metric != 0 {
-		t.Errorf("IGPMetric for unreachable = %d, want 0", metric)
+	if metric.Resolved {
+		t.Errorf("IGPMetric for unreachable = %+v, want unresolved", metric)
 	}
 }
 

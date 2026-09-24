@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -15,9 +16,11 @@ const maxRecursionDepth = 8
 
 // ResolvedNH is the result of resolving a possibly-recursive next-hop.
 type ResolvedNH struct {
-	DirectNH netip.Addr
-	Metric   uint32
-	Resolved bool
+	DirectNH  netip.Addr
+	Interface string
+	OnLink    bool
+	Metric    uint32
+	Resolved  bool
 }
 
 // nhResolver resolves recursive next-hops using the Loc-RIB's LPM. A next-hop
@@ -50,20 +53,31 @@ func (r *nhResolver) Resolve(addr netip.Addr) ResolvedNH {
 		return ResolvedNH{}
 	}
 
-	fam := familyForAddr(addr)
 	var totalMetric uint32
 
 	current := addr
 	for range maxRecursionDepth {
-		path, _, found := r.rib.LPM(fam, current)
+		path, _, found := r.rib.LPM(familyForAddr(current), current)
 		if !found {
+			return ResolvedNH{}
+		}
+		if path.RouteType.Discards() {
 			return ResolvedNH{}
 		}
 		totalMetric += path.Metric
 
 		if !path.NextHop.IsValid() {
 			// Connected route: current is the directly-reachable NH.
-			return ResolvedNH{DirectNH: current, Metric: totalMetric, Resolved: true}
+			return ResolvedNH{
+				DirectNH: current, Interface: path.Interface,
+				Metric: totalMetric, Resolved: true,
+			}
+		}
+		if path.OnLink {
+			return ResolvedNH{
+				DirectNH: path.NextHop, Interface: path.Interface, OnLink: true,
+				Metric: totalMetric, Resolved: true,
+			}
 		}
 
 		if path.NextHop == current {
@@ -116,26 +130,39 @@ func (r *nhResolver) Dependents(nextHop netip.Addr) []netip.Prefix {
 	return result
 }
 
-// IGPMetric returns the IGP cost to reach addr, or 0 if unreachable.
-func (r *nhResolver) IGPMetric(addr netip.Addr) uint32 {
-	res := r.Resolve(addr)
-	if !res.Resolved {
-		return 0
-	}
-	return res.Metric
+// IGPMetric follows RFC 7311 Section 3.4.3's recursive BGP resolution. An IGP
+// route's metric already spans its whole path; following its forwarding gateway
+// and adding another metric would count links twice.
+func (r *nhResolver) IGPMetric(addr netip.Addr) igpcost.Distance {
+	return igpcost.Resolve(r.rib, addr)
 }
 
-// CoveredNHs returns all tracked next-hop addresses that fall within prefix.
+// CoveredNHs returns tracked roots whose recursive chain intersects prefix.
+// Tracking only the root address would miss a terminal covering-route change.
 func (r *nhResolver) CoveredNHs(prefix netip.Prefix) []netip.Addr {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var result []netip.Addr
 	for nh := range r.tracking {
-		if prefix.Contains(nh) {
+		if r.chainCovered(nh, prefix) {
 			result = append(result, nh)
 		}
 	}
 	return result
+}
+
+func (r *nhResolver) chainCovered(current netip.Addr, prefix netip.Prefix) bool {
+	for range maxRecursionDepth {
+		if prefix.Contains(current) {
+			return true
+		}
+		path, _, found := r.rib.LPM(familyForAddr(current), current)
+		if !found || path.RouteType.Discards() || path.OnLink || !path.NextHop.IsValid() || path.NextHop == current {
+			return false
+		}
+		current = path.NextHop
+	}
+	return false
 }
 
 func familyForAddr(addr netip.Addr) family.Family {

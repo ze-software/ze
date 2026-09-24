@@ -124,17 +124,24 @@ func (n *netlinkBackend) delMPLSSwap(inLabel uint32) error {
 // replacement or removal. An external protocol may have replaced the entry.
 func (n *netlinkBackend) mplsSwapOwned(inLabel uint32) (bool, error) {
 	label := int(inLabel)
-	routes, err := n.handle.RouteListFiltered(unix.AF_MPLS,
-		&netlink.Route{MPLSDst: &label}, netlink.RT_FILTER_DST)
+	// The vendored RT_FILTER_DST falls back to IP-prefix comparison when MPLS
+	// labels differ. Both IP destinations are nil for AF_MPLS, so that fallback
+	// also admits unrelated labels. Select the label explicitly from the dump.
+	routes, err := n.handle.RouteList(nil, unix.AF_MPLS)
 	if err != nil {
 		return false, fmt.Errorf("mpls label lookup in-label %d: %w", inLabel, err)
 	}
+	owned := false
 	for i := range routes {
+		if routes[i].MPLSDst == nil || *routes[i].MPLSDst != label {
+			continue
+		}
 		if routes[i].Protocol != rtprotZE {
 			return false, fmt.Errorf("mpls in-label %d belongs to another kernel protocol: %w", inLabel, unix.EEXIST)
 		}
+		owned = true
 	}
-	return len(routes) != 0, nil
+	return owned, nil
 }
 
 // resolveMPLSNextHop returns the directly connected neighbor's device. A link-local

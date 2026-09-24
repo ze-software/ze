@@ -8,6 +8,7 @@ package routeinstall
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"testing"
@@ -28,6 +29,7 @@ type captureClient struct {
 	installCalls int
 	err          error
 	failFirst    int // return a transient error on the first N RouteInstall calls
+	closed       bool
 }
 
 func (c *captureClient) RouteInstall(_ context.Context, routes []rpc.RouteInstallEntry) (uint32, error) {
@@ -48,6 +50,11 @@ func (c *captureClient) RouteRemove(_ context.Context, routes []rpc.RouteRemoveE
 	return uint32(len(routes)), c.err
 }
 
+func (c *captureClient) Close() error {
+	c.closed = true
+	return nil
+}
+
 func v4u() family.Family { return family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast} }
 
 func TestSinkInsertForwardMarshalsEntry(t *testing.T) {
@@ -55,9 +62,15 @@ func TestSinkInsertForwardMarshalsEntry(t *testing.T) {
 	sink := New(context.Background(), cc)
 	src := redistevents.RegisterProtocol("routeinstall-test-ospf")
 	sink.InsertForward(v4u(), netip.MustParsePrefix("10.9.0.0/24"), locrib.Path{
-		Source:        src,
-		Instance:      2,
-		NextHop:       netip.MustParseAddr("192.0.2.9"),
+		Source:    src,
+		Instance:  2,
+		NextHop:   netip.MustParseAddr("192.0.2.9"),
+		Interface: "eth9",
+		OnLink:    true,
+		ECMP: []locrib.NextHop{
+			{Addr: netip.MustParseAddr("192.0.2.10"), Interface: "eth10", OnLink: true, Weight: 2},
+			{Addr: netip.MustParseAddr("192.0.2.11"), Interface: "eth11", Weight: 1},
+		},
 		AdminDistance: 110,
 		Metric:        7,
 	})
@@ -65,7 +78,26 @@ func TestSinkInsertForwardMarshalsEntry(t *testing.T) {
 	if len(cc.installed) != 1 {
 		t.Fatalf("installed batches = %d, want 1", len(cc.installed))
 	}
-	e := cc.installed[0]
+	wire, err := json.Marshal(cc.installed[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var e rpc.RouteInstallEntry
+	if err := json.Unmarshal(wire, &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Interface != "eth9" || !e.OnLink {
+		t.Fatalf("primary forwarding target lost in RPC: %+v", e)
+	}
+	if len(e.ECMP) != 2 {
+		t.Fatalf("RPC ECMP members = %d, want 2", len(e.ECMP))
+	}
+	if !e.ECMP[0].OnLink || e.ECMP[0].Interface != "eth10" || e.ECMP[0].Weight != 2 {
+		t.Errorf("direct RPC member lost forwarding fields: %+v", e.ECMP[0])
+	}
+	if e.ECMP[1].OnLink || e.ECMP[1].Interface != "eth11" || e.ECMP[1].Weight != 1 {
+		t.Errorf("recursive RPC member changed forwarding fields: %+v", e.ECMP[1])
+	}
 	if e.Protocol != "routeinstall-test-ospf" {
 		t.Errorf("Protocol = %q, want the source's registered NAME", e.Protocol)
 	}
@@ -115,9 +147,13 @@ func TestSinkInsertForwardSurvivesClientError(t *testing.T) {
 	cc := &captureClient{err: context.DeadlineExceeded}
 	sink := New(context.Background(), cc)
 	src := redistevents.RegisterProtocol("routeinstall-test-err")
-	// Must not panic even though the client returns an error on Flush.
+	// A failed install closes the connection so the engine can withdraw all
+	// paths held by the disconnected producer.
 	sink.InsertForward(v4u(), netip.MustParsePrefix("10.12.0.0/24"), locrib.Path{Source: src, AdminDistance: 110})
 	sink.Flush()
+	if !cc.closed {
+		t.Fatal("persistent install failure left the engine connection live")
+	}
 }
 
 // TestSinkBatchesMultipleOps: R-1 -- several buffered ops go out in one RPC batch.
@@ -151,5 +187,20 @@ func TestSinkFlushRetriesOnTransientError(t *testing.T) {
 	}
 	if len(cc.installed) != 1 {
 		t.Errorf("delivered %d entries after retry; want 1 (batch not lost)", len(cc.installed))
+	}
+	if cc.closed {
+		t.Fatal("successful retry closed the engine connection")
+	}
+}
+
+// A failed withdrawal needs the same disconnect cleanup as a failed install.
+func TestSinkRemoveFailureClosesClient(t *testing.T) {
+	cc := &captureClient{err: context.DeadlineExceeded}
+	sink := New(context.Background(), cc)
+	source := redistevents.RegisterProtocol("routeinstall-test-remove-error")
+	sink.Remove(v4u(), netip.MustParsePrefix("198.51.100.0/24"), source, 0)
+	sink.Flush()
+	if !cc.closed {
+		t.Fatal("failed withdrawal left stale routes on a live connection")
 	}
 }

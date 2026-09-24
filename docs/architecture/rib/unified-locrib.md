@@ -39,17 +39,21 @@ before sysrib sees the route, so a number that reaches sysrib alone cannot chang
 cross-source selection.
 
 **A Path carries its whole next-hop set, not one address.** `NextHop` is the
-route's own gateway, `Interface` is the device to send out of, and `Weight` is
-that next-hop's share of the group. `ECMP` holds the rest of the group, one
-`nexthop.NextHop` per member with the same three facts. A protocol-learned path
-names a gateway and leaves the device and the weights zero; a configured route
-may name a device instead of a gateway, and may weight the members.
+route's gateway, `Interface` names its outgoing device, and `Weight` gives
+that next-hop's share of the group. `OnLink` identifies a protocol-established
+link-layer adjacency, including one outside the interface's IP subnet.
+Sysrib preserves that adjacency instead of recursively replacing its gateway.
+Recursive resolution carries the terminal device and adjacency marker into the
+FIB. `ECMP` members carry the same forwarding metadata; a device-only member is
+a usable path without a gateway. Dependencies include recursive members, so a
+covering-route change can replace or remove one member while keeping the others.
+Live changes and replay use the same resolved group.
 
-`Interface` and `Weight` follow the `Labels` contract. They are excluded from
-`key()`, because a source moving a prefix to another device is the same path
-updated rather than a second path, and they are compared by `Equal`, because the
-FIB has to observe the move. `ECMP` stays out of both: a group change is detected
-through `Change.ECMP`.
+`Interface`, `OnLink`, `Weight` and `SRv6SID` follow the `Labels` contract. They
+are excluded from `key()`: changing a source's forwarding target updates the
+same path. `Equal` compares them so the change reaches the FIB. `ECMP` stays out
+of both; a group change is detected through `Change.ECMP`. The Service SID
+survives local changes, forked route-install RPC and replay.
 <!-- source: internal/core/rib/nexthop/nexthop.go -- the NextHop value type -->
 <!-- source: internal/core/rib/distance/distance.go -- the declaration seam producers read -->
 
@@ -60,6 +64,31 @@ covered only by an interface prefix resolves rather than reporting unreachable. 
 keyed by (family, prefix) and carries no table, so a named-table route would
 collide with the main-table route for the same prefix
 (`docs/architecture/static-routes.md`).
+
+**Metric recursion is separate from forwarding recursion.** A terminal IGP path
+contributes its SPF metric once. Recursive static paths follow the next hop;
+recursive BGP paths contribute received AIGP, never MED. Missing AIGP and
+unreachable next hops are distinct results. Accumulated cost saturates at the
+64-bit limit. Selected-path and ECMP changes advance the Loc-RIB revision, which
+lets a forked BGP RIB invalidate its metric cache without another BGP UPDATE.
+
+**A refused kernel install grants no ownership.** An Update after a refused Add
+still uses an exclusive add. Before replacing an existing IP route, the Linux
+backend checks the destination, table and priority against the current kernel
+protocol. A foreign route is retained. Changing a Ze route's priority installs
+the new entry before removing the superseded Ze entry.
+At startup, retained Ze routes are tracked separately from refreshed routes.
+Replay may replace a retained entry after checking its current kernel owner;
+only entries that receive no successful refresh are swept.
+The route monitor retains an owned copy of the last successful forwarding
+description. The shared watcher delivers Ze-owned deletions, and the monitor
+matches their prefix, table and priority against that description before recovery.
+An external deletion restores the complete entry, including device, adjacency,
+weights, labels, SID and ECMP members. Route writes and cache updates share the
+monitor's lock, so delayed notifications cannot restore withdrawn routes or
+superseded priorities. Ze add notifications are ignored to prevent recovery loops.
+A conflicting foreign replacement is reported and retained. The external-route
+importer filters all Ze protocols so FIB output cannot return as external candidates.
 
 **Two Insert methods, not variadic options.** `Insert` stays for non-BGP
 callers. `InsertForward` threads the optional `ForwardHandle`. See

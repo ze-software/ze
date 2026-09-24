@@ -9,8 +9,8 @@
 // fib-kernel subscribes to (sysrib, best-change) on the EventBus and
 // programs OS routes via netlink (Linux) or route socket (Darwin). Uses a
 // producer-specific rtm_protocol ID to identify fib-kernel routes.
-// Monitors kernel route changes to detect external modifications and
-// re-asserts ze routes when overwritten.
+// Monitors external route changes, restores deleted Ze routes and reports
+// conflicts without overwriting a foreign kernel protocol.
 package fibkernel
 
 import (
@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -31,6 +32,7 @@ import (
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/routewatch"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -172,6 +174,11 @@ const maxPendingEntries = 10000
 type fibKernel struct {
 	// installed tracks routes currently installed by ze in the kernel.
 	installed map[string]string // prefix -> next-hop
+	// forwarding owns the complete last successful FIB description for reassertion.
+	forwarding map[string]incomingChange
+	// retained records startup ownership without marking a stale route refreshed.
+	// Replay can replace these entries; untouched ones still reach sweepStale.
+	retained map[string]bool
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
 	// mplsSwaps records the source that owns each AF_MPLS incoming label.
@@ -195,6 +202,8 @@ func (f *fibKernel) asRichBackend() richRouteBackend {
 func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
 		installed:     make(map[string]string),
+		forwarding:    make(map[string]incomingChange),
+		retained:      make(map[string]bool),
 		mplsInstalled: make(map[string]bool),
 		mplsSwaps:     make(map[uint32]uint16),
 		pending:       make(map[string]time.Time),
@@ -230,7 +239,26 @@ func changeToRichRoute(c *incomingChange) RichRoute {
 	}
 }
 
+func cloneForwardingChange(c *incomingChange) incomingChange {
+	result := *c
+	result.Labels = slices.Clone(c.Labels)
+	result.ECMPPaths = cloneForwardingPaths(c.ECMPPaths)
+	result.Backup = cloneForwardingPaths(c.Backup)
+	return result
+}
+
+func cloneForwardingPaths(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath {
+	result := slices.Clone(paths)
+	for i := range result {
+		result[i].Labels = slices.Clone(result[i].Labels)
+	}
+	return result
+}
+
 func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	if _, installed := f.installed[pfx]; installed || f.retained[pfx] {
+		return f.replaceChange(c, pfx, rb)
+	}
 	if len(c.Labels) > 0 {
 		if err := validateMPLSLabels(c.Labels); err != nil {
 			return err
@@ -243,6 +271,12 @@ func (f *fibKernel) addChange(c *incomingChange, pfx string, rb richRouteBackend
 }
 
 func (f *fibKernel) replaceChange(c *incomingChange, pfx string, rb richRouteBackend) error {
+	// A producer's Update can follow a refused Add. Without our own installed
+	// entry it is still an exclusive add, not permission to replace a foreign
+	// route that caused the earlier refusal.
+	if _, installed := f.installed[pfx]; !installed && !f.retained[pfx] {
+		return f.addChange(c, pfx, rb)
+	}
 	if len(c.Labels) > 0 {
 		if err := validateMPLSLabels(c.Labels); err != nil {
 			return err
@@ -298,6 +332,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				continue
 			}
 			f.installed[pfx] = c.NextHop.String()
+			f.forwarding[pfx] = cloneForwardingChange(c)
+			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			if len(c.Labels) > 0 {
 				f.mplsInstalled[pfx] = true
@@ -322,6 +358,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				continue
 			}
 			f.installed[pfx] = c.NextHop.String()
+			f.forwarding[pfx] = cloneForwardingChange(c)
+			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			// A replace may toggle a prefix between labeled and unlabeled;
 			// keep the MPLS membership set in sync so the gauge is accurate.
@@ -349,6 +387,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				continue
 			}
 			delete(f.installed, pfx)
+			delete(f.forwarding, pfx)
+			delete(f.retained, pfx)
 			delete(f.pending, pfx)
 			wasMPLS := f.mplsInstalled[pfx]
 			delete(f.mplsInstalled, pfx)
@@ -408,6 +448,8 @@ func (f *fibKernel) flushRoutes() {
 		}
 	}
 	f.installed = make(map[string]string)
+	clear(f.forwarding)
+	clear(f.retained)
 
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.routesInstalled.Set(0)
@@ -425,8 +467,11 @@ func (f *fibKernel) startupSweep() map[string]string {
 	}
 
 	stale := make(map[string]string, len(routes))
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	for _, r := range routes {
 		stale[r.prefix] = r.nextHop
+		f.retained[r.prefix] = true
 	}
 
 	logger().Info("fib-kernel: startup sweep", "stale-routes", len(stale))
@@ -450,6 +495,8 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 		}
 		// Ensure installed map stays consistent -- stale route is gone from kernel.
 		delete(f.installed, prefix)
+		delete(f.forwarding, prefix)
+		delete(f.retained, prefix)
 		orphanCount++
 	}
 
@@ -493,9 +540,11 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- erro
 
 	// Start kernel route monitor for external change detection.
 	var monitorDone sync.WaitGroup
+	monitorReady := make(chan struct{})
 	monitorDone.Go(func() {
-		f.runMonitor(ctx)
+		f.runMonitor(ctx, routewatch.Global(), monitorReady)
 	})
+	<-monitorReady
 
 	logger().Info("fib-kernel: running")
 	<-ctx.Done()

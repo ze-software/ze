@@ -47,6 +47,7 @@ func routePath(route *protocolRoute, nextHop netip.Addr) forwardingPath {
 	path := sysribevents.ECMPPath{
 		NextHop:   nextHop,
 		Interface: route.nextHopInterface,
+		OnLink:    route.nextHopOnLink,
 		Weight:    route.nextHopWeight,
 		Labels:    route.labels,
 	}
@@ -57,10 +58,11 @@ func routePath(route *protocolRoute, nextHop netip.Addr) forwardingPath {
 // that produced it, over the target the member names rather than the route's
 // own. A member's share is rendered for the FIB here, because a group member
 // with no stated share takes an equal one (ecmpWeight).
-func memberPath(route *protocolRoute, nextHop netip.Addr, iface string, weight uint8) forwardingPath {
+func memberPath(route *protocolRoute, nextHop netip.Addr, iface string, weight uint8, onLink bool) forwardingPath {
 	path := sysribevents.ECMPPath{
 		NextHop:   nextHop,
 		Interface: iface,
+		OnLink:    onLink,
 		Weight:    ecmpWeight(weight),
 		Labels:    route.labels,
 	}
@@ -155,7 +157,7 @@ func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocol
 		if !permits(route.protocol) {
 			continue
 		}
-		paths = append(paths, memberPath(route, route.nextHop, route.nextHopInterface, route.nextHopWeight))
+		paths = append(paths, memberPath(route, route.nextHop, route.nextHopInterface, route.nextHopWeight, route.nextHopOnLink))
 	}
 	// Intra-protocol equal-cost siblings of the winner (same source, same
 	// admin distance + metric, different next-hop), recovered from the Loc-RIB
@@ -166,7 +168,7 @@ func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocol
 		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
-		paths = append(paths, memberPath(winner, nh.Addr, nh.Interface, nh.Weight))
+		paths = append(paths, memberPath(winner, nh.Addr, nh.Interface, nh.Weight, nh.OnLink))
 	}
 	return finishECMP(paths)
 }
@@ -288,6 +290,12 @@ func ecmpPathCompare(a, b sysribevents.ECMPPath) int {
 	if c := cmp.Compare(a.Interface, b.Interface); c != 0 {
 		return c
 	}
+	if a.OnLink != b.OnLink {
+		if a.OnLink {
+			return -1
+		}
+		return 1
+	}
 	if a.Weight != b.Weight {
 		if a.Weight < b.Weight {
 			return -1
@@ -301,5 +309,5 @@ func ecmpPathCompare(a, b sysribevents.ECMPPath) int {
 // outgoing device, weight, and label stack.
 func ecmpPathEqual(a, b sysribevents.ECMPPath) bool {
 	return a.NextHop == b.NextHop && a.Interface == b.Interface &&
-		a.Weight == b.Weight && slices.Equal(a.Labels, b.Labels)
+		a.OnLink == b.OnLink && a.Weight == b.Weight && slices.Equal(a.Labels, b.Labels)
 }

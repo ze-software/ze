@@ -184,6 +184,7 @@ func staticPath(r staticRoute) (locrib.Path, error) {
 	path.RouteType = routetype.Unicast
 	path.NextHop = r.NextHops[0].Address
 	path.Interface = r.NextHops[0].Interface
+	path.MetricRecursive = path.NextHop.IsValid() && path.Interface == ""
 	path.Weight = capNextHopWeight(r.NextHops[0].Weight)
 	if len(r.NextHops) > 1 {
 		group := make([]nexthop.NextHop, 0, len(r.NextHops)-1)

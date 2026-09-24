@@ -9,7 +9,13 @@
 
 package fibkernel
 
-import "context"
+import (
+	"context"
+
+	"github.com/ze-software/ze/internal/core/routewatch"
+)
 
 // runMonitor is a noop on non-Linux platforms.
-func (f *fibKernel) runMonitor(_ context.Context) {}
+func (f *fibKernel) runMonitor(_ context.Context, _ *routewatch.Watcher, ready chan<- struct{}) {
+	close(ready)
+}

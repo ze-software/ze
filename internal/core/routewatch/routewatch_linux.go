@@ -181,6 +181,7 @@ func (w *Watcher) subscribeOnce() error {
 				NextHop:  nextHop,
 				Protocol: int(update.Protocol),
 				Metric:   uint32(update.Priority),
+				TableID:  uint32(update.Table),
 				Action:   action,
 			})
 		}

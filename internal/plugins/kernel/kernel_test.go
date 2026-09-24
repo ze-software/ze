@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/routewatch"
+	"github.com/ze-software/ze/internal/core/rtproto"
 	kernelevents "github.com/ze-software/ze/internal/plugins/kernel/events"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -152,6 +153,32 @@ func TestKernelRouteFilterRedirect(t *testing.T) {
 	})
 
 	assert.Empty(t, bus.batches)
+}
+
+func TestKernelRouteFilterZeOwned(t *testing.T) {
+	bus, unsub := newCapturingBus()
+	defer unsub()
+	obs := newRouteObserver(bus)
+	external := routewatch.RouteEvent{
+		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+		Protocol: 16, Action: routewatch.ActionAdd,
+	}
+	obs.handleRouteEvent(external)
+
+	for _, protocol := range []int{rtproto.FIBKernel, rtproto.Static, rtproto.PolicyRoute} {
+		owned := external
+		owned.Protocol = protocol
+		obs.handleRouteEvent(owned)
+		owned.Action = routewatch.ActionRemove
+		obs.handleRouteEvent(owned)
+	}
+	require.Len(t, bus.batches, 1, "Ze events must not enter external candidates")
+
+	// A Ze deletion at the same prefix must not retire the external candidate.
+	obs.withdrawAll()
+	require.Len(t, bus.batches, 2)
+	require.Equal(t, redistevents.ActionRemove, bus.batches[1].Entries[0].Action)
+	require.Equal(t, external.Prefix, bus.batches[1].Entries[0].Prefix)
 }
 
 func TestKernelRouteSnapshot(t *testing.T) {

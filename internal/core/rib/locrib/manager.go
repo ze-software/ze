@@ -39,7 +39,8 @@ type RIB struct {
 	subsMu   sync.Mutex
 	subsList []subEntry
 
-	nextSub atomic.Uint64
+	nextSub  atomic.Uint64
+	revision atomic.Uint64
 }
 
 // NewRIB creates an empty Loc-RIB. Families are created lazily on first
@@ -51,6 +52,10 @@ func NewRIB() *RIB {
 		families: make(map[family.Family]*familyShards),
 	}
 }
+
+// Revision changes whenever the selected routing view changes. Consumers read
+// it before a scan: a concurrent mutation then remains visible on the next scan.
+func (r *RIB) Revision() uint64 { return r.revision.Load() }
 
 // OnChange registers fn to receive a Change every time the best path for a
 // prefix is added, updated, removed, or keeps the same best with changed ECMP
@@ -207,6 +212,9 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	)
 	bestChanged := hadBest && !prevBest.Equal(newBest)
 	ecmpChanged := hadBest && !equalNextHopSets(prevECMP, ecmp)
+	if !hadBest || bestChanged || ecmpChanged {
+		r.revision.Add(1)
+	}
 	switch {
 	case !hadBest:
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
@@ -258,13 +266,21 @@ func siblingNextHops(g *PathGroup, best Path) []NextHop {
 	var out []NextHop
 	for i := range g.Paths {
 		p := g.Paths[i]
-		if p.Source != best.Source || p.NextHop == best.NextHop || !p.NextHop.IsValid() {
+		if p.Source != best.Source {
 			continue
+		}
+		if !p.NextHop.IsValid() && p.Interface == "" {
+			continue
+		}
+		if p.NextHop == best.NextHop {
+			if p.Interface == best.Interface {
+				continue
+			}
 		}
 		if p.AdminDistance != best.AdminDistance || p.Metric != best.Metric {
 			continue
 		}
-		nh := NextHop{Addr: p.NextHop, Interface: p.Interface, Weight: p.Weight}
+		nh := NextHop{Addr: p.NextHop, Interface: p.Interface, OnLink: p.OnLink, Weight: p.Weight}
 		if !slices.Contains(out, nh) {
 			out = append(out, nh)
 		}
@@ -349,6 +365,9 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	depth := sh.store.Len()
 	changed := !prevBest.Equal(newBest)
 	ecmpChanged := !equalNextHopSets(prevECMP, ecmp)
+	if changed || ecmpChanged {
+		r.revision.Add(1)
+	}
 
 	if !newHad {
 		if hadBest {

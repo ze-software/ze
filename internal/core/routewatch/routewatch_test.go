@@ -31,20 +31,23 @@ func TestWatcherFanout(t *testing.T) {
 	assert.Equal(t, ev, events2[0])
 }
 
-func TestWatcherFilterZeOwned(t *testing.T) {
+func TestWatcherDeliversZeOwned(t *testing.T) {
 	w := New()
 	var events []RouteEvent
 	w.Register(func(ev RouteEvent) { events = append(events, ev) })
 
+	var want []RouteEvent
 	for _, proto := range []int{rtproto.FIBKernel, rtproto.Static, rtproto.PolicyRoute} {
-		w.deliver(RouteEvent{
-			Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			Protocol: proto,
-			Action:   ActionAdd,
-		})
+		for _, action := range []Action{ActionAdd, ActionRemove} {
+			ev := RouteEvent{
+				Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+				Protocol: proto, Action: action,
+			}
+			want = append(want, ev)
+			w.deliver(ev)
+		}
 	}
-
-	assert.Empty(t, events)
+	assert.Equal(t, want, events)
 }
 
 func TestWatcherFilterNilDst(t *testing.T) {

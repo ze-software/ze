@@ -17,8 +17,8 @@ package nexthop
 import "net/netip"
 
 // NextHop is one forwarding target: a gateway address, an outgoing interface,
-// or both. One value carries the three facts the FIB needs about a next-hop,
-// rather than three parallel slices that can differ in length.
+// or both. Each member carries its device, direct-reachability flag and weight,
+// rather than parallel slices that can differ in length.
 //
 // Comparable by ==, which the Loc-RIB relies on to tell a reweight or a device
 // move from an unchanged group.
@@ -29,11 +29,13 @@ type NextHop struct {
 	Addr netip.Addr
 
 	// Interface is the outgoing device name, empty when Addr alone names the
-	// next-hop, which is every protocol-learned next-hop. The NAME rather than
-	// the kernel ifindex crosses this boundary: the index is not stable across a
-	// device replacement, and the resolver that maps one to the other lives in
-	// the FIB plugin that programs the route.
+	// next-hop. The name rather than the kernel ifindex crosses this boundary:
+	// the index is not stable across a device replacement.
 	Interface string
+
+	// OnLink marks a gateway directly reachable on Interface without requiring
+	// an IP subnet route to cover it.
+	OnLink bool
 
 	// Weight is this next-hop's share of a weighted multipath group. Zero means
 	// the producer states no weight, and the FIB gives every member of the group

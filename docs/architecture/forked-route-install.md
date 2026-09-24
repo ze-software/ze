@@ -1,6 +1,6 @@
 # Route Install from a Forked Plugin
 
-OSPF, IS-IS and the static plugin do not program the FIB. They insert
+OSPF, IS-IS, static routes and BGP selection do not program the FIB. They insert
 `locrib.Path` values into the process-wide Loc-RIB singleton, sysrib arbitrates,
 and fib-kernel programs the result as `RTPROT_ZE`.
 
@@ -36,9 +36,13 @@ chose.
 **The entry carries the whole path.** Besides the gateway, `RouteInstallEntry`
 carries the outgoing device, the next-hop's weight, the forwarding action
 (`route-type`, the `routetype` number) and the equal-cost set (`ecmp`, one
-`RouteNextHop` per member). A forked producer's blackhole route and its multipath
-were dropped at this boundary until the fields existed, because the entry had
-nowhere to put either.
+`RouteNextHop` per member). The primary and each equal-cost member also carry
+`on-link`. The engine preserves this direct-adjacency marker when it rebuilds
+the path, so a forked source retains the same gateway resolution behavior.
+It also carries labels, the Service SID, received AIGP with its presence bit,
+and the flags that distinguish BGP and recursively resolved metric paths. The
+engine therefore answers metric queries from the same metadata in either
+process layout.
 
 Register-on-demand was the first cut and is a crash vector: a forked plugin
 could exhaust the global protocol registry, which panics at about 65535 names.
@@ -55,6 +59,9 @@ because it would change a core contract and cross the module tiers.
 
 The sink buffers and flushes once per SPF apply, so a delta costs one install
 RPC and one remove RPC, with a bounded retry on a transient error.
+A persistent install or remove failure closes the SDK connection. A live
+connection with a rejected RPC is not sufficient for recovery: disconnect is
+what triggers the engine's withdrawal of that producer's routes.
 
 <!-- source: internal/component/sysrib/sysrib_forked_withdraw_test.go -- withdrawal on plugin disconnect -->
 
@@ -75,12 +82,21 @@ withdrawal.
 
 ## Scope
 
-The route-install path is forked-only. An in-process or bridge plugin holds a
-non-nil local Loc-RIB and uses the local sink, so there is no direct-dispatch
-twin of this RPC. The static plugin adopted the same shape when its main-table
-routes moved into the Loc-RIB: `runStaticPlugin` builds with `locrib.Default()`
-and installs a `routeinstall.Sink` when that answers nil. The BGP RIB shares the
-nil-Loc-RIB-when-forked property and has not adopted `RouteSink`.
+The route-install transport is used by forked installers. In-process plugins
+hold a non-nil Loc-RIB and use it directly; the registered RPC also supports
+Direct dispatch. The static plugin and BGP RIB install a `routeinstall.Sink`
+when `locrib.Default()` is nil.
+
+The BGP RIB also reads the engine's `ze-plugin-engine:route-metrics` RPC. Each
+reply contains a routing revision and resolved next-hop distances, including
+received AIGP along recursive BGP paths. A missing AIGP is reported separately
+from unresolved reachability. A one-second revision poll clears cached distances
+and reruns selection without another BGP UPDATE. The feed is mandatory in a
+forked RIB: startup refuses an unavailable RPC, and a failed live poll closes
+the plugin connection so engine-side disconnect cleanup removes its routes.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- metric feed and selected-route sink -->
+<!-- source: internal/component/plugin/server/dispatch_route_metrics.go -- registered metric RPC -->
 
 A kernel route needs an on-link next hop, so the kernel-level test adds a dummy
 interface before it asserts that fib-kernel accepted the route.

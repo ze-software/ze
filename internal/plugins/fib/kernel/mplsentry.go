@@ -87,6 +87,8 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 			result = errors.Join(result, f.addMPLSEntryLocked(e, rb, mb))
 		case mplsfibevents.ActionRemove:
 			result = errors.Join(result, f.delMPLSEntryLocked(e, rb, mb))
+		case mplsfibevents.ActionRemoveLabelSource:
+			result = errors.Join(result, f.delMPLSSourceLocked(e.Source, rb, mb))
 		default:
 			result = errors.Join(result, fmt.Errorf("mpls-fib: unsupported entry action %d", e.Action))
 		}
@@ -202,8 +204,25 @@ func (f *fibKernel) delMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBacke
 	return nil
 }
 
+// delMPLSSourceLocked uses the retained owner map, not the producer's current
+// local view: a replacement producer may have no record of failed withdrawals.
+// Successful removals release their claims; each failed one remains for retry.
+func (f *fibKernel) delMPLSSourceLocked(source uint16, rb richRouteBackend, mb mplsBackend) error {
+	var result error
+	for label, owner := range f.mplsSwaps {
+		if owner != source {
+			continue
+		}
+		entry := mplsfibevents.Entry{Op: mplsfibevents.OpPop, InLabel: label, Source: source}
+		if err := f.delMPLSEntryLocked(&entry, rb, mb); err != nil {
+			result = errors.Join(result, fmt.Errorf("remove MPLS source %d label %d: %w", source, label, err))
+		}
+	}
+	return result
+}
+
 // recordMPLSAddErrorLocked bumps the backend-error counter for a failed MPLS
-// install (the only error path here is add; removes are best-effort).
+// installation. Deletion failures propagate to the producer and retain ownership.
 func (f *fibKernel) recordMPLSAddErrorLocked() {
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.errors.With("add").Inc()

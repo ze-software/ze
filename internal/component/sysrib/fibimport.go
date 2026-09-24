@@ -165,8 +165,17 @@ func trackNextHops(prefix netip.Prefix, route *protocolRoute) {
 	if r == nil {
 		return
 	}
-	if route.nextHop.IsValid() {
+	if route.nextHop.IsValid() && !route.nextHopOnLink {
 		r.Track(route.nextHop, prefix)
+	}
+	for _, member := range route.ecmpNextHops {
+		if !member.Addr.IsValid() {
+			continue
+		}
+		if member.OnLink {
+			continue
+		}
+		r.Track(member.Addr, prefix)
 	}
 	if route.srv6SID.IsValid() {
 		r.Track(route.srv6SID, prefix)
@@ -181,11 +190,65 @@ func untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
 	if r == nil {
 		return
 	}
-	if route.nextHop.IsValid() {
+	if route.nextHop.IsValid() && !route.nextHopOnLink {
 		r.Untrack(route.nextHop, prefix)
+	}
+	for _, member := range route.ecmpNextHops {
+		if !member.Addr.IsValid() {
+			continue
+		}
+		if member.OnLink {
+			continue
+		}
+		r.Untrack(member.Addr, prefix)
 	}
 	if route.srv6SID.IsValid() {
 		r.Untrack(route.srv6SID, prefix)
+	}
+}
+
+// untrackNextHopGroup releases every dependency before changing a group's
+// membership. The prior winner may already have left routes during an upsert.
+func (s *sysRIB) untrackNextHopGroup(key prefixKey) {
+	if previous := s.best[key]; previous != nil {
+		untrackNextHops(key.prefix, previous)
+	}
+	for _, route := range s.routes[key] {
+		if route != s.best[key] {
+			untrackNextHops(key.prefix, route)
+		}
+	}
+}
+
+// trackNextHopGroup watches every eligible member, including currently
+// unreachable members, so a covering route can restore them without an UPDATE.
+// It MUST follow untrackNextHopGroup after a route or permission change.
+func (s *sysRIB) trackNextHopGroup(key prefixKey) {
+	winner := s.best[key]
+	if winner == nil {
+		return
+	}
+	if winner.osInstalled {
+		return
+	}
+	if !s.fibPermitted(winner.protocol) {
+		return
+	}
+	trackNextHops(key.prefix, winner)
+	for _, route := range s.routes[key] {
+		if route == winner {
+			continue
+		}
+		if route.priority != winner.priority {
+			continue
+		}
+		if route.metric != winner.metric {
+			continue
+		}
+		if !s.fibPermitted(route.protocol) {
+			continue
+		}
+		trackNextHops(key.prefix, route)
 	}
 }
 
@@ -211,6 +274,7 @@ func fibChange(key prefixKey, route *protocolRoute, path forwardingPath, group [
 		Prefix:    key.prefix,
 		NextHop:   path.NextHop,
 		Interface: path.Interface,
+		OnLink:    path.OnLink,
 		Weight:    path.Weight,
 		Labels:    path.Labels,
 		SRv6SID:   path.srv6SID,
@@ -262,6 +326,8 @@ func (s *sysRIB) applyFIBImport(permit map[string]bool) map[family.Family][]outg
 
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
+		s.untrackNextHopGroup(key)
+		s.trackNextHopGroup(key)
 		if !s.fibPermitted(route.protocol) {
 			// The tracking goes whether or not the prefix is programmed. It is
 			// taken for a route Ze MEANS to program, and a prefix waiting on a
