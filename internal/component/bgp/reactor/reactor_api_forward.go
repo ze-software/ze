@@ -151,6 +151,21 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 			sentCount++
 			continue
 		}
+		// RFC 4724 Section 2: the marker indicates "the completion of the
+		// initial routing update", so it joins the peer's forward queue behind
+		// the replay items still owed there (queueEndOfRIB) and is written after
+		// them. The worker meters it once it reaches the socket. A reactor
+		// without a forward pool queues nothing, so nothing is owed ahead and
+		// the marker is written at once.
+		if a.r.fwdPool != nil {
+			if !a.queueEndOfRIB(peer, fam, update) {
+				peer.releaseInitialSyncEOR(fam)
+				errs = append(errs, errForwardPoolStopped)
+				continue
+			}
+			sentCount++
+			continue
+		}
 		if err := peer.SendUpdate(update); err != nil {
 			// Release, or the family stays marked and the peer never gets it.
 			peer.releaseInitialSyncEOR(fam)

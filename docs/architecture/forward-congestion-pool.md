@@ -128,6 +128,20 @@ can advertise the route before it is written.
 <!-- source: internal/component/bgp/reactor/peer.go -- withdrawBehindForwards -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- queueBehindForwards, splitOnAdvertised -->
 
+The End-of-RIB marker a process sends when its replay ends joins the same
+queue. RFC 4724 Section 2 makes the marker signal "the completion of the
+initial routing update", and a receiver acts on it: a graceful-restart helper
+purges the stale routes it still holds. A direct write could reach the peer
+before replay items still in the worker's overflow or channel. So `AnnounceEOR`
+claims the family and queues the marker at the tail of the peer's forward queue
+(`queueEndOfRIB`), always, because the channel keeps no count of what it holds.
+The item is marked as part of the initial update: it passes the fence behind
+the replay, and the live changes the fence holds follow it. The worker counts
+the marker as sent after the flush that writes it. When the write fails, the
+worker hands the claim back (`settleEndOfRIB`).
+<!-- source: internal/component/bgp/reactor/forward_eor.go -- queueEndOfRIB, settleEndOfRIB -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
+
 The fence belongs to one peer. Other destinations read their own fence, so a
 replay on one peer never delays forwarding to another. The held items are
 queued overflow like any congested destination's, so the controls above apply

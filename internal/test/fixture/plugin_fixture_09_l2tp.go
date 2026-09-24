@@ -142,8 +142,13 @@ func l2tpPeer09(session bool) Driver {
 		}
 		sccrq := l2tpControl09(0, 0, 0, 0, sccrqAVPs...)
 		buffer := make([]byte, 1500)
+		// The peer starts before the daemon (the .ci runs it at seq=2), so the
+		// SCCRQ repeats until the daemon's listener answers. The wait is bounded
+		// by the test's own context, never by a count of attempts: a count is a
+		// wall-clock budget, and under suite load the daemon can take longer to
+		// bind than any fixed number of 250 ms reads covers.
 		var sccrp map[uint16][]byte
-		for range 40 {
+		for len(sccrp) == 0 {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
@@ -154,10 +159,12 @@ func l2tpPeer09(session bool) Driver {
 			n, _, err := conn.ReadFromUDP(buffer)
 			if err == nil {
 				sccrp = l2tpParse09(buffer[:n])
-				if len(sccrp) != 0 {
-					break
-				}
 			}
+		}
+		// RFC 2661 Section 6.2: the answer to an SCCRQ is an SCCRP, Message
+		// Type 2. Any other message is the daemon refusing the tunnel.
+		if msgType := sccrp[0]; len(msgType) != 2 || binary.BigEndian.Uint16(msgType) != 2 {
+			return fmt.Errorf("L2TP SCCRQ answered by message type %x, want SCCRP (2)", msgType)
 		}
 		tidBytes := sccrp[9]
 		if len(tidBytes) != 2 {

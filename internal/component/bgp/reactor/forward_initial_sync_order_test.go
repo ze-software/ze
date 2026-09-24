@@ -54,6 +54,9 @@ var syncOrderAnnounceBody = []byte{
 type wireUpdate struct {
 	announces bool
 	withdraws bool
+	// endOfRIB is the IPv4 unicast End-of-RIB marker: an UPDATE with no
+	// withdrawn routes, no attributes and no NLRI (RFC 4724 Section 2).
+	endOfRIB bool
 }
 
 // parseWireUpdates splits a destination's byte stream into BGP messages and
@@ -87,6 +90,7 @@ func parseWireUpdates(t *testing.T, raw []byte) []wireUpdate {
 		out = append(out, wireUpdate{
 			announces: bytes.Contains(nlri, syncOrderPrefixWire),
 			withdraws: bytes.Contains(withdrawn, syncOrderPrefixWire),
+			endOfRIB:  len(body) == 4,
 		})
 	}
 	return out

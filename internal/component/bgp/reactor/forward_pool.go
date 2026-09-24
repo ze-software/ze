@@ -78,6 +78,11 @@ type fwdItem struct {
 	// through the peer's export chain, so the worker writes it through
 	// writeUpdate, which runs that chain, and not writeUpdatePreFiltered.
 	originated bool
+	// endOfRIB marks an End-of-RIB marker queued behind this destination's
+	// forwards (reactor_api_forward.go, AnnounceEOR). Its one update is the
+	// marker, and the worker meters or hands back its claim once the batch
+	// settles (settleEndOfRIB). Nil for every other item.
+	endOfRIB *fwdEndOfRIB
 }
 
 // forwardSourceCurrent is lock-free because workers call it under the
@@ -155,6 +160,12 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		return
 	}
 
+	// An End-of-RIB item's claim settles on every exit below, once writeMu is
+	// released (Peer.claimInitialSyncEOR takes p.mu). written turns true only
+	// after the flush that puts the batch on the socket.
+	written := false
+	defer func() { settleEndOfRIB(peer, session, items, written) }()
+
 	session.mu.RLock()
 	state := session.fsm.State()
 	conn := session.conn
@@ -201,6 +212,10 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		if !forwardSourceCurrent(items[i].receivedPeer, items[i].receivedGeneration) {
 			continue
 		}
+		// A marker claimed for an earlier session is not this session's to send.
+		if mark := items[i].endOfRIB; mark != nil && mark.session != session {
+			continue
+		}
 		if replay := items[i].aigpReplay; replay != nil &&
 			(replay.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay)) {
 			continue
@@ -240,6 +255,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		)
 		return
 	}
+	written = true
 
 	// Successful batch write -- reset RFC 9687 Send Hold Timer.
 	session.resetSendHoldTimer()

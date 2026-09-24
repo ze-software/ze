@@ -191,6 +191,114 @@ func TestAnnounceRailWithdrawJoinsTheFence(t *testing.T) {
 	}
 }
 
+// wireKinds names each UPDATE on a destination's wire: "announce", "withdraw"
+// or "end-of-rib".
+func wireKinds(seen []wireUpdate) []string {
+	kinds := make([]string, 0, len(seen))
+	for _, u := range seen {
+		switch {
+		case u.endOfRIB:
+			kinds = append(kinds, "end-of-rib")
+		case u.announces:
+			kinds = append(kinds, "announce")
+		default:
+			kinds = append(kinds, "withdraw")
+		}
+	}
+	return kinds
+}
+
+// TestReplayEndOfRIBFollowsTheReplay proves that the End-of-RIB marker a
+// process sends when its peer-up replay ends reaches the wire after the replay
+// items still queued for that peer, and before the live changes the fence holds.
+//
+// VALIDATES: AnnounceEOR queues the marker at the tail of the destination's
+// forward queue (reactorAPIAdapter.queueEndOfRIB), marked as part of the
+// initial update, and the worker meters it once written (settleEndOfRIB).
+// RFC 4724 Section 2: the marker indicates "the completion of the initial
+// routing update after the session is established".
+//
+// PREVENTS: the marker written at once, ahead of replayed announces still parked
+// in the destination's overflow, so a graceful-restart helper acting on it
+// purged routes the replay was still delivering.
+//
+// Method: the replayed announce and a live withdrawal park while the reactor's
+// own sync runs. The sync then ends WITHOUT waking the worker, so the replay is
+// still queued when the marker is asked for, which is the window a direct write
+// raced. The destination's connection is the record of what reached the wire.
+func TestReplayEndOfRIBFollowsTheReplay(t *testing.T) {
+	r, src, dst, conn, ctxID := newSyncOrderRail(t)
+	adapter := &reactorAPIAdapter{r: r}
+	dst.resetAPISync([]string{replayFenceOwner})
+	raiseTestReplayFence(dst, replayFenceOwner)
+
+	replay := syncOrderPublish(t, r, ctxID, 7800, syncOrderAnnounceBody)
+	require.NoError(t, adapter.forwardUpdateCore(replay, 7800, []*Peer{dst}, replayFenceSource(src, true)))
+	live := syncOrderPublish(t, r, ctxID, 7801, syncOrderWithdrawBody)
+	require.NoError(t, adapter.forwardUpdateCore(live, 7801, []*Peer{dst}, replayFenceSource(src, false)))
+	require.True(t, dst.forwardOverflowPending(), "the replay and the live change must be parked")
+
+	dst.sendingInitialRoutes.Store(0)
+	require.NoError(t, adapter.AnnounceEOR(selector.Addr(dst.Settings().Address), 1, 1, plugin.OperatorSender()))
+	dst.wakeForwardOverflow()
+
+	require.Eventually(t, func() bool {
+		return len(parseWireUpdates(t, conn.written())) >= 2
+	}, 5*time.Second, 5*time.Millisecond, "the replay and its marker must pass the fence")
+	require.Never(t, func() bool {
+		return len(parseWireUpdates(t, conn.written())) > 2
+	}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence")
+
+	dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+
+	var seen []wireUpdate
+	require.Eventually(t, func() bool {
+		seen = parseWireUpdates(t, conn.written())
+		return len(seen) >= 3
+	}, 5*time.Second, 5*time.Millisecond, "the live change must follow once the replay is reported")
+	require.Equal(t, []string{"announce", "end-of-rib", "withdraw"}, wireKinds(seen), "wire order")
+	require.Equal(t, uint32(1), dst.counters.eorSent.Load(), "the marker is metered once, when written")
+}
+
+// TestAnnounceRailWithdrawFollowsOverflowForwards proves the congestion half of
+// Peer.withdrawBehindForwards: with no replay fence, a withdrawal on the
+// announce rail to a peer still owed forwarded items through overflow joins the
+// queue behind them.
+//
+// VALIDATES: forwardOverflowPending alone diverts the withdrawal to
+// queueBehindForwards, and splitOnAdvertised treats the peer as armed, so the
+// withdrawal follows the parked announce of the same prefix.
+//
+// PREVENTS: the withdrawal reaching the wire first, or being withheld as never
+// advertised, while the announce it withdraws still waits in overflow: the
+// peer then holds a route whose source withdrew it.
+//
+// Method: the announce parks while the reactor's own sync runs, and the sync
+// ends without waking the worker, so the announce is still owed through overflow
+// when the withdrawal is sent.
+func TestAnnounceRailWithdrawFollowsOverflowForwards(t *testing.T) {
+	r, src, dst, conn, ctxID := newSyncOrderRail(t)
+	adapter := &reactorAPIAdapter{r: r}
+	dst.resetAPISync(nil)
+
+	update := syncOrderPublish(t, r, ctxID, 7900, syncOrderAnnounceBody)
+	require.NoError(t, adapter.forwardUpdateCore(update, 7900, []*Peer{dst}, replayFenceSource(src, false)))
+	require.True(t, dst.forwardOverflowPending(), "the announce must be owed through overflow")
+	require.False(t, dst.initialUpdateOwed.Load(), "no fence: only the overflow owes the peer")
+
+	dst.sendingInitialRoutes.Store(0)
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.Addr(dst.Settings().Address),
+		adjOutBatch("192.0.2.0/24", "10.0.0.1"), plugin.OperatorSender()))
+	dst.wakeForwardOverflow()
+
+	var seen []wireUpdate
+	require.Eventually(t, func() bool {
+		seen = parseWireUpdates(t, conn.written())
+		return len(seen) >= 2
+	}, 5*time.Second, 5*time.Millisecond, "the announce and the withdrawal must both reach the wire")
+	require.Equal(t, []string{"announce", "withdraw"}, wireKinds(seen), "wire order")
+}
+
 // TestReplayFenceHoldsOnlyItsOwnPeer proves the fence is per destination: a
 // fenced peer's hold answers for that peer alone, and the report that
 // completes its initial update lowers it.
