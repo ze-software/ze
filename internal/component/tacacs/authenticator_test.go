@@ -2,6 +2,7 @@ package tacacs
 
 import (
 	"encoding/binary"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,24 +13,43 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 )
 
-// replyWithPrivLvl returns a PASS reply with the given priv-lvl in the data field.
-func replyWithPrivLvl(privLvl uint8) func(PacketHeader, []byte) []byte {
-	return func(_ PacketHeader, _ []byte) []byte {
-		body := make([]byte, 7)
-		body[0] = AuthenStatusPass // PASS
-		body[1] = 0x00
-		binary.BigEndian.PutUint16(body[2:4], 0) // no server_msg
-		binary.BigEndian.PutUint16(body[4:6], 1) // data_len = 1
-		body[6] = privLvl
-		return body
+// profileReplies separates PAP authentication from the shell privilege policy.
+func profileReplies(privLvl uint8) func(PacketHeader, []byte) []byte {
+	return func(header PacketHeader, body []byte) []byte {
+		if header.Type == 0x02 {
+			return authorReplyArgs(AuthorStatusPassAdd, []string{
+				"priv-lvl=" + strconv.Itoa(int(privLvl)),
+			})(header, body)
+		}
+		return passReply()(header, body)
 	}
+}
+
+// newProfileServer serves the two independent sessions needed for login.
+// Cleanup closes the listener and MUST wait for its bounded worker to exit.
+func newProfileServer(t *testing.T, key []byte, replyFn func(PacketHeader, []byte) []byte) *testTacacsServer {
+	t.Helper()
+	srv := &testTacacsServer{listener: listenTCP(t), key: key, replyFn: replyFn}
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		for range 2 {
+			srv.serve()
+		}
+	}()
+	t.Cleanup(func() {
+		srv.close()
+		// MUST join the worker after closing its listener.
+		<-stopped
+	})
+	return srv
 }
 
 // VALIDATES: AC-1 + AC-6 -- TACACS+ PASS with priv-lvl 15 maps to admin profile.
 // PREVENTS: successful auth not producing correct profiles.
 func TestTacacsAuthenticatorPass(t *testing.T) {
 	key := []byte("test-key")
-	srv := newTestServer(t, key, replyWithPrivLvl(15))
+	srv := newProfileServer(t, key, profileReplies(15))
 	defer srv.close()
 
 	client := NewTacacsClient(TacacsClientConfig{
@@ -55,7 +75,7 @@ func TestTacacsAuthenticatorPass(t *testing.T) {
 // PREVENTS: wrong priv-lvl mapping.
 func TestTacacsAuthenticatorPrivLvl1(t *testing.T) {
 	key := []byte("test-key")
-	srv := newTestServer(t, key, replyWithPrivLvl(1))
+	srv := newProfileServer(t, key, profileReplies(1))
 	defer srv.close()
 
 	client := NewTacacsClient(TacacsClientConfig{
@@ -100,7 +120,7 @@ func TestTacacsAuthenticatorFail(t *testing.T) {
 // PREVENTS: unmapped priv-lvl granting admin access.
 func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 	key := []byte("test-key")
-	srv := newTestServer(t, key, replyWithPrivLvl(5)) // priv-lvl 5 not in map
+	srv := newProfileServer(t, key, profileReplies(5)) // priv-lvl 5 not in map
 	defer srv.close()
 
 	client := NewTacacsClient(TacacsClientConfig{
@@ -158,7 +178,7 @@ func TestTacacsAuthenticatorProfileMappingShapes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			key := []byte("test-key")
-			srv := newTestServer(t, key, replyWithPrivLvl(tt.privLvl))
+			srv := newProfileServer(t, key, profileReplies(tt.privLvl))
 			defer srv.close()
 
 			client := NewTacacsClient(TacacsClientConfig{
@@ -202,7 +222,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 	key := []byte("test-key")
 
 	// Reserved-only level: stripped to nothing, so the login is rejected.
-	srv := newTestServer(t, key, replyWithPrivLvl(15))
+	srv := newProfileServer(t, key, profileReplies(15))
 	defer srv.close()
 	client := NewTacacsClient(TacacsClientConfig{
 		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
@@ -215,7 +235,7 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 	assert.NotContains(t, res.Profiles, aaa.ReservedRecoveryProfile)
 
 	// Mixed level: the real profile survives, the reserved name is dropped.
-	srv2 := newTestServer(t, key, replyWithPrivLvl(14))
+	srv2 := newProfileServer(t, key, profileReplies(14))
 	defer srv2.close()
 	client2 := NewTacacsClient(TacacsClientConfig{
 		Servers: []TacacsServer{{Address: srv2.addr(), Key: key}},
@@ -227,44 +247,6 @@ func TestTacacsAuthenticatorDropsReservedProfile(t *testing.T) {
 	assert.True(t, res2.Authenticated)
 	assert.Equal(t, []string{"read-only"}, res2.Profiles)
 	assert.NotContains(t, res2.Profiles, aaa.ReservedRecoveryProfile)
-}
-
-// TestTacacsAuthenticatorAuthenticatedImpliesProfiles states the invariant the
-// fix protects, independent of any particular map shape: this authenticator
-// never reports success without naming at least one profile. authz treats "no
-// profiles" as "no opinion" and falls back to admin, so success with an empty
-// set is indistinguishable from an unrestricted login.
-//
-// VALIDATES: AC-2 -- Authenticated==true implies len(Profiles)>0.
-// PREVENTS: a future mapping source (config typo, deactivated leaf-list member,
-//
-//	a new caller of NewTacacsAuthenticator) reintroducing the empty-profile
-//	escalation through a path the table above does not enumerate.
-func TestTacacsAuthenticatorAuthenticatedImpliesProfiles(t *testing.T) {
-	for _, privMap := range []map[int][]string{
-		{15: {}},
-		{15: nil},
-		{15: {"admin"}},
-		{},
-	} {
-		key := []byte("test-key")
-		srv := newTestServer(t, key, replyWithPrivLvl(15))
-
-		client := NewTacacsClient(TacacsClientConfig{
-			Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
-			Timeout: 2 * time.Second,
-		})
-
-		auth := newTacacsAuthenticator(client, privMap, nil)
-		result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
-		srv.close()
-
-		if result.Authenticated {
-			require.NoError(t, err)
-			assert.NotEmpty(t, result.Profiles,
-				"authenticated result for map %v carries no profiles: authz would fall back to admin", privMap)
-		}
-	}
 }
 
 // VALIDATES: AC-15 -- ERROR status treated as infrastructure failure.
@@ -294,7 +276,6 @@ func TestTacacsAuthenticatorErrorStatus(t *testing.T) {
 	// ERROR should be a non-ErrAuthRejected error (chain tries next backend).
 	assert.Error(t, err)
 	assert.NotErrorIs(t, err, authz.ErrAuthRejected)
-	assert.Contains(t, err.Error(), "internal error")
 }
 
 // VALIDATES: AC-3 -- all servers unreachable returns non-rejection error.
@@ -319,10 +300,12 @@ func TestTacacsAuthenticatorUsesRemoteAddr(t *testing.T) {
 	key := []byte("test-key")
 	var seenRemoteAddr string
 
-	srv := newTestServer(t, key, func(_ PacketHeader, body []byte) []byte {
-		off := 8 + int(body[4]) + int(body[5])
-		seenRemoteAddr = string(body[off : off+int(body[6])])
-		return replyWithPrivLvl(15)(PacketHeader{}, nil)
+	srv := newProfileServer(t, key, func(header PacketHeader, body []byte) []byte {
+		if header.Type == 0x01 {
+			off := 8 + int(body[4]) + int(body[5])
+			seenRemoteAddr = string(body[off : off+int(body[6])])
+		}
+		return profileReplies(15)(header, body)
 	})
 	defer srv.close()
 

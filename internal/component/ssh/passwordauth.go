@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/ze-software/ze/internal/component/authz"
-	"github.com/ze-software/ze/internal/core/redact"
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // loggedCommand sanitizes an SSH exec command for the operational log. It
@@ -17,7 +17,7 @@ import (
 // written verbatim at Info. The full, unredacted command still flows to the
 // executor; only this logged form is scrubbed.
 func loggedCommand(cmd string) string {
-	return truncateForLog(redact.Command(cmd))
+	return truncateForLog(config.DisplayCommand(cmd))
 }
 
 // authenticatePasswordResult returns the successful authentication result so

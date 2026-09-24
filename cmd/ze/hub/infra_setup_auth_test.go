@@ -720,12 +720,8 @@ func TestPostStartDispatcherAccountsAfterAReloadAddsAnAccountant(t *testing.T) {
 	assert.Equal(t, []string{command}, added.stops)
 }
 
-// VALIDATES: a command that starts before a reload and stops after it delivers
-// its STOP record to the accountant installed NOW.
-// PREVENTS: the record vanishing in silence. Installing a chain closes the one
-// it replaces, which stops the retired TACACS+ accounting worker, and a send to
-// a stopped worker drops the record and returns no error
-// (internal/component/tacacs/accounting.go, enqueue).
+// A command spanning reload keeps its original accountant alive through STOP,
+// even when the replacement points to another server.
 func TestLiveAccountantDeliversAStopThatCrossesAnInstall(t *testing.T) {
 	resetAAABundleForTest(t)
 
@@ -754,13 +750,13 @@ func TestLiveAccountantDeliversAStopThatCrossesAnInstall(t *testing.T) {
 		closed:        &replacementClosed,
 	})
 	swapAAABundle(replacement, nil)
-	require.True(t, bootClosed, "installing a chain retires the one it replaces")
+	require.False(t, bootClosed, "the active command retains its original accountant")
 
 	accountant.CommandStop(taskID, "alice", "198.51.100.8:2200", "show bgp")
 
-	assert.Equal(t, []string{"show bgp"}, replacementAccountant.stops,
-		"the STOP must reach the installed accountant, whose worker is running")
-	assert.Empty(t, bootAccountant.stops,
-		"no record may reach an accountant whose worker the install has already stopped")
-	assert.False(t, replacementAccountant.stoppedOnClosed)
+	assert.Equal(t, []string{"show bgp"}, bootAccountant.stops,
+		"STOP must reach the server that received START")
+	assert.Empty(t, replacementAccountant.stops)
+	assert.False(t, bootAccountant.stoppedOnClosed)
+	assert.True(t, bootClosed, "the final STOP releases the retired bundle")
 }

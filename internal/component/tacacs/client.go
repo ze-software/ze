@@ -24,9 +24,9 @@ import (
 	"github.com/ze-software/ze/internal/core/network"
 )
 
-// TACACS+ pool sizing. A TACACS+ packet is at most 12 (header) + 65535
-// (body, uint16 ceiling in RFC 8907 §4.1) = 65547 bytes. Every wire read
-// and write path uses buffers of this size. sync.Pool is the right
+// TACACS+ pool sizing. Ze bounds a body to 65535 bytes; the wire length is
+// uint32 (RFC 8907 Section 4.1). Every wire read and write uses a buffer
+// of hdrLen + maxBodyLen bytes. sync.Pool is the right
 // structure because the client is consumed by three concurrent
 // goroutines (SSH auth callback, dispatcher authorization, accounting
 // worker) and sync.Pool's per-P local cache removes Get/Put contention.
@@ -73,7 +73,7 @@ type TacacsClientConfig struct {
 
 // TacacsClient is a TACACS+ client that connects to servers in order.
 //
-// When a server supports single-connect (RFC 8907 §4.4, flag 0x04 echoed
+// When a server supports single-connect (RFC 8907 Section 4.3, flag 0x04 echoed
 // on the first reply), its TCP connection is retained in `pool` and reused
 // for subsequent sessions. Request serialization per server is enforced by
 // `serverMu[address]`: exactly one send/receive cycle may be in flight on
@@ -149,16 +149,15 @@ func (c *TacacsClient) Close() {
 // Tries servers in order. Returns on first response (pass or fail).
 // Returns error only on infrastructure failure (all servers unreachable).
 //
-// Memory: one pool buffer is acquired up front. The request body is
-// marshaled directly into buf[hdrLen:] so no per-call allocation
-// occurs on the send path. The reply parser (UnmarshalAuthenReply)
-// copies the data it cares about into its own struct, so it is safe to
-// Put the buffer as soon as parsing returns.
+// The request body uses a caller-owned pooled buffer. Username preparation
+// may allocate normalized text; reply fields own their storage after the
+// scratch buffer is cleared and returned to the pool.
 func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*AuthenReply, error) {
 	start := NewPAPAuthenStart(username, password, port, remAddr)
+	defer clear(start.Data)
 
 	buf := c.bufs.Get()
-	defer c.bufs.Put(buf)
+	defer c.releaseBuffer(buf)
 
 	replyData, err := c.sendToServers(buf, start.MarshalBinaryInto, typeAuthentication, start.Version(), "authentication")
 	if err != nil {
@@ -177,7 +176,7 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 // RFC 8907 Section 6.
 func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, error) {
 	buf := c.bufs.Get()
-	defer c.bufs.Put(buf)
+	defer c.releaseBuffer(buf)
 
 	replyData, err := c.sendToServers(buf, req.MarshalBinaryInto, typeAuthorization, 0xC0, "authorization")
 	if err != nil {
@@ -193,10 +192,10 @@ func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, e
 
 // SendAccounting sends an accounting REQUEST to the first reachable TACACS+ server.
 // Returns the AcctReply on success or error if all servers are unreachable.
-// Accounting errors are informational -- callers should log them, never block.
+// Accounting errors are informational; callers log them without denying commands.
 func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 	buf := c.bufs.Get()
-	defer c.bufs.Put(buf)
+	defer c.releaseBuffer(buf)
 
 	replyData, err := c.sendToServers(buf, req.MarshalBinaryInto, typeAccounting, 0xC0, "accounting")
 	if err != nil {
@@ -210,6 +209,13 @@ func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 	return reply, nil
 }
 
+// releaseBuffer removes PAP credentials and decrypted administrative data
+// before another request acquires the shared scratch.
+func (c *TacacsClient) releaseBuffer(buf []byte) {
+	clear(buf)
+	c.bufs.Put(buf)
+}
+
 // sendToServers marshals a request body into the caller-owned pool buffer
 // at buf[hdrLen:] and sends it to TACACS+ servers in order, returning
 // the first successful response body. Shared by Authenticate,
@@ -217,12 +223,24 @@ func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 // attempt so a previous attempt's in-place Encrypt does not corrupt the
 // body on retry.
 func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, error), pktType, version uint8, purpose string) ([]byte, error) {
-	sessionID, err := randomSessionID()
+	// Validate before selecting a destination: invalid credentials or policy
+	// remain a terminal local refusal even when no server is configured.
+	bodyLen, err := marshalBody(buf[hdrLen:])
 	if err != nil {
-		return nil, fmt.Errorf("generate session ID: %w", err)
+		return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
 	}
-
-	for _, srv := range c.config.Servers {
+	for index, srv := range c.config.Servers {
+		if index > 0 {
+			// The preceding exchange overwrote the plaintext in this buffer.
+			bodyLen, err = marshalBody(buf[hdrLen:])
+			if err != nil {
+				return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
+			}
+		}
+		sessionID, err := randomSessionID()
+		if err != nil {
+			return nil, fmt.Errorf("generate session ID: %w", err)
+		}
 		pkt := &Packet{
 			Header: PacketHeader{
 				Version:   version,
@@ -230,10 +248,30 @@ func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, 
 				SeqNo:     1,
 				SessionID: sessionID,
 			},
+			Body: buf[hdrLen : hdrLen+bodyLen],
 		}
 
 		replyData, sendErr := c.sendReceive(buf, marshalBody, srv, pkt)
 		if sendErr != nil {
+			if errors.Is(sendErr, errRequestInvalid) {
+				return nil, sendErr
+			}
+			if errors.Is(sendErr, errObfuscationMismatch) {
+				// RFC 8907 Section 10.5.2: "process the response in
+				// the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL ...
+				// or TAC_PLUS_AUTHOR_STATUS_FAIL ... was received."
+				clear(buf[hdrLen : hdrLen+6])
+				switch pktType {
+				case typeAuthentication:
+					buf[hdrLen] = AuthenStatusFail
+					return buf[hdrLen : hdrLen+6], nil
+				case typeAuthorization:
+					buf[hdrLen] = AuthorStatusFail
+					return buf[hdrLen : hdrLen+6], nil
+				default:
+					return nil, sendErr
+				}
+			}
 			c.logger.Warn("TACACS+ server unreachable",
 				"purpose", purpose, "server", srv.Address, "error", sendErr)
 			continue
@@ -255,7 +293,7 @@ func (c *TacacsClient) sendToServers(buf []byte, marshalBody func([]byte) (int, 
 //     goroutines (auth callback, dispatcher authorization, accounting worker)
 //     cannot interleave bytes on a pooled TCP.
 //
-// Single-connect handshake (RFC 8907 §4.4):
+// Single-connect handshake (RFC 8907 Section 4.3):
 //   - On a fresh TCP, the client sets FlagSingleConnect on the first packet.
 //   - If the server echoes FlagSingleConnect on its reply, the connection is
 //     retained in the pool for future sessions; subsequent packets do NOT
@@ -270,7 +308,7 @@ func (c *TacacsClient) sendReceive(buf []byte, marshalBody func([]byte) (int, er
 	mu.Lock()
 	defer mu.Unlock()
 
-	if reply, err := c.trySend(buf, marshalBody, srv, pkt, true); err == nil {
+	if reply, err := c.trySend(buf, srv, pkt, true); err == nil {
 		return reply, nil
 	} else if !isPooledConnError(err) {
 		return nil, err
@@ -282,7 +320,17 @@ func (c *TacacsClient) sendReceive(buf []byte, marshalBody func([]byte) (int, er
 	// that a second MarshalInto+Encrypt would XOR back to plaintext
 	// (double-encrypt == identity for stream ciphers) and put cleartext
 	// bytes on the wire.
-	return c.trySend(buf, marshalBody, srv, pkt, false)
+	sessionID, err := randomSessionID()
+	if err != nil {
+		return nil, fmt.Errorf("generate retry session ID: %w", err)
+	}
+	pkt.Header.SessionID = sessionID
+	bodyLen, err := marshalBody(buf[hdrLen:])
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", errRequestInvalid, err)
+	}
+	pkt.Body = buf[hdrLen : hdrLen+bodyLen]
+	return c.trySend(buf, srv, pkt, false)
 }
 
 // trySend performs one send/receive cycle using the provided pool buffer.
@@ -295,11 +343,9 @@ func (c *TacacsClient) sendReceive(buf []byte, marshalBody func([]byte) (int, er
 // One buffer serves the request marshal, the wire write, the response
 // header read, and the response body read. No `make([]byte, N)` anywhere.
 // When `allowPool` is true the pooled connection (if any) is used;
-// otherwise a fresh TCP is always dialed. The caller retries once after
-// eviction; the retry re-runs `marshalBody` so that a previous attempt's
-// in-place Encrypt never feeds ciphertext back through MarshalInto's
-// second encrypt (XOR is its own inverse).
-func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error), srv TacacsServer, pkt *Packet, allowPool bool) ([]byte, error) {
+// otherwise a fresh TCP is always dialed. The caller supplies fresh plaintext
+// in pkt.Body for each attempt because Encrypt mutates the shared buffer.
+func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowPool bool) ([]byte, error) {
 	conn, reused, err := c.acquireConn(srv.Address, allowPool)
 	if err != nil {
 		return nil, fmt.Errorf("connect %s: %w", srv.Address, err)
@@ -317,17 +363,6 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 		return nil, fmt.Errorf("set deadline: %w", deadlineErr)
 	}
 
-	// Write fresh plaintext body into buf[hdrLen:] on every call. This
-	// is the invariant that keeps the retry path correct: the previous
-	// attempt's Encrypt has mutated buf[hdrLen:] and must not be fed
-	// through MarshalInto again.
-	bodyLen, bodyErr := marshalBody(buf[hdrLen:])
-	if bodyErr != nil {
-		c.closeAndEvict(srv.Address, conn)
-		return nil, fmt.Errorf("marshal body: %w", bodyErr)
-	}
-	pkt.Body = buf[hdrLen : hdrLen+bodyLen]
-
 	// Marshal the full packet into the pool buffer -- header written into
 	// buf[:hdrLen] and body encrypted in place via the self-aliased copy.
 	wireLen, marshalErr := pkt.MarshalInto(buf, srv.Key)
@@ -335,7 +370,13 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("marshal packet: %w", marshalErr)
 	}
-	if _, writeErr := conn.Write(buf[:wireLen]); writeErr != nil {
+	written, writeErr := conn.Write(buf[:wireLen])
+	if writeErr == nil {
+		if written != wireLen {
+			writeErr = io.ErrShortWrite
+		}
+	}
+	if writeErr != nil {
 		c.closeAndEvict(srv.Address, conn)
 		if reused {
 			return nil, pooledConnErr{err: writeErr}
@@ -372,10 +413,7 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 	// read the attacker's cleartext PASS.
 	if unencrypted := respHdr.Flags&FlagUnencrypted != 0; unencrypted != (len(srv.Key) == 0) {
 		c.closeAndEvict(srv.Address, conn)
-		if unencrypted {
-			return nil, fmt.Errorf("obfuscation mismatch from %s: reply sets TAC_PLUS_UNENCRYPTED_FLAG but a shared secret is configured", srv.Address)
-		}
-		return nil, fmt.Errorf("obfuscation mismatch from %s: reply clears TAC_PLUS_UNENCRYPTED_FLAG but no shared secret is configured", srv.Address)
+		return nil, errObfuscationMismatch
 	}
 
 	if respHdr.SessionID != pkt.Header.SessionID {
@@ -403,6 +441,18 @@ func (c *TacacsClient) trySend(buf []byte, marshalBody func([]byte) (int, error)
 	// with the configuration, so a configured key means an obfuscated body.
 	if len(srv.Key) > 0 {
 		Encrypt(buf[hdrLen:bodyEnd], respHdr.SessionID, srv.Key, respHdr.Version, respHdr.SeqNo)
+	}
+
+	status, bodyErr := validateReplyBody(pkt.Header.Type, buf[hdrLen:bodyEnd])
+	if bodyErr != nil {
+		// RFC 8907 Section 4.4: "Once all active sessions are completed,
+		// then the connection MUST be closed." This client serializes them.
+		c.closeAndEvict(srv.Address, conn)
+		return nil, bodyErr
+	}
+	if err := validateReplyStatus(pkt.Header.Type, status); err != nil {
+		c.closeAndEvict(srv.Address, conn)
+		return nil, err
 	}
 
 	// Post-exchange connection disposition: if this was a fresh TCP AND
@@ -434,15 +484,52 @@ func validateResponseHeader(req, resp PacketHeader) error {
 	if resp.Version&0xF0 != req.Version&0xF0 {
 		return fmt.Errorf("major version mismatch: sent %#x, got %#x", req.Version, resp.Version)
 	}
+	if resp.Version != req.Version {
+		return fmt.Errorf("minor version mismatch: sent %#x, got %#x", req.Version, resp.Version)
+	}
 	expectedSeq := req.SeqNo + 1
 	if resp.SeqNo != expectedSeq {
 		return fmt.Errorf("sequence mismatch: want %d, got %d", expectedSeq, resp.SeqNo)
 	}
-	if extra := resp.Flags &^ (FlagUnencrypted | FlagSingleConnect); extra != 0 {
-		return fmt.Errorf("unsupported response flags: %#x", resp.Flags)
-	}
+	// RFC 8907 Section 4.1: "All other bits MUST be ignored when reading,
+	// and SHOULD be set to zero when writing."
 	return nil
 }
+
+func validateReplyStatus(kind, status uint8) error {
+	// RFC 8907 Section 4.4: on ERROR "The client cannot apply the result,
+	// and it MUST behave as if the server could not be connected to."
+	switch kind {
+	case typeAuthentication:
+		switch status {
+		case AuthenStatusPass, AuthenStatusFail, AuthenStatusRestart, AuthenStatusFollow:
+			return nil
+		case AuthenStatusError:
+			return errServerFailure
+		}
+	case typeAuthorization:
+		switch status {
+		case AuthorStatusPassAdd, AuthorStatusPassRepl, AuthorStatusFail, AuthorStatusFollow:
+			return nil
+		case AuthorStatusError:
+			return errServerFailure
+		}
+	case typeAccounting:
+		if status == AcctStatusSuccess {
+			return nil
+		}
+		if status == AcctStatusError {
+			return errServerFailure
+		}
+	}
+	return fmt.Errorf("invalid reply status %#x for packet type %d", status, kind)
+}
+
+var (
+	errRequestInvalid      = errors.New("invalid TACACS+ request")
+	errObfuscationMismatch = errors.New("TACACS+ reply obfuscation disagrees with server configuration")
+	errServerFailure       = errors.New("TACACS+ server returned ERROR")
+)
 
 // pooledConnErr marks an error as coming from a reused pooled connection so
 // sendReceive can choose to retry with a fresh dial. Never surfaces to

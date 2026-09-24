@@ -1437,6 +1437,7 @@ golang.org/x/telemetry/internal/upload
 golang.org/x/term
 # golang.org/x/text v0.41.0
 ## explicit; go 1.25.0
+golang.org/x/text/cases
 golang.org/x/text/feature/plural
 golang.org/x/text/internal
 golang.org/x/text/internal/catmsg
@@ -1451,6 +1452,7 @@ golang.org/x/text/message
 golang.org/x/text/message/catalog
 golang.org/x/text/runes
 golang.org/x/text/secure/bidirule
+golang.org/x/text/secure/precis
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm

@@ -54,6 +54,8 @@ type sessionServer struct {
 	replyHeaderFn func(n int, reply PacketHeader) PacketHeader
 	// replyStatus is the authentication status every reply carries.
 	replyStatus uint8
+	// replyBodyFn can corrupt the decrypted body on a selected exchange.
+	replyBodyFn func(n int, body []byte) []byte
 
 	mu    sync.Mutex
 	conns []*sessionConn
@@ -107,6 +109,9 @@ func (s *sessionServer) serveConn(conn net.Conn, sc *sessionConn) {
 		}
 
 		replyBody := []byte{s.replyStatus, 0, 0, 0, 0, 0}
+		if s.replyBodyFn != nil {
+			replyBody = s.replyBodyFn(n, replyBody)
+		}
 		replyHdr := PacketHeader{
 			Version:   hdr.Version,
 			Type:      hdr.Type,
@@ -353,6 +358,27 @@ func TestRFC8907HealthyPooledConnectionStaysOpen(t *testing.T) {
 	require.False(t, isClosed(srv.connections()[0]), "a healthy pooled TCP must stay open")
 }
 
+// A malformed decrypted body invalidates the pooled stream just as a header
+// failure does; the next request must establish a fresh connection.
+func TestRFC8907MalformedBodyClosesPooledConnection(t *testing.T) {
+	srv := newSessionServer(t, sessionKey, true)
+	srv.replyBodyFn = func(n int, body []byte) []byte {
+		if n == 1 {
+			return append(body, 0)
+		}
+		return body
+	}
+	client := newSessionClient(t, srv, sessionKey)
+	authenticatePass(t, client)
+	_, err := client.Authenticate("alice", "hunter2", "ssh", "192.0.2.1")
+	require.Error(t, err)
+	waitClosed(t, srv.connections()[0])
+	authenticatePass(t, client)
+	require.Len(t, srv.connections(), 2)
+	require.Len(t, srv.requestsOn(0), 2)
+	require.Len(t, srv.requestsOn(1), 1)
+}
+
 // RFC requirement: RFC8907-5.4.2.2-1 positive — a PAP authentication puts exactly one START on the wire and returns on the single REPLY.
 func TestRFC8907PAPExchangeIsOneStartOneReply(t *testing.T) {
 	srv := newSessionServer(t, sessionKey, false)
@@ -371,8 +397,8 @@ func TestRFC8907PAPClientSendsNoContinue(t *testing.T) {
 	srv.replyStatus = AuthenStatusGetPass
 	client := newSessionClient(t, srv, sessionKey)
 	reply, err := client.Authenticate("alice", "hunter2", "ssh", "192.0.2.1")
-	require.NoError(t, err)
-	require.Equal(t, uint8(AuthenStatusGetPass), reply.Status)
+	require.Error(t, err)
+	require.Nil(t, reply)
 	waitClosed(t, srv.connections()[0])
 
 	require.Len(t, srv.requestsOn(0), 1, "a CONTINUE followed the START")

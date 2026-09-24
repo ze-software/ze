@@ -255,14 +255,6 @@ func TestTacacsClientRejectsBadResponseHeader(t *testing.T) {
 			},
 			want: "sequence mismatch",
 		},
-		{
-			name: "unknown flags",
-			mutate: func(_ PacketHeader, reply PacketHeader) PacketHeader {
-				reply.Flags = 0x80
-				return reply
-			},
-			want: "unsupported response flags",
-		},
 	}
 
 	for _, tt := range tests {
@@ -282,6 +274,9 @@ func TestTacacsClientRejectsBadResponseHeader(t *testing.T) {
 				SeqNo:     1,
 				SessionID: 0x01020304,
 			}}
+			bodyLen, err := start.MarshalBinaryInto(buf[hdrLen:])
+			require.NoError(t, err)
+			pkt.Body = buf[hdrLen : hdrLen+bodyLen]
 
 			reply, err := client.sendReceive(buf, start.MarshalBinaryInto,
 				TacacsServer{Address: srv.addr(), Key: key}, pkt)

@@ -7,6 +7,7 @@
 package tacacs
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 )
@@ -55,7 +56,27 @@ type AuthenStart struct {
 // Returns error if any variable field exceeds 255 bytes (uint8 length
 // limit) or if dst is too small.
 func (a *AuthenStart) MarshalBinaryInto(dst []byte) (int, error) {
-	userLen := len(a.User)
+	username, err := prepareWireUsername(a.User, false)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateText(a.Port); err != nil {
+		return 0, fmt.Errorf("port: %w", err)
+	}
+	if err := validateText(a.RemAddr); err != nil {
+		return 0, fmt.Errorf("remote address: %w", err)
+	}
+	if a.AuthenType == authenTypePAP {
+		// RFC 8907 Section 5.4.2.2: "The START packet MUST contain a
+		// username and the data field MUST contain the PAP ASCII password."
+		if username == "" {
+			return 0, fmt.Errorf("PAP requires a username")
+		}
+		if err := validateText(string(a.Data)); err != nil {
+			return 0, fmt.Errorf("PAP password: %w", err)
+		}
+	}
+	userLen := len(username)
 	portLen := len(a.Port)
 	remLen := len(a.RemAddr)
 	dataLen := len(a.Data)
@@ -79,7 +100,7 @@ func (a *AuthenStart) MarshalBinaryInto(dst []byte) (int, error) {
 	dst[7] = uint8(dataLen)
 
 	off := 8
-	off += copy(dst[off:], a.User)
+	off += copy(dst[off:], username)
 	off += copy(dst[off:], a.Port)
 	off += copy(dst[off:], a.RemAddr)
 	off += copy(dst[off:], a.Data)
@@ -91,7 +112,7 @@ func (a *AuthenStart) MarshalBinaryInto(dst []byte) (int, error) {
 // slice. Retained for round-trip unit tests; production code paths use
 // MarshalBinaryInto with a pooled buffer.
 func (a *AuthenStart) MarshalBinary() ([]byte, error) {
-	body := make([]byte, 8+len(a.User)+len(a.Port)+len(a.RemAddr)+len(a.Data))
+	body := make([]byte, 8+255+len(a.Port)+len(a.RemAddr)+len(a.Data))
 	n, err := a.MarshalBinaryInto(body)
 	if err != nil {
 		return nil, err
@@ -111,57 +132,35 @@ func (a *AuthenStart) Version() uint8 {
 // AuthenReply is an authentication REPLY packet body.
 // RFC 8907 Section 5.2.
 //
-// Memory lifetime: the Data field aliases the slice passed to
-// UnmarshalAuthenReply; it is safe only while that backing buffer is
-// live. Production callers that run through the TacacsClient pool MUST
-// NOT read Data after Authenticate returns (the pool buffer has been
-// Put and may be reused by another goroutine). Use the PrivLvl field
-// instead, which extracts the byte into a stack-safe uint8.
+// Data is owned by the reply and remains valid after the client releases its
+// pooled wire buffer. Authentication data carries no authorization privilege.
 type AuthenReply struct {
 	Status    uint8
 	Flags     uint8
-	PrivLvl   uint8  // first byte of Data when present, else 0
 	ServerMsg string // Go string -- copies its backing bytes, safe post-Put
-	Data      []byte // aliases input buffer; see struct doc
+	Data      []byte // owns its backing memory
 }
 
 // UnmarshalAuthenReply decodes a REPLY body.
 //
-// The returned AuthenReply.Data is a sub-slice of the input `data`;
-// callers who hold the AuthenReply beyond the lifetime of `data` MUST
-// read PrivLvl instead of Data[0]. See AuthenReply godoc.
+// The returned reply owns every variable-length field.
 func UnmarshalAuthenReply(data []byte) (*AuthenReply, error) {
-	if len(data) < 6 {
-		return nil, fmt.Errorf("authen reply too short: %d bytes", len(data))
+	if _, err := validateReplyBody(typeAuthentication, data); err != nil {
+		return nil, err
 	}
 
 	serverMsgLen := binary.BigEndian.Uint16(data[2:4])
 	dataLen := binary.BigEndian.Uint16(data[4:6])
-	totalLen := 6 + int(serverMsgLen) + int(dataLen)
-
-	if len(data) < totalLen {
-		return nil, fmt.Errorf("authen reply truncated: need %d, have %d", totalLen, len(data))
-	}
 
 	off := 6
 	serverMsg := string(data[off : off+int(serverMsgLen)])
 	off += int(serverMsgLen)
 
-	// Alias the reply data into the input slice instead of copying. The
-	// PrivLvl shortcut lifts the single byte that production consumers
-	// (TacacsAuthenticator.handlePass) actually care about onto the
-	// struct as a stack-safe uint8, so they never need to dereference
-	// Data after the pool buffer is Put.
-	replyData := data[off : off+int(dataLen)]
-	var privLvl uint8
-	if dataLen > 0 {
-		privLvl = replyData[0]
-	}
+	replyData := bytes.Clone(data[off : off+int(dataLen)])
 
 	return &AuthenReply{
 		Status:    data[0],
 		Flags:     data[1],
-		PrivLvl:   privLvl,
 		ServerMsg: serverMsg,
 		Data:      replyData,
 	}, nil

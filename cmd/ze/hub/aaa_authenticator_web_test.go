@@ -65,10 +65,9 @@ func TestWebAuthUsesChainWhenInstalled(t *testing.T) {
 	assert.Equal(t, "radius", res.Source, "authentication must come from the live chain")
 }
 
-// VALIDATES: AC-2/A-3 -- with a bundle installed, a user the chain rejects still
-// authenticates via the local fallback, so local users are never locked out when
-// RADIUS/TACACS is configured.
-func TestWebAuthLocalPreservedWithBundle(t *testing.T) {
+// A central rejection remains terminal for ordinary local credentials, even
+// when the same password would succeed through the web fallback.
+func TestWebAuthRemoteRejectionStopsOrdinaryFallback(t *testing.T) {
 	resetAAABundleForTest(t)
 	auth := webAuthenticatorUnderTest()
 
@@ -76,9 +75,53 @@ func TestWebAuthLocalPreservedWithBundle(t *testing.T) {
 	swapAAABundle(bundle, nil)
 
 	res, err := auth.Authenticate(aaa.AuthRequest{Username: "localadmin", Password: "localpw"})
+	require.ErrorIs(t, err, aaa.ErrAuthRejected)
+	assert.False(t, res.Authenticated)
+	assert.Equal(t, "radius", res.Source)
+}
+
+// ZeFS recovery credentials remain usable after central rejection. The
+// reserved profile comes from the local credential source, never remote AAA.
+func TestWebAuthRecoverySurvivesRemoteRejection(t *testing.T) {
+	resetAAABundleForTest(t)
+	recovery := bcryptUser(t, "recovery", "recovery-password", aaa.ReservedRecoveryProfile)
+	users := []authz.UserConfig{recovery}
+	auth := liveAAABundleAuthenticator{
+		fallback: &authz.LocalAuthenticator{UsersFunc: func() ([]authz.UserConfig, error) {
+			return users, nil
+		}},
+	}
+	swapAAABundle(&aaa.Bundle{Authenticator: fixedAuthn{
+		user: "remote", pass: "remote-password", source: "tacacs",
+	}}, nil)
+
+	result, err := auth.Authenticate(aaa.AuthRequest{Username: "recovery", Password: "recovery-password"})
 	require.NoError(t, err)
-	assert.True(t, res.Authenticated)
-	assert.Equal(t, "local", res.Source, "local users must still authenticate when a chain is installed")
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, aaa.SourceLocal, result.Source)
+	assert.Equal(t, []string{aaa.ReservedRecoveryProfile}, result.Profiles)
+
+	result, err = auth.Authenticate(aaa.AuthRequest{Username: "recovery", Password: "wrong"})
+	require.ErrorIs(t, err, aaa.ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+
+	// A same-named ordinary config account replaces the recovery assignment.
+	users = []authz.UserConfig{{Name: recovery.Name, Hash: recovery.Hash, Profiles: []string{"admin"}}}
+	result, err = auth.Authenticate(aaa.AuthRequest{Username: "recovery", Password: "recovery-password"})
+	require.ErrorIs(t, err, aaa.ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+}
+
+// An unavailable backend still permits the ordinary local fallback.
+func TestWebAuthLocalFallbackOnBackendUnavailable(t *testing.T) {
+	resetAAABundleForTest(t)
+	swapAAABundle(&aaa.Bundle{Authenticator: stubAuthn{}}, nil)
+	result, err := webAuthenticatorUnderTest().Authenticate(aaa.AuthRequest{
+		Username: "localadmin", Password: "localpw",
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, "local", result.Source)
 }
 
 // VALIDATES: AC-2 -- bad credentials are rejected whether or not a bundle exists.

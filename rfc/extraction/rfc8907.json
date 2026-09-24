@@ -76,7 +76,10 @@
     {
       "id": "4.1",
       "sites": 6,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8907-5-1"
+      ]
     },
     {
       "id": "4.2",
@@ -101,10 +104,7 @@
     {
       "id": "5",
       "sites": 0,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8907-5-1"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "5.1",
@@ -462,9 +462,8 @@
     {
       "id": "4.5:6",
       "quote": "A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.6-2"
     },
     {
       "id": "4.5:7",

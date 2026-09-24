@@ -5,14 +5,49 @@
 package tacacs
 
 import (
+	"encoding/json"
+	"log/slog"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 const configValueTrue = "true"
+
+// RFC 8907 Section 10.5.1: "TACACS+ servers and clients MUST treat shared
+// secrets as sensitive data to be managed securely, as would be expected for
+// other sensitive data such as identity credential information."
+// Render the endpoint, never the credential, including when the server is
+// nested in an extracted configuration or a client configuration.
+
+// String describes a server without exposing its shared secret.
+func (s TacacsServer) String() string {
+	return s.Address + " key=" + redact.Placeholder
+}
+
+// GoString keeps Go-syntax diagnostics from dumping the key's bytes.
+func (s TacacsServer) GoString() string {
+	return s.String()
+}
+
+// MarshalJSON hides the shared secret in structured diagnostic output.
+func (s TacacsServer) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Address string
+		Key     string
+	}{Address: s.Address, Key: redact.Placeholder})
+}
+
+// LogValue keeps structured logs from publishing the shared secret.
+func (s TacacsServer) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("address", s.Address),
+		slog.String("key", redact.Placeholder),
+	)
+}
 
 // ExtractedConfig holds TACACS+ configuration extracted from the config tree.
 type ExtractedConfig struct {

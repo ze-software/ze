@@ -34,11 +34,14 @@ module ze-tacacs-conf {
             container tacacs {
                 description "The TACACS+ backend joins the AAA chain at priority 100, in
                              front of the local backend at priority 200. Ze builds the
-                             backend only where the server list holds one entry or more,
-                             so a container with no server leaves the chain unchanged.
-                             Authentication runs as soon as one server exists. The
-                             authorization leaf and the accounting leaf each turn on
-                             their own half.";
+                             backend only where the server list holds one entry or more.
+                             Authorization or accounting selected without a server is
+                             a configuration error. Authentication runs as soon as one server exists.
+                             Authorization and accounting are selected independently.
+                             RFC 8907 Section 10.5 requires a network providing privacy,
+                             integrity and separation from other traffic. TACACS+
+                             obfuscation and source-address selection do not provide
+                             those protections.";
                 ze:help
                     "TACACS+ server configuration (RFC 8907)";
 
@@ -96,11 +99,12 @@ module ze-tacacs-conf {
                                      and this backend is DROPPED from the chain. A user
                                      who exists locally still logs in, and the local
                                      profiles still govern the command. The leaf is
-                                     marked
-                                     sensitive, so every display path prints a
-                                     placeholder. A $9$-encoded value written by hand is
-                                     decoded on read, and the commit path writes back
-                                     what you typed.";
+                                     sensitive, so display paths mask it. Keys of 32
+                                     characters or longer are supported. Use at least
+                                     16 characters; doctor warns about shorter keys.
+                                     A $9$-encoded value is decoded on read; this is
+                                     reversible obfuscation, not encryption. Protect
+                                     configuration files, exports and backups as secrets.";
                         ze:help
                             "Shared secret this server obfuscates its packets with";
                     }
@@ -111,12 +115,11 @@ module ze-tacacs-conf {
                         range "1..300";
                     }
                     default 5;
-                    description "The value bounds two things for each server: the TCP
-                                 connect, and the read of one exchange. Ze gives it to
-                                 net.Dialer.Timeout and to the deadline of the
-                                 connection. With four servers and the default 5, a full
-                                 failover takes at most 20 seconds before the AAA chain
-                                 reaches the local backend.";
+                    description "The value independently bounds a TCP connect and one
+                                 request/reply exchange for each server. Servers are
+                                 tried in order; a dead reused connection also permits
+                                 one fresh connection attempt. Waiting for another
+                                 exchange on a shared connection can add to this time.";
                     ze:help
                         "Per-server connection timeout in seconds";
                 }
@@ -140,8 +143,10 @@ module ze-tacacs-conf {
                                  and Ze sends an AUTHOR REQUEST for each command, with
                                  service=shell, cmd=<verb> and one cmd-arg for each
                                  argument (RFC 8907 Section 6). PASS_ADD and PASS_REPL
-                                 run the command, and FAIL refuses it. Ze sends privilege
-                                 level 1 on every one of these requests.";
+                                 permit execution only when the effective arguments
+                                 describe the original command and every mandatory
+                                 policy can be enforced. FAIL refuses the command.
+                                 Ze sends privilege level 1 on these requests.";
                     ze:help
                         "Enable per-command TACACS+ authorization";
                 }
@@ -164,14 +169,16 @@ module ze-tacacs-conf {
                 leaf accounting {
                     type boolean;
                     default false;
-                    description "Set it true and Ze sends an accounting record for each
-                                 command a user runs. One background worker sends the
-                                 records, so a slow server does not delay the command.
-                                 The queue holds 64 records, and Ze counts each record it
-                                 drops because the queue is full. That count is what
-                                 shows a server which cannot keep up.";
+                    description "Set it true to account for every entered command,
+                                 irrespective of its authorization method. A server is
+                                 required. One worker sends START and STOP records from
+                                 a bounded 64-record queue. A full queue delays command
+                                 admission rather than losing a record; shutdown drains
+                                 accepted records within the configured server timeout
+                                 bounds. Transport failures are logged and do not deny
+                                 command execution.";
                     ze:help
-                        "Enable command execution accounting";
+                        "Enable accounting for every entered command";
                 }
             }
 
@@ -191,10 +198,10 @@ module ze-tacacs-conf {
                         range "0..15";
                     }
                     description "The level is the list key, so one level holds one entry.
-                                 Ze reads it from the first byte of the data field of the
-                                 authentication REPLY the server sends when it accepts
-                                 the login. A REPLY that carries no data byte reads as
-                                 level 1. RFC 8907 Section 9 states that 'Privilege
+                                 After PAP succeeds, Ze obtains priv-lvl from a shell
+                                 session authorization (service=shell and an empty cmd).
+                                 An absent priv-lvl uses level 1; authentication REPLY
+                                 data never supplies privilege. RFC 8907 Section 9 states that 'Privilege
                                  levels are ordered values from 0 to 15 with each level
                                  being a superset of the next lower value'. Section 9
                                  also gives the common allocation: 0 for an
@@ -209,11 +216,11 @@ module ze-tacacs-conf {
                 leaf-list profile {
                     type string;
                     min-elements 1;
-                    description "A level mapped to no profiles would authenticate the
-                                 user and grant nothing. Authorization reads an empty
-                                 profile set as 'no opinion' rather than 'deny'. To
-                                 deny a privilege level, leave the level out of the
-                                 mapping.";
+                    description "These local profiles govern the authenticated session.
+                                 A missing, empty or all-reserved profile mapping denies
+                                 login. To deny a privilege level, omit its mapping.
+                                 Local command authorization denies when none of the
+                                 named profiles exists in the local policy store.";
                     ze:help "Ze authorization profiles for this privilege level. At least one is required.";
                 }
             }

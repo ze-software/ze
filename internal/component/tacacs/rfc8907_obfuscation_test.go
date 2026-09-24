@@ -195,8 +195,8 @@ func TestRFC8907ClientNeverSendsUnobfuscatedBody(t *testing.T) {
 // the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL (authentication sessions) or
 // TAC_PLUS_AUTHOR_STATUS_FAIL (authorization sessions) was received."
 //
-// RFC requirement: RFC8907-10.5.2-1 negative -- the client returns an error and no
-// reply, so the forged PASS never reaches the caller as an authentication result.
+// RFC requirement: RFC8907-10.5.2-1 negative -- the client converts an
+// unobfuscated PASS from a keyed server into a terminal FAIL.
 func TestRFC8907ClientRefusesUnobfuscatedReply(t *testing.T) {
 	key := []byte("obfuscation-key")
 	probe := newObfuscationProbe(t, key, FlagUnencrypted, false)
@@ -207,12 +207,9 @@ func TestRFC8907ClientRefusesUnobfuscatedReply(t *testing.T) {
 	})
 
 	reply, err := client.Authenticate("admin", "secret", "ssh", "10.0.0.1")
-	require.Error(t, err, "a cleartext PASS from a keyed server authenticated the user")
-	assert.Nil(t, reply, "the forged PASS reached the caller as an authentication result")
-	// The guard names the mismatch on the log line for the operator; the caller
-	// sees the server drop out of the usable set, which is the "process it as a
-	// FAIL" outcome Section 10.5.2 asks for.
-	assert.Contains(t, err.Error(), "unreachable")
+	require.NoError(t, err)
+	require.NotNil(t, reply)
+	assert.Equal(t, uint8(AuthenStatusFail), reply.Status)
 }
 
 // TestRFC8907ClientAcceptsObfuscatedReply is the control for the refusal above.

@@ -1,6 +1,9 @@
 package tacacs
 
 import (
+	"bytes"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,8 +107,8 @@ func TestTacacsAuthorizerAuthorizeCommandArgsPreservesOddArgs(t *testing.T) {
 		"cmd-arg=adj-rib-in",
 		"cmd-arg=accept-routes",
 		"cmd-arg=peer key with spaces",
-		`cmd-arg=quote"inside`,
-		`cmd-arg=slash\inside`,
+		`cmd-arg=quote\"inside`,
+		`cmd-arg=slash\\inside`,
 	}, gotArgs)
 }
 
@@ -173,9 +176,8 @@ func TestTacacsAuthorizerFallbackToLocal(t *testing.T) {
 	assert.True(t, result, "should fall back to local allow")
 }
 
-// VALIDATES: PASS_REPL is also treated as Allow.
-// PREVENTS: PASS_REPL incorrectly denied.
-func TestTacacsAuthorizerPassRepl(t *testing.T) {
+// An empty PASS_REPL removes the requested command rather than approving it.
+func TestTacacsAuthorizerEmptyPassReplDenies(t *testing.T) {
 	key := []byte("secret")
 	srv := newTestServer(t, key, authorReply(AuthorStatusPassRepl))
 	defer srv.close()
@@ -188,7 +190,7 @@ func TestTacacsAuthorizerPassRepl(t *testing.T) {
 	authorizer := newTacacsAuthorizer(client, local)
 
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
-	assert.True(t, result, "PASS_REPL should allow")
+	assert.False(t, result, "empty replacement cannot authorize the original command")
 }
 
 // VALIDATES: ERROR status falls back to local.
@@ -221,4 +223,28 @@ func TestTacacsAuthorizerStrictFallbackDeniesUnreachable(t *testing.T) {
 	result := authorizer.Authorize("admin", "10.0.0.1:22", "show version", true)
 	assert.False(t, result, "strict fallback should deny")
 	assert.Equal(t, 0, local.calls, "strict fallback must not call local RBAC")
+}
+
+// An authorization refusal or unavailable server must not expose a quoted
+// configuration secret in the operational log.
+func TestTacacsAuthorizerLogsRedactedCommands(t *testing.T) {
+	for _, unavailable := range []bool{false, true} {
+		var logs bytes.Buffer
+		cfg := TacacsClientConfig{Timeout: time.Second}
+		if !unavailable {
+			server := newTestServer(t, sessionKey, authorReply(AuthorStatusFail))
+			t.Cleanup(server.close)
+			cfg.Servers = []TacacsServer{{Address: server.addr(), Key: sessionKey}}
+		}
+		client := NewTacacsClient(cfg)
+		t.Cleanup(client.Close)
+		authorizer := newTacacsAuthorizerWithFallback(client, &fakeLocalAuthz{}, slog.New(slog.NewTextHandler(&logs, nil)), false)
+		authorizer.Authorize("alice", "", `set system authentication tacacs server 192.0.2.1 key "private value"`, false)
+		if strings.Contains(logs.String(), "private") {
+			t.Fatal("authorization log disclosed the shared secret")
+		}
+		if !strings.Contains(logs.String(), "<redacted>") {
+			t.Fatalf("authorization outcome was not logged with a masked command: %s", logs.String())
+		}
+	}
 }

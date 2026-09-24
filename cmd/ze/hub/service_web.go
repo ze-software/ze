@@ -508,15 +508,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
 
-	// Auth wrapper for protecting individual routes. The live AAA bundle chain
-	// (RADIUS/TACACS + local) is preferred once infra setup installs it; before
-	// that (web starts before config load in the BGP path) and for users absent
-	// from the chain, it falls back to the zefs power user plus the config-file
-	// users the RUNNING config declares. This lets RADIUS/TACACS admins
-	// authenticate on web without regressing local login (AC-2, A-3), while a
-	// user the operator deletes stops authenticating at the next reload rather
-	// than at the next restart -- with a password here, and with an already
-	// issued session cookie in sessionStore above (AC-10).
+	// The live AAA chain decides ordinary logins once installed. Only an
+	// unavailable chain permits ordinary local fallback; an explicit remote
+	// rejection can be overridden solely by the local reserved recovery
+	// profile that usersFromStore assigns to the ZeFS super-admin.
+	// localUsersLive reads the accepted generation, so removed or replaced
+	// credentials cannot regain access through this fallback after reload.
 	webAuth := liveAAABundleAuthenticator{fallback: &authz.LocalAuthenticator{UsersFunc: localUsersLive}}
 	var authWrap func(http.Handler) http.Handler
 	if insecureWeb {

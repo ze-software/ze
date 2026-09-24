@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
 )
 
 // The transcript is a FILE on the operator's disk, so a credential typed at
@@ -99,5 +101,32 @@ func TestTranscriptStillRecordsACommandWithNoCredential(t *testing.T) {
 	}
 	if !strings.Contains(body, "peer 1 established") {
 		t.Errorf("the transcript lost the answer, got:\n%s", body)
+	}
+}
+
+// A quoted TACACS+ key contains several words but remains one secret. The
+// transcript uses the schema, while the executor receives the original line.
+func TestTranscriptRedactsQuotedTacacsKey(t *testing.T) {
+	writer, contents := newTranscriptUnderTest(t)
+	var executed string
+	executor := WrapExecutorWithTranscript(func(command string) (CommandOutput, error) {
+		executed = command
+		return CommandOutput{Text: "ok"}, nil
+	}, writer)
+	input := `set system authentication tacacs server 192.0.2.1 key "private first middle tail-value"`
+	if _, err := executor(input); err != nil {
+		t.Fatal(err)
+	}
+	if executed != input {
+		t.Fatal("transcript redaction changed the executed command")
+	}
+	recorded := contents()
+	for _, part := range []string{"private", "middle", "tail-value"} {
+		if strings.Contains(recorded, part) {
+			t.Fatalf("transcript leaked a shared secret word: %s", recorded)
+		}
+	}
+	if !strings.Contains(recorded, "192.0.2.1 key <redacted>") {
+		t.Fatalf("transcript lost the updated configuration path: %s", recorded)
 	}
 }

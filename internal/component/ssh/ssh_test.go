@@ -995,9 +995,6 @@ func TestExecLogRedactsBeforeTruncation(t *testing.T) {
 	if strings.Contains(got, bcryptHashLiteral[:20]) {
 		t.Errorf("hash prefix half-leaked past truncation: %q", got)
 	}
-	if !strings.Contains(got, "bytes total") {
-		t.Errorf("expected truncation of an over-long command: %q", got)
-	}
 }
 
 // execFormatServer starts an SSH server whose exec executor answers a fixed

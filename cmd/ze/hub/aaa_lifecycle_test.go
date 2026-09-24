@@ -228,25 +228,22 @@ func TestAcceptedLocalGenerationAuthorizerPreservesExternalTypedArgs(t *testing.
 	assert.True(t, remote.localFallback.Authorize("api-user", "", "show version", true))
 }
 
-// VALIDATES: no-BGP startup installs accounting that resolves the live bundle
-// for each new START, and delivers the STOP of a command that crossed a swap to
-// the accountant installed NOW, carrying the task id its own START issued.
-// PREVENTS: API, MCP, and standalone SSH dispatch losing the record. The swap
-// closes the bundle it replaces, which stops that accountant's worker, and a
-// send to a stopped worker drops the record and returns no error
-// (internal/component/tacacs/accounting.go, enqueue). One command is still one
-// START and one STOP: the replacement must mint no second START.
+// RFC requirement: RFC8907-8.3-4 positive -- a command that replaces the AAA bundle keeps its original accountant alive through STOP without delaying the replacement inside its handler.
 func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 	resetAAABundleForTest(t)
 	first := &bundleAccountantProbe{name: "first"}
 	second := &bundleAccountantProbe{name: "second"}
-	swapAAABundle(&aaa.Bundle{Accountant: first}, nil)
+	var firstClosed bool
+	swapAAABundle(buildInfraBootBundle(t, &infraBootBackend{
+		name: "first", authenticator: &stubAuthn{}, accountant: first, closed: &firstClosed,
+	}), nil)
 
 	dispatcher := pluginserver.NewDispatcher()
 	installNoBGPAAADispatch(dispatcher)
 	const command = "test live accounting"
 	dispatcher.Register(command, func(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 		swapAAABundle(&aaa.Bundle{Accountant: second}, nil)
+		assert.False(t, firstClosed, "reload closed the accountant before the command's STOP")
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	}, command)
 
@@ -258,19 +255,15 @@ func TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap(t *testing.T) {
 	require.NotNil(t, response)
 	assert.Equal(t, plugin.StatusDone, response.Status)
 	assert.Equal(t, []string{command}, first.starts)
-	assert.Empty(t, first.stops,
-		"the retired accountant's worker is stopped, so a STOP sent there is lost in silence")
+	assert.Equal(t, []string{command}, first.stops)
 	assert.Empty(t, second.starts, "a swap must not mint a second START for one command")
-	assert.Equal(t, []string{command}, second.stops)
-	assert.Equal(t, "first-task", second.stopTaskID,
-		"the STOP must carry the task id the START issued, so the two records still pair")
+	assert.Empty(t, second.stops, "the replacement server never received this command's START")
+	assert.Equal(t, "first-task", first.stopTaskID)
+	assert.True(t, firstClosed, "retired bundle survived its final accounting STOP")
 }
 
-// VALIDATES: concurrent in-flight no-BGP commands keep unique accounting
-// handles across a bundle swap, every STOP reaches the accountant installed
-// NOW, and later commands use the replacement bundle for both records.
-// PREVENTS: task-ID collisions, a swap minting extra STARTs, and concurrent
-// STOP records landing on an accountant whose worker the swap has stopped.
+// Concurrent in-flight commands keep unique accounting handles across reload;
+// each STOP returns to its START's provider and later commands use the new one.
 func TestLiveAAABundleAccountantConcurrentSwapKeepsPairs(t *testing.T) {
 	resetAAABundleForTest(t)
 	first := &bundleAccountantProbe{name: "first"}
@@ -303,18 +296,57 @@ func TestLiveAAABundleAccountantConcurrentSwapKeepsPairs(t *testing.T) {
 	wg.Wait()
 
 	assert.Len(t, first.starts, commands)
-	assert.Empty(t, first.stops,
-		"the retired accountant's worker is stopped, so a STOP sent there is lost in silence")
+	assert.Len(t, first.stops, commands)
 	assert.Empty(t, second.starts, "a swap must not mint a START for a command already in flight")
-	assert.Len(t, second.stops, commands, "every in-flight STOP must reach the installed accountant")
-	assert.Equal(t, "first-task", second.stopTaskID,
-		"each STOP carries the task id its own START issued, so the records still pair")
+	assert.Empty(t, second.stops)
+	assert.Equal(t, "first-task", first.stopTaskID)
 
 	taskID := accountant.CommandStart("bob", "203.0.113.4:2200", "test after swap")
 	accountant.CommandStop(taskID, "bob", "203.0.113.4:2200", "test after swap")
 	assert.Equal(t, []string{"test after swap"}, second.starts)
-	assert.Len(t, second.stops, commands+1)
+	assert.Len(t, second.stops, 1)
 	assert.Equal(t, "second-task", second.stopTaskID)
+}
+
+type blockedStartAccountant struct {
+	infraBootAccountant
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (a *blockedStartAccountant) CommandStart(username, remoteAddr, command string) string {
+	close(a.entered)
+	<-a.release
+	return a.infraBootAccountant.CommandStart(username, remoteAddr, command)
+}
+
+// RFC requirement: RFC8907-8.3-4 negative -- replacement cannot close an accountant while it is accepting START, even when the new configuration disables accounting.
+func TestRFC8907BundleRetirementWaitsForAccountingPair(t *testing.T) {
+	resetAAABundleForTest(t)
+	var closed bool
+	provider := &blockedStartAccountant{
+		infraBootAccountant: infraBootAccountant{name: "old", closed: &closed},
+		entered:             make(chan struct{}),
+		release:             make(chan struct{}),
+	}
+	swapAAABundle(buildInfraBootBundle(t, &infraBootBackend{
+		name: "old", authenticator: &stubAuthn{}, accountant: provider, closed: &closed,
+	}), nil)
+	accountant := newLiveAAABundleAccountant()
+	started := make(chan string, 1)
+	go func() {
+		started <- accountant.CommandStart("alice", "192.0.2.1", "show version")
+	}()
+	<-provider.entered
+	swapAAABundle(&aaa.Bundle{}, nil)
+	assert.False(t, closed, "bundle closed while START was blocked")
+	close(provider.release)
+	taskID := <-started
+	accountant.CommandStop(taskID, "alice", "192.0.2.1", "show version")
+	assert.Equal(t, []string{"show version"}, provider.starts)
+	assert.Equal(t, []string{"show version"}, provider.stops)
+	assert.False(t, provider.stoppedOnClosed)
+	assert.True(t, closed, "final STOP failed to release the retired bundle")
 }
 
 // VALIDATES: the local contribution in a newly built AAA bundle consults the
@@ -692,4 +724,29 @@ func TestSameLocalCredentialsPairsUsersByName(t *testing.T) {
 		[]aaa.UserCredential{alice, bob},
 		[]aaa.UserCredential{alice}),
 		"a removed user is a credential change")
+}
+
+// A password login's authorization follows the replacement bundle, including
+// typed commands, rather than retaining its now-closed TACACS+ client.
+func TestLivePasswordAuthorizationFollowsBundleReload(t *testing.T) {
+	resetAAABundleForTest(t)
+	first := &typedBundleAuthorizer{allow: true}
+	boot := buildInfraBootBundle(t, &infraBootBackend{
+		name: "remote", authenticator: &infraBootAuthenticator{source: "tacacs"}, authorizer: first,
+	})
+	swapAAABundle(boot, nil)
+	result, err := (liveAAABundleAuthenticator{}).Authenticate(aaa.AuthRequest{Username: "alice"})
+	require.NoError(t, err)
+	require.NotNil(t, result.Authorizer)
+	assert.True(t, result.Authorizer.Authorize("alice", "", "show version", true))
+
+	replacement := &typedBundleAuthorizer{allow: false}
+	swapAAABundle(&aaa.Bundle{Authorizer: replacement}, nil)
+	assert.False(t, result.Authorizer.Authorize("alice", "", "show version", true))
+	typed, ok := result.Authorizer.(aaa.CommandArgsAuthorizer)
+	require.True(t, ok)
+	args := []string{"two words", `slash\inside`}
+	assert.False(t, typed.AuthorizeCommandArgs("alice", "", "show", args, "*", true))
+	assert.Equal(t, args, replacement.args)
+	assert.False(t, first.typedCalled)
 }

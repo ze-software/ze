@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -1121,6 +1122,8 @@ type fakeAccountant struct {
 	stops        []string // commands that triggered STOP
 	startUsers   []string
 	startRemotes []string
+	stopUsers    []string
+	stopRemotes  []string
 }
 
 func (f *fakeAccountant) CommandStart(username, remoteAddr, command string) string {
@@ -1130,8 +1133,10 @@ func (f *fakeAccountant) CommandStart(username, remoteAddr, command string) stri
 	return "task-1"
 }
 
-func (f *fakeAccountant) CommandStop(_, _, _, command string) {
+func (f *fakeAccountant) CommandStop(_, username, remoteAddr, command string) {
 	f.stops = append(f.stops, command)
+	f.stopUsers = append(f.stopUsers, username)
+	f.stopRemotes = append(f.stopRemotes, remoteAddr)
 }
 
 // TestDispatcherAccountingHook verifies that the accounting hook is called on command dispatch.
@@ -1156,11 +1161,8 @@ func TestDispatcherAccountingHook(t *testing.T) {
 	assert.Equal(t, []string{"show version"}, acct.stops, "STOP should fire after handler")
 }
 
-// TestDispatcherAccountingSkipsNoUsername verifies accounting is skipped for unauthenticated contexts.
-//
-// VALIDATES: AC-8 -- accounting only fires for authenticated users.
-// PREVENTS: sending accounting records with empty username.
-func TestDispatcherAccountingSkipsNoUsername(t *testing.T) {
+// RFC requirement: RFC8907-8.3-4 positive -- commands without a username are accounted as entered, without inventing an authenticated identity.
+func TestDispatcherAccountingWithoutUsername(t *testing.T) {
 	d := NewDispatcher()
 	acct := &fakeAccountant{}
 	d.SetAccountingHook(acct)
@@ -1169,13 +1171,14 @@ func TestDispatcherAccountingSkipsNoUsername(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Show version")
 
-	// No username -- accounting should be skipped.
-	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "show version")
-
-	require.NoError(t, err)
-	assert.Empty(t, acct.starts, "no START for unauthenticated user")
-	assert.Empty(t, acct.stops, "no STOP for unauthenticated user")
+	// An absent identity is distinct from an absent command.
+	for _, ctx := range []*CommandContext{{}, nil} {
+		_, err := d.Dispatch(ctx, "show version")
+		require.NoError(t, err)
+	}
+	assert.Equal(t, []string{"show version", "show version"}, acct.starts)
+	assert.Equal(t, []string{"show version", "show version"}, acct.stops)
+	assert.Equal(t, []string{"", ""}, acct.startUsers)
 }
 
 // TestDispatcherAccountingNilHook verifies commands work without an accounting hook.
@@ -1216,6 +1219,42 @@ func TestDispatcherBeginAccounting(t *testing.T) {
 
 	stop()
 	assert.Equal(t, []string{"monitor event"}, acct.stops)
+}
+
+// RFC requirement: RFC8907-8.3-4 negative -- denied, unknown and malformed commands cannot bypass accounting at the dispatch entry point.
+func TestDispatcherAccountsRefusedCommands(t *testing.T) {
+	for _, input := range []string{"show version", "unknown command", `show \\bad`} {
+		d := NewDispatcher()
+		acct := &fakeAccountant{}
+		d.SetAccountingHook(acct)
+		d.SetAuthorizer(&mockAuthorizer{allow: false})
+		d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+			t.Fatal("denied handler ran")
+			return nil, nil
+		}, "")
+		_, err := d.Dispatch(&CommandContext{Username: "alice"}, input)
+		require.Error(t, err)
+		assert.Equal(t, []string{input}, acct.starts)
+		assert.Equal(t, []string{input}, acct.stops)
+	}
+}
+
+// The same context can be reused or updated by a handler. STOP retains the
+// identity under which START was issued.
+func TestDispatcherAccountingCapturesIdentityAtEntry(t *testing.T) {
+	d := NewDispatcher()
+	acct := &fakeAccountant{}
+	d.SetAccountingHook(acct)
+	ctx := &CommandContext{Username: "alice", RemoteAddr: "192.0.2.1"}
+	stop := d.BeginAccounting(ctx, "show version")
+	ctx.Username = "bob"
+	ctx.RemoteAddr = "192.0.2.2"
+	stop()
+	assert.Equal(t, []string{"alice"}, acct.startUsers)
+	assert.Equal(t, []string{"192.0.2.1"}, acct.startRemotes)
+	assert.Equal(t, []string{"show version"}, acct.stops)
+	assert.Equal(t, []string{"alice"}, acct.stopUsers)
+	assert.Equal(t, []string{"192.0.2.1"}, acct.stopRemotes)
 }
 
 // TestDispatcherArgValidation verifies that valid args pass and invalid args are rejected
@@ -2746,4 +2785,49 @@ func TestAnchoredDefAnswersNilWhenTheModelDoesNotSayWhich(t *testing.T) {
 	assert.Equal(t, "selector", anchoredDef("peer", one, nil).Name, "the anchored leaf wins over an unanchored one")
 	assert.Nil(t, anchoredDef("announce", one, nil), "a keyword no leaf names answers nil")
 	assert.Nil(t, anchoredDef("peer", one, map[string]string{"selector": "192.0.2.9"}), "a matched leaf takes no second value")
+}
+
+// A refused configuration command is displayed to the operator and may become
+// transcript output. Its response and accounting records must hide every word
+// of a quoted credential while retaining the path that was refused.
+func TestDispatcherRedactsDeniedSecretCommand(t *testing.T) {
+	d := NewDispatcher()
+	d.SetAuthorizer(&mockAuthorizer{allow: false})
+	accountant := &fakeAccountant{}
+	d.SetAccountingHook(accountant)
+	d.Register("set", func(*CommandContext, []string) (*plugin.Response, error) {
+		t.Fatal("denied command executed")
+		return nil, nil
+	}, "Set configuration")
+	input := `set system authentication tacacs server 192.0.2.1 key "private first middle tail-value"`
+	response, err := d.Dispatch(&CommandContext{Username: "alice"}, input)
+	require.ErrorIs(t, err, ErrUnauthorized)
+	require.NotNil(t, response)
+	require.Len(t, accountant.starts, 1)
+	require.Len(t, accountant.stops, 1)
+	for _, output := range []string{response.Error, accountant.starts[0], accountant.stops[0]} {
+		assert.NotContains(t, output, "private")
+		assert.NotContains(t, output, "middle")
+		assert.NotContains(t, output, "tail-value")
+		assert.Contains(t, output, "192.0.2.1 key <redacted>")
+	}
+}
+
+// Peer scoping adds a prefix to typed accounting. It must not prevent the
+// schema from recognising an assignment to a credential leaf.
+func TestPeerScopedAccountingMasksCredential(t *testing.T) {
+	d := NewDispatcher()
+	accountant := &fakeAccountant{}
+	d.SetAccountingHook(accountant)
+	args := []string{"system", "authentication", "tacacs", "server", "192.0.2.1", "key", "private middle tail-value"}
+	finish := d.BeginAccountingArgs(&CommandContext{Username: "alice"}, "set", args, "192.0.2.2")
+	finish()
+	require.Len(t, accountant.starts, 1)
+	require.Len(t, accountant.stops, 1)
+	for _, output := range []string{accountant.starts[0], accountant.stops[0]} {
+		assert.NotContains(t, output, "private")
+		assert.NotContains(t, output, "tail-value")
+		assert.Contains(t, output, "peer set system authentication tacacs server 192.0.2.1 key <redacted>")
+	}
+	assert.Equal(t, "private middle tail-value", args[len(args)-1], "masking must not alter the supplied command")
 }

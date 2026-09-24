@@ -169,11 +169,6 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 			return nil, nil, errServerNotReady
 		}
 
-		handler, args := pluginserver.GetStreamingHandlerForCommand(command)
-		if handler == nil {
-			return nil, nil, fmt.Errorf("unknown streaming command: %q", command)
-		}
-
 		cmdCtx := &pluginserver.CommandContext{
 			Server:         s,
 			RequestContext: ctx,
@@ -186,9 +181,18 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 			// the same for the command path).
 			Sender: plugin.OperatorSender(),
 		}
+		// RFC 8907 Section 8.3: account for "every command entered,
+		// irrespective of how the commands were authorized."
+		stopAccounting := d.BeginAccounting(cmdCtx, command)
+		handler, args := pluginserver.GetStreamingHandlerForCommand(command)
+		if handler == nil {
+			stopAccounting()
+			return nil, nil, fmt.Errorf("unknown streaming command: %q", command)
+		}
 		// Streaming commands are monitor-style read-only commands today.
 		// If write-capable streams are added, the registry must carry metadata.
 		if !d.IsAuthorized(cmdCtx, command, true) {
+			stopAccounting()
 			return nil, nil, api.ErrUnauthorized
 		}
 
@@ -198,7 +202,7 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 
 		go func() {
 			defer close(ch)
-			defer d.BeginAccounting(cmdCtx, command)()
+			defer stopAccounting()
 			defer func() {
 				if r := recover(); r != nil {
 					writer.close(fmt.Errorf("streaming handler panic: %v", r))

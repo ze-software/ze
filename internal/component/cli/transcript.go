@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -64,7 +64,7 @@ func (w *TranscriptWriter) writeHeader(t time.Time, username, remoteHost string)
 //
 // The command is redacted first. The transcript is a FILE, so a credential
 // typed at the prompt outlives the session, and `ze cli -c "... <leaf>
-// <value>"` would store it. redact.Command is the same answer the SSH exec log
+// <value>" would store it. config.DisplayCommand is the same answer the SSH exec log
 // already takes (internal/component/ssh/passwordauth.go, loggedCommand). The
 // output needs no pass of its own: every command that echoes a config value
 // masks it at its own producer, through config.DisplayValueAtPath.
@@ -74,7 +74,7 @@ func (w *TranscriptWriter) Record(command, output string) {
 	}
 	buf := textbuf.Get()
 	defer buf.Release()
-	buf.Byte('[').Str(time.Now().Format("15:04:05")).Str("] > ").Str(redact.Command(command)).Byte('\n')
+	buf.Byte('[').Str(time.Now().Format("15:04:05")).Str("] > ").Str(config.DisplayCommand(command)).Byte('\n')
 	if output != "" {
 		buf.Str(output).Byte('\n')
 	}

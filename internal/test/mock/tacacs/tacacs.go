@@ -57,12 +57,13 @@ func (s *stringSliceFlag) Set(v string) error { *s = append(*s, v); return nil }
 
 func Run(args []string) int {
 	var (
-		port       int
-		key        string
-		users      tacacsUserList
-		addrOut    string
-		logAll     bool
-		authorDeny stringSliceFlag
+		port        int
+		key         string
+		users       tacacsUserList
+		addrOut     string
+		logAll      bool
+		authorDeny  stringSliceFlag
+		authorAllow stringSliceFlag
 	)
 
 	fs := flag.NewFlagSet("ze-test tacacs-mock", flag.ExitOnError)
@@ -72,6 +73,7 @@ func Run(args []string) int {
 	fs.StringVar(&addrOut, "addr-file", "", "write listening host:port to this file")
 	fs.BoolVar(&logAll, "log-packets", true, "log every received packet to stderr")
 	fs.Var(&authorDeny, "author-deny", "deny AUTHOR REQUEST when cmd contains this substring (repeatable)")
+	fs.Var(&authorAllow, "author-allow", "allow an exact AUTHOR username=command pair without granting authentication (repeatable; deny rules still apply)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test tacacs-mock [flags]\n\nMock TACACS+ server for AAA testing.\n\nFlags:\n")
@@ -117,11 +119,11 @@ func Run(args []string) int {
 		if logAll {
 			fmt.Fprintf(os.Stderr, "tacacs-mock: connection #%d from %s\n", n, conn.RemoteAddr())
 		}
-		go tacacsMockHandle(conn, keyBytes, users, authorDeny, logAll)
+		go tacacsMockHandle(conn, keyBytes, users, authorDeny, authorAllow, logAll)
 	}
 }
 
-func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, authorDeny []string, logPackets bool) {
+func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, authorDeny, authorAllow []string, logPackets bool) {
 	defer func() { _ = conn.Close() }()
 
 	singleConnect := false
@@ -158,7 +160,7 @@ func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, authorDen
 		case 0x01:
 			tacacsMockReplyAuthen(conn, hdr, body, key, users, replyFlags, logPackets)
 		case 0x02:
-			tacacsMockReplyAuthor(conn, hdr, body, key, authorDeny, replyFlags, logPackets)
+			tacacsMockReplyAuthor(conn, hdr, body, key, users, authorDeny, authorAllow, replyFlags, logPackets)
 		case 0x03:
 			tacacsMockReplyAcct(conn, hdr, body, key, replyFlags, logPackets)
 		default:
@@ -197,91 +199,126 @@ func tacacsMockReplyAuthen(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 	}
 
 	var status uint8 = 0x02
-	var privLvl uint8
 	for _, u := range users {
 		if u.name == user && u.pass == data {
 			status = 0x01
-			privLvl = u.privLvl
 			break
 		}
 	}
 
 	msg := "mock-reply"
-	var dataField []byte
-	if status == 0x01 {
-		dataField = []byte{privLvl}
-	}
-	reply := make([]byte, 6+len(msg)+len(dataField))
+	// PAP authenticates credentials; privilege is returned only by session
+	// authorization (RFC 8907 Sections 5.4.2.2 and 9).
+	reply := make([]byte, 6+len(msg))
 	reply[0] = status
 	reply[1] = 0x00
 	binary.BigEndian.PutUint16(reply[2:4], uint16(len(msg)))
-	binary.BigEndian.PutUint16(reply[4:6], uint16(len(dataField)))
 	copy(reply[6:], msg)
-	copy(reply[6+len(msg):], dataField)
 
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
 	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHEN reply user=%q status=0x%02x priv-lvl=%d\n", user, status, privLvl)
+		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHEN reply user=%q status=0x%02x\n", user, status)
 	}
 }
 
-func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, authorDeny []string, replyFlags uint8, logPackets bool) {
-	cmd := parseAuthorCmd(body)
-	status := uint8(0x01)
-	statusName := "PASS_ADD"
+func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, users tacacsUserList, authorDeny, authorAllow []string, replyFlags uint8, logPackets bool) {
+	user, cmd, valid := parseAuthorRequest(body)
+	status := uint8(tacacs.AuthorStatusFail)
+	statusName := "FAIL"
+	var privilege string
+	if valid {
+		for _, configured := range users {
+			if configured.name != user {
+				continue
+			}
+			status = tacacs.AuthorStatusPassAdd
+			statusName = "PASS_ADD"
+			if cmd == "" {
+				privilege = "priv-lvl=" + strconv.Itoa(int(configured.privLvl))
+			}
+			break
+		}
+		for _, allowed := range authorAllow {
+			allowedUser, allowedCommand, ok := strings.Cut(allowed, "=")
+			if !ok || allowedUser != user || allowedCommand != cmd {
+				continue
+			}
+			status = tacacs.AuthorStatusPassAdd
+			statusName = "PASS_ADD"
+			break
+		}
+	}
 	for _, deny := range authorDeny {
 		if deny != "" && strings.Contains(cmd, deny) {
-			status = 0x10
+			status = tacacs.AuthorStatusFail
 			statusName = "FAIL"
+			privilege = ""
 			break
 		}
 	}
 
+	// RFC 8907 Section 6.2: status[0], arg_cnt[1], message/data lengths[2:6],
+	// then AV lengths and AV bytes. Only shell session policy assigns a level.
 	reply := []byte{status, 0x00, 0x00, 0x00, 0x00, 0x00}
+	if privilege != "" {
+		reply[1] = 1
+		reply = append(reply, uint8(len(privilege)))
+		reply = append(reply, privilege...)
+	}
 	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
 	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHOR cmd=%q reply=%s\n", cmd, statusName)
+		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHOR cmd=%q reply=%s user=%q privilege=%q\n",
+			cmd, statusName, user, privilege)
 	}
 }
 
-func parseAuthorCmd(body []byte) string {
+func parseAuthorRequest(body []byte) (string, string, bool) {
 	if len(body) < 8 {
-		return ""
+		return "", "", false
 	}
 	userLen := int(body[4])
 	portLen := int(body[5])
 	remLen := int(body[6])
 	argCount := int(body[7])
-	if len(body) < 8+argCount {
-		return ""
+	off := 8 + argCount
+	if off+userLen+portLen+remLen > len(body) {
+		return "", "", false
 	}
-	argLens := make([]int, argCount)
-	for i := range argCount {
-		argLens[i] = int(body[8+i])
-	}
-	off := 8 + argCount + userLen + portLen + remLen
+	user := string(body[off : off+userLen])
+	off += userLen + portLen + remLen
 	var cmd string
 	var cmdArgs []string
-	for _, alen := range argLens {
-		if off+alen > len(body) {
-			return ""
+	serviceSeen, commandSeen := false, false
+	for i := range argCount {
+		argLen := int(body[8+i])
+		if off+argLen > len(body) {
+			return "", "", false
 		}
-		arg := string(body[off : off+alen])
-		off += alen
-		if v, ok := strings.CutPrefix(arg, "cmd="); ok {
-			cmd = v
-		} else if v, ok := strings.CutPrefix(arg, "cmd-arg="); ok {
-			cmdArgs = append(cmdArgs, v)
+		arg := string(body[off : off+argLen])
+		off += argLen
+		switch {
+		case arg == "service=shell":
+			serviceSeen = true
+		case strings.HasPrefix(arg, "cmd="):
+			cmd = arg[4:]
+			commandSeen = true
+		case strings.HasPrefix(arg, "cmd-arg="):
+			cmdArgs = append(cmdArgs, arg[8:])
+		default:
+			return "", "", false
 		}
 	}
-	if cmd == "" {
-		return ""
+	if !serviceSeen || !commandSeen || off != len(body) {
+		return "", "", false
 	}
 	if len(cmdArgs) == 0 {
-		return cmd
+		return user, cmd, true
+	}
+	if cmd == "" {
+		return "", "", false
 	}
 	var tb textbuf.Buffer
-	return tb.Str(cmd).Byte(' ').Join(cmdArgs, " ").String()
+	return user, tb.Str(cmd).Byte(' ').Join(cmdArgs, " ").String(), true
 }
 
 func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8, logPackets bool) {

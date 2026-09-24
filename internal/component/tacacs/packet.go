@@ -13,7 +13,7 @@
 package tacacs
 
 import (
-	"crypto/md5" //nolint:gosec // RFC 8907 Section 4.6 mandates MD5 for pseudo-pad
+	"crypto/md5" //nolint:gosec // RFC 8907 Section 4.5 mandates MD5 for pseudo-pad
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -38,7 +38,7 @@ const (
 	// sessions share the TCP connection.
 	FlagSingleConnect = 0x04
 
-	// Maximum body length (uint16 max, practical limit).
+	// Maximum accepted body length, the client's bounded-buffer limit.
 	maxBodyLen = 65535
 )
 
@@ -95,9 +95,8 @@ func UnmarshalPacketHeader(data []byte) (PacketHeader, error) {
 
 // Errors for packet processing.
 var (
-	ErrBadSecret   = errors.New("bad secret: body length mismatch after decryption")
-	ErrBodyTooBig  = errors.New("body exceeds maximum length")
-	ErrSeqOverflow = errors.New("sequence number overflow")
+	ErrBadSecret  = errors.New("bad secret: body length mismatch after decryption")
+	ErrBodyTooBig = errors.New("body exceeds maximum length")
 	// ErrNoSharedSecret refuses a send with no shared secret. RFC 8907
 	// Section 10.5.2: "There MUST always be a shared secret set on the
 	// server for the client requesting the connection." The only wire form
@@ -108,7 +107,7 @@ var (
 )
 
 // Encrypt obfuscates or de-obfuscates the packet body using the MD5 pseudo-pad.
-// RFC 8907 Section 4.6. XOR is self-inverse, so encrypt == decrypt.
+// RFC 8907 Section 4.5. XOR is self-inverse, so encrypt == decrypt.
 //
 // The pseudo-pad is generated as:
 //
@@ -136,8 +135,10 @@ func Encrypt(body []byte, sessionID uint32, key []byte, version, seqNo uint8) {
 	copy(input[4:4+len(key)], key)
 	input[inputLen-2] = version
 	input[inputLen-1] = seqNo
+	defer clear(input)
 
-	h := md5.New() //nolint:gosec // RFC 8907 Section 4.6 mandates MD5
+	h := md5.New() //nolint:gosec // RFC 8907 Section 4.5 mandates MD5
+	var digest [md5.Size]byte
 	var prevSum []byte
 
 	for off := 0; off < len(body); off += md5.Size {
@@ -146,7 +147,7 @@ func Encrypt(body []byte, sessionID uint32, key []byte, version, seqNo uint8) {
 		if len(prevSum) > 0 {
 			h.Write(prevSum)
 		}
-		prevSum = h.Sum(nil)
+		prevSum = h.Sum(digest[:0])
 
 		end := min(off+md5.Size, len(body))
 		for i := off; i < end; i++ {
@@ -195,7 +196,9 @@ func (p *Packet) MarshalInto(buf, key []byte) (int, error) {
 	buf[0] = p.Header.Version
 	buf[1] = p.Header.Type
 	buf[2] = p.Header.SeqNo
-	buf[3] = p.Header.Flags
+	// RFC 8907 Section 10.5.2: "TACACS+ clients MUST NOT set
+	// TAC_PLUS_UNENCRYPTED_FLAG." Only the defined negotiation flag is sent.
+	buf[3] = p.Header.Flags & FlagSingleConnect
 	binary.BigEndian.PutUint32(buf[4:8], p.Header.SessionID)
 	binary.BigEndian.PutUint32(buf[8:12], p.Header.Length)
 

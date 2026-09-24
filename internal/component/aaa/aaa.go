@@ -53,11 +53,19 @@ type localFallbackBindingAuthorizer interface {
 	BindLocalFallback(Authorizer) Authorizer
 }
 
-// Accountant records command execution. Implementations MUST NOT block
-// command execution on accounting failure; errors are logged locally.
+// Accountant records entered commands, including commands denied by policy.
+// Implementations MUST NOT deny execution on accounting failure; errors are
+// logged locally. A bounded queue may apply backpressure to retain each record.
 type Accountant interface {
 	CommandStart(username, remoteAddr, command string) (taskID string)
 	CommandStop(taskID, username, remoteAddr, command string)
+}
+
+// CommandArgsAccountant preserves argument boundaries for command accounting.
+// Dispatchers prefer it when available, as they do CommandArgsAuthorizer.
+type CommandArgsAccountant interface {
+	CommandStartArgs(username, remoteAddr string, tokens []string) (taskID string)
+	CommandStopArgs(taskID, username, remoteAddr string, tokens []string)
 }
 
 // Backend is a factory for AAA capabilities. A backend self-registers via

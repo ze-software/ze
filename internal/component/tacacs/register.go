@@ -29,10 +29,20 @@ func (tacacsBackend) Name() string { return backendName }
 func (tacacsBackend) Priority() int { return 100 }
 
 // Build reads the tacacs config subtree and returns the AAA contributions.
-// Returns an empty Contribution when no servers are configured.
+// Returns an empty Contribution only when no TACACS+ capability is selected.
 func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 	cfg := ExtractConfig(params.ConfigTree)
 	if !cfg.HasServers() {
+		// RFC 8907 Section 8.3: "TACACS+ client devices MUST be configured
+		// to send an accounting start packet for every command entered,
+		// irrespective of how the commands were authorized."
+		// Selecting accounting without a destination cannot produce a record.
+		if cfg.Accounting {
+			return aaa.Contribution{}, fmt.Errorf("tacacs accounting requires at least one server")
+		}
+		if cfg.Authorization {
+			return aaa.Contribution{}, fmt.Errorf("tacacs authorization requires at least one server")
+		}
 		return aaa.Contribution{}, nil
 	}
 

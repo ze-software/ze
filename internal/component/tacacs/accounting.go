@@ -21,24 +21,28 @@ type acctMsg struct {
 	req *AcctRequest
 }
 
+// Command IDs span accountant generations because reload can leave commands
+// active on both the retired and the newly installed server configuration.
+var accountingTaskSeq atomic.Uint64
+
 // TacacsAccountant sends TACACS+ accounting records for command execution.
 // It implements aaa.Accountant.
-// Accounting failures are logged locally and never block command execution.
+// Accounting failures are logged locally and never refuse command execution.
+// A full queue applies backpressure rather than discarding commands.
 //
-// Lifecycle: call Start() before use, Stop() on shutdown. Start() launches
-// one long-lived worker goroutine that reads from the queue. Stop() is safe
-// to call multiple times; enqueue after Stop is safe (the record is dropped
-// silently, never panics on a closed channel). Stop signals the worker via
-// stopCh and never closes the queue, so the send-path stays panic-free.
+// Safe for concurrent use. The owner MUST call Start before use and Stop
+// before closing the client. Stop drains accepted records and waits for the
+// worker; each exchange remains bounded by the client's server timeouts.
 type TacacsAccountant struct {
-	client   *TacacsClient
-	logger   *slog.Logger
-	taskSeq  atomic.Uint64 // monotonic task ID generator
-	drops    atomic.Uint64 // records dropped because queue was full or stopped
-	queue    chan acctMsg  // buffered channel for the worker (never closed)
-	done     chan struct{} // closed when worker exits
-	stopCh   chan struct{} // closed by Stop; checked by worker and enqueue
-	stopOnce sync.Once     // guards close(stopCh) against double-Stop
+	client    *TacacsClient
+	logger    *slog.Logger
+	drops     atomic.Uint64 // records refused after shutdown
+	queue     chan acctMsg  // buffered channel; closed under mu by Stop
+	done      chan struct{} // closed when worker exits
+	mu        sync.RWMutex  // protects stopped and serializes enqueue with close
+	stopped   bool
+	startOnce sync.Once
+	stopOnce  sync.Once
 }
 
 // NewTacacsAccountant creates a TacacsAccountant.
@@ -52,27 +56,32 @@ func NewTacacsAccountant(client *TacacsClient, logger *slog.Logger) *TacacsAccou
 		logger: logger,
 		queue:  make(chan acctMsg, 64),
 		done:   make(chan struct{}),
-		stopCh: make(chan struct{}),
 	}
 }
 
-// Start launches the background worker that sends accounting records.
-// The worker runs until Stop() is called.
+// Start launches the background worker once. The owner MUST call Stop before
+// closing the client, including when no command has been submitted.
 func (a *TacacsAccountant) Start() {
-	go a.worker()
+	a.startOnce.Do(func() {
+		go a.worker()
+	})
 }
 
-// Stop signals the worker to exit and blocks until it does.
-// Idempotent: safe to call multiple times. Never closes the queue, so
-// concurrent enqueue calls cannot panic.
+// Stop drains all accepted records and waits for the worker. The owner MUST
+// call Stop before closing the client. Safe to call more than once and before
+// Start; new records after shutdown are refused and counted.
 func (a *TacacsAccountant) Stop() {
 	a.stopOnce.Do(func() {
-		close(a.stopCh)
+		a.Start()
+		a.mu.Lock()
+		a.stopped = true
+		close(a.queue)
+		a.mu.Unlock()
 	})
 	<-a.done
 }
 
-// DropCount returns the number of accounting records dropped by the send path.
+// DropCount returns the number of records refused after shutdown.
 func (a *TacacsAccountant) DropCount() uint64 {
 	if a == nil {
 		return 0
@@ -80,33 +89,14 @@ func (a *TacacsAccountant) DropCount() uint64 {
 	return a.drops.Load()
 }
 
-// worker reads from the queue and sends each request to the TACACS+ server.
-// Exits when stopCh is closed. Records still queued at stop time are dropped
-// (accounting is best-effort) and at most one in-flight processOne call
-// completes before the worker exits, bounding Stop()'s blocking window to
-// a single TACACS+ client Timeout regardless of queue depth.
-//
-// One subtlety for tests that count "records sent": when Stop runs while
-// the worker has just received a message from the queue, the message is
-// consumed (removed from the channel) but dropped before reaching the
-// server. A test that observes "N messages enqueued, expect N sent" must
-// either avoid stopping mid-drain or tolerate dropped tail messages.
+// worker drains the queue until Stop closes it. RFC 8907 Section 8.3:
+// "TACACS+ client devices MUST be configured to send an accounting start
+// packet for every command entered, irrespective of how the commands were
+// authorized." Shutdown must not discard records that were already accepted.
 func (a *TacacsAccountant) worker() {
 	defer close(a.done)
-	for {
-		select {
-		case <-a.stopCh:
-			return
-		case msg := <-a.queue:
-			// Re-check stopCh before calling processOne so a Stop that
-			// fires during a drain of a long queue does not have to wait
-			// out queue_size * Timeout worth of SendAccounting calls
-			// before the worker notices.
-			if a.isStopped() {
-				return
-			}
-			a.processOne(msg)
-		}
+	for msg := range a.queue {
+		a.processOne(msg)
 	}
 }
 
@@ -124,44 +114,34 @@ func (a *TacacsAccountant) processOne(msg acctMsg) {
 	}
 }
 
-// enqueue adds an accounting request to the worker queue.
-// Returns false if the queue is full (record dropped) or the accountant is
-// stopped. Never panics: the queue is never closed, and a stopCh check
-// drops records arriving after Stop.
-//
-// Concurrency note: a benign race exists between the isStopped() check and
-// the channel send. If Stop runs between the two, the send still succeeds
-// (queue is buffered, not closed) and the message sits in the queue until
-// the accountant is garbage-collected. No panic, no observable leak beyond
-// normal GC -- the worker has already exited so the message is never
-// processed, but it was a best-effort record anyway.
+// enqueue waits for a slot in the bounded queue. Holding mu through the send
+// lets Stop close the queue only after all accepted senders have finished.
+// RFC 8907 Section 8.3: "TACACS+ client devices MUST be configured to send an
+// accounting start packet for every command entered, irrespective of how the
+// commands were authorized." Queue saturation is not permission to omit one.
 func (a *TacacsAccountant) enqueue(req *AcctRequest) bool {
-	if a.isStopped() {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.stopped {
 		return false
 	}
-	select {
-	case a.queue <- acctMsg{req: req}:
-		return true
-	default: // queue full -- drop record, logged by caller
-		return false
-	}
-}
-
-// isStopped returns true if Stop has been called.
-// Non-blocking check against stopCh.
-func (a *TacacsAccountant) isStopped() bool {
-	select {
-	case <-a.stopCh:
-		return true
-	default: // stopCh not yet closed; accountant is live
-		return false
-	}
+	a.queue <- acctMsg{req: req}
+	return true
 }
 
 // CommandStart sends an accounting START record. Returns a task ID for correlation.
-// Never blocks: enqueues to the worker. Drops with a warning if the queue is full.
+// Waits for queue capacity; it never discards a command because the queue is full.
 func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) string {
-	taskID := strconv.Itoa(int(a.taskSeq.Add(1)))
+	return a.commandStart(username, remoteAddr, splitTacacsArgs(command))
+}
+
+// CommandStartArgs records the dispatcher's original argument boundaries.
+func (a *TacacsAccountant) CommandStartArgs(username, remoteAddr string, tokens []string) string {
+	return a.commandStart(username, remoteAddr, splitTacacsTokens(tokens))
+}
+
+func (a *TacacsAccountant) commandStart(username, remoteAddr string, commandArgs []string) string {
+	taskID := strconv.FormatUint(accountingTaskSeq.Add(1), 10)
 
 	// RFC 8907 Section 8.3: the accounting arguments "MUST precede any
 	// argument-value pairs that are defined in 'Authorization' (Section 6)",
@@ -169,10 +149,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 	// start_time is epoch seconds: Section 8.1 says "The time zone MUST be
 	// UTC unless a time zone argument is specified", and Unix() is UTC by
 	// definition whatever time.Local holds.
-	args := append([]string{
-		"task_id=" + taskID,
-		textbuf.StrInt("start_time=", time.Now().Unix()),
-	}, splitTacacsArgs(command)...)
+	args := accountingArguments(taskID, textbuf.StrInt("start_time=", time.Now().Unix()), commandArgs)
 	req := &AcctRequest{
 		Flags:         AcctFlagStart,
 		AuthenMethod:  0x06, // TACACS+
@@ -187,24 +164,29 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 
 	if !a.enqueue(req) {
 		a.drops.Add(1)
-		a.logger.Warn("TACACS+ accounting queue full, dropping START",
-			"username", username, "command", command)
+		a.logger.Warn("TACACS+ accounting stopped, refusing START", "username", username)
 	}
 
 	return taskID
 }
 
 // CommandStop sends an accounting STOP record.
-// Never blocks: enqueues to the worker. Drops with a warning if the queue is full.
+// Waits for queue capacity; it never discards a record because the queue is full.
 func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command string) {
+	a.commandStop(taskID, username, remoteAddr, splitTacacsArgs(command))
+}
+
+// CommandStopArgs records the same argument boundaries as CommandStartArgs.
+func (a *TacacsAccountant) CommandStopArgs(taskID, username, remoteAddr string, tokens []string) {
+	a.commandStop(taskID, username, remoteAddr, splitTacacsTokens(tokens))
+}
+
+func (a *TacacsAccountant) commandStop(taskID, username, remoteAddr string, commandArgs []string) {
 	// RFC 8907 Section 8.3: accounting arguments precede the Section 6 ones
-	// (see CommandStart), and Section 7.1 says "The STOP flag MUST NOT be
+	// (see CommandStart), and Section 7.2 says "The STOP flag MUST NOT be
 	// set in conjunction with the WATCHDOG flag": the record carries
 	// AcctFlagStop alone.
-	stopArgs := append([]string{
-		"task_id=" + taskID,
-		textbuf.StrInt("stop_time=", time.Now().Unix()),
-	}, splitTacacsArgs(command)...)
+	stopArgs := accountingArguments(taskID, textbuf.StrInt("stop_time=", time.Now().Unix()), commandArgs)
 	req := &AcctRequest{
 		Flags:         AcctFlagStop,
 		AuthenMethod:  0x06, // TACACS+
@@ -219,7 +201,6 @@ func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command str
 
 	if !a.enqueue(req) {
 		a.drops.Add(1)
-		a.logger.Warn("TACACS+ accounting queue full, dropping STOP",
-			"username", username, "command", command)
+		a.logger.Warn("TACACS+ accounting stopped, refusing STOP", "username", username)
 	}
 }

@@ -56,21 +56,20 @@ func newStatusAuthenticator(t *testing.T, replyFn func(PacketHeader, []byte) []b
 
 var aliceRequest = aaa.AuthRequest{Username: "alice", Password: "hunter2", RemoteAddr: "192.0.2.1"}
 
-// RFC requirement: RFC8907-4.1-1 positive — a PASS whose data_len is zero is read as carrying no priv_lvl: the client applies the default level 1 and maps it.
+// RFC requirement: RFC8907-4.1-1 positive — an authentication reply whose data_len is zero exposes no data bytes to the client.
 func TestRFC8907ZeroLengthDataIsReadAsAbsent(t *testing.T) {
-	auth := newStatusAuthenticator(t, authenReply(AuthenStatusPass, "", nil), map[int][]string{1: {"ops"}})
-	result, err := auth.Authenticate(aliceRequest)
+	auth := newStatusAuthenticator(t, authenReply(AuthenStatusPass, "", nil), nil)
+	reply, err := auth.client.Authenticate("alice", "secret", "ssh", "192.0.2.1")
 	require.NoError(t, err)
-	require.True(t, result.Authenticated)
-	require.Equal(t, []string{"ops"}, result.Profiles)
+	require.Empty(t, reply.Data)
 }
 
-// RFC requirement: RFC8907-4.1-1 negative — a PASS whose one-byte data field holds 0x00 is a present priv_lvl 0, not an absent one: the default level 1 is not applied and the unmapped level is rejected.
+// RFC requirement: RFC8907-4.1-1 negative — a one-byte authentication data field containing zero is retained, not confused with an absent field.
 func TestRFC8907PresentZeroByteIsNotReadAsAbsent(t *testing.T) {
-	auth := newStatusAuthenticator(t, authenReply(AuthenStatusPass, "", []byte{0x00}), map[int][]string{1: {"ops"}})
-	result, err := auth.Authenticate(aliceRequest)
-	require.ErrorIs(t, err, aaa.ErrAuthRejected)
-	require.False(t, result.Authenticated)
+	auth := newStatusAuthenticator(t, authenReply(AuthenStatusPass, "", []byte{0x00}), nil)
+	reply, err := auth.client.Authenticate("alice", "secret", "ssh", "192.0.2.1")
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x00}, reply.Data)
 }
 
 // RFC requirement: RFC8907-5.4.3-1 positive — a RESTART reply is processed as FAIL: the result is rejected with aaa.ErrAuthRejected, which stops the AAA chain.
@@ -125,12 +124,20 @@ func TestRFC8907AuthorizationPassAddIsNotDenied(t *testing.T) {
 	require.True(t, authz.Authorize("alice", "192.0.2.1", "show version", true))
 }
 
-// RFC requirement: RFC8907-x-2 positive — a FOLLOW reply is not a successful authentication: the result is unauthenticated and carries an error.
+// RFC requirement: RFC8907-x-2 positive — FOLLOW is a terminal authentication rejection (aaa.ErrAuthRejected), so local fallback cannot grant the login.
 func TestRFC8907FollowIsNotAuthenticated(t *testing.T) {
 	auth := newStatusAuthenticator(t, authenReply(AuthenStatusFollow, "127.0.0.1:49", nil), map[int][]string{1: {"ops"}})
 	result, err := auth.Authenticate(aliceRequest)
-	require.Error(t, err)
+	require.ErrorIs(t, err, aaa.ErrAuthRejected)
 	require.False(t, result.Authenticated)
+}
+
+// RFC requirement: RFC8907-x-2 positive — authorization FOLLOW denies the command without consulting permissive local fallback.
+func TestRFC8907AuthorizationFollowDeniesWithoutFallback(t *testing.T) {
+	local := &allowAll{}
+	authz := newStatusAuthorizer(t, AuthorStatusFollow, local)
+	require.False(t, authz.Authorize("alice", "192.0.2.1", "show version", true))
+	require.Zero(t, local.calls)
 }
 
 // RFC requirement: RFC8907-x-2 negative — the redirection target a FOLLOW reply names receives no connection from the client.

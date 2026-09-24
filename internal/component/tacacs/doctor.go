@@ -12,6 +12,9 @@
 package tacacs
 
 import (
+	"fmt"
+	"unicode/utf8"
+
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
@@ -20,6 +23,9 @@ import (
 // accepts a TCP connection. internal/core/diagnostic/codes.go declares it, so
 // `ze explain doctor-tacacs-unreachable` answers.
 const codeTACACSUnreachable = "doctor-tacacs-unreachable"
+
+// codeTACACSWeakSecret identifies a key below the RFC's recommended length.
+const codeTACACSWeakSecret = "doctor-tacacs-weak-secret"
 
 // tacacsTCPReachable is the probe checkTACACSServers runs. It is a variable so
 // a test can stand in an unreachable server; nothing else assigns it.
@@ -38,7 +44,7 @@ var tacacsDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "tacacs",
 	Dependencies: []string{"tacacs-server"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeTACACSUnreachable},
+	Codes:        []string{codeTACACSUnreachable, codeTACACSWeakSecret},
 	Check:        checkTACACSServers,
 }
 
@@ -62,15 +68,30 @@ func checkTACACSServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 		return nil
 	}
 
+	var diagnostics []diagnostic.Diagnostic
+	// RFC 8907 Section 10.5.1: "TACACS+ clients SHOULD NOT allow servers
+	// to be configured without a shared secret key or shared key that is
+	// less than 16 characters long." Existing short keys remain accepted,
+	// but readiness exposes the risk without displaying the credential.
+	for _, server := range cfg.Servers {
+		if utf8.RuneCount(server.Key) < 16 {
+			diagnostics = append(diagnostics, diagnostic.Diagnostic{
+				Code:     codeTACACSWeakSecret,
+				Severity: diagnostic.SeverityWarning,
+				Message:  fmt.Sprintf("TACACS+ server %s: shared secret is shorter than the recommended 16 characters", server.Address),
+			})
+		}
+	}
+
 	timeout := diagnostic.DoctorProbeTimeout(cfg.Timeout)
 	for _, server := range cfg.Servers {
 		if tacacsTCPReachable(server.Address, timeout) {
-			return nil
+			return diagnostics
 		}
 	}
-	return []diagnostic.Diagnostic{{
+	return append(diagnostics, diagnostic.Diagnostic{
 		Code:     codeTACACSUnreachable,
 		Severity: diagnostic.SeverityWarning,
 		Message:  "none of the configured TACACS+ servers are reachable",
-	}}
+	})
 }

@@ -25,9 +25,10 @@ Without that distinction, a wrong TACACS+ password falls through to the local
 bcrypt hash. That is a security regression wearing the costume of a resilience
 feature: the central server said no, and the box says yes.
 
-The same rule is what keeps the recovery path open. An operator who makes
-TACACS+ the only backend can still be rescued by the ZeFS super-admin, which
-sits outside the AAA chain by design.
+The ZeFS super-admin uses the separately assigned reserved recovery profile.
+On web login, only a successful local result carrying that profile can override
+a central rejection. Ordinary configuration users cannot use the web fallback
+to bypass it; an unavailable backend still permits local authentication.
 
 ## A backend that will not BUILD is dropped, and the chain carries on
 
@@ -79,9 +80,11 @@ is, because the chain's fallback is an ACCOUNT and that config declares none.
 
 ## An unmapped privilege level is a denial
 
-A TACACS+ user whose priv-lvl has no `tacacs-profile` entry is denied. This
-differs from a local user, where the absence of a profile means admin. Adding a
-new level on the upstream server must never silently grant access on the box.
+A successful PAP reply is followed by a session authorization request carrying
+`service=shell` and an empty `cmd`. Its `priv-lvl` argument selects the configured
+`tacacs-profile` entries. Authentication reply data never supplies privileges.
+A level with no mapped profiles is denied, including level zero. An absent
+`priv-lvl` uses level one; a mandatory malformed or oversized value denies login.
 
 ## Own the wire code
 
@@ -95,25 +98,86 @@ message types, so ze owns it and follows ze naming.
 <!-- source: internal/component/tacacs/author.go -- authorization exchange -->
 <!-- source: internal/component/tacacs/acct.go -- accounting exchange -->
 
-Single-connect (RFC 8907 section 4.4) keeps a per-server connection pool under
+Single-connect (RFC 8907 section 4.3) keeps a per-server connection pool under
 a mutex. The first packet on a fresh TCP connection sets the single-connect
 flag (0x04). The connection is pooled only when the server echoes the flag on
 its reply. A dead pooled connection is evicted on a read or write error and the
 caller retries once.
 
+The receive path checks that the decrypted component lengths consume the entire
+body before it retains a connection. Trailing bytes, truncated fields and invalid
+display text close that connection. Unknown header flag bits are ignored, while
+an unexpected unencrypted flag closes the connection and returns a terminal
+denial. An ERROR status tries the next configured server; an explicit FAIL,
+RESTART or FOLLOW cannot fall through to a backup decision.
+
+Usernames use the RFC 8265 UsernameCasePreserved profile: width mapping and NFC
+normalization preserve case, and disallowed Unicode or invalid bidirectional
+text is refused. Other text fields, including PAP passwords, use printable
+US-ASCII. Authentication reply data remains binary. Reply fields own their
+storage, and the client clears wire scratch before returning it to the pool.
+
+Synthetic dispatch actors stay in AAA's NUL-prefixed local namespace. The wire
+codec represents an internal plugin/RPC actor or shared-API actor as
+`~ze~r:<base64url(raw identity bytes)>`, without padding. Human usernames first
+undergo PRECIS preparation; a resulting name beginning `~ze~` becomes
+`~ze~u:<base64url(prepared username bytes)>` in PAP, AUTHOR and ACCT. These
+disjoint encodings prevent a printable lookalike, including a width-mapped one,
+from becoming a synthetic actor. No wire value grants local reserved authority.
+Unknown reserved names and NUL-prefixed authentication inputs remain invalid.
+The encoded username must fit 255 bytes: at most 186 input bytes fit either
+encoded branch. Longer identities are refused, never hashed or shortened.
+Local authorization and unreachable-server fallback still receive the original
+local identity.
+<!-- source: internal/component/tacacs/text.go -- prepareWireUsername -->
+
+## Authorization arguments are enforced
+
+Command authorization uses `service=shell`, `cmd` and ordered `cmd-arg` values.
+PASS_ADD retains the request arguments and applies the response; PASS_REPL
+replaces them. The dispatcher executes the original command, so a response
+that removes, reorders or changes that command's arguments is denied.
+
+Command values use Go quoted-string escapes without surrounding quotes:
+`café` becomes `caf\u00e9`, and literal backslashes are doubled. Ordinary
+printable text without quotes or backslashes is unchanged. The encoding is
+lossless; execution and local fallback use the original arguments. An
+authorization request that cannot fit the wire limits is denied, never shortened.
+The server's command policy must interpret this display encoding consistently.
+<!-- source: internal/component/tacacs/command_text.go -- asciiCommandValue -->
+
+Ze rejects mandatory attributes it cannot enforce, including session timeouts,
+ACL assignment and privilege changes on an individual command. Unsupported
+optional attributes may be ignored. Session authorization additionally supports
+decimal `priv-lvl` values from zero through fifteen. Servers must use this
+dictionary consistently; a PASS status alone cannot grant an unsupported policy.
+
 ## Accounting hangs off one dispatch point
 
 Every dispatched command, from SSH exec, the interactive TUI, the local CLI and
-the API, converges on `Dispatcher.Dispatch()`. START is sent after
-authorization passes and STOP through a `defer` after the handler returns. One
-hook covers every entry point, and an accounting failure is logged and never
-blocks the command.
+the API, is accounted before lookup and authorization. Denied and unknown
+commands therefore produce records as well. Streaming entry points use the
+same accounting hook and retain the STOP callback until the stream finishes.
+Accounting failures are logged and never refuse command execution; a full queue
+waits for capacity instead of discarding commands.
+
+Accounting receives the redacted display tokens from dispatch. After ASCII
+escaping, each AV is at most 255 bytes and each request has at most 255 AVs.
+An oversized display carries `ze-command-truncated=1` and
+`ze-command-sha256=<hex digest>` before the service/command arguments. The
+digest covers the complete redacted AV sequence, each preceded by its unsigned
+64-bit big-endian byte length. Long fields end with `...` at an escape boundary;
+excess arguments are omitted. This is explicitly a bounded display, not a
+reconstructable full command, and its digest never includes the redacted secrets.
+Both START and STOP use the same task ID and display digest. The original command
+still reaches execution; this accounting-only bound never approves lossy policy.
+<!-- source: internal/component/tacacs/command_text.go -- accountingArguments -->
 
 <!-- source: internal/component/plugin/server/command.go -- accountant hook in Dispatcher -->
 
 Boot builds the AAA bundle once. A later BGP infrastructure hook reuses the same
 bundle, so an open session and its accounting pair keep live backends. Daemon
-shutdown closes the bundle and drains its accounting workers.
+shutdown closes the bundle and drains accepted accounting records.
 
 A config reload builds a replacement and swaps it in. It has to: the local
 backend re-reads the accepted credentials on every login. And a RADIUS or
@@ -121,13 +185,14 @@ TACACS+ client holds the address, the shared secret and the timeout it was
 constructed with. The replacement is built while the reload can still fail, and
 it is installed at the same acceptance point that publishes the new credentials.
 A reload that fails after that build closes the replacement, so its socket and
-its accounting worker do not leak. The swap closes the chain it replaces, which
-is what drains the retired TACACS+ accounting worker.
+its accounting worker do not leak. Outstanding commands retain their original
+accountant through STOP; retirement closes that bundle after its last command
+finishes. Task identifiers remain unique across configuration generations.
 
-Every management surface reads the installed bundle on each call. ssh receives
-`liveAAABundleAuthenticator` and `liveAAABundleAuthorizer` rather than the
-fields of the bundle built at boot. As a result, an operator who rotates a
-shared secret gets the new one on the next login and needs no restart.
+Every management surface reads the installed bundle on each call. SSH password
+results bind their login-resolved profile names to `liveAAABundleAuthorizer`,
+so an existing session's next command uses the newly configured TACACS+ server.
+New logins use `liveAAABundleAuthenticator` and the replacement shared secret.
 <!-- source: cmd/ze/hub/infra_setup.go -- boot-owned AAA bundle reuse -->
 <!-- source: cmd/ze/hub/main_reload.go -- candidate bundle build and acceptance-point swap -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- claimAAABundleBoot, swapAAABundle, closeAAABundle -->
@@ -164,5 +229,16 @@ test and it carries the mapped profiles as proof of the priv-lvl mapping.
   <config>` prints the rows in the configured default format and adds the
   reachability verdict as its exit code. No daemon is needed: the probe reads
   the config file and dials from the operator's own process.
-- Two identical server addresses in `tacacs.server` produce disambiguated YANG
-  list keys (`127.0.0.1` and `127.0.0.1#1`).
+- Active duplicate server addresses are rejected by the configuration parser.
+  Each address is the YANG list key.
+
+Shared-secret fields are redacted in diagnostic rendering, structured logs and
+JSON output. The configuration's `$9$` representation is reversible obfuscation,
+so the configuration file needs the same access protection as credentials.
+`ze doctor` warns about keys shorter than sixteen characters. Keys of at least
+thirty-two characters are supported without truncation.
+
+RFC 8907 section 10.5 requires a deployment with transport privacy, integrity and
+separation from other traffic. MD5 body obfuscation supplies none of those
+guarantees; a reachable server or configured source address does not establish
+that the deployment meets them.

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // LeafHoldsSecret reports whether the schema marks this leaf as holding a
@@ -72,6 +74,68 @@ func DisplayValueAtPath(schema *Schema, path []string, value string) string {
 	}
 
 	return SecretDataPlaceholder
+}
+
+// DisplayCommand masks configuration assignments using the same schema as
+// DisplayValueAtPath. It recognises set, config set and ze config set, including
+// peer-scoped display forms. The latter two forms may carry a config-file
+// argument before the tree path. Unknown paths and unavailable schemas fail closed.
+// Only a display copy is changed; execution retains the original arguments.
+func DisplayCommand(input string) string {
+	tokens := newTokenizer(input)
+	first := tokens.next()
+	if strings.EqualFold(first.value, "peer") {
+		first = tokens.next()
+		// Typed accounting omits the selector value; command transcripts retain
+		// it. Neither form may hide an assignment from schema-based masking.
+		switch strings.ToLower(first.value) {
+		case "set", "config", "ze":
+		default:
+			first = tokens.next()
+		}
+	}
+	if strings.EqualFold(first.value, "ze") {
+		first = tokens.next()
+	}
+	hasFile := false
+	if strings.EqualFold(first.value, "config") {
+		hasFile = true
+		first = tokens.next()
+	}
+	if !strings.EqualFold(first.value, "set") {
+		return redact.Command(input)
+	}
+	prefix := tokens.pos
+	schema, err := YANGSchema()
+	if err != nil {
+		return input[:prefix] + " " + redact.Placeholder
+	}
+	var path []string
+	// Every iteration consumes a token from input. Stop before reading a
+	// secret's value: quoted or malformed values are masked in their entirety.
+	for {
+		token := tokens.next()
+		if token.kind != tokenWord && token.kind != tokenString {
+			return input[:prefix] + " " + redact.Placeholder
+		}
+		path = append(path, token.value)
+		node := schema.LookupTokenPath(path)
+		if node == nil && hasFile && len(path) > 1 {
+			node = schema.LookupTokenPath(path[1:])
+		}
+		leaf, ok := node.(*LeafNode)
+		if !ok {
+			continue
+		}
+		if LeafHoldsSecret(leaf) {
+			// RFC 8907 Section 10.5.1: "TACACS+ servers and clients MUST
+			// treat shared secrets as sensitive data to be managed securely,
+			// as would be expected for other sensitive data such as identity
+			// credential information."
+			return input[:tokens.pos] + " " + redact.Placeholder
+		}
+		return redact.Command(input)
+	}
 }
 
 // DisplayMessageAtPath answers the refusal text a command may publish about the

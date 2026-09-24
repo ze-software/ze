@@ -4,6 +4,7 @@
 package tacacs
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func tacacsServerTree(addr, port string) *config.Tree {
 	tacacs := tree.GetOrCreateContainer("system").GetOrCreateContainer("authentication").GetOrCreateContainer("tacacs")
 	server := config.NewTree()
 	server.Set("address", addr)
-	server.Set("key", "secret")
+	server.Set("key", "doctor-probe-shared-secret-32-characters")
 	if port != "" {
 		server.Set("port", port)
 	}
@@ -112,4 +113,32 @@ func TestTACACSDoctorCheckRegistered(t *testing.T) {
 
 	diagnostic.RegisterBuiltinCodes()
 	assert.NotNil(t, diagnostic.Lookup(codeTACACSUnreachable), "diagnostic code %q is not registered", codeTACACSUnreachable)
+}
+
+// Doctor reports weak secrets even when the server is reachable, but never
+// renders their values. A 16-character key clears the recommendation warning.
+func TestTACACSDoctorWarnsAboutWeakSecretWithoutDisclosure(t *testing.T) {
+	withServerProbe(t, true)
+	for _, key := range []string{"short-secret", strings.Repeat("x", 16)} {
+		tree := tacacsServerTree("192.0.2.1", "")
+		server := tree.GetContainer("system").GetContainer("authentication").GetContainer("tacacs").GetList("server")["192.0.2.1"]
+		server.Set("key", key)
+		diagnostics := checkTACACSServers(diagnostic.DoctorCheckContext{Tree: tree})
+		if len(key) == 16 {
+			if len(diagnostics) != 0 {
+				t.Fatalf("recommended-length key reported weak: %+v", diagnostics)
+			}
+			continue
+		}
+		if len(diagnostics) != 1 || diagnostics[0].Code != codeTACACSWeakSecret {
+			t.Fatalf("short key not diagnosed: %+v", diagnostics)
+		}
+		if strings.Contains(diagnostics[0].Message, key) {
+			t.Fatal("doctor exposed the shared secret")
+		}
+	}
+	diagnostic.RegisterBuiltinCodes()
+	if diagnostic.Lookup(codeTACACSWeakSecret) == nil {
+		t.Fatal("weak-secret diagnostic has no operator explanation")
+	}
 }

@@ -1,6 +1,7 @@
 package tacacs
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +108,7 @@ func TestUnmarshalAuthenReplyTruncated(t *testing.T) {
 func TestAuthenStartEmptyFields(t *testing.T) {
 	start := &AuthenStart{
 		Action:        authenActionLogin,
-		AuthenType:    authenTypePAP,
+		AuthenType:    0x01, // ASCII permits an absent initial username.
 		AuthenService: authenServiceLogin,
 	}
 
@@ -123,12 +124,12 @@ func TestAuthenStartEmptyFields(t *testing.T) {
 // VALIDATES: BLOCKER #1 -- MarshalBinary rejects fields >255 bytes.
 // PREVENTS: silent uint8 truncation producing malformed packets.
 func TestAuthenStartMarshalFieldTooLong(t *testing.T) {
-	long := make([]byte, 256)
+	long := strings.Repeat("u", 256)
 	start := &AuthenStart{
 		Action:        authenActionLogin,
 		AuthenType:    authenTypePAP,
 		AuthenService: authenServiceLogin,
-		User:          string(long),
+		User:          long,
 	}
 
 	_, err := start.MarshalBinary()

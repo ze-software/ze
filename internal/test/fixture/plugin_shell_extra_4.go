@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	tacacsmock "github.com/ze-software/ze/internal/test/mock/tacacs"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -259,7 +261,7 @@ func pluginShellExtra4StartupUnreachable(ctx context.Context, args []string) err
 	})
 }
 
-func pluginShellExtra4StartTacacs(ctx context.Context, port, user string, deny ...string) error {
+func pluginShellExtra4StartTacacs(ctx context.Context, port, user string, options ...string) error {
 	portNumber, err := strconv.Atoi(port)
 	if err != nil || portNumber < 1 || portNumber > 65535 {
 		return fmt.Errorf("invalid TACACS port %q", port)
@@ -267,9 +269,7 @@ func pluginShellExtra4StartTacacs(ctx context.Context, port, user string, deny .
 	addrFile := fmt.Sprintf("tacacs-extra-4-%d.addr", os.Getpid())
 	_ = os.Remove(addrFile)
 	arguments := []string{"--port", port, "--key", "ze-mock-key", "--user", user, "--addr-file", addrFile}
-	for _, word := range deny {
-		arguments = append(arguments, "--author-deny", word)
-	}
+	arguments = append(arguments, options...)
 	done := make(chan int, 1)
 	go func() { done <- tacacsmock.Run(arguments) }()
 	ready := Poll(ctx, 50, 100*time.Millisecond, func() bool {
@@ -297,7 +297,20 @@ func pluginShellExtra4TacacsDriver(ctx context.Context, name string, args []stri
 	if len(args) != 2 {
 		return fmt.Errorf("%s: got %d arguments, want TACACS and SSH ports", name, len(args))
 	}
-	if err := pluginShellExtra4StartTacacs(ctx, args[0], user, deny...); err != nil {
+	var options []string
+	for _, word := range deny {
+		options = append(options, "--author-deny", word)
+	}
+	if name == "tacacs-author" {
+		// Only the configured observer may finish this authorization fixture.
+		// It gets no login credential and no permission for other commands.
+		principal := aaa.ReservedInternalPrefix + "plugin:tacacs-author-test"
+		wireUser := "~ze~r:" + base64.RawURLEncoding.EncodeToString([]byte(principal))
+		for _, command := range []string{"request quiesce", "request shutdown"} {
+			options = append(options, "--author-allow", wireUser+"="+command)
+		}
+	}
+	if err := pluginShellExtra4StartTacacs(ctx, args[0], user, options...); err != nil {
 		return err
 	}
 	return Observe(ctx, "fixture-plugin-shell-extra-4-"+name, sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {

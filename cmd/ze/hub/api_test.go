@@ -274,6 +274,7 @@ func TestServerDispatcherContextThreading(t *testing.T) {
 
 // VALIDATES: API streaming uses pluginserver streaming handlers with caller metadata and accounting.
 // PREVENTS: REST/gRPC Stream staying disconnected from the production monitor path.
+// RFC requirement: RFC8907-8.3-4 positive -- an accepted API stream records one accounting START and a matching STOP around handler execution.
 func TestAPIStreamSourceRunsStreamingHandler(t *testing.T) {
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
@@ -339,6 +340,7 @@ func TestAPIStreamSourceReturnsHandlerStartupError(t *testing.T) {
 
 // VALIDATES: API streaming uses dispatcher authorization with read-only semantics and caller origin.
 // PREVENTS: API stream endpoints bypassing command authorization.
+// RFC requirement: RFC8907-8.3-4 negative -- a denied API stream is still accounted, although its handler is never called.
 func TestAPIStreamSourceAuthorizesReadOnly(t *testing.T) {
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, err)
@@ -353,6 +355,8 @@ func TestAPIStreamSourceAuthorizesReadOnly(t *testing.T) {
 
 	auth := &apiStreamTestAuthorizer{allow: false}
 	server.Dispatcher().SetAuthorizer(auth)
+	acct := &apiStreamTestAccountant{}
+	server.Dispatcher().SetAccountingHook(acct)
 
 	stream := apiStreamSource(server)
 	_, _, err = stream(context.Background(), api.CallerIdentity{
@@ -365,6 +369,21 @@ func TestAPIStreamSourceAuthorizesReadOnly(t *testing.T) {
 	assert.Equal(t, "198.51.100.10:4444", auth.remoteAddr)
 	assert.Equal(t, command, auth.command)
 	assert.True(t, auth.readOnly)
+	assert.Equal(t, []string{command}, acct.starts)
+	assert.Equal(t, []string{command}, acct.stops)
+}
+
+// An unknown streaming command is an entered command and must remain in the audit.
+func TestAPIStreamSourceAccountsUnknownCommand(t *testing.T) {
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+	acct := &apiStreamTestAccountant{}
+	server.Dispatcher().SetAccountingHook(acct)
+	const command = "test nonexistent accounted stream"
+	_, _, err = apiStreamSource(server)(context.Background(), api.CallerIdentity{Username: "alice"}, command)
+	require.Error(t, err)
+	assert.Equal(t, []string{command}, acct.starts)
+	assert.Equal(t, []string{command}, acct.stops)
 }
 
 // VALIDATES: API streaming propagates context cancellation to the handler.

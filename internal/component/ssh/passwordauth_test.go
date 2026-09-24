@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ze-software/ze/internal/component/authz"
+	_ "github.com/ze-software/ze/internal/component/tacacs/yang"
 )
 
 // newHashUserServer returns a Server with a single user whose bcrypt hash is
@@ -85,4 +86,13 @@ func TestIsLocalTransport(t *testing.T) {
 			assert.Equal(t, tt.want, isLocalTransport(tt.addr))
 		})
 	}
+}
+
+// SSH operational logs must mask a quoted key before truncating the command.
+func TestSSHExecLogMasksQuotedTacacsSharedSecret(t *testing.T) {
+	output := loggedCommand(`config set system authentication tacacs server 192.0.2.1 key "private first middle tail-value"`)
+	assert.NotContains(t, output, "private")
+	assert.NotContains(t, output, "middle")
+	assert.NotContains(t, output, "tail-value")
+	assert.Contains(t, output, "192.0.2.1 key <redacted>")
 }

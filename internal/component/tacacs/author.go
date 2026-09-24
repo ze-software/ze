@@ -7,12 +7,10 @@
 package tacacs
 
 import (
+	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 )
-
-var errAuthorResponseTruncatedWithArgs = errors.New("author response truncated with args")
 
 // Authorization constants. RFC 8907 Section 6.
 const (
@@ -24,6 +22,7 @@ const (
 	AuthorStatusPassRepl = 0x02
 	AuthorStatusFail     = 0x10
 	AuthorStatusError    = 0x11
+	AuthorStatusFollow   = 0x21
 )
 
 // AuthorRequest is an authorization REQUEST packet body.
@@ -46,7 +45,17 @@ type AuthorRequest struct {
 // Returns error if any variable field exceeds 255 bytes (uint8 length
 // limit) or if dst is too small.
 func (a *AuthorRequest) MarshalBinaryInto(dst []byte) (int, error) {
-	userLen := len(a.User)
+	username, err := prepareWireUsername(a.User, true)
+	if err != nil {
+		return 0, err
+	}
+	if err := validateText(a.Port); err != nil {
+		return 0, fmt.Errorf("port: %w", err)
+	}
+	if err := validateText(a.RemAddr); err != nil {
+		return 0, fmt.Errorf("remote address: %w", err)
+	}
+	userLen := len(username)
 	portLen := len(a.Port)
 	remLen := len(a.RemAddr)
 	argCount := len(a.Args)
@@ -58,6 +67,9 @@ func (a *AuthorRequest) MarshalBinaryInto(dst []byte) (int, error) {
 	for i, arg := range a.Args {
 		if len(arg) > 255 {
 			return 0, fmt.Errorf("arg[%d] exceeds 255 bytes: %d", i, len(arg))
+		}
+		if err := validateText(arg); err != nil {
+			return 0, fmt.Errorf("arg[%d]: %w", i, err)
 		}
 	}
 
@@ -85,7 +97,7 @@ func (a *AuthorRequest) MarshalBinaryInto(dst []byte) (int, error) {
 		off++
 	}
 
-	off += copy(dst[off:], a.User)
+	off += copy(dst[off:], username)
 	off += copy(dst[off:], a.Port)
 	off += copy(dst[off:], a.RemAddr)
 	for _, arg := range a.Args {
@@ -99,7 +111,7 @@ func (a *AuthorRequest) MarshalBinaryInto(dst []byte) (int, error) {
 // slice. Retained for round-trip unit tests; production code paths use
 // MarshalBinaryInto with a pooled buffer.
 func (a *AuthorRequest) MarshalBinary() ([]byte, error) {
-	varLen := len(a.User) + len(a.Port) + len(a.RemAddr)
+	varLen := 255 + len(a.Port) + len(a.RemAddr)
 	for _, arg := range a.Args {
 		varLen += len(arg)
 	}
@@ -114,64 +126,41 @@ func (a *AuthorRequest) MarshalBinary() ([]byte, error) {
 // AuthorResponse is an authorization RESPONSE packet body.
 // RFC 8907 Section 6.2.
 //
-// Memory lifetime: the Data field aliases the slice passed to
-// UnmarshalAuthorResponse; see AuthenReply godoc for the full rule.
-// ServerMsg and Args are Go strings and carry their own backing memory,
-// so they remain safe once the input buffer is released.
+// The reply owns all variable-length fields and remains valid after the pooled
+// wire buffer is released.
 type AuthorResponse struct {
 	Status    uint8
 	ServerMsg string   // safe post-Put (Go string copy)
-	Data      []byte   // aliases input buffer; see struct doc
+	Data      []byte   // owns its backing memory
 	Args      []string // each string copies its bytes, safe post-Put
 }
 
-// UnmarshalAuthorResponse decodes an authorization RESPONSE body. The
-// returned AuthorResponse.Data aliases the input slice (no allocation).
+// UnmarshalAuthorResponse decodes an authorization RESPONSE body.
 func UnmarshalAuthorResponse(data []byte) (*AuthorResponse, error) {
-	if len(data) < 6 {
-		return nil, fmt.Errorf("author response too short: %d bytes", len(data))
+	if _, err := validateReplyBody(typeAuthorization, data); err != nil {
+		return nil, err
 	}
-
 	status := data[0]
 	argCount := int(data[1])
 	serverMsgLen := int(binary.BigEndian.Uint16(data[2:4]))
 	dataLen := int(binary.BigEndian.Uint16(data[4:6]))
-
-	minLen := 6 + argCount + serverMsgLen + dataLen
-	if len(data) < minLen {
-		return nil, fmt.Errorf("author response truncated: need at least %d, have %d", minLen, len(data))
-	}
-
-	// Read arg lengths. argCount is bounded by uint8 (0-255) so the
-	// int-slice alloc is at most 2 KB; this is a []int (not []byte) and
-	// hence not within the "No make where pools exist" rule's scope.
-	off := 6
-	argLens := make([]int, argCount)
-	for i := range argCount {
-		argLens[i] = int(data[off])
-		off++
-	}
-
-	// Adjust minimum length with actual arg sizes.
-	totalArgLen := 0
-	for _, al := range argLens {
-		totalArgLen += al
-	}
-	if len(data) < off+serverMsgLen+dataLen+totalArgLen {
-		return nil, errAuthorResponseTruncatedWithArgs
-	}
+	off := 6 + argCount
 
 	serverMsg := string(data[off : off+serverMsgLen])
 	off += serverMsgLen
 
-	// Alias respData into the input slice.
-	respData := data[off : off+dataLen]
+	respData := bytes.Clone(data[off : off+dataLen])
 	off += dataLen
 
-	args := make([]string, argCount)
-	for i, al := range argLens {
-		args[i] = string(data[off : off+al])
-		off += al
+	args := make([]string, 0, argCount)
+	for _, length := range data[6 : 6+argCount] {
+		// RFC 8907 Section 4.1: zero-length fields "MUST be ignored,
+		// and treated as if not present."
+		if length == 0 {
+			continue
+		}
+		args = append(args, string(data[off:off+int(length)]))
+		off += int(length)
 	}
 
 	return &AuthorResponse{

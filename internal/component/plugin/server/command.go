@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/grammar"
+	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -55,7 +56,7 @@ var ErrUnauthorized = errors.New(plugin.UnauthorizedMessage)
 // command, which the operator needs when a whole pipeline is denied.
 func unauthorizedError(input string) string {
 	var tb textbuf.Buffer
-	return tb.Str(plugin.UnauthorizedMessage).Str(": ").Str(input).String()
+	return tb.Str(plugin.UnauthorizedMessage).Str(": ").Str(config.DisplayCommand(input)).String()
 }
 
 // ErrPluginProcessNotRunning is returned when a plugin command targets a non-running process.
@@ -548,7 +549,7 @@ func (d *Dispatcher) SetAuthorizer(a aaa.Authorizer) {
 
 // SetAccountingHook sets the accounting recorder for the dispatcher.
 // When set, command START/STOP records are sent for every dispatched command.
-// Accounting failures never block command execution.
+// Accounting failures never deny execution; bounded queues may delay admission.
 func (d *Dispatcher) SetAccountingHook(h aaa.Accountant) {
 	d.accountant = h
 }
@@ -892,15 +893,49 @@ func (d *Dispatcher) IsAuthorized(ctx *CommandContext, input string, readOnly bo
 }
 
 // BeginAccounting records command START and returns a function that records STOP.
-// It is exported for command paths such as streaming handlers that intentionally
-// bypass Dispatch but must still share the same AAA accounting hook.
+// Streaming callers MUST call it before lookup and authorization and MUST defer
+// the returned function until the stream ends, including refused commands.
 func (d *Dispatcher) BeginAccounting(ctx *CommandContext, input string) func() {
-	if d.accountant == nil || ctx == nil || ctx.Username == "" {
+	if d.accountant == nil {
 		return func() {}
 	}
-	taskID := d.accountant.CommandStart(ctx.Username, ctx.RemoteAddr, input)
+	input = config.DisplayCommand(input)
+	tokens, err := tokenize(input)
+	if err != nil {
+		// A malformed command is still accounted, but never executed.
+		tokens = []string{input}
+	}
+	return d.beginAccounting(ctx, input, tokens)
+}
+
+// BeginAccountingArgs preserves typed arguments without parsing rendered text.
+func (d *Dispatcher) BeginAccountingArgs(ctx *CommandContext, command string, args []string, peer string) func() {
+	if d.accountant == nil {
+		return func() {}
+	}
+	input := aaa.CanonicalCommand(command, args, peer)
+	safe := config.DisplayCommand(input)
+	if safe != input {
+		return d.BeginAccounting(ctx, safe)
+	}
+	return d.beginAccounting(ctx, input, aaa.CanonicalCommandTokens(command, args, peer))
+}
+
+func (d *Dispatcher) beginAccounting(ctx *CommandContext, input string, tokens []string) func() {
+	accountant := d.accountant
+	var username, remoteAddr string
+	if ctx != nil {
+		username, remoteAddr = ctx.Username, ctx.RemoteAddr
+	}
+	if typed, ok := accountant.(aaa.CommandArgsAccountant); ok {
+		taskID := typed.CommandStartArgs(username, remoteAddr, tokens)
+		return func() {
+			typed.CommandStopArgs(taskID, username, remoteAddr, tokens)
+		}
+	}
+	taskID := accountant.CommandStart(username, remoteAddr, input)
 	return func() {
-		d.accountant.CommandStop(taskID, ctx.Username, ctx.RemoteAddr, input)
+		accountant.CommandStop(taskID, username, remoteAddr, input)
 	}
 }
 
@@ -917,6 +952,13 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 	}
 	if authorizer == nil {
 		return true
+	}
+	if typed, ok := authorizer.(aaa.CommandArgsAuthorizer); ok {
+		tokens, err := tokenize(input)
+		if err != nil || len(tokens) == 0 {
+			return false
+		}
+		return typed.AuthorizeCommandArgs(username, remoteAddr, tokens[0], tokens[1:], "*", readOnly)
 	}
 	return authorizer.Authorize(username, remoteAddr, input, readOnly)
 }
@@ -949,6 +991,13 @@ func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string
 // `show demo name <name> detail` and for positional selector slots that
 // appear before a later action token.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
+	// RFC 8907 Section 8.3: "TACACS+ client devices MUST be configured to
+	// send an accounting start packet for every command entered, irrespective
+	// of how the commands were authorized." Resolution and authorization
+	// failures are entered commands too.
+	if strings.TrimSpace(input) != "" {
+		defer d.BeginAccounting(ctx, input)()
+	}
 	tokens, err := tokenize(input)
 	if err != nil {
 		return nil, err
@@ -1058,10 +1107,6 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if matchedCmd.Handler == nil {
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
-
-		// Accounting: record command start/stop (AC-8).
-		// Accounting failures never block command execution.
-		defer d.BeginAccounting(ctx, input)()
 
 		resp, handlerErr := matchedCmd.Handler(ctx, args)
 		d.recordCommandAudit(ctx, input, resp, handlerErr)
@@ -1352,6 +1397,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 	if resp != nil && resp.Status == plugin.StatusError {
 		return
 	}
+	input = config.DisplayCommand(input)
 	entry := audit.Entry{
 		Surface: audit.CLI,
 		Action:  action,

@@ -7,6 +7,7 @@
 package tacacs
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -36,12 +37,20 @@ func newTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, l
 // Authenticate performs PAP authentication against the TACACS+ server(s).
 //
 // Returns:
-//   - (success result, nil) on PASS with mapped priv-lvl
-//   - (rejected result, ErrAuthRejected) on FAIL (explicit rejection, chain stops)
-//   - (rejected result, ErrAuthRejected) on PASS with a priv-lvl that names no
-//     profiles, whether unmapped or mapped to an empty list (AC-18)
+//   - (success result, nil) after PASS and session authorization with mapped priv-lvl
+//   - (rejected result, ErrAuthRejected) on either exchange's explicit rejection
+//   - (rejected result, ErrAuthRejected) on unsupported mandatory session policy
+//     or a privilege level that resolves to no profiles
 //   - (zero, error) on ERROR status or connection failure (chain tries next backend)
 func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
+	username, err := prepareUsername(request.Username)
+	if err != nil {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+	}
+	if aaa.IsReservedName(username) {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+	}
+	request.Username = username
 	service := request.Service
 	if service == "" {
 		service = defaultService
@@ -49,13 +58,16 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 
 	reply, err := a.client.Authenticate(request.Username, request.Password, service, request.RemoteAddr)
 	if err != nil {
+		if errors.Is(err, errRequestInvalid) {
+			return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+		}
 		// Connection failure: let chain try next backend.
 		return aaa.AuthResult{}, fmt.Errorf("tacacs: %w", err)
 	}
 
 	// Handle each status explicitly. RFC 8907 Section 5.2.
 	if reply.Status == AuthenStatusPass {
-		return a.handlePass(request.Username, reply)
+		return a.handlePass(request)
 	}
 	if reply.Status == AuthenStatusFail {
 		// Explicit rejection: chain must NOT try next backend.
@@ -70,29 +82,42 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 	if reply.Status == AuthenStatusRestart {
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
-	if reply.Status == AuthenStatusError {
-		// Server error: treat as infrastructure failure, chain tries next.
-		msg := reply.ServerMsg
-		if msg == "" {
-			msg = "server error"
-		}
-		return aaa.AuthResult{}, fmt.Errorf("tacacs: %s", msg)
+	// RFC 8907 Section 10.5.5: "TACACS+ clients SHOULD deprecate this
+	// feature by treating TAC_PLUS_AUTHEN_STATUS_FOLLOW as
+	// TAC_PLUS_AUTHEN_STATUS_FAIL."
+	if reply.Status == AuthenStatusFollow {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 
 	// Unknown status: treat as infrastructure failure.
 	return aaa.AuthResult{}, fmt.Errorf("tacacs: unexpected authen status 0x%02x", reply.Status)
 }
 
-// handlePass processes a PASS reply: extracts priv-lvl and maps to ze profiles.
-func (a *tacacsAuthenticator) handlePass(username string, reply *AuthenReply) (aaa.AuthResult, error) {
-	// Extract priv-lvl via the stack-safe PrivLvl field rather than reply.Data.
-	// reply.Data aliases the client's pool buffer which has already been
-	// Put by the time we get here; reading it would race with any concurrent
-	// TACACS+ exchange (auth, authz, or accounting) that Gets the same slot.
-	// Defaults to 1 when the server sent no priv-lvl byte.
-	privLvl := int(reply.PrivLvl)
-	if privLvl == 0 && len(reply.Data) == 0 {
-		privLvl = 1
+// handlePass obtains the session policy before granting profiles. PAP reply
+// data is not a privilege assignment: RFC 8907 Section 9 states, "This privilege
+// level is returned by the server in a session-based shell authorization (when
+// \"service\" equals \"shell\" and \"cmd\" is empty)."
+func (a *tacacsAuthenticator) handlePass(request aaa.AuthRequest) (aaa.AuthResult, error) {
+	args := []string{"service=shell", "cmd="}
+	reply, err := a.client.SendAuthorization(&AuthorRequest{
+		AuthenMethod:  AuthenMethodTACACS,
+		PrivLvl:       1,
+		AuthenType:    authenTypePAP,
+		AuthenService: authenServiceLogin,
+		User:          request.Username,
+		Port:          portSSH,
+		RemAddr:       request.RemoteAddr,
+		Args:          args,
+	})
+	if err != nil {
+		if errors.Is(err, errRequestInvalid) {
+			return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+		}
+		return aaa.AuthResult{}, fmt.Errorf("tacacs session authorization: %w", err)
+	}
+	privLvl, allowed := applyAuthorizationArgs(args, reply, true)
+	if !allowed {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 
 	// A level that resolves to no profile names is treated as unmapped, not as a
@@ -121,15 +146,34 @@ func (a *tacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 	if !ok || len(profiles) == 0 {
 		// AC-18: an unmapped, empty, or all-reserved priv-lvl denies access.
 		a.logger.Warn("TACACS+ unmapped privilege level",
-			"username", username, "priv-lvl", privLvl)
+			"username", request.Username, "priv-lvl", privLvl)
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 
 	a.logger.Info("TACACS+ auth success",
-		"username", username, "priv-lvl", privLvl, "profiles", profiles)
+		"username", request.Username, "priv-lvl", privLvl, "profiles", profiles)
 	return aaa.AuthResult{
 		Authenticated: true,
 		Profiles:      profiles,
 		Source:        backendName,
 	}, nil
+}
+
+// parsePrivLvl accepts only the decimal privilege range defined in RFC 8907
+// Section 9. Leading zeroes fit only within the two-digit representation.
+func parsePrivLvl(value string) (int, bool) {
+	// RFC 8907 Section 8.1: "All arguments include a length field, and
+	// TACACS+ implementations MUST verify that they can accommodate the
+	// lengths of numeric arguments before attempting to process them."
+	if len(value) == 0 || len(value) > 2 {
+		return 0, false
+	}
+	level := 0
+	for i := range len(value) {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false
+		}
+		level = level*10 + int(value[i]-'0')
+	}
+	return level, level <= 15
 }

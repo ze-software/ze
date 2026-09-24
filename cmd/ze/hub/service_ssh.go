@@ -132,6 +132,9 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 				Authorizer: authorizer,
 				Sender:     plugin.OperatorSender(),
 			}
+			// RFC 8907 Section 8.3 requires a record for every command,
+			// including a command that authorization or lookup refuses.
+			defer d.BeginAccounting(cmdCtx, input)()
 			// Streaming commands are currently monitor-style read-only commands.
 			// They still must pass through the same AAA authorizer/accountant as
 			// normal SSH commands; future write-capable streaming commands need
@@ -143,7 +146,6 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			if handler == nil {
 				return fmt.Errorf("unknown streaming command: %q", input)
 			}
-			defer d.BeginAccounting(cmdCtx, input)()
 			return handler(ctx, apiServer, w, username, handlerArgs)
 		}
 	})

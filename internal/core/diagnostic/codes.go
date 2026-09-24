@@ -845,6 +845,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tacacs-unreachable"},
 	},
 	{
+		Code:        "doctor-tacacs-weak-secret",
+		Title:       "TACACS+ shared secret is short",
+		Description: "A configured TACACS+ shared secret is shorter than the 16 characters recommended by RFC 8907 Section 10.5.1. Use a unique secret of at least 16 characters, preferably 32 or more, and rotate it on both ends.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tacacs-weak-secret"},
+	},
+	{
 		Code:        "doctor-radius-unreachable",
 		Title:       "RADIUS servers unreachable",
 		Description: "No configured L2TP RADIUS server could be reached by the UDP readiness probe.",

@@ -5,6 +5,7 @@
 package hub
 
 import (
+	"errors"
 	"log/slog"
 	"slices"
 	"strconv"
@@ -41,6 +42,20 @@ var (
 	localIdentityGeneration atomic.Uint64
 )
 
+// Accounting references live for one entered command, including a streaming
+// command. Retirement never waits for a command that may itself be committing
+// the reload; its final STOP releases the bundle outside aaaAcceptance.
+var aaaAccountingLifetime = struct {
+	sync.Mutex
+	active map[*aaa.Bundle]*aaaAccountingReferences
+}{active: make(map[*aaa.Bundle]*aaaAccountingReferences)}
+
+type aaaAccountingReferences struct {
+	commands uint64
+	retired  bool
+	logger   *slog.Logger
+}
+
 // claimAAABundleBoot reserves the daemon's single AAA construction attempt.
 // A failed build still owns the boot slot so a later infrastructure hook cannot
 // publish candidate backends before the surrounding reload is accepted.
@@ -68,6 +83,8 @@ func swapAAABundle(b *aaa.Bundle, logger *slog.Logger) {
 // that bundle to closeRetiredAAABundle: until it is closed, the retired chain
 // still holds its RADIUS socket open and its TACACS+ accounting worker running.
 func installAAABundle(b *aaa.Bundle) *aaa.Bundle {
+	aaaAccountingLifetime.Lock()
+	defer aaaAccountingLifetime.Unlock()
 	aaaBundleBootClaimed.Store(true)
 	prev := aaaBundle.Swap(b)
 	if prev == b {
@@ -76,15 +93,21 @@ func installAAABundle(b *aaa.Bundle) *aaa.Bundle {
 	return prev
 }
 
-// closeRetiredAAABundle closes the bundle installAAABundle retired. It MUST be
-// called after installAAABundle, and MUST NOT be called while aaaAcceptance is
-// held: Close drains the TACACS+ accounting worker and joins its goroutine, so
-// holding the acceptance lock across it would queue every other reload behind a
-// network-facing worker. A nil bundle is a no-op.
+// closeRetiredAAABundle retires the bundle installAAABundle replaced. It MUST
+// be called after installation, outside aaaAcceptance. Outstanding accounting
+// commands keep the bundle until their STOP; otherwise Close drains it now.
 func closeRetiredAAABundle(prev *aaa.Bundle, logger *slog.Logger) {
 	if prev == nil {
 		return
 	}
+	aaaAccountingLifetime.Lock()
+	if refs := aaaAccountingLifetime.active[prev]; refs != nil {
+		refs.retired = true
+		refs.logger = logger
+		aaaAccountingLifetime.Unlock()
+		return
+	}
+	aaaAccountingLifetime.Unlock()
 	if err := prev.Close(); err != nil && logger != nil {
 		logger.Warn("aaa: previous bundle close error on swap", "error", err)
 	}
@@ -346,18 +369,16 @@ func closeAAABundle(logger *slog.Logger) {
 	// a swap landing after the close reinstalls a live chain the daemon will
 	// never close again (acceptReloadedAAA).
 	aaaAcceptance.Lock()
+	aaaAccountingLifetime.Lock()
 	prev := aaaBundle.Swap(nil)
+	aaaAccountingLifetime.Unlock()
 	acceptedLocalIdentity.Store(nil)
 	aaa.SetAcceptedLocalProfileGeneration(0)
 	aaaBundleBootClaimed.Store(false)
 	aaaAcceptanceRetired = true
 	aaaAcceptance.Unlock()
 
-	if prev != nil {
-		if err := prev.Close(); err != nil && logger != nil {
-			logger.Warn("aaa: bundle close error on shutdown", "error", err)
-		}
-	}
+	closeRetiredAAABundle(prev, logger)
 }
 
 // liveLocalAuthorizer is the local backend's stable AAA contribution. External
@@ -526,12 +547,10 @@ func (a acceptedLocalGenerationProfileFallback) AuthorizeCommandArgs(
 // captured bundle.Authenticator cannot follow a swap: it IS the retired chain,
 // so ssh kept authenticating against a shared secret the operator had rotated.
 //
-// fallback answers when the chain does not authenticate the user, and web wires
-// one because a config-file web user can be absent from the chain's local
-// backend. It answers from the CURRENT configuration, never from a startup
-// snapshot: the chain not knowing a user and the operator having deleted that
-// user look identical from here, and only a reader of the running config can
-// tell them apart. A nil fallback (ssh) leaves the chain as the only answer.
+// fallback supplies local credentials before a bundle exists or while its
+// backends are unavailable. A terminal rejection permits only a successful
+// local recovery-profile result from the separately stored ZeFS super-admin.
+// Ordinary config users cannot override the chain's rejection.
 type liveAAABundleAuthenticator struct {
 	fallback aaa.Authenticator
 }
@@ -540,11 +559,21 @@ func (a liveAAABundleAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.A
 	if bundle := aaaBundle.Load(); bundle != nil && bundle.Authenticator != nil {
 		result, err := bundle.Authenticator.Authenticate(request)
 		if err == nil && result.Authenticated {
+			// Password sessions must retain their login profiles without
+			// retaining the retired TACACS+ client across a reload.
+			result.Authorizer = aaa.AuthorizerForResult(liveAAABundleAuthorizer{}, result)
 			return result, nil
 		}
 		if a.fallback != nil {
 			if fres, ferr := a.fallback.Authenticate(request); ferr == nil && fres.Authenticated {
-				return fres, nil
+				if !errors.Is(err, aaa.ErrAuthRejected) {
+					return fres, nil
+				}
+				if fres.Source == aaa.SourceLocal {
+					if slices.Contains(fres.Profiles, aaa.ReservedRecoveryProfile) {
+						return fres, nil
+					}
+				}
 			}
 		}
 		return result, err
@@ -626,12 +655,9 @@ func (liveAAABundleAuthorizer) BindProfiles(profiles []string) aaa.Authorizer {
 // authorizer. It re-reads the atomic slot on every command and re-binds the
 // profiles to whatever authorizer the slot now holds.
 //
-// Which sessions reach it is narrow, and worth stating so nobody reads more
-// into it. An ssh PASSWORD login carries result.Authorizer, which the chain
-// bound at authentication time, so it does not come through here. An ssh
-// PUBLIC-KEY login does: the server binds aaa.AuthorizerForResult over
-// Config.Authorizer, which is the value this type answers for
-// (internal/component/ssh/ssh.go, the WithPublicKeyAuth handler).
+// Password results and public-key logins both bind through this live view.
+// Only profile names are retained; the current bundle supplies the server and
+// local policy when the session enters its next command.
 type liveAAABundleProfileAuthorizer struct {
 	profiles []string
 }
@@ -702,13 +728,67 @@ func newLiveAAABundleAccountant() *liveAAABundleAccountant {
 	}
 }
 
-func (a *liveAAABundleAccountant) CommandStart(username, remoteAddr, command string) string {
+// acquireAccountingBundle pairs selection with a lifetime reference, so a
+// concurrent swap cannot close the accountant before it accepts START.
+func acquireAccountingBundle() *aaa.Bundle {
+	aaaAccountingLifetime.Lock()
+	defer aaaAccountingLifetime.Unlock()
 	bundle := aaaBundle.Load()
 	if bundle == nil || bundle.Accountant == nil {
+		return nil
+	}
+	refs := aaaAccountingLifetime.active[bundle]
+	if refs == nil {
+		refs = &aaaAccountingReferences{}
+		aaaAccountingLifetime.active[bundle] = refs
+	}
+	refs.commands++
+	return bundle
+}
+
+// releaseAccountingBundle MUST follow the command's STOP. The last command
+// closes a retired bundle only after releasing the lifetime mutex.
+func releaseAccountingBundle(bundle *aaa.Bundle) {
+	aaaAccountingLifetime.Lock()
+	refs := aaaAccountingLifetime.active[bundle]
+	refs.commands--
+	if refs.commands != 0 {
+		aaaAccountingLifetime.Unlock()
+		return
+	}
+	delete(aaaAccountingLifetime.active, bundle)
+	retired, logger := refs.retired, refs.logger
+	aaaAccountingLifetime.Unlock()
+	if retired {
+		if err := bundle.Close(); err != nil && logger != nil {
+			logger.Warn("aaa: retired accounting bundle close error", "error", err)
+		}
+	}
+}
+
+func (a *liveAAABundleAccountant) CommandStart(username, remoteAddr, command string) string {
+	return a.commandStart(username, remoteAddr, command, nil)
+}
+
+func (a *liveAAABundleAccountant) CommandStartArgs(username, remoteAddr string, tokens []string) string {
+	return a.commandStart(username, remoteAddr, "", tokens)
+}
+
+func (a *liveAAABundleAccountant) commandStart(username, remoteAddr, command string, tokens []string) string {
+	bundle := acquireAccountingBundle()
+	if bundle == nil {
 		return ""
 	}
 	accountant := bundle.Accountant
-	taskID := accountant.CommandStart(username, remoteAddr, command)
+	var taskID string
+	if typed, ok := accountant.(aaa.CommandArgsAccountant); ok && tokens != nil {
+		taskID = typed.CommandStartArgs(username, remoteAddr, tokens)
+	} else {
+		if tokens != nil {
+			command = aaa.CanonicalCommand("", tokens, "*")
+		}
+		taskID = accountant.CommandStart(username, remoteAddr, command)
+	}
 
 	a.mu.Lock()
 	a.nextID++
@@ -723,6 +803,14 @@ func (a *liveAAABundleAccountant) CommandStart(username, remoteAddr, command str
 }
 
 func (a *liveAAABundleAccountant) CommandStop(taskID, username, remoteAddr, command string) {
+	a.commandStop(taskID, username, remoteAddr, command, nil)
+}
+
+func (a *liveAAABundleAccountant) CommandStopArgs(taskID, username, remoteAddr string, tokens []string) {
+	a.commandStop(taskID, username, remoteAddr, "", tokens)
+}
+
+func (a *liveAAABundleAccountant) commandStop(taskID, username, remoteAddr, command string, tokens []string) {
 	if taskID == "" {
 		return
 	}
@@ -735,16 +823,16 @@ func (a *liveAAABundleAccountant) CommandStop(taskID, username, remoteAddr, comm
 	if !ok {
 		return
 	}
-	accountant := task.accountant
-	// A reload between START and STOP retires the accountant that took the
-	// START: the install closes the bundle it replaces, which stops the TACACS+
-	// accounting worker, and a send to a stopped worker drops the record and
-	// returns nothing (internal/component/tacacs/accounting.go, enqueue). Send
-	// the STOP to the accountant installed NOW instead, carrying the task id the
-	// START carried, which is what pairs the two records for the server that
-	// reads them.
-	if live := aaaBundle.Load(); live != task.bundle && live != nil && live.Accountant != nil {
-		accountant = live.Accountant
+	// RFC 8907 Section 8.3: "Start and stop records for the same event MUST
+	// have matching task_id argument values." Keep the original accountant
+	// and its server configuration alive for both records.
+	defer releaseAccountingBundle(task.bundle)
+	if typed, ok := task.accountant.(aaa.CommandArgsAccountant); ok && tokens != nil {
+		typed.CommandStopArgs(task.taskID, username, remoteAddr, tokens)
+		return
 	}
-	accountant.CommandStop(task.taskID, username, remoteAddr, command)
+	if tokens != nil {
+		command = aaa.CanonicalCommand("", tokens, "*")
+	}
+	task.accountant.CommandStop(task.taskID, username, remoteAddr, command)
 }

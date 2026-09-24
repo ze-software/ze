@@ -46,7 +46,10 @@ func authenStartFields(t *testing.T, body []byte) (user, port, data []byte) {
 
 // RFC requirement: RFC8907-5.1-1 positive — a START built with no username writes user_len 0 and no user bytes, so the port field starts at offset 8.
 func TestRFC8907AuthenStartAbsentUserWritesZeroLength(t *testing.T) {
-	start := NewPAPAuthenStart("", "secret", "ssh", "192.0.2.1")
+	start := &AuthenStart{
+		Action: authenActionLogin, AuthenType: 0x01, AuthenService: authenServiceLogin,
+		Port: "ssh", RemAddr: "192.0.2.1",
+	}
 	body, err := start.MarshalBinary()
 	require.NoError(t, err)
 
@@ -54,7 +57,7 @@ func TestRFC8907AuthenStartAbsentUserWritesZeroLength(t *testing.T) {
 	user, port, data := authenStartFields(t, body)
 	require.Empty(t, user)
 	require.Equal(t, []byte("ssh"), port, "port field must start right after the fixed header")
-	require.Equal(t, []byte("secret"), data)
+	require.Empty(t, data)
 }
 
 // RFC requirement: RFC8907-5.1-1 negative — a START built with a username never writes user_len 0: the octet is the username's byte length.
