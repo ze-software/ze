@@ -142,6 +142,32 @@ func TestVerifyJWT_RS256(t *testing.T) {
 	}
 }
 
+// A token's validity ends at exp plus the configured leeway, including the
+// boundary second. Check both sides with the same signed token.
+func TestVerifyJWTExpiryBoundary(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expires := time.Unix(1_700_000_000, 0)
+	token := signRS256(t, priv, "key", standardClaims(expires, "https://as/", "https://mcp/", 0))
+	keys := &stubJWKS{keys: map[string]crypto.PublicKey{"key": &priv.PublicKey}}
+	opts := jwtVerifyOptions{
+		ExpectedIssuer:   "https://as/",
+		ExpectedAudience: "https://mcp/",
+		Keys:             keys,
+		Clock:            newFixedClock(expires.Add(59 * time.Second)),
+		Leeway:           time.Minute,
+	}
+	if _, err := verifyJWT(token, opts); err != nil {
+		t.Fatalf("token inside the allowed leeway rejected: %v", err)
+	}
+	opts.Clock = newFixedClock(expires.Add(time.Minute))
+	if _, err := verifyJWT(token, opts); !errors.Is(err, errJWTExpired) {
+		t.Fatalf("token at expiry boundary: %v, want expired", err)
+	}
+}
+
 func TestVerifyJWT_ES256(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -265,7 +291,7 @@ func TestVerifyJWT_RejectAudienceMismatch(t *testing.T) {
 		Keys:             keys,
 		Clock:            newFixedClock(now),
 	})
-	// RFC requirement: RFC8707-5-1 negative -- a token whose aud ("https://wrong/") does not match ExpectedAudience ("https://mcp/") is rejected with errJWTAudienceMismatch (verifyJWT jwt.go:240-242 via audClaim.Matches jwt.go:92-108)
+	// RFC requirement: RFC8707-5-1 negative -- historical ID sourced to RFC 7519 Section 4.1.3: verifyJWT rejects a signed token for https://wrong/ when this recipient is https://mcp/ with errJWTAudienceMismatch.
 	if !errors.Is(err, errJWTAudienceMismatch) {
 		t.Fatalf("expected errJWTAudienceMismatch, got %v", err)
 	}
@@ -275,7 +301,7 @@ func TestVerifyJWT_AudienceArrayForm(t *testing.T) {
 	// RFC 7519 allows aud to be a string OR array. Array form must work.
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
 	now := time.Unix(1_700_000_000, 0)
-	// RFC requirement: RFC8707-5-2 positive -- an aud JSON array ["https://one/","https://mcp/"] is decoded (audClaim.UnmarshalJSON jwt.go:58-76) and accepted because one entry matches ExpectedAudience "https://mcp/" (Matches array loop jwt.go:97-106)
+	// RFC requirement: RFC8707-5-2 positive -- historical ID sourced to RFC 7519 Section 4.1.3: a signed token with the JSON aud array ["https://one/","https://mcp/"] authenticates alice when this recipient is https://mcp/.
 	claims := map[string]any{
 		"iss": "iss",
 		"aud": []string{"https://one/", "https://mcp/"},
@@ -479,7 +505,7 @@ func TestAudClaim_Matches(t *testing.T) {
 	if !a.Matches("https://one/") {
 		t.Fatal("should match https://one/")
 	}
-	// RFC requirement: RFC8707-5-2 negative -- an aud array {"https://one/","https://two/"} does not match "https://three/"; Matches returns false when no array entry matches (Matches array loop jwt.go:97-106)
+	// RFC requirement: RFC8707-5-2 negative -- historical ID sourced to RFC 7519 Section 4.1.3: neither value in the audience array identifies https://three/, so the audience comparison rejects it.
 	if a.Matches("https://three/") {
 		t.Fatal("should not match unknown audience")
 	}

@@ -4,6 +4,8 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"maps"
@@ -28,6 +30,31 @@ type testAS struct {
 	priv     *rsa.PrivateKey
 	issuer   string
 	jwksHits *atomic.Int64
+}
+
+// newTrustedTLSServer exercises the production default HTTP client against a
+// certificate trusted only for this test. Callers MUST NOT run in parallel.
+func newTrustedTLSServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewTLSServer(handler)
+	original := http.DefaultTransport
+	transport := original.(*http.Transport).Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+	if transport.TLSClientConfig.RootCAs == nil {
+		transport.TLSClientConfig.RootCAs = x509.NewCertPool()
+	} else {
+		transport.TLSClientConfig.RootCAs = transport.TLSClientConfig.RootCAs.Clone()
+	}
+	transport.TLSClientConfig.RootCAs.AddCert(srv.Certificate())
+	http.DefaultTransport = transport
+	t.Cleanup(func() {
+		http.DefaultTransport = original
+		transport.CloseIdleConnections()
+		srv.Close()
+	})
+	return srv
 }
 
 func newTestAS(t *testing.T) *testAS {
@@ -68,8 +95,7 @@ func newTestAS(t *testing.T) *testAS {
 			t.Logf("write jwks: %v", werr)
 		}
 	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := newTrustedTLSServer(t, mux)
 	issuer = srv.URL
 	return &testAS{srv: srv, priv: priv, issuer: issuer, jwksHits: hits}
 }
@@ -105,6 +131,7 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 			"issuer":   "https://impersonator.example/",
 			"jwks_uri": badSrv.URL + "/jwks",
 		})
+		w.Header().Set("Content-Type", "application/json")
 		if _, werr := w.Write(body); werr != nil {
 			t.Logf("write: %v", werr)
 		}
@@ -114,7 +141,7 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 			t.Logf("write: %v", werr)
 		}
 	})
-	badSrv = httptest.NewServer(mux)
+	badSrv = newTrustedTLSServer(t, mux)
 	defer badSrv.Close()
 
 	_, err := NewStreamable(StreamableConfig{
@@ -279,7 +306,7 @@ func TestNewStreamable_OAuth_MetadataEndpoint(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
-	// RFC requirement: RFC9728-3.1-1 positive -- an unauthenticated GET (no Authorization header) of the well-known metadata path returns 200 with the document; ServeHTTP dispatches it before any auth (streamable.go:226-229, 335-364)
+	// The unauthenticated metadata GET is part of Ze's discovery profile.
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -298,120 +325,76 @@ func TestNewStreamable_OAuth_MetadataEndpoint(t *testing.T) {
 	}
 }
 
-// -----------------------------------------------------------------------------
-// sameAuthServer canonicalization
-// -----------------------------------------------------------------------------
-
-func TestSameAuthServer(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want bool
-	}{
-		{"https://as.example/", "https://as.example", true},
-		{"https://as.example:443/", "https://as.example/", true},
-		{"HTTPS://AS.EXAMPLE/", "https://as.example/", true},
-		{"https://as.example/realm/x/", "https://as.example/realm/x", true},
-		{"https://as.example/", "https://other.example/", false},
-		{"https://as.example/x", "https://as.example/y", false},
-		{"http://as.example/", "https://as.example/", false},
-		{"", "", false}, // empty should not match anything
-		// IPv6 literals must survive canonicalization with brackets intact.
-		{"https://[::1]:443/", "https://[::1]/", true},
-		{"https://[2001:db8::1]/", "https://[2001:DB8::1]/", true},
-	}
-	for _, tc := range cases {
-		if got := sameAuthServer(tc.a, tc.b); got != tc.want {
-			t.Errorf("sameAuthServer(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
-		}
-	}
-}
-
-func TestCanonicalAuthServerURL_RejectsQueryFragment(t *testing.T) {
-	cases := []string{
-		"https://as.example/?foo=bar",
-		"https://as.example/#section",
-		"https://as.example/path?x=1",
-	}
-	for _, tc := range cases {
-		if _, err := canonicalAuthServerURL(tc); err == nil {
-			t.Errorf("canonicalAuthServerURL(%q) accepted; wanted rejection", tc)
-		}
-	}
-}
-
-func TestAudClaim_MatchesCanonicalVariants(t *testing.T) {
-	// RFC 8707 §2: audience comparison MUST happen after URL
-	// canonicalization. A spec-compliant AS may emit any of these as
-	// `aud` for the same resource and all must match operator
-	// configuration of "https://mcp.example/".
+// TestAudClaimMatchesExactIdentifier checks that URL spellings cannot broaden
+// the audience bound into an access token.
+func TestAudClaimMatchesExactIdentifier(t *testing.T) {
 	configured := "https://mcp.example/"
-	accepted := []string{
-		"https://mcp.example/",
+	if !(audClaim{configured}).Matches(configured) {
+		t.Fatal("identical audience rejected")
+	}
+	for _, audience := range []string{
 		"https://mcp.example",
 		"https://mcp.example:443/",
-		"https://mcp.example:443",
 		"https://MCP.EXAMPLE/",
 		"https://mcp.example///",
-	}
-	// RFC requirement: RFC8707-2-3 positive -- trailing-slash-divergent aud variants ("https://mcp.example" and "https://mcp.example///") match the configured "https://mcp.example/" after trailing-slash normalisation (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
-	for _, a := range accepted {
-		t.Run("accept_"+a, func(t *testing.T) {
-			claim := audClaim{a}
-			if !claim.Matches(configured) {
-				t.Fatalf("aud %q did not match configured %q", a, configured)
-			}
-		})
-	}
-	rejected := []string{
+		"https://mcp.example/?tenant=other",
+		"https://user@mcp.example/",
+		"https://mcp.example/#other",
 		"https://other.example/",
-		"http://mcp.example/", // scheme downgrade
+		"http://mcp.example/",
 		"https://mcp.example/path",
-	}
-	// RFC requirement: RFC8707-2-3 negative -- a genuinely different resource ("https://other.example/", scheme-downgraded "http://mcp.example/", path-divergent "https://mcp.example/path") does not match the configured "https://mcp.example/"; canonical comparison rejects rather than blanket-accepting (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
-	for _, a := range rejected {
-		t.Run("reject_"+a, func(t *testing.T) {
-			claim := audClaim{a}
-			if claim.Matches(configured) {
-				t.Fatalf("aud %q unexpectedly matched configured %q", a, configured)
-			}
-		})
+	} {
+		if (audClaim{audience}).Matches(configured) {
+			t.Fatalf("audience %q matched %q", audience, configured)
+		}
 	}
 }
 
-func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {
-	// Regression test: Streamable audience has trailing slash, token
-	// audience does not. Exact-string compare rejected this; canonical
-	// compare must accept. Without the canonicalAudience fix this test
-	// fails with "invalid audience".
+// TestOAuthAudienceIdentity sends tokens through the HTTP authentication entry.
+// It distinguishes exact matches from slash, query, and Unicode aliases.
+// RFC requirement: RFC8707-5-1 positive -- historical ID sourced to RFC 7519 Sections 2 and 4.1.3: a token with the exact configured audience reaches the MCP tools/list HTTP handler.
+// RFC requirement: RFC8707-5-1 negative -- historical ID sourced to RFC 7519 Sections 2 and 4.1.3: tokens differing from the configured audience by slash, query or Unicode spelling receive HTTP 401 invalid audience.
+func TestOAuthAudienceIdentity(t *testing.T) {
 	as := newTestAS(t)
 	s, err := NewStreamable(StreamableConfig{
 		AuthMode: AuthOAuth,
 		OAuth: OAuthConfig{
 			AuthorizationServer: as.Issuer(),
-			Audience:            "https://mcp.example/", // with trailing slash
+			Audience:            "https://mcp.example/\u00e9",
 		},
 	})
 	if err != nil {
 		t.Fatalf("NewStreamable: %v", err)
 	}
 	defer s.Close()
-
-	token := as.MintToken(t, map[string]any{"aud": "https://mcp.example"}) // no trailing slash
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
-		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
-	req.Header.Set("Mcp-Method", "tools/list")
-	req.Header.Set("Authorization", "Bearer "+token)
-	w := httptest.NewRecorder()
-	s.ServeHTTP(w, req)
-
-	// RFC requirement: RFC8707-5-1 positive -- a token whose aud matches the resource's canonical audience authenticates and returns 200 OK (verifyJWT jwt.go:240-242 via audClaim.Matches jwt.go:92-108)
-	// RFC requirement: RFC8707-2-3 positive -- token aud "https://mcp.example" (no trailing slash) matches the configured "https://mcp.example/" because both sides are trailing-slash normalised (normaliseURL streamable_auth.go:205 via canonicalAudience jwt.go:96,102)
-	if w.Code != http.StatusOK {
-		t.Fatalf("canonicalised audience mismatch should be accepted: status=%d body=%s",
-			w.Code, w.Body.String())
+	for _, audience := range []string{
+		"https://mcp.example/\u00e9",
+		"https://mcp.example/\u00e9/",
+		"https://mcp.example/e\u0301",
+		"https://mcp.example/\u00e9?tenant=other",
+	} {
+		token := as.MintToken(t, map[string]any{"aud": audience})
+		body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+			metaBlock(ProtocolVersion, capsNone) + `}}`
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+		req.Header.Set("Mcp-Method", "tools/list")
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, req)
+		if audience == s.cfg.OAuth.Audience {
+			if w.Code != http.StatusOK {
+				t.Fatalf("exact audience: status=%d body=%s", w.Code, w.Body.String())
+			}
+			continue
+		}
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("different audience %q: status=%d", audience, w.Code)
+		}
+		if !strings.Contains(w.Header().Get("WWW-Authenticate"), `error_description="invalid audience"`) {
+			t.Fatalf("different audience %q: challenge=%q", audience, w.Header().Get("WWW-Authenticate"))
+		}
 	}
 }
 
@@ -677,36 +660,16 @@ func TestStreamable_MethodNotAllowedCarriesCORS(t *testing.T) {
 	}
 }
 
-func TestSameAuthServer_IDNCanonical(t *testing.T) {
-	// Operator-typed Unicode hostname vs AS-reported punycode (or
-	// vice-versa) must canonicalize equal. Mirrors the canonicalOrigin
-	// IDN handling that was missing in normaliseURL.
-	cases := []struct {
-		a, b string
-		want bool
-	}{
-		{"https://müllerei.example/", "https://xn--mllerei-n2a.example/", true},
-		{"https://xn--mllerei-n2a.example/", "https://müllerei.example/", true},
-		{"https://MÜLLEREI.example/", "https://xn--mllerei-n2a.example/", true},
-		{"https://münchen.example/", "https://xn--mnchen-3ya.example/", true},
-		{"https://other.example/", "https://xn--mllerei-n2a.example/", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.a+"_vs_"+tc.b, func(t *testing.T) {
-			if got := sameAuthServer(tc.a, tc.b); got != tc.want {
-				t.Errorf("sameAuthServer(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestAudClaim_MatchesIDNCanonical(t *testing.T) {
-	// Same symmetry for audience compare: a token with `aud` in punycode
-	// must match a Unicode-typed configured audience.
+// TestAudClaimDistinguishesIDN proves audience identity is independent of DNS
+// equivalence between Unicode and punycode spellings.
+func TestAudClaimDistinguishesIDN(t *testing.T) {
 	configured := "https://müllerei.example/"
 	claim := audClaim{"https://xn--mllerei-n2a.example/"}
-	if !claim.Matches(configured) {
-		t.Fatalf("punycode aud did not match Unicode configured audience")
+	if claim.Matches(configured) {
+		t.Fatal("punycode audience matched a different Unicode identifier")
+	}
+	if !(audClaim{configured}).Matches(configured) {
+		t.Fatal("identical Unicode audience rejected")
 	}
 }
 
@@ -807,15 +770,13 @@ func TestVerifyJWT_RejectsControlCharSubject(t *testing.T) {
 }
 
 func TestResourceMetadataURL_RejectsMalformedBase(t *testing.T) {
-	// Operator-supplied audience with query/fragment/userinfo must not
-	// produce a malformed URL in the 401 challenge.
+	// A fragment, userinfo, or non-HTTPS identifier cannot locate metadata.
 	cases := []OAuthConfig{
-		{Audience: "https://mcp.example/?x=1"},
 		{Audience: "https://mcp.example/#section"},
 		{Audience: "https://user@mcp.example/"},
 		{Audience: "not-a-url"},
+		{Audience: "http://mcp.example/"},
 	}
-	// RFC requirement: RFC9728-5.1-2 negative -- a base carrying query/fragment/userinfo or a non-URL is rejected to "" rather than emitted as a malformed resource_metadata URL (resourceMetadataURL rejects via canonicalAuthServerURL, streamable_auth.go:279-283)
 	for _, cfg := range cases {
 		t.Run(cfg.Audience, func(t *testing.T) {
 			if got := resourceMetadataURL(cfg); got != "" {
@@ -824,7 +785,6 @@ func TestResourceMetadataURL_RejectsMalformedBase(t *testing.T) {
 		})
 	}
 	// Well-formed audience produces the expected URL.
-	// RFC requirement: RFC9728-5.1-2 positive -- a well-formed absolute audience yields an absolute resource_metadata URL (resourceMetadataURL, streamable_auth.go:279-283)
 	cfg := OAuthConfig{Audience: "https://mcp.example/"}
 	want := "https://mcp.example/.well-known/oauth-protected-resource"
 	if got := resourceMetadataURL(cfg); got != want {
@@ -876,15 +836,9 @@ func TestNewStreamable_OAuth_MetadataCORS(t *testing.T) {
 	}
 }
 
-func TestValidateJWKSURI_RejectsEmptyHost(t *testing.T) {
-	// jwks_uri with scheme but no authority should fail at startup, not at
-	// fetch time with an obscure "no Host in request URL" error.
-	err := validateJWKSURI("https://as/", "https:///jwks")
-	if err == nil {
-		t.Fatal("expected rejection for empty-authority jwks_uri")
-	}
-	if !strings.Contains(err.Error(), "missing host") {
-		t.Fatalf("error should mention missing host, got: %v", err)
+func TestOAuthHTTPSURLRejectsEmptyHost(t *testing.T) {
+	if _, err := oauthHTTPSURL("https:///jwks"); err == nil {
+		t.Fatal("accepted an HTTPS URL without a host")
 	}
 }
 
@@ -914,175 +868,151 @@ func TestBearerList_DuplicateTokensCollapseToFirstMatch(t *testing.T) {
 	}
 }
 
-func TestCanonicalAuthServerURL_RejectsUserInfo(t *testing.T) {
-	// Per RFC 8414 §2, issuer identifiers must not carry userinfo.
-	// Silently stripping it would collapse URLs-with-credentials and
-	// URLs-without into the same canonical form.
-	cases := []string{
-		"https://user@as.example/",
-		"https://user:pass@as.example/",
+func TestOAuthHTTPSURL(t *testing.T) {
+	for _, raw := range []string{
+		"https://as/jwks",
+		"https://as/jwks?version=2",
+		"HTTPS://as/jwks",
+	} {
+		if _, err := oauthHTTPSURL(raw); err != nil {
+			t.Fatalf("valid URL %q: %v", raw, err)
+		}
 	}
-	for _, tc := range cases {
-		if _, err := canonicalAuthServerURL(tc); err == nil {
-			t.Errorf("canonicalAuthServerURL(%q) accepted; wanted rejection", tc)
+	for _, raw := range []string{
+		"", "http://as/jwks", "file:///etc/keys.json", "htps://as/jwks",
+		"https://user@as/jwks", "https://as/jwks#key", "https://as/jwks#",
+	} {
+		if _, err := oauthHTTPSURL(raw); err == nil {
+			t.Fatalf("invalid URL %q accepted", raw)
 		}
 	}
 }
 
-func TestValidateJWKSURI_RejectsMalformedAS(t *testing.T) {
-	// A typo'd AS scheme (e.g. `htps://`) must fail-closed. Previously the
-	// mirror-scheme check only fired on `https`, so a malformed AS would
-	// silently admit any jwks scheme (including HTTP on an HTTPS-intended
-	// deployment).
-	cases := []struct {
-		name string
-		as   string
-		jwks string
-	}{
-		{"typo scheme", "htps://as/", "http://as/jwks"},
-		{"empty scheme", "//as/", "https://as/jwks"},
-		{"ftp scheme", "ftp://as/", "https://as/jwks"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if err := validateJWKSURI(tc.as, tc.jwks); err == nil {
-				t.Fatalf("validateJWKSURI(%q, %q) accepted; wanted rejection", tc.as, tc.jwks)
-			}
-		})
-	}
-}
-
-func TestCanonicalAuthServerURL_IPv6(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"https://[::1]:443/", "https://[::1]"},
-		{"https://[::1]/", "https://[::1]"},
-		{"https://[::1]:8443/realm/x/", "https://[::1]:8443/realm/x"},
-	}
-	for _, tc := range cases {
-		got, err := canonicalAuthServerURL(tc.in)
-		if err != nil {
-			t.Fatalf("canonicalAuthServerURL(%q): %v", tc.in, err)
-		}
-		if got != tc.want {
-			t.Errorf("canonicalAuthServerURL(%q) = %q, want %q", tc.in, got, tc.want)
-		}
-	}
-}
-
-func TestValidateJWKSURI(t *testing.T) {
-	cases := []struct {
-		name    string
-		as      string
-		jwks    string
-		wantErr bool
-	}{
-		{"empty jwks rejected", "https://as/", "", true},
-		{"https as + https jwks ok", "https://as/", "https://as/jwks", false},
-		{"https as + http jwks rejected (downgrade)", "https://as/", "http://cdn/jwks", true},
-		{"http as + http jwks ok", "http://as/", "http://as/jwks", false},
-		{"https as + file:// jwks rejected", "https://as/", "file:///etc/keys.json", true},
-		{"case-insensitive scheme match", "HTTPS://as/", "HTTPS://as/jwks", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateJWKSURI(tc.as, tc.jwks)
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("validateJWKSURI(%q, %q) err = %v, wantErr = %v",
-					tc.as, tc.jwks, err, tc.wantErr)
-			}
-		})
-	}
-}
-
-func TestNewStreamable_OAuth_MetadataUsesCanonicalIssuer(t *testing.T) {
-	// The RFC 9728 document MUST advertise md.Issuer (AS-reported form) so
-	// the string clients receive is byte-identical to what tokens carry in
-	// the `iss` claim. Operator-configured URLs that differ only by
-	// canonical-trivial elements (trailing slash, case-folding, default
-	// port) MUST resolve to the AS-reported form in the published doc.
-	//
-	// Helper spins up an AS that reports a specific issuer string, builds
-	// a Streamable with a given operator-configured URL, and asserts the
-	// metadata handler advertises the AS-reported issuer.
-	runCase := func(t *testing.T, operatorURL string, asIssuer func(srvURL string) string) {
-		t.Helper()
-		mux := http.NewServeMux()
-		var srv *httptest.Server
-		priv, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			t.Fatalf("rsa: %v", err)
-		}
-		mux.HandleFunc("/.well-known/oauth-authorization-server", func(w http.ResponseWriter, _ *http.Request) {
-			body, _ := json.Marshal(map[string]any{
-				"issuer":   asIssuer(srv.URL),
-				"jwks_uri": srv.URL + "/jwks",
+// TestOAuthRejectsIssuerAliases proves discovery never trusts metadata whose
+// issuer differs only in spelling from the configured trust anchor.
+// RFC requirement: RFC8414-3.3-2 negative -- issuer slash, path, and query aliases fail startup before their JWKS URL is requested.
+func TestOAuthRejectsIssuerAliases(t *testing.T) {
+	for _, suffix := range []string{"/", "/realm/../", "?tenant=other"} {
+		t.Run(suffix, func(t *testing.T) {
+			var issuer string
+			var keyRequests atomic.Int64
+			srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/jwks" {
+					keyRequests.Add(1)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if err := json.NewEncoder(w).Encode(map[string]any{
+					"issuer": issuer + suffix, "jwks_uri": issuer + "/jwks",
+				}); err != nil {
+					t.Errorf("write metadata: %v", err)
+				}
+			}))
+			issuer = srv.URL
+			s, err := NewStreamable(StreamableConfig{
+				AuthMode: AuthOAuth,
+				OAuth:    OAuthConfig{AuthorizationServer: issuer, Audience: "https://mcp.example/"},
 			})
-			if _, werr := w.Write(body); werr != nil {
-				t.Logf("write metadata: %v", werr)
+			if s != nil {
+				s.Close()
+				t.Fatal("mismatched issuer returned a server")
+			}
+			if err == nil || !strings.Contains(err.Error(), "does not match configured") {
+				t.Fatalf("expected issuer mismatch, got %v", err)
+			}
+			if keyRequests.Load() != 0 {
+				t.Fatal("used the mismatched document's JWKS")
 			}
 		})
-		mux.HandleFunc("/jwks", func(w http.ResponseWriter, _ *http.Request) {
-			body, _ := json.Marshal(map[string]any{
-				"keys": []map[string]any{rsaJWK(t, priv, "k1")},
-			})
-			if _, werr := w.Write(body); werr != nil {
-				t.Logf("write jwks: %v", werr)
-			}
-		})
-		srv = httptest.NewServer(mux)
-		defer srv.Close()
-
-		// operatorURL may embed {srv} (full URL) or {host} (host:port) so
-		// we can express case-folded or slash-variant flavors.
-		cfgURL := strings.Replace(operatorURL, "{srv}", srv.URL, 1)
-		hostPort := strings.TrimPrefix(srv.URL, "http://")
-		cfgURL = strings.Replace(cfgURL, "{host}", hostPort, 1)
-		s, err := NewStreamable(StreamableConfig{
-			AuthMode: AuthOAuth,
-			OAuth: OAuthConfig{
-				AuthorizationServer: cfgURL,
-				Audience:            "https://mcp.example/",
-			},
-		})
-		if err != nil {
-			t.Fatalf("NewStreamable (operator=%q): %v", cfgURL, err)
-		}
-		defer s.Close()
-
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
-		w := httptest.NewRecorder()
-		s.ServeHTTP(w, req)
-		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d", w.Code)
-		}
-		var got map[string]any
-		if uerr := json.Unmarshal(w.Body.Bytes(), &got); uerr != nil {
-			t.Fatalf("decode: %v", uerr)
-		}
-		wantIssuer := asIssuer(srv.URL)
-		servers, _ := got["authorization_servers"].([]any)
-		if len(servers) != 1 || servers[0] != wantIssuer {
-			t.Fatalf("authorization_servers[0] = %v, want %q (AS-reported)",
-				servers, wantIssuer)
-		}
 	}
-
-	t.Run("trailing slash divergence", func(t *testing.T) {
-		// Operator typed a trailing slash; AS reports without.
-		runCase(t, "{srv}/", func(srvURL string) string { return srvURL })
-	})
-
-	t.Run("case-folding divergence", func(t *testing.T) {
-		// Operator typed uppercase scheme; AS reports the lowercase form.
-		// Build the operator URL by uppercasing srv.URL's scheme portion.
-		runCase(t, "HTTP://{host}", func(srvURL string) string { return srvURL })
-	})
 }
 
-// resolveOperatorURLVariant substitutes {srv} / {host} placeholders for the
-// httptest server's URL. Kept here so runCase's template logic stays tiny.
+// TestRFC8414JWKSMetadataSecurity drives metadata and JWKS retrieval through
+// NewStreamable, then submits an access token to the HTTP endpoint.
+// RFC requirement: RFC8414-2-7 positive -- an HTTPS jwks_uri supplies the key that authenticates a signed request.
+// RFC requirement: RFC8414-2-7 negative -- HTTP jwks_uri and HTTPS redirects to HTTP both fail startup before a plaintext key request.
+// RFC requirement: RFC8414-2-8 positive -- a mixed signing/encryption JWKS with explicit use values verifies a token with its signing key.
+// RFC requirement: RFC8414-2-8 negative -- a mixed JWKS containing an unlabelled key is rejected before token verification.
+func TestRFC8414JWKSMetadataSecurity(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa: %v", err)
+	}
+	for _, scenario := range []string{"labelled keys", "missing use", "HTTP keys", "redirect to HTTP"} {
+		t.Run(scenario, func(t *testing.T) {
+			var plainHits atomic.Int64
+			plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				plainHits.Add(1)
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer plain.Close()
+			var issuer string
+			srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == asMetadataWellKnownPath {
+					keys := issuer + "/jwks"
+					if scenario == "HTTP keys" {
+						keys = plain.URL + "/jwks"
+					}
+					if err := json.NewEncoder(w).Encode(map[string]any{"issuer": issuer, "jwks_uri": keys}); err != nil {
+						t.Errorf("write metadata: %v", err)
+					}
+					return
+				}
+				if scenario == "redirect to HTTP" {
+					http.Redirect(w, r, plain.URL+"/jwks", http.StatusFound)
+					return
+				}
+				signing := rsaJWK(t, priv, "signing")
+				encryption := rsaJWK(t, priv, "encryption")
+				encryption["use"] = "enc"
+				if scenario == "missing use" {
+					delete(signing, "use")
+				}
+				if err := json.NewEncoder(w).Encode(map[string]any{
+					"keys": []map[string]any{signing, encryption},
+				}); err != nil {
+					t.Errorf("write keys: %v", err)
+				}
+			}))
+			issuer = srv.URL
+			s, err := NewStreamable(StreamableConfig{
+				AuthMode: AuthOAuth,
+				OAuth:    OAuthConfig{AuthorizationServer: issuer, Audience: "https://mcp.example/mcp"},
+			})
+			if scenario != "labelled keys" {
+				if s != nil {
+					s.Close()
+					t.Fatal("unsafe metadata returned a server")
+				}
+				if err == nil {
+					t.Fatal("unsafe metadata returned no startup error")
+				}
+				if plainHits.Load() != 0 {
+					t.Fatal("JWKS retrieval reached the plaintext destination")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("valid metadata: %v", err)
+			}
+			defer s.Close()
+			claims := standardClaims(time.Now(), issuer, "https://mcp.example/mcp", time.Hour)
+			token := signRS256(t, priv, "signing", claims)
+			body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+				metaBlock(ProtocolVersion, capsNone) + `}}`
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+			req.Header.Set("Mcp-Method", "tools/list")
+			req.Header.Set("Authorization", "Bearer "+token)
+			w := httptest.NewRecorder()
+			s.ServeHTTP(w, req)
+			if w.Code != http.StatusOK {
+				t.Fatalf("valid signing key did not authenticate: %d %s", w.Code, w.Body.String())
+			}
+		})
+	}
+}
 
 // -----------------------------------------------------------------------------
 // resourceMetadataURL derivation
@@ -1102,6 +1032,39 @@ func TestResourceMetadataURL(t *testing.T) {
 	for _, tc := range cases {
 		if got := resourceMetadataURL(tc.cfg); got != tc.want {
 			t.Errorf("%s: resourceMetadataURL = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// An invalid typed mode must fail construction instead of selecting anonymous
+// authentication through the dispatcher's default arm.
+func TestNewStreamableRejectsUnknownAuthenticationMode(t *testing.T) {
+	s, err := NewStreamable(StreamableConfig{AuthMode: AuthMode(255)})
+	if s != nil {
+		s.Close()
+		t.Fatal("unknown authentication mode constructed a server")
+	}
+	if err == nil {
+		t.Fatal("unknown authentication mode returned no error")
+	}
+}
+
+// URL validation errors are printed when the listener cannot start. Userinfo
+// credentials must not reach that operator-visible error text.
+func TestOAuthURLValidationDoesNotExposeCredentials(t *testing.T) {
+	for _, raw := range []string{
+		"https://secret-token@as.example/jwks",
+		"http://secret-token:password@as.example/jwks",
+		"https://secret-token:password@as.example/%invalid",
+	} {
+		_, err := oauthHTTPSURL(raw)
+		if err == nil {
+			t.Fatalf("credential-bearing URL accepted")
+		}
+		for _, secret := range []string{"secret-token", "password"} {
+			if strings.Contains(err.Error(), secret) {
+				t.Fatalf("URL rejection exposed a credential")
+			}
 		}
 	}
 }

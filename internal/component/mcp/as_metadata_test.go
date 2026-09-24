@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +20,8 @@ func TestASMetadataURL(t *testing.T) {
 		{"https://as.example//", "https://as.example/.well-known/oauth-authorization-server"},
 		{"https://as.example/realm/x", "https://as.example/.well-known/oauth-authorization-server/realm/x"},
 		{"https://as.example/realm/x/", "https://as.example/.well-known/oauth-authorization-server/realm/x"},
+		{"https://as.example/tenant%2F", "https://as.example/.well-known/oauth-authorization-server/tenant%2F"},
+		{"https://as.example/tenant%2f/", "https://as.example/.well-known/oauth-authorization-server/tenant%2f"},
 	}
 	for _, tc := range cases {
 		got, err := asMetadataURL(tc.in)
@@ -38,9 +39,10 @@ func TestASMetadataURL(t *testing.T) {
 
 func TestFetchASMetadata_Success(t *testing.T) {
 	mux := http.NewServeMux()
+	var issuer string
 	mux.HandleFunc("/.well-known/oauth-authorization-server", func(w http.ResponseWriter, _ *http.Request) {
 		body, err := json.Marshal(map[string]any{
-			"issuer":   "https://as.example/",
+			"issuer":   issuer,
 			"jwks_uri": "https://as.example/jwks",
 		})
 		if err != nil {
@@ -52,7 +54,8 @@ func TestFetchASMetadata_Success(t *testing.T) {
 			t.Logf("write: %v", werr)
 		}
 	})
-	srv := httptest.NewServer(mux)
+	srv := newTrustedTLSServer(t, mux)
+	issuer = srv.URL
 	defer srv.Close()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -62,7 +65,7 @@ func TestFetchASMetadata_Success(t *testing.T) {
 		t.Fatalf("fetchASMetadata: %v", err)
 	}
 	// RFC requirement: RFC8414-2-1 positive -- a metadata document carrying issuer decodes it into asMetadata.Issuer
-	if md.Issuer != "https://as.example/" {
+	if md.Issuer != srv.URL {
 		t.Fatalf("issuer = %q", md.Issuer)
 	}
 	if md.JWKSURI != "https://as.example/jwks" {
@@ -71,7 +74,8 @@ func TestFetchASMetadata_Success(t *testing.T) {
 }
 
 func TestFetchASMetadata_MissingIssuer(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		body, _ := json.Marshal(map[string]any{"jwks_uri": "https://as.example/jwks"})
 		if _, werr := w.Write(body); werr != nil {
 			t.Logf("write: %v", werr)
@@ -87,7 +91,8 @@ func TestFetchASMetadata_MissingIssuer(t *testing.T) {
 }
 
 func TestFetchASMetadata_MissingJWKSURI(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		body, _ := json.Marshal(map[string]any{"issuer": "https://as.example/"})
 		if _, werr := w.Write(body); werr != nil {
 			t.Logf("write: %v", werr)
@@ -102,7 +107,7 @@ func TestFetchASMetadata_MissingJWKSURI(t *testing.T) {
 }
 
 func TestFetchASMetadata_HTTP500(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "down", http.StatusInternalServerError)
 	}))
 	defer srv.Close()
@@ -114,7 +119,8 @@ func TestFetchASMetadata_HTTP500(t *testing.T) {
 }
 
 func TestFetchASMetadata_MalformedJSON(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		if _, werr := w.Write([]byte("not json")); werr != nil {
 			t.Logf("write: %v", werr)
 		}
@@ -132,7 +138,8 @@ func TestFetchASMetadata_OversizeBody(t *testing.T) {
 	for i := range big {
 		big[i] = 'a'
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		if _, werr := w.Write(big); werr != nil {
 			t.Logf("write: %v", werr)
 		}
@@ -171,7 +178,7 @@ func TestFetchASMetadata_HonorsCustomClientTimeout(t *testing.T) {
 	}()
 
 	client := &http.Client{Timeout: 250 * time.Millisecond}
-	baseURL := "http://" + ln.Addr().String()
+	baseURL := "https://" + ln.Addr().String()
 	_, err = fetchASMetadata(t.Context(), client, baseURL)
 	if err == nil {
 		t.Fatal("expected timeout error")

@@ -17,6 +17,7 @@ package hub
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
@@ -34,6 +35,10 @@ type mgmtAuthInputs struct {
 	// mcpTokenBase is the MCP token after the flag and the environment variable
 	// were applied, before the config block filled a blank.
 	mcpTokenBase string
+	// mcpConfigBase is the MCP settings snapshot used to construct the listener.
+	// Its authentication and TLS material remain fixed until restart.
+	mcpConfigBase    zeconfig.MCPListenConfig
+	mcpEnabledAtBoot bool
 
 	// apiTokenEnv is ze.api-server.token. It fills a blank config token, exactly
 	// as it does at boot.
@@ -114,19 +119,49 @@ func webAuthReloader(in mgmtAuthInputs) authReloader {
 	}
 }
 
-// mcpAuthReloader resolves whether the MCP server the reloaded config describes
-// gates every request. It defers to mcpListenerAuthenticated, the one function
-// that mirrors the MCP server's effective-mode precedence, so an explicit
-// auth-mode of "none" reads as unauthenticated even with a token set.
+// mcpAuthReloader rejects settings that the running MCP handler cannot apply.
+// Address migration remains live; authentication and TLS require restart.
+// Removing the block retains the running listener and its credentials.
 func mcpAuthReloader(in mgmtAuthInputs) authReloader {
+	boot := mcpFixedSettings(in.mcpConfigBase, in.mcpTokenBase)
 	return func(tree *zeconfig.Tree) (authIntent, bool, error) {
 		cfg, ok := zeconfig.ExtractMCPSettings(tree)
-		token := in.mcpTokenBase
-		if ok && token == "" {
-			token = cfg.Token
+		if !ok {
+			return authIntent{}, false, nil
 		}
-		return authIntent{authenticated: mcpListenerAuthenticated(ok, cfg.AuthMode, token)}, true, nil
+		_, enabled := zeconfig.ExtractMCPConfig(tree)
+		if enabled != in.mcpEnabledAtBoot {
+			return authIntent{}, false, fmt.Errorf("mcp enabled cannot change while running; restart ze to apply it")
+		}
+		candidate := mcpFixedSettings(cfg, in.mcpTokenBase)
+		if !reflect.DeepEqual(boot, candidate) {
+			return authIntent{}, false, fmt.Errorf("mcp authentication or TLS settings cannot change while running; restart ze to apply them")
+		}
+		return authIntent{authenticated: mcpListenerAuthenticated(true, cfg.AuthMode, candidate.Token)}, true, nil
 	}
+}
+
+// mcpFixedSettings excludes the fields the live listener migrator applies and
+// resolves the immutable flag/environment token with startup precedence.
+func mcpFixedSettings(cfg zeconfig.MCPListenConfig, token string) zeconfig.MCPListenConfig {
+	cfg = mcpEffectiveSettings(cfg, token)
+	cfg.Servers = nil
+	cfg.BindRemote = false
+	return cfg
+}
+
+// mcpEffectiveSettings resolves the same token and inferred auth mode for boot
+// validation and reload comparison. An explicit auth mode always wins.
+func mcpEffectiveSettings(cfg zeconfig.MCPListenConfig, token string) zeconfig.MCPListenConfig {
+	if token != "" {
+		cfg.Token = token
+	}
+	if cfg.AuthMode == "" {
+		if cfg.Token != "" {
+			cfg.AuthMode = "bearer"
+		}
+	}
+	return cfg
 }
 
 // apiAuthReloader resolves only the final authentication mode for exposure

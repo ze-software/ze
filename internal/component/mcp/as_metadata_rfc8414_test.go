@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -73,8 +74,10 @@ func fetchCtx(t *testing.T) context.Context {
 // component is one HTTP GET at /.well-known/oauth-authorization-server, and the document it
 // returns is decoded.
 func TestRFC8414MetadataRequestIsGETAtWellKnownPath(t *testing.T) {
+	// RFC requirement: RFC8414-3-2 positive -- the application requests metadata at the registered oauth-authorization-server suffix.
+	// RFC requirement: RFC8414-3-3 positive -- the application uses its fixed RFC8414 suffix for discovery.
 	as := &recordingAS{docPath: asMetadataWellKnownPath}
-	srv := httptest.NewServer(as)
+	srv := newTrustedTLSServer(t, as)
 	defer srv.Close()
 	as.issuer = srv.URL
 
@@ -100,7 +103,7 @@ func TestRFC8414MetadataRequestIsGETAtWellKnownPath(t *testing.T) {
 // ever tried.
 func TestRFC8414MetadataRequestUsesNoOtherVerbOrPath(t *testing.T) {
 	as := &recordingAS{docPath: asMetadataWellKnownPath}
-	srv := httptest.NewServer(as)
+	srv := newTrustedTLSServer(t, as)
 	defer srv.Close()
 	as.issuer = srv.URL
 
@@ -125,16 +128,16 @@ func TestRFC8414MetadataRequestUsesNoOtherVerbOrPath(t *testing.T) {
 // slash is removed and the request path is /.well-known/oauth-authorization-server/issuer1.
 func TestRFC8414MetadataPathInsertedBeforeIssuerPath(t *testing.T) {
 	as := &recordingAS{docPath: asMetadataWellKnownPath + "/issuer1"}
-	srv := httptest.NewServer(as)
+	srv := newTrustedTLSServer(t, as)
 	defer srv.Close()
-	as.issuer = srv.URL + "/issuer1"
+	as.issuer = srv.URL + "/issuer1/"
 
 	md, err := fetchASMetadata(fetchCtx(t), nil, srv.URL+"/issuer1/")
 	if err != nil {
 		t.Fatalf("fetchASMetadata: %v", err)
 	}
-	if md.Issuer != srv.URL+"/issuer1" {
-		t.Fatalf("issuer = %q, want %q", md.Issuer, srv.URL+"/issuer1")
+	if md.Issuer != srv.URL+"/issuer1/" {
+		t.Fatalf("issuer = %q, want %q", md.Issuer, srv.URL+"/issuer1/")
 	}
 	seen := as.seen()
 	want := "GET " + asMetadataWellKnownPath + "/issuer1"
@@ -148,8 +151,10 @@ func TestRFC8414MetadataPathInsertedBeforeIssuerPath(t *testing.T) {
 // appended location /issuer1/.well-known/oauth-authorization-server is never found: the fetch
 // fails and the AS saw neither the appended path nor a path ending in the terminating slash.
 func TestRFC8414MetadataPathNeverAppendedToIssuerPath(t *testing.T) {
+	// RFC requirement: RFC8414-3-2 negative -- discovery never requests the appended, unregistered metadata location.
+	// RFC requirement: RFC8414-3-3 negative -- an AS offering only an alternate location cannot change the application's discovery suffix.
 	as := &recordingAS{docPath: "/issuer1" + asMetadataWellKnownPath}
-	srv := httptest.NewServer(as)
+	srv := newTrustedTLSServer(t, as)
 	defer srv.Close()
 	as.issuer = srv.URL + "/issuer1"
 
@@ -257,5 +262,149 @@ func TestRFC8414MetadataFetchRefusesUntrustedCertificate(t *testing.T) {
 	}
 	if len(as.seen()) != 0 {
 		t.Fatalf("handler served a request over an untrusted session: %v", as.seen())
+	}
+}
+
+// TestRFC8414MetadataRequiresHTTPS checks the configured URL before a network
+// request and proves that redirect following cannot cross into plaintext.
+// RFC requirement: RFC8414-3.3-1 positive -- HTTPS metadata from a trusted server is decoded.
+// RFC requirement: RFC8414-3.3-1 negative -- an HTTP issuer and an HTTPS-to-HTTP redirect are refused without contacting the HTTP destination.
+func TestRFC8414MetadataRequiresHTTPS(t *testing.T) {
+	var plainHits atomic.Int64
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer plain.Close()
+	if md, err := fetchASMetadata(fetchCtx(t), nil, plain.URL); err == nil || md != (asMetadata{}) {
+		t.Fatalf("HTTP issuer accepted: %+v, %v", md, err)
+	}
+	redirect := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, plain.URL, http.StatusFound)
+	}))
+	defer redirect.Close()
+	if md, err := fetchASMetadata(fetchCtx(t), redirect.Client(), redirect.URL); err == nil || md != (asMetadata{}) {
+		t.Fatalf("plaintext redirect accepted: %+v, %v", md, err)
+	}
+	if plainHits.Load() != 0 {
+		t.Fatal("metadata request reached the plaintext destination")
+	}
+
+	as := &recordingAS{docPath: asMetadataWellKnownPath}
+	secure := httptest.NewTLSServer(as)
+	defer secure.Close()
+	as.issuer = secure.URL
+	md, err := fetchASMetadata(fetchCtx(t), secure.Client(), secure.URL)
+	if err != nil || md.Issuer != secure.URL {
+		t.Fatalf("trusted HTTPS metadata rejected: %+v, %v", md, err)
+	}
+}
+
+func TestConfiguredIssuerQueryRejectedBeforeMetadataFetch(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	for _, suffix := range []string{"?tenant=x", "?"} {
+		t.Run(suffix, func(t *testing.T) {
+			if _, err := fetchASMetadata(t.Context(), srv.Client(), srv.URL+suffix); err == nil {
+				t.Fatal("configured issuer query was accepted")
+			}
+			if hits.Load() != 0 {
+				t.Fatal("invalid issuer triggered a metadata request")
+			}
+		})
+	}
+}
+
+// TestRFC8414MetadataHTTPResponse checks the response envelope before accepting
+// issuer and key metadata, including a JSON array in place of an object.
+// RFC requirement: RFC8414-3.2-1 positive -- 200 application/json containing an object supplies the issuer and key URL.
+// RFC requirement: RFC8414-3.2-1 negative -- a non-200 status, wrong or absent Content-Type, and a non-object JSON body each return no metadata.
+func TestRFC8414MetadataHTTPResponse(t *testing.T) {
+	cases := []struct {
+		name        string
+		status      int
+		contentType string
+		array       bool
+		valid       bool
+	}{
+		{"JSON object", http.StatusOK, "application/json", false, true},
+		{"JSON with charset", http.StatusOK, "application/json; charset=utf-8", false, true},
+		{"created", http.StatusCreated, "application/json", false, false},
+		{"HTML", http.StatusOK, "text/html", false, false},
+		{"absent type", http.StatusOK, "", false, false},
+		{"array", http.StatusOK, "application/json", true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var issuer string
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header()["Content-Type"] = []string{c.contentType}
+				w.WriteHeader(c.status)
+				var body any = map[string]any{"issuer": issuer, "jwks_uri": issuer + "/jwks"}
+				if c.array {
+					body = []any{body}
+				}
+				if err := json.NewEncoder(w).Encode(body); err != nil {
+					t.Errorf("write metadata: %v", err)
+				}
+			}))
+			defer srv.Close()
+			issuer = srv.URL
+			md, err := fetchASMetadata(fetchCtx(t), srv.Client(), issuer)
+			if c.valid {
+				if err != nil || md.Issuer != issuer || md.JWKSURI != issuer+"/jwks" {
+					t.Fatalf("valid metadata: %+v, %v", md, err)
+				}
+				return
+			}
+			if err == nil || md != (asMetadata{}) {
+				t.Fatalf("invalid response supplied metadata: %+v, %v", md, err)
+			}
+		})
+	}
+}
+
+// TestRFC8414MetadataIssuerIdentity proves metadata discovery compares JSON
+// strings after unescaping but without URL or Unicode normalization.
+// RFC requirement: RFC8414-3.3-2 positive -- a JSON-escaped issuer equal to the configured identifier is accepted.
+// RFC requirement: RFC8414-3.3-2 negative -- slash, path, and Unicode aliases of the configured issuer are rejected.
+// RFC requirement: RFC8414-4-2 positive -- an identical decomposed Unicode issuer is accepted without normalization.
+// RFC requirement: RFC8414-4-2 negative -- composed and decomposed Unicode issuer spellings are not interchangeable.
+// RFC requirement: RFC8414-4-3 positive -- JSON escapes decode before an exact issuer comparison.
+// RFC requirement: RFC8414-4-3 negative -- a different issuer code point returns no metadata.
+func TestRFC8414MetadataIssuerIdentity(t *testing.T) {
+	var advertised string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		body, err := json.Marshal(map[string]any{"issuer": advertised, "jwks_uri": "https://as.example/jwks"})
+		if err != nil {
+			t.Errorf("encode: %v", err)
+			return
+		}
+		escaped := strings.ReplaceAll(string(body), "/", `\/`)
+		if _, err := w.Write([]byte(escaped)); err != nil {
+			t.Errorf("write metadata: %v", err)
+		}
+	}))
+	defer srv.Close()
+	expected := srv.URL + "/e\u0301"
+	for _, issuer := range []string{
+		expected, srv.URL + "/\u00e9", expected + "/", srv.URL + "/other/../e\u0301",
+	} {
+		advertised = issuer
+		md, err := fetchASMetadata(fetchCtx(t), srv.Client(), expected)
+		if issuer == expected {
+			if err != nil || md.Issuer != expected {
+				t.Fatalf("identical issuer rejected: %+v, %v", md, err)
+			}
+			continue
+		}
+		if err == nil || md != (asMetadata{}) {
+			t.Fatalf("issuer alias %q accepted: %+v, %v", issuer, md, err)
+		}
 	}
 }

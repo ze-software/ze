@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc8414.txt",
   "source-sha": "9ab822f4868cfc68",
-  "signed-off": "2026-09-21",
-  "reviewer": "claude",
+  "signed-off": "2026-09-22",
+  "reviewer": "Main integration; independent source-mapping review: OAuthMappingReview",
+  "resign-reason": "The 2026-09-22 source walk separates source provenance from the 2026-09-21 owner-selected OAuth roles. Requirements retained in the summary map to their RFC sentences even where a summary annotation records an absent role or optional feature. The historical exclusion increase came from replacing those source mappings with applicability exclusions; that replacement is reversed. Site 3.3:2 maps the distinct rejection clause already included in RFC8414-3.3-2. Only the Section 6.2 restatements remain duplicate-of exclusions, each with a directly mapped target. The bounded 2026-09-22 independent review already accepted the existing mappings and scope annotations without completing signing or proving implementation behaviour. Thomas or an independently assigned RFC reviewer must review the corrected RFC8414-3.3-1 citation and the direct mapping at 3.3:2 before re-signing; this file carries no signature. Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. ASPA retired 5-1/5-2 identities and RFC8571-x-4 retirement remain unresolved where applicable; no replacement obligation was invented.",
   "sections": [
     {
       "id": "front",
@@ -31,6 +32,7 @@
       "id": "2",
       "sites": 13,
       "disposition": "walked",
+      "reason": "Section 2 describes jwks_uri as OPTIONAL and scopes_supported as RECOMMENDED. These advisory entries have no separate MUST-level source site. Their IDs remain allocated; the MUST clauses governing the referenced key set map separately at 2:4 and 2:5.",
       "unsourced-ids": [
         "RFC8414-2-5",
         "RFC8414-2-6"
@@ -99,7 +101,8 @@
     {
       "id": "7",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Registration procedure addresses IANA and Designated Experts. Its lowercase registry instructions do not create an additional MUST-level site in this document's selected inventory."
     },
     {
       "id": "7.1",
@@ -295,9 +298,7 @@
     {
       "id": "3.3:2",
       "quote": "If these values are not identical, the data contained in the response MUST NOT be used.",
-      "disposition": "excluded",
-      "excluded-kind": "duplicate-of",
-      "reason": "The reject arm of the same sentence pair in Section 3.3: \"If these values are not identical, the data contained in the response MUST NOT be used.\" Row RFC8414-3.3-2 states both arms and carries the positive and negative tags.",
+      "disposition": "mapped",
       "mapped-to": "RFC8414-3.3-2"
     },
     {
@@ -347,7 +348,7 @@
       "quote": "TLS certificate checking MUST be performed by the client, as described in Section 6.1, when making an authorization server metadata request.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 6.2 restates the Section 6.1 certificate-check obligation and says so in its own words: \"TLS certificate checking MUST be performed by the client, as described in Section 6.1, when making an authorization server metadata request.\"",
+      "reason": "Section 6.2 expressly restates Section 6.1: TLS certificate checking MUST be performed by the client, as described in Section 6.1, when making an authorization server metadata request. Site 6.1:3 directly maps RFC8414-6.1-3.",
       "mapped-to": "RFC8414-6.1-3"
     },
     {
@@ -355,7 +356,7 @@
       "quote": "To prevent this, the client MUST ensure that the issuer identifier URL it is using as the prefix for the metadata request exactly matches the value of the \"issuer\" metadata value in the authorization server metadata document received by the client.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 6.2 restates the Section 3.3 issuer-match obligation as an anti-impersonation measure; the client ensuring the issuer identifier URL matches the \"issuer\" metadata value is the same check row RFC8414-3.3-2 carries.",
+      "reason": "Section 6.2 repeats the Section 3.3 exact issuer-match rule as protection against impersonation. Sites 3.3:1 and 3.3:2 directly map the equality and rejection clauses of RFC8414-3.3-2.",
       "mapped-to": "RFC8414-3.3-2"
     }
   ]

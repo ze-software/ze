@@ -3,33 +3,18 @@
 
 package mcp
 
-import (
-	"strings"
+import "github.com/ze-software/ze/internal/core/audit"
 
-	"github.com/ze-software/ze/internal/core/audit"
-)
-
-func recordMCPAuthFailure(recorder audit.Recorder, authHeader, remoteAddr string) {
+// A rejected opaque bearer token has no trustworthy actor name. No part of
+// that credential may enter the audit record.
+func recordMCPAuthFailure(recorder audit.Recorder, remoteAddr string) {
 	if recorder == nil {
 		return
 	}
 	_ = recorder.Record(audit.Entry{
-		Actor:      attemptedMCPBearerActor(authHeader),
 		RemoteAddr: remoteAddr,
 		Surface:    audit.MCP,
 		Action:     audit.ActionAuthFail,
 		Outcome:    audit.OutcomeDenied,
 	})
-}
-
-func attemptedMCPBearerActor(header string) string {
-	raw, ok := strings.CutPrefix(header, "Bearer ")
-	if !ok {
-		return ""
-	}
-	username, _, ok := strings.Cut(raw, ":")
-	if !ok {
-		return ""
-	}
-	return username
 }

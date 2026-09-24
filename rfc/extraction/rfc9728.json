@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc9728.txt",
   "source-sha": "77e3256aa4514f31",
-  "signed-off": "2026-09-21",
-  "reviewer": "claude",
+  "signed-off": "2026-09-22",
+  "reviewer": "Main integration; independent source-mapping review: OAuthMappingReview",
+  "resign-reason": "The 2026-09-22 source walk preserves direct source mappings for requirements whose summary annotations retain the owner's 2026-09-21 role and optional-feature boundaries. The historical increase in exclusions conflated those boundaries with source provenance; those requirements now remain mapped. Site 3.3:2 directly maps RFC9728-3.3-2, so the repeated rejection at 3.3:4 has a mapped target. The summary now expressly records both rejection contexts. Section 2.1 retains the second MUST clause under its existing ID through unsourced-ids because one derived sentence permits one target. The bounded 2026-09-22 independent review already accepted the existing mappings and scope annotations without completing signing or proving implementation behaviour. Thomas or an independently assigned RFC reviewer must review the expanded wording of RFC9728-3.3-2 and its duplicate rationale before re-signing; this file carries no signature. Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. ASPA retired 5-1/5-2 identities and RFC8571-x-4 retirement remain unresolved where applicable; no replacement obligation was invented.",
   "sections": [
     {
       "id": "front",
@@ -30,12 +31,19 @@
     {
       "id": "2",
       "sites": 4,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Section 2 marks authorization_servers and bearer_methods_supported OPTIONAL, and scopes_supported RECOMMENDED. The retained advisory IDs have no separate MUST-level inventory sites.",
+      "unsourced-ids": [
+        "RFC9728-2-2",
+        "RFC9728-2-4",
+        "RFC9728-2-5"
+      ]
     },
     {
       "id": "2.1",
       "sites": 1,
       "disposition": "walked",
+      "reason": "The sentence mapped at 2.1:1 contains both RFC9728-2.1-1 and RFC9728-2.1-2: If any human-readable field is sent without a language tag, parties using it MUST NOT make any assumptions about the language, character set, or script of the string value, and the string value MUST be used as is wherever it is presented in a user interface. One site has one mapped-to field, so the second MUST is accounted for here under its existing ID.",
       "unsourced-ids": [
         "RFC9728-2.1-2"
       ]
@@ -78,7 +86,11 @@
     {
       "id": "5.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Section 5.1 defines resource_metadata as the URL of the protected resource metadata and permits its use with non-Bearer schemes using MAY. The retained advisory ID has no separate MUST-level inventory site.",
+      "unsourced-ids": [
+        "RFC9728-5.1-1"
+      ]
     },
     {
       "id": "5.2",
@@ -153,12 +165,18 @@
     {
       "id": "7.10",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Section 7.10 says normal HTTP caching behaviours apply and recommends caching directives with lowercase should. The existing advisory IDs record that text and have no MUST-level inventory sites.",
+      "unsourced-ids": [
+        "RFC9728-7.10-1",
+        "RFC9728-7.10-2"
+      ]
     },
     {
       "id": "8",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Registration procedure addresses IANA and designated experts. Its lowercase registry instructions do not create an additional MUST-level site in this document's selected inventory."
     },
     {
       "id": "8.1",
@@ -325,7 +343,7 @@
       "quote": "If these values are not identical, the data contained in the response MUST NOT be used.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 3.3 states the same consequence twice, once for each identity check; the first is mapped at site 3.3:2.",
+      "reason": "Section 3.3 repeats: If these values are not identical, the data contained in the response MUST NOT be used. The first occurrence follows the well-known URL identity check and maps directly at 3.3:2; this occurrence follows discovery through WWW-Authenticate. RFC9728-3.3-2 now explicitly includes both contexts, so the duplicate target records the obligation of this sentence as well.",
       "mapped-to": "RFC9728-3.3-2"
     },
     {
@@ -337,9 +355,8 @@
     {
       "id": "6:1",
       "quote": "Therefore, comparisons between JSON strings and other Unicode strings MUST be performed as specified below:",
-      "disposition": "excluded",
-      "excluded-kind": "not-a-requirement",
-      "reason": "Chapeau introducing the two comparison rules that follow it, mapped at sites 6:2 and 6:3: 'comparisons between JSON strings and other Unicode strings MUST be performed as specified below:'."
+      "disposition": "mapped",
+      "mapped-to": "RFC9728-6-3"
     },
     {
       "id": "6:2",

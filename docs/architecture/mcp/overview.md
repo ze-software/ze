@@ -358,13 +358,16 @@ to the client, and the body value is client-supplied too.
 <!-- source: internal/component/mcp/streamable.go — authenticate -->
 <!-- source: internal/component/mcp/auth.go — authenticator interface, Identity -->
 
-Authentication runs on **every** request. With the handshake gone there is no
-session id to stand in for a credential. Each POST therefore presents its own
-credential, and each POST is checked.
+Every POST authenticates independently. There is no session ID that can stand
+in for a credential. The public OAuth metadata GET is the exception: a client
+must be able to discover the authorization server before obtaining a token.
 
-Two consequences follow. A revoked token stops working on the next request, not
-at session expiry. And no long-lived identifier exists that is a bearer
-credential in its own right to steal.
+OAuth validates the signature, issuer, audience, timestamps and required
+scopes locally. It does not introspect tokens or observe individual revocation
+at the authorization server. Token expiry and successful signing-key refresh
+bound acceptance; an expired key cache never authorizes a request after a
+failed refresh. Static bearer identities and OAuth configuration remain fixed
+until restart. Configuration reload rejects a change it cannot apply.
 
 Four modes are selected by `environment.mcp.auth-mode`: `none`, `bearer`,
 `bearer-list`, and `oauth`. `none` is not a bypass. It is an authenticator that
@@ -372,15 +375,29 @@ accepts every request with a zero `Identity`. That is why `ze-chaos`, which
 configures no token and no auth mode, reaches the same uniform path as every
 other caller. It is not a carve-out.
 
+An unknown auth mode prevents construction. An absent authenticator fails
+closed rather than acting as `none`. Failed bearer authentication records an
+audit event with the remote address and denied outcome but no actor: an
+unverified credential, including a colon-separated prefix, is not an identity.
+
+<!-- source: internal/component/mcp/streamable_auth.go -- buildAuthForMode -->
+<!-- source: internal/component/mcp/audit.go -- recordMCPAuthFailure -->
+<!-- source: internal/component/mcp/jwks.go -- LookupJWK, fetchIfAllowed -->
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- mcpAuthReloader -->
+
 ## Mount Point
 
 <!-- source: cmd/ze/hub/service_mcp.go — startMCPServer (ze_mcp) -->
 
-`startMCPServer(addrs, dispatch, commands, mcpCfg, tlsCert, tlsKey)` is called
-from the gated `buildMCPService` factory when `environment.mcp.server` has at
-least one entry. Each listener address gets its own `net.Listener`. All are
-served by a single `http.Server` whose handler is the `*zemcp.Streamable`. Bind
-is all-or-nothing: if any listener fails, the already-bound listeners are
+The gated `buildMCPService` factory calls `startMCPServer` for addresses selected
+by config, flags or environment variables. OAuth metadata and the initial JWKS
+must load over HTTPS before the listener is constructed. Failure disables the
+MCP listener; it does not terminate the daemon.
+
+Each address gets its own `net.Listener`. All are served by one `http.Server`
+whose handler is the `*zemcp.Streamable`. A configured certificate/key pair
+wraps the listeners with TLS 1.2 or later. Bind is all-or-nothing: if any
+listener fails, the already-bound listeners are
 closed. Shutdown calls `http.Server.Shutdown`, and the caller must also call
 `Close` on the handler so the task-registry GC goroutine exits.
 

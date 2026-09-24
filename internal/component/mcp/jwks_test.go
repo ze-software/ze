@@ -1,16 +1,19 @@
 package mcp
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -45,8 +48,7 @@ func newJWKSServer(t *testing.T) (*httptest.Server, *jwksServer) {
 			t.Logf("write body: %v", werr)
 		}
 	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
+	srv := newTrustedTLSServer(t, mux)
 	return srv, &jwksServer{mu: mu, hits: hits}
 }
 
@@ -261,7 +263,7 @@ func TestJWKSCache_RefreshWhenClockAdvances(t *testing.T) {
 }
 
 func TestJWKSCache_FetchHTTPFailure(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
 	t.Cleanup(srv.Close)
@@ -271,12 +273,75 @@ func TestJWKSCache_FetchHTTPFailure(t *testing.T) {
 	}
 }
 
+// TestJWKSCacheDoesNotUseExpiredKeys proves known keys are subject to expiry
+// and a refresh rate limit cannot extend their authorization lifetime.
+func TestJWKSCacheDoesNotUseExpiredKeys(t *testing.T) {
+	srv, js := newJWKSServer(t)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa: %v", err)
+	}
+	doc := map[string]any{"keys": []map[string]any{rsaJWK(t, priv, "old")}}
+	js.mu.Store(&doc)
+	cache := newJWKSCache(srv.URL+"/jwks", nil, time.Minute, time.Hour)
+	now := time.Unix(1_700_000_000, 0)
+	cache.now = func() time.Time { return now }
+	if _, ok := cache.LookupJWK("old"); !ok {
+		t.Fatal("current key rejected")
+	}
+	replacement := map[string]any{"keys": []map[string]any{rsaJWK(t, priv, "new")}}
+	js.mu.Store(&replacement)
+	now = now.Add(2 * time.Minute)
+	if _, ok := cache.LookupJWK("old"); ok {
+		t.Fatal("rate-limited refresh extended an expired key")
+	}
+	if js.hits.Load() != 1 {
+		t.Fatal("refresh ignored its rate limit")
+	}
+	now = now.Add(time.Hour)
+	if _, ok := cache.LookupJWK("old"); ok {
+		t.Fatal("a known key survived its removal from the refreshed JWKS")
+	}
+	if _, ok := cache.LookupJWK("new"); !ok {
+		t.Fatal("replacement key was not loaded")
+	}
+	if js.hits.Load() != 2 {
+		t.Fatal("expired known-key lookup did not refresh once")
+	}
+}
+
+// TestJWKSCacheRefreshFailureRejectsExpiredKeys makes the key endpoint
+// unavailable after expiry and checks that cached keys cannot authorize tokens.
+func TestJWKSCacheRefreshFailureRejectsExpiredKeys(t *testing.T) {
+	srv, js := newJWKSServer(t)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa: %v", err)
+	}
+	doc := map[string]any{"keys": []map[string]any{rsaJWK(t, priv, "old")}}
+	js.mu.Store(&doc)
+	cache := newJWKSCache(srv.URL+"/jwks", nil, time.Minute, time.Second)
+	now := time.Unix(1_700_000_000, 0)
+	cache.now = func() time.Time { return now }
+	if _, ok := cache.LookupJWK("old"); !ok {
+		t.Fatal("current key rejected")
+	}
+	srv.Close()
+	now = now.Add(2 * time.Minute)
+	if _, ok := cache.LookupJWK("old"); ok {
+		t.Fatal("failed refresh allowed an expired key")
+	}
+	if _, ok := cache.LookupJWK("old"); ok {
+		t.Fatal("rate limit after a failed refresh allowed an expired key")
+	}
+}
+
 func TestJWKSCache_OversizeBody(t *testing.T) {
 	big := make([]byte, maxJWKSDocumentSize+100)
 	for i := range big {
 		big[i] = 'a'
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := newTrustedTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if _, werr := w.Write(big); werr != nil {
 			t.Logf("write: %v", werr)
 		}
@@ -313,7 +378,7 @@ func TestJWKSCache_RefreshHonorsClientTimeout(t *testing.T) {
 	}()
 
 	client := &http.Client{Timeout: 250 * time.Millisecond}
-	cache := newJWKSCache("http://"+ln.Addr().String()+"/jwks", client, 0, 0)
+	cache := newJWKSCache("https://"+ln.Addr().String()+"/jwks", client, 0, 0)
 	if err := cache.Refresh(); err == nil {
 		t.Fatal("expected timeout error with short-timeout client")
 	}
@@ -398,5 +463,121 @@ func TestParseJWKSDocumentRejectsOffCurveEC(t *testing.T) {
 	}
 	if _, ok := keys["bad"]; ok {
 		t.Error("an off-curve EC key reached the key set; it must be refused at parse")
+	}
+}
+
+// A key expires at the TTL boundary, including when a failed refresh would
+// otherwise leave the old signing material in the cache.
+func TestJWKSCacheExpiryBoundary(t *testing.T) {
+	srv, js := newJWKSServer(t)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := map[string]any{"keys": []map[string]any{rsaJWK(t, priv, "old")}}
+	js.mu.Store(&doc)
+	now := time.Unix(1_700_000_000, 0)
+	cache := newJWKSCache(srv.URL+"/jwks", nil, time.Minute, time.Second)
+	cache.now = func() time.Time { return now }
+	if _, ok := cache.LookupJWK("old"); !ok {
+		t.Fatal("fresh signing key rejected")
+	}
+	srv.Close()
+	now = now.Add(time.Minute)
+	if _, ok := cache.LookupJWK("old"); ok {
+		t.Fatal("expired signing key accepted at the TTL boundary")
+	}
+}
+
+type jwksRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f jwksRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+// Concurrent requests must await the same successful refresh instead of
+// rejecting the second token while the first request is fetching its key.
+func TestJWKSCacheConcurrentLookupWaitsForRefresh(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]any{"keys": []map[string]any{rsaJWK(t, priv, "key")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	fetching := make(chan struct{})
+	release := make(chan struct{})
+	var fetches atomic.Int64
+	client := &http.Client{Transport: jwksRoundTripper(func(r *http.Request) (*http.Response, error) {
+		if fetches.Add(1) == 1 {
+			close(fetching)
+		}
+		select {
+		case <-release:
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(string(body))),
+			}, nil
+		case <-r.Context().Done():
+			return nil, r.Context().Err()
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})}
+	cache := newJWKSCache("https://as.example/jwks", client, time.Minute, time.Second)
+	results := make(chan *rsa.PublicKey, 2)
+	lookup := func() {
+		key, ok := cache.LookupJWK("key")
+		if !ok {
+			results <- nil
+			return
+		}
+		pub, _ := key.(*rsa.PublicKey)
+		results <- pub
+	}
+	go lookup()
+	select {
+	case <-fetching:
+	case <-ctx.Done():
+		t.Fatal("first lookup did not start a key fetch")
+	}
+	secondStarted := make(chan struct{})
+	go func() {
+		close(secondStarted)
+		lookup()
+	}()
+	select {
+	case <-secondStarted:
+	case <-ctx.Done():
+		t.Fatal("second lookup did not start")
+	}
+	// Mutex contention is not durably blocked in testing/synctest. Keep the
+	// fetch outstanding for a bounded real interval to observe early rejection.
+	select {
+	case <-results:
+		t.Fatal("lookup returned before the in-flight key refresh completed")
+	case <-time.After(100 * time.Millisecond):
+	case <-ctx.Done():
+		t.Fatal("shared refresh timed out before release")
+	}
+	close(release)
+	for range 2 {
+		select {
+		case key := <-results:
+			if key == nil {
+				t.Fatal("successful shared refresh rejected a known key")
+			}
+			if key.N.Cmp(priv.N) != 0 || key.E != priv.E {
+				t.Fatal("shared refresh returned the wrong public key")
+			}
+		case <-ctx.Done():
+			t.Fatal("lookup did not finish after the shared refresh")
+		}
+	}
+	if fetches.Load() != 1 {
+		t.Fatalf("fetches = %d, want one shared refresh", fetches.Load())
 	}
 }

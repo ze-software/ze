@@ -582,8 +582,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	//
 	// ADDRESSES come only from a config block that asks for a listener, so
 	// `enabled false` still means "config does not start MCP".
-	if mcpListenCfg, mcpListenOK := zeconfig.ExtractMCPConfig(loadResult.Tree); mcpListenOK && len(mcpAddrs) == 0 {
-		mcpAddrs = endpointsToAddrs(mcpListenCfg.Servers)
+	mcpListenCfg, mcpListenOK := zeconfig.ExtractMCPConfig(loadResult.Tree)
+	if mcpListenOK {
+		if len(mcpAddrs) == 0 {
+			mcpAddrs = endpointsToAddrs(mcpListenCfg.Servers)
+		}
 	}
 	// SETTINGS (auth-mode, token, identities, oauth, tls) apply whenever the
 	// block exists, whatever supplied the address. Gating these on `enabled`
@@ -595,7 +598,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// base, so the precedence has one implementation (mgmt_auth_reload.go).
 	mcpTokenBase := mcpToken
 	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPSettings(loadResult.Tree)
-	if mcpCfgOK && mcpToken == "" && mcpCfg.Token != "" {
+	if mcpCfgOK {
+		mcpCfg = mcpEffectiveSettings(mcpCfg, mcpTokenBase)
 		mcpToken = mcpCfg.Token
 	}
 	// Two questions, asked separately (the same split as ExtractMCPSettings).
@@ -1216,12 +1220,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		svcGRPC: apiAuthed,
 	})
 
-	// Teach the migrator how to re-answer each surface's authentication
-	// question from a reloaded tree, so an auth-mode change takes effect on
-	// SIGHUP instead of waiting for a restart.
+	// Resolve reload authentication with startup precedence. A surface that
+	// cannot apply a changed setting rejects it before listener migration.
 	registerMgmtAuthReloaders(lm, mgmtAuthInputs{
 		webFollowsConfig:  webAuthFollowsConfig,
 		mcpTokenBase:      mcpTokenBase,
+		mcpConfigBase:     mcpCfg,
+		mcpEnabledAtBoot:  mcpListenOK,
 		apiTokenEnv:       apiTokenEnv,
 		apiCandidateUsers: resolveCandidateUsers,
 	})

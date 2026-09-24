@@ -69,7 +69,10 @@ func TestWebAuthReloaderIgnoresConfigWhenFlagDecided(t *testing.T) {
 // the exact mismatch mcpListenerAuthenticated exists to close.
 func TestMCPAuthReloaderMirrorsServerPrecedence(t *testing.T) {
 	migrator := newListenerMigrator()
-	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{mcpTokenBase: "flag-token"})
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		mcpTokenBase:  "flag-token",
+		mcpConfigBase: zeconfig.MCPListenConfig{AuthMode: "none"},
+	})
 	reload := migrator.authReloaders["mcp"]
 	require.NotNil(t, reload)
 
@@ -78,7 +81,25 @@ func TestMCPAuthReloaderMirrorsServerPrecedence(t *testing.T) {
 	require.True(t, ok)
 	assert.False(t, intent.authenticated, "an explicit none must not read as authenticated, token or not")
 
+	// Each fixed-auth listener is classified against the settings it started
+	// with; changing between these modes is separately refused on reload.
+	reload = mcpAuthReloader(mgmtAuthInputs{
+		mcpTokenBase:  "flag-token",
+		mcpConfigBase: zeconfig.MCPListenConfig{AuthMode: "bearer"},
+	})
 	intent, _, err = reload(mcpSettingsTree("bearer"))
+	require.NoError(t, err)
+	assert.True(t, intent.authenticated)
+
+	// A token supplied outside the config must also satisfy boot validation,
+	// including inferred bearer mode for a remote listener.
+	boot := mcpEffectiveSettings(zeconfig.MCPListenConfig{BindRemote: true}, "flag-token")
+	require.NoError(t, boot.Validate())
+	reload = mcpAuthReloader(mgmtAuthInputs{
+		mcpTokenBase:  "flag-token",
+		mcpConfigBase: boot,
+	})
+	intent, _, err = reload(mcpSettingsTree(""))
 	require.NoError(t, err)
 	assert.True(t, intent.authenticated)
 }
@@ -91,6 +112,104 @@ func mcpSettingsTree(authMode string) *zeconfig.Tree {
 	tree := zeconfig.NewTree()
 	tree.SetContainer("environment", env)
 	return tree
+}
+
+// A same-mode credential or trust-anchor change must fail before any listener
+// migrates, rather than commit settings the MCP handler will never read.
+func TestMCPAuthReloadRejectsFixedSettingsChanges(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mode   string
+		change func(*zeconfig.Tree)
+	}{
+		{"token", "bearer", func(m *zeconfig.Tree) { m.Set("token", "rotated-secret") }},
+		{"mode", "bearer", func(m *zeconfig.Tree) { m.Set("auth-mode", "none") }},
+		{"enabled", "bearer", func(m *zeconfig.Tree) { m.Set("enabled", "false") }},
+		{"identity", "bearer-list", func(m *zeconfig.Tree) {
+			m.GetList("identity")["alice"].Set("token", "rotated-secret")
+		}},
+		{"issuer", "oauth", func(m *zeconfig.Tree) {
+			m.GetOrCreateContainer("oauth").Set("authorization-server", "https://replacement.example/")
+		}},
+		{"audience", "oauth", func(m *zeconfig.Tree) {
+			m.GetOrCreateContainer("oauth").Set("audience", "https://replacement.example/mcp")
+		}},
+		{"scopes", "oauth", func(m *zeconfig.Tree) {
+			m.GetOrCreateContainer("oauth").SetSlice("required-scopes", []string{"mcp.admin"})
+		}},
+		{"TLS", "bearer", func(m *zeconfig.Tree) {
+			pair := m.GetOrCreateContainer("tls")
+			pair.Set("cert", "replacement.pem")
+			pair.Set("key", "replacement.key")
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := mcpSettingsTree(tc.mode)
+			mcp := tree.GetContainer("environment").GetContainer("mcp")
+			mcp.Set("enabled", "true")
+			mcp.Set("token", "original-secret")
+			switch tc.mode {
+			case "bearer-list":
+				id := zeconfig.NewTree()
+				id.Set("token", "original-secret")
+				mcp.AddListEntry("identity", "alice", id)
+			case "oauth":
+				oauth := mcp.GetOrCreateContainer("oauth")
+				oauth.Set("authorization-server", "https://as.example/")
+				oauth.Set("audience", "https://mcp.example/mcp")
+			}
+			boot, ok := zeconfig.ExtractMCPSettings(tree)
+			require.True(t, ok)
+			require.NoError(t, boot.Validate())
+			tc.change(mcp)
+			server := zeconfig.NewTree()
+			server.Set("ip", "127.0.0.1")
+			server.Set("port", "18081")
+			mcp.AddListEntry("server", "main", server)
+			live := &recordingReconfigurable{addrs: []string{"127.0.0.1:18080"}}
+			migrator := newListenerMigrator()
+			migrator.mcp = live
+			migrator.markAuthenticated(svcMCP)
+			registerMgmtAuthReloaders(migrator, mgmtAuthInputs{mcpConfigBase: boot, mcpEnabledAtBoot: true})
+			_, err := migrator.reloadListeners(t.Context(), tree)
+			require.ErrorContains(t, err, "restart ze")
+			assert.NotContains(t, err.Error(), "secret")
+			assert.Empty(t, live.calls, "rejected authentication must not migrate listeners")
+			assert.Equal(t, []string{"127.0.0.1:18080"}, live.addrs)
+		})
+	}
+}
+
+// Flag precedence and absent blocks retain credentials, while an address-only
+// reload is still applied to the running MCP listener.
+func TestMCPAuthReloadPreservesFixedSettings(t *testing.T) {
+	tree := mcpSettingsTree("bearer")
+	mcp := tree.GetContainer("environment").GetContainer("mcp")
+	mcp.Set("enabled", "true")
+	mcp.Set("token", "config-secret")
+	boot, ok := zeconfig.ExtractMCPSettings(tree)
+	require.True(t, ok)
+	mcp.Set("token", "ignored-secret")
+	server := zeconfig.NewTree()
+	server.Set("ip", "127.0.0.1")
+	server.Set("port", "18081")
+	mcp.AddListEntry("server", "main", server)
+	live := &recordingReconfigurable{addrs: []string{"127.0.0.1:18080"}}
+	migrator := newListenerMigrator()
+	migrator.mcp = live
+	migrator.markAuthenticated(svcMCP)
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		mcpConfigBase:    boot,
+		mcpTokenBase:     "flag-secret",
+		mcpEnabledAtBoot: true,
+	})
+	_, err := migrator.reloadListeners(t.Context(), tree)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"127.0.0.1:18081"}, live.addrs)
+	_, err = migrator.reloadListeners(t.Context(), zeconfig.NewTree())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"127.0.0.1:18081"}, live.addrs)
+	assert.Len(t, live.calls, 1, "removing the block retains the running listener")
 }
 
 // VALIDATES: the API reloader resolves the final exposure mode without handing

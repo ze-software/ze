@@ -30,11 +30,12 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
-// Default JWKS cache tuning. Operator can override via StreamableConfig in
-// Phase F; these defaults match the OAuth resource-server posture where the
-// AS rotates keys on the order of minutes-to-hours.
+// The cache bounds both signing-key lifetime and requests to the authorization
+// server. These limits apply to every OAuth listener.
 const (
 	defaultJWKSCacheTTL     = 15 * time.Minute
 	minJWKSRefreshInterval  = 30 * time.Second
@@ -42,8 +43,8 @@ const (
 	defaultJWKSFetchTimeout = 5 * time.Second
 )
 
-// jwksCache is the TTL cache. Zero value is not usable; construct via
-// newJWKSCache.
+// jwksCache is the TTL cache. Safe for concurrent use. The zero value is not
+// usable; construct via newJWKSCache.
 type jwksCache struct {
 	jwksURI    string
 	httpClient *http.Client
@@ -51,6 +52,9 @@ type jwksCache struct {
 	minRefresh time.Duration
 	now        func() time.Time
 
+	// refreshMu lets concurrent misses await the active fetch while fresh
+	// known-key lookups continue under mu.
+	refreshMu   sync.Mutex
 	mu          sync.RWMutex
 	keys        map[string]crypto.PublicKey
 	fetchedAt   time.Time
@@ -62,9 +66,7 @@ type jwksCache struct {
 //
 // Caller MUST NOT use the cache after process exit; no goroutine is started.
 func newJWKSCache(jwksURI string, httpClient *http.Client, ttl, minRefresh time.Duration) *jwksCache {
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: defaultJWKSFetchTimeout}
-	}
+	httpClient = oauthHTTPClient(httpClient, defaultJWKSFetchTimeout)
 	if ttl <= 0 {
 		ttl = defaultJWKSCacheTTL
 	}
@@ -81,26 +83,33 @@ func newJWKSCache(jwksURI string, httpClient *http.Client, ttl, minRefresh time.
 	}
 }
 
-// LookupJWK returns the key for the given JWS `kid`. A lookup on an unknown
-// kid does NOT trigger a refresh here; Refresh is the explicit second step.
-// If the cache has never been populated, or the TTL has elapsed, a transparent
-// background refresh is triggered; the current caller observes (nil, false)
-// on the first miss and succeeds on the retry.
+// LookupJWK returns the key for the given JWS kid. An expired cache is refreshed
+// before any key can be used, including a kid already present in that cache.
+// A failed or rate-limited refresh never authorizes a token with expired keys.
+// A miss in a current cache leaves the rate-limited Refresh step to the verifier.
 func (c *jwksCache) LookupJWK(kid string) (crypto.PublicKey, bool) {
 	c.mu.RLock()
-	expired := c.cacheTTL > 0 && !c.fetchedAt.IsZero() && c.now().Sub(c.fetchedAt) > c.cacheTTL
+	expired := c.fetchedAt.IsZero()
+	if !expired {
+		expired = c.now().Sub(c.fetchedAt) >= c.cacheTTL
+	}
 	key, ok := c.keys[kid]
-	emptyCache := len(c.keys) == 0 && c.fetchedAt.IsZero()
 	c.mu.RUnlock()
 
-	if emptyCache || (expired && !ok) {
-		// TTL expired and we don't already have the kid -> try a fetch.
-		// Ignore the error here; the caller's subsequent Refresh (triggered
-		// on miss) surfaces it.
-		_ = c.fetchIfAllowed()
+	if expired {
+		if err := c.fetchIfAllowed(); err != nil {
+			return nil, false
+		}
 		c.mu.RLock()
+		expired = c.fetchedAt.IsZero()
+		if !expired {
+			expired = c.now().Sub(c.fetchedAt) >= c.cacheTTL
+		}
 		key, ok = c.keys[kid]
 		c.mu.RUnlock()
+		if expired {
+			return nil, false
+		}
 	}
 	return key, ok
 }
@@ -115,6 +124,9 @@ func (c *jwksCache) Refresh() error {
 }
 
 func (c *jwksCache) fetchIfAllowed() error {
+	c.refreshMu.Lock()
+	defer c.refreshMu.Unlock()
+
 	c.mu.Lock()
 	if c.minRefresh > 0 && !c.lastRefresh.IsZero() && c.now().Sub(c.lastRefresh) < c.minRefresh {
 		c.mu.Unlock()
@@ -123,8 +135,7 @@ func (c *jwksCache) fetchIfAllowed() error {
 	// lastRefresh advances BEFORE the fetch runs. Intentional: a flaky AS
 	// otherwise lets an attacker spray unknown-kid tokens to force an
 	// uncapped fetch loop. Startup does one synchronous Refresh (see
-	// buildAuthForMode) and fails the process on error, so a cold-start AS
-	// outage surfaces at boot rather than through this rate-limited window.
+	// buildAuthForMode) and leaves the MCP listener disabled on error.
 	c.lastRefresh = c.now()
 	c.mu.Unlock()
 
@@ -142,6 +153,10 @@ func (c *jwksCache) fetchIfAllowed() error {
 // fetch retrieves the JWKS document and decodes every key. Returns the
 // decoded map; callers replace the cache atomically.
 func (c *jwksCache) fetch() (map[string]crypto.PublicKey, error) {
+	// RFC 8414 Section 2: "This URL MUST use the \"https\" scheme."
+	if _, err := oauthHTTPSURL(c.jwksURI); err != nil {
+		return nil, fmt.Errorf("jwks: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), defaultJWKSFetchTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.jwksURI, http.NoBody)
@@ -151,7 +166,7 @@ func (c *jwksCache) fetch() (map[string]crypto.PublicKey, error) {
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("jwks: fetch %s: %w", c.jwksURI, err)
+		return nil, fmt.Errorf("jwks: fetch: %w", redact.URLError(err))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
@@ -197,6 +212,25 @@ func parseJWKSDocument(body []byte) (map[string]crypto.PublicKey, error) {
 	var doc jwksDocument
 	if err := json.Unmarshal(body, &doc); err != nil {
 		return nil, fmt.Errorf("jwks: decode document: %w", err)
+	}
+	// RFC 8414 Section 2: "When both signing and encryption keys are made
+	// available, a \"use\" (public key use) parameter value is REQUIRED for
+	// all keys in the referenced JWK Set to indicate each key's intended
+	// usage." An encryption key makes an unlabelled key unsafe to use for
+	// token verification, even if the latter's algorithm can sign.
+	hasEncryption := false
+	for i := range doc.Keys {
+		if doc.Keys[i].Use == "enc" {
+			hasEncryption = true
+			break
+		}
+	}
+	if hasEncryption {
+		for i := range doc.Keys {
+			if doc.Keys[i].Use == "" {
+				return nil, errors.New("jwks: mixed-use key set contains a key without use")
+			}
+		}
 	}
 	out := make(map[string]crypto.PublicKey, len(doc.Keys))
 	for i := range doc.Keys {

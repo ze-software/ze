@@ -13,20 +13,20 @@
 // refused by the server side.
 // PREVENTS: a listener that silently accepts a deprecated TLS version, or
 // that serves without valid material.
-//
-// These lines are not requirement tags: the tag scanner walks internal/,
-// pkg/ and test/ only (internal/le/rfc/rfc.go, testRoots), so a tag here
-// would be read by nothing and could carry no discrimination record.
-
 package hub
 
 import (
+	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	zemcp "github.com/ze-software/ze/internal/component/mcp"
 	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
@@ -71,7 +71,7 @@ func handshake(t *testing.T, serverCfg, clientCfg *tls.Config) error {
 }
 
 // RFC 9728 Section 7.1, RFC9728-7.1-1 positive: loadMCPTLSConfig turns a valid certificate pair into a tls.Config carrying that certificate, and a TLS client completes a handshake against it.
-// RFC 9728 Section 7.1, RFC9728-7.1-1 negative: a certificate whose key belongs to another pair is refused with an error and no tls.Config, so the listener never serves without valid TLS material.
+// RFC requirement: RFC9728-7.1-1 negative -- loadMCPTLSConfig rejects a certificate paired with another private key, returning an error and no serving TLS configuration.
 func TestRFC9728MCPListenerSupportsTLS(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile := writeMCPTLSPair(t, dir)
@@ -116,5 +116,78 @@ func TestRFC9728MCPListenerFollowsBCP195Versions(t *testing.T) {
 	deprecated := &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS10, MaxVersion: tls.VersionTLS11} //nolint:gosec // deliberately deprecated versions, the refusal is the assertion
 	if err := handshake(t, cfg, deprecated); err == nil {
 		t.Fatal("TLS 1.1 handshake accepted, want the server to refuse it")
+	}
+}
+
+// TestRFC9728MCPServingTLSVersions reaches the listener started by Ze, rather
+// than supplying its TLS configuration to a separate test server.
+// RFC requirement: RFC9728-7.1-1 positive -- the listener created by startMCPServer serves the MCP HTTP response over certificate-verified TLS 1.2 and TLS 1.3.
+// RFC requirement: RFC9728-7.1-2 positive -- the actual MCP listener negotiates TLS 1.2 and TLS 1.3 and reaches its HTTP handler.
+// RFC requirement: RFC9728-7.1-2 negative -- TLS 1.0 and TLS 1.1 clients cannot reach the HTTP handler of the listener created by startMCPServer.
+func TestRFC9728MCPServingTLSVersions(t *testing.T) {
+	certFile, keyFile := writeMCPTLSPair(t, t.TempDir())
+	h := startMCPServer([]string{"127.0.0.1:0"}, nil, nil,
+		zemcp.StreamableConfig{AuthMode: zemcp.AuthNone}, certFile, keyFile)
+	if h == nil {
+		t.Fatal("MCP listener did not start")
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := h.Shutdown(ctx); err != nil {
+			t.Errorf("MCP shutdown: %v", err)
+		}
+	})
+	pem, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("read certificate: %v", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(pem) {
+		t.Fatal("certificate was not added to the trust store")
+	}
+	addresses := h.Addresses()
+	if len(addresses) != 1 {
+		t.Fatalf("listener addresses = %v", addresses)
+	}
+	for _, version := range []uint16{tls.VersionTLS10, tls.VersionTLS11, tls.VersionTLS12, tls.VersionTLS13} {
+		t.Run(tls.VersionName(version), func(t *testing.T) {
+			transport := &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: roots, MinVersion: version, MaxVersion: version, //nolint:gosec // obsolete versions are refusal cases
+				},
+			}
+			defer transport.CloseIdleConnections()
+			client := &http.Client{Transport: transport, Timeout: 5 * time.Second}
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
+				"https://"+addresses[0]+zemcp.Endpoint, http.NoBody)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			resp, err := client.Do(req)
+			if version < tls.VersionTLS12 {
+				if err == nil {
+					if closeErr := resp.Body.Close(); closeErr != nil {
+						t.Errorf("close obsolete TLS response: %v", closeErr)
+					}
+					t.Fatal("obsolete TLS reached MCP")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("MCP over TLS: %v", err)
+			}
+			defer func() {
+				if closeErr := resp.Body.Close(); closeErr != nil {
+					t.Errorf("close response: %v", closeErr)
+				}
+			}()
+			if resp.TLS == nil || resp.TLS.Version != version {
+				t.Fatalf("negotiated TLS = %+v, want %s", resp.TLS, tls.VersionName(version))
+			}
+			if resp.StatusCode != http.StatusMethodNotAllowed || resp.Header.Get("Allow") != "POST, OPTIONS" {
+				t.Fatalf("response was not from MCP: status %d, Allow %q", resp.StatusCode, resp.Header.Get("Allow"))
+			}
+		})
 	}
 }

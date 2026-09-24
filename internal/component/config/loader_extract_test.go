@@ -677,6 +677,70 @@ func TestMCPConfigValidate(t *testing.T) {
 	}
 }
 
+// The offline validator must reject identifiers discovery cannot use, while a
+// query remains valid on the protected resource identifier.
+func TestMCPOAuthIdentifierValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		issuer   string
+		audience string
+		valid    bool
+	}{
+		{"HTTPS", "https://as.example/realm", "https://mcp.example/mcp", true},
+		{"resource query", "HTTPS://AS.EXAMPLE/", "https://mcp.example/mcp?tenant=A", true},
+		{"HTTP issuer", "http://as.example/", "https://mcp.example/mcp", false},
+		{"issuer query", "https://as.example/?tenant=A", "https://mcp.example/mcp", false},
+		{"empty issuer query", "https://as.example/?", "https://mcp.example/mcp", false},
+		{"issuer userinfo", "https://secret:password@as.example/", "https://mcp.example/mcp", false},
+		{"issuer fragment", "https://as.example/#", "https://mcp.example/mcp", false},
+		{"issuer missing host", "https:///realm", "https://mcp.example/mcp", false},
+		{"HTTP resource", "https://as.example/", "http://mcp.example/mcp", false},
+		{"resource userinfo", "https://as.example/", "https://secret:password@mcp.example/mcp", false},
+		{"resource fragment", "https://as.example/", "https://mcp.example/mcp#", false},
+		{"malformed resource", "https://as.example/", "https://mcp.example/%secret", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := MCPListenConfig{
+				Servers:  []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}},
+				AuthMode: "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: tc.issuer,
+					Audience:            tc.audience,
+				},
+			}
+			err := cfg.Validate()
+			if tc.valid {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), "secret")
+			assert.NotContains(t, err.Error(), "password")
+		})
+	}
+}
+
+// A partial certificate pair must never silently select plaintext for a
+// non-OAuth listener.
+func TestMCPTLSPairValidationAllModes(t *testing.T) {
+	for _, mode := range []string{"none", "bearer", "bearer-list"} {
+		t.Run(mode, func(t *testing.T) {
+			cfg := MCPListenConfig{
+				Servers:    []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}},
+				AuthMode:   mode,
+				Token:      "token",
+				Identities: []MCPIdentity{{Name: "alice", Token: "alice-token"}},
+			}
+			cfg.TLS = MCPTLSConfig{Cert: "cert.pem"}
+			require.ErrorContains(t, cfg.Validate(), "cert set without key")
+			cfg.TLS = MCPTLSConfig{Key: "key.pem"}
+			require.ErrorContains(t, cfg.Validate(), "key set without cert")
+			cfg.TLS = MCPTLSConfig{Cert: "cert.pem", Key: "key.pem"}
+			require.NoError(t, cfg.Validate())
+		})
+	}
+}
+
 // TestMCPAuthModesMatchTheModel ties the auth modes Validate enforces to the
 // enumeration the model offers an operator.
 //

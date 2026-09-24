@@ -82,7 +82,8 @@ auth-mode 'bearer'. Leave this leaf empty for bearer-list mode and for oauth mod
                 key "name";
                 description "The token of each entry grants access to the named principal.
 Authentication runs on every request, so the name and the scopes of the matching entry
-ride that one authenticated request. A change takes effect on the next request.";
+ride that one authenticated request. Changing an identity, its token or its scopes
+requires a daemon restart.";
                 ze:help "Per-identity bearer entries, for auth-mode=bearer-list.";
 
                 leaf name {
@@ -114,19 +115,25 @@ token that the external authorization server issued.";
                 ze:help "OAuth 2.1 resource-server settings, for auth-mode=oauth.";
 
                 leaf authorization-server {
-                    type string;
-                    description "The resource server reads the metadata of the authorization
-server from <url>/.well-known/oauth-authorization-server (RFC 8414), and discovers the
-jwks_uri there.";
+                    type string {
+                        pattern '[hH][tT][tT][pP][sS]://[^?#]+';
+                    }
+                    description "The resource server inserts /.well-known/oauth-authorization-server
+before the issuer URL's path (RFC 8414). The HTTPS metadata response must carry the
+exact configured issuer and an HTTPS jwks_uri. Ze rejects redirects to HTTP.
+Changing this setting on a running listener requires a restart.";
                     ze:help "HTTPS URL of the authorization server.";
                 }
 
                 leaf audience {
-                    type string;
-                    description "Ze rejects a token whose 'aud' claim does not match this URL.
-Set this leaf explicitly. Ze never derives the value from the Host header of the
-request.";
-                    ze:help "Canonical URL that identifies this MCP endpoint (RFC 8707).";
+                    type string {
+                        pattern '[hH][tT][tT][pP][sS]://[^#]+';
+                    }
+                    description "Ze compares the token's 'aud' claim with this identifier exactly,
+without URL or Unicode normalization. Set this leaf explicitly to the HTTPS URL
+clients use for the MCP endpoint. Ze never derives it from the request Host header.
+Changing this setting on a running listener requires a restart.";
+                    ze:help "Exact HTTPS identifier of this MCP endpoint.";
                 }
 
                 leaf-list required-scopes {
@@ -145,9 +152,10 @@ cert leaf empty in that case, and one that sets cert without key.";
 
                 leaf cert {
                     type string;
-                    description "Ze serves the endpoint over HTTPS only when cert and key are
-                                 both set, and over HTTP when one of the two is empty. Ze reads
-                                 the pair at start and accepts TLS 1.2 as its lowest version. A
+                    description "Ze serves the endpoint over HTTPS when cert and key are
+                                 both set, and over HTTP when both are absent. A partial pair
+                                 is rejected. Ze reads the pair at start and accepts TLS 1.2
+                                 as its lowest version. Changing the pair requires a restart. A
                                  pair that fails to load stops the MCP server, and Ze prints the
                                  reason. ze doctor reads the file and reports it missing, or
                                  near its expiry date.";

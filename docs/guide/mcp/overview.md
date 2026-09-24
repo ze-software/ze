@@ -44,8 +44,9 @@ export ze_mcp_enabled=true  # defaults to 127.0.0.1:8080
 
 Precedence: CLI > environment variable > config file.
 
-The MCP server binds to `127.0.0.1` only. See
-[remote-access.md](remote-access.md) for accessing it from other machines.
+The MCP server defaults to loopback. `bind-remote true` enables a configured
+non-loopback address, with authentication required. See
+[remote-access.md](remote-access.md) for native TLS and tunnel deployments.
 
 ## Authentication
 
@@ -63,9 +64,9 @@ MCP supports four authentication modes selected by `environment.mcp.auth-mode`:
 | `oauth` | OAuth 2.1 resource server, external AS manages identities | `oauth` container + TLS |
 
 Identity is established per request: every POST presents its own credential and
-every POST is checked. There is no session and no session id, so a revoked token
-stops working on the very next request. And no long-lived identifier exists that
-would act as a bearer credential in its own right.
+every POST is checked. There is no session identifier that can serve as a second
+bearer credential. OAuth tokens are validated locally, so revocation at the
+authorization server is not an immediate per-token revocation mechanism in Ze.
 
 <!-- source: internal/component/mcp/streamable.go -- authenticate, called from handlePOST -->
 
@@ -108,8 +109,8 @@ environment {
 ```
 
 Each identity's token is compared constant-time. The matching entry's name and
-scopes become the authenticated identity for that one request. Add, remove, or
-rotate identities independently. A rotation takes effect on the next request.
+scopes become the authenticated identity for that one request. Changing an
+identity, its token or its scopes requires a daemon restart.
 
 ### oauth (OAuth 2.1 resource server)
 
@@ -121,7 +122,7 @@ environment {
         auth-mode oauth;
         oauth {
             authorization-server https://auth.example/;
-            audience             https://mcp.example/;
+            audience             https://mcp.example/mcp;
             required-scopes      [ mcp.admin ];
         }
         tls {
@@ -136,7 +137,38 @@ environment {
 Tokens are validated locally: RS256 / RS384 / RS512 / ES256 / ES384 signatures
 are verified against JWKS fetched from the authorization server's RFC 8414
 metadata document. HS* (HMAC) and `alg: none` are always rejected.
-`iss` / `aud` / `exp` / `nbf` / scope claims are validated with 60 s leeway.
+`iss` and `aud` match the configured identifiers exactly, including case,
+ports, path escaping, query, and trailing slash. Ze does not normalize
+Unicode or URL spellings. The `exp` / `nbf` checks allow 60 s leeway, and
+the token must carry every required scope.
+
+<!-- source: internal/component/mcp/jwt.go -- audClaim.Matches, verifyJWT -->
+
+Discovery uses HTTPS for both the authorization-server metadata and `jwks_uri`,
+including every redirect. Certificates are checked against the system trust
+store. The metadata response must be a `200 application/json` object with an
+`issuer` exactly equal to `authorization-server`. If discovery or key loading
+fails, the MCP listener does not start. A JWKS that includes encryption keys
+must label every key with `use`, and Ze uses only signing keys to verify tokens.
+
+<!-- source: internal/component/mcp/as_metadata.go -- fetchASMetadata, oauthHTTPClient -->
+<!-- source: internal/component/mcp/jwks.go -- parseJWKSDocument -->
+<!-- source: cmd/ze/hub/service_mcp.go -- startMCPServer -->
+
+The JWKS cache expires after 15 minutes. A request with a known key still
+triggers refresh after expiry, and a failed refresh cannot authorize a token
+with expired keys. Refresh attempts are limited to one per 30 seconds, and
+concurrent misses wait for the active refresh.
+
+<!-- source: internal/component/mcp/jwks.go -- LookupJWK, fetchIfAllowed -->
+
+Ze reads the plain JSON `issuer` and `jwks_uri` fields. It does not consume
+signed metadata, use token introspection, or act as an authorization server.
+The discovery suffix is fixed at `/.well-known/oauth-authorization-server`,
+inserted before the issuer's path. An OpenID Connect-only server that publishes
+only the older appended discovery path cannot be used with this configuration.
+
+<!-- source: internal/component/mcp/as_metadata.go -- fetchASMetadata, asMetadataURL -->
 
 `ze config validate` rejects internally inconsistent configurations (oauth
 without TLS on a remote bind, oauth without authorization-server, bind-remote
@@ -147,7 +179,7 @@ contract.
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document
 listing the authorization server(s) and supported scopes. Its path is the
 well-known suffix inserted between the host and the path of the resource
-identifier (`audience`, or `metadata-resource` when set): an audience of
+identifier (`audience`): an audience of
 `https://mcp.example/mcp` publishes at
 `https://mcp.example/.well-known/oauth-protected-resource/mcp`, and
 `https://mcp.example/` at `https://mcp.example/.well-known/oauth-protected-resource`.
@@ -155,11 +187,78 @@ The 401 challenge names that URL in `resource_metadata`, so clients discover
 the AS through it. Set `audience` to the URL clients use for the MCP endpoint:
 a client checks the `resource` field against its own URL (RFC 9728 Section 3.3).
 
+The resource identifier must use HTTPS and contain no fragment. If it includes
+a query, the metadata URL retains that query. Escaped path segments remain
+distinct: `/tenant%2Fadmin` does not become `/tenant/admin`. The published
+`resource` value keeps the configured spelling and never comes from the request
+Host header. Ze publishes plain JSON metadata and does not advertise resource
+response-signing keys or algorithms.
+
+<!-- source: internal/component/mcp/streamable_auth.go -- resourceOriginAndPath -->
+<!-- source: internal/component/mcp/streamable.go -- ServeHTTP -->
+<!-- source: internal/component/mcp/oauth.go -- writeResourceMetadata -->
+
 ### Constant-time comparison
 
 Bearer tokens (both `bearer` and `bearer-list`) use `subtle.ConstantTimeCompare`
 so response timing does not reveal which entry matched (or whether any did).
 The bearer-list scan visits every entry regardless of early match.
+
+### Configuration reload
+
+MCP listen addresses can migrate on a configuration reload. Authentication,
+OAuth discovery settings and TLS material are fixed when the listener starts.
+A reload that changes them, even a token rotation within the same auth mode,
+is rejected with a restart-required error before listener migration. Changing
+the `enabled` leaf on a running listener also requires a restart.
+
+A token supplied by a flag or environment variable keeps its startup
+precedence over the config-file token. Removing the entire MCP block leaves
+the existing listener and its credentials in place.
+
+<!-- source: cmd/ze/hub/mgmt_auth_reload.go -- mcpAuthReloader, mcpFixedSettings -->
+<!-- source: cmd/ze/hub/service_mcp.go -- mcpServerHandle.Reconfigure -->
+
+### Checking OAuth over HTTP
+
+With the OAuth example above running and its certificate trusted, a conformant
+request without credentials must return HTTP 401 and a `WWW-Authenticate`
+challenge containing the configured metadata URL:
+
+```bash
+curl --silent --show-error --include https://mcp.example/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
+curl --silent --show-error --include \
+  https://mcp.example/.well-known/oauth-protected-resource/mcp
+```
+
+The metadata GET must return HTTP 200 with `application/json`, the exact
+configured audience in `resource`, and the configured issuer in
+`authorization_servers`. It requires no token. Adding a different query to
+the metadata URL must return HTTP 404.
+
+For an authenticated check, the authorization server must issue a signed token
+with the exact issuer and audience, an unexpired `exp`, a subject, and every
+configured required scope. Repeat the POST with
+`--header @/path/to/private-authorization-header`, where the mode-0600 file
+contains `Authorization: Bearer <token>`. Keeping the credential in that file
+avoids placing it in the shell history or process arguments. The response must
+be HTTP 200 with a `tools` result. A token expired beyond the 60-second clock
+leeway, a signature from an unknown key or a different audience must return
+HTTP 401 without echoing token bytes
+in the response or audit actor.
+
+For key rotation, publish the replacement signing key before issuing tokens
+that name its `kid`; an unknown key can trigger a fetch once the 30-second
+minimum interval has elapsed. To check expiry failure, remove a previously
+accepted key and make the JWKS endpoint unavailable. Once the 15-minute cache
+lifetime ends, even a still-unexpired token using that key must receive HTTP
+401. Restoring a valid JWKS permits a later rate-limited refresh to recover.
 
 ## Protocol
 

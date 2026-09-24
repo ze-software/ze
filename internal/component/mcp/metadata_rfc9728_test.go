@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -218,5 +219,94 @@ func TestRFC9728ResourceMatchesInsertedIdentifier(t *testing.T) {
 	}
 	if got != `"https://mcp.example/api"` {
 		t.Fatalf("resource = %s, want %q", got, "https://mcp.example/api")
+	}
+}
+
+// TestRFC9728ResourceIdentityPreserved keeps resource identity intact across
+// discovery URL derivation, HTTP routing, and JSON metadata publication.
+// RFC requirement: RFC9728-6-1 positive -- a decomposed Unicode resource identifier is published with the same code points.
+// RFC requirement: RFC9728-6-1 negative -- a composed spelling cannot retrieve metadata for a decomposed resource identifier.
+// RFC requirement: RFC9728-6-2 positive -- the exact escaped path and query locate the document for the configured identifier.
+// RFC requirement: RFC9728-6-2 negative -- a different Unicode spelling or query cannot retrieve that resource's document.
+func TestRFC9728ResourceIdentityPreserved(t *testing.T) {
+	resource := "https://mcp.example/e\u0301?tenant=A"
+	s := newMetadataServer(t, OAuthConfig{Audience: resource})
+	wantURL := "https://mcp.example/.well-known/oauth-protected-resource/e%CC%81?tenant=A"
+	if got := resourceMetadataURL(s.cfg.OAuth); got != wantURL {
+		t.Fatalf("metadata URL = %q, want %q", got, wantURL)
+	}
+	doc := decodeMetadata(t, requestMetadata(t, s, http.MethodGet, wantURL))
+	var returned string
+	if err := json.Unmarshal(doc["resource"], &returned); err != nil {
+		t.Fatalf("resource decode: %v", err)
+	}
+	if returned != resource {
+		t.Fatalf("resource = %q, want the exact identifier %q", returned, resource)
+	}
+	for _, other := range []string{
+		"https://mcp.example/.well-known/oauth-protected-resource/%C3%A9?tenant=A",
+		"https://mcp.example/.well-known/oauth-protected-resource/e%CC%81?tenant=B",
+		"https://mcp.example/.well-known/oauth-protected-resource/e%CC%81",
+	} {
+		if w := requestMetadata(t, s, http.MethodGet, other); w.Code != http.StatusNotFound {
+			t.Fatalf("different identifier %q: status = %d", other, w.Code)
+		}
+	}
+}
+
+// TestRFC9728EscapedResourcePath prevents URL decoding from merging a slash
+// contained in one segment with a path separator.
+func TestRFC9728EscapedResourcePath(t *testing.T) {
+	resource := "https://mcp.example/tenant%2Fadmin"
+	s := newMetadataServer(t, OAuthConfig{Audience: resource})
+	location := resourceMetadataURL(s.cfg.OAuth)
+	if location != "https://mcp.example/.well-known/oauth-protected-resource/tenant%2Fadmin" {
+		t.Fatalf("metadata URL changed escaped path: %q", location)
+	}
+	decodeMetadata(t, requestMetadata(t, s, http.MethodGet, location))
+	if w := requestMetadata(t, s, http.MethodGet, "/.well-known/oauth-protected-resource/tenant/admin"); w.Code != http.StatusNotFound {
+		t.Fatalf("unescaped resource path returned %d", w.Code)
+	}
+}
+
+// TestRFC9728ChallengeDiscovery follows the unauthenticated resource response
+// to the metadata document and checks the advertised resource identifier.
+func TestRFC9728ChallengeDiscovery(t *testing.T) {
+	resource := "https://mcp.example/mcp"
+	s := newMetadataServer(t, OAuthConfig{Audience: resource})
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, resource, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated resource status = %d", w.Code)
+	}
+	challenge := w.Header().Get("WWW-Authenticate")
+	_, quoted, found := strings.Cut(challenge, `resource_metadata="`)
+	if !found {
+		t.Fatalf("challenge has no metadata URL: %q", challenge)
+	}
+	location, _, closed := strings.Cut(quoted, `"`)
+	if !closed {
+		t.Fatalf("unterminated metadata URL: %q", challenge)
+	}
+	parsed, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("parse metadata URL: %v", err)
+	}
+	if parsed.Scheme != "https" || parsed.Host != req.URL.Host {
+		t.Fatalf("metadata location escaped the configured resource: %q", location)
+	}
+	doc := decodeMetadata(t, requestMetadata(t, s, http.MethodGet, location))
+	var returned string
+	if err := json.Unmarshal(doc["resource"], &returned); err != nil {
+		t.Fatalf("resource decode: %v", err)
+	}
+	if returned != resource {
+		t.Fatalf("discovered resource = %q, requested %q", returned, resource)
 	}
 }

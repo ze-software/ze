@@ -75,36 +75,15 @@ func (a *audClaim) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Matches reports whether aud contains a canonically-equal match for
-// expected. Empty expected matches nothing (audience binding must be
-// explicit).
-//
-// RFC 8707 §2 mandates that audience comparison happen after URL
-// canonicalization -- a spec-compliant AS may emit the audience with a
-// different trailing-slash / port / case than the operator configured on
-// the resource server, and exact-string compare would reject valid tokens.
-// We normalize both sides via canonicalAudience (scheme+host+port+path,
-// default ports elided, IPv6 bracketed, trailing slashes stripped).
-//
-// Non-URL audiences (rare; RFC 7519 permits any string) fall back to exact
-// compare so a token asserting `aud: "my-service"` still matches a config
-// audience of `"my-service"` verbatim.
+// Matches compares decoded audience identifiers exactly. RFC 7519 Section 2:
+// "StringOrURI values are compared as case-sensitive strings with no
+// transformations or canonicalizations applied." An empty expectation matches
+// nothing, because audience binding requires an explicit identifier.
 func (a audClaim) Matches(expected string) bool {
 	if expected == "" {
 		return false
 	}
-	wantCanon := canonicalAudience(expected)
-	for _, v := range a {
-		if v == expected {
-			return true
-		}
-		if wantCanon != "" {
-			if gotCanon := canonicalAudience(v); gotCanon != "" && gotCanon == wantCanon {
-				return true
-			}
-		}
-	}
-	return false
+	return slices.Contains(a, expected)
 }
 
 // jwtVerifyOptions carries everything the verifier needs from the caller.
@@ -228,7 +207,7 @@ func verifyJWT(token string, opts jwtVerifyOptions) (jwtVerifyResult, error) {
 	if claims.ExpiresAt == 0 {
 		return jwtVerifyResult{}, errJWTMissingExp
 	}
-	if currentTime.Add(-leeway).Unix() > claims.ExpiresAt {
+	if currentTime.Add(-leeway).Unix() >= claims.ExpiresAt {
 		return jwtVerifyResult{}, errJWTExpired
 	}
 	if claims.NotBefore > 0 && currentTime.Add(leeway).Unix() < claims.NotBefore {

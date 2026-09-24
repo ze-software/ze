@@ -19,7 +19,6 @@ package mcp
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -28,8 +27,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/audit"
 )
-
-var errMcpOauthAsMetadataEmptyIssuer = errors.New("mcp oauth: AS metadata: empty issuer")
 
 // ProtocolVersion is the MCP protocol version this server speaks.
 const ProtocolVersion = "2026-07-28"
@@ -138,10 +135,8 @@ type Streamable struct {
 	// advertised authorization_servers[0] matches the value the token
 	// verifier enforces. Empty for non-OAuth modes.
 	oauthIssuer string
-	// metadataPath is the request path the RFC 9728 document is served at:
-	// the well-known suffix inserted between the host and the resource
-	// identifier's path (resourceMetadataPath). Computed once so ServeHTTP
-	// compares one string per request.
+	// metadataPath is the escaped request path and query for the RFC 9728
+	// document. Computed once so ServeHTTP compares one identifier per request.
 	metadataPath string
 
 	cachedResources []map[string]any // immutable after construction; from embedded FS walk
@@ -182,7 +177,7 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 		originSet:       originSet,
 		auth:            authRes.auth,
 		authMode:        mode,
-		oauthIssuer:     authRes.canonicalIssuer,
+		oauthIssuer:     authRes.issuer,
 		metadataPath:    resourceMetadataPath(cfg.OAuth),
 		cachedResources: listResources(),
 	}, nil
@@ -207,7 +202,7 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// the match is against s.metadataPath and not the bare suffix. A
 	// resource identified as `https://mcp.example/mcp` publishes at
 	// `/.well-known/oauth-protected-resource/mcp` and nowhere else.
-	if r.URL.Path == s.metadataPath {
+	if r.URL.RequestURI() == s.metadataPath {
 		s.handleResourceMetadata(w, r)
 		return
 	}
@@ -350,8 +345,8 @@ func (s *Streamable) handleResourceMetadata(w http.ResponseWriter, r *http.Reque
 	}
 	// Publish the AS-reported issuer so the string the client sees in
 	// `authorization_servers[0]` matches the value the token verifier
-	// enforces. buildAuthForMode ran sameAuthServer() so this is
-	// byte-identical to what tokens carry in their `iss` claim.
+	// enforces. fetchASMetadata checked exact equality with the configured
+	// issuer before the signing keys were fetched.
 	advertised := s.cfg.OAuth
 	advertised.AuthorizationServer = s.oauthIssuer
 	writeResourceMetadata(w, advertised)
@@ -384,16 +379,21 @@ func (s *Streamable) originAllowed(r *http.Request) bool {
 //
 // It runs on EVERY request. With the handshake gone there is no session id to
 // stand in for a credential. Each POST therefore presents its own credential,
-// and each POST is checked. A revoked token stops working on the next request
-// rather than at session expiry, and no long-lived identifier is left to
-// steal.
+// and each POST is checked. OAuth revocation is bounded by the token lifetime
+// and signing-key cache; Ze does not query the authorization server per token.
 //
 // A zero Identity means "authenticated as anonymous under auth-mode none", not
 // "unauthenticated": an unauthenticated request is the *authError early return
 // above, never a value a handler can receive.
 func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 	if s.auth == nil {
-		return Identity{}, nil
+		return Identity{}, &authError{
+			Status:           http.StatusUnauthorized,
+			Scheme:           authSchemeBearer,
+			Realm:            mcpRealm,
+			ErrorCode:        "invalid_token",
+			ErrorDescription: "authentication unavailable",
+		}
 	}
 	return s.auth.Authenticate(r)
 }
@@ -489,7 +489,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 
 	identity, aerr := s.authenticate(r)
 	if aerr != nil {
-		recordMCPAuthFailure(s.cfg.AuditRecorder, r.Header.Get("Authorization"), r.RemoteAddr)
+		recordMCPAuthFailure(s.cfg.AuditRecorder, r.RemoteAddr)
 		writeAuthError(w, aerr)
 		return
 	}

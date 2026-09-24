@@ -931,6 +931,8 @@ func TestStreamableBearerAuthAcceptsValidToken(t *testing.T) {
 	}
 }
 
+// Rejected bearer credentials are opaque, so even a colon-separated prefix
+// must remain absent from the audit actor and the HTTP rejection.
 func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	recorder, err := audit.NewMemory(100)
 	if err != nil {
@@ -961,8 +963,8 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("audit entries = %d, want 1", len(entries))
 	}
-	if entries[0].Actor != "alice" {
-		t.Fatalf("actor = %q, want alice", entries[0].Actor)
+	if entries[0].Actor != "" {
+		t.Fatalf("rejected bearer credential became an audit actor")
 	}
 	if entries[0].RemoteAddr != "192.0.2.10:4444" {
 		t.Fatalf("remote addr = %q, want 192.0.2.10:4444", entries[0].RemoteAddr)
@@ -972,6 +974,12 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	}
 	if entries[0].Outcome != audit.OutcomeDenied {
 		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)
+	}
+	if strings.Contains(rec.Body.String(), "alice") {
+		t.Fatal("HTTP rejection exposed a bearer credential prefix")
+	}
+	if strings.Contains(rec.Header().Get("WWW-Authenticate"), "alice") {
+		t.Fatal("authentication challenge exposed a bearer credential prefix")
 	}
 }
 

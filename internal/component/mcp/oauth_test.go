@@ -275,7 +275,7 @@ func TestStreamable_MetadataEndpoint_Gated(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, OAuthMetadataPath, http.NoBody)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
-	// RFC requirement: RFC9728-3.1-1 negative -- when AuthMode is not OAuth the well-known metadata path is not served (handleResourceMetadata 404s at streamable.go:353-355), proving the endpoint is not unconditionally exposed
+	// Bearer mode does not publish an OAuth discovery document.
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("metadata status = %d for AuthMode=Bearer, want 404", w.Code)
 	}

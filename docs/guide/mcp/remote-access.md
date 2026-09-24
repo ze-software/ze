@@ -47,8 +47,13 @@ through the SSH tunnel and arrive at `127.0.0.1:8080` on the router.
 
 ```bash
 # Test from your laptop:
-curl -s http://localhost:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl --silent --show-error http://localhost:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
 ### Let a Remote Machine Reach Your Local MCP
@@ -181,15 +186,25 @@ PersistentKeepalive = 25
 If using socat on the router:
 
 ```bash
-curl -s http://10.0.0.1:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl --silent --show-error http://10.0.0.1:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
 If using SSH over WireGuard:
 
 ```bash
-curl -s http://localhost:8080/ -X POST \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl --silent --show-error http://localhost:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/list' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
 ### Generating WireGuard Keys
@@ -227,7 +242,7 @@ environment {
         auth-mode oauth;
         oauth {
             authorization-server https://auth.example/;
-            audience             https://mcp.example/;
+            audience             https://mcp.example/mcp;
             required-scopes      [ mcp.admin ];
         }
         tls {
@@ -241,6 +256,19 @@ environment {
     }
 }
 ```
+
+Issuer and audience identifiers are exact, case-sensitive strings. Configure
+the issuer exactly as its RFC 8414 document reports it, including any trailing
+slash, and have the authorization server issue tokens with that exact `iss`
+and the configured `aud`. Neither identity is canonicalized. Both URLs must
+use HTTPS, have a host and contain no userinfo or fragment; the issuer cannot
+have a query. The audience may have a query, which also appears in the
+protected-resource metadata URL.
+
+Discovery and JWKS fetches require trusted HTTPS, including every redirect.
+Loopback HTTP for the MCP listener behind a tunnel does not relax those
+outbound requirements. See [Checking OAuth over HTTP](overview.md#checking-oauth-over-http)
+for an authenticated request and rejection checks.
 
 Alternatively for smaller deployments, use `auth-mode bearer-list` with
 per-identity tokens:
@@ -276,15 +304,18 @@ environment {
 | `auth-mode oauth` without `oauth.audience` | `auth-mode=oauth requires oauth.audience` |
 | `auth-mode oauth` + non-loopback listener without TLS | `auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners` |
 | `auth-mode bearer-list` without any `identity` entries | `auth-mode=bearer-list requires at least one identity` |
+| Issuer or audience with HTTP, userinfo, a fragment or no host | Invalid OAuth URL |
+| Issuer with a query, including an empty `?` | Invalid OAuth issuer |
+| Only one of `tls.cert` and `tls.key`, in any auth mode | Both TLS paths required |
 
-These are exact-or-reject gates (`rules/exact-or-reject.md`): a misconfigured
-remote endpoint fails the verifier, never silently accepts.
+These checks run before MCP starts. A remote OAuth listener cannot silently
+fall back to plaintext, and a partial TLS configuration is never ignored.
 
 ## Security Notes
 
 - With `bind-remote false` (default), every server entry is force-rewritten
-  to `127.0.0.1` at config extraction time, preserving the Phase 1 loopback
-  clamp even if the operator mistakenly types `0.0.0.0`.
+  to `127.0.0.1` at config extraction time, even if the operator writes
+  `0.0.0.0`.
 - For tunnel-based deployments, use key-based SSH authentication for
   unattended tunnels. Disable password authentication on routers exposed
   to the internet.
@@ -293,8 +324,12 @@ remote endpoint fails the verifier, never silently accepts.
 - Rotate WireGuard keys periodically. Revoke a peer by removing its `[Peer]`
   block and reloading (`wg syncconf wg0 <(wg-quick strip wg0)`).
 - For native remote deployments, rotate the TLS cert before it expires.
-  Hot-reload is not yet supported; restart the daemon after cert rotation.
-- OAuth access tokens are never logged. `Authorization` headers are scrubbed
-  from debug logs. Token audience is validated on every request (RFC 8707).
+  Certificate/key files are loaded at startup; replacing them requires a
+  daemon restart. Authentication-mode, identity, token, issuer, audience and
+  required-scope changes also require a restart. A config reload that changes
+  those settings is rejected rather than accepted without taking effect.
+- Each OAuth request validates its token locally. There is no token
+  introspection or immediate per-token revocation at the authorization server.
+  Rejected bearer credentials do not become audit actor names.
 - JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
   spray cannot trigger a JWKS-fetch flood against the AS.

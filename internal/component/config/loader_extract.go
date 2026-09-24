@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/env"
@@ -313,17 +315,52 @@ func (c MCPListenConfig) Validate() error {
 		if c.OAuth.Audience == "" {
 			return errEnvironmentMcpAuthModeOauthRequires2
 		}
+		if err := validateMCPOAuthURL(c.OAuth.AuthorizationServer); err != nil {
+			return fmt.Errorf("environment.mcp.oauth.authorization-server: %w", err)
+		}
+		if strings.Contains(c.OAuth.AuthorizationServer, "?") {
+			return errors.New("environment.mcp.oauth.authorization-server: query is forbidden")
+		}
+		if err := validateMCPOAuthURL(c.OAuth.Audience); err != nil {
+			return fmt.Errorf("environment.mcp.oauth.audience: %w", err)
+		}
 		if c.AnyListenerNonLoopback() && c.TLS.Cert == "" {
 			return errEnvironmentMcpAuthModeOauthRequires3
 		}
-		if c.TLS.Cert != "" && c.TLS.Key == "" {
+	}
+	if c.TLS.Cert != "" {
+		if c.TLS.Key == "" {
 			return errEnvironmentMcpTlsCertSetWithout
 		}
-		if c.TLS.Key != "" && c.TLS.Cert == "" {
+	}
+	if c.TLS.Key != "" {
+		if c.TLS.Cert == "" {
 			return errEnvironmentMcpTlsKeySetWithout
 		}
 	}
 
+	return nil
+}
+
+// validateMCPOAuthURL mirrors the resource server's HTTPS boundary at offline
+// validation. Errors never repeat a URL that could contain a credential.
+func validateMCPOAuthURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return errors.New("invalid URL")
+	}
+	if u.Scheme != "https" {
+		return errors.New("URL must use HTTPS")
+	}
+	if u.Hostname() == "" {
+		return errors.New("URL is missing a host")
+	}
+	if u.User != nil {
+		return errors.New("URL userinfo is forbidden")
+	}
+	if strings.Contains(raw, "#") {
+		return errors.New("URL fragment is forbidden")
+	}
 	return nil
 }
 
