@@ -192,7 +192,7 @@ system {
 	}()
 
 	var readyErr error
-	ready := Poll(ctx, 200, 100*time.Millisecond, func() bool {
+	ready := Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() bool {
 		if daemon.exited() {
 			stdout, stderr := daemon.output()
 			readyErr = fmt.Errorf("daemon exited early: %w\nstdout:\n%s\nstderr:\n%s", daemon.result(), stdout, stderr)

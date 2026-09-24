@@ -103,7 +103,7 @@ system {
 	}
 	defer daemon.stop()
 
-	ready, err := uiShowBgpChildrenDoNotInheritPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := uiShowBgpChildrenDoNotInheritPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case <-daemon.done:
 			return false, fmt.Errorf(

@@ -1,6 +1,10 @@
 # Test: CLI terminal is a separate top-level tab
 # VALIDATES: /cli renders the SSH-style terminal and executes commands
 # PREVENTS: terminal input being stranded at the bottom of normal pages
+#
+# No step sleeps. Each command waits for its own request to drain
+# (action=wait), and each page change is proven by a positive expectation,
+# which polls, before any absence is judged.
 
 option=timeout:value=30s
 
@@ -14,41 +18,40 @@ expect=element:not-id=cli-input
 
 action=fill:id=terminal-input:value=help
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1000
+action=wait
 expect=element:text=commands:
 expect=element:text=set <path> <value>
 expect=element:not-text=Switch to Integrated Mode
 
 action=fill:id=terminal-input:value=exit
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1000
+action=wait
 expect=html:contains=>operational<
 expect=element:text=ze>
 
 action=fill:id=terminal-input:value=show event namespaces | json
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1000
+action=wait
 expect=element:text=namespace
 
 action=fill:id=terminal-input:value=configure
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1000
+action=wait
 expect=html:contains=>config<
 expect=element:text=ze#
 
 action=fill:id=terminal-input:value=run show event namespaces | json
 action=press:id=terminal-input:key=Enter
-action=wait:ms=1000
+action=wait
 expect=element:text=namespace
 
 action=click:text=Workbench
-action=wait:ms=1000
 expect=element:id=workbench-shell
 expect=element:not-id=terminal-input
 
 action=open:path=/cli
 action=click:text=Finder
-action=wait:ms=1000
+expect=url:contains=/show/
+expect=element:text=environment
 expect=element:not-id=workbench-shell
 expect=element:not-id=terminal-input
-expect=element:text=environment

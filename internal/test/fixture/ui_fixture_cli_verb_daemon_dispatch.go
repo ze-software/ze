@@ -414,14 +414,15 @@ func uiCliVerbDaemonDispatchStartDaemon(ctx context.Context, workDir string, env
 }
 
 func pollDaemonReady(ctx context.Context, daemon *uiCliVerbDaemonDispatchDaemonProcess, sshAddrPath, readyPath string) error {
-	for attempt := range 200 {
+	attempts := WaitAttempts(50, 100*time.Millisecond, 200)
+	for attempt := range attempts {
 		if exited, _ := daemon.pollExit(); exited {
 			return fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 		}
 		if uiCliVerbDaemonDispatchPathExists(sshAddrPath) && uiCliVerbDaemonDispatchPathExists(readyPath) {
 			return nil
 		}
-		if attempt == 199 {
+		if attempt == attempts-1 {
 			break
 		}
 

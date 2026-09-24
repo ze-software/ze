@@ -153,7 +153,7 @@ system {
 		}
 	}()
 
-	ready, err := pollBGPColumnOrder(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := pollBGPColumnOrder(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case waitErr := <-daemonDone:
 			return false, fmt.Errorf(

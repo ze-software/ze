@@ -617,18 +617,21 @@ func (f *apiUserReloadFixture) requestStatus(port int, user, password, command s
 	return resp.StatusCode
 }
 
-// uiApiUserRemovedByReloadAttempts bounds every poll in this fixture.
+// uiApiUserRemovedByReloadAttempts is the poll count used when no runner
+// published a test budget. Under a runner, each poll takes its count from
+// WaitAttempts, so a loaded host gets the time the .ci file declared.
 const uiApiUserRemovedByReloadAttempts = 60
 
 // uiApiUserRemovedByReloadDelay is the pause between two poll attempts.
 const uiApiUserRemovedByReloadDelay = 500 * time.Millisecond
 
 func uiApiUserRemovedByReloadPoll(ctx context.Context, condition func() bool) bool {
-	for attempt := range uiApiUserRemovedByReloadAttempts {
+	attempts := WaitAttempts(40, uiApiUserRemovedByReloadDelay, uiApiUserRemovedByReloadAttempts)
+	for attempt := range attempts {
 		if condition() {
 			return true
 		}
-		if attempt+1 < uiApiUserRemovedByReloadAttempts && !uiApiUserRemovedByReloadSleepContext(ctx, uiApiUserRemovedByReloadDelay) {
+		if attempt+1 < attempts && !uiApiUserRemovedByReloadSleepContext(ctx, uiApiUserRemovedByReloadDelay) {
 			return false
 		}
 	}

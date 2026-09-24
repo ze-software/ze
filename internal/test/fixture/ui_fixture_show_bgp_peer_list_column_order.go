@@ -247,7 +247,7 @@ system {
 		}
 	}()
 
-	ready, err := fixture.Poll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := fixture.Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case <-daemon.done:
 			return false, fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())

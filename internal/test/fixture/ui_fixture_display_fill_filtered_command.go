@@ -198,7 +198,7 @@ func uiDisplayFillFilteredCommandWaitForDone(done <-chan struct{}, timeout time.
 }
 
 func exerciseDisplayAndFill(ctx context.Context, daemon *uiDisplayFillFilteredCommandFixtureDaemon, dir, sshAddr, readyFile string) error {
-	ready, err := pollFixture(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := pollFixture(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		if daemon.exited() {
 			return false, fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 		}

@@ -263,7 +263,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	if err != nil {
 		return nil, fmt.Errorf("start the peer: %w", err)
 	}
-	if !Poll(ctx, 100, 50*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(50, 50*time.Millisecond, 100), 50*time.Millisecond, func() bool {
 		return strings.Contains(session.peer.output.String(), "listening on")
 	}) {
 		return nil, fmt.Errorf("the peer did not report listening: %s", session.peer.output.String())
@@ -282,7 +282,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	if err != nil {
 		return nil, fmt.Errorf("start the daemon: %w", err)
 	}
-	if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() bool {
 		return cliWireFileExists(sshAddrPath) && cliWireFileExists(readyPath)
 	}) {
 		return nil, fmt.Errorf("the daemon did not become ready: %s", session.daemon.output.String())
@@ -303,7 +303,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	// The ready file says the daemon is up, not that the session is. An
 	// announce made before the peer reaches Established matches no peer and is
 	// lost, which is a green command and a silent wire.
-	if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() bool {
 		return strings.Contains(session.peer.output.String(), cliWireEndOfRIBHex)
 	}) {
 		return nil, fmt.Errorf("the session did not establish: %s", session.peer.output.String())

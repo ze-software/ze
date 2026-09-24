@@ -125,7 +125,7 @@ func runWebRecoverySessionSurvivesCommit(ctx context.Context) error {
 		<-daemonDone
 	}()
 
-	ready := Poll(ctx, 300, 100*time.Millisecond, func() bool {
+	ready := Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 300), 100*time.Millisecond, func() bool {
 		info, err := os.Stat(readyPath)
 		return err == nil && info.Mode().IsRegular()
 	})

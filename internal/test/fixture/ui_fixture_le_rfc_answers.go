@@ -304,29 +304,41 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"rfc %s refusal omitted the keyword grammar: %q", action, refused.stderr)
 	}
 
-	// A no-op re-seal must not alter any byte in the shared checkout. Both the
-	// plain and JSON renderings execute the writer and therefore are covered by
-	// snapshots taken before and after all of those invocations.
+	// A no-op re-seal must not alter any byte. Both the plain and JSON renderings
+	// execute the writer and therefore are covered by snapshots taken before and
+	// after all of those invocations.
+	//
+	// The writer runs on an export of HEAD, never on the shared checkout. Other
+	// sessions leave verdicts SHIFTED there as a matter of course, so a re-seal
+	// over the checkout judged their uncommitted work rather than this contract,
+	// and it wrote into their tree. One priming re-seal re-stamps whatever HEAD
+	// itself left shifted, so every call below meets the no-op state.
 	checkoutAuditBefore := leRFCAnswersAuditState(root)
-	reseal := runLE(root, "rfc", "reseal")
+	noopTree := leRFCAnswersExportHEAD(ctx, root, here, "reseal-noop")
+	prime := runLE(noopTree, "rfc", "reseal")
+	leRFCAnswersRequire(prime.code == 0 && prime.stderr == "",
+		"priming rfc reseal on the HEAD export failed with exit %d\nstdout:\n%s\nstderr:\n%s",
+		prime.code, prime.stdout, prime.stderr)
+	noopAuditBefore := leRFCAnswersAuditState(noopTree)
+	reseal := runLE(noopTree, "rfc", "reseal")
 	leRFCAnswersRequire(reseal.code == 0,
-		"rfc reseal refused this checkout with exit %d\nstdout:\n%s\nstderr:\n%s",
+		"rfc reseal refused the primed HEAD export with exit %d\nstdout:\n%s\nstderr:\n%s",
 		reseal.code, reseal.stdout, reseal.stderr)
 	leRFCAnswersRequire(reseal.stderr == "", "rfc reseal wrote to stderr: %q", reseal.stderr)
 	leRFCAnswersRequire(strings.Contains(reseal.stdout, "nothing to re-seal"),
-		"fresh-checkout rfc reseal omitted its no-op verdict:\n%s", reseal.stdout)
+		"primed-export rfc reseal omitted its no-op verdict:\n%s", reseal.stdout)
 	leRFCAnswersRequire(!strings.Contains(reseal.stdout, "\x1b["),
 		"rfc reseal emitted terminal escapes: %q", reseal.stdout)
 
-	resealAgain := runLE(root, "rfc", "reseal")
+	resealAgain := runLE(noopTree, "rfc", "reseal")
 	leRFCAnswersRequire(resealAgain.code == 0 && resealAgain.stderr == "",
-		"second fresh-checkout rfc reseal failed with exit %d\nstdout:\n%s\nstderr:\n%s",
+		"second primed-export rfc reseal failed with exit %d\nstdout:\n%s\nstderr:\n%s",
 		resealAgain.code, resealAgain.stdout, resealAgain.stderr)
 	leRFCAnswersRequire(resealAgain.stdout == reseal.stdout,
 		"two no-op re-seals rendered different bytes\nfirst:\n%s\nsecond:\n%s",
 		reseal.stdout, resealAgain.stdout)
 
-	resealJSON := runLE(root, "rfc", "reseal", "|", "json")
+	resealJSON := runLE(noopTree, "rfc", "reseal", "|", "json")
 	leRFCAnswersRequire(resealJSON.code == 0,
 		"rfc reseal | json exited %d\nstdout:\n%s\nstderr:\n%s",
 		resealJSON.code, resealJSON.stdout, resealJSON.stderr)
@@ -336,13 +348,13 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersMapKeys(resealPayload), []string{"refused", "resealed"}),
 		"rfc reseal | json returned fields %v, want refused and resealed: %s",
 		leRFCAnswersMapKeys(resealPayload), resealJSON.stdout)
-	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(root), checkoutAuditBefore),
-		"a no-op re-seal changed rfc/audit in the shared checkout")
+	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(noopTree), noopAuditBefore),
+		"a no-op re-seal changed rfc/audit in the primed HEAD export")
 
 	// Build the set of tagged files from the audit records. Appending below all
 	// functions preserves units while changing every cited file's whole-file
 	// identity, forcing all unit-bearing verdicts into the re-sealable state.
-	cited := leRFCAnswersCitedFiles(checkoutAuditBefore)
+	cited := leRFCAnswersCitedFiles(noopAuditBefore)
 	leRFCAnswersRequire(len(cited) >= 10,
 		"HEAD audit records cite only %d tagged file(s)", len(cited))
 
@@ -465,9 +477,9 @@ func leRFCAnswers(ctx context.Context) (err error) {
 			"JSON-rendered index update wrote different bytes into %s", name)
 	}
 
-	// Every mutating success above targeted an export. Invocations targeting the
-	// shared checkout were either read-only, a verified no-op, or rejected at
-	// argument validation, so both owned filesystem regions must remain exact.
+	// Every writer above targeted an export. Invocations targeting the shared
+	// checkout were either read-only or rejected at argument validation, so both
+	// owned filesystem regions must remain exact.
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersGenerated(root), checkoutPages),
 		"the fixture changed generated requirement pages in the shared checkout")
 	leRFCAnswersRequire(reflect.DeepEqual(leRFCAnswersAuditState(root), checkoutAuditBefore),

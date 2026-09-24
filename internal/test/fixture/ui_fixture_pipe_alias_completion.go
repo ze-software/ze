@@ -52,7 +52,7 @@ func pipeAliasCompletion(ctx context.Context) error {
 	}
 	defer daemon.stop() //nolint:errcheck // fixture teardown, so a close failure changes no assertion
 
-	if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 100), 100*time.Millisecond, func() bool {
 		code, out, _, runErr := cli11(ctx, cliEnv, cmdShowPipealiasCounters+" | json")
 		return runErr == nil && code == 0 && strings.Contains(out, fieldVRPCount)
 	}) {

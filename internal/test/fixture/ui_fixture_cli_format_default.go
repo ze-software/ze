@@ -110,7 +110,7 @@ system {
 
 	// Both files are startup barriers. Poll exactly 200 times, with 100 ms
 	// between unsuccessful attempts, rather than relying on a guessed sleep.
-	err = cliFormatDefaultPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	err = cliFormatDefaultPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		if exited, waitErr := daemon.exited(); exited {
 			return false, fmt.Errorf("daemon exited early: %w\nstdout:\n%s\nstderr:\n%s", waitErr, daemon.stdout.String(), daemon.stderr.String())
 		}

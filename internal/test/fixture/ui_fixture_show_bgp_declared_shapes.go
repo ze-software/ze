@@ -133,7 +133,7 @@ system {
 		}
 	}()
 
-	ready, err := showBGPDeclaredShapesPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := showBGPDeclaredShapesPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case waitErr := <-daemon.done:
 			daemon.exited = true

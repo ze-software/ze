@@ -273,7 +273,7 @@ func runWebUserRemovedByReload(ctx context.Context) error {
 		return err
 	}
 
-	ready := pollWebReload(ctx, 201, 100*time.Millisecond, func() bool {
+	ready := pollWebReload(ctx, WaitAttempts(50, 100*time.Millisecond, 201), 100*time.Millisecond, func() bool {
 		info, statErr := os.Stat(readyPath)
 		return statErr == nil && !info.IsDir()
 	})
@@ -299,7 +299,7 @@ func runWebUserRemovedByReload(ctx context.Context) error {
 
 func webReloadBefore(ctx context.Context, workspace string, check *webReloadHTTP) error {
 	if err := requireWebReload(
-		pollWebReload(ctx, 40, 500*time.Millisecond, func() bool {
+		pollWebReload(ctx, WaitAttempts(50, 500*time.Millisecond, 40), 500*time.Millisecond, func() bool {
 			return check.statusFor(ctx, "webuser", "webuserpass") == http.StatusOK
 		}),
 		"webuser authenticates against the config that declares them",
@@ -346,7 +346,7 @@ func webReloadBefore(ctx context.Context, workspace string, check *webReloadHTTP
 
 func webReloadAfter(ctx context.Context, workspace string, check *webReloadHTTP) error {
 	if err := requireWebReload(
-		pollWebReload(ctx, 40, 500*time.Millisecond, func() bool {
+		pollWebReload(ctx, WaitAttempts(50, 500*time.Millisecond, 40), 500*time.Millisecond, func() bool {
 			return check.statusFor(ctx, "newuser", "newuserpass") == http.StatusOK
 		}),
 		"newuser authenticates, so the reload read the rewritten config",

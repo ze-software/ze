@@ -22,7 +22,7 @@
 #
 # option=update:value=send-route is the ze-peer-consumed injection directive
 # (internal/test/peer/expect.go parseOptionConfig -> Config.SendRoutes ->
-# peer.go:371 runMessageLoop -> BuildRouteMsg, message.go:147).
+# peer.go:371 runMessageLoop -> buildRouteMsg, message.go:147).
 #
 # origin-as is deliberately omitted: this is an iBGP session (local asn 1 ==
 # remote asn 1), so the routes carry an empty AS_PATH, as an iBGP-originated

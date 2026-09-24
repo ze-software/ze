@@ -129,7 +129,7 @@ system {
 		}
 	}()
 
-	ready, err := displayFillSelectPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := displayFillSelectPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		if daemon.exited() {
 			return false, fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 		}

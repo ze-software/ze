@@ -115,7 +115,7 @@ system {
 	}
 	defer displayFillStop(daemon, syscall.SIGTERM, 5*time.Second)
 
-	ready, err := displayFillPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := displayFillPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		if displayFillExited(daemon) {
 			return false, fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemonStdout.String(), daemonStderr.String())
 		}

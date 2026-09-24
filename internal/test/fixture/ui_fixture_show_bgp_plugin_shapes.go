@@ -210,7 +210,7 @@ system {
 	}
 	defer stopPluginShapesDaemon(daemon)
 
-	ready, err := f.Poll(ctx, 300, 100*time.Millisecond, func() (bool, error) {
+	ready, err := f.Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 300), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case <-daemon.done:
 			daemon.mu.Lock()
@@ -287,7 +287,7 @@ system {
 	// and configuration happen on the plugin goroutine, so observe the rows
 	// rather than assuming they exist as soon as the daemon's ready file does.
 	var lastCacheRows []map[string]any
-	cacheReady, err := f.Poll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	cacheReady, err := f.Poll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		result, observeErr := f.Observe(ctx, dir, cliEnv, "", "ze", "cli", "-c", "show bgp rpki cache | json")
 		if observeErr != nil || result.code != 0 {
 			lastCacheRows = nil

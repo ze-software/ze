@@ -108,7 +108,7 @@ system {
 		}
 	}()
 
-	ready, err := uiShowColumnOrderAbsentUnchangedPoll(ctx, 200, 100*time.Millisecond, func() (bool, error) {
+	ready, err := uiShowColumnOrderAbsentUnchangedPoll(ctx, WaitAttempts(50, 100*time.Millisecond, 200), 100*time.Millisecond, func() (bool, error) {
 		select {
 		case <-daemon.done:
 			return false, fmt.Errorf(

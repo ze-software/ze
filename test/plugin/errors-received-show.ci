@@ -7,7 +7,7 @@
 
 # ze-peer: send a NOTIFICATION immediately after the OPEN exchange.
 # action=notification always emits Cease (6) / Admin Shutdown (2) per
-# internal/test/peer/message.go::NotificationMsg.
+# internal/test/peer/message.go::notificationMsg.
 stdin=peer:terminator=EOF_PEER
 action=notification:conn=1:seq=1:text=peer-initiated shutdown
 EOF_PEER
