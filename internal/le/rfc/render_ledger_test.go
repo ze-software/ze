@@ -367,8 +367,14 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// rfc8956 in 1357a6682c. rfc7950 joined in 1584e5bd93, its cell now opening
 	// "Forty-eight MUST rows carry {gap}". Those twelve rows are no longer
 	// cross-checked against their gated gap count.
-	if counted != 42 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 42",
+	// 51 since later on 2026-09-24: nine of the twelve were restored. Each cell
+	// now opens by spelling its {gap} count before MUST ("Fifteen MUST rows
+	// carry {gap}"), with the rest of the prose unchanged: rfc1332, rfc1661,
+	// rfc2205, rfc2516, rfc2661, rfc7432, rfc7474, rfc8210 and rfc9552.
+	// rfc8907, rfc8955 and rfc8956 stay out, because each carries zero {gap}
+	// annotations and gapNumbers spells one through ninety-nine, never zero.
+	if counted != 51 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 51",
 			counted, len(rows))
 	}
 }
