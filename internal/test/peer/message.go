@@ -171,11 +171,17 @@ func KeepaliveMsg() []byte {
 }
 
 // defaultRoute is the route option=update:value=send-default-route sends:
-// 0.0.0.0/32 via 127.0.0.1, used for testing UPDATE receive handling. senderAS
+// 0.0.0.0/32 via 192.0.2.1, used for testing UPDATE receive handling. senderAS
 // follows RouteToSend.SenderAS, so an eBGP session gets the path a real
 // speaker sends.
+//
+// The next hop is a documentation address (RFC 5737) that no test host holds.
+// ze-peer and ze share 127.0.0.1 in every functional test, so a next hop of
+// 127.0.0.1 is ze's own address, and RFC 4271 Section 6.3 (a) says "It MUST
+// NOT be the IP address of the receiving speaker": ze ignores that route
+// (invalidReceiveNextHop, internal/component/bgp/reactor/session_next_hop.go).
 func defaultRoute(senderAS uint32) RouteToSend {
-	return RouteToSend{Prefix: "0.0.0.0/32", NextHop: "127.0.0.1", SenderAS: senderAS}
+	return RouteToSend{Prefix: "0.0.0.0/32", NextHop: "192.0.2.1", SenderAS: senderAS}
 }
 
 // RouteToSend describes a custom route for ze-peer to send after OPEN.

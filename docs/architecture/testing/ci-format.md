@@ -581,7 +581,7 @@ expectations.
 
 | Value | Keys | Description |
 |-------|------|-------------|
-| `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `127.0.0.1` |
+| `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `192.0.2.1`, an address no test host holds, so the route passes the RFC 4271 Section 6.3 next-hop check |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
 | `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
 <!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->

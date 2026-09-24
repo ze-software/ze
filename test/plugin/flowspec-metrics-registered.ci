@@ -15,8 +15,14 @@
 # AND the refusal path incremented it. A never-refused daemon exposes the HELP
 # and TYPE lines and no sample, which is what makes this able to fail.
 #
-# No kernel capability is needed: the route is refused at translation, so
-# nothing is registered with the firewall and no reconcile runs.
+# The route is refused at translation, so it registers no rule. The plugin still
+# needs CAP_NET_ADMIN: before it takes any route, OnConfigure claims and removes
+# a table a previous process left (clearStaleRules,
+# internal/plugins/flowspec-firewall/engine.go), and a plugin that cannot clear
+# stale kernel rules fails its startup rather than run beside them. Without the
+# capability no refusal is ever counted, so the test runs where the capability
+# exists (the QEMU guest of `./le qemu all-tests`) and skips visibly elsewhere.
+option=needs-linux:caps=net-admin
 
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s

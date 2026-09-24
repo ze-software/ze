@@ -36,20 +36,22 @@ func bmpHeader04(kind byte, payload []byte) []byte {
 	return out
 }
 
-func bmpInitiation04(withDescription bool) []byte {
+// bmpInitiation04 builds the Initiation a monitored router opens with.
+//
+// RFC 7854 Section 4.3: "The sysDescr and sysName Information TLVs MUST be
+// sent, any others are optional." ze's receiver closes a session whose
+// Initiation lacks either (decodeInitiation, plugins/bmp/msg.go), so every
+// fixture session carries both.
+func bmpInitiation04() []byte {
 	name := []byte("test-router")
-	payload := make([]byte, 4+len(name))
-	binary.BigEndian.PutUint16(payload[0:2], 2)
-	binary.BigEndian.PutUint16(payload[2:4], uint16(len(name)))
-	copy(payload[4:], name)
-	if withDescription {
-		desc := []byte("ze ci test")
-		tlv := make([]byte, 4+len(desc))
-		binary.BigEndian.PutUint16(tlv[0:2], 1)
-		binary.BigEndian.PutUint16(tlv[2:4], uint16(len(desc)))
-		copy(tlv[4:], desc)
-		payload = append(payload, tlv...)
-	}
+	desc := []byte("ze ci test")
+	payload := make([]byte, 0, 8+len(name)+len(desc))
+	payload = binary.BigEndian.AppendUint16(payload, 2) // sysName
+	payload = binary.BigEndian.AppendUint16(payload, uint16(len(name)))
+	payload = append(payload, name...)
+	payload = binary.BigEndian.AppendUint16(payload, 1) // sysDescr
+	payload = binary.BigEndian.AppendUint16(payload, uint16(len(desc)))
+	payload = append(payload, desc...)
 	return bmpHeader04(4, payload)
 }
 
@@ -169,7 +171,7 @@ func hasRoute04(value any) bool {
 }
 
 var bmpIngest04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
-	if err := writeBMP04(conn, bmpInitiation04(false), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
+	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
@@ -186,7 +188,7 @@ var bmpIngest04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Co
 })
 
 var bmpBestpath04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
-	if err := writeBMP04(conn, bmpInitiation04(false), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
+	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
@@ -217,7 +219,7 @@ var bmpBestpath04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.
 })
 
 var bmpDisconnect04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
-	if err := writeBMP04(conn, bmpInitiation04(false), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
+	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpRouteMonitoring04()); err != nil {
 		return err
 	}
 	_, value, err := pollCommand04(ctx, p, 100, "show bmp rib", func(status string, value any) bool {
@@ -243,7 +245,7 @@ var bmpDisconnect04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn ne
 })
 
 var bmpMessages04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
-	if err := writeBMP04(conn, bmpInitiation04(true), bmpPeerUp04(), bmpPeerDown04()); err != nil {
+	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04(), bmpPeerDown04()); err != nil {
 		return err
 	}
 	status, value, err := pollCommand04(ctx, p, 100, "show bmp peers", func(status string, value any) bool {
@@ -300,7 +302,7 @@ func bmpReceiverSessionDriver04(ctx context.Context, args []string) error {
 }
 
 var bmpSessions04 = withBMP04(func(ctx context.Context, p *sdk.Plugin, conn net.Conn) error {
-	if err := writeBMP04(conn, bmpInitiation04(false), bmpPeerUp04()); err != nil {
+	if err := writeBMP04(conn, bmpInitiation04(), bmpPeerUp04()); err != nil {
 		return err
 	}
 	status, value, err := pollCommand04(ctx, p, 40, "show bmp sessions", func(status string, value any) bool {

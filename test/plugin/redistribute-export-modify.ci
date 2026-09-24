@@ -6,6 +6,14 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# peer1 is the SOURCE, and it MUST stay up until its routes are forwarded. ze
+# sends peer1 its EOR as soon as the session is up, which can be before the
+# route server has forwarded peer1's routes. A peer1 that closed on that EOR is
+# a session-down event, and bgp-rs drops a forward whose source is down
+# ("forward dropped: source peer is down"), so peer2 would never see the fence.
+# This linger holds the source; the paragraph on peer2 below is about the
+# target's verdict, which linger does not govern.
+option=linger:value=true
 option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER

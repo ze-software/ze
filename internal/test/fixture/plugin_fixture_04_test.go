@@ -10,9 +10,21 @@ import (
 )
 
 func TestPluginFixture04BMPClientFrames(t *testing.T) {
-	initiation := bmpInitiation04(true)
+	initiation := bmpInitiation04()
 	if initiation[0] != 3 || initiation[5] != 4 || int(binary.BigEndian.Uint32(initiation[1:5])) != len(initiation) {
 		t.Fatalf("invalid initiation header: %x", initiation[:6])
+	}
+	// RFC 7854 Section 4.3: "The sysDescr and sysName Information TLVs MUST be
+	// sent". Walk the TLVs and require both types.
+	seen := map[uint16]bool{}
+	for off := 6; off+4 <= len(initiation); {
+		kind := binary.BigEndian.Uint16(initiation[off : off+2])
+		size := int(binary.BigEndian.Uint16(initiation[off+2 : off+4]))
+		seen[kind] = true
+		off += 4 + size
+	}
+	if !seen[1] || !seen[2] {
+		t.Fatalf("initiation TLV types %v, want sysDescr (1) and sysName (2)", seen)
 	}
 	peerUp := bmpPeerUp04()
 	if peerUp[0] != 3 || peerUp[5] != 3 || len(peerUp) != 6+42+16+4+29+29 {
