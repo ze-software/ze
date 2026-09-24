@@ -131,7 +131,11 @@ environment {
 	addressPattern := regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 	var sshPort string
 	var daemonExited bool
-	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
+	// The wait ends on the logged SSH address or on the daemon's exit. Its
+	// 30-second bound is not a boot-time guess: a loaded machine has taken
+	// more than ten seconds to start the daemon, and the runner's 45-second
+	// timeout cancels ctx first.
+	if !Poll(ctx, 150, 200*time.Millisecond, func() bool {
 		select {
 		case <-daemonDone:
 			daemonExited = true

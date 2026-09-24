@@ -1,0 +1,5 @@
+# A queued request runs only when a later, unrelated request arrives
+
+| Date | Spec | Surface | Symptom | Fix |
+|------|------|---------|---------|-----|
+| 2026-09-24 | none (walked into while fencing `test/plugin/api-peer-save.ci` on its SIGHUP reload) | `handleSIGHUPReload` (`cmd/ze/hub/main_reload.go`) and `Server.QueueSIGHUP` / `Server.DrainSIGHUP` (`internal/component/plugin/server/reload.go`) | A SIGHUP that arrives while another reload holds the transaction lock is queued and then not run. On `ErrReloadInProgress` the worker calls `s.QueueSIGHUP()` and `continue`s, which skips the `DrainSIGHUP` replay below it. `DrainSIGHUP` has no other caller, so the queued reload runs only after the NEXT SIGHUP's reload completes. When no second SIGHUP comes, the operator's edit to the file is never applied, and nothing reports it. Producers read 2026-09-24. No test drives a SIGHUP into a held lock | not fixed. `cmd/ze/hub` is another session's surface today. The lock owner, not the next SIGHUP, is what knows when the queued reload can run |

@@ -148,8 +148,35 @@ func plugin01SaveSurvivesAReload(ctx context.Context, plugin *sdk.Plugin) error 
 	if err := plugin01AppendUnrelatedLeaf(); err != nil {
 		return err
 	}
+	baseline := int64(-1)
+	if !Poll(ctx, 40, plugin01PollDelay, func() bool {
+		baseline = reloadGeneration(ctx, plugin)
+		return baseline >= 0
+	}) {
+		return errors.New("before the reload: show reload-status returned no generation")
+	}
 	if err := plugin01SignalDaemonReload(); err != nil {
 		return err
+	}
+
+	// The reload generation is the fence: it advances only after every reload
+	// step ran, the store promotion included. The peer name below becomes
+	// visible part-way through the reload, so a poll on the name alone lets the
+	// scenario end and the daemon stop while the reload still runs, and the
+	// daemon then never reports "sighup reload complete".
+	generation := int64(-1)
+	if !Poll(ctx, 120, plugin01PollDelay, func() bool {
+		generation = reloadGeneration(ctx, plugin)
+		return generation > baseline
+	}) {
+		return fmt.Errorf("the reload generation never advanced past %d: got %d", baseline, generation)
+	}
+	outcome, status, err := plugin01DispatchMap(ctx, plugin, "show reload-status")
+	if err != nil || status != rpc.StatusDone {
+		return fmt.Errorf("show reload-status after the reload: status=%s: %w", status, err)
+	}
+	if outcome["last-outcome"] != "applied" {
+		return fmt.Errorf("the reload of the saved file was not applied: %v", outcome)
 	}
 
 	// The NAME is what proves the reload read the file. Before it, the created

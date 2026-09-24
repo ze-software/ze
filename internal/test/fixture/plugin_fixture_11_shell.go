@@ -237,8 +237,12 @@ func startRecordDriver(ctx context.Context) (*recordDriver, error) {
 
 var sshAddress11 = regexp.MustCompile(`127\.0\.0\.1:(\d+)`)
 
+// waitForSSHPort waits for the daemon to log its SSH address, and stops early
+// when the daemon exits. The 30-second bound is not a boot-time guess: a
+// loaded machine has taken more than ten seconds to start the daemon, and the
+// runner's 60-second timeout cancels ctx first.
 func (driver *recordDriver) waitForSSHPort() (string, error) {
-	for range 50 {
+	for range 150 {
 		log := driver.log()
 		match := sshAddress11.FindStringSubmatch(log)
 		if len(match) == 2 {
