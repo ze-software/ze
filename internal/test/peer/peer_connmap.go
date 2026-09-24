@@ -260,8 +260,8 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 		closeConnBatch(conns)
 		if ctx.Err() != nil {
 			// Canceling closed the sockets underneath the handshake, so the
-			// I/O error is the teardown's own doing, not a peer failure. Match
-			// the accept loop above and let the runner decide the verdict.
+			// I/O error is the teardown's own doing, not a peer failure. Run
+			// decides the verdict against the checker (ErrExpectationsUnmet).
 			return nil, Result{Success: true}, true
 		}
 		return nil, Result{Success: false, Error: acceptErr}, true

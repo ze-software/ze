@@ -687,6 +687,25 @@ func (c *Checker) Completed() bool {
 	return len(c.messages) == 0 && len(c.sequences) == 0
 }
 
+// unmet names the first expectation still owed, the connection that owes it,
+// and how many expectations remain in total. Run reports it when a check peer
+// stops before every expectation was met.
+func (c *Checker) unmet() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	pending := len(c.messages)
+	for _, seq := range c.sequences {
+		pending += len(seq)
+	}
+	if len(c.messages) > 0 {
+		return fmt.Sprintf("conn=%d still owes %s (%d expectations unmet)", c.currentConnection, c.messages[0], pending)
+	}
+	if len(c.sequences) > 0 {
+		return fmt.Sprintf("conn=%d still owes %s (%d expectations unmet)", c.connectionIDs[0], c.sequences[0][0], pending)
+	}
+	return "every expectation was met"
+}
+
 // nextNotificationAction checks if the next expected item is a notification: action.
 // If so, it returns (true, text) and removes the action from the queue.
 // If not, it returns (false, "").

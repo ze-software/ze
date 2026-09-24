@@ -41,6 +41,10 @@ var errContextCanceled = errors.New("context canceled")
 // ErrOpenMismatch is returned when the received OPEN message doesn't match expectations.
 var ErrOpenMismatch = errors.New("OPEN mismatch")
 
+// ErrExpectationsUnmet is the verdict of a check-mode peer that stopped before
+// every expectation it holds was met. Run wraps it with the first unmet one.
+var ErrExpectationsUnmet = errors.New("stopped with expectations unmet")
+
 // ErrConnectionClosed is returned when the connection closes before all expected messages are received.
 var ErrConnectionClosed = errors.New("connection closed before completion")
 
@@ -424,7 +428,32 @@ func (p *Peer) runDialCheck(ctx context.Context) Result {
 }
 
 // Run starts the test peer and blocks until completion or context cancellation.
+//
+// A check-mode Result reports Success only when every expectation the peer holds
+// was met. The paths that end the peer are many (a canceled Accept, a dialing
+// peer's one connection, a conn_map batch torn down mid-handshake), and several
+// answer Success because nothing failed on the wire. That is not the same fact:
+// a peer stopped while it waited for connection 2 read nothing wrong and proved
+// nothing about connection 2. So the verdict is decided here, once, against the
+// checker, and a peer stopped short fails with ErrExpectationsUnmet naming the
+// first expectation still owed. The runner reads the "successful" line the
+// caller prints for a Success, so this guard is what keeps that line honest.
 func (p *Peer) Run(ctx context.Context) Result {
+	result := p.run(ctx)
+	if p.config.Mode != ModeCheck {
+		return result // sink, echo and inject hold no expectations to meet
+	}
+	if p.checker.Completed() {
+		return result
+	}
+	if result.Success || result.Error == nil || errors.Is(result.Error, errContextCanceled) {
+		return Result{Success: false, Error: fmt.Errorf("%w: %s", ErrExpectationsUnmet, p.checker.unmet())}
+	}
+	return result // a named failure (mismatch, OPEN, rejection) already says what broke
+}
+
+// run is Run without the check-mode verdict; see Run.
+func (p *Peer) run(ctx context.Context) Result {
 	if p.config.Dial != "" {
 		if p.config.Mode == ModeInject {
 			return p.runActive(ctx)
@@ -475,6 +504,8 @@ func (p *Peer) Run(ctx context.Context) Result {
 		if err != nil {
 			select {
 			case <-ctx.Done():
+				// The normal exit of sink and echo. For a check peer, Run
+				// turns it into ErrExpectationsUnmet unless the checker finished.
 				return Result{Success: true}
 			default:
 				if !errors.Is(err, net.ErrClosed) {

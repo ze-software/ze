@@ -1938,6 +1938,17 @@ is still governed by its own exit/output/file assertions.
 <!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
 <!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
 
+A check peer prints `successful` only when EVERY expectation it holds was met:
+every `expect=bgp` line of every `conn=N` it declares. A peer stopped before that,
+by SIGTERM from the runner, by the test's timeout, or because a dialing peer's one
+connection ended while `conn=2` was still owed, exits 1 with
+`stopped with expectations unmet: conn=N still owes <expectation> (K expectations unmet)`.
+Until 2026-09-24 a peer that SIGTERM reached while it waited for its next
+connection printed `successful`, so a test passed with its later connections
+never opened.
+<!-- source: internal/test/peer/peer.go -- (*Peer).Run, ErrExpectationsUnmet -->
+<!-- test: internal/test/peer/unmet_expectations_test.go TestListeningCheckPeerStoppedWhileWaitingForNextConnectionFails -->
+
 ### A scaffolding ze-peer is signaled at teardown
 
 A sink, echo or inject `ze-peer` never ends itself: its accept loop runs until its
