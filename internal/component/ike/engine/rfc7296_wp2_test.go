@@ -240,7 +240,7 @@ func TestWp2EAPAUTHFollowsSuccess(t *testing.T) {
 func wp2DPDFlags(t *testing.T, sa *SA) uint8 {
 	t.Helper()
 	log := slogutil.DiscardLogger()
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	sa.bindSockets(myTr, nil)
 	sa.peerEndpoint = nttPeerAddr(t, peerTr)

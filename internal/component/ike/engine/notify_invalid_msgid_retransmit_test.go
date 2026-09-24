@@ -21,7 +21,7 @@ import (
 func TestInvalidMsgIDNotifyIsRepeatable(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, _, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	if ini.remoteUDPAddr() == nil {
 		t.Fatal("the initiator has no resolvable peer address")
@@ -96,7 +96,7 @@ func TestInvalidMsgIDNotifyClearsOnRelease(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ini, _, ps := establishPSK(t)
-			_, myTr := rtxPeerLink(t)
+			_, myTr := rtxPeerLink(t, ini)
 			ini.PeerCfg.RemoteAddress = "127.0.0.1"
 
 			sentID := ini.NextMsgID

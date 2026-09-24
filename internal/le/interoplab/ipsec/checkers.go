@@ -39,6 +39,8 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":                   checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
+	"mobike-initiator":                   checkMOBIKEInitiator,
+	"mobike-responder":                   checkMOBIKEResponder,
 	"mtu-nat-installed-endpoint":         checkMTUNATInstalledEndpoint,
 	"mtu-negotiated-transform":           checkMTUNegotiatedTransform,
 	"mtu-tunnel-sizing-strongswan":       checkMTUTunnelSizingStrongSwan,

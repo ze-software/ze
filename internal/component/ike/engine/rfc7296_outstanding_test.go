@@ -33,7 +33,7 @@ func osrRequest(t *testing.T, peer *SA, msgID uint32) []byte {
 func osrSession(t *testing.T) (ini, peer *SA, ps *PeerSession, peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	peer, ini, ps = establishPSK(t)
-	peerTr, myTr = rtxPeerLink(t)
+	peerTr, myTr = rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	if ini.remoteUDPAddr() == nil {
 		t.Fatal("the SA has no resolvable peer address")

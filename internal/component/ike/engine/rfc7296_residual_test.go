@@ -225,7 +225,7 @@ func resRekeyRefused(t *testing.T, inner []wire.PayloadEntry) ownedOutcome {
 	t.Helper()
 	log := slogutil.DiscardLogger()
 	_, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 
 	dp := &rkyDP{}

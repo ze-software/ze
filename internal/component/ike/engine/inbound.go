@@ -40,6 +40,8 @@ type ownedOutcome struct {
 // to avoid racing the shared goroutine. It returns an ownedOutcome describing any
 // rekey that completed. RFC 7296 §2.3 message-ID validation is applied first.
 func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	var msg wire.Message
 	if err := msg.ReadFrom(pkt.Data); err != nil {
 		// This is the OUTER message, parsed before any decryption.
@@ -102,11 +104,18 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			countErrorNotifySuppressed("replay-rate-limited")
 			return ownedOutcome{}
 		}
-		// The destination is the SA's STORED endpoint, through sendRaw, and never
-		// pkt.RemoteAddr. This request did not decrypt, so nothing corroborates its
-		// source. A cached replay is not "a response to a request Ze accepted": Ze
-		// recognized a Message ID, it did not accept the message. RFC 7296
-		// Section 2.11 therefore does not put this emission on the observed source.
+		// A MOBIKE retransmission can use another address pair. Authenticate it
+		// before routing the cached response there; never reapply its update.
+		if sa.mobike.enabled {
+			inner, err := decryptAndParse(sa, &msg, pkt.Data)
+			if err != nil {
+				return ownedOutcome{}
+			}
+			if sa.lastResponseSet {
+				replyToMobikeRetransmit(sa, pkt, inner, msg.Header.MessageID, msg.Header.ExchangeType, tr, log)
+			}
+			return ownedOutcome{}
+		}
 		if sa.lastResponseSet {
 			sendRaw(sa, tr, sa.lastResponse, log)
 		}
@@ -120,7 +129,13 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// response cannot mask a dead peer and a path probe's answer credits no
 		// liveness.
 		if isResponse && msg.Header.ExchangeType == wire.ExchangeInformational {
-			if _, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
+			if inner, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
+				if sa.mobike.pending != nil && sa.mobike.pending.msgID == msg.Header.MessageID {
+					return ps.handleMobikeResponse(sa, inner, msg.Header.MessageID, dp, tr, log)
+				}
+				if sa.requestOutstanding && sa.requestMsgID == msg.Header.MessageID {
+					observeMobikeNATMapping(sa, inner)
+				}
 				// Release site one of two, after authentication. RFC 7296 §2.3: this
 				// answer completes a request that left no pendingRekey, so the window
 				// it holds frees here and nowhere else.
@@ -173,6 +188,18 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			ps.respondInnerParseError(sa, &msg, err, tr, log)
 		}
 		return ownedOutcome{}
+	}
+	if !isResponse && sa.mobike.enabled {
+		sa.replyLocal, sa.replyRemote, sa.replyNATT = pkt.LocalAddr, pkt.RemoteAddr, pkt.NATT
+		defer func() { sa.replyLocal, sa.replyRemote, sa.replyNATT = nil, nil, false }()
+		if notify := validateMobikeRequest(sa, inner, pkt.RemoteAddr, pkt.LocalAddr); notify != 0 {
+			// RFC 4555 Section 3.9: after UNEXPECTED_NAT_DETECTED the responder
+			// "MUST NOT use the contents of the NO_NATS_ALLOWED notification for
+			// any other purpose than possibly logging". No address mutation precedes
+			// this check; the answer uses the observed packet tuple exclusively.
+			respondMobikeError(sa, inner, msg.Header.MessageID, msg.Header.ExchangeType, notify, tr, log)
+			return ownedOutcome{}
+		}
 	}
 	// The message decrypted and its integrity check passed. classifyInbound already
 	// applied the Message ID window. Both preconditions of adoptAuthenticatedEndpoint
@@ -271,6 +298,27 @@ func (ps *PeerSession) respondInnerParseError(sa *SA, msg *wire.Message, err err
 // old; IKE: derive the new SA + Delete the old). As Child rekey responder it
 // installs the replacement and replies. RFC 7296 §1.3.2, §1.3.3.
 func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner []wire.PayloadEntry, isResponse bool, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
+	if ps.getPendingChild() != nil {
+		// A parallel authenticated IKE SA now owns the shared policy templates.
+		// This old SA is closing, not another writer permitted to rekey them.
+		// RFC 7296 Sections 2.25.1 and 2.25.2: a rekey request for a Child or
+		// IKE SA that is currently being closed SHOULD receive TEMPORARY_FAILURE.
+		if !isResponse {
+			ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+				wire.NotifyTemporaryFailure, nil, tr, log)
+			return ownedOutcome{}
+		}
+		if p := ps.pendingRekey; p != nil && p.kind == rekeyChild {
+			p.clear()
+			ps.pendingRekey = nil
+			// The authenticated response has freed our request window. Its peer
+			// may already have installed a replacement Child; closing this IKE SA
+			// closes that Child too (RFC 7296 Section 2.4), without installing it
+			// over the new owner's policies locally.
+			ps.sendDeleteIKE(sa, tr, log)
+			return ownedOutcome{}
+		}
+	}
 	if isResponse {
 		p := ps.pendingRekey
 		if p == nil {
@@ -519,6 +567,10 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 				wire.NotifyInvalidSyntax, nil, tr, log)
 			return out
 		}
+		if notify := ps.acceptMobikeUpdate(sa, inner); notify != 0 {
+			respondMobikeError(sa, inner, msg.Header.MessageID, msg.Header.ExchangeType, notify, tr, log)
+			return out
+		}
 	}
 	for i := range inner {
 		del, ok := inner[i].Payload.(*wire.PayloadDelete)
@@ -529,6 +581,10 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 			// RFC 7296 §2.8: the peer confirmed the IKE rekey by deleting the old SA.
 			// Swap to the new SA instead of tearing the session down.
 			out.newSA = ps.pendingIKESwap
+			// Mobility may have started after the rekey response was built.
+			// Carry its current path and queue a fresh check on the new SA,
+			// rather than promoting a stale tuple or an old-SA Message ID.
+			out.newSA.inheritSendPath(sa)
 			ps.pendingIKESwap = nil
 			log.Info("ike: peer deleted old IKE SA after rekey, swapping to new SA", "peer", ps.peerName)
 			continue
@@ -551,9 +607,9 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 	}
 	// RFC 7296 §1.4: every INFORMATIONAL request (DPD probe or Delete) is answered.
 	// The response is still built under the current (old) SA keys.
-	var respPayloads []wire.PayloadEntry
+	respPayloads := mobikeResponsePayloads(sa, inner)
 	if len(paired) > 0 && !ikeDeleted {
-		respPayloads = []wire.PayloadEntry{{Payload: espDeletePayload(paired)}}
+		respPayloads = append(respPayloads, wire.PayloadEntry{Payload: espDeletePayload(paired)})
 	}
 	resp, err := buildEncryptedMessageEx(sa, respPayloads, msg.Header.MessageID, wire.ExchangeInformational, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {

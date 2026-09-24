@@ -46,13 +46,13 @@ func (t *UDPTransport) installErrorQueue() error {
 // against its cached path MTU (the honor-cache mode) queues a LOCAL entry
 // that sets no sk_err, and no read on the socket would ever wake the drain
 // for it.
-func (t *UDPTransport) writeWithDF(data []byte, remote *net.UDPAddr, df probe.DFMode) error {
+func (t *UDPTransport) writeWithDF(data, control []byte, remote *net.UDPAddr, df probe.DFMode) error {
 	raw, err := t.rawConn()
 	if err != nil {
 		return fmt.Errorf("transport: raw descriptor: %w", err)
 	}
 	return probe.WithDFMode(raw, transportFamily, df, func() error {
-		return t.write(data, remote)
+		return t.write(data, control, remote)
 	})
 }
 

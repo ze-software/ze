@@ -54,7 +54,7 @@ func eapwSession(t *testing.T) (sa *SA, peerTr, myTr *transport.UDPTransport, lo
 	sa.EAPSession = eap.NewPeerSession(eap.TypeMSCHAPv2, eapwIdentity, eapwPassword)
 	sa.State = StateEAPInProgress
 
-	peerTr, myTr = rtxPeerLink(t)
+	peerTr, myTr = rtxPeerLink(t, sa)
 
 	logged = &bytes.Buffer{}
 	log = slog.New(slog.NewTextHandler(logged, &slog.HandlerOptions{Level: slog.LevelDebug}))

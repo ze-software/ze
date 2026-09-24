@@ -16,7 +16,7 @@ import (
 func lcyLoopback(t *testing.T) (local, peer *SA, ps *PeerSession, peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	peer, local, ps = establishPSK(t)
-	peerTr, myTr = rtxPeerLink(t)
+	peerTr, myTr = rtxPeerLink(t, local, peer)
 	local.PeerCfg.RemoteAddress = "127.0.0.1"
 	peer.PeerCfg.RemoteAddress = "127.0.0.1"
 	return local, peer, ps, peerTr, myTr

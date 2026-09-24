@@ -23,14 +23,6 @@ import (
 type spdDP struct {
 	policies map[spdKey]dataplane.SPParams
 	states   map[uint32]bool
-
-	// everInstalled records every SPI InstallSA has seen, including SPIs later removed.
-	// states answers "is it installed NOW"; this answers "was it installed at all".
-	//
-	// A rollback test needs both. Asserting only that a state is absent cannot tell a
-	// real removal from an install that never happened, and createFirstChildSA tolerates
-	// a dataplane that refuses the install, so the absent-only reading is reachable.
-	everInstalled map[uint32]bool
 }
 
 // spdKey is a policy's identity: everything the kernel compares, and nothing else. The
@@ -43,9 +35,8 @@ type spdKey struct {
 
 func newSPDDP() *spdDP {
 	return &spdDP{
-		policies:      make(map[spdKey]dataplane.SPParams),
-		states:        make(map[uint32]bool),
-		everInstalled: make(map[uint32]bool),
+		policies: make(map[spdKey]dataplane.SPParams),
+		states:   make(map[uint32]bool),
 	}
 }
 
@@ -62,7 +53,6 @@ func spdKeyOf(p dataplane.SPParams) spdKey {
 
 func (d *spdDP) InstallSA(p dataplane.SAParams) error {
 	d.states[p.SPI] = true
-	d.everInstalled[p.SPI] = true
 	return nil
 }
 

@@ -25,9 +25,10 @@ const rtxArrive = 5 * time.Second
 var rtxSentinel = []byte("ze-rfc7296-retransmit-sentinel-datagram-payload")
 
 // rtxPeerLink builds a loopback stand-in for the peer. peerTr receives what ze
-// sends and myTr is the socket ze sends from. The ze.test.ike.port seam points
-// SA.remoteUDPAddr at peerTr, so the caller must set RemoteAddress to 127.0.0.1.
-func rtxPeerLink(t *testing.T) (peerTr, myTr *transport.UDPTransport) {
+// sends and myTr is the socket ze sends from. SAs supplied by the caller adopt
+// that socket's local address; their remote address remains the caller's choice.
+// The ze.test.ike.port seam points SA.remoteUDPAddr at peerTr.
+func rtxPeerLink(t *testing.T, localSAs ...*SA) (peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	log := slogutil.DiscardLogger()
 	peerTr, err := transport.NewUDPTransport("127.0.0.1:0", log)
@@ -42,6 +43,13 @@ func rtxPeerLink(t *testing.T) (peerTr, myTr *transport.UDPTransport) {
 		t.Fatalf("sender transport: %v", err)
 	}
 	t.Cleanup(func() { _ = myTr.Close() })
+	local, ok := myTr.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("sender transport local address is not *net.UDPAddr")
+	}
+	for _, sa := range localSAs {
+		sa.PeerCfg.LocalAddress = local.IP.String()
+	}
 
 	addr, ok := peerTr.LocalAddr().(*net.UDPAddr)
 	if !ok {
@@ -194,12 +202,12 @@ func TestRtxEachSideRemembersWhatItSent(t *testing.T) {
 	}
 }
 
-// VALIDATES: the responder answers a duplicate request from cache, and nothing else.
+// VALIDATES: the responder resends its cached response only for a duplicate request.
 // RFC requirement: RFC7296-2.1-3 positive -- a duplicate draws the cached response back byte
 // for byte (inbound.go:47-48). A rebuild cannot match it, because every build draws
 // a fresh random CBC IV (auth.go:553-554).
-// RFC requirement: RFC7296-2.1-3 negative -- an out-of-window request draws no datagram, so
-// the responder resends for a duplicate alone.
+// RFC requirement: RFC7296-2.1-3 negative -- an out-of-window request receives no
+// acknowledgement; a fresh INVALID_MESSAGE_ID request is permitted, not a cached response.
 // RFC requirement: RFC7296-2.1-4 positive -- the duplicate returns at inbound.go:50 and the
 // engine never decrypts it, so its IKE Delete does not kill the SA twice.
 // RFC requirement: RFC7296-2.1-4 negative -- the same bytes on first delivery DO kill the SA,
@@ -207,7 +215,7 @@ func TestRtxEachSideRemembersWhatItSent(t *testing.T) {
 func TestRtxResponderReplaysCachedResponseOnlyForDuplicate(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	resp.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := resp.remoteUDPAddr()
@@ -269,7 +277,7 @@ func TestRtxResponderReplaysCachedResponseOnlyForDuplicate(t *testing.T) {
 func TestRtxResponderIgnoresRequestWithForgottenResponse(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	resp.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := resp.remoteUDPAddr()
@@ -328,7 +336,7 @@ func TestRtxResponderIgnoresRequestWithForgottenResponse(t *testing.T) {
 func TestRtxInitiatorResendsUnansweredRekeyRequest(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, _, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -446,7 +454,7 @@ func TestRtxInitiatorResendsUnansweredSAInit(t *testing.T) {
 func TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, _, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 
 	req, pending, err := initiateIKERekey(ini, testIKEGroup())

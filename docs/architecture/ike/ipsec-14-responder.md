@@ -21,10 +21,47 @@ enough. Three more sites depend on the role:
 All four reduce to Remote and Local when the SA is the initiator, so an
 initiator SA stays byte identical.
 
+MOBIKE has a separate role. RFC 4555 Section 1.3 defines its initiator as the peer
+that started the first IKE SA, across subsequent IKE rekeys. `mobike.originalInitiator`
+therefore survives a rekey that reverses `SA.IsInitiator`. Only that original peer
+selects the MOBIKE address pair. The responder replies at the observed request
+tuple, then validates return routability before migrating an explicitly requested
+Child SA path.
+
+<!-- source: internal/component/ike/engine/mobike.go -- mobikeState, acceptMobikeUpdate, handleMobikeResponse -->
+<!-- source: internal/component/ike/engine/sa.go -- inheritSendPath -->
+
 `installChildSA` marks the dataplane busy for the length of its kernel writes,
 so a read that spans an install answers unknown rather than naming a
 half-installed pair as drift. It clears the child's removing flag once the pair
 is in place.
+
+`buildAuthResponse` finishes AUTH, certificate payloads and response encryption
+before installing the Child. An encoding failure therefore leaves an existing
+Child's states and policy templates unchanged, including a tuple already moved
+by MOBIKE. The response's negotiated inbound SPI is reused by the installation.
+
+A parallel authenticated handshake installs its Child before publishing
+`pendingChild`. Those operations share `childLifecycleMu` with established-owner
+dataplane changes, cleanup and promotion. The lifecycle lock is acquired before
+the short-lived session data lock. Checking `pendingChild` without that boundary
+would miss a handshake still installing its policies.
+
+Publishing the pending Child transfers shared policy templates to it. A late
+COOKIE2 answer on the retiring IKE SA cannot migrate those templates away from
+the pending Child's states. Cleanup removes the old states while retaining the
+pending policies, then promotion adopts the matching pair.
+Late Child rekey requests receive a cached `TEMPORARY_FAILURE`, rather than
+installing over the pending templates. A response to the retiring SA's own
+outstanding Child rekey releases that exchange and sends an IKE Delete; this
+also closes any replacement Child the peer has already installed. IKE rekey
+responses keep their existing completion path, which installs no Child state.
+
+<!-- source: internal/component/ike/engine/reconcile.go -- PeerSession.childLifecycleMu -->
+<!-- source: internal/component/ike/engine/responder.go -- handleResponderInbound, finishResponderEstablish -->
+<!-- source: internal/component/ike/engine/established.go -- cleanupChild, cleanupPendingSA -->
+<!-- source: internal/component/ike/engine/fsm.go -- resolvePendingAfterOwnerLoop -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleCreateChildSAOwned -->
 
 <!-- source: internal/component/ike/engine/auth.go -- computeSignedOctets, skSendEncKey, skRecvEncKey -->
 <!-- source: internal/component/ike/engine/sa.go -- initiatorNonce, responderNonce -->

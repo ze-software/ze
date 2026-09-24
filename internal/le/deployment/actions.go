@@ -67,6 +67,17 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "docker-pppoe-accel-test", Why: "Ze's PPPoE client against a real accel-ppp access concentrator in a" +
 		" Docker lab. Needs PPPoE support in the Docker host kernel",
 		Answer: runDockerPPPoEHere},
+	leaction.Action{
+		Verb: "ipsec-mobike-test",
+		Why: "prove both MOBIKE initiator and responder address movement against packaged strongSwan" +
+			" in private Linux namespaces, retaining IKE/Child identities and encrypted traffic",
+		Parameters: []leaction.Parameter{
+			{Keyword: "daemon", Value: "prebuilt-ze-path", Requirement: leaction.Required},
+			{Keyword: "charon", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "swanctl", Value: "path", Requirement: leaction.Optional},
+		},
+		AnswerArgs: runIPsecMOBIKEHere,
+	},
 )
 
 func runDockerL2TPHere() (any, int) {

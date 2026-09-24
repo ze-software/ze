@@ -401,7 +401,9 @@ func runEngine(conn net.Conn) int {
 		// DISCARD that outlives the process keeps dropping traffic for a daemon that
 		// is no longer running (removeSPDPolicies, spd_policy.go).
 		removeSPDPolicies(dataplane.Get(), state.installedSPD, log)
-		removeUnmatched(dataplane.Get(), log)
+		if state.unmatchedApplied {
+			removeUnmatched(dataplane.Get(), log)
+		}
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
@@ -457,7 +459,7 @@ func runEngine(conn net.Conn) int {
 	// which OnConfigure below uses, calls pki.Load on any `pki` section it is handed,
 	// and that swaps the PROCESS-WIDE store: a verify that adopted a candidate's
 	// certificates would leave a REJECTED config's PKI installed in a running daemon.
-	// parsePKIFromJSON's own comment states that contract, and validateIPsecSections
+	// pki.ParseJSON's own comment states that contract, and validateIPsecSections
 	// already honors it by resolving names against a throwaway candidate set.
 	//
 	// One precondition is NOT enforced in code and belongs to whoever changes the
@@ -808,7 +810,7 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 				return true
 			}
 			log.Debug("ike: challenging inbound IKE_SA_INIT with a COOKIE", "peer", ps.peerName, "src", pkt.RemoteAddr)
-			sendCookieChallenge(tr, pkt.RemoteAddr, iSPI, fresh, ps.peerName, log)
+			sendCookieChallenge(tr, pkt.LocalAddr, pkt.RemoteAddr, iSPI, fresh, ps.peerName, log)
 			return true
 		}
 	}

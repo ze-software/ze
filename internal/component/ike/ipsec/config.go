@@ -507,6 +507,15 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	if v, ok := t.Get("transport-required"); ok {
 		peer.TransportRequired = v == "true"
 	}
+	if v, ok := t.Get("nat-traversal"); ok {
+		switch v {
+		case "allow":
+		case "prohibit":
+			peer.ProhibitNAT = true
+		default:
+			return peer, fmt.Errorf("ipsec peer %q nat-traversal: unsupported value %q (valid: allow, prohibit)", name, v)
+		}
+	}
 
 	// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
 	// entries to express a desired access control policy."

@@ -45,6 +45,8 @@ const (
 	NotifyFailedCPRequired           uint16 = 37
 	NotifyTSUnacceptable             uint16 = 38
 	NotifyInvalidSelectors           uint16 = 39
+	NotifyUnacceptableAddresses      uint16 = 40
+	NotifyUnexpectedNATDetected      uint16 = 41
 	NotifyTemporaryFailure           uint16 = 43
 	NotifyChildSANotFound            uint16 = 44
 
@@ -60,8 +62,16 @@ const (
 	NotifyRekeySA                   uint16 = 16393
 	NotifyESPTFCPaddingNotSupported uint16 = 16394
 	NotifyNonFirstFragmentsAlso     uint16 = 16395
-	NotifyFragmentationSupported    uint16 = 16430
-	NotifySignatureHashAlgorithms   uint16 = 16431
+	// RFC 4555 Section 4: Protocol ID and SPI Size are zero for these notifies.
+	NotifyMobikeSupported         uint16 = 16396
+	NotifyAdditionalIP4Address    uint16 = 16397
+	NotifyAdditionalIP6Address    uint16 = 16398
+	NotifyNoAdditionalAddresses   uint16 = 16399
+	NotifyUpdateSAAddresses       uint16 = 16400
+	NotifyCookie2                 uint16 = 16401
+	NotifyNoNATsAllowed           uint16 = 16402
+	NotifyFragmentationSupported  uint16 = 16430
+	NotifySignatureHashAlgorithms uint16 = 16431
 
 	// NotifyZePathProbePadding is the status notify Ze's padded path probe carries: one
 	// per INFORMATIONAL request, its Notification Data sized so the datagram reaches
@@ -104,6 +114,8 @@ var notifyTypeNames = map[uint16]string{
 	NotifyFailedCPRequired:           "FAILED_CP_REQUIRED",
 	NotifyTSUnacceptable:             "TS_UNACCEPTABLE",
 	NotifyInvalidSelectors:           "INVALID_SELECTORS",
+	NotifyUnacceptableAddresses:      "UNACCEPTABLE_ADDRESSES",
+	NotifyUnexpectedNATDetected:      "UNEXPECTED_NAT_DETECTED",
 	NotifyTemporaryFailure:           "TEMPORARY_FAILURE",
 	NotifyChildSANotFound:            "CHILD_SA_NOT_FOUND",
 
@@ -119,6 +131,13 @@ var notifyTypeNames = map[uint16]string{
 	NotifyRekeySA:                   "REKEY_SA",
 	NotifyESPTFCPaddingNotSupported: "ESP_TFC_PADDING_NOT_SUPPORTED",
 	NotifyNonFirstFragmentsAlso:     "NON_FIRST_FRAGMENTS_ALSO",
+	NotifyMobikeSupported:           "MOBIKE_SUPPORTED",
+	NotifyAdditionalIP4Address:      "ADDITIONAL_IP4_ADDRESS",
+	NotifyAdditionalIP6Address:      "ADDITIONAL_IP6_ADDRESS",
+	NotifyNoAdditionalAddresses:     "NO_ADDITIONAL_ADDRESSES",
+	NotifyUpdateSAAddresses:         "UPDATE_SA_ADDRESSES",
+	NotifyCookie2:                   "COOKIE2",
+	NotifyNoNATsAllowed:             "NO_NATS_ALLOWED",
 	NotifyFragmentationSupported:    "IKEV2_FRAGMENTATION_SUPPORTED",
 	NotifySignatureHashAlgorithms:   "SIGNATURE_HASH_ALGORITHMS",
 	NotifyZePathProbePadding:        "ZE_PATH_PROBE_PADDING",

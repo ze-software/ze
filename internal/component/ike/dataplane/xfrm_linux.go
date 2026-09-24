@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -41,6 +43,9 @@ var (
 )
 
 type xfrmBackend struct {
+	// mu serializes kernel mutations with a multi-message tunnel migration.
+	mu sync.Mutex
+
 	// espForms serves the ESP wire form the installed state refuses. One XFRM state
 	// binds one form, and RFC 7296 Section 2.23 requires both to be received, so an
 	// inbound state that asks for both is registered here as well as with the kernel.
@@ -51,16 +56,36 @@ type xfrmBackend struct {
 	// same selector would replace the first peer's policy instead of being refused.
 	// See SPParams.Owner.
 	policies policyOwners
+
+	// migrationCleanup holds alternate SAD identities after a failed rollback
+	// whose delete also failed. Ordinary Child SA teardown retries these entries.
+	migrationCleanup map[SAIdentity]SAIdentity
 }
 
 func newXFRMBackend() (Dataplane, error) {
-	return &xfrmBackend{espForms: newESPFormReceiver(slogutil.Logger("ike.dataplane"))}, nil
+	b := &xfrmBackend{espForms: newESPFormReceiver(slogutil.Logger("ike.dataplane"))}
+	if xfrmMigrationAvailable() {
+		return &xfrmMobikeBackend{xfrmBackend: b}, nil
+	}
+	return b, nil
 }
 
 func (b *xfrmBackend) InstallSA(p SAParams) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	state, err := xfrmStateFromParams(p)
 	if err != nil {
 		return err
+	}
+	var peer, local netip.Addr
+	if p.AcceptBothESPForms && p.UDPEncap {
+		var okPeer, okLocal bool
+		peer, okPeer = netip.AddrFromSlice(p.Src.To4())
+		local, okLocal = netip.AddrFromSlice(p.Dst.To4())
+		if !okPeer || !okLocal {
+			return fmt.Errorf("xfrm: spi=%d asks to receive both ESP forms, which this backend serves for IPv4 only (src=%v dst=%v)", p.SPI, p.Src, p.Dst)
+		}
 	}
 	if err := netlink.XfrmStateAdd(state); err != nil {
 		return fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
@@ -79,14 +104,6 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 	// forbids encapsulation on port 500, so a peer that encapsulates ESP runs its IKE on
 	// port 4500 and its SA is templated here.
 	if p.AcceptBothESPForms && p.UDPEncap {
-		peer, okPeer := netip.AddrFromSlice(p.Src.To4())
-		local, okLocal := netip.AddrFromSlice(p.Dst.To4())
-		if !okPeer || !okLocal {
-			// IPv6 ESP-in-UDP is not served by this receiver. Refusing the install is
-			// the honest answer: an SA that silently receives one form only carries no
-			// traffic when the peer picks the other (ai/rules/protocol.md).
-			return fmt.Errorf("xfrm: spi=%d asks to receive both ESP forms, which this backend serves for IPv4 only (src=%v dst=%v)", p.SPI, p.Src, p.Dst)
-		}
 		if err := b.espForms.Watch(p.SPI, peer, local); err != nil {
 			// The state is already in the kernel, and this install is about to be
 			// reported as failed. Leaving it behind would strand a state no caller
@@ -98,6 +115,11 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 			}
 			return fmt.Errorf("xfrm: spi=%d cannot receive both ESP forms, so it was not installed: %w", p.SPI, err)
 		}
+		// A Child rekey after MOBIKE retains the translated IKE port. Use that
+		// same tuple when re-presenting bare ESP to its replacement inbound SA.
+		b.espForms.reg.retarget(p.SPI, espFormTarget{
+			peer: peer, local: local, peerPort: p.UDPEncapSPort, localPort: p.UDPEncapDPort,
+		})
 	}
 	return nil
 }
@@ -210,12 +232,33 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 // Forget is a no-op for an SPI that was never watched, and releases the raw sockets once
 // the last watched SA is removed.
 func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	state := &netlink.XfrmState{
 		Dst:   dst,
 		Proto: netlink.Proto(proto),
 		Spi:   int(spi),
 	}
 	defer b.espForms.Forget(spi)
+	if alternate, pending := b.migrationCleanup[IdentityOf(spi, dst, proto, 0)]; pending {
+		extra := &netlink.XfrmState{
+			Dst: net.IP(alternate.Dst.AsSlice()), Spi: int(alternate.SPI),
+			Proto: netlink.Proto(alternate.Proto), Ifid: int(alternate.IfID),
+		}
+		extraErr := xfrmMigrationStateDel(extra)
+		if errors.Is(extraErr, unix.ESRCH) || errors.Is(extraErr, unix.ENOENT) {
+			extraErr = nil
+		}
+		if extraErr == nil {
+			delete(b.migrationCleanup, IdentityOf(spi, dst, proto, 0))
+		}
+		oldErr := netlink.XfrmStateDel(state)
+		if errors.Is(oldErr, unix.ESRCH) || errors.Is(oldErr, unix.ENOENT) {
+			oldErr = nil
+		}
+		return errors.Join(extraErr, oldErr)
+	}
 	if err := netlink.XfrmStateDel(state); err != nil {
 		return fmt.Errorf("xfrm: state del spi=%d: %w", spi, err)
 	}
@@ -223,6 +266,9 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 }
 
 func (b *xfrmBackend) InstallPolicy(p SPParams) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	pol, err := xfrmPolicyFromParams(p)
 	if err != nil {
 		return fmt.Errorf("xfrm: policy add: %w", err)
@@ -287,6 +333,9 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 // Prefer RemovePolicyParams. It is the owner-aware form, and it is what every IKE
 // caller uses.
 func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	pol := &netlink.XfrmPolicy{
 		Src: src,
 		Dst: dst,
@@ -308,6 +357,9 @@ func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 // its way out, and the owning peer's tunnel would blackhole with its states still
 // installed (ai/rules/evidence.md).
 func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	pol, err := xfrmPolicyFromParams(p)
 	if err != nil {
 		return fmt.Errorf("xfrm: policy del: %w", err)
@@ -648,7 +700,11 @@ func zeXFRMMode(kernelMode uint8) (uint8, bool) {
 	}
 }
 
-func (b *xfrmBackend) Close() error { return b.espForms.Close() }
+func (b *xfrmBackend) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.espForms.Close()
+}
 
 // Kernel transform names, spelled as the kernel's algorithm registry spells them
 // (net/xfrm/xfrm_algo.c), keyed by the algorithm word the SA carries. The words are

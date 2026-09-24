@@ -92,7 +92,7 @@ func winInformationalAnswer(t *testing.T, peer *SA, msgID uint32) []byte {
 func TestWinOneRequestPerTick(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	peer, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := sa.remoteUDPAddr()
 	if remote == nil {
@@ -180,7 +180,7 @@ func TestWinOneRequestPerTick(t *testing.T) {
 func TestWinResponseReleasesSlot(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -258,7 +258,7 @@ func TestWinResponseReleasesSlot(t *testing.T) {
 func TestWinDeleteDefersWhileProbeOutstanding(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -334,7 +334,7 @@ func TestWinDeleteDefersWhileProbeOutstanding(t *testing.T) {
 func TestWinUnansweredRequestFailsTheSA(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, _, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -427,7 +427,7 @@ func winDeleteSPIs(t *testing.T, peer *SA, raw []byte) []uint32 {
 func TestWinDeleteIsRememberedUntilAnswered(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -483,7 +483,7 @@ func TestWinDeleteIsRememberedUntilAnswered(t *testing.T) {
 func TestWinRefusedTeardownSpendsNoMessageID(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, _ := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -552,7 +552,7 @@ func TestWinTeardownDoesNotHang(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			log := slogutil.DiscardLogger()
 			peer, sa, ps := establishPSK(t)
-			peerTr, myTr := rtxPeerLink(t)
+			peerTr, myTr := rtxPeerLink(t, sa)
 			sa.PeerCfg.RemoteAddress = "127.0.0.1"
 			remote := sa.remoteUDPAddr()
 			if remote == nil {

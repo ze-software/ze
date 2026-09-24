@@ -97,6 +97,16 @@ var actions = leaction.New(area,
 		AnswerArgs: runVRRPHere,
 	},
 	leaction.Action{
+		Verb: "ipsec-mobike-test",
+		Why: "target-build Ze and the native runner, boot the supplied runtime kernel," +
+			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
+		Parameters: []leaction.Parameter{
+			{Keyword: "kernel", Value: "vmlinuz-path", Requirement: leaction.Required},
+			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+		},
+		AnswerArgs: runIPsecMOBIKEHere,
+	},
+	leaction.Action{
 		Verb:   "pppoe-accel-test",
 		Why:    "run ze's PPPoE client against accel-ppp inside paired network namespaces",
 		Answer: runPPPoEAccelHere,
@@ -106,7 +116,7 @@ var actions = leaction.New(area,
 		Why: "run the selected functional subsets through the credential-dropped network" +
 			" namespace launcher and prove the guest root nftables state is unchanged",
 		Parameters: []leaction.Parameter{
-			{Keyword: "suites", Value: "firewall,policy,ospf,ospfv3,pppoe", Requirement: leaction.Optional},
+			{Keyword: "suites", Value: "firewall,policy,ospf,ospfv3,pppoe,plugin", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runNetnsHere,
 	},

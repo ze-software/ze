@@ -400,7 +400,7 @@ func TestDFSendThenPlainCopyOnTheWire(t *testing.T) {
 		tr := openTransport(t)
 		payload := payloadTagged("IKE1", pathFitPayload)
 
-		if err := tr.SendDF(payload, farIKE(), probe.DFHonorCache); err != nil {
+		if err := tr.SendDF(payload, nil, farIKE(), probe.DFHonorCache); err != nil {
 			t.Fatalf("SendDF honor-cache: %v", err)
 		}
 		first, ok := captureUDP(t, capture, IKEPort)
@@ -414,7 +414,7 @@ func TestDFSendThenPlainCopyOnTheWire(t *testing.T) {
 			t.Errorf("the first copy's UDP payload is not the payload sent (%d octets, want %d)", len(first.payload), len(payload))
 		}
 
-		if err := tr.SendDF(payload, farIKE(), probe.DFOff); err != nil {
+		if err := tr.SendDF(payload, nil, farIKE(), probe.DFOff); err != nil {
 			t.Fatalf("SendDF off: %v", err)
 		}
 		second, ok := captureUDP(t, capture, IKEPort)
@@ -455,7 +455,7 @@ func TestPlainSendNeverLeavesUnderTheProbeOption(t *testing.T) {
 			}
 		})
 		for range plainSendRounds {
-			if err := tr.SendDF(probePayload, farIKE(), probe.DFOff); err != nil {
+			if err := tr.SendDF(probePayload, nil, farIKE(), probe.DFOff); err != nil {
 				t.Fatalf("SendDF off: %v", err)
 			}
 		}
@@ -508,7 +508,7 @@ func TestOversizedDFSendQueuesRefusalForThePeer(t *testing.T) {
 		payload := payloadTagged("BIG1", pathFillPayload)
 		peer := netip.AddrPortFrom(farAddr4, IKEPort)
 
-		if err := tr.SendDF(payload, farIKE(), probe.DFHonorCache); err != nil {
+		if err := tr.SendDF(payload, nil, farIKE(), probe.DFHonorCache); err != nil {
 			t.Fatalf("SendDF honor-cache: %v", err)
 		}
 		var routerRefusal SizeRefusal
@@ -522,7 +522,7 @@ func TestOversizedDFSendQueuesRefusalForThePeer(t *testing.T) {
 			t.Errorf("router refusal = %+v, want %+v", routerRefusal, want)
 		}
 
-		err := tr.SendDF(payload, farIKE(), probe.DFHonorCache)
+		err := tr.SendDF(payload, nil, farIKE(), probe.DFHonorCache)
 		if !errors.Is(err, unix.EMSGSIZE) {
 			t.Fatalf("the second honor-cache send answered %v, want EMSGSIZE from the cache", err)
 		}

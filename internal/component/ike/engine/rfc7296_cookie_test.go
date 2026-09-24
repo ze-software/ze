@@ -77,13 +77,13 @@ func TestCkeMintedCookieIsWithinTheLengthBound(t *testing.T) {
 	// challenge is actually put on the wire, so it reports the refusal.
 	spiI := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	before := cookieChallengeCount("ze")
-	sendCookieChallenge(nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, nil, "ze", log)
-	sendCookieChallenge(nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, bytes.Repeat([]byte{1}, maxCookieLen+1), "ze", log)
+	sendCookieChallenge(nil, nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, nil, "ze", log)
+	sendCookieChallenge(nil, nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, bytes.Repeat([]byte{1}, maxCookieLen+1), "ze", log)
 	if got := cookieChallengeCount("ze"); got != before {
 		t.Errorf("a challenge was sent for an out-of-bound cookie: count went %d -> %d", before, got)
 	}
 	otherBefore := cookieChallengeCount("other-peer")
-	sendCookieChallenge(nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, bytes.Repeat([]byte{1}, maxCookieLen), "ze", log)
+	sendCookieChallenge(nil, nil, &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}, spiI, bytes.Repeat([]byte{1}, maxCookieLen), "ze", log)
 	if got := cookieChallengeCount("ze"); got != before+1 {
 		t.Errorf("a 64-octet cookie was refused: count went %d -> %d", before, got)
 	}

@@ -69,10 +69,11 @@ module ze-ipsec-conf {
             leaf interface {
                 type string;
                 description "Commit refuses a name no interface on the host carries. The first IPv4 address of
-                    the interface fills the local-address of every peer that names none. It is also the
-                    address the IKE socket on port 500 and the NAT-T socket on port 4500 bind to. A
-                    reload whose interface holds no IPv4 address is refused, and the same case at
-                    startup runs and writes a warning.";
+                    the interface fills the local-address of every peer that names none. The IKE socket
+                    on port 500 binds there. The NAT-T socket on port 4500 also binds there unless
+                    live XFRM migration is available, when it listens on the wildcard and selects
+                    each SA's source address explicitly. A reload whose interface holds no IPv4
+                    address is refused, and the same case at startup runs and writes a warning.";
                 ze:help "WAN interface for IPsec traffic.";
             }
 
@@ -833,6 +834,25 @@ module ze-ipsec-conf {
                             IKE_SA_INIT reaches a respond peer only when its source address equals this
                             leaf, character for character.";
                         ze:help "Remote endpoint IPv4 address or DNS hostname.";
+                    }
+
+                    leaf nat-traversal {
+                        type enumeration {
+                            enum allow {
+                                ze:help "Allow translated paths and ESP-in-UDP when NAT is detected.";
+                            }
+                            enum prohibit {
+                                ze:help "Reject translated paths and protect MOBIKE address updates.";
+                            }
+                        }
+                        default allow;
+                        description "Allow preserves the existing NAT traversal policy. Prohibit rejects
+                            detected translation before establishing or migrating a Child SA. It includes
+                            NO_NATS_ALLOWED in the first IKE_AUTH request and every MOBIKE address
+                            update. NAT detection remains available to detect forbidden translation;
+                            supporting UDP 4500 does not override this policy. Changing the policy
+                            restarts the peer.";
+                        ze:help "Whether this peer permits network address translation.";
                     }
 
                     leaf mode {

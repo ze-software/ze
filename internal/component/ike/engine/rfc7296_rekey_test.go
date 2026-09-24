@@ -308,7 +308,7 @@ func TestRkyExhaustedRekeyClosesTheChildSAs(t *testing.T) {
 func TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, _ := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := ini.remoteUDPAddr()
 	if remote == nil {
@@ -420,7 +420,7 @@ func TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA(t *testing.T) {
 func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, _ := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	resp.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := resp.remoteUDPAddr()
 	if remote == nil {
@@ -474,7 +474,7 @@ func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	// Negative. A dataplane that refuses the install draws no answer at all.
 	ini2, resp2, _ := establishPSK(t)
 	_ = ini2
-	resp2.PeerCfg.RemoteAddress = "127.0.0.1"
+	resp2.PeerCfg.LocalAddress, resp2.PeerCfg.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	refuse := &rkyDP{installErr: errRkyInstallRefused}
 	ps2 := &PeerSession{peerName: "rky-refuse", espGroup: testESPGroup()}
 	old2, err := createFirstChildSA(resp2, testESPGroup(), "10.0.0.2", "10.0.0.1", 1, nil, log)

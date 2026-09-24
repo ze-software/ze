@@ -155,7 +155,7 @@ func TestNrsResponseNeverDrawsAResponse(t *testing.T) {
 	// Producer three: the established INFORMATIONAL path.
 	t.Run("established informational", func(t *testing.T) {
 		peer, sa, ps := establishPSK(t)
-		peerTr, myTr := rtxPeerLink(t)
+		peerTr, myTr := rtxPeerLink(t, sa)
 		sa.PeerCfg.RemoteAddress = "127.0.0.1"
 		remote := sa.remoteUDPAddr()
 		if remote == nil {
@@ -184,7 +184,7 @@ func TestNrsResponseNeverDrawsAResponse(t *testing.T) {
 	// Producer four: the established CREATE_CHILD_SA path.
 	t.Run("established create child sa", func(t *testing.T) {
 		peer, sa, ps := establishPSK(t)
-		peerTr, myTr := rtxPeerLink(t)
+		peerTr, myTr := rtxPeerLink(t, sa)
 		sa.PeerCfg.RemoteAddress = "127.0.0.1"
 		remote := sa.remoteUDPAddr()
 		if remote == nil {
@@ -259,7 +259,7 @@ func TestNrsBuiltResponsesEchoTheRequestID(t *testing.T) {
 func TestNrsInformationalHandlerRefusesAResponse(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	_, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := sa.remoteUDPAddr()
 	if remote == nil {

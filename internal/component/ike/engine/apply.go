@@ -17,8 +17,8 @@ import (
 	"github.com/ze-software/ze/internal/core/eap"
 )
 
-// ikeListeners is the pair of UDP sockets the engine receives IKE on, with the host
-// they are bound to.
+// ikeListeners is the pair of UDP sockets the engine receives IKE on, with the
+// configured host. A mobility-capable NAT-T socket listens on the wildcard.
 //
 // The host is recorded because a bound socket cannot be re-addressed in place. An
 // operator who edits `vpn ipsec interface`, or the local-address of the peer the bind
@@ -45,9 +45,9 @@ func (l *ikeListeners) boundElsewhere(host string) bool {
 	return l.host != host
 }
 
-// open binds whichever of the two sockets is absent at host and starts its receive
-// loops. It is the create half alone: a socket that is already open is serving peers,
-// so close is a separate decision with an order of its own.
+// open binds whichever socket is absent and starts its receive loop. The IKE
+// listener follows host; a mobility-capable NAT-T listener accepts other local
+// destinations too. Closing existing listeners is a separate ordered decision.
 //
 // A failed bind is reported and leaves that member nil. The engine keeps running,
 // because the other socket can still carry a tunnel.
@@ -71,7 +71,13 @@ func (l *ikeListeners) open(host string, table *SATable, log *slog.Logger) {
 
 	// RFC 3948 Section 2.1: the NAT-T listener on port 4500 carries UDP-encapsulated
 	// IKE and ESP.
-	natt, err := transport.NewNATTTransport(nattAddr(host), log)
+	// MOBIKE changes the destination of an established IKE SA. Packet-info records
+	// the concrete destination and SendFrom preserves the chosen reply source.
+	nattHost := host
+	if _, mobile := dataplane.Get().(dataplane.TunnelMigrator); mobile && ikeTestPortFn() == "" {
+		nattHost = "0.0.0.0"
+	}
+	natt, err := transport.NewNATTTransport(nattAddr(nattHost), log)
 	if err != nil {
 		// Recorded, not only logged. Without the socket ze receives no
 		// UDP-encapsulated ESP at all, which is a stronger failure than the UDP_ENCAP
@@ -175,6 +181,10 @@ type ikeEngineState struct {
 	// installed with (installSPDPolicies, spd_policy.go).
 	installedSPD map[string]ipsec.SPDPolicy
 
+	// unmatchedApplied records whether this engine reached the catch-all writer.
+	// An early SDK startup failure must not remove policies it never managed.
+	unmatchedApplied bool
+
 	// startupCfg carries the daemon's first configuration across to OnAllPluginsReady,
 	// which is where its peers start. It is nil once those peers run, and it stays nil
 	// for every reload.
@@ -271,12 +281,10 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// template-free policy, so a changed disposition replaces the entry in place
 	// (installUnmatched, unmatched.go).
 	installUnmatched(dataplane.Get(), cfg.Unmatched, s.log)
+	s.unmatchedApplied = true
 
-	// The listen host of BOTH sockets. It is computed once, and from the ONE interface
-	// lookup above, because the engine listens at one address and its two sockets must
-	// agree on which. They did not: the NAT-T socket took the wildcard whenever no
-	// interface was configured, so it claimed port 4500 for the whole host while the
-	// IKE socket was bound to one address.
+	// Resolve the configured source once. open uses it as the IKE bind and the
+	// default NAT-T source, even when mobility needs a wildcard NAT-T listener.
 	peerLocal := ""
 	for name := range cfg.Peers {
 		if la := cfg.Peers[name].LocalAddress; la != "" {

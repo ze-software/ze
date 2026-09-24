@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
+	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -150,7 +151,7 @@ func (ps *PeerSession) runEstablished(
 	//
 	// The destination is the SA's stored endpoint. The keepalive is self-initiated,
 	// so no request corroborates any observation of its own.
-	if sa.NATDetected {
+	if sa.NATDetected && !sa.mobike.enabled {
 		out, _ := sa.sendPath(tr)
 		remote := sa.remoteUDPAddr()
 		switch {
@@ -158,7 +159,7 @@ func (ps *PeerSession) runEstablished(
 			log.Warn("ike: NAT detected but no keepalive path, the NAT binding will expire",
 				"peer", ps.peerName, "local-port", sa.localPort)
 		default:
-			ka := transport.NewKeepalive(out, remote, transport.DefaultKeepaliveInterval, log)
+			ka := transport.NewKeepalive(out, sa.localSendAddr(out), remote, transport.DefaultKeepaliveInterval, log)
 			go ka.Run()
 			defer ka.Stop()
 			log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
@@ -375,6 +376,11 @@ func (ps *PeerSession) maintainSA(
 				return errTimeout
 			}
 
+			ps.serviceMobike(sa, tr, dp, now, log)
+			if sa.State == StateDead {
+				ps.cleanupChild(dp, bus, log)
+				return errTimeout
+			}
 			ps.serviceRequestRetransmit(sa, dpd, tr, now, log)
 			ps.serviceRequestWindow(sa, dpd, now, log)
 
@@ -665,13 +671,10 @@ func (ps *PeerSession) waitForRequestWindow(sa *SA, tr *transport.UDPTransport, 
 
 // sendRaw sends already-built wire bytes on the SA's OWN send path.
 //
-// The destination is sa.remoteUDPAddr. That is the endpoint of the last message this
-// SA authenticated, or the configured remote when none has arrived. It is never the
-// address of a datagram in hand.
-//
-// RFC 7296 Section 2.11 asks the response to reach the address the request came from.
-// adoptAuthenticatedEndpoint stores that address before the response is built, so the
-// response follows an AUTHENTICATED observation and not an attacker-chosen one.
+// Requests use the SA's current endpoint. MOBIKE responses instead use the
+// authenticated request's transient tuple, without adopting it for future sends.
+// The owner queue retains Packet.NATT, not the arrival transport: its caller's tr
+// is the original IKE socket even when this request arrived on NAT-T.
 //
 // The source port follows sa.sendPath. RFC 7296 Section 2.23 MUST: an endpoint that
 // discovers a NAT "MUST send all subsequent traffic from port 4500". This is the one
@@ -680,12 +683,25 @@ func (ps *PeerSession) waitForRequestWindow(sa *SA, tr *transport.UDPTransport, 
 // replay. Before this, only the IKE_AUTH senders framed themselves for a NAT.
 func sendRaw(sa *SA, tr *transport.UDPTransport, msg []byte, log *slog.Logger) {
 	out, natT := sa.sendPath(tr)
+	remote := sa.remoteUDPAddr()
+	local := sa.localSendAddr(out)
+	if len(msg) >= wire.HeaderLen && msg[19]&wire.FlagResponse != 0 && sa.replyRemote != nil {
+		natT = sa.replyNATT
+		out = sa.ikeSocket
+		if natT {
+			out = sa.nattSocket
+		}
+		if out == nil && tr != nil && tr.IsNATT() == natT {
+			out = tr
+		}
+		remote = sa.replyRemote
+		local = sa.replyLocal
+	}
 	if out == nil {
 		log.Warn("ike: no send path for the SA, message dropped",
 			"peer", sa.PeerName, "local-port", sa.localPort)
 		return
 	}
-	remote := sa.remoteUDPAddr()
 	if remote == nil {
 		return
 	}
@@ -693,7 +709,7 @@ func sendRaw(sa *SA, tr *transport.UDPTransport, msg []byte, log *slog.Logger) {
 		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
 		msg = transport.AddNonESPMarker(msg)
 	}
-	if err := out.Send(msg, remote); err != nil {
+	if err := out.SendFrom(msg, local, remote); err != nil {
 		log.Debug("ike: send failed", "peer", sa.PeerName, "error", err)
 	}
 }
@@ -734,6 +750,8 @@ func (ps *PeerSession) serviceRekeyRetransmit(sa *SA, tr *transport.UDPTransport
 // runs, so a pending still present past the timeout is dead. Runs on the owner loop.
 // RFC 7296 Section 2.4.
 func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp dataplane.Dataplane, log *slog.Logger) {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	pending := ps.getPendingSA()
 	if pending == nil || now.Sub(pending.CreatedAt) <= responderHandshakeTimeout {
 		return
@@ -773,6 +791,8 @@ func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp datapl
 // clear / config change), so it is not leaked. Called after Stop() has joined the
 // owner goroutine, so no goroutine is still advancing pendingSA.
 func (ps *PeerSession) cleanupPendingSA(table *SATable, dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	if pending := ps.getPendingSA(); pending != nil {
 		if table != nil {
 			table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
@@ -789,6 +809,8 @@ func (ps *PeerSession) cleanupPendingSA(table *SATable, dp dataplane.Dataplane, 
 }
 
 func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	// The session is going away, so no INFORMATIONAL response will ever complete an
 	// outstanding Delete. The records are dropped BEFORE the removals below, so nothing
 	// names a pair these two calls have already freed.

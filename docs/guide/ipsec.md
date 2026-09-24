@@ -127,10 +127,42 @@ come up.
 | NAT-T, RFC 3948 | Automatic NAT detection, UDP encapsulation on port 4500, and keepalives |
 | DPD | Dead Peer Detection through INFORMATIONAL exchanges with configurable interval and timeout |
 | Rekeying | On-wire CREATE_CHILD_SA rekeying for IKE and Child SAs, make-before-break installation, and collision handling |
-| MOBIKE, RFC 4555 | Not implemented; an endpoint address change requires the SA to be re-established |
+| MOBIKE, RFC 4555 | Tunnel-mode endpoint movement as initiator or responder, with authenticated return-routability checks; requires the Linux atomic XFRM state-migration API |
 | Denial-of-service | COOKIE challenge before a half-open slot is committed, and the INVALID_KE_PAYLOAD group retry |
 | Dataplane read-back | `show vpn ipsec dataplane` reads the kernel SAD and SPD, and a drift check compares them against the engine |
 | Virtual IP pool | Not wired. The `remote-access` container parses and no session reads it |
+
+## MOBIKE endpoint movement
+
+IPv4 tunnel peers negotiate MOBIKE automatically when the dataplane can migrate a
+live ESP state without resetting its sequence number or replay window. The Linux
+backend requires Linux 7.2's `XFRM_MSG_MIGRATE_STATE` API and `CONFIG_XFRM_MIGRATE`.
+Kernels without that API, other backends and transport-mode peers do not advertise
+MOBIKE; their existing IKE and IPsec behavior is unchanged.
+
+The initiator keeps the configured responder address. If its local address disappears,
+it selects the routed source address and sends an authenticated address update. The
+responder accepts explicit updates from that initiator. Both roles require a matching
+COOKIE2 return-routability response before moving the Child SA. The IKE and Child
+SPIs, keys and inner traffic selectors remain the same. An invalid COOKIE2 closes the
+IKE SA rather than installing an unverified path.
+
+MOBIKE uses UDP 4500 even without a NAT. This alone does not enable outbound ESP-in-UDP;
+the NAT detection result still controls ESP encapsulation. The per-peer
+`nat-traversal` policy defaults to `allow`, preserving existing NAT tunnels.
+Set `vpn ipsec site-to-site peer <name> nat-traversal` to `prohibit` to reject
+translated paths. This protects the first IKE_AUTH and every address update with
+`NO_NATS_ALLOWED`. A prohibiting peer also refuses an unprotected MOBIKE address
+update from its correspondent; configure the corresponding prohibition there.
+NAT detection remains active to detect forbidden translation, and UDP 4500
+capability does not override the prohibition.
+
+There is no separate MOBIKE enable leaf. An operator configuration edit, including
+a NAT-policy change, restarts the peer. Mobility handles a live network address
+change, not a configuration replacement.
+
+<!-- source: internal/component/ike/engine/mobike.go -- negotiation, path selection and return routability -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- TunnelMigrator -->
 
 ## IKEv2 responder role
 
@@ -1195,7 +1227,7 @@ carries no encrypted traffic` when this happens.
 
 The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
-IKE peers. Twenty-four scenarios run today:
+IKE peers. The scenarios cover:
 
 | Area | Scenarios |
 |---|---|
@@ -1205,6 +1237,7 @@ IKE peers. Twenty-four scenarios run today:
 | Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
 | Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
 | NAT traversal | Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2) |
+| MOBIKE | `mobike-initiator` and `mobike-responder` remove the mobile peer's original outer address, retain the same IKE and Child SPIs, and require encrypted traffic in both directions after migration |
 | Traffic selectors | Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows |
 
 There is no certificate-only (`mode x509`) scenario. The certificate paths are proven by
@@ -1212,10 +1245,9 @@ unit tests and by the EAP-TLS scenarios, which authenticate both ends with certi
 
 <!-- source: test/interop-ipsec/scenarios -- the strongSwan scenario directories -->
 
-Ze holds every gated MUST-level requirement extracted from RFC 7296 in
-`rfc/short/rfc7296.md`. That is 222 of the summary's 227 rows, each proven in both
-directions by `RFC requirement:` tagged tests. The remaining five rows are SHOULD-level and
-ungated.
+`rfc/short/rfc7296.md` records the extracted requirements and their tagged-test
+status. Those unit checks and the independent-peer scenarios cover different
+boundaries; neither is a claim that every IKE extension is implemented.
 
 ## See also
 

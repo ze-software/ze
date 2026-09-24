@@ -30,10 +30,11 @@ precision costs nothing and removes a goroutine per SA.
 
 <!-- source: internal/component/ike/engine/dpd.go -- dead peer detection state and probe -->
 
-**Behind a NAT the SELECTORS move and the outer addresses do not.**
-`createFirstChildSA` takes `LocalAddr` and `RemoteAddr` from the operator's
-`local-address` and `remote-address`, which are the addresses each end's own
-stack uses, and takes `Selectors`, `TSLocal` and `TSRemote` from the negotiated
+**Transport-mode NAT substitution changes the selectors, not the outer addresses.**
+`createFirstChildSA` normally takes `LocalAddr` and `RemoteAddr` from the operator's
+`local-address` and `remote-address`. A negotiated MOBIKE tunnel instead uses its
+authenticated current endpoints. The constructor takes `Selectors`, `TSLocal`
+and `TSRemote` from the negotiated
 set. On a transport-mode SA across a NAT that negotiated set carries the RFC 7296
 Section 2.23.1 substituted addresses, so the policy Ze installs names the
 addresses its own kernel will see on the wire. Nothing here reads the NAT verdict:
@@ -197,6 +198,9 @@ The kernel passes an unmatched packet with no policy at all, so the discard the
 section mandates is an entry Ze installs rather than a default it inherits. VPP
 refuses the fwd direction (`vppBackend.spdEntry`), and that refusal is logged
 as a fail-open.
+The engine records whether configuration reached this catch-all writer.
+Cleanup removes catch-all policies only after that apply boundary; an earlier
+SDK startup failure must not delete a pre-existing policy it never managed.
 
 BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
 neither names a mode, a tunnel endpoint pair or a reqid, and both are built
@@ -256,6 +260,46 @@ the public zero value for unlimited. Every finite `uint64` limit is retained.
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, policyOwners.release, PolicyOwnedError -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams, firstSharingSelector, samePolicySelector -->
 
+## MOBIKE migration
+
+`TunnelMigrator` is a backend capability, separate from installing a new SA.
+Migration must preserve the live outbound sequence, replay window, keys and
+lifetime. Deleting a state and reinstalling its original keys would reset the
+sequence under the same key; it is not an implementation of migration.
+
+The engine waits for a valid COOKIE2 response, then migrates both current Child
+states and their policies. It also moves a superseded pair still awaiting the
+peer's Delete, without moving shared policies twice; distinct selectors retain
+their own migrated policies. Inner selectors and policy ownership do not change.
+Child rekey inherits the migrated addresses and UDP mapping rather than returning
+to the configuration's original endpoints. Its replacement inbound receiver uses
+those mapped ports when re-presenting bare ESP, just as its kernel state does.
+
+A parallel responder handshake and the old owner's migration are serialized from
+Child installation through publication. Once that handshake publishes
+`pendingChild`, the retiring owner's COOKIE2 answer no longer moves Child policies:
+their templates now belong to the Child that cleanup and promotion will retain.
+
+The Linux capability uses the atomic `XFRM_MSG_MIGRATE_STATE` API. The factory
+probes it before advertising `TunnelMigrator`; legacy `XFRM_MSG_MIGRATE` does not
+provide the required locked replay-state transfer. An ordinary backend migration
+error restores the old endpoints. A failed rollback removes both endpoint
+candidates and reports `ErrTunnelMigrationLost`; failed deletions remain tracked
+for teardown. The engine closes the IKE SA after either migration failure,
+retiring the Child pair instead of reinstalling its keys.
+
+The dataplane package is registered in the native QEMU integration pass.
+`TestXFRMMigrationPreservesLiveKernelState` covers legacy, bitmap and ESN replay
+state and lifetime counters; the rollback tests cover policy-write failure,
+failed restoration and teardown retries. `TestXFRMMigrationKeepsOutboundSequenceOnPeerWire`
+reads real ESP packets in a second namespace before and after movement.
+`TestXFRMMigrationRekeyReceiverUsesMappedPorts` observes the production receiver's
+UDP datagram after installing a Child with a translated peer port. A capability
+skip is not migration evidence: these checks need the migration-capable kernel.
+
+<!-- source: internal/component/ike/dataplane/dataplane.go -- TunnelMigration, TunnelMigrator, ErrTunnelMigrationLost -->
+<!-- source: internal/component/ike/engine/mobike.go -- migrateMobikeChild, migrateMobikePair -->
+
 ## Inbound classification
 
 `inbound.go` classifies inbound INFORMATIONAL and CREATE_CHILD_SA messages for
@@ -272,8 +316,8 @@ in `docs/architecture/ike/ipsec-13-rekey-wire.md`.
 goroutine, a one-second ticker, and sole ownership of `sa.NextMsgID`, the SK keys
 and the request window. Every request Ze raises after IKE_AUTH is built there:
 the DPD probe (`sendDPD`, `dpd.go`), the rekey (`startChildRekey`,
-`startIKERekey`), the Delete (`delete.go`), the INVALID_MESSAGE_ID notify and the
-padded path probe below.
+`startIKERekey`), the Delete (`delete.go`), the INVALID_MESSAGE_ID notify, MOBIKE
+address updates and return-routability checks, and the padded path probe below.
 
 Ze declares a window of one (RFC 7296 Section 2.3), so `reserveRequestWindow`
 (`msgid.go`) claims the one slot before a request is built and binds it to the
@@ -286,7 +330,7 @@ is repeated until it is answered or the SA is deemed failed (Section 2.1):
 |--------|-----------------|----------------------|
 | DPD probe | its own copy, on the liveness backoff (`retransmitDPD`) | the liveness budget (`dpdState.timedOut`) |
 | rekey | its own copy (`serviceRekeyRetransmit`) | its retransmit budget |
-| Delete, INVALID_MESSAGE_ID, path probe | the window's slot, `armRequestRetransmit` then `serviceRequestRetransmit`: 3 repeats, 500 ms doubling to 60 s | `serviceRequestWindow`: `StateDead` once `requestWindowTimeout` (30 s) passes |
+| Delete, INVALID_MESSAGE_ID, MOBIKE, path probe | the window's slot, `armRequestRetransmit` then `serviceRequestRetransmit`: 3 repeats, 500 ms doubling to 60 s | `serviceRequestWindow`: `StateDead` once `requestWindowTimeout` (30 s) passes |
 
 `serviceRequestWindow` has two exits and no third: a response, or `StateDead`.
 It releases no window without a response and rewinds no message id. The loop's

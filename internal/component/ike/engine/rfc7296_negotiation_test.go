@@ -123,7 +123,7 @@ func negESPRekeyInner(t *testing.T, old *ChildSA, keyLen uint16) []wire.PayloadE
 func negRekeySession(t *testing.T) (ini *SA, ps *PeerSession, peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	ini, _, _ = establishPSK(t)
-	peerTr, myTr = rtxPeerLink(t)
+	peerTr, myTr = rtxPeerLink(t, ini)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	ps = &PeerSession{
 		peerName: "ze",

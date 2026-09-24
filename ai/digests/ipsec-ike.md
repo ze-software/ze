@@ -36,7 +36,7 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
    backend (`dataplane.Load("xfrm")`, `engine/register.go`), creates the shared
    `SATable` (`engine/register.go`), and registers `OnConfigure` (`engine/register.go`).
 3. **Config → reconcile.** On each config push, `parseIPsecSections` (`engine/register.go`,
-   `config.go`) converts SDK JSON to a `config.Tree` (`treeFromMap`, `config.go`)
+   `config.go`) converts SDK JSON to a `config.Tree` (`config.TreeFromPluginMap`)
    and parses `ipsec.IPsecConfig` (peers, IKE/ESP groups). The first config with peers
    starts a `UDPTransport` on `:500` (`engine/register.go`) and one on `:4500` for
    NAT-T (RFC 3948) (`engine/register.go`), each with its own read goroutine
@@ -124,18 +124,19 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
     `established.go`, `redistribute.go`) publish `vpn-ipsec/child-up` and a
     `RouteChangeBatch` on the `"ipsec"` redistribute source registered at init
     (`redistribute.go`), so the negotiated remote TS reaches the RIB/FIB. If
-    `sa.NATDetected`, a `transport.Keepalive` goroutine starts sending RFC 3948
-    0xFF probes every 20s (`established.go`, `keepalive.go`).
+    `sa.NATDetected`, NAT keepalives send RFC 3948 0xFF probes every 20s.
+    MOBIKE sends them from the owner loop's current tuple; other peers use
+    `transport.Keepalive` (`established.go`, `mobike.go`, `keepalive.go`).
 14. **Maintenance loop.** `maintainSA` (`established.go`) runs a 1s ticker:
     sends DPD probes when due (`dpd.shouldSend`, `dpd.go`, `sendDPD` `dpd.go`)
     and tears the tunnel down on timeout (`dpd.go`); on Child SA soft-lifetime
     expiry INITIATES a real CREATE_CHILD_SA rekey (`initiateChildRekey`,
     `rekey.go`, `established.go`) and tracks it in `PeerSession.pendingRekey`; on
     IKE SA soft expiry initiates an IKE-SA rekey (`initiateIKERekey`, KE mandatory);
-    completion is driven by the inbound response (item 15). Hard-expiry teardown is
-    suppressed while a rekey is in flight (`ps.pendingRekey == nil` guard); an
-    unanswered rekey retransmits then tears down (`serviceRekeyRetransmit`). A 30s
-    ticker re-announces the route (`established.go`).
+    completion is driven by the inbound response (item 15). Hard-expiry teardown
+    is unconditional, including during a pending rekey; an unanswered rekey also
+    retransmits then tears down (`serviceRekeyRetransmit`). A 30s ticker
+    re-announces the route (`established.go`).
 15. **Established-SA inbound (owner-loop, spec-ipsec-13).** Post-establishment
     packets are routed off the shared `dispatchInbound` goroutine to the owning
     `PeerSession.inbound` channel (`routeInbound`, `register.go`) so `maintainSA`
@@ -167,9 +168,10 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
 | `engine/child.go` | `ChildSA`, ESP key derivation, XFRM SA + policy install/remove |
 | `engine/rekey.go` | `lifetimeState` (soft/hard, jittered); real CREATE_CHILD_SA rekey: `initiateChildRekey`/`applyChildRekeyResponse`/`respondChildRekey`, `initiateIKERekey`/`applyIKERekeyResponse`, `resolveRekeyCollision` |
 | `engine/msgid.go` | RFC 7296 §2.3 message-ID window (`classifyInbound`/`cacheResponse`), `pendingRekey` state |
-| `engine/dpd.go` | `dpdState`, unencrypted DPD probe send + timeout detection |
+| `engine/dpd.go` | `dpdState`, encrypted INFORMATIONAL probes, retransmission and timeout detection |
 | `engine/inbound.go` | owner-loop established-SA handling: `handleOwnedInbound` (decrypt, msg-ID, rekey both roles, INFORMATIONAL/Delete); legacy log-only classifiers as no-owner fallback |
-| `engine/eap_auth.go` | MSK-derived AUTH, NAT-T send wrapper (`sendWithNATT`), EAP session construction |
+| `engine/eap_auth.go` | MSK-derived AUTH, arrival-tuple reply helpers, EAP session construction |
+| `engine/mobike.go` | RFC 4555 negotiation, tuple validation, COOKIE2 request lifecycle, current-address selection and Child migration |
 | `engine/events.go` | `vpn-ipsec/{sa,child}-{up,down,rekey}` EventBus registrations |
 | `engine/redistribute.go` | `"ipsec"` redistribute source registration, `RouteChangeBatch` emit per Child SA TS |
 | `engine/config.go` | SDK JSON sections → `config.Tree` → `ipsec.ParseIPsecConfig` |
@@ -255,14 +257,10 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   (`inbound.go`) calls `decryptAndParse` → `decryptSKPayload` and drives the rekey /
   INFORMATIONAL exchanges. The former log-only `handleCreateChildSA`/`handleInformational`
   path survives only as the no-owner fallback on the `handleInbound` state switch.
-- **`sendDPD` is still unencrypted (pre-existing, out of spec-ipsec-13 scope).**
-  `sendDPD` (`dpd.go`) builds and sends a bare, **unencrypted** INFORMATIONAL
-  despite RFC 7296 §1.4 requiring SK wrapping for every post-IKE_SA_INIT exchange;
-  DPD defaults on (`config.go`, interval 30, cannot be 0). The owner loop DOES
-  answer inbound encrypted INFORMATIONAL requests, and the DPD probe *response* now
-  clears the wait, correlated by message ID against the outstanding probe
-  (`dpdState.probeMsgID` / `matchesProbe`, rejecting replays). The remaining gap is
-  the unencrypted outbound probe itself (a separate DPD spec).
+- **DPD is encrypted and correlated.** `sendDPD` (`dpd.go`) sends an SK-protected
+  INFORMATIONAL request through the owner's request window. Its authenticated
+  response clears the wait only when its Message ID matches the outstanding
+  probe. MOBIKE probes include NAT-detection hashes for the current tuple.
 - **`dataplane.Get()` returns nil until `Load("xfrm")` succeeds** (called once at
   `runEngine` start, `engine/register.go`); `createFirstChildSA` then silently skips
   the kernel install and only logs at Debug (`child.go`), easy to mistake
@@ -277,9 +275,15 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
   component; `dataplane/xfrm_linux.go` (this subsystem) installs *SA/policy* state
   onto an already-existing device. Same basename, different layer, grep by full
   path, not basename.
-- **No MOBIKE.** A site-to-site peer's IP change is not handled in-band; the only
-  recovery is the reconnect-with-backoff loop after the session errors out
-  (`reconnectDelay`, `fsm.go`, `reconcile.go`).
+- **MOBIKE needs atomic live-state migration.** Tunnel peers use the negotiated
+  RFC 4555 path in `mobike.go`; ordinary authenticated packets do not change its
+  stored endpoint. A valid COOKIE2 response precedes XFRM movement, and a mismatch
+  closes the SA. The backend must implement `TunnelMigrator`, preserving replay
+  and sequence state. Linux kernels without `XFRM_MSG_MIGRATE_STATE` do not
+  negotiate MOBIKE. Rekey retains the first IKE SA's MOBIKE role.
+  Per-peer `nat-traversal allow|prohibit` defaults to allow. Prohibition protects
+  first IKE_AUTH and address updates with `NO_NATS_ALLOWED` and refuses NAT
+  before establishment or migration; it does not infer permission from UDP 4500.
 - **Constant-time comparisons are used correctly.** PSK AUTH and MSK-derived AUTH now
   share one verifier, `verifyAuthFromSharedSecret` (`eap_auth.go`), whose
   `constantTimeEqualAuth` calls `subtle.ConstantTimeCompare`. But `computeSignedOctets`

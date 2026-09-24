@@ -164,7 +164,7 @@ func TestDPDNoTransportTakesNoWindow(t *testing.T) {
 func TestDPDFloatedSAProbesWithoutTheFallback(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	_, resp, _ := establishPSK(t)
-	peerTr, ikeTr, nattTr := nttNATTLink(t)
+	peerTr, ikeTr, nattTr := nttNATTLink(t, resp)
 	resp.bindSockets(ikeTr, nattTr)
 	resp.floatToNATTPort()
 	resp.peerEndpoint = nttPeerAddr(t, peerTr)

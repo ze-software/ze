@@ -589,6 +589,10 @@ type SiteToSitePeer struct {
 	VTIBind        string // VTI interface name
 	IfID           uint32 // XFRM if_id for SA binding (must match the XFRM interface)
 
+	// ProhibitNAT rejects translated paths. False preserves the existing NAT-T
+	// policy; true also protects MOBIKE address updates with NO_NATS_ALLOWED.
+	ProhibitNAT bool
+
 	// TrafficSelectors is the operator policy RFC 7296 Section 2.9 narrows a peer's
 	// proposed TSi/TSr against. An EMPTY slice means "allow everything", which
 	// preserves the behavior of every config written before this field existed: such a

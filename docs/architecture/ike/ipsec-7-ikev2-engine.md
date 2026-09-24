@@ -66,14 +66,15 @@ from the map, and advances the dataplane generation for each removal.
 <!-- source: internal/component/ike/engine/fsm.go -- runInitiator, runResponder -->
 <!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, signalStartupComplete -->
 
-**Config arrives as JSON and is stored as both container and list.** The SDK
-delivers JSON, and `ParseIPsecConfig` expects a `config.Tree`. `treeFromMap`
-stores every nested map as a container AND as list entries. The `allMaps`
-heuristic, "every child is a map, so this is a keyed list", fails on its own,
-because a container such as `site-to-site` can have only sub-map children. Dual
-storage removes the need for schema knowledge at that boundary.
+**Config uses the canonical plugin-map inverse.** The SDK delivers JSON, and
+`ParseIPsecConfig` expects a `config.Tree`. `parseIPsecFromJSON` calls
+`config.TreeFromPluginMap`, preserving delivered list order and repeated values.
+The wire shape does not distinguish a container of maps from a keyed list, so
+the inverse exposes both views rather than guessing from the IPsec schema.
+PKI sections go through `pki.ParseJSON`, which uses the same inverse.
 
-<!-- source: internal/component/ike/engine/config.go -- treeFromMap, allMaps -->
+<!-- source: internal/component/ike/engine/config.go -- parseIPsecFromJSON, loadPKIFromJSON -->
+<!-- source: internal/component/config/plugin_map.go -- TreeFromPluginMap -->
 
 **Per-peer goroutine lifecycle, taken from the PPPoE client.** `PeerSession` has
 Start and Stop, a `run` loop with reconnect backoff, and `reconcilePeers` diffs
@@ -145,9 +146,13 @@ changed, and the SA "should have been already deleted after the policy change
 took effect".
 
 **A reload that moves the listen address rebinds both sockets, and it stops the
-peers before it closes them.** `ikeListeners` records the host the pair is bound
-to, because a bound socket cannot be re-addressed in place. When the host the
-configuration asks for is no longer the one recorded, `rebindListeners` stops
+peers before it closes them.** `ikeListeners` records the configured listen host.
+IKE binds that host; NAT-T binds a wildcard on a migration-capable backend, except
+under the test-port override. Every SA selects its own local source for writes.
+Replies instead use the request's received destination: this includes the initial
+IKE_SA_INIT success, its cached retransmission, COOKIE and INVALID_KE responses.
+The wildcard socket must not let route selection substitute another local address.
+When the configured host changes, `rebindListeners` stops
 every session, closes both sockets, opens a new pair, and lets the reconcile
 start every peer against it.
 
@@ -304,6 +309,53 @@ threshold rather than the path (`plan/immediate/spec-ike-fragmentation-rfc7383.m
 <!-- source: internal/component/ike/engine/cookie.go -- cookie generation and validation -->
 <!-- source: internal/component/ike/engine/doctor_cookie.go -- cookie readiness check -->
 <!-- source: internal/component/ike/engine/sa_init_retry.go -- retry on COOKIE and on INVALID_KE_PAYLOAD -->
+
+## MOBIKE owner state
+
+`mobike.go` owns the negotiated capability, current local tuple, pending COOKIE2
+request and queued address update. The established loop services it on the same
+one-second tick and request window as rekey, DPD and Delete. Retransmissions keep
+their original bytes and Message ID. A request sent from multiple source addresses
+is followed by a fresh INFORMATIONAL request, even if its old COOKIE2 matches.
+A missing or mismatched COOKIE2 closes the IKE SA.
+
+The MOBIKE role belongs to the first IKE SA, not the latest IKE rekey's initiator.
+`inheritSendPath` retains that role. Only the original initiator selects a new
+address pair; a responder accepts an explicit `UPDATE_SA_ADDRESSES` and checks
+return routability before changing the Child SA.
+Promotion refreshes that path from the old SA: a COOKIE2 check started while an
+IKE replacement awaited Delete is reissued under the new keys and Message ID.
+
+Authenticated reply tuples are transient. A valid request receives its answer at
+the observed source, but an ordinary packet cannot replace the stored MOBIKE
+endpoint. `NO_NATS_ALLOWED` is checked against the actual IP addresses and UDP
+ports before address updates, Deletes or other state changes. A mismatch receives
+`UNEXPECTED_NAT_DETECTED`; none of the protected tuple is adopted.
+
+`SiteToSitePeer.ProhibitNAT` comes from `nat-traversal prohibit`; its zero value
+retains the existing allow policy. The first IKE_AUTH producer and the MOBIKE
+address-update producer serialize their chosen source/destination IPs and ports
+into `NO_NATS_ALLOWED`. A retransmission retains those authenticated bytes; after
+an address change the fresh request protects the new tuple.
+
+The policy is enforced before establishment and migration, not only advertised.
+A detected NAT refuses IKE_AUTH under prohibition. A translated NAT-detection
+answer cannot enable ESP-in-UDP during migration, even with a correct COOKIE2.
+A prohibiting responder rejects unprotected MOBIKE address updates before changing
+its endpoint. Allow mode keeps the existing NAT behavior.
+If first IKE_AUTH has not demonstrated RFC 4555 support through
+`MOBIKE_SUPPORTED` or `NO_NATS_ALLOWED`, a local NAT-policy refusal uses the base
+`AUTHENTICATION_FAILED` error. It cannot send a fatal extension error merely
+because local configuration requires that extension (RFC 7296 Section 2.21.2).
+
+The configured responder is the address-selection policy. Ze advertises no
+additional addresses, and ignores the peer's optional alternatives. Runtime
+movement leaves configuration untouched. A configuration edit still follows the
+restart path above.
+
+<!-- source: internal/component/ike/engine/mobike.go -- mobikeState, startMobikeRequest, handleMobikeResponse, validateMobikeRequest -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound, handleInformationalOwned -->
+<!-- source: internal/component/ike/engine/sa.go -- inheritSendPath -->
 
 ## Traps this code exists to avoid
 

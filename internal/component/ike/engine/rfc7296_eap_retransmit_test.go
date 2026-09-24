@@ -98,7 +98,7 @@ func eaprtxPeerAddr(t *testing.T, peerTr *transport.UDPTransport) *net.UDPAddr {
 func TestEapRtxResponderReplaysCachedResponseMidEAP(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	resp, ps, authReq := eaprtxResponderMidExchange(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, resp)
 	peerAddr := eaprtxPeerAddr(t, peerTr)
 	pkt := transport.Packet{Data: authReq, RemoteAddr: peerAddr}
 
@@ -153,7 +153,7 @@ func TestEapRtxResponderReplaysCachedResponseMidEAP(t *testing.T) {
 func TestEapRtxMidEAPReplayRefusesUnprotected(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	resp, ps, authReq := eaprtxResponderMidExchange(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, resp)
 	peerAddr := eaprtxPeerAddr(t, peerTr)
 	pkt := transport.Packet{Data: authReq, RemoteAddr: peerAddr}
 
@@ -195,7 +195,7 @@ func TestEapRtxMidEAPReplayRefusesUnprotected(t *testing.T) {
 func TestEapRtxMidEAPReplayIsRateLimited(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	resp, ps, authReq := eaprtxResponderMidExchange(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, resp)
 	peerAddr := eaprtxPeerAddr(t, peerTr)
 	pkt := transport.Packet{Data: authReq, RemoteAddr: peerAddr}
 

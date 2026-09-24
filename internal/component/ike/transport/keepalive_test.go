@@ -41,8 +41,9 @@ func TestNATKeepalive(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	ka := NewKeepalive(client, remote, 50*time.Millisecond, log)
+	ka := NewKeepalive(client, nil, remote, 50*time.Millisecond, log)
 	go ka.Run()
+	defer ka.Stop()
 
 	// Read a keepalive packet from the server side.
 	if err := serverConn.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {
@@ -56,8 +57,6 @@ func TestNATKeepalive(t *testing.T) {
 	if n != 1 || buf[0] != 0xFF {
 		t.Fatalf("keepalive: got %d bytes %x, want 1 byte 0xFF", n, buf[:n])
 	}
-
-	ka.Stop()
 }
 
 // RFC requirement: RFC3948-4-1 positive -- the default NAT-keepalive interval is a small,

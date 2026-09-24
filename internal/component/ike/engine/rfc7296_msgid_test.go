@@ -53,7 +53,7 @@ func midTemporaryFailure() []wire.PayloadEntry {
 func TestMidOutboundCounterFreezesAtTheCeiling(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	_, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	if sa.remoteUDPAddr() == nil {
 		t.Fatal("the SA has no resolvable peer address")
@@ -121,7 +121,7 @@ func TestMidOutboundCounterFreezesAtTheCeiling(t *testing.T) {
 func TestMidNearExhaustionRekeysTheIKESA(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	peer, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := sa.remoteUDPAddr()
 	if remote == nil {
@@ -284,7 +284,7 @@ func TestMidInboundCounterFreezesAtTheCeiling(t *testing.T) {
 func TestMidTemporaryFailureDefersTheRetry(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	_, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := sa.remoteUDPAddr()
 	if remote == nil {
@@ -389,7 +389,7 @@ func TestMidTemporaryFailureDefersTheRetry(t *testing.T) {
 func TestMidTemporaryFailureDefersTheIKERekey(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	_, sa, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, sa)
 	sa.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := sa.remoteUDPAddr()
 	if remote == nil {

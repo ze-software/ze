@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything",
+		ShortHelp: "Ze against real peer daemons: native, container and appliance protocol proofs",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.

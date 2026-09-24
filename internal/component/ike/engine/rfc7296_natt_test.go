@@ -20,7 +20,7 @@ import (
 const nttOddPort = 34567
 
 // nttNATTLink builds a loopback stand-in for a peer behind a NAT, plus the two
-// sockets Ze owns.
+// sockets Ze owns. Supplied SAs adopt the actual local address of those sockets.
 //
 // peerTr receives what Ze sends. ikeTr is Ze's port-500 socket and nattTr is its
 // port-4500 one. IsNATT tells them apart, and the bind port never does.
@@ -28,7 +28,7 @@ const nttOddPort = 34567
 // Both bind an ephemeral port, so the test needs no privilege. That is the same
 // reason production reads the role off the transport instead of comparing a number
 // (ai/rules/evidence.md).
-func nttNATTLink(t *testing.T) (peerTr, ikeTr, nattTr *transport.UDPTransport) {
+func nttNATTLink(t *testing.T, localSAs ...*SA) (peerTr, ikeTr, nattTr *transport.UDPTransport) {
 	t.Helper()
 	log := slogutil.DiscardLogger()
 
@@ -50,6 +50,10 @@ func nttNATTLink(t *testing.T) (peerTr, ikeTr, nattTr *transport.UDPTransport) {
 		t.Fatalf("natt transport: %v", err)
 	}
 	t.Cleanup(func() { _ = nattTr.Close() }) //nolint:errcheck // the socket dies with the test
+	local := nttPeerAddr(t, ikeTr).IP.String()
+	for _, sa := range localSAs {
+		sa.PeerCfg.LocalAddress = local
+	}
 
 	addr, ok := peerTr.LocalAddr().(*net.UDPAddr)
 	if !ok {
@@ -122,7 +126,7 @@ func nttSourcePortOf(t *testing.T, peerTr *transport.UDPTransport) (int, []byte)
 func TestNattRepliesToTheObservedSourcePort(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, _ := nttNATTLink(t)
+	peerTr, ikeTr, _ := nttNATTLink(t, resp)
 
 	// The peer's real endpoint, and a DIFFERENT one that the SA would use if it fell
 	// back to the configured remote. remoteUDPAddr resolves the configured address at
@@ -179,7 +183,7 @@ func TestNattRepliesToTheObservedSourcePort(t *testing.T) {
 func TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, _ := nttNATTLink(t)
+	peerTr, ikeTr, _ := nttNATTLink(t, resp)
 	resp.bindSockets(ikeTr, nil)
 
 	// First, an AUTHENTICATED request establishes a known endpoint.
@@ -320,7 +324,7 @@ func TestNattReplyLeavesFromTheArrivalSocket(t *testing.T) {
 	}
 }
 
-// VALIDATES: sendReply refuses to send when it has no socket or no destination.
+// VALIDATES: sendReplyFrom refuses to send when it has no socket or no destination.
 // PREVENTS: a nil transport reading as a successful reply.
 //
 // RFC requirement: RFC7296-2.11-3 negative
@@ -332,11 +336,11 @@ func TestNattReplyRefusesWithoutADestination(t *testing.T) {
 	_, ikeTr, _ := nttNATTLink(t)
 	body := make([]byte, 40)
 
-	if err := sendReply(nil, body, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}); err == nil {
-		t.Error("sendReply with no socket returned nil; a dropped reply must not read as a sent one")
+	if err := sendReplyFrom(nil, body, nil, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1}); err == nil {
+		t.Error("a reply with no socket returned nil; a dropped reply must not read as a sent one")
 	}
-	if err := sendReply(ikeTr, body, nil); err == nil {
-		t.Error("sendReply with no address returned nil; a dropped reply must not read as a sent one")
+	if err := sendReplyFrom(ikeTr, body, nil, nil); err == nil {
+		t.Error("a reply with no address returned nil; a dropped reply must not read as a sent one")
 	}
 }
 
@@ -367,7 +371,7 @@ func TestNattReplyRefusesWithoutADestination(t *testing.T) {
 func TestNattFloatsEverySenderToPort4500(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, nattTr := nttNATTLink(t)
+	peerTr, ikeTr, nattTr := nttNATTLink(t, resp)
 	nattPort := nttPort(t, nattTr)
 
 	resp.bindSockets(ikeTr, nattTr)
@@ -426,7 +430,7 @@ func TestNattFloatsEverySenderToPort4500(t *testing.T) {
 func TestNattNoFloatWithoutNAT(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, nattTr := nttNATTLink(t)
+	peerTr, ikeTr, nattTr := nttNATTLink(t, resp)
 	ikePort := nttPort(t, ikeTr)
 
 	resp.bindSockets(ikeTr, nattTr)
@@ -459,7 +463,7 @@ func TestNattNoFloatWithoutNAT(t *testing.T) {
 func TestNattFloatedSAWithoutNATTSocketSendsNothing(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, _ := nttNATTLink(t)
+	peerTr, ikeTr, _ := nttNATTLink(t, resp)
 
 	resp.bindSockets(ikeTr, nil)
 	resp.floatToNATTPort()
@@ -610,7 +614,7 @@ func TestEncapPortsAreExpressible(t *testing.T) {
 func TestNattCachedReplayIsBoundedByBothGuards(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, ps := establishPSK(t)
-	peerTr, ikeTr, _ := nttNATTLink(t)
+	peerTr, ikeTr, _ := nttNATTLink(t, resp)
 	resp.bindSockets(ikeTr, nil)
 	resp.peerEndpoint = nttPeerAddr(t, peerTr)
 
@@ -620,9 +624,7 @@ func TestNattCachedReplayIsBoundedByBothGuards(t *testing.T) {
 	if !resp.lastResponseSet {
 		t.Fatal("setup failed: no cached response to replay")
 	}
-	if _, _ = nttSourcePortOf(t, peerTr); false {
-		t.Fatal("unreachable")
-	}
+	_, _ = nttSourcePortOf(t, peerTr)
 
 	// GUARD ONE. A bare header at the cached Message ID carries no Encrypted payload,
 	// so it draws nothing at all.

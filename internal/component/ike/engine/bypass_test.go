@@ -18,6 +18,7 @@ type bypassDP struct {
 	installed  []dataplane.SPParams
 	removed    []dataplane.SPParams
 	installErr error
+	live       map[spKey]dataplane.SPParams
 
 	// removedPolicies records RemovePolicy (the three-argument form the Child SA
 	// teardown uses). mockDP in child_test.go drops those on the floor, and whether
@@ -53,11 +54,16 @@ func (d *bypassDP) InstallPolicy(p dataplane.SPParams) error {
 		return d.installErr
 	}
 	d.installed = append(d.installed, p)
+	if d.live == nil {
+		d.live = make(map[spKey]dataplane.SPParams)
+	}
+	d.live[keyOf(p)] = p
 	return nil
 }
 
 func (d *bypassDP) RemovePolicyParams(p dataplane.SPParams) error {
 	d.removed = append(d.removed, p)
+	delete(d.live, keyOf(p))
 	return nil
 }
 

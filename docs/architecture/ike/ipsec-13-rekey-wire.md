@@ -41,6 +41,18 @@ sealer. The IKE_AUTH callers keep a wrapper.
 removed. The initiator then deletes the old SA over an INFORMATIONAL exchange.
 The responder keeps the old SA until the peer's Delete arrives.
 
+MOBIKE migration also moves the superseded Child pair while it remains installed.
+Shared policies move only once; a superseded pair with distinct selectors also
+moves its own policies. A Child rekey inherits the current endpoint tuple and
+translated UDP port, not the original configuration. IKE rekey retains the first
+SA's MOBIKE initiator role even when the new IKE header's initiator changes.
+Promotion refreshes the path and reissues any pending return-routability check
+under the new IKE SA rather than retaining an old-SA request identifier.
+
+<!-- source: internal/component/ike/engine/mobike.go -- migrateMobikeChild -->
+<!-- source: internal/component/ike/engine/rekey.go -- newRekeyedChild -->
+<!-- source: internal/component/ike/engine/sa.go -- inheritSendPath -->
+
 **Child rekey is non-PFS.** This matches `createFirstChildSA`, which ignores the
 PFS config, so a rekeyed child stays consistent with the first child.
 

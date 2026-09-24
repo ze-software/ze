@@ -223,10 +223,10 @@ func (ps *PeerSession) runInitiator(
 			// RFC 7296 Section 2.1: exponential backoff.
 			delay := retransmitBackoff(sa.RetransmitCount)
 			sa.RetransmitTime = time.Now().Add(delay)
-			if tr != nil && sa.LastSentMsg != nil {
-				if err := tr.Send(sa.LastSentMsg, remote); err != nil {
-					log.Warn("ike: retransmit failed", "peer", ps.peerName, "error", err)
-				}
+			if sa.LastSentMsg != nil {
+				// IKE_AUTH may have floated since IKE_SA_INIT. Its retransmit
+				// keeps the same protected bytes and the SA's current socket.
+				sendRaw(sa, tr, sa.LastSentMsg, log)
 			}
 			log.Debug("ike: retransmit", "peer", ps.peerName, "attempt", sa.RetransmitCount)
 			continue
@@ -401,6 +401,8 @@ func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane
 		ps.cleanupPendingSA(table, dp, bus, log)
 		return pendingReturn
 	}
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	pending := ps.getPendingSA()
 	if pending == nil {
 		ps.responderBusy.Store(false)
@@ -426,6 +428,8 @@ func (ps *PeerSession) resolvePendingAfterOwnerLoop(table *SATable, dp dataplane
 // responderBusy gate and the SATable entry so the peer can reconnect with a fresh
 // IKE_SA_INIT. Returns true if it reaped. RFC 7296 Section 2.4.
 func (ps *PeerSession) reapStaleHandshake(sa *SA, table *SATable, log *slog.Logger) bool {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	if time.Since(sa.CreatedAt) <= responderHandshakeTimeout {
 		return false
 	}
@@ -490,6 +494,7 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			// breaks this, so keep the two together.
 			if sa.State == StateEstablished {
 				sa.adoptAuthenticatedEndpoint(pkt.RemoteAddr, pkt.NATT, log)
+				sa.recordMobikeLocal(pkt.LocalAddr)
 			}
 		}
 	case StateEAPInProgress:
@@ -764,6 +769,18 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		sa.State = StateDead
 		return
 	}
+	if sa.PeerCfg.ProhibitNAT && sa.NATDetected {
+		log.Warn("ike: NAT traversal is prohibited for this peer", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+	if notifyOf(innerPayloads, wire.NotifyUnexpectedNATDetected) != nil {
+		// RFC 4555 Section 3.9 retries from IKE_SA_INIT, not by accepting
+		// other successful payloads beside the path rejection.
+		log.Warn("ike: peer rejected NAT on the authentication path", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
 
 	// RFC 7296 Section 3.10.1 MUST: an error notify type this implementation does not
 	// recognize, arriving in a response, means "the corresponding request has failed
@@ -914,6 +931,9 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		// Child SA, the CREATE_CHILD_SA offer of each later rekey, and the
 		// accepted-offer check of its response.
 		sa.ESPGroup.Proposals = []ipsec.ESPProposal{offer.ESPConfig}
+	}
+	if childOffer != nil {
+		sa.acceptMobikeOffer(innerPayloads)
 	}
 
 	// RFC 7296 Section 2.16: EAP payload present means the responder requests EAP.

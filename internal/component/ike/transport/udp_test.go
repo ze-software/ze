@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"bytes"
+	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -179,5 +181,57 @@ func TestQueuedSizeRefusalReachesTheEventChannel(t *testing.T) {
 	}
 	if got := len(tr.Refusals()); got != refusalQueueDepth {
 		t.Errorf("channel holds %d refusals after an overflow, want the declared depth %d", got, refusalQueueDepth)
+	}
+}
+
+// TestUDPTransportSendFromBoundSource proves a concrete-bound socket sends
+// from the requested endpoint on every platform, rejects a different local
+// address without sending, and refuses writes after Close.
+func TestUDPTransportSendFromBoundSource(t *testing.T) {
+	tr, err := NewUDPTransport("127.0.0.1:0", slog.Default())
+	if err != nil {
+		t.Fatalf("NewUDPTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = tr.Close() })
+	local, ok := tr.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("LocalAddr is not *net.UDPAddr")
+	}
+	peer, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("ListenUDP: %v", err)
+	}
+	t.Cleanup(func() { _ = peer.Close() })
+	remote, ok := peer.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("peer address is not *net.UDPAddr")
+	}
+	wrong := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 2), Port: local.Port}
+	if err := tr.SendFrom(prtIKEDatagram(0xad), wrong, remote); !errors.Is(err, ErrSendFailed) {
+		t.Fatalf("SendFrom with a different bound address = %v, want ErrSendFailed", err)
+	}
+	want := prtIKEDatagram(0xa9)
+	if err := tr.SendFrom(want, local, remote); err != nil {
+		t.Fatalf("SendFrom bound source: %v", err)
+	}
+	if err := peer.SetReadDeadline(time.Now().Add(prtArrive)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	var response [MaxMsgSize]byte
+	n, source, err := peer.ReadFromUDP(response[:])
+	if err != nil {
+		t.Fatalf("read response: %v", err)
+	}
+	if !bytes.Equal(response[:n], want) {
+		t.Fatalf("response = %x, want only valid send %x", response[:n], want)
+	}
+	if !source.IP.Equal(local.IP) || source.Port != local.Port || source.Zone != local.Zone {
+		t.Fatalf("source = %v, want %v", source, local)
+	}
+	if err := tr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := tr.SendFrom(want, local, remote); !errors.Is(err, ErrClosed) {
+		t.Fatalf("SendFrom after Close = %v, want ErrClosed", err)
 	}
 }

@@ -15,10 +15,11 @@ const (
 )
 
 // Keepalive sends periodic NAT keepalive packets to maintain NAT bindings.
-// It writes through the transport's Send, under the transport's lock, so a
-// keepalive never leaves while SendDF holds the socket's DF option toggled.
+// It writes through the transport's SendFrom, under the transport's lock, so a
+// keepalive uses the SA's local endpoint and never inherits a probe's DF option.
 type Keepalive struct {
 	tr       *UDPTransport
+	local    *net.UDPAddr
 	remote   *net.UDPAddr
 	interval time.Duration
 	stopCh   chan struct{}
@@ -26,13 +27,16 @@ type Keepalive struct {
 	logger   *slog.Logger
 }
 
-// NewKeepalive creates a keepalive sender on the given transport for the remote address.
-func NewKeepalive(tr *UDPTransport, remote *net.UDPAddr, interval time.Duration, logger *slog.Logger) *Keepalive {
+// NewKeepalive creates a keepalive sender for the given endpoints. A nil local
+// uses normal routing; otherwise its port MUST match the transport's bound port.
+// The caller MUST keep both addresses unchanged until Stop returns.
+func NewKeepalive(tr *UDPTransport, local, remote *net.UDPAddr, interval time.Duration, logger *slog.Logger) *Keepalive {
 	if interval <= 0 {
 		interval = DefaultKeepaliveInterval
 	}
 	return &Keepalive{
 		tr:       tr,
+		local:    local,
 		remote:   remote,
 		interval: interval,
 		stopCh:   make(chan struct{}),
@@ -54,7 +58,7 @@ func (k *Keepalive) Run() {
 		case <-k.stopCh:
 			return
 		case <-ticker.C:
-			if err := k.tr.Send(pkt, k.remote); err != nil {
+			if err := k.tr.SendFrom(pkt, k.local, k.remote); err != nil {
 				k.logger.Debug("nat-keepalive: send failed", "remote", k.remote, "error", err)
 			}
 		}

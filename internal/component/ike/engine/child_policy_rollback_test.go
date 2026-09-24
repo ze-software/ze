@@ -3,7 +3,6 @@ package engine
 import (
 	"net"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
@@ -158,182 +157,93 @@ func TestPeerDeleteOfLiveChildRemovesPolicyWhenPendingChildUsesAnotherSelector(t
 	}
 }
 
-// -- the three buildAuthResponse rollbacks -------------------------------------------
-
-// spdBackendName is the registered name of the fake backend the rollback tests load, so
-// buildAuthResponse's dataplane.Get() reaches a dataplane whose SPD can be read back.
-const spdBackendName = "ike-engine-test-spd"
-
-var (
-	spdBackendOnce sync.Once
-	spdBackendErr  error
-	// spdBackendActive is the fake the registered factory hands out. Tests in a package
-	// run sequentially, and each installs its own before loading.
-	spdBackendActive *spdDP
-)
-
-// useSPDDataplane makes dataplane.Get() answer with a fresh SPD-modeling fake for the
-// duration of one test.
-//
-// buildAuthResponse reads the process-wide dataplane rather than an injected one, so the
-// three rollback arms cannot be reached any other way.
-func useSPDDataplane(t *testing.T) *spdDP {
-	t.Helper()
-	spdBackendOnce.Do(func() {
-		spdBackendErr = dataplane.Register(spdBackendName, func() (dataplane.Dataplane, error) {
-			return spdBackendActive, nil
-		})
-	})
-	if spdBackendErr != nil {
-		t.Fatalf("register the fake dataplane: %v", spdBackendErr)
-	}
-	dp := newSPDDP()
-	spdBackendActive = dp
-	if err := dataplane.Load(spdBackendName); err != nil {
-		t.Fatalf("load the fake dataplane: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := dataplane.CloseBackend(); err != nil {
-			t.Errorf("close the fake dataplane: %v", err)
-		}
-		spdBackendActive = nil
-	})
-	return dp
-}
-
-// rollbackFixture is one established responder session whose live Child SA is installed in
-// the fake SPD, ready for a SECOND buildAuthResponse that will fail.
-type rollbackFixture struct {
+// Authentication response failures must leave an existing, migrated Child intact.
+// The SPD model retains both templates and state endpoints: merely retaining a
+// selector is not enough when a parallel handshake would upsert the original tuple.
+type authFailureFixture struct {
 	ps   *PeerSession
 	resp *SA
-	dp   *spdDP
+	dp   *mbHandoffDP
 	live *ChildSA
 }
 
-// newRollbackFixture runs a real PSK handshake against the SPD fake, so the live Child SA
-// and its two policies are installed exactly as production installs them.
-//
-// The parallel re-initiation this models reaches buildAuthResponse a second time while the
-// first Child SA is still carrying traffic. The second install upserts the same selector,
-// so the kernel holds ONE policy per direction shared by both pairs.
-func newRollbackFixture(t *testing.T) rollbackFixture {
+func newAuthFailureFixture(t *testing.T) authFailureFixture {
 	t.Helper()
-	dp := useSPDDataplane(t)
+	dp := mbUseHandoffDataplane(t)
 	_, resp, ps := establishPSK(t)
-
 	live := ps.getChildSA()
 	if live == nil {
-		t.Fatal("the handshake installed no Child SA, so there is no survivor to protect")
+		t.Fatal("the handshake installed no Child SA")
 	}
-	for _, dir := range spdPolicyDirs {
-		if !dp.hasPolicy(live, dir) {
-			t.Fatalf("the handshake left no %s policy, so the fixture cannot show one surviving", dirName(dir))
-		}
+	resp.mobike.local = &net.UDPAddr{IP: net.ParseIP("192.0.2.10"), Port: 4500}
+	resp.peerEndpoint = &net.UDPAddr{IP: net.ParseIP("192.0.2.20"), Port: 4500}
+	if err := ps.migrateMobikeChild(resp, dp); err != nil {
+		t.Fatalf("move the established Child: %v", err)
 	}
-	// A re-initiation carries the initiator's own fresh ESP SPI. Distinct SPIs keep the
-	// rolled-back pair's states apart from the live pair's in the fake SAD, so the
-	// rollback cannot be credited with removing a state it never installed.
-	resp.ChildOutboundSPI = 0x77770001
-	return rollbackFixture{ps: ps, resp: resp, dp: dp, live: live}
+	dp.assertPolicyResolves(t, live)
+
+	// The candidate exchange is still on the configured tuple. Reuse negotiated
+	// key material for the response-builder failure, not the survivor's MOBIKE path.
+	next := *resp
+	next.mobike = mobikeState{}
+	next.ChildOutboundSPI = 0x77770001
+	return authFailureFixture{ps: ps, resp: &next, dp: dp, live: live}
 }
 
-// assertRollbackKeptPolicy checks the one invariant all three rollback arms share.
-func (f rollbackFixture) assertRollbackKeptPolicy(t *testing.T, err error, wantErr string) {
+func (f authFailureFixture) assertLiveChildUnchanged(t *testing.T, err error, wantErr string) {
 	t.Helper()
-	if err == nil {
-		t.Fatal("buildAuthResponse succeeded, so no rollback ran and the test proves nothing")
+	if err == nil || !strings.Contains(err.Error(), wantErr) {
+		t.Fatalf("buildAuthResponse error = %v, want the failure naming %q", err, wantErr)
 	}
-	if !strings.Contains(err.Error(), wantErr) {
-		t.Fatalf("buildAuthResponse failed with %v, want a failure naming %q: a different arm rolled back", err, wantErr)
-	}
-	for _, dir := range spdPolicyDirs {
-		if !f.dp.hasPolicy(f.live, dir) {
-			t.Errorf("the rollback removed the %s policy the live tunnel still answers to: its traffic now leaves in the clear",
-				dirName(dir))
-		}
-	}
-	if !f.dp.states[f.live.InboundSPI] || !f.dp.states[f.live.OutboundSPI] {
-		t.Error("the rollback removed the live Child SA's states")
-	}
-	// Presence THEN absence, never absence alone. createFirstChildSA tolerates a
-	// dataplane that refuses the install, so "no state for the abandoned SPI" would
-	// otherwise read the same whether the rollback removed it or nothing was ever
-	// installed -- and that reading would make the policy assertion above vacuous,
-	// because the live tunnel's own policy would still be there untouched.
-	if !f.dp.everInstalled[f.resp.ChildOutboundSPI] {
-		t.Fatalf("the abandoned Child SA's outbound state (spi %#x) was never installed, so no rollback ran and this test proves nothing",
-			f.resp.ChildOutboundSPI)
-	}
-	if f.dp.states[f.resp.ChildOutboundSPI] {
-		t.Error("the rollback left the abandoned Child SA's outbound state installed")
+	f.dp.assertPolicyResolves(t, f.live)
+	if len(f.dp.states) != 2 || !f.dp.states[f.live.InboundSPI] || !f.dp.states[f.live.OutboundSPI] {
+		t.Fatalf("failed authentication changed the live SAD or leaked a new state: %v", f.dp.states)
 	}
 }
 
-// VALIDATES: buildAuthResponse's AUTH-computation rollback keeps the live tunnel's policies.
-// PREVENTS: an IKE_AUTH that fails at the AUTH payload blackholing a tunnel that is up.
-func TestBuildAuthResponseAuthRollbackKeepsLivePolicy(t *testing.T) {
-	log := slogutil.DiscardLogger()
-	f := newRollbackFixture(t)
-
-	// computePSKAuth returns errNoPSK for an empty secret, which is the first arm.
+// An AUTH computation error must not replace the moved survivor's policy tuple.
+func TestBuildAuthResponseAuthFailureKeepsMovedChild(t *testing.T) {
+	f := newAuthFailureFixture(t)
 	f.resp.PeerCfg.Auth.PSK = ""
-
-	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, log)
-	f.assertRollbackKeptPolicy(t, err, "pre-shared")
+	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, slogutil.DiscardLogger())
+	f.assertLiveChildUnchanged(t, err, "pre-shared")
 }
 
-// VALIDATES: buildAuthResponse's certificate-payload rollback keeps the live tunnel's policies.
-// PREVENTS: the same blackhole reached through the X.509 branch instead of the AUTH one.
-func TestBuildAuthResponseCertRollbackKeepsLivePolicy(t *testing.T) {
-	log := slogutil.DiscardLogger()
+// Certificate encoding can fail after AUTH succeeded, before a reply exists.
+func TestBuildAuthResponseCertFailureKeepsMovedChild(t *testing.T) {
 	wpcChain(t, 1)
-	f := newRollbackFixture(t)
-
-	// computeX509Auth succeeds from the fixture's PKI entry, so the failure lands on the
-	// cert-payload arm below it: hash-and-url with no URL to publish at.
+	f := newAuthFailureFixture(t)
 	f.resp.PeerCfg.Auth = wpcAuth()
 	f.resp.PeerCfg.Auth.HashAndURL = true
 	f.resp.PeerCfg.Auth.CertificateURL = ""
-
-	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, log)
-	f.assertRollbackKeptPolicy(t, err, "certificate-url")
+	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, slogutil.DiscardLogger())
+	f.assertLiveChildUnchanged(t, err, "certificate-url")
 }
 
-// VALIDATES: buildAuthResponse's response-build rollback keeps the live tunnel's policies.
-// PREVENTS: the same blackhole reached from the last arm, after both payload halves
-// succeeded.
-func TestBuildAuthResponseBuildRollbackKeepsLivePolicy(t *testing.T) {
-	log := slogutil.DiscardLogger()
-	f := newRollbackFixture(t)
-
-	// The responder encrypts with SK_er. A key of a length AES has no cipher for fails
-	// inside buildSKMessageCBCWithMsgID, which nothing before it reads: the Child SA keys
-	// come from SK_d and the AUTH from the PRF over the PSK.
+// The final encryption error is subject to the same dataplane transaction boundary.
+func TestBuildAuthResponseEncryptionFailureKeepsMovedChild(t *testing.T) {
+	f := newAuthFailureFixture(t)
 	f.resp.SKKeys.SK_er = []byte{1, 2, 3}
-
-	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, log)
-	f.assertRollbackKeptPolicy(t, err, "key size")
+	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, slogutil.DiscardLogger())
+	f.assertLiveChildUnchanged(t, err, "key size")
 }
 
-// VALIDATES: the same rollback DOES remove both policies when no other Child SA answers to
-// them, which is the ordinary first handshake.
-// PREVENTS: the three tests above passing because the rollback stopped removing anything.
-func TestBuildAuthResponseRollbackRemovesPolicyWhenNothingElseSharesIt(t *testing.T) {
+// With no survivor, failed authentication must leave neither states nor policies.
+func TestBuildAuthResponseFailureLeavesEmptyDataplane(t *testing.T) {
 	log := slogutil.DiscardLogger()
-	f := newRollbackFixture(t)
-
-	// No survivor: the owner loop's Child SA is gone, as it is on a first handshake.
-	abandoned := f.live
+	f := newAuthFailureFixture(t)
+	removeChildSA(f.live, f.dp, log)
 	f.ps.setChildSA(nil)
-	f.resp.PeerCfg.Auth.PSK = ""
-
-	if _, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, log); err == nil {
-		t.Fatal("buildAuthResponse succeeded, so no rollback ran")
+	if len(f.dp.states) != 0 || len(f.dp.policies) != 0 {
+		t.Fatal("fixture teardown did not empty the SAD and SPD")
 	}
-	for _, dir := range spdPolicyDirs {
-		if f.dp.hasPolicy(abandoned, dir) {
-			t.Errorf("the %s policy outlived the only Child SA that answered to it", dirName(dir))
-		}
+	f.resp.PeerCfg.Auth.PSK = ""
+	_, _, err := f.ps.buildAuthResponse(f.resp, 2, nil, nil, nil, false, log)
+	if err == nil || !strings.Contains(err.Error(), "pre-shared") {
+		t.Fatalf("authentication error = %v", err)
+	}
+	if len(f.dp.states) != 0 || len(f.dp.policies) != 0 {
+		t.Fatalf("failed authentication leaked SAD/SPD entries: states=%v policies=%v", f.dp.states, f.dp.policies)
 	}
 }
 

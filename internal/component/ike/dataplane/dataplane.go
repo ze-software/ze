@@ -579,6 +579,33 @@ type PolicyInfo struct {
 	OwnerKnown bool
 }
 
+// TunnelMigration changes only the outer addresses and ESP encapsulation of one
+// Child SA pair. Non-nil Policies MUST be the installed inbound and outbound
+// entries, including unchanged selectors and owners. Nil Policies moves a retired
+// pair whose replacement already moved their shared policies. Callers MUST
+// serialize this operation with rekey and teardown of that Child SA.
+type TunnelMigration struct {
+	OldLocal, OldRemote, NewLocal, NewRemote net.IP
+	InboundSPI, OutboundSPI, IfID, ReqID     uint32
+	Policies                                 []SPParams
+	LocalPort, RemotePort                    uint16
+	NATDetected                              bool
+}
+
+// TunnelMigrator is an optional backend capability. An implementation MUST
+// preserve the live replay window, outbound sequence and key lifetime; reinstalling
+// an SA from its original keys is not migration. A failed operation restores the
+// old endpoints, or returns ErrTunnelMigrationLost after fail-closed cleanup.
+// Callers MUST retire the Child SA on ErrTunnelMigrationLost, never reinstall its
+// keys. Inbound ESP continues to accept both wire forms independently of NATDetected.
+type TunnelMigrator interface {
+	MigrateTunnel(TunnelMigration) error
+}
+
+// ErrTunnelMigrationLost means rollback could not restore the live SA pair.
+// Protective policies remain owned until the caller tears down the Child SA.
+var ErrTunnelMigrationLost = errors.New("dataplane: tunnel lost during migration")
+
 // Dataplane abstracts the ESP SA/SP installation backend.
 // Implementations: XFRM (Linux netlink), VPP (binary API).
 type Dataplane interface {

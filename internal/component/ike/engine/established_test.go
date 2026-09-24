@@ -2,8 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"net"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -174,27 +172,7 @@ func runStopCase(t *testing.T, graceful bool) (peerGot []byte, ini *SA) {
 	var resp *SA
 	ini, resp, ps := establishPSK(t)
 
-	// Loopback receiver standing in for the peer, plus our own sender socket.
-	peerTr, err := transport.NewUDPTransport("127.0.0.1:0", log)
-	if err != nil {
-		t.Fatalf("peer transport: %v", err)
-	}
-	t.Cleanup(func() { _ = peerTr.Close() })
-	go peerTr.Run()
-	myTr, err := transport.NewUDPTransport("127.0.0.1:0", log)
-	if err != nil {
-		t.Fatalf("sender transport: %v", err)
-	}
-	t.Cleanup(func() { _ = myTr.Close() })
-
-	addr, ok := peerTr.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		t.Fatal("peer transport local address is not *net.UDPAddr")
-	}
-	port := addr.Port
-	oldPortFn := ikeTestPortFn
-	ikeTestPortFn = func() string { return strconv.Itoa(port) }
-	t.Cleanup(func() { ikeTestPortFn = oldPortFn })
+	peerTr, myTr := rtxPeerLink(t, resp)
 	resp.PeerCfg.RemoteAddress = "127.0.0.1"
 
 	ps.stopCh = make(chan struct{})

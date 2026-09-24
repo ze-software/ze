@@ -52,10 +52,14 @@ func newResponderSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 // traffic is routed to the owner loop instead. Every message here is a request from
 // the initiator. RFC 7296 Section 1.2, Section 2.16.
 func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt transport.Packet, tr *transport.UDPTransport, log *slog.Logger) {
+	ps.childLifecycleMu.Lock()
+	defer ps.childLifecycleMu.Unlock()
 	if msg.Header.Flags&wire.FlagResponse != 0 {
 		log.Debug("ike: responder ignoring unexpected response", "peer", sa.PeerName, "state", sa.State)
 		return
 	}
+	sa.replyLocal, sa.replyRemote, sa.replyNATT = pkt.LocalAddr, pkt.RemoteAddr, pkt.NATT
+	defer func() { sa.replyLocal, sa.replyRemote, sa.replyNATT = nil, nil, false }()
 	switch sa.State {
 	case StateIdle:
 		if msg.Header.ExchangeType == wire.ExchangeIKESAInit {
@@ -153,7 +157,7 @@ func replayCachedResponse(sa *SA, msg *wire.Message, pkt transport.Packet, tr *t
 	// sendReply, not tr.Send. RFC 3948 Section 2.2 needs the non-ESP marker when the
 	// request reached the NAT-T socket. A bare replay there is one the peer reads as
 	// ESP, and drops.
-	if err := sendReply(tr, sa.lastResponse, pkt.RemoteAddr); err != nil {
+	if err := sendReplyFrom(tr, sa.lastResponse, pkt.LocalAddr, pkt.RemoteAddr); err != nil {
 		log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 	}
 	return true
@@ -298,7 +302,7 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 	// failure: the unit harness drives this function with neither. The send is
 	// therefore skipped rather than reported.
 	if tr != nil && remote != nil {
-		if err := sendReply(tr, resp, remote); err != nil {
+		if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 			log.Warn("ike: send IKE_SA_INIT response failed", "peer", sa.PeerName, "error", err)
 		}
 	}
@@ -312,7 +316,7 @@ func resendResponderSAInit(sa *SA, tr *transport.UDPTransport, remote *net.UDPAd
 	if len(sa.ResponderSAInitMsg) == 0 {
 		return
 	}
-	if err := sendReply(tr, sa.ResponderSAInitMsg, remote); err != nil {
+	if err := sendReplyFrom(tr, sa.ResponderSAInitMsg, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: resend IKE_SA_INIT response failed", "peer", sa.PeerName, "error", err)
 	}
 }
@@ -432,7 +436,7 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 // sendSAInitNotify sends an unencrypted IKE_SA_INIT response carrying a single
 // notify (NO_PROPOSAL_CHOSEN / INVALID_KE_PAYLOAD). RFC 7296 Section 2.21.
 func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, notifyType uint16, data []byte, log *slog.Logger) {
-	sendSAInitNotifyRaw(tr, remote, sa.InitiatorSPI, sa.ResponderSPI, notifyType, data, sa.PeerName, log)
+	sendSAInitNotifyRaw(tr, sa.replyLocal, remote, sa.InitiatorSPI, sa.ResponderSPI, notifyType, data, sa.PeerName, log)
 }
 
 // sendSAInitNotifyRaw encodes and sends one unencrypted IKE_SA_INIT notify response.
@@ -444,7 +448,7 @@ func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, n
 // drop-never-truncate rule hold for all of them.
 func sendSAInitNotifyRaw(
 	tr *transport.UDPTransport,
-	remote *net.UDPAddr,
+	local, remote *net.UDPAddr,
 	spiI, spiR [8]byte,
 	notifyType uint16,
 	data []byte,
@@ -473,7 +477,7 @@ func sendSAInitNotifyRaw(
 		log.Warn("ike: SA_INIT notify too large, dropping", "peer", peerName, "notify", notifyType, "error", err)
 		return
 	}
-	if err := sendReply(tr, buf[:n], remote); err != nil {
+	if err := sendReplyFrom(tr, buf[:n], local, remote); err != nil {
 		log.Debug("ike: send SA_INIT notify failed", "peer", peerName, "error", err)
 	}
 }
@@ -493,7 +497,7 @@ func sendSAInitNotifyRaw(
 // Its rate is bounded one-for-one by the inbound token bucket in dispatchInbound.
 func sendCookieChallenge(
 	tr *transport.UDPTransport,
-	remote *net.UDPAddr,
+	local, remote *net.UDPAddr,
 	spiI [8]byte,
 	cookie []byte,
 	peerName string,
@@ -508,7 +512,7 @@ func sendCookieChallenge(
 		return
 	}
 	countCookieChallenge(peerName)
-	sendSAInitNotifyRaw(tr, remote, spiI, [8]byte{}, wire.NotifyCookie, cookie, peerName, log)
+	sendSAInitNotifyRaw(tr, local, remote, spiI, [8]byte{}, wire.NotifyCookie, cookie, peerName, log)
 }
 
 // handleAuthRequest processes an inbound IKE_AUTH request as the responder:
@@ -518,6 +522,25 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	inner, err := decryptAndParse(sa, msg, rawMsg)
 	if err != nil {
 		log.Warn("ike: IKE_AUTH request decrypt failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	// RFC 4555 Section 3.9 protects the first AUTH independently of whether the
+	// peer advertises MOBIKE. An absent capability cannot waive local NAT policy.
+	if sa.PeerCfg.ProhibitNAT && (sa.NATDetected || notifyOf(inner, wire.NotifyNoNATsAllowed) == nil) {
+		notify := uint16(wire.NotifyAuthenticationFailed)
+		// RFC 7296 Section 2.21.2 forbids fatal extension errors until the
+		// peer has shown it understands them. Either RFC 4555 notification
+		// demonstrates that understanding; policy alone cannot manufacture it.
+		if notifyOf(inner, wire.NotifyMobikeSupported) != nil || notifyOf(inner, wire.NotifyNoNATsAllowed) != nil {
+			notify = wire.NotifyUnexpectedNATDetected
+		}
+		ps.respondAuthError(sa, msg.Header.MessageID, notify, tr, remote, log)
+		sa.State = StateDead
+		return
+	}
+	if notify := validateMobikeRequest(sa, inner, remote, sa.replyLocal); notify != 0 {
+		ps.respondAuthError(sa, msg.Header.MessageID, notify, tr, remote, log)
 		sa.State = StateDead
 		return
 	}
@@ -603,6 +626,16 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	// because transport mode constrains them to a single address (Section 2.23.1). Both
 	// the direct and the EAP path below read the decision.
 	decideResponderTransportMode(sa)
+	if remoteSAi2 != nil {
+		sa.acceptMobikeOffer(inner)
+		sa.recordMobikeLocal(sa.replyLocal)
+		if sa.mobike.enabled && remote != nil {
+			// RFC 4555 Section 3.3 initializes the IKE tuple from the first
+			// IKE_AUTH request. Child creation below follows authentication and
+			// must already know the observed (possibly translated) peer port.
+			sa.peerEndpoint = copyUDPAddr(remote)
+		}
+	}
 
 	// RFC 7296 Section 2.16: no AUTH payload signals the initiator wants EAP.
 	if authPayload == nil {
@@ -924,12 +957,6 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	if err != nil {
 		return nil, nil, err
 	}
-	// Install with the negotiated single-proposal group (sa.ESPGroup), not the full
-	// configured ps.espGroup, so the Child SA keys the algorithm the peer accepted.
-	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp, log)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	var authPayload *wire.PayloadAUTH
 	if fromEAP {
@@ -938,7 +965,6 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		authPayload, err = computeLocalAuth(sa)
 	}
 	if err != nil {
-		ps.rollbackFirstChildSA(child, dp, log)
 		return nil, nil, err
 	}
 
@@ -947,7 +973,6 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
 		certPayloads, cErr := buildCertPayloads(sa)
 		if cErr != nil {
-			ps.rollbackFirstChildSA(child, dp, log)
 			return nil, nil, cErr
 		}
 		inner = append(inner, certPayloads...)
@@ -967,29 +992,21 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		wire.PayloadEntry{Payload: respTSi},
 		wire.PayloadEntry{Payload: respTSr},
 	)
+	inner = append(inner, mobikeAuthOffer(sa)...)
 
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
-		ps.rollbackFirstChildSA(child, dp, log)
 		return nil, nil, fmt.Errorf("ike auth: build response: %w", err)
 	}
+	// Finish every fallible response encoding step before changing shared policy
+	// templates. A parallel handshake may follow a MOBIKE move; preserving an old
+	// selector on rollback would not restore its migrated tunnel endpoints.
+	// The response already names ChildInboundSPI, which the constructor reuses.
+	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp, log)
+	if err != nil {
+		return nil, nil, err
+	}
 	return resp, child, nil
-}
-
-// rollbackFirstChildSA undoes the Child SA createFirstChildSA just installed, when the
-// IKE_AUTH response this session was building cannot be completed.
-//
-// It keeps the POLICIES whenever another installed Child SA still answers to them, which
-// is why it is not a plain removeChildSA. During a parallel RE-INITIATION (RFC 7296
-// Section 2.4) the old owner loop's Child SA is still carrying traffic on the very
-// selector this one just upserted, so the kernel holds ONE policy per direction shared by
-// both pairs. A rollback that dropped it blackholed the live tunnel over an error in a
-// handshake that never completed: the states stayed, the policy did not, and outbound
-// traffic left the box in the clear.
-//
-// removeChildSAExcept tolerates a nil dataplane, so the caller needs no guard.
-func (ps *PeerSession) rollbackFirstChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
-	removeChildSAExcept(child, firstSharingSelector(child, ps.getChildSA(), ps.getPendingChild()), dp, log)
 }
 
 // finishResponderEstablish caches and sends the IKE_AUTH response, adopts the installed
@@ -1048,7 +1065,7 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	// SA, and Section 2.23 explains why the PORT matters: a NAT picked it.
 	// Every caller reaches here only after verifyRemoteAuth or the EAP AUTH check.
 	sa.adoptAuthenticatedEndpoint(remote, tr.IsNATT(), log)
-	if err := sendReply(tr, resp, remote); err != nil {
+	if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 		log.Warn("ike: send IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 	}
 	sa.State = StateEstablished
@@ -1082,7 +1099,7 @@ func (ps *PeerSession) respondAuthError(sa *SA, msgID uint32, notifyType uint16,
 		countErrorNotifySuppressed("no-destination")
 		return
 	}
-	if err := sendReply(tr, resp, remote); err != nil {
+	if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: send IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
 		countErrorNotifySuppressed("send-failed")
 		return
@@ -1099,7 +1116,7 @@ func (ps *PeerSession) sendAuthFailed(sa *SA, msgID uint32, tr *transport.UDPTra
 		log.Debug("ike: build AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
 		return
 	}
-	if err := sendReply(tr, resp, remote); err != nil {
+	if err := sendReplyFrom(tr, resp, sa.replyLocal, remote); err != nil {
 		log.Debug("ike: send AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
 	}
 }

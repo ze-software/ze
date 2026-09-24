@@ -65,6 +65,16 @@ func TestRouteInboundKeysOnSANotPeer(t *testing.T) {
 // the two -- which exits reach it (ai/rules/evidence.md).
 func TestRunRemovesIKEBypassOnEveryErrorExit(t *testing.T) {
 	dp := &bypassDP{}
+	// This engine has not applied a configuration yet and does not own the
+	// catch-all left by another policy manager. Startup failure must preserve it.
+	foreign, err := unmatchedPolicies(net.IPv4zero, dataplane.SPActionBypass)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := dp.InstallPolicy(foreign[0]); err != nil {
+		t.Fatal(err)
+	}
+	dp.installed = nil
 	const backend = "test-ike-bypass-record"
 	if err := dataplane.Register(backend, func() (dataplane.Dataplane, error) { return dp, nil }); err != nil {
 		t.Fatalf("register the recording dataplane backend: %v", err)
@@ -102,20 +112,15 @@ func TestRunRemovesIKEBypassOnEveryErrorExit(t *testing.T) {
 		t.Fatal("engine start installed no bypass policy, so the removal asserted below proves nothing")
 	}
 
-	want := map[spKey]bool{}
-	for _, p := range dp.installed {
-		want[keyOf(p)] = true
-	}
-	got := map[spKey]bool{}
-	for _, p := range dp.removed {
-		got[keyOf(p)] = true
-	}
-	for k := range want {
-		if !got[k] {
-			t.Errorf("the error exit left the bypass policy %+v installed; it is node-wide, so it outlives this process", k)
+	for _, installed := range dp.installed {
+		if _, remains := dp.live[keyOf(installed)]; remains {
+			t.Errorf("the error exit left its IKE bypass policy %+v installed", keyOf(installed))
 		}
 	}
-	if len(got) != len(want) {
-		t.Errorf("the error exit released %d distinct policies, start installed %d", len(got), len(want))
+	if len(dp.live) != 1 {
+		t.Fatalf("startup failure changed the pre-existing policy set: %+v", dp.live)
+	}
+	if kept, ok := dp.live[keyOf(foreign[0])]; !ok || kept.Action != foreign[0].Action {
+		t.Fatal("startup failure removed or changed a catch-all it never installed")
 	}
 }

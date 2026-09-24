@@ -62,6 +62,11 @@ type PeerSession struct {
 	// Stop()'s meaning (R-6).
 	graceful atomic.Bool
 
+	// childLifecycleMu serializes responder installation/publication with the
+	// old owner's dataplane changes and handoff. Acquire before mu; never while
+	// holding mu. Publishing pendingChild transfers its shared policy templates.
+	childLifecycleMu sync.Mutex
+
 	mu         sync.Mutex
 	childSA    *ChildSA
 	rekeyCount uint64

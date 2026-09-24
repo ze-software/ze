@@ -197,6 +197,15 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		wire.PayloadEntry{Payload: tsi},
 		wire.PayloadEntry{Payload: tsr},
 	)
+	innerPayloads = append(innerPayloads, mobikeAuthOffer(sa)...)
+	if sa.PeerCfg.ProhibitNAT {
+		out, _ := sa.sendPath(nil)
+		notification, err := noNATsAllowedPayload(sa.localSendAddr(out), sa.remoteUDPAddr())
+		if err != nil {
+			return nil, err
+		}
+		innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: notification})
+	}
 
 	return buildEncryptedMessage(sa, innerPayloads, sa.NextMsgID)
 }

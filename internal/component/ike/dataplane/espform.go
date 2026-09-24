@@ -22,8 +22,9 @@ const (
 
 // espFormTarget is the address pair one watched inbound SA was installed with.
 type espFormTarget struct {
-	peer  netip.Addr
-	local netip.Addr
+	peer                netip.Addr
+	local               netip.Addr
+	peerPort, localPort uint16
 }
 
 // espFormRegistry holds the SPIs whose inbound XFRM state carries an encapsulation
@@ -48,7 +49,9 @@ func (r *espFormRegistry) watch(spi uint32, peer, local netip.Addr) (first bool)
 		r.watched = make(map[uint32]espFormTarget)
 	}
 	first = len(r.watched) == 0
-	r.watched[spi] = espFormTarget{peer: peer, local: local}
+	r.watched[spi] = espFormTarget{
+		peer: peer, local: local, peerPort: espFormUDPPort, localPort: espFormUDPPort,
+	}
 	return first
 }
 
@@ -78,6 +81,16 @@ func (r *espFormRegistry) target(spi uint32) (espFormTarget, bool) {
 	defer r.mu.Unlock()
 	t, ok := r.watched[spi]
 	return t, ok
+}
+
+// retarget updates an existing registration after a MOBIKE address or port change.
+// It does not create a watch or change the receiver's socket lifetime.
+func (r *espFormRegistry) retarget(spi uint32, target espFormTarget) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, watched := r.watched[spi]; watched {
+		r.watched[spi] = target
+	}
 }
 
 // espFormLimiter is the token bucket behind espFormRate. The clock is a parameter so the
@@ -113,8 +126,8 @@ func (l *espFormLimiter) allow(now time.Time) bool {
 //
 // RFC 3948 Section 2.1: "the Source Port and Destination Port MUST be the same as that
 // used by IKE traffic", and RFC 7296 Section 2.23 forbids UDP encapsulation on port 500
-// (rfc/full/rfc7296.txt:3543). A peer that encapsulates ESP therefore runs its IKE on
-// 4500, which is the only port pair this re-presentation can legally use.
+// (rfc/full/rfc7296.txt:3543). The local listener uses 4500; MOBIKE retargeting also
+// carries the translated peer port observed on its authenticated IKE exchange.
 const espFormUDPPort = 4500
 
 const (

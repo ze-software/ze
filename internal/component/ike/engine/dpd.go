@@ -189,7 +189,11 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 	}
 
 	msgID := sa.NextMsgID
-	probe, err := buildEncryptedMessageEx(sa, nil, msgID,
+	var inner []wire.PayloadEntry
+	if sa.mobike.enabled {
+		inner = mobikeNATPayloads(sa, sa.mobike.local, sa.remoteUDPAddr())
+	}
+	probe, err := buildEncryptedMessageEx(sa, inner, msgID,
 		wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
 		log.Warn("dpd: probe build failed, dropping", "peer", sa.PeerName, "error", err)

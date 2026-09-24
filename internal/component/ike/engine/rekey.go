@@ -726,7 +726,9 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// child that does not inherit it installs a state with no template. The kernel
 		// then refuses the encapsulated ESP the peer keeps sending, and a NAT-traversing
 		// tunnel carries nothing from its first Child SA rekey onward.
-		UDPEncap: old.UDPEncap,
+		UDPEncap:      old.UDPEncap,
+		udpLocalPort:  old.udpLocalPort,
+		udpRemotePort: old.udpRemotePort,
 		// Selectors is the scope this rekey agreed, and it becomes the SCOPE CURRENTLY IN
 		// USE that RFC 7296 Section 2.9.2 forbids the NEXT rekey from narrowing below. A
 		// replacement that carried no set would give that rekey no floor, so the second
@@ -994,9 +996,6 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		ExpectedMsgID: 0,
 		Resumption:    oldSA.Resumption,
 		certRecheck:   oldSA.certRecheck,
-		NATDetected:   oldSA.NATDetected,
-		BehindNAT:     oldSA.BehindNAT,
-		PeerBehindNAT: oldSA.PeerBehindNAT,
 		CreatedAt:     time.Now(),
 		EstablishedAt: time.Now(),
 	}
@@ -1142,9 +1141,6 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 		ExpectedMsgID: 0,
 		Resumption:    oldSA.Resumption,
 		certRecheck:   oldSA.certRecheck,
-		NATDetected:   oldSA.NATDetected,
-		BehindNAT:     oldSA.BehindNAT,
-		PeerBehindNAT: oldSA.PeerBehindNAT,
 		CreatedAt:     now,
 		EstablishedAt: now,
 	}

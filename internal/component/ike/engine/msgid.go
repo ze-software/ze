@@ -341,5 +341,6 @@ func cacheResponse(sa *SA, msgID uint32, resp []byte) {
 	sa.lastResponse = resp
 	sa.lastResponseID = msgID
 	sa.lastResponseSet = true
+	sa.lastResponseMobikeError = 0
 	sa.advanceExpectedMsgID(msgID)
 }

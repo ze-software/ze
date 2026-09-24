@@ -174,6 +174,9 @@ type ChildSA struct {
 	// the bare form strongSwan sends is served beside the kernel instead
 	// (SAParams.AcceptBothESPForms, dataplane/espform.go).
 	UDPEncap bool
+	// Zero retains the ordinary NAT-T port. MOBIKE records the authenticated
+	// mapping so a Child rekey does not revert a peer's translated UDP port.
+	udpLocalPort, udpRemotePort uint16
 
 	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT
 	// (i.e. we are the CREATE_CHILD_SA / IKE_AUTH exchange initiator). RFC 7296
@@ -293,6 +296,16 @@ func createFirstChildSA(
 
 	srcIP := net.ParseIP(localAddr)
 	dstIP := net.ParseIP(remoteAddr)
+	// RFC 4555 Section 3.3 takes tunnel endpoints from the IKE SA. The selectors
+	// remain the authenticated policy's negotiated set across every later move.
+	if sa.mobike.enabled {
+		if sa.mobike.local != nil {
+			srcIP = append(net.IP(nil), sa.mobike.local.IP...)
+		}
+		if remote := sa.remoteUDPAddr(); remote != nil {
+			dstIP = append(net.IP(nil), remote.IP...)
+		}
+	}
 	if srcIP == nil || dstIP == nil {
 		keys.Clear()
 		return nil, fmt.Errorf("child-sa: invalid addresses local=%q remote=%q", localAddr, remoteAddr)
@@ -347,6 +360,14 @@ func createFirstChildSA(
 		NATDetected:         sa.NATDetected,
 		UDPEncap:            sa.NATDetected || sa.localPort == transport.NATTPort,
 		LocalIsInitiator:    sa.IsInitiator,
+	}
+	if sa.mobike.enabled {
+		if local := sa.mobike.local; local != nil {
+			child.udpLocalPort = uint16(local.Port)
+		}
+		if remote := sa.remoteUDPAddr(); remote != nil {
+			child.udpRemotePort = uint16(remote.Port)
+		}
 	}
 
 	if dp == nil {
@@ -428,6 +449,13 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		AuthKey:   inInteg,
 		IsAEAD:    isAEAD,
 	}
+	localPort, remotePort := child.udpLocalPort, child.udpRemotePort
+	if localPort == 0 {
+		localPort = transport.NATTPort
+	}
+	if remotePort == 0 {
+		remotePort = transport.NATTPort
+	}
 
 	// RFC 3948: UDP encapsulation follows EITHER the NAT verdict OR the port this SA
 	// runs on. createFirstChildSA sets UDPEncap from a disjunction, so either condition
@@ -460,8 +488,8 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// RFC 7296 Section 2.23 "at any time" WITHIN one Child SA and not only across SAs.
 	if child.UDPEncap {
 		inbound.UDPEncap = true
-		inbound.UDPEncapSPort = transport.NATTPort
-		inbound.UDPEncapDPort = transport.NATTPort
+		inbound.UDPEncapSPort = remotePort
+		inbound.UDPEncapDPort = localPort
 	}
 
 	// RFC 7296 Section 2.23 MUST (rfc/full/rfc7296.txt:3544-3548): "all devices MUST be
@@ -518,8 +546,8 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// verdict calls for.
 	if child.NATDetected {
 		outbound.UDPEncap = true
-		outbound.UDPEncapSPort = transport.NATTPort
-		outbound.UDPEncapDPort = transport.NATTPort
+		outbound.UDPEncapSPort = localPort
+		outbound.UDPEncapDPort = remotePort
 	}
 
 	if err := dp.InstallSA(outbound); err != nil {

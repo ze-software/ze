@@ -89,8 +89,8 @@ func natHashEqual(a, b []byte) bool {
 // errNoReplyDestination reports that a response had no socket or no address to go to.
 var errNoReplyDestination = errors.New("ike: reply has no destination")
 
-// sendReply answers one request on the socket it ARRIVED on, addressed to the source
-// it came FROM.
+// sendReplyFrom answers on the arrival socket, from the received destination
+// to the received source. The tuple comes from packet metadata.
 //
 // RFC 7296 Section 2.11 MUST (rfc/full/rfc7296.txt:2591-2593): an implementation
 // "MUST respond to the address and port from which the request was received. It MUST specify the address and port at which the request was received as the source address and port in the response".
@@ -109,7 +109,7 @@ var errNoReplyDestination = errors.New("ike: reply has no destination")
 // compared against a port number. Under the ze.test.ike.port override neither socket
 // carries a well-known port, so a comparison picks the wrong framing in every
 // functional test (ai/rules/evidence.md).
-func sendReply(tr *transport.UDPTransport, data []byte, remote *net.UDPAddr) error {
+func sendReplyFrom(tr *transport.UDPTransport, data []byte, local, remote *net.UDPAddr) error {
 	if tr == nil || remote == nil {
 		return errNoReplyDestination
 	}
@@ -117,7 +117,7 @@ func sendReply(tr *transport.UDPTransport, data []byte, remote *net.UDPAddr) err
 		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
 		data = transport.AddNonESPMarker(data)
 	}
-	return tr.Send(data, remote)
+	return tr.SendFrom(data, local, remote)
 }
 
 // eapMethodType answers the EAP method Type an operator's authentication mode

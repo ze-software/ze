@@ -5,11 +5,14 @@ package transport
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
 	"syscall"
+
+	"golang.org/x/net/ipv4"
 
 	"github.com/ze-software/ze/internal/core/probe"
 )
@@ -25,7 +28,8 @@ var (
 	ErrNoLocalAddr = errors.New("transport: no local address configured")
 )
 
-// Packet is an inbound IKE message with its source address.
+// Packet is an inbound IKE message with its actual source and destination.
+// Response callers MUST reuse LocalAddr with SendFrom, including its port.
 type Packet struct {
 	Data       []byte
 	RemoteAddr *net.UDPAddr
@@ -85,13 +89,17 @@ type SizeRefusal struct {
 
 // UDPTransport listens on a UDP socket and dispatches incoming IKE packets.
 //
-// Two goroutines meet on the socket. Run reads it, and every sender writes
-// it through Send or SendDF under mu, which also guards closed. SendDF
-// toggles a socket-wide option around its one write, so the lock is what
-// keeps another SA's datagram from leaving with the probe's DF setting.
+// Run reads the socket, and every sender writes it through Send, SendFrom or
+// SendDF under mu, which also guards closed. SendDF toggles a socket-wide
+// option around its one write, so the lock keeps another SA's datagram from
+// leaving with the probe's DF setting. Safe for concurrent use.
 type UDPTransport struct {
 	logger *slog.Logger
 	conn   *net.UDPConn
+
+	// receiveDestination records whether ancillary data supplies the actual
+	// destination. Without that capability only a concrete bind is allowed.
+	receiveDestination bool
 
 	// natT records that this socket is the NAT-T one, port 4500.
 	//
@@ -102,10 +110,10 @@ type UDPTransport struct {
 	// where neither socket carries a well-known port.
 	natT bool
 
-	// mu serializes every write on the socket and guards closed. Send and
-	// SendDF MUST hold it for the whole write: SendDF changes a socket-wide
-	// option for the duration of its write, and a write that interleaved
-	// from another goroutine would leave under that option.
+	// mu serializes every write on the socket and guards closed. Send,
+	// SendFrom and SendDF MUST hold it for the whole write: SendDF changes a
+	// socket-wide option for the duration of its write, and a write that
+	// interleaved from another goroutine would leave under that option.
 	mu     sync.Mutex
 	closed bool
 
@@ -146,11 +154,31 @@ func newTransport(localAddr string, natT bool, logger *slog.Logger) (*UDPTranspo
 		inbound:  make(chan Packet, 64),
 		refusals: make(chan SizeRefusal, refusalQueueDepth),
 	}
+	if err := t.installDestinationCapture(); err != nil {
+		conn.Close() //nolint:errcheck // the socket is discarded with the error
+		return nil, err
+	}
 	if err := t.installErrorQueue(); err != nil {
 		conn.Close() //nolint:errcheck // the socket is discarded with the error
 		return nil, err
 	}
 	return t, nil
+}
+
+// installDestinationCapture enables per-datagram destination metadata. On a
+// platform without it, only a concrete bind identifies the destination safely.
+func (t *UDPTransport) installDestinationCapture() error {
+	if len(ipv4.NewControlMessage(ipv4.FlagDst)) == 0 {
+		if t.localUDPAddr().IP.IsUnspecified() {
+			return errors.New("transport: wildcard destination capture unavailable")
+		}
+		return nil
+	}
+	if err := ipv4.NewPacketConn(t.conn).SetControlMessage(ipv4.FlagDst, true); err != nil {
+		return fmt.Errorf("transport: enable destination capture: %w", err)
+	}
+	t.receiveDestination = true
+	return nil
 }
 
 // IsNATT reports whether this socket is the NAT-T one.
@@ -173,12 +201,68 @@ func (t *UDPTransport) Recv() <-chan Packet {
 // default DF policy. It holds mu across the write, so it never interleaves
 // with a SendDF on the same socket. Safe for concurrent use.
 func (t *UDPTransport) Send(data []byte, remote *net.UDPAddr) error {
+	return t.SendFrom(data, nil, remote)
+}
+
+// SendFrom writes a raw IKE message with an explicit source. A nil local uses
+// normal routing. Otherwise local MUST contain a concrete IPv4 address and the
+// socket's bound port; a different port is never silently substituted. A socket
+// bound to a concrete address permits only that address. Unsupported source
+// selection returns an error without sending. Safe for concurrent use.
+//
+// RFC 7296 Section 2.11: "It MUST specify the address and port at which the
+// request was received as the source address and port in the response."
+// Response callers MUST pass Packet.LocalAddr as local.
+func (t *UDPTransport) SendFrom(data []byte, local, remote *net.UDPAddr) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.closed {
 		return ErrClosed
 	}
-	return t.write(data, remote)
+	control, err := t.sourceControl(local)
+	if err != nil {
+		return errors.Join(ErrSendFailed, err)
+	}
+	return t.write(data, control, remote)
+}
+
+// sourceControl validates the entire requested endpoint before composing the
+// ancillary data. A concrete bind needs no control message to select itself.
+func (t *UDPTransport) sourceControl(local *net.UDPAddr) ([]byte, error) {
+	if local == nil {
+		return nil, nil
+	}
+	bound := t.localUDPAddr()
+	if local.Port != bound.Port {
+		return nil, errors.New("transport: source port differs from socket port")
+	}
+	if local.IP.To4() == nil {
+		return nil, errors.New("transport: source must be an IPv4 address")
+	}
+	if local.IP.IsUnspecified() {
+		return nil, errors.New("transport: source address is unspecified")
+	}
+	if local.IP.IsMulticast() {
+		return nil, errors.New("transport: source address is multicast")
+	}
+	if local.IP.Equal(net.IPv4bcast) {
+		return nil, errors.New("transport: source address is broadcast")
+	}
+	if local.Zone != "" {
+		return nil, errors.New("transport: IPv4 source cannot carry a zone")
+	}
+	if !bound.IP.IsUnspecified() {
+		if !local.IP.Equal(bound.IP) {
+			return nil, errors.New("transport: source address differs from socket address")
+		}
+		return nil, nil
+	}
+	cm := ipv4.ControlMessage{Src: local.IP}
+	control := cm.Marshal()
+	if len(control) == 0 {
+		return nil, errors.New("transport: explicit source selection unavailable")
+	}
+	return control, nil
 }
 
 // write is the one write on the socket, under mu, with the error queue's
@@ -192,8 +276,8 @@ func (t *UDPTransport) Send(data []byte, remote *net.UDPAddr) error {
 // write, and so does one that found a LOCAL entry: only this socket's own
 // refused send queues one, under mu, so it is this write's cache refusal
 // and a second attempt would draw the same answer.
-func (t *UDPTransport) write(data []byte, remote *net.UDPAddr) error {
-	_, err := t.conn.WriteToUDP(data, remote)
+func (t *UDPTransport) write(data, control []byte, remote *net.UDPAddr) error {
+	err := t.writeDatagram(data, control, remote)
 	if err == nil {
 		return nil
 	}
@@ -204,12 +288,23 @@ func (t *UDPTransport) write(data []byte, remote *net.UDPAddr) error {
 	if local {
 		return errors.Join(ErrSendFailed, err)
 	}
-	_, err = t.conn.WriteToUDP(data, remote)
+	err = t.writeDatagram(data, control, remote)
 	if err == nil {
 		return nil
 	}
 	t.drainErrorQueue()
 	return errors.Join(ErrSendFailed, err)
+}
+
+// writeDatagram keeps nil-source sends usable on platforms without ancillary
+// writes. Every caller MUST hold mu, including both attempts after an ICMP error.
+func (t *UDPTransport) writeDatagram(data, control []byte, remote *net.UDPAddr) error {
+	if len(control) == 0 {
+		_, err := t.conn.WriteToUDP(data, remote)
+		return err
+	}
+	_, _, err := t.conn.WriteMsgUDP(data, control, remote)
+	return err
 }
 
 // SendDF writes a raw IKE message to the remote address with the DF mode df
@@ -221,19 +316,25 @@ func (t *UDPTransport) write(data []byte, remote *net.UDPAddr) error {
 // every path, so a later Send by another SA leaves under the kernel default.
 // It holds mu across the toggle and the write, so no other write on the
 // socket can leave under the toggled option. Safe for concurrent use.
+// The local endpoint follows SendFrom's contract: nil selects normal routing;
+// an explicit source MUST name a concrete IPv4 address and this socket's port.
 //
 // Off Linux it answers probe.ErrDFUnsupported and writes nothing. A send the
 // kernel refused against its cached path MTU is reported with EMSGSIZE
 // joined to ErrSendFailed, and that is the caller's signal: the refusal's
 // LOCAL entry reaches Refusals as well, with Local set and, on this
 // unconnected socket, the peer's port unknown to the kernel.
-func (t *UDPTransport) SendDF(data []byte, remote *net.UDPAddr, df probe.DFMode) error {
+func (t *UDPTransport) SendDF(data []byte, local, remote *net.UDPAddr, df probe.DFMode) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.closed {
 		return ErrClosed
 	}
-	return t.writeWithDF(data, remote, df)
+	control, err := t.sourceControl(local)
+	if err != nil {
+		return errors.Join(ErrSendFailed, err)
+	}
+	return t.writeWithDF(data, control, remote, df)
 }
 
 // Refusals returns the channel of size refusals the kernel queued for
@@ -273,8 +374,8 @@ func (t *UDPTransport) deliverQueuedError(entry probe.QueuedError) {
 }
 
 // Conn returns the underlying UDP connection, for a socket option set on it
-// (EnableESPInUDP). Nothing writes through it: every write goes through Send
-// or SendDF, under mu, the NAT keepalive included.
+// (EnableESPInUDP). Nothing writes through it: every write goes through Send,
+// SendFrom or SendDF, under mu, the NAT keepalive included.
 func (t *UDPTransport) Conn() *net.UDPConn {
 	return t.conn
 }
@@ -295,8 +396,9 @@ func (t *UDPTransport) LocalAddr() net.Addr {
 // leaves an error the queue did not cause, which is logged as before.
 func (t *UDPTransport) Run() {
 	buf := make([]byte, MaxMsgSize)
+	control := ipv4.NewControlMessage(ipv4.FlagDst)
 	for {
-		n, remoteAddr, err := t.conn.ReadFromUDP(buf)
+		n, remoteAddr, localAddr, err := t.readDatagram(buf, control)
 		if err != nil {
 			t.mu.Lock()
 			closed := t.closed
@@ -316,7 +418,7 @@ func (t *UDPTransport) Run() {
 		pkt := Packet{
 			Data:       make([]byte, n),
 			RemoteAddr: remoteAddr,
-			LocalAddr:  t.localUDPAddr(),
+			LocalAddr:  localAddr,
 			NATT:       t.natT,
 		}
 		copy(pkt.Data, buf[:n])
@@ -328,6 +430,33 @@ func (t *UDPTransport) Run() {
 				"remote", remoteAddr)
 		}
 	}
+}
+
+// readDatagram reads the IP-header destination, not the wildcard socket bind.
+// RFC 4555 Section 3.9: "The exchange responder MUST verify that the contents
+// of the NO_NATS_ALLOWED notification match the addresses in the IP header."
+// Missing metadata is an error, never an invented local address.
+func (t *UDPTransport) readDatagram(data, control []byte) (int, *net.UDPAddr, *net.UDPAddr, error) {
+	if !t.receiveDestination {
+		n, remote, err := t.conn.ReadFromUDP(data)
+		return n, remote, t.localUDPAddr(), err
+	}
+	n, controlLen, _, remote, err := t.conn.ReadMsgUDP(data, control)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	var cm ipv4.ControlMessage
+	if err := cm.Parse(control[:controlLen]); err != nil {
+		return 0, nil, nil, fmt.Errorf("transport: parse destination: %w", err)
+	}
+	if cm.Dst.To4() == nil {
+		return 0, nil, nil, errors.New("transport: missing packet destination")
+	}
+	if cm.Dst.IsUnspecified() {
+		return 0, nil, nil, errors.New("transport: unspecified packet destination")
+	}
+	local := &net.UDPAddr{IP: cm.Dst, Port: t.localUDPAddr().Port}
+	return n, remote, local, nil
 }
 
 func (t *UDPTransport) localUDPAddr() *net.UDPAddr {

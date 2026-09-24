@@ -239,7 +239,7 @@ func TestPaddedInformationalReachesRequestedSize(t *testing.T) {
 
 	// AEAD: an 8-octet IV, no block padding, the tag inside the ciphertext.
 	aead, _ := establishAEAD(t)
-	aead.PeerCfg.RemoteAddress = "127.0.0.1"
+	aead.PeerCfg.LocalAddress, aead.PeerCfg.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	aps := &PeerSession{peerName: "ze"}
 	request = probeAsk(aps, aead, myTr, 1400)
 	probeUnanswered(t, request, "an AEAD probe that just left")
@@ -547,7 +547,7 @@ func TestProbeSizeCeiling(t *testing.T) {
 	_, _, _, peerTr, myTr := dpdProbeLink(t)
 	// AEAD reaches every size, so the ceiling is exact rather than on a grid.
 	aead, _ := establishAEAD(t)
-	aead.PeerCfg.RemoteAddress = "127.0.0.1"
+	aead.PeerCfg.LocalAddress, aead.PeerCfg.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	ps := &PeerSession{peerName: "ze"}
 
 	refuse := func(octets uint16, what string) {
@@ -900,7 +900,7 @@ func TestZeResponderIgnoresThePrivateStatusNotify(t *testing.T) {
 func TestProbeRefusesANonIPv4Peer(t *testing.T) {
 	_, _, _, peerTr, myTr := dpdProbeLink(t)
 	aead, _ := establishAEAD(t)
-	aead.PeerCfg.RemoteAddress = "127.0.0.1"
+	aead.PeerCfg.LocalAddress, aead.PeerCfg.RemoteAddress = "127.0.0.1", "127.0.0.1"
 	ps := &PeerSession{peerName: "ze"}
 
 	aead.peerEndpoint = &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: transport.IKEPort}

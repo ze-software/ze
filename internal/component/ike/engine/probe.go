@@ -478,7 +478,7 @@ func sendRawDF(sa *SA, tr *transport.UDPTransport, msg []byte, df probe.DFMode, 
 		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
 		msg = transport.AddNonESPMarker(msg)
 	}
-	return out.SendDF(msg, remote, df)
+	return out.SendDF(msg, sa.localSendAddr(out), remote, df)
 }
 
 // errNoSendPath is the send failure of an SA with no socket or no resolvable peer.

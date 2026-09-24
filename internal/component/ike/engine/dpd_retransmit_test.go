@@ -29,7 +29,17 @@ func dprRunLoop(t *testing.T, ini *SA, ps *PeerSession, dpd *dpdState, myTr *tra
 	ps.stopCh = make(chan struct{})
 	ps.supersede = make(chan struct{}, 1)
 	done := make(chan error, 1)
+	exited := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-ps.stopCh:
+		default:
+			close(ps.stopCh)
+		}
+		<-exited
+	})
 	go func() {
+		defer close(exited)
 		done <- ps.maintainSA(ini, dpd, nil, nil,
 			testIKEGroup(), NewSATable(), nil, myTr, nil, slogutil.DiscardLogger())
 	}()

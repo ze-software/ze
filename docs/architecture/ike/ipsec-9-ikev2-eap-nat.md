@@ -281,6 +281,13 @@ When NAT is detected, the SA carries the flag and the child install sets the UDP
 encapsulation attribute on the XFRM SA, which is what puts ESP inside UDP. The
 flag propagates to child creation without a second decision.
 
+The peer's `nat-traversal` policy separates capability from permission. `allow`
+is the existing default. `prohibit` retains NAT detection but rejects translation
+before establishment or MOBIKE migration. Its address-updating requests carry
+`NO_NATS_ALLOWED`; the receiver checks the complete protected tuple against
+packet metadata. Merely opening UDP 4500 or exchanging NAT detection hashes does
+not cancel an explicit prohibition.
+
 <!-- source: internal/component/ike/engine/udpencap.go -- UDP encapsulation readiness -->
 <!-- source: internal/component/ike/transport/encap_linux.go -- UDP encapsulation of ESP on Linux -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- SAParams UDP encapsulation fields -->
@@ -299,21 +306,30 @@ its message with the non-ESP marker of RFC 3948 Section 2.2
 (`AddNonESPMarker`) and the read loop strips it. Both sockets are IPv4
 (`net.ListenUDP("udp4")`), so the socket options below are the IPv4 ones.
 
-Two writes exist, and both hold the transport's lock across the write, so no
-two datagrams from different SAs interleave on the socket. The NAT keepalive
-(`Keepalive`) writes through `Send` too; `Conn()` exists for the socket
-option `EnableESPInUDP` sets and nothing writes through it.
+On a migration-capable backend, the NAT-T listener binds the wildcard so it can
+receive traffic after an address disappears. `Packet.LocalAddr` is the actual
+destination from packet-info ancillary data, not `0.0.0.0`. `SendFrom` and `SendDF`
+select the SA's source through the same ancillary data. A supplied local port must
+match the socket's bound port; the source address must match a concretely bound
+socket. This also keeps non-MOBIKE peers on their configured source when they
+share the wildcard listener.
+
+All writes hold the transport's lock across the write, so no two datagrams from
+different SAs interleave on the socket. The NAT keepalive uses `SendFrom` with
+the SA's local source. `Conn()` exists for the socket option `EnableESPInUDP`
+sets; nothing writes through it.
 
 | Write | DF policy | Use |
 |-------|-----------|-----|
-| `Send` | the kernel default (`IP_PMTUDISC_WANT`: DF set on a datagram that fits the cached path MTU, fragmented otherwise) | every IKE message today |
+| `Send` | the kernel default (`IP_PMTUDISC_WANT`: DF set on a datagram that fits the cached path MTU, fragmented otherwise) | callers without an explicit source |
+| `SendFrom` | the kernel default | ordinary IKE messages and NAT keepalives, with an explicit local source |
 | `SendDF` | one `probe.DFMode` for that datagram: `DFHonorCache` is `IP_PMTUDISC_DO`, `DFBypassCache` is `IP_PMTUDISC_PROBE`, `DFOff` is `IP_PMTUDISC_DONT` | the padded path probe (`docs/architecture/diagnostics/path-mtu.md`): the first copy with DF, the retransmission with DF clear |
 
 `SendDF` sets `IP_MTU_DISCOVER` on the socket through `probe.WithDFMode`
 (`docs/architecture/diagnostics/active-probes.md`), writes, and restores the
 value the socket held before, on every exit path including a refused write.
-The option is socket-wide, which is why `Send` takes the same lock around its
-write: a datagram from another SA that left while the option was toggled
+The option is socket-wide, which is why `Send` and `SendFrom` take the same lock:
+a datagram from another SA that left while the option was toggled
 would carry the probe's DF setting. `TestDFSendRestoresSocketMode` reads the
 option back after each mode, and `TestPlainSendNeverLeavesUnderTheProbeOption`
 (`udp_df_integration_linux_test.go`, root, three namespaces) races plain
@@ -358,6 +374,6 @@ error is about this write; a `LOCAL` entry found means this write was refused
 by the cache, and a second attempt would draw the same answer.
 `TestSendSurvivesAnErrorQueuedForAnEarlierDatagram` drives it on loopback.
 
-<!-- source: internal/component/ike/transport/udp.go -- UDPTransport, Send, SendDF, Run, SizeRefusal, Refusals -->
+<!-- source: internal/component/ike/transport/udp.go -- UDPTransport, Send, SendFrom, SendDF, Run, SizeRefusal, Refusals -->
 <!-- source: internal/component/ike/transport/udp_linux.go -- installErrorQueue, writeWithDF, drainErrorQueue -->
 <!-- source: internal/component/ike/transport/udp_other.go -- the non-Linux stubs -->

@@ -8,6 +8,7 @@ package dataplane
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"log/slog"
 	"net"
@@ -360,6 +361,10 @@ func (r *espFormReceiver) run(conn net.PacketConn, inj espFormInjector, stop <-c
 		if wrote == 0 {
 			continue
 		}
+		// RFC 3948 Section 2.1: the ports MUST be those used by IKE traffic.
+		// MOBIKE can change the translated peer port without changing its SPI.
+		binary.BigEndian.PutUint16(out[20:22], target.peerPort)
+		binary.BigEndian.PutUint16(out[22:24], target.localPort)
 
 		if err := inj.inject(out[:wrote], target.local); err != nil {
 			r.log.Debug("esp-form: re-present refused ESP", "spi", spi, "error", err)

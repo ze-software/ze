@@ -28,7 +28,7 @@ type errPair struct {
 func errLink(t *testing.T) errPair {
 	t.Helper()
 	ini, resp, ps := establishPSK(t)
-	peerTr, myTr := rtxPeerLink(t)
+	peerTr, myTr := rtxPeerLink(t, ini, resp)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	resp.PeerCfg.RemoteAddress = "127.0.0.1"
 	remote := resp.remoteUDPAddr()

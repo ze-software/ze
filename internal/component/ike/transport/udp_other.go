@@ -26,7 +26,7 @@ func (t *UDPTransport) installErrorQueue() error {
 }
 
 // writeWithDF reports the capability absent and writes nothing.
-func (t *UDPTransport) writeWithDF(_ []byte, _ *net.UDPAddr, _ probe.DFMode) error {
+func (t *UDPTransport) writeWithDF(_, _ []byte, _ *net.UDPAddr, _ probe.DFMode) error {
 	return probe.ErrDFUnsupported
 }
 

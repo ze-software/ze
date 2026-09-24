@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -111,6 +112,9 @@ type SA struct {
 	lastResponse    []byte
 	lastResponseID  uint32
 	lastResponseSet bool
+	// A repeated rejection retains its wire bytes; a different source tuple
+	// can require a transient MOBIKE error instead of the cached success.
+	lastResponseMobikeError uint16
 
 	// cachedReplayLimiter bounds how often this SA replays lastResponse to an address
 	// it observed rather than to the configured peer.
@@ -227,20 +231,25 @@ type SA struct {
 	BehindNAT     bool
 	PeerBehindNAT bool
 
-	// peerEndpoint is the source address and port of the last message this SA
-	// AUTHENTICATED. It is the destination of every message the SA sends on its own
-	// initiative, and of every response the owner loop builds.
+	// MOBIKE state is owned by the established-SA loop after IKE_AUTH.
+	// replyLocal/replyRemote exist only while an authenticated request is handled.
+	mobike      mobikeState
+	replyLocal  *net.UDPAddr
+	replyRemote *net.UDPAddr
+	replyNATT   bool
+
+	// peerEndpoint is the authenticated destination for self-initiated messages.
+	// MOBIKE changes it only through an explicit address update. Replies use the
+	// request's observed tuple without adopting that tuple for future requests.
 	//
 	// RFC 7296 Section 2.11 MUST: an implementation
 	// "MUST respond to the address and port from which the request was received".
 	// RFC 7296 Section 2.23 repeats it, and adds that the port matters because a NAT
 	// translates it.
 	//
-	// It is written by adoptAuthenticatedEndpoint alone, and only after a decrypt and
-	// a Message ID window check. An unauthenticated datagram never moves it. Nil
-	// means no authenticated message has arrived yet, and remoteUDPAddr then falls
-	// back to the CONFIGURED remote rather than to whatever last arrived
-	// (ai/rules/evidence.md).
+	// adoptAuthenticatedEndpoint writes it after authentication outside MOBIKE;
+	// setMobikePath writes it for MOBIKE. Nil means no authenticated endpoint has
+	// been adopted, and remoteUDPAddr uses the configured remote.
 	//
 	// Owner-loop state after establishment, like lastResponse, so it needs no lock.
 	peerEndpoint *net.UDPAddr
@@ -500,12 +509,13 @@ func (sa *SA) remoteUDPAddr() *net.UDPAddr {
 			Zone: sa.peerEndpoint.Zone,
 		}
 	}
-	addr, err := net.ResolveUDPAddr("udp4", ikeAddr(sa.PeerCfg.RemoteAddress))
+	destination := ikeAddr(sa.PeerCfg.RemoteAddress)
+	if sa.localPort == transport.NATTPort {
+		destination = nattAddr(sa.PeerCfg.RemoteAddress)
+	}
+	addr, err := net.ResolveUDPAddr("udp4", destination)
 	if err != nil {
 		return nil
-	}
-	if sa.localPort == transport.NATTPort {
-		addr.Port = transport.NATTPort
 	}
 	return addr
 }
@@ -515,13 +525,14 @@ func (sa *SA) remoteUDPAddr() *net.UDPAddr {
 func (sa *SA) bindSockets(ike, natt *transport.UDPTransport) {
 	sa.ikeSocket = ike
 	sa.nattSocket = natt
+	_, sa.mobike.canMigrate = dataplane.Get().(dataplane.TunnelMigrator)
 }
 
 // inheritSendPath copies the send path of the SA this one replaces: both sockets,
-// the float verdict, and the authenticated peer endpoint.
+// the float and NAT verdicts, and the authenticated endpoints.
 //
 // RFC 7296 Section 2.18 makes a rekeyed IKE SA the same conversation, with the same
-// peer, over the same path. None of the four is renegotiated.
+// peer, over the same path. These properties are not renegotiated.
 //
 // A replacement that started at port 500 with no endpoint drops every NAT-traversing
 // tunnel on its first rekey. That failure appears an hour after establishment.
@@ -530,6 +541,18 @@ func (sa *SA) inheritSendPath(old *SA) {
 	sa.nattSocket = old.nattSocket
 	sa.localPort = old.localPort
 	sa.peerEndpoint = old.peerEndpoint
+	sa.NATDetected = old.NATDetected
+	sa.BehindNAT = old.BehindNAT
+	sa.PeerBehindNAT = old.PeerBehindNAT
+	sa.mobike = old.mobike
+	sa.mobike.pending = nil
+	if old.mobike.pending != nil {
+		if sa.mobike.originalInitiator {
+			sa.mobike.updatePending = true
+		} else {
+			sa.mobike.checkPending = true
+		}
+	}
 }
 
 // floatToNATTPort records that every later message this SA sends leaves from port
@@ -603,6 +626,11 @@ func (sa *SA) adoptAuthenticatedEndpoint(observed *net.UDPAddr, arrivedOnNATT bo
 		return
 	}
 	if sameUDPEndpoint(sa.peerEndpoint, observed) {
+		return
+	}
+	// RFC 4555 Section 3.8: "The host not behind a NAT MUST NOT use these dynamic
+	// updates for IKEv2 packets". MOBIKE updates the pair explicitly instead.
+	if sa.mobike.enabled {
 		return
 	}
 	if sa.BehindNAT {

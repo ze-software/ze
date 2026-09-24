@@ -14,7 +14,7 @@ import (
 func dpdProbeLink(t *testing.T) (ini, peer *SA, ps *PeerSession, peerTr, myTr *transport.UDPTransport) {
 	t.Helper()
 	ini, peer, ps = establishPSK(t)
-	peerTr, myTr = rtxPeerLink(t)
+	peerTr, myTr = rtxPeerLink(t, ini, peer)
 	ini.PeerCfg.RemoteAddress = "127.0.0.1"
 	peer.PeerCfg.RemoteAddress = "127.0.0.1"
 	return ini, peer, ps, peerTr, myTr
