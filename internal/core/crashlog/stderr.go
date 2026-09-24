@@ -4,6 +4,7 @@ package crashlog
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"log/syslog"
 	"os"
@@ -93,34 +94,61 @@ func stderrReader(pr *os.File, syslogW *syslog.Writer, crashDirPath string) {
 	}
 }
 
+// relayStderrBuffer is how much of one line the relay holds at a time. A longer
+// line is relayed in fragments of this size.
+const relayStderrBuffer = 256 * 1024
+
 // relayStderr copies every line of r to the original stderr and to syslog, and
 // collects a panic trace once it sees the start of one. It returns the trace,
-// whether a panic was seen, and the scan error.
+// whether a panic was seen, and the read error, which is nil at EOF.
 //
-// Scan returns false on EOF, on a read error, and on a line above the buffer
-// set below, alike. A crash file that ends because the relay broke holds a
-// TRUNCATED trace, and a reader takes the last frame in it for the last frame
-// there was, so the truncation is written into the trace itself.
+// A line longer than the buffer is relayed in fragments, and the relay goes
+// on. It stopped at such a line once, as bufio.Scanner does: every later line
+// was lost, and nothing read the pipe again, so the process blocked at its next
+// write of stderr once the pipe filled. Only the start of a line can open a
+// panic trace, so a fragment is never matched against the pattern.
+//
+// A crash file that ends because the read failed holds a TRUNCATED trace, and a
+// reader takes the last frame in it for the last frame there was, so the
+// truncation is written into the trace itself.
 func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
+	reader := bufio.NewReaderSize(r, relayStderrBuffer)
 	var panicBuf []byte
 	inPanic := false
+	lineStart := true
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	for {
+		fragment, more, readErr := reader.ReadLine()
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				return panicBuf, inPanic, nil
+			}
+			if inPanic {
+				// The trace stops here because the read stopped, not because the
+				// panic finished printing. Say so inside the trace: the crash file
+				// is the only thing its reader will have.
+				var tb textbuf.Buffer
+				panicBuf = append(panicBuf, tb.Str("\n=== TRUNCATED: stderr relay stopped: ").Err(readErr).Str(" ===\n").String()...)
+			}
+			return panicBuf, inPanic, readErr
+		}
+		text := string(fragment)
 
 		if origStderr != nil {
-			writeMsg(origStderr, line+"\n")
+			if more {
+				writeMsg(origStderr, text)
+			} else {
+				writeMsg(origStderr, text+"\n")
+			}
 		}
 
 		if syslogW != nil {
-			if err := syslogW.Warning(line); err != nil {
+			if err := syslogW.Warning(text); err != nil {
 				syslogW = nil
 			}
 		}
 
-		if !inPanic && panicPattern.MatchString(line) {
+		if lineStart && !inPanic && panicPattern.MatchString(text) {
 			inPanic = true
 			ring := slogutil.GlobalLogRing()
 			entries := ring.Recent(64)
@@ -130,20 +158,13 @@ func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
 		}
 
 		if inPanic {
-			panicBuf = append(panicBuf, line...)
-			panicBuf = append(panicBuf, '\n')
+			panicBuf = append(panicBuf, fragment...)
+			if !more {
+				panicBuf = append(panicBuf, '\n')
+			}
 		}
+		lineStart = !more
 	}
-
-	err := scanner.Err()
-	if err != nil && inPanic {
-		// The trace stops here because the read stopped, not because the panic
-		// finished printing. Say so inside the trace: the crash file is the
-		// only thing its reader will have.
-		var tb textbuf.Buffer
-		panicBuf = append(panicBuf, tb.Str("\n=== TRUNCATED: stderr relay stopped: ").Err(err).Str(" ===\n").String()...)
-	}
-	return panicBuf, inPanic, err
 }
 
 func appendRingHeader(b []byte, entries []slogutil.LogEntry) []byte {

@@ -1,4 +1,8 @@
-option=timeout:value=900s
+# The timeout is DECLARED because the fixture runs a whole-tree `le ste review`
+# seven times over a git export of HEAD. One review reads about 11,000
+# documents in parallel, about 7s with the machine to itself, so 180s holds
+# the scenario on a loaded host and stays inside the ui suite's 600s budget.
+option=timeout:value=180s
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 
 cmd=foreground:seq=1:exec=ze-test fixture ui/le-ste-answers

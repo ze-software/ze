@@ -2,6 +2,7 @@ package crashlog
 
 import (
 	"errors"
+	"os"
 	"strings"
 	"testing"
 )
@@ -76,5 +77,39 @@ func TestRelayStderrNoPanicNoTrace(t *testing.T) {
 	}
 	if len(buf) != 0 {
 		t.Errorf("a trace was collected with no panic:\n%s", buf)
+	}
+}
+
+// TestRelayStderrSurvivesALongLine proves a line longer than the relay buffer
+// neither stops the relay nor loses a byte.
+//
+// The method relays a line twice the buffer size and a short line after it into
+// a file standing in for the original stderr, then compares the file with the
+// input. The relay once stopped at such a line: every later line was lost, and
+// the unread pipe then blocked the process at its next write.
+func TestRelayStderrSurvivesALongLine(t *testing.T) {
+	saved := origStderr
+	t.Cleanup(func() { origStderr = saved })
+	sink, err := os.CreateTemp(t.TempDir(), "stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sink.Close() //nolint:errcheck // test cleanup
+	origStderr = sink
+
+	input := strings.Repeat("x", 2*relayStderrBuffer) + "\nthe line after\n"
+	buf, inPanic, err := relayStderr(strings.NewReader(input), nil)
+	if err != nil {
+		t.Fatalf("the relay stopped: %v", err)
+	}
+	if inPanic || len(buf) != 0 {
+		t.Fatalf("a long line opened a panic trace: %q", buf)
+	}
+	got, err := os.ReadFile(sink.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != input {
+		t.Fatalf("relayed %d bytes, want %d; tail %q", len(got), len(input), got[max(0, len(got)-40):])
 	}
 }

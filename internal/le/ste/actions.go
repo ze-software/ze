@@ -12,6 +12,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -134,31 +136,84 @@ func changedAnswer() (any, int) {
 // the review skips an absent file. A PRESENT but unreadable file is an error.
 // Otherwise, unreadable documents would lower the finding count and appear to
 // pass.
+//
+// The documents are reviewed in parallel and merged in list order, so the page
+// and the payload are the same bytes a serial walk writes. Review is a pure
+// function of one document, which is what makes the split safe. The whole tree
+// is about 11,000 documents and one CPU-minute of pattern matching, so a serial
+// walk made every `le ste review` wait a minute.
 func reviewFiles(root string, files []string) (any, int) {
+	results := reviewEach(root, files)
+
 	var findings []Finding
 	reviewed, skipped := 0, 0
-
-	for _, rel := range files {
-		body, err := readDocument(root, rel)
-		if err != nil {
-			leaction.ReportError(err)
+	for i := range results {
+		result := &results[i]
+		if result.err != nil {
+			leaction.ReportError(result.err)
 			return nil, 1
 		}
-		if body == nil {
-			continue
-		}
-		surface, ok := surfaceOf(rel)
-		if !ok {
-			continue
-		}
-		found, skipReason := Review(rel, string(body), surface)
-		if skipReason != "" {
+		switch {
+		case !result.present:
+		case result.skipReason != "":
 			skipped++
-			continue
+		default:
+			reviewed++
+			findings = append(findings, result.findings...)
 		}
-		reviewed++
-		findings = append(findings, found...)
 	}
-
 	return newReviewReport(findings, reviewed, skipped), 0
+}
+
+// documentReview is what reviewing one listed path answered.
+type documentReview struct {
+	findings   []Finding
+	skipReason string
+	err        error
+	// present is false for a path that vanished since it was listed, and for a
+	// path no surface reads.
+	present bool
+}
+
+// reviewEach reviews every path and answers one result for each, in the order
+// of files.
+//
+// A fixed pool of workers, one for each CPU the runtime may use, reads indices
+// from a channel that is closed once every index is queued. Each worker writes
+// only its own slots of results, so the slice needs no lock, and wg.Wait orders
+// every write before the caller reads.
+func reviewEach(root string, files []string) []documentReview {
+	results := make([]documentReview, len(files))
+	indices := make(chan int)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), max(len(files), 1)) {
+		wg.Go(func() {
+			for i := range indices {
+				results[i] = reviewDocument(root, files[i])
+			}
+		})
+	}
+	for i := range files {
+		indices <- i
+	}
+	close(indices)
+	wg.Wait()
+	return results
+}
+
+// reviewDocument reads and reviews one path.
+func reviewDocument(root, rel string) documentReview {
+	body, err := readDocument(root, rel)
+	if err != nil {
+		return documentReview{err: err}
+	}
+	if body == nil {
+		return documentReview{}
+	}
+	surface, ok := surfaceOf(rel)
+	if !ok {
+		return documentReview{}
+	}
+	found, skipReason := Review(rel, string(body), surface)
+	return documentReview{findings: found, skipReason: skipReason, present: true}
 }

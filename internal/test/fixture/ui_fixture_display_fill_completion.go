@@ -335,90 +335,82 @@ func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
 	if err := pty.Setsize(master, &pty.Winsize{Rows: rows, Cols: cols}); err != nil {
 		return fail(err)
 	}
-	// displayFillReadAvailable polls with a deadline of its own and reads
-	// EAGAIN as "nothing more yet", so the master has to answer that rather
-	// than park inside the runtime. Fd releases the file from Go's poller and
-	// hands back the descriptor SetNonblock then marks.
+	// pty.Open reads the descriptor through Fd, and Fd puts it in blocking
+	// mode: a Read on a quiet terminal then sleeps inside the read system call,
+	// where no deadline can reach it. Nonblocking mode sends the Read back to
+	// Go's poller, which still holds the master and honors the read and write
+	// deadlines that displayFillReadAvailable and displayFillWrite set. The
+	// poller parks a Read that meets EAGAIN until the next byte arrives, so the
+	// deadline is the only bound: without one, a client that went quiet held
+	// this fixture until the runner killed it.
 	if err := syscall.SetNonblock(int(master.Fd()), true); err != nil {
 		return fail(err)
 	}
 	return master, slave, nil
 }
 
+// displayFillReadAvailable collects what the client writes until it has been
+// quiet for readQuantum after a first byte, or until the deadline passes.
+//
+// Each Read carries a read deadline no later than readQuantum from now, so a
+// silent client returns control here at that pace: the poller would otherwise
+// park the Read until the next byte, which a client waiting for input never
+// sends (see displayFillOpenPTY).
 func displayFillReadAvailable(ctx context.Context, master *os.File, deadline time.Time) (string, error) {
 	var result bytes.Buffer
 	buf := make([]byte, 65536)
 	var lastRead time.Time
 	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		if err := master.SetReadDeadline(displayFillNextDeadline(deadline)); err != nil {
+			return "", fmt.Errorf("set pseudo-terminal read deadline: %w", err)
+		}
 		n, err := master.Read(buf)
 		if n > 0 {
 			_, _ = result.Write(buf[:n])
 			lastRead = time.Now()
 		}
-		if err != nil {
-			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
-				if !lastRead.IsZero() && time.Since(lastRead) >= 100*time.Millisecond {
-					break
-				}
-				if err := displayFillPause(ctx, deadline); err != nil {
-					return "", err
-				}
-				continue
-			}
-			// EOF and EIO are both normal when the slave side closes. The
-			// original helper treated every read-side OS error as end of input.
-			break
-		}
-		if n == 0 {
-			if !lastRead.IsZero() && time.Since(lastRead) >= 100*time.Millisecond {
-				break
-			}
-			if err := displayFillPause(ctx, deadline); err != nil {
-				return "", err
-			}
-		}
-	}
-	return strings.ToValidUTF8(result.String(), "\uFFFD"), nil
-}
-
-func displayFillPause(ctx context.Context, deadline time.Time) error {
-	remaining := time.Until(deadline)
-	if remaining <= 0 {
-		return nil
-	}
-	if remaining > readQuantum {
-		remaining = readQuantum
-	}
-	timer := time.NewTimer(remaining)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
-
-func displayFillWrite(ctx context.Context, master *os.File, data []byte) error {
-	for len(data) > 0 {
-		n, err := master.Write(data)
-		if n > 0 {
-			data = data[n:]
-		}
 		if err == nil {
 			continue
 		}
-		if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
-			timer := time.NewTimer(readQuantum)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return ctx.Err()
-			case <-timer.C:
-				continue
-			}
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			// EOF and EIO are both normal when the slave side closes.
+			break
+		}
+		if !lastRead.IsZero() && time.Since(lastRead) >= readQuantum {
+			break
+		}
+	}
+	return strings.ToValidUTF8(result.String(), "�"), nil
+}
+
+// displayFillNextDeadline is the deadline for one Read: readQuantum from now,
+// or the overall deadline when that comes first.
+func displayFillNextDeadline(deadline time.Time) time.Time {
+	next := time.Now().Add(readQuantum)
+	if deadline.Before(next) {
+		return deadline
+	}
+	return next
+}
+
+// displayFillWrite writes all of data, retrying a Write that its deadline cut
+// short until ctx ends. A full terminal buffer drains as the client reads, so a
+// retry is the normal answer to a slow client rather than an error.
+func displayFillWrite(ctx context.Context, master *os.File, data []byte) error {
+	for len(data) > 0 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := master.SetWriteDeadline(time.Now().Add(readQuantum)); err != nil {
+			return fmt.Errorf("set pseudo-terminal write deadline: %w", err)
+		}
+		n, err := master.Write(data)
+		data = data[n:]
+		if err == nil || errors.Is(err, os.ErrDeadlineExceeded) {
+			continue
 		}
 		return err
 	}
