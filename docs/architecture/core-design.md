@@ -197,7 +197,15 @@ writes LAST for this reason. A member deleted by hand under a finished run is
 outside that answer, because an exact member set costs the render it would be
 deciding whether to run.
 
+`IndexUpdate` publishes its files as one batch through `WriteAtomicAll`. Each
+file still moves with one rename, so a reader never sees a partial file. The
+batch syncs none of them, because one fsync for each of about 200 files was most
+of a run. So after a power loss a file can be empty or short, and nothing
+notices it: run `./le rfc index-update` again. `WriteAtomic` still syncs before
+its rename.
+
 <!-- source: internal/le/digest/digest.go -- Check -->
+<!-- source: internal/le/derived/derived.go -- WriteAtomicAll -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Complete -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Whole -->
 

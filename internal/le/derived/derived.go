@@ -238,15 +238,103 @@ func EnsureAll(root string) error {
 // os.WriteFile truncates first, and a grep that lands in that window reads a
 // short file as a complete answer.
 //
-// The temporary file is created in the artifact's own directory, because a
-// rename is atomic only within one filesystem.
+// The content is on disk before the rename publishes the name, so a crash
+// between the two leaves the previous artifact rather than an empty one. A
+// generator that writes many derived files at once can call WriteAtomicAll,
+// which keeps the reader guarantee and drops this one.
 func WriteAtomic(path string, content []byte) (err error) {
-	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, "."+filepath.Base(path)+".tmp-*")
+	temporaryPath, err := writeTemporary(path, content)
 	if err != nil {
-		return fmt.Errorf("create the temporary file for %s: %w", path, err)
+		return err
 	}
-	temporaryPath := temporary.Name()
+	defer func() {
+		if err != nil {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+	if err = syncFile(temporaryPath); err != nil {
+		return err
+	}
+	if err = os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("publish %s: %w", path, err)
+	}
+	return nil
+}
+
+// File is one output of a WriteAtomicAll batch: the path it is published at
+// and the whole content it carries.
+type File struct {
+	Path    string
+	Content []byte
+}
+
+// WriteAtomicAll publishes every file with its own rename, and syncs none of
+// them.
+//
+// A reader keeps the WriteAtomic guarantee for each file: the name moves from
+// the whole previous content to the whole new content with a rename, so no
+// reader sees a prefix. The sync is what this drops, and on purpose. The RFC
+// generator publishes about 200 files in one run, and one fsync each was about
+// 200 journal commits: 0.3s each on a busy disk, most of a 63s run. A single
+// syncfs(2) instead was measured on 2026-09-24 to block for over 10 minutes,
+// because it waits for every dirty page on the filesystem, and the build
+// caches of every other session share that filesystem.
+//
+// What the sync bought is only the POWER-LOSS case: without it, a crash just
+// after a rename can leave that name holding an empty or short file. Every
+// file this writes is derived, so the next render of its generator replaces
+// it whole. Nothing notices such a file by itself, so after a power loss, run
+// the generator again. A caller for which that is not enough calls WriteAtomic.
+//
+// Every temporary is written before the first rename, so a failure to write
+// any of them (a full disk, a missing directory) removes them all and leaves
+// every previous file as it was. The renames run in slice order, so a caller
+// that publishes a completion marker puts it last. A failed rename stops the
+// batch: the files before it are new, the files after it are old, and each one
+// is whole.
+//
+// Every directory MUST exist already; the temporaries are created beside their
+// targets, because a rename is atomic only within one filesystem.
+func WriteAtomicAll(files []File) (err error) {
+	temporaries := make([]string, 0, len(files))
+	defer func() {
+		if err == nil {
+			return
+		}
+		// After a rename the temporary name is gone, and the remove fails
+		// with ENOENT. That is the answer, so the error is not read.
+		for _, temporaryPath := range temporaries {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+
+	for _, file := range files {
+		temporaryPath, writeErr := writeTemporary(file.Path, file.Content)
+		if writeErr != nil {
+			return writeErr
+		}
+		temporaries = append(temporaries, temporaryPath)
+	}
+	for index, file := range files {
+		if err = os.Rename(temporaries[index], file.Path); err != nil {
+			return fmt.Errorf("publish %s: %w", file.Path, err)
+		}
+	}
+	return nil
+}
+
+// writeTemporary writes content to a new file beside path and answers its
+// name. The file is closed and NOT synced: WriteAtomic syncs it, and
+// WriteAtomicAll deliberately does not.
+//
+// The temporary is created in the artifact's own directory, because a rename
+// is atomic only within one filesystem.
+func writeTemporary(path string, content []byte) (temporaryPath string, err error) {
+	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return "", fmt.Errorf("create the temporary file for %s: %w", path, err)
+	}
+	temporaryPath = temporary.Name()
 	defer func() {
 		if err != nil {
 			_ = os.Remove(temporaryPath)
@@ -255,16 +343,10 @@ func WriteAtomic(path string, content []byte) (err error) {
 
 	if _, err = temporary.Write(content); err != nil {
 		_ = temporary.Close()
-		return fmt.Errorf("write %s: %w", temporaryPath, err)
-	}
-	// The content is on disk before the rename publishes the name, so a crash
-	// between the two leaves the previous artifact rather than an empty one.
-	if err = temporary.Sync(); err != nil {
-		_ = temporary.Close()
-		return fmt.Errorf("sync %s: %w", temporaryPath, err)
+		return "", fmt.Errorf("write %s: %w", temporaryPath, err)
 	}
 	if err = temporary.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", temporaryPath, err)
+		return "", fmt.Errorf("close %s: %w", temporaryPath, err)
 	}
 	// 0644, because a derived artifact stands where a TRACKED file stood and a
 	// checkout gives that file 0644. os.CreateTemp creates at 0600, and every
@@ -274,10 +356,24 @@ func WriteAtomic(path string, content []byte) (err error) {
 	// docs/features/rfc-status.md and 194 shards became unreadable to any
 	// reader that is not this user, with nothing saying so.
 	if err = os.Chmod(temporaryPath, 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
-		return fmt.Errorf("set the mode of %s: %w", temporaryPath, err)
+		return "", fmt.Errorf("set the mode of %s: %w", temporaryPath, err)
 	}
-	if err = os.Rename(temporaryPath, path); err != nil {
-		return fmt.Errorf("publish %s: %w", path, err)
+	return temporaryPath, nil
+}
+
+// syncFile makes one written file durable. A new descriptor is enough: fsync
+// flushes the inode, whichever descriptor wrote it.
+func syncFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open %s to sync it: %w", path, err)
+	}
+	if err = file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("sync %s: %w", path, err)
+	}
+	if err = file.Close(); err != nil {
+		return fmt.Errorf("close %s after the sync: %w", path, err)
 	}
 	return nil
 }

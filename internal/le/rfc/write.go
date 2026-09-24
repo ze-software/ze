@@ -168,32 +168,38 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	if err != nil {
 		return IndexReport{}, err
 	}
-	// The SHARDS first and the ledger LAST, because the ledger is the marker
-	// that says this run finished (shardsRendered, register.go). The shard
-	// directory exists from the first of its 194 files, so a run that stopped
-	// half way leaves a present, short directory that a reader takes for the
-	// whole answer. Nothing else depends on the order.
+	// ONE batch through derived.WriteAtomicAll, which syncs none of these
+	// files: one sync each was most of a run, and every one of them is derived,
+	// so this generator rewrites it whole on its next run.
+	// The SHARDS first and the ledger LAST, because the batch renames in order
+	// and the ledger is the marker that says this run finished (shardsRendered,
+	// register.go). The shard directory exists from the first of its 194
+	// files, so a run that stopped half way leaves a present, short directory
+	// that a reader takes for the whole answer.
+	batch := make([]derived.File, 0, len(shards)+len(ledgers)+1)
 	for _, stem := range sortedKeysOf(shards) {
-		if err := writePage(tree, shardRel(stem), shards[stem]); err != nil {
-			return IndexReport{}, err
-		}
+		batch = append(batch, derived.File{Path: treePath(tree, shardRel(stem)), Content: pageBytes(shards[stem])})
 	}
-	// After the write, never before: a crash between the two would otherwise
-	// leave the directory holding neither the old shard nor the new one.
+	// The ledger files are written as rendered, with no newline added: each
+	// carries its own where it ends in a row, and the public page ends in an
+	// HTML comment that must not gain a blank line. What the generator writes
+	// and what the freshness check compares have to be one string, so the
+	// terminator is part of the render rather than part of the write.
+	for _, rel := range ledgerPaths() {
+		batch = append(batch, derived.File{Path: treePath(tree, rel), Content: []byte(ledgers[rel])})
+	}
+	batch = append(batch, derived.File{Path: treePath(tree, ledgerRel), Content: pageBytes(index)})
+	if err := publishBatch(batch); err != nil {
+		return IndexReport{}, err
+	}
+	// After the write, never before, so the prune only ever runs against a
+	// directory that already holds this run's shards.
 	keep := map[string]bool{}
 	for stem := range shards {
 		keep[stem] = true
 	}
 	removed, err := pruneShards(tree, keep)
 	if err != nil {
-		return IndexReport{}, err
-	}
-	for _, rel := range ledgerPaths() {
-		if err := writeExact(tree, rel, ledgers[rel]); err != nil {
-			return IndexReport{}, err
-		}
-	}
-	if err := writePage(tree, ledgerRel, index); err != nil {
 		return IndexReport{}, err
 	}
 	return IndexReport{Ledger: ledgerRel, Shards: len(shards), Deleted: removed,
@@ -211,22 +217,39 @@ func refuseToWrite(errs []string, why string) error {
 }
 
 // writePage writes one generated page, terminated by the newline the generator
-// ends every page with.
+// ends every page with. IndexUpdate publishes its pages as one batch
+// (publishBatch); this is for a caller that writes a single page.
 func writePage(tree, rel, body string) error {
-	var page textbuf.Buffer
-	return writeArtifact(tree, rel, []byte(page.Str(body).Byte('\n').String()))
+	return writeArtifact(tree, rel, pageBytes(body))
 }
 
-// writeExact writes one generated file with no terminator of its own.
-//
-// Separate from writePage, which appends the newline ai/RFC-REQUIREMENTS.md and
-// the shards are compared with. The three ledger files carry their own trailing
-// newline where they end in a row, and the public page ends in an HTML comment
-// that must not gain a blank line: what the generator writes and what the
-// freshness check compares have to be one string, so the terminator is part of
-// the render rather than part of the write.
-func writeExact(tree, rel, body string) error {
-	return writeArtifact(tree, rel, []byte(body))
+// pageBytes is a generated page as written: the body and the newline the
+// generator ends every page with.
+func pageBytes(body string) []byte {
+	var page textbuf.Buffer
+	return []byte(page.Str(body).Byte('\n').String())
+}
+
+// publishBatch publishes every file of one run through derived.WriteAtomicAll,
+// after it creates each directory the batch writes into.
+func publishBatch(files []derived.File) error {
+	created := map[string]bool{}
+	for _, file := range files {
+		directory := filepath.Dir(file.Path)
+		if created[directory] {
+			continue
+		}
+		created[directory] = true
+		if err := os.MkdirAll(directory, 0o750); err != nil {
+			var tb textbuf.Buffer
+			return parseErr(tb.Str(directory).Str(": cannot create directory: ").Err(err))
+		}
+	}
+	if err := derived.WriteAtomicAll(files); err != nil {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str("cannot write the generated files: ").Err(err))
+	}
+	return nil
 }
 
 // writeArtifact publishes one generated file through derived.WriteAtomic.
