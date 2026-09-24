@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"slices"
@@ -184,12 +185,19 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 		return nil, nil, err
 	}
 	defer func() { _ = f.Close() }()
+	return ParseExpect(f)
+}
 
+// ParseExpect parses an expectation block from r, in the format LoadExpectFile
+// reads. It is exported so the functional runner reads a peer's options (for
+// example option=linger) with the parser the peer itself uses, rather than with
+// a second copy that could disagree with it.
+func ParseExpect(r io.Reader) ([]string, *Config, error) {
 	config := &Config{}
 	var expect []string
 
 	lineNum := 0
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())

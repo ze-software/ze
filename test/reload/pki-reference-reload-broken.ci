@@ -71,6 +71,8 @@ EOF_BROKEN
 
 cmd=background:seq=1:exec=ze-test fixture reload/pki-reference-reload-broken-trigger
 cmd=foreground:seq=2:exec=ze start hub.conf:timeout=40s
+await=stderr:contains=reload error:then=stop
+await=stderr:contains=no-such-certificate
 expect=exit:code=0
 expect=stderr:contains=reload error
 expect=stderr:contains=environment.web.certificate

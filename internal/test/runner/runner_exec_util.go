@@ -390,7 +390,7 @@ func (b *lockedBuilder) String() string {
 type syncWriter struct {
 	mu        sync.Mutex
 	buf       strings.Builder
-	pattern   string
+	patterns  []string // every one must appear before found is set
 	found     bool
 	truncated bool
 }
@@ -400,15 +400,33 @@ const peerListeningPattern = "listening on"
 
 // newSyncWriter creates a writer that waits for ze-peer's "listening on" output.
 func newSyncWriter() *syncWriter {
-	return &syncWriter{pattern: peerListeningPattern}
+	return &syncWriter{patterns: []string{peerListeningPattern}}
 }
 
-// newSyncWriterPattern creates a writer that waits for a caller-supplied
-// substring rather than ze-peer's fixed "listening on" marker. Used by the
+// newSyncWriterPattern creates a writer that waits for caller-supplied
+// substrings rather than ze-peer's fixed "listening on" marker. Used by the
 // await=stderr:contains= fence to block until a daemon's relayed stderr carries
-// a given line (e.g. an external plugin's refuse/warn message).
-func newSyncWriterPattern(pattern string) *syncWriter {
-	return &syncWriter{pattern: pattern}
+// every given line (e.g. an external plugin's refuse/warn message, or a reload
+// outcome plus the observer lines printed around it). The needles are not
+// ordered: a plugin's relayed stderr and the daemon's own writes interleave
+// freely, so an order would be a race of its own.
+func newSyncWriterPattern(patterns ...string) *syncWriter {
+	return &syncWriter{patterns: patterns}
+}
+
+// missing returns the needles the captured output does not contain yet, in
+// declaration order. The await fence names them when it expires.
+func (sw *syncWriter) missing() []string {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	var out []string
+	captured := sw.buf.String()
+	for _, p := range sw.patterns {
+		if !strings.Contains(captured, p) {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // maxOutputBytes caps captured output to prevent OOM from runaway processes.
@@ -443,10 +461,20 @@ func (sw *syncWriter) Write(p []byte) (int, error) {
 			sw.truncated = true
 		}
 	}
-	if !sw.found && strings.Contains(sw.buf.String(), sw.pattern) {
-		sw.found = true
+	if !sw.found {
+		sw.found = containsAll(sw.buf.String(), sw.patterns)
 	}
 	return n, nil
+}
+
+// containsAll reports whether captured holds every needle.
+func containsAll(captured string, needles []string) bool {
+	for _, n := range needles {
+		if !strings.Contains(captured, n) {
+			return false
+		}
+	}
+	return true
 }
 
 // waitFor waits until the pattern is found or context is canceled.
@@ -494,6 +522,10 @@ type peerOutput struct {
 	// check-mode peer reports "successful", so only a check-mode peer may be
 	// required to (peer_contract.go failedCheckPeers).
 	checkMode bool
+	// linger records that a check-mode peer holds its last session open until
+	// the daemon closes it (option=linger), so it never ends by itself. Only
+	// the await=stderr:then=stop fence reads it (awaitThenStop).
+	linger bool
 	// label identifies this peer in a failure message. Per-peer attribution is
 	// the point of evaluating peers individually, so it has to survive to the
 	// verdict rather than be reconstructed from the joined output.

@@ -98,7 +98,7 @@ func TestSendDefaultRouteKeepsItsIBGPBytes(t *testing.T) {
 		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64, // LOCAL_PREF 100
 		0x20, 0x00, 0x00, 0x00, 0x00, // NLRI 0.0.0.0/32
 	}
-	msg, err := BuildRouteMsg(defaultRoute(0))
+	msg, err := buildRouteMsg(defaultRoute(0))
 	require.NoError(t, err)
 	assert.Equal(t, ibgp, msg)
 
@@ -113,7 +113,7 @@ func TestSendDefaultRouteKeepsItsIBGPBytes(t *testing.T) {
 		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64,
 		0x20, 0x00, 0x00, 0x00, 0x00,
 	}
-	msg, err = BuildRouteMsg(defaultRoute(65001))
+	msg, err = buildRouteMsg(defaultRoute(65001))
 	require.NoError(t, err)
 	assert.Equal(t, ebgp, msg)
 }

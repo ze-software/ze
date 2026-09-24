@@ -9,7 +9,7 @@ import (
 
 // TestNotificationMsg verifies NOTIFICATION message construction per RFC 9003.
 //
-// VALIDATES: NotificationMsg builds RFC 9003 compliant NOTIFICATION with:
+// VALIDATES: notificationMsg builds RFC 9003 compliant NOTIFICATION with:
 //   - Error Code 6 (Cease)
 //   - Subcode 2 (Administrative Shutdown)
 //   - Length byte
@@ -72,12 +72,12 @@ func TestNotificationMsg(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NotificationMsg(tt.text)
+			got := notificationMsg(tt.text)
 			gotHex := strings.ToUpper(hex.EncodeToString(got))
 			wantHex := strings.ToUpper(tt.wantHex)
 
 			if gotHex != wantHex {
-				t.Errorf("NotificationMsg(%q) =\n  got:  %s\n  want: %s", tt.text, gotHex, wantHex)
+				t.Errorf("notificationMsg(%q) =\n  got:  %s\n  want: %s", tt.text, gotHex, wantHex)
 			}
 
 			// Verify message structure (min 22 bytes: header + code + subcode + len)

@@ -19,7 +19,7 @@ action=type:key=value:key=value:...
 | `option=` | Test configuration |
 | `cmd=` | Commands (API, shell, foreground/background) |
 | `expect=` | Expectations to validate |
-| `await=` | Block until the daemon's stderr carries a line, then tear down (deterministic fence) |
+| `await=` | Block until the daemon's stderr carries every awaited line, then tear down (deterministic fence); `then=stop` makes the runner stop the daemon itself |
 | `reject=` | Negative expectations (fail if matched) |
 | `action=` | Actions (send notification, raw bytes) |
 | `http=` | HTTP endpoint checks and readiness polls |
@@ -1154,15 +1154,57 @@ Stderr must NOT contain text is `reject=stderr:contains=`, below.
 ### Await (deterministic stderr fence)
 
 ```
-await=stderr:contains=<text>[:timeout=<dur>]
+await=stderr:contains=<text>[:timeout=<dur>][:then=stop]
 ```
 
 Blocks the runner until the daemon's relayed stderr contains `<text>`, then tears
 the daemon down. This is a deterministic replacement for a blind `time.sleep` that only
 held the daemon open long enough for a line to appear. `timeout=` is an optional
-Go duration (default 10s); on timeout the test fails with a precise message.
-`<text>` follows the same rule as `expect=stderr:contains=` (the needle must not
-contain a literal `:`).
+Go duration (default: 80% of the test budget, at least 10s); on timeout the test
+fails with a precise message that names the needles still missing.
+`<text>` follows the same rule as `expect=stderr:contains=`.
+
+Several `await=` lines form ONE fence. It holds once every needle has appeared,
+in any order: an external plugin's stderr is relayed apart from the daemon's own
+writes, so an order between them would be a race of its own. A needle may be
+declared once, and `timeout=` on one line only.
+
+Without `then=stop`, the fence is a precondition of the normal end: after it
+holds, the runner still waits for the peers to exit (a peer script that signals
+the daemon several times, `test/reload/reload-rapid-sighup.ci`, relies on this).
+
+`then=stop` on any await line makes the runner END the test once the fence
+holds. Use it when a peer lingers (`option=linger:value=true`), because a
+lingering peer never exits by itself, so the default end waits forever and a
+fixture then had to stop the daemon a fixed delay after its signal. Under load
+that SIGTERM landed while the reload under test was still verifying, and shutdown
+canceled it. With `then=stop` the sequence waits on events only:
+
+| Step | Waits for |
+|------|-----------|
+| 1 | every awaited needle on the daemon's stderr |
+| 2 | every lingering check peer to print `successful` (its last expectation met), or to exit |
+| 3 | the runner sends the daemon SIGTERM (a kill after the teardown grace) and reaps it; `expect=exit:code=` asserts that exit |
+| 4 | every check peer to exit. A lingering peer ends when the daemon closes its session; one still running after the peer drain grace is sent SIGTERM |
+
+A plain fence publishes `daemon.pid` without waiting for `daemon.ready`,
+because a plugin that aborts startup may never write it. A `then=stop` fence
+keeps that wait: its daemon is expected to run, and a trigger that sends SIGHUP
+before the handler is installed kills the daemon.
+
+Steps 1 and 2 share the fence's one deadline. A NON-lingering check peer is not
+waited in step 2, because it ends itself, and its expectation can be the Cease
+the stop in step 3 produces (`test/reload/reload-dynamic-peer-survives.ci`).
+Await the reload's OUTCOME line, never an earlier one: `sighup reload complete`
+for a reload that succeeded, `reload error` for one that was refused.
+
+```
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=incomplete peer definition:then=stop
+await=stderr:contains=reload error
+expect=stderr:contains=incomplete peer definition
+reject=stderr:contains=sighup reload complete
+```
 
 Pair it with a matching `expect=stderr:contains=` so the line is both the fence
 and the assertion. Use it for the reject-fence bucket: an external plugin whose
@@ -1181,7 +1223,7 @@ await=stderr:contains=refusing to start as an external plugin process -- the add
 expect=stderr:contains=refusing to start as an external plugin process -- the address-ownership registry
 ```
 
-<!-- source: internal/test/runner/await_stderr.go -- parseAwait / awaitDaemonStderr -->
+<!-- source: internal/test/runner/await_stderr.go -- parseAwait / awaitDaemonStderr / awaitThenStop -->
 
 ### Syslog Expectations
 

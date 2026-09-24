@@ -21,6 +21,7 @@
 package runner
 
 import (
+	"bytes"
 	"fmt"
 	"slices"
 	"strconv"
@@ -58,6 +59,23 @@ func hasCheckPeer(cmds []*RunCommand) bool {
 // the only peer kind that validates what it receives and reports peerSuccessToken.
 func isCheckPeerExec(exec string) bool {
 	return isZePeerExec(exec) && zePeerExecMode(exec) == peer.ModeCheck
+}
+
+// peerLingers reports whether a peer's expectation block declares
+// option=linger:value=true. It reads the block with the peer's own parser
+// (peer.ParseExpect), so the runner and the peer cannot disagree about it. A
+// block that does not parse answers false: the peer refuses the same block at
+// startup and fails the test on its own. A peer fed from a file rather than a
+// stdin block also answers false, so the then=stop fence does not wait for it.
+func peerLingers(stdin []byte) bool {
+	if len(stdin) == 0 {
+		return false
+	}
+	_, config, err := peer.ParseExpect(bytes.NewReader(stdin))
+	if err != nil {
+		return false
+	}
+	return config.Linger
 }
 
 // countCheckPeers is how many check-mode peers the .ci declares, which

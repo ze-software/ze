@@ -177,7 +177,7 @@ func TestIsQuickExitZeCommand(t *testing.T) {
 }
 
 func TestSyncWriterCapsOutput(t *testing.T) {
-	sw := &syncWriter{pattern: "needle"}
+	sw := &syncWriter{patterns: []string{"needle"}}
 
 	// Fill to exactly the cap with a first write.
 	half := make([]byte, maxOutputBytes/2)

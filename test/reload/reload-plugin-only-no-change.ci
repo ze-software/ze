@@ -1,6 +1,7 @@
 # Test: SIGHUP reload of a plugin-only config, with no change.
 # The daemon starts from a config whose only top-level block is `plugin { }`,
-# receives SIGHUP, reloads (nothing changed), then receives SIGTERM.
+# receives SIGHUP, reloads (nothing changed), then the runner stops it once the
+# reload reports completion (await ... then=stop).
 # Expected: clean reload, the completion line, exit 0.
 #
 # This ran against the standalone hub orchestrator until 2026-08-12. That second
@@ -23,6 +24,7 @@ EOF_CONF
 # Process orchestration
 cmd=background:seq=1:exec=ze-test fixture reload/reload-plugin-only-no-change-trigger
 cmd=foreground:seq=2:exec=ze start plugin-only.conf:timeout=10s
+await=stderr:contains=sighup reload complete:then=stop
 expect=exit:code=0
 expect=stderr:contains=reloading config
 # handleSIGHUPReload's stable completion line. Without it the daemon's last word

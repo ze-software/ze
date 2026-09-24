@@ -646,8 +646,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// teardown (see await_stderr.go). nil (the common case) leaves stderr
 	// handling byte-for-byte unchanged.
 	var awaitStderrSW *syncWriter
-	if rec.AwaitStderr != "" {
-		awaitStderrSW = newSyncWriterPattern(rec.AwaitStderr)
+	if len(rec.AwaitStderr) != 0 {
+		awaitStderrSW = newSyncWriterPattern(rec.AwaitStderr...)
 	}
 
 	// Exit error of the last awaited quick-exit ze command (see awaitQuickZe),
@@ -977,6 +977,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// check-mode peer reports peerSuccessToken, and the verdict must
 				// require every one of them individually (failedCheckPeers).
 				checkMode: isCheckPeerExec(execStr),
+				linger:    isCheckPeerExec(execStr) && peerLingers(stdinContent),
 				label:     peerLabel(cmd),
 			}
 			peerOutputs = append(peerOutputs, po)
@@ -1089,10 +1090,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// publish daemon.pid. Without this the poller times out by
 				// construction (the runner never wrote either file).
 				if proc.Process != nil {
-					// An await=stderr fence provides its own synchronization (and
-					// a plugin that aborts startup may never write daemon.ready),
-					// so skip this 5s wait then -- mirrors the foreground path.
-					if !hasPeer && rec.AwaitStderr == "" {
+					// A plain await=stderr fence provides its own synchronization
+					// (and a plugin that aborts startup may never write
+					// daemon.ready), so skip this 5s wait then; a then=stop fence
+					// keeps it (awaitSkipsReady) -- mirrors the foreground path.
+					if !hasPeer && !rec.awaitSkipsReady() {
 						readyPath := filepath.Join(rec.WorkDir, "daemon.ready")
 						// Parallel-run headroom: a daemon that writes daemon.ready after
 						// startup can be slow to reach it under oversubscription. Identity
@@ -1166,10 +1168,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// When no ze-peer provides BGP-level synchronization, wait for
 				// the process readiness file before writing daemon.pid. This
 				// prevents a race where signal.sh sends SIGHUP before the
-				// process has registered signal handlers. An await=stderr fence
-				// provides its own synchronization (and a plugin that aborts
-				// startup may never write daemon.ready), so skip this wait then.
-				if !hasPeer && rec.AwaitStderr == "" {
+				// process has registered signal handlers. A plain await=stderr
+				// fence provides its own synchronization (and a plugin that aborts
+				// startup may never write daemon.ready), so skip this wait then;
+				// a then=stop fence keeps it (awaitSkipsReady).
+				if !hasPeer && !rec.awaitSkipsReady() {
 					readyPath := filepath.Join(rec.WorkDir, "daemon.ready")
 					// Same parallel-run headroom as the background-daemon path above:
 					// a foreground ze slow to write daemon.ready under oversubscription
@@ -1236,7 +1239,31 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).
 	var err error
 
+	// daemonStopped is set when an arm below already stopped and reaped fgProc,
+	// so the teardown after the switch leaves it alone.
+	daemonStopped := false
+
 	switch {
+	case awaitStderrSW != nil && rec.AwaitThenStop:
+		// await=stderr:then=stop: the runner stops the daemon itself once the
+		// fence holds, so a lingering check peer, which never ends by itself,
+		// needs no fixed-delay SIGTERM from a fixture (see awaitThenStop).
+		daemonErr, peerErr, fenced := r.awaitThenStop(testCtx, rec, awaitStderrSW, fgProc, peerOutputs, testBudget)
+		if !fenced {
+			// Same repair as the arm below: the report must carry what the
+			// daemon and the peers said, or a failed fence explains nothing.
+			setClientOutput(rec, clientStdout.String(), clientStderr.String())
+			rec.PeerOutput = collectPeerOutput(peerOutputs)
+			rec.Duration = time.Since(rec.StartTime)
+			return false
+		}
+		daemonStopped = true
+		// Mirror the two arms this one replaces: an exit-code test asserts the
+		// daemon's own exit, and any other test the check peers' exits.
+		err = peerErr
+		if rec.ExpectExitCode != nil {
+			err = daemonErr
+		}
 	case awaitStderrSW != nil:
 		// await=stderr fence: block until the daemon's relayed stderr carries the
 		// needle, then fall through to the graceful-stop teardown below. This is
@@ -1280,12 +1307,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Gracefully stop remaining processes (daemons). The daemon that the test's
 	// own observer asks to stop is given that chance first: see
 	// selfStopGrace and terminateAfterSelfExit.
-	selfStop := fgProc != nil && tmpfsRequestsDaemonShutdown(rec.TmpfsFiles)
+	selfStop := fgProc != nil && !daemonStopped && tmpfsRequestsDaemonShutdown(rec.TmpfsFiles)
 	if selfStop {
 		terminateAfterSelfExit(fgProc, selfStopGrace(r.withParallelHeadroom(testBudget)))
 	}
 	for _, p := range bgProcs {
-		if peerProcs[p] || p.Process == nil || (selfStop && p == fgProc) {
+		if peerProcs[p] || p.Process == nil || (selfStop && p == fgProc) || (daemonStopped && p == fgProc) {
 			continue
 		}
 		terminateGracefully(p)

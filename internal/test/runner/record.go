@@ -192,10 +192,17 @@ type Record struct {
 	// bucket: a plugin whose refusal aborts plugin startup (StartupCoordinator.
 	// PluginFailed) leaves no in-daemon observer able to poll it, so the only
 	// non-plugin signal is the relayed stderr line itself. Parsed from
-	// await=stderr:contains=TEXT[:timeout=DUR]. Empty = disabled (no behavior
-	// change).
-	AwaitStderr        string
+	// await=stderr:contains=TEXT[:timeout=DUR][:then=stop]. Several await lines
+	// make one fence that holds until EVERY needle has appeared. Empty =
+	// disabled (no behavior change).
+	AwaitStderr        []string
 	AwaitStderrTimeout string // optional Go duration (e.g. "10s"); empty = default
+	// AwaitThenStop makes the runner itself stop the daemon once the fence
+	// holds, instead of waiting for the peers to end the test. It exists for a
+	// test whose peer lingers (option=linger), which never ends by itself, and
+	// whose daemon was otherwise stopped by a fixed-delay SIGTERM that raced the
+	// event under test. Set by :then=stop on any await line.
+	AwaitThenStop bool
 
 	// Tmpfs embedded files
 	// TmpfsFiles maps a path to the file the tmpfs= block declared, MODE

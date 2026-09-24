@@ -167,6 +167,14 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze-test fixture reload/config-apply-ordering-mixed-rollback-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
 
+# Stop once the reload's outcome and both observer lines are on stderr, and the
+# lingering peer has seen connection 2 (then=stop waits for it). The observers'
+# stderr is relayed apart from the daemon's own, so each line is its own needle.
+await=stderr:contains=OK: mixed rollback: the failing participant refused its section apply:then=stop
+await=stderr:contains=OK: mixed rollback: the coarse node received the section rollback
+await=stderr:contains=config apply partial failure
+await=stderr:contains=reload error
+
 expect=exit:code=0
 expect=stderr:contains=OK: mixed rollback: the failing participant refused its section apply
 expect=stderr:contains=OK: mixed rollback: the coarse node received the section rollback

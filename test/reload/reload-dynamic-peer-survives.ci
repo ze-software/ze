@@ -179,19 +179,17 @@ bgp {
 }
 EOF_CONF2
 
-# Trigger: wait for the daemon, let the dynamic peer establish, reload, then stop.
-# The gap between the reload and the shutdown is what makes the NOTIFICATION
-# evidence of survival rather than of timing: the reload has finished by then, so
-# a peer the reload would have torn down is already gone.
+# Trigger: wait for the daemon, let the dynamic peer establish, reload. The runner
+# then stops the daemon once "sighup reload complete" is on stderr (the await
+# below). Stopping only after the reload finished is what makes the NOTIFICATION
+# evidence of survival rather than of timing: a peer the reload would have torn
+# down is already gone.
 #
-# Neither sleep carries the verdict, and neither one can make this file pass for
-# the wrong reason. A first sleep too short for the session to establish trips the
-# reject below, because the peer is then built after the signal. A second one too
-# short for the reconcile to finish leaves "sighup reload complete" unwritten and
-# trips the expect. The second is the longer one because this suite shares a
-# machine with other test runs and a reload of this config was measured taking
-# over 3s under that load, while the first only has to cover a dial the peer
-# retries every 500ms against a daemon that has already written daemon.ready.
+# The sleep before the SIGHUP does not carry the verdict and cannot make this
+# file pass for the wrong reason. A sleep too short for the session to establish
+# trips the reject below, because the peer is then built after the signal. It
+# only has to cover a dial the peer retries every 500ms against a daemon that has
+# already written daemon.ready.
 
 # Process orchestration. The peer is the background process, as in every other
 # reload test, so the runner collects its output and drives the verdict from it.
@@ -200,6 +198,10 @@ EOF_CONF2
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
 cmd=background:seq=2:exec=ze-test fixture reload/reload-dynamic-peer-survives-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
+# The runner stops the daemon once the reload reports completion. The peer is
+# not lingering, so then=stop does not wait for it: its expectation is the
+# Cease this stop produces.
+await=stderr:contains=sighup reload complete:then=stop
 
 # The session above really was a DYNAMIC peer's. Without this the wire assertion
 # alone would pass for any peer holding an open socket, which is how the first

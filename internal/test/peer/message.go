@@ -206,9 +206,9 @@ type RouteToSend struct {
 	Labels []uint32 // MPLS label stack; nil = not labeled unicast
 }
 
-// BuildRouteMsg constructs a BGP UPDATE message with the given route.
+// buildRouteMsg constructs a BGP UPDATE message with the given route.
 // Uses 4-byte ASN encoding (ASN4 capability assumed).
-func BuildRouteMsg(route RouteToSend) ([]byte, error) {
+func buildRouteMsg(route RouteToSend) ([]byte, error) {
 	if len(route.Labels) > 0 {
 		return buildLabeledRouteMsg(route)
 	}
@@ -437,7 +437,7 @@ func buildLabeledRouteMsg(route RouteToSend) ([]byte, error) {
 	return msg, nil
 }
 
-// NotificationMsg builds a BGP NOTIFICATION message with Cease/Administrative Shutdown.
+// notificationMsg builds a BGP NOTIFICATION message with Cease/Administrative Shutdown.
 // RFC 4271 Section 4.5 - NOTIFICATION Message Format.
 // RFC 9003 - Extended BGP Administrative Shutdown Communication.
 //
@@ -446,7 +446,7 @@ func buildLabeledRouteMsg(route RouteToSend) ([]byte, error) {
 // - Subcode: 2 (Administrative Shutdown)
 // - Length: 1 byte (0-255)
 // - Shutdown Communication: UTF-8, max 255 bytes per RFC 9003.
-func NotificationMsg(text string) []byte {
+func notificationMsg(text string) []byte {
 	textBytes := []byte(text)
 
 	// RFC 9003: max 255 octets for shutdown communication

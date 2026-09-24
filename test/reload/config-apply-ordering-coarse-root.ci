@@ -125,6 +125,9 @@ EOF_CONF2
 
 cmd=background:seq=1:exec=ze-test fixture reload/config-apply-ordering-coarse-root-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+# Stop once the reload completed and the observer saw the coarse root applied.
+await=stderr:contains=sighup reload complete:then=stop
+await=stderr:contains=OK: coarse root applied root=rsvp-te
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: coarse root applied root=rsvp-te

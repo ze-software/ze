@@ -58,7 +58,7 @@ func TestNotificationMsgLengthCapped(t *testing.T) {
 		longText[i] = 'A'
 	}
 
-	msg := NotificationMsg(string(longText))
+	msg := notificationMsg(string(longText))
 
 	// Expected: 19 header + 3 (code, subcode, len) + 255 (capped text) = 277
 	expectedLen := 19 + 3 + 255
@@ -429,7 +429,7 @@ func TestUTF8TruncationSafety(t *testing.T) {
 		t.Fatalf("test setup: expected 256 bytes, got %d", len([]byte(text.String())))
 	}
 
-	msg := NotificationMsg(text.String())
+	msg := notificationMsg(text.String())
 
 	// Extract the text from the message (starts at byte 22)
 	extractedText := msg[22:]

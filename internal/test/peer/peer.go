@@ -647,7 +647,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 	// Send default route if requested.
 	if p.config.SendDefaultRoute {
 		p.printf("sending default-route\n")
-		msg, err := BuildRouteMsg(defaultRoute(senderAS))
+		msg, err := buildRouteMsg(defaultRoute(senderAS))
 		if err != nil {
 			return Result{Success: false, Error: fmt.Errorf("build default route: %w", err)}
 		}
@@ -660,7 +660,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 	for _, route := range p.config.SendRoutes {
 		route.SenderAS = senderAS
 		p.printf("sending route %s origin-as=%d\n", route.Prefix, route.OriginAS)
-		msg, err := BuildRouteMsg(route)
+		msg, err := buildRouteMsg(route)
 		if err != nil {
 			return Result{Success: false, Error: fmt.Errorf("build route %s: %w", route.Prefix, err)}
 		}
@@ -694,7 +694,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 	// Check for notification action after OPEN handshake.
 	if ok, text := p.checker.nextNotificationAction(); ok {
 		p.printf("\nsending notification: %q\n", text)
-		if _, err := conn.Write(NotificationMsg(text)); err != nil {
+		if _, err := conn.Write(notificationMsg(text)); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
 		}
 		// Notification closes the session.
@@ -841,7 +841,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		// Check for notification action after matched message.
 		if ok, text := p.checker.nextNotificationAction(); ok {
 			p.printf("\nsending notification: %q\n", text)
-			if _, err := conn.Write(NotificationMsg(text)); err != nil {
+			if _, err := conn.Write(notificationMsg(text)); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
 			}
 			if p.checker.Completed() {

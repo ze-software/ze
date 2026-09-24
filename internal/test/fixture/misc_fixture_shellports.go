@@ -15,22 +15,21 @@ import (
 
 type reloadSignalPlan struct {
 	source, destination string
-	before, after       time.Duration
+	before              time.Duration
 	hups                int
-	terminate           bool
 	requireReady        bool
 }
 
 func init() {
 	for name, plan := range map[string]reloadSignalPlan{
-		"reload/config-apply-ordering-coarse-root-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, after: 3 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/config-apply-ordering-coarse-root-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/config-apply-ordering-create-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/config-apply-ordering-mixed-rollback-trigger": {source: fileConfig2Conf, destination: fileBGPConf, before: 2 * time.Second, after: 6 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/config-apply-ordering-mixed-rollback-trigger": {source: fileConfig2Conf, destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
 		"reload/reload-add-bgp-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/reload-add-peer-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, before: 3 * time.Second, after: 8 * time.Second, hups: 1, terminate: true, requireReady: true},
-		"reload/reload-plugin-only-no-change-trigger":         {before: 200 * time.Millisecond, after: time.Second, hups: 1, terminate: true},
-		"reload/tx-bgp-rollback-trigger":                      {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, before: 3 * time.Second, hups: 1, requireReady: true},
+		"reload/reload-plugin-only-no-change-trigger":         {before: 200 * time.Millisecond, hups: 1},
+		"reload/tx-bgp-rollback-trigger":                      {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
 		"reload/tx-iface-apply-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-bgp-chain-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-tunnel-create-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
@@ -41,10 +40,10 @@ func init() {
 		"reload/tx-iface-wireguard-remove-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-protocol-exclusion-trigger":                {source: fileConfig2Conf, destination: fileBGPConf, hups: 2, requireReady: true},
 		"reload/tx-protocol-external-plugin-trigger":          {source: "updated.conf", destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
-		"reload/tx-protocol-rollback-trigger":                 {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/tx-protocol-rollback-trigger":                 {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
 		"reload/tx-protocol-sighup-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/pki-reference-reload-trigger":                 {source: "addref.conf", destination: "hub.conf", after: 3 * time.Second, hups: 1, terminate: true},
-		"reload/pki-reference-reload-broken-trigger":          {source: "broken.conf", destination: "hub.conf", after: 3 * time.Second, hups: 1, terminate: true},
+		"reload/pki-reference-reload-trigger":                 {source: "addref.conf", destination: "hub.conf", hups: 1},
+		"reload/pki-reference-reload-broken-trigger":          {source: "broken.conf", destination: "hub.conf", hups: 1},
 	} {
 		Register(name, reloadSignalDriver(plan))
 	}
@@ -89,14 +88,11 @@ func reloadSignalDriver(plan reloadSignalPlan) Driver {
 				return err
 			}
 		}
-		if plan.after != 0 {
-			if err := waitDuration(ctx, plan.after); err != nil {
-				return err
-			}
-		}
-		if plan.terminate {
-			return syscall.Kill(pid, syscall.SIGTERM)
-		}
+		// The trigger never stops the daemon. A test that needs it stopped once
+		// the reload has finished declares await=stderr:...:then=stop, and the
+		// runner stops it when the reload's outcome line appears. A SIGTERM a
+		// fixed delay after the SIGHUP raced the reload under load: shutdown
+		// canceled a verify that was still running.
 		return nil
 	}
 }

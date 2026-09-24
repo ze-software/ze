@@ -99,7 +99,7 @@ func isAcceptOnly(r *Record) bool {
 		len(r.ExpectStderr) != 0 ||
 		len(r.ExpectSyslog) != 0 ||
 		r.HasStreamAssertion() ||
-		r.AwaitStderr != "" ||
+		len(r.AwaitStderr) != 0 ||
 		len(r.FileChecks) != 0 ||
 		len(r.HTTPChecks) != 0 ||
 		len(r.HTTPWaits) != 0 ||
