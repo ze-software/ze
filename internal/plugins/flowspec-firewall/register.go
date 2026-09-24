@@ -34,7 +34,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 	reg := registry.Registration{
 		Name:         "flowspec-firewall",
 		Description:  "Translates BGP FlowSpec routes into nftables firewall rules",
-		Dependencies: []string{"firewall"},
+		Dependencies: []string{"firewall", "bgp-rib"},
 		RunEngine:    runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

@@ -79,14 +79,6 @@ func TestActionToFirewall(t *testing.T) {
 	require.Len(t, actions, 1)
 	assert.Equal(t, firewall.Drop{}, actions[0])
 
-	// Rate limit
-	actions = actionToFirewall(flowAction{rateLimit: 8000})
-	require.Len(t, actions, 2)
-	limit, ok := actions[0].(firewall.Limit)
-	require.True(t, ok)
-	assert.Equal(t, uint64(8000), limit.Rate)
-	assert.Equal(t, firewall.Accept{}, actions[1])
-
 	// DSCP marking
 	actions = actionToFirewall(flowAction{markDSCP: 46, hasMark: true})
 	require.Len(t, actions, 2)
@@ -95,15 +87,10 @@ func TestActionToFirewall(t *testing.T) {
 
 	// No action
 	actions = actionToFirewall(flowAction{})
-	assert.Empty(t, actions)
-
-	// Combined rate-limit + DSCP mark
-	actions = actionToFirewall(flowAction{rateLimit: 1000, hasMark: true, markDSCP: 46})
-	require.Len(t, actions, 3)
-	_, isLimit := actions[0].(firewall.Limit)
-	assert.True(t, isLimit)
-	assert.Equal(t, firewall.SetDSCP{Value: 46}, actions[1])
-	assert.Equal(t, firewall.Accept{}, actions[2])
+	assert.Equal(t, []firewall.Action{firewall.Accept{}}, actions)
+	actions = actionToFirewall(flowAction{continueRules: true, sample: true})
+	require.Len(t, actions, 1, "sampling without a terminal verdict permits the next rule")
+	assert.IsType(t, firewall.Log{}, actions[0])
 }
 
 func TestUnsupportedComponentRejected(t *testing.T) {
@@ -125,13 +112,15 @@ func TestUnsupportedComponentRejected(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedComponent)
 }
 
-func TestNoActionSkipped(t *testing.T) {
+func TestNoActionUsesNormalForwarding(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
 	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
 
-	_, err := translateFlowSpec(fs, flowAction{}, "test-key")
-	assert.ErrorIs(t, err, errNoAction)
+	terms, err := translateFlowSpec(fs, flowAction{}, "test-key")
+	require.NoError(t, err)
+	require.Len(t, terms, 1)
+	assert.Equal(t, []firewall.Action{firewall.Accept{}}, terms[0].Actions)
 }
 
 func TestBuildTerm(t *testing.T) {
@@ -189,30 +178,6 @@ func TestParseExtendedCommunities(t *testing.T) {
 	assert.Equal(t, uint32(0xFFFFFFFF), act.rateLimit)
 }
 
-func TestParseNLRIJSON(t *testing.T) {
-	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-
-	nlri := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"protocol":[["=6"]],"destination-port":[["=80"]]}`)
-	fs, err := parseNLRIJSON(fam, nlri)
-	require.NoError(t, err)
-	require.Len(t, fs.Components(), 3)
-
-	// Unsupported component rejects the rule
-	nlriBad := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"packet-length":[["=128"]]}`)
-	_, err = parseNLRIJSON(fam, nlriBad)
-	assert.ErrorIs(t, err, errUnsupportedComponent)
-
-	// Empty NLRI is valid (no components)
-	nlriEmpty := []byte(`{}`)
-	fs, err = parseNLRIJSON(fam, nlriEmpty)
-	require.NoError(t, err)
-	assert.Empty(t, fs.Components())
-
-	// Malformed JSON
-	_, err = parseNLRIJSON(fam, []byte(`not json`))
-	assert.Error(t, err)
-}
-
 func TestPortAnySplitsTerms(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
@@ -222,7 +187,7 @@ func TestPortAnySplitsTerms(t *testing.T) {
 	act := flowAction{discard: true}
 	terms, err := translateFlowSpec(fs, act, "port-any-key")
 	require.NoError(t, err)
-	require.Len(t, terms, 2, "Type 4 Port should produce two terms (src OR dst)")
+	require.Len(t, terms, 4, "source OR destination alternatives apply independently to TCP and UDP")
 
 	// One term has MatchSourcePort, the other MatchDestinationPort
 	hasSrc, hasDst := false, false
@@ -249,29 +214,6 @@ func TestPortAnySplitsTerms(t *testing.T) {
 		}
 		assert.True(t, hasDstAddr, "split term %q must preserve MatchDestinationAddress", term.Name)
 	}
-}
-
-func TestParseNLRIJSONIPv6(t *testing.T) {
-	fam := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}
-
-	nlri := []byte(`{"destination-ipv6":[["2001:db8::/32"]],"next-header":[["=6"]]}`)
-	fs, err := parseNLRIJSON(fam, nlri)
-	require.NoError(t, err)
-	require.Len(t, fs.Components(), 2)
-}
-
-func TestRangeOperatorRejected(t *testing.T) {
-	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-
-	// Range operator in destination-port
-	nlri := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"destination-port":[[">=1024"]]}`)
-	_, err := parseNLRIJSON(fam, nlri)
-	assert.ErrorIs(t, err, errUnsupportedOperator)
-
-	// Range operator in protocol
-	nlri = []byte(`{"protocol":[[">6"]]}`)
-	_, err = parseNLRIJSON(fam, nlri)
-	assert.ErrorIs(t, err, errUnsupportedOperator)
 }
 
 // TestComponentToMatchRejectsUnnamedProtocol replaces TestProtoNameUnknown,
@@ -459,35 +401,36 @@ func TestComponentToMatchEveryWireValue(t *testing.T) {
 // roughly three orders of magnitude tighter than requested, on traffic the
 // operator asked to be policed rather than dropped.
 func TestTrafficRatePacketsInstallsAPacketDimension(t *testing.T) {
-	// actionToFirewall appends a trailing Accept, so find the Limit rather than
-	// pinning a position: a later action gaining a sibling is not this test's
-	// subject and must not redden it.
-	limitIn := func(t *testing.T, actions []firewall.Action) firewall.Limit {
-		t.Helper()
-		for _, a := range actions {
-			if lim, ok := a.(firewall.Limit); ok {
-				return lim
+	for _, tc := range []struct {
+		subtype   byte
+		dimension firewall.RateDimension
+	}{
+		{6, firewall.RateDimensionBytes},
+		{12, firewall.RateDimensionPackets},
+	} {
+		b := testBridge(t)
+		// Both rate forms carry float32(1000), plus a marking action.
+		b.handleSelected(selectedFixture(t, "10.1.0.0/24", []byte{
+			0x80, tc.subtype, 0, 0, 0x44, 0x7a, 0, 0,
+			0x80, 9, 0, 0, 0, 0, 0, 46,
+		}))
+		tables := b.rules.buildTable()
+		require.True(t, selectedKernelAction[firewall.SetDSCP](tables), "marking is not lost beside a rate")
+		var limits []firewall.Limit
+		for _, table := range tables {
+			for _, chain := range table.Chains {
+				for _, term := range chain.Terms {
+					for _, action := range term.Actions {
+						if limit, ok := action.(firewall.Limit); ok {
+							limits = append(limits, limit)
+						}
+					}
+				}
 			}
 		}
-		t.Fatalf("no firewall.Limit among %d action(s): %#v", len(actions), actions)
-		return firewall.Limit{}
-	}
-
-	lim := limitIn(t, actionToFirewall(parseExtendedCommunities([]string{"rate-limit:1000:packets"})))
-	if lim.Dimension != firewall.RateDimensionPackets {
-		t.Errorf("Dimension = %d, want RateDimensionPackets (%d): RFC 8955 Section 7.2 "+
-			"counts packets, and installing bytes polices ~1000x tighter than asked",
-			lim.Dimension, firewall.RateDimensionPackets)
-	}
-	if lim.Rate != 1000 {
-		t.Errorf("Rate = %d, want 1000", lim.Rate)
-	}
-
-	// The bytes form must keep its own dimension: the suffix decides, and a
-	// blanket switch to packets would be the same defect pointing the other way.
-	limBytes := limitIn(t, actionToFirewall(parseExtendedCommunities([]string{"rate-limit:8000"})))
-	if limBytes.Dimension != firewall.RateDimensionBytes {
-		t.Errorf("Dimension = %d for the suffix-less form, want RateDimensionBytes (%d)",
-			limBytes.Dimension, firewall.RateDimensionBytes)
+		require.Len(t, limits, 1)
+		assert.Equal(t, tc.dimension, limits[0].Dimension)
+		assert.Equal(t, uint64(1000), limits[0].Rate)
+		assert.True(t, limits[0].Over, "the verdict drops excess rather than conforming traffic")
 	}
 }

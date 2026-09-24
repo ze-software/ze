@@ -1,5 +1,4 @@
-// Design: docs/architecture/core-design.md -- per-peer FlowSpec rule state
-
+// Design: docs/guide/flowspec-protected-router.md -- selected rule ordering
 package flowspecfirewall
 
 import (
@@ -7,139 +6,93 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
-// tableName carries the "ze_" ownership prefix, as every other firewall owner
-// does. The nft backend sweeps a table before it re-adds it only when the name
-// carries that prefix, so without it a withdrawn route kept enforcing and every
-// reconcile appended a second copy of each rule. An operator still reads and
-// types "flowspec": firewall.StripZeTablePrefix removes the prefix for the CLI
-// and the web pages.
 const tableName = "ze_flowspec"
 
-// ruleEntry holds translated firewall terms and their hook assignment.
 type ruleEntry struct {
-	terms []firewall.Term
-	local bool // true = input hook, false = forward hook
+	flow   *flowspec.FlowSpec
+	action flowAction
+	terms  []firewall.Term
 }
 
-// ruleMap tracks active FlowSpec rules keyed by (peer, NLRI wire bytes).
 type ruleMap struct {
 	mu       sync.Mutex
-	peers    map[string]map[string]ruleEntry // peer -> nlriKey -> entry
+	rules    map[string]ruleEntry
 	maxRules int
-	count    int
 }
 
 func newRuleMap(maxRules int) *ruleMap {
-	return &ruleMap{
-		peers:    make(map[string]map[string]ruleEntry),
-		maxRules: maxRules,
-	}
+	return &ruleMap{rules: make(map[string]ruleEntry), maxRules: maxRules}
 }
 
-func (rm *ruleMap) add(peer, nlriKey string, entry ruleEntry) bool {
+func (rm *ruleMap) add(key string, entry ruleEntry) bool {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-
-	peerRules, ok := rm.peers[peer]
-	if !ok {
-		peerRules = make(map[string]ruleEntry)
-		rm.peers[peer] = peerRules
+	if _, exists := rm.rules[key]; !exists && len(rm.rules) >= rm.maxRules {
+		return false
 	}
-
-	if _, exists := peerRules[nlriKey]; !exists {
-		if rm.count >= rm.maxRules {
-			return false
-		}
-		rm.count++
-	}
-	peerRules[nlriKey] = entry
+	rm.rules[key] = entry
 	return true
 }
 
-func (rm *ruleMap) remove(peer, nlriKey string) {
+func (rm *ruleMap) remove(key string) {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-
-	peerRules, ok := rm.peers[peer]
-	if !ok {
-		return
-	}
-	if _, exists := peerRules[nlriKey]; exists {
-		delete(peerRules, nlriKey)
-		rm.count--
-		if len(peerRules) == 0 {
-			delete(rm.peers, peer)
-		}
-	}
+	delete(rm.rules, key)
 }
 
-func (rm *ruleMap) removePeer(peer string) int {
-	rm.mu.Lock()
-	defer rm.mu.Unlock()
-
-	peerRules, ok := rm.peers[peer]
-	if !ok {
-		return 0
-	}
-	n := len(peerRules)
-	rm.count -= n
-	delete(rm.peers, peer)
-	return n
-}
-
-// buildTable returns the ze_flowspec table with two chains, or nil if empty.
 func (rm *ruleMap) buildTable() []firewall.Table {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-
-	if rm.count == 0 {
+	if len(rm.rules) == 0 {
 		return nil
 	}
-
-	var fwdTerms, inTerms []firewall.Term
-	for _, peerRules := range rm.peers {
-		for _, entry := range peerRules {
-			if entry.local {
-				inTerms = append(inTerms, entry.terms...)
-			} else {
-				fwdTerms = append(fwdTerms, entry.terms...)
+	type orderedRule struct {
+		key   string
+		entry ruleEntry
+	}
+	ordered := make([]orderedRule, 0, len(rm.rules))
+	for key, entry := range rm.rules {
+		ordered = append(ordered, orderedRule{key, entry})
+	}
+	slices.SortFunc(ordered, func(a, b orderedRule) int {
+		if a.entry.flow != nil && b.entry.flow != nil {
+			if order := flowspec.Compare(a.entry.flow, b.entry.flow); order != 0 {
+				return order
 			}
 		}
+		return strings.Compare(a.key, b.key)
+	})
+	deferMark := false
+	for _, rule := range ordered {
+		deferMark = deferMark || rule.entry.action.hasMark
 	}
-
-	slices.SortFunc(fwdTerms, func(a, b firewall.Term) int { return strings.Compare(a.Name, b.Name) })
-	slices.SortFunc(inTerms, func(a, b firewall.Term) int { return strings.Compare(a.Name, b.Name) })
-
 	var chains []firewall.Chain
-	if len(fwdTerms) > 0 {
-		chains = append(chains, firewall.Chain{
-			Name:     "flowspec-fwd",
-			IsBase:   true,
-			Type:     firewall.ChainFilter,
-			Hook:     firewall.HookForward,
-			Priority: -1,
-			Policy:   firewall.PolicyAccept,
-			Terms:    fwdTerms,
-		})
+	if deferMark {
+		var marks []firewall.Term
+		for _, rule := range ordered {
+			marks = append(marks, markingTerms(rule.entry)...)
+		}
+		marks = append(marks, firewall.Term{Name: "mark-default", Actions: []firewall.Action{firewall.Accept{}}})
+		chains = append(chains, firewall.Chain{Name: flowMarkChain, Terms: marks})
 	}
-	if len(inTerms) > 0 {
-		chains = append(chains, firewall.Chain{
-			Name:     "flowspec-in",
-			IsBase:   true,
-			Type:     firewall.ChainFilter,
-			Hook:     firewall.HookInput,
-			Priority: -1,
-			Policy:   firewall.PolicyAccept,
-			Terms:    inTerms,
-		})
+	var terms []firewall.Term
+	for _, rule := range ordered {
+		matched, actions := ruleChains(rule.entry, deferMark)
+		chains = append(chains, actions...)
+		terms = append(terms, matched...)
 	}
-
-	return []firewall.Table{{
-		Name:   tableName,
-		Family: firewall.FamilyInet,
-		Chains: chains,
-	}}
+	if deferMark {
+		terms = append(terms, firewall.Term{Name: "finish-matching", Actions: []firewall.Action{firewall.Goto{Target: flowMarkChain}}})
+	}
+	// The route describes packet destinations, not interface ownership. A
+	// prefix containing one local address can also contain transit addresses.
+	chains = append(chains,
+		firewall.Chain{Name: "flowspec-fwd", IsBase: true, Type: firewall.ChainFilter, Hook: firewall.HookForward, Priority: -1, Policy: firewall.PolicyAccept, Terms: terms},
+		firewall.Chain{Name: "flowspec-in", IsBase: true, Type: firewall.ChainFilter, Hook: firewall.HookInput, Priority: -1, Policy: firewall.PolicyAccept, Terms: terms},
+	)
+	return []firewall.Table{{Name: tableName, Family: firewall.FamilyInet, Chains: chains}}
 }

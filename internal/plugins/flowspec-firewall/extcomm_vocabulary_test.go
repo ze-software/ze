@@ -120,12 +120,12 @@ func TestParseExtendedCommunitiesReadsWhatAppendDecodedWrites(t *testing.T) {
 			rendered:      "copy-to-nexthop 10.0.0.1",
 			unperformable: true,
 		},
-		// RFC 8955 Section 7.3. Ze's firewall has no sampling action.
+		// RFC 8955 Section 7.3: T=1 continues and S=1 requests sampling.
 		{
-			name:          "traffic-action is refused",
-			comm:          attribute.ExtendedCommunity{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03},
-			rendered:      "traffic-action:sample-terminal",
-			unperformable: true,
+			name:     "traffic-action continues and samples",
+			comm:     attribute.ExtendedCommunity{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03},
+			rendered: "traffic-action:sample-terminal",
+			want:     flowAction{continueRules: true, sample: true},
 		},
 		// RFC 8955 Sections 7.1 and 7.2. Both render "rate-limit:<n>" and only
 		// the suffix carries the unit, so the pair is read together.
@@ -172,15 +172,12 @@ func TestParseExtendedCommunitiesReadsWhatAppendDecodedWrites(t *testing.T) {
 			comm:     attribute.ExtendedCommunity{0x0c, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x0a},
 			rendered: "mup:10:10",
 		},
-		// The hex arm, both polarities. RFC 8955 Section 7 takes every traffic
-		// filtering action it defines from types 0x80, 0x81 and 0x82, so an
-		// undecoded type in that range is an action and is refused, while an
-		// undecoded type outside it is not and is ignored.
+		// RFC 9184: these are generic extended-community types, not a range
+		// reserved exclusively for FlowSpec traffic actions.
 		{
-			name:          "an undecoded type in the FlowSpec action range is refused",
-			comm:          attribute.ExtendedCommunity{0x80, 0x99, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
-			rendered:      "0x8099:010203040506",
-			unperformable: true,
+			name:     "an unknown generic transitive community is ignored",
+			comm:     attribute.ExtendedCommunity{0x80, 0x99, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06},
+			rendered: "0x8099:010203040506",
 		},
 		{
 			name:     "an undecoded type outside that range is ignored",
@@ -203,43 +200,10 @@ func TestParseExtendedCommunitiesReadsWhatAppendDecodedWrites(t *testing.T) {
 	}
 }
 
-// extCommLayer2InfoType is the one sub-type inside the FlowSpec action type
-// range that is not a traffic filtering action.
-//
-// RFC 4761 Section 3.2.4 took it for VPLS before RFC 8955 existed: "The
-// extended community value is to be allocated by IANA (currently used value is
-// 0x800A)." A VPLS route carries it, a FlowSpec route has no reason to, and
-// nothing in either RFC makes it an instruction to a filtering engine. So the
-// bridge ignores it, and the sweep below excludes it by name rather than by
-// widening its rule.
-const extCommLayer2InfoType = 0x800a
-
-// TestEveryFlowSpecActionTypeIsAnsweredByTheBridge sweeps the whole 0x80-0x82
-// type range that RFC 8955 Section 7 takes its traffic filtering actions from,
-// and asserts the bridge answers for each sub-type: it either performs the
-// action or records it as unperformable.
-//
-// The table above names the sub-types that exist today. This one covers the one
-// that does not exist yet. The bridge refuses an unnamed sub-type on the "0x80"
-// prefix of the hex fallback, so a sub-type the renderer LATER names escapes
-// that refusal the moment it gains an arm: the text stops starting with "0x80"
-// and no bridge arm reads the new word. A peer's instruction then reaches the
-// firewall as silence, and silence here widens the rule rather than narrowing
-// it. That is the pairing this file exists to hold, and this is the half no
-// table of known values can cover.
-func TestEveryFlowSpecActionTypeIsAnsweredByTheBridge(t *testing.T) {
-	for typeHigh := 0x80; typeHigh <= 0x82; typeHigh++ {
-		for subType := 0x00; subType <= 0xff; subType++ {
-			if typeHigh<<8|subType == extCommLayer2InfoType {
-				continue
-			}
-
-			comm := attribute.ExtendedCommunity{byte(typeHigh), byte(subType), 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
-			rendered := string(comm.AppendDecoded(nil))
-			act := parseExtendedCommunities([]string{rendered})
-
-			answered := act.discard || act.rateLimit != 0 || act.hasMark || act.unperformable != ""
-			assert.True(t, answered, "type 0x%02x%02x renders %q and the bridge neither performs nor refuses it", typeHigh, subType, rendered)
-		}
+func TestUnknownGenericExtendedCommunitiesAreNotInventedActions(t *testing.T) {
+	for _, typeHigh := range []byte{0x80, 0x81, 0x82} {
+		comm := attribute.ExtendedCommunity{typeHigh, 0x99, 1, 2, 3, 4, 5, 6}
+		act := parseExtendedCommunities([]string{string(comm.AppendDecoded(nil)), "rate-limit:0"})
+		assert.Equal(t, flowAction{discard: true}, act, "an unknown generic community must not suppress a supported action")
 	}
 }

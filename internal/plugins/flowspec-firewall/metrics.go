@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- FlowSpec-to-firewall bridge
-// Related: engine.go -- handleFlowSpecOp and handleFlowSpecAdd, the callers of countRuleRefused
+// Related: selected.go -- handleSelected counts rejected selected rules
 
 package flowspecfirewall
 
@@ -16,7 +16,6 @@ import (
 const (
 	refusedReasonUnknownProtocol = "unknown-protocol"
 	refusedReasonUnsupported     = "unsupported-component"
-	refusedReasonNoAction        = "no-action"
 	refusedReasonUnsupportedAct  = "unsupported-action"
 	refusedReasonParse           = "parse"
 	refusedReasonMaxRules        = "max-rules"
@@ -63,8 +62,6 @@ func refusalReason(err error) string {
 		return refusedReasonUnknownProtocol
 	case errors.Is(err, errUnsupportedComponent), errors.Is(err, errUnsupportedOperator):
 		return refusedReasonUnsupported
-	case errors.Is(err, errNoAction):
-		return refusedReasonNoAction
 	case errors.Is(err, errUnsupportedAction):
 		return refusedReasonUnsupportedAct
 	default:

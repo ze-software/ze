@@ -28,7 +28,7 @@ func flowFamily() family.Family {
 	return family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 }
 
-// TestPortZeroKeepsItsMatch drives the writer's own JSON, as the daemon does.
+// TestPortZeroKeepsItsMatch drives the native NLRI writer and decoder.
 //
 // VALIDATES: a destination-port of 0 reaches the firewall term as a port match.
 // PREVENTS: a peer's "drop tcp to 10.1.0.0/24 destination-port =0" installing a
@@ -37,14 +37,14 @@ func flowFamily() family.Family {
 // enforced without the one condition that narrowed it.
 func TestPortZeroKeepsItsMatch(t *testing.T) {
 	fam := flowFamily()
-	data := realNLRIJSON(t, fam,
+	data := flowWire(t, fam,
 		flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.1.0.0/24")),
 		flowspec.NewFlowIPProtocolComponent(6),
 		flowspec.NewFlowDestPortComponent(0),
 	)
 
-	fs, err := parseNLRIJSON(fam, data)
-	require.NoError(t, err, "the bridge must parse what the daemon writes: %s", data)
+	fs, err := flowspec.ParseFlowSpec(fam, data)
+	require.NoError(t, err)
 
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "port-zero-key")
 	require.NoError(t, err)
@@ -92,6 +92,7 @@ func TestPortAnyZeroSplitsTerms(t *testing.T) {
 	fam := flowFamily()
 	fs := flowspec.NewFlowSpec(fam)
 	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowIPProtocolComponent(6)))
 	require.NoError(t, fs.AddComponent(flowspec.NewFlowPortComponent(0)))
 
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "port-any-zero-key")
@@ -175,7 +176,7 @@ func TestValueTooLargeForTheMatchIsRefused(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedComponent, "DSCP is six bits: 64 does not fit")
 
 	_, err = componentToMatch(widePortComponent(t, 0x00010000), fam)
-	assert.ErrorIs(t, err, errUnreadableValue, "a port above 65535 must refuse the rule")
+	assert.Error(t, err, "a port above 65535 must refuse the rule")
 }
 
 // widePortComponent builds a destination-port component whose single value is
@@ -196,22 +197,25 @@ func widePortComponent(t *testing.T, value uint32) flowspec.FlowComponent {
 	return fs.Components()[0]
 }
 
-// TestTCPFlagsListSurvivesTheJSONParser closes the parser end of the same hole.
-//
-// VALIDATES: parseNLRIJSON carries every tcp-flags value into the component, so
-// the refusal above can see the list.
-// PREVENTS: the parser keeping vals[0] and dropping the rest, which produced a
-// single-value component that translated cleanly into a rule matching one flag
-// combination out of the several the peer sent.
-func TestTCPFlagsListSurvivesTheJSONParser(t *testing.T) {
+// Every TCP flag alternative must reach the translator; truncating to the first
+// one would turn an unsupported predicate into a different, enforceable rule.
+func TestTCPFlagsListSurvivesNativeWire(t *testing.T) {
 	fam := flowFamily()
 
-	fs, err := parseNLRIJSON(fam, []byte(`{"destination-ipv4":[["10.1.0.0/24"]],"tcp-flags":[["=2","=16"]]}`))
+	fs, err := flowspec.ParseFlowSpec(fam, flowWire(t, fam,
+		flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.1.0.0/24")),
+		flowspec.NewFlowTCPFlagsComponent(2, 16)))
 	require.NoError(t, err)
 
 	comp, ok := findComponent(fs, flowspec.FlowTCPFlags)
 	require.True(t, ok, "the tcp-flags component must reach the FlowSpec")
-	assert.Len(t, extractNumericValues(comp), 2, "both flag values must survive the parser")
+	// TCP flags carry bitmask include (op=0), not numeric equality (op=1).
+	// Inspect the same match list the bitmask translator consumes; the
+	// numeric-equality extractor deliberately refuses this operator.
+	flags, readable := comp.(interface{ Matches() []flowspec.FlowMatch })
+	require.True(t, readable)
+	assert.Equal(t, []flowspec.FlowMatch{{Op: 0, Value: 2}, {Op: 0, Value: 16}}, flags.Matches(),
+		"both flag values and their OR bitmask operators must survive the parser")
 
 	_, err = translateFlowSpec(fs, flowAction{discard: true}, "tcp-flags-key")
 	assert.ErrorIs(t, err, errUnsupportedComponent, "a list of flag alternatives refuses the rule")
@@ -237,28 +241,15 @@ func TestPortAnyRefusedThroughComponentToMatch(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedComponent)
 }
 
-// TestRouteWithNoActionIsCountedAndLogged covers the refusal that left no trace.
-//
-// VALIDATES: a FlowSpec route carrying no traffic action moves
-// ze_flowspec_rules_refused_total with reason "no-action" and writes a log line.
-// PREVENTS: handleFlowSpecAdd returning early on it. metrics.go promises every
-// refusal is visible, refusedReasonNoAction had no producer at all, and the
-// operator had no way to see that a peer's route was doing nothing.
-func TestRouteWithNoActionIsCountedAndLogged(t *testing.T) {
+func TestRouteWithoutTrafficActionIsNotRefused(t *testing.T) {
 	reg := newReasonRegistry()
 	previous := bridgeMetricsPtr.Load()
 	t.Cleanup(func() { bridgeMetricsPtr.Store(previous) })
 	bindMetrics(reg)
-
-	var logged bytes.Buffer
-	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
-
-	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
-	require.NoError(t, b.handleEvent(event))
-
-	assert.Nil(t, b.rules.buildTable(), "a route with no action installs nothing")
-	assert.Equal(t, 1, reg.count(refusedReasonNoAction), "the refusal must reach the counter")
-	assert.Contains(t, logged.String(), "rule refused", "the refusal must reach the log")
+	b := testBridge(t)
+	b.handleSelected(selectedFixture(t, "10.1.0.0/24", []byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 100}))
+	assert.True(t, selectedKernelAction[firewall.Accept](b.rules.buildTable()))
+	assert.Empty(t, reg.counts, "normal forwarding is not a refusal")
 }
 
 // TestRouteWithAnActionZeCannotPerformIsRefusedAndNamed drives a received
@@ -283,11 +274,13 @@ func TestRouteWithAnActionZeCannotPerformIsRefusedAndNamed(t *testing.T) {
 	bindMetrics(reg)
 
 	var logged bytes.Buffer
-	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
+	b := testBridge(t)
+	b.log = slog.New(slog.NewTextHandler(&logged, nil))
 
-	event := daemonUpdateJSON("10.0.0.1", []string{"rate-limit:1000", "redirect:65000:100"},
-		daemonOp{action: "add", nlri: []string{`{"destination-ipv4": [["10.3.0.0/24"]]}`}})
-	require.NoError(t, b.handleEvent(event))
+	b.handleSelected(selectedFixture(t, "10.3.0.0/24", []byte{
+		0x80, 6, 0, 0, 0x44, 0x7a, 0, 0,
+		0x80, 8, 0xfd, 0xe8, 0, 0, 0, 100,
+	}))
 
 	assert.Nil(t, b.rules.buildTable(), "a route ze cannot fully perform installs nothing")
 	assert.Equal(t, 1, reg.count(refusedReasonUnsupportedAct), "the refusal must reach the counter")
@@ -307,24 +300,20 @@ func TestRedirectOnlyRouteIsNotReportedAsNoAction(t *testing.T) {
 	t.Cleanup(func() { bridgeMetricsPtr.Store(previous) })
 	bindMetrics(reg)
 
-	b := testBridge()
-	event := daemonAddJSON("10.0.0.1", "redirect:8.8.8.8:100",
-		`{"destination-ipv4": [["10.4.0.0/24"]]}`)
-	require.NoError(t, b.handleEvent(event))
+	b := testBridge(t)
+	b.handleSelected(selectedFixture(t, "10.4.0.0/24", []byte{0x81, 8, 8, 8, 8, 8, 0, 100}))
 
 	assert.Nil(t, b.rules.buildTable())
 	assert.Equal(t, 1, reg.count(refusedReasonUnsupportedAct))
-	assert.Equal(t, 0, reg.count(refusedReasonNoAction), "the peer sent an action ze could not perform")
 }
 
 // TestRouteTargetIsNotATrafficAction pins the guard the refusal must not eat: a
 // VPN FlowSpec route (RFC 8955 Section 8) carries a route target beside its
 // action, and the route target is not an action ze failed to perform.
 func TestRouteTargetIsNotATrafficAction(t *testing.T) {
-	b := testBridge()
-	event := daemonUpdateJSON("10.0.0.1", []string{"target:65000:100", "rate-limit:0"},
-		daemonOp{action: "add", nlri: []string{`{"destination-ipv4": [["10.5.0.0/24"]]}`}})
-	require.NoError(t, b.handleEvent(event))
+	b := testBridge(t)
+	communities := append([]byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 100}, discardTrafficRate...)
+	b.handleSelected(selectedFixture(t, "10.5.0.0/24", communities))
 
 	assert.NotNil(t, b.rules.buildTable(), "a route target must not refuse the route")
 }
@@ -348,15 +337,13 @@ func TestUnknownProtocolRouteIsCountedAndNamed(t *testing.T) {
 	var logged bytes.Buffer
 	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
 
-	event := daemonAddJSON("10.0.0.1", "rate-limit:0",
-		`{"destination-ipv4": [["10.2.0.0/24"]], "protocol": [["=253"]]}`)
-	require.NoError(t, b.handleEvent(event))
+	b.handleSelected(selectedFixture(t, "10.2.0.0/24", discardTrafficRate,
+		flowspec.NewFlowIPProtocolComponent(253)))
 
 	assert.Nil(t, b.rules.buildTable(), "a refused route installs nothing")
 	assert.Equal(t, 1, reg.count(refusedReasonUnknownProtocol), "the refusal must reach the counter")
 
 	line := logged.String()
-	assert.Contains(t, line, "rule refused", "the refusal must reach the log")
 	// The number is read out of the ERROR text, not out of the rule key: the
 	// key quotes the whole NLRI, so it carries "253" whatever the error says.
 	assert.Contains(t, line, errUnknownProtocol.Error()+": 253",

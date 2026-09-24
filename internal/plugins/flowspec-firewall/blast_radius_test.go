@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec"
 	"github.com/ze-software/ze/internal/component/firewall"
 )
 
@@ -73,13 +74,6 @@ func otherOwnerTable() firewall.Table {
 	}
 }
 
-func flowSpecAddEvent(peer, protocol string) string {
-	return daemonAddJSON(peer, "rate-limit:0", `{
-		"destination-ipv4": [["10.1.0.0/24"]],
-		"protocol": [["=`+protocol+`"]]
-	}`)
-}
-
 // TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers is the security case.
 //
 // VALIDATES: a FlowSpec route ze cannot translate never reaches the backend, so
@@ -110,12 +104,12 @@ func TestApplyRulesRejectsUntranslatableRuleAndKeepsOthers(t *testing.T) {
 		_ = firewall.CloseBackend()
 	})
 
-	b := testBridge()
+	b := testBridge(t)
 	// 253 is legal on the wire (RFC 3692 experimentation) and has no canonical
 	// name, so ze cannot enforce it.
-	require.NoError(t, b.handleEvent(flowSpecAddEvent("10.0.0.2", "253")))
+	b.handleSelected(selectedFixture(t, "10.1.0.0/24", discardTrafficRate, flowspec.NewFlowIPProtocolComponent(253)))
 	// 132 is SCTP: legal on the wire, and ze can enforce it.
-	require.NoError(t, b.handleEvent(flowSpecAddEvent("10.0.0.1", "132")))
+	b.handleSelected(selectedFixture(t, "10.1.0.0/24", discardTrafficRate, flowspec.NewFlowIPProtocolComponent(132)))
 
 	// Only now does another owner reconcile. With an unenforceable FlowSpec term
 	// registered, this is the call that never reaches the kernel.
