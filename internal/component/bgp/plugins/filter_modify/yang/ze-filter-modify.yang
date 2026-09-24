@@ -76,14 +76,17 @@ suggested keyword.";
                 leaf-list large-community {
                     type string;
                     description "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value
-takes the form GA:LD1:LD2, for example 65001:100:200.";
+takes the form GA:LD1:LD2, for example 65001:100:200. Ze validates the value at
+configure time and compares its canonical decimal form.";
                     ze:help "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.";
                 }
 
                 leaf-list extended-community {
                     type string;
                     description "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The
-value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string.";
+value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string. Ze
+validates the value at configure time and compares its eight-octet value, so named
+and hex spellings of the same value select the same routes.";
                     ze:help "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.";
                 }
             }

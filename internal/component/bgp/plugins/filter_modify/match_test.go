@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filtertext"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -33,65 +34,6 @@ func modifyDefsFromConfig(t *testing.T, name string, def map[string]any) *modify
 }
 
 func TestParseModifyMatch(t *testing.T) {
-	t.Run("standard community", func(t *testing.T) {
-		d := modifyDefsFromConfig(t, "RTBH", map[string]any{
-			"match": map[string]any{"community": []any{"65001:666"}},
-			"set":   map[string]any{"next-hop": "192.0.2.1"},
-		})
-		if d.match.empty() {
-			t.Fatal("match condition parsed as empty")
-		}
-		if got, want := len(d.match.communities), 1; got != want {
-			t.Fatalf("communities = %d, want %d", got, want)
-		}
-		if got := d.match.communities[0]; got.value != "65001:666" || got.kind != filtertext.CommunityStandard {
-			t.Fatalf("community = %+v, want 65001:666 standard", got)
-		}
-	})
-
-	t.Run("a well-known value is normalized to the name the formatter emits", func(t *testing.T) {
-		// The filter text renders 0xFFFF029A as "blackhole", never as
-		// "65535:666". Without normalization an operator writing the numeric
-		// form configures a condition that can never fire.
-		d := modifyDefsFromConfig(t, "RTBH", map[string]any{
-			"match": map[string]any{"community": []any{"65535:666"}},
-			"set":   map[string]any{"next-hop": "192.0.2.1"},
-		})
-		if got := d.match.communities[0].value; got != "blackhole" {
-			t.Fatalf("community = %q, want %q", got, "blackhole")
-		}
-	})
-
-	t.Run("the RFC name is accepted as written", func(t *testing.T) {
-		d := modifyDefsFromConfig(t, "RTBH", map[string]any{
-			"match": map[string]any{"community": "blackhole"},
-			"set":   map[string]any{"next-hop": "192.0.2.1"},
-		})
-		if got := d.match.communities[0].value; got != "blackhole" {
-			t.Fatalf("community = %q, want %q", got, "blackhole")
-		}
-	})
-
-	t.Run("large and extended", func(t *testing.T) {
-		d := modifyDefsFromConfig(t, "M", map[string]any{
-			"match": map[string]any{
-				"large-community":    []any{"65001:100:200"},
-				"extended-community": []any{"target:65001:1"},
-			},
-			"set": map[string]any{"local-preference": 200},
-		})
-		kinds := map[filtertext.CommunityKind]string{}
-		for _, c := range d.match.communities {
-			kinds[c.kind] = c.value
-		}
-		if kinds[filtertext.CommunityLarge] != "65001:100:200" {
-			t.Errorf("large = %q", kinds[filtertext.CommunityLarge])
-		}
-		if kinds[filtertext.CommunityExtended] == "" {
-			t.Error("extended community absent")
-		}
-	})
-
 	t.Run("an unknown key inside match is refused", func(t *testing.T) {
 		_, err := parseModifyDefs(map[string]any{
 			"policy": map[string]any{"modify": map[string]any{
@@ -106,19 +48,28 @@ func TestParseModifyMatch(t *testing.T) {
 		}
 	})
 
-	t.Run("an unparseable community value is refused", func(t *testing.T) {
-		_, err := parseModifyDefs(map[string]any{
-			"policy": map[string]any{"modify": map[string]any{
-				"M": map[string]any{
-					"match": map[string]any{"community": "not-a-community"},
-					"set":   map[string]any{"med": 10},
-				},
-			}},
+	for _, tc := range []struct {
+		field, value string
+	}{
+		{"community", "not-a-community"},
+		{"large-community", "1:2:4294967296"},
+		{"extended-community", "target:65000:4294967296"},
+		{"extended-community", "0002fde8000000gg"},
+	} {
+		t.Run("invalid "+tc.field+" "+tc.value, func(t *testing.T) {
+			_, err := parseModifyDefs(map[string]any{
+				"policy": map[string]any{"modify": map[string]any{
+					"M": map[string]any{
+						"match": map[string]any{tc.field: tc.value},
+						"set":   map[string]any{"med": 10},
+					},
+				}},
+			})
+			if err == nil {
+				t.Fatal("an unparseable community match was accepted")
+			}
 		})
-		if err == nil {
-			t.Fatal("an unparseable community was accepted; it would silently never match")
-		}
-	})
+	}
 
 	t.Run("a match with no operations is still refused", func(t *testing.T) {
 		_, err := parseModifyDefs(map[string]any{
@@ -130,6 +81,55 @@ func TestParseModifyMatch(t *testing.T) {
 			t.Fatal("a modify with a condition and nothing to do was accepted")
 		}
 	})
+}
+
+func TestConfiguredMatchModifiesOnlyMatchingRoute(t *testing.T) {
+	target20 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 20}
+	target10 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 10}
+	origin20 := attribute.ExtendedCommunity{0, 3, 0xfd, 0xe8, 0, 0, 0, 20}
+	targetText := string(attribute.ExtendedCommunities{target20}.AppendText(nil))
+	otherTargetText := string(attribute.ExtendedCommunities{target10}.AppendText(nil))
+	previous := defsByName.Load()
+	t.Cleanup(func() { defsByName.Store(previous) })
+
+	for _, tc := range []struct {
+		name, field, configured, matching, other string
+	}{
+		{"numeric well-known", "community", "65535:666",
+			string(attribute.Communities{0xffff029a}.AppendText(nil)),
+			string(attribute.Communities{0xffffff01}.AppendText(nil))},
+		{"large decimal", "large-community", "065001:00100:00200",
+			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}}.AppendText(nil)),
+			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 201}}.AppendText(nil))},
+		{"route target", "extended-community", "target:65000:20", targetText, otherTargetText},
+		{"site of origin", "extended-community", "origin:65000:20",
+			string(attribute.ExtendedCommunities{origin20}.AppendText(nil)), targetText},
+		{"raw extended hex", "extended-community", "0002FDE800000014", targetText, otherTargetText},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defs := map[string]*modifyDef{
+				"SERVICE": modifyDefsFromConfig(t, "SERVICE", map[string]any{
+					"match": map[string]any{tc.field: tc.configured},
+					"set":   map[string]any{"next-hop": "192.0.2.1"},
+				}),
+			}
+			defsByName.Store(&defs)
+			out := handleFilterUpdate(&sdk.FilterUpdateInput{
+				Filter: "SERVICE",
+				Update: "origin igp next-hop 192.0.2.2 " + tc.matching + " nlri ipv4 unicast add 198.51.100.0/24",
+			})
+			if out.Action != sdk.FilterModify || out.Update != "next-hop 192.0.2.1" {
+				t.Fatalf("matching route was not rewritten: %+v", out)
+			}
+			out = handleFilterUpdate(&sdk.FilterUpdateInput{
+				Filter: "SERVICE",
+				Update: "origin igp next-hop 192.0.2.2 " + tc.other + " nlri ipv4 unicast add 198.51.100.0/24",
+			})
+			if out.Action != sdk.FilterAccept || out.Update != "" {
+				t.Fatalf("nonmatching route did not pass unchanged: %+v", out)
+			}
+		})
+	}
 }
 
 func TestMatchCondMatches(t *testing.T) {

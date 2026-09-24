@@ -51,7 +51,10 @@ module ze-filter-community-match {
                                  Large: GA:LD1:LD2, for example 65001:100:200.
                                  Extended: a hex string, for example
                                  000200010000000a, or target:ASN:NN, or
-                                 origin:ASN:NN.";
+                                 origin:ASN:NN. Values are validated at configure
+                                 time and matched by their canonical attribute
+                                 value, so named and hex extended communities
+                                 identify the same eight-octet value.";
                     ze:help "Community value to match.";
                 }
 

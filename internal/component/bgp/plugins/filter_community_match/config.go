@@ -8,15 +8,15 @@
 //
 //	bgp { policy { community-match NAME { entry COMMUNITY { type T; action A; } } } }
 //
-// Each list becomes a *communityList with ordered entries. Community values
-// are stored as strings and matched against the text format output at runtime.
-// Values are checked for non-empty and length limit but not parsed, because
-// the match is a string comparison against what filter_format.go emits.
+// Each list becomes a *communityList with ordered entries. Configured values
+// are parsed and normalized to the attribute formatter's text representation
+// once, so runtime matching remains a string comparison.
 package filter_community_match
 
 import (
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/configorder"
 )
 
@@ -108,9 +108,13 @@ func parseOneCommunityEntry(listName, communityStr string, m map[string]any) (co
 	if err != nil {
 		return communityEntry{}, err
 	}
+	canonical, err := filtertext.CanonicalCommunity(communityStr, ctype)
+	if err != nil {
+		return communityEntry{}, fmt.Errorf("community-match %q entry %q: %w", listName, communityStr, err)
+	}
 
 	return communityEntry{
-		community: communityStr,
+		community: canonical,
 		ctype:     ctype,
 		action:    act,
 	}, nil

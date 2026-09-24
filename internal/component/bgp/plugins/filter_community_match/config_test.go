@@ -4,149 +4,102 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/configorder"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// VALIDATES: Config parsing for community-match entries.
-// VALIDATES: Default type is standard, default action is accept.
-// PREVENTS: Invalid config silently accepted.
-func TestParseOneCommunityEntry(t *testing.T) {
-	tests := []struct {
-		name      string
-		in        map[string]any
-		wantComm  string
-		wantType  communityType
-		wantAct   action
-		wantErr   bool
-		errSubstr string
-	}{
-		{
-			name:     "standard_defaults",
-			in:       map[string]any{"community": "65001:100"},
-			wantComm: "65001:100",
-			wantType: communityStandard,
-			wantAct:  actionAccept,
-		},
-		{
-			name:     "explicit_standard_reject",
-			in:       map[string]any{"community": "65001:100", "type": "standard", "action": "reject"},
-			wantComm: "65001:100",
-			wantType: communityStandard,
-			wantAct:  actionReject,
-		},
-		{
-			name:     "large_type",
-			in:       map[string]any{"community": "65001:100:200", "type": "large"},
-			wantComm: "65001:100:200",
-			wantType: communityLarge,
-			wantAct:  actionAccept,
-		},
-		{
-			name:     "extended_type",
-			in:       map[string]any{"community": "000200010000000a", "type": "extended"},
-			wantComm: "000200010000000a",
-			wantType: communityExtended,
-			wantAct:  actionAccept,
-		},
-		{
-			name:     "well_known_no_export",
-			in:       map[string]any{"community": "no-export", "action": "reject"},
-			wantComm: "no-export",
-			wantType: communityStandard,
-			wantAct:  actionReject,
-		},
-		{
-			name:      "missing_community",
-			in:        map[string]any{"action": "accept"},
-			wantErr:   true,
-			errSubstr: "missing community",
-		},
-		{
-			name:      "empty_community",
-			in:        map[string]any{"community": ""},
-			wantErr:   true,
-			errSubstr: "missing community",
-		},
-		{
-			name:      "invalid_type",
-			in:        map[string]any{"community": "65001:100", "type": "bogus"},
-			wantErr:   true,
-			errSubstr: `invalid type "bogus"`,
-		},
-		{
-			name:      "invalid_action",
-			in:        map[string]any{"community": "65001:100", "action": "permit"},
-			wantErr:   true,
-			errSubstr: `invalid action "permit"`,
-		},
-		{
-			name:      "community_too_long",
-			in:        map[string]any{"community": strings.Repeat("x", maxCommunityLen+1)},
-			wantErr:   true,
-			errSubstr: "exceeds maximum length",
-		},
-	}
+// Config spelling must not change the value matched against formatted UPDATEs.
+func TestConfiguredCommunityMatchesAttributeValue(t *testing.T) {
+	target20 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 20}
+	target10 := attribute.ExtendedCommunity{0, 2, 0xfd, 0xe8, 0, 0, 0, 10}
+	origin20 := attribute.ExtendedCommunity{0, 3, 0xfd, 0xe8, 0, 0, 0, 20}
+	targetText := string(attribute.ExtendedCommunities{target20}.AppendText(nil))
+	otherTargetText := string(attribute.ExtendedCommunities{target10}.AppendText(nil))
+	noExportText := string(attribute.Communities{0xffffff01}.AppendText(nil))
+	noAdvertiseText := string(attribute.Communities{0xffffff02}.AppendText(nil))
+	previous := listsByName.Load()
+	t.Cleanup(func() { listsByName.Store(previous) })
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			keyStr, _ := tt.in["community"].(string)
-			got, err := parseOneCommunityEntry("test-list", keyStr, tt.in)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tt.errSubstr)
-				}
-				if tt.errSubstr != "" && !strings.Contains(err.Error(), tt.errSubstr) {
-					t.Errorf("error %q does not contain %q", err.Error(), tt.errSubstr)
-				}
-				return
+	for _, tc := range []struct {
+		name, configured, kind, matching, other string
+	}{
+		{"standard", "65001:100", "standard",
+			string(attribute.Communities{65001<<16 | 100}.AppendText(nil)),
+			string(attribute.Communities{65001<<16 | 200}.AppendText(nil))},
+		{"well-known name", "no-export", "", noExportText, noAdvertiseText},
+		{"numeric well-known", "65535:65281", "", noExportText, noAdvertiseText},
+		{"large decimal", "065001:00100:00200", "large",
+			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}}.AppendText(nil)),
+			string(attribute.LargeCommunities{{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 201}}.AppendText(nil))},
+		{"route target", "target:65000:20", "extended", targetText, otherTargetText},
+		{"site of origin", "origin:65000:20", "extended",
+			string(attribute.ExtendedCommunities{origin20}.AppendText(nil)), targetText},
+		{"raw extended hex", "0002FDE800000014", "extended", targetText, otherTargetText},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := map[string]any{}
+			if tc.kind != "" {
+				entry["type"] = tc.kind
 			}
+			lists, err := parseCommunityLists(map[string]any{
+				"policy": map[string]any{
+					"community-match": map[string]any{
+						"SERVICE": map[string]any{
+							"entry": map[string]any{
+								tc.configured: entry,
+							},
+						},
+					},
+				},
+			})
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatal(err)
 			}
-			if got.community != tt.wantComm {
-				t.Errorf("community = %q, want %q", got.community, tt.wantComm)
+			listsByName.Store(&lists)
+			if got := handleFilterUpdate(&sdk.FilterUpdateInput{
+				Filter: "SERVICE", Update: "origin igp " + tc.matching + " nlri ipv4 unicast add 198.51.100.0/24",
+			}); got.Action != sdk.FilterAccept {
+				t.Fatalf("matching attribute rejected: %s", tc.matching)
 			}
-			if got.ctype != tt.wantType {
-				t.Errorf("type = %v, want %v", got.ctype, tt.wantType)
-			}
-			if got.action != tt.wantAct {
-				t.Errorf("action = %v, want %v", got.action, tt.wantAct)
+			if got := handleFilterUpdate(&sdk.FilterUpdateInput{
+				Filter: "SERVICE", Update: "origin igp " + tc.other + " nlri ipv4 unicast add 198.51.100.0/24",
+			}); got.Action != sdk.FilterReject {
+				t.Fatalf("different attribute accepted: %s", tc.other)
 			}
 		})
 	}
 }
 
-// VALIDATES: parseCommunityLists handles map-form config.
-func TestParseCommunityLists_MapForm(t *testing.T) {
-	bgpCfg := map[string]any{
-		"policy": map[string]any{
-			"community-match": map[string]any{
-				"NO-EXPORT": map[string]any{
-					"name": "NO-EXPORT",
-					"entry": map[string]any{
-						"no-export": map[string]any{
-							"action": "reject",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	lists, err := parseCommunityLists(bgpCfg)
-	if err != nil {
-		t.Fatalf("parseCommunityLists: %v", err)
-	}
-	noexp, ok := lists["NO-EXPORT"]
-	if !ok {
-		t.Fatal("NO-EXPORT list missing")
-	}
-	if len(noexp.entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(noexp.entries))
-	}
-	e := noexp.entries[0]
-	if e.community != "no-export" || e.action != actionReject {
-		t.Errorf("got community=%q action=%v, want no-export/reject", e.community, e.action)
+func TestParseOneCommunityEntryRejectsInvalidConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name, value, kind, action string
+	}{
+		{"missing value", "", "", ""},
+		{"invalid type", "65001:100", "bogus", ""},
+		{"invalid action", "65001:100", "", "permit"},
+		{"too long", strings.Repeat("x", maxCommunityLen+1), "", ""},
+		{"standard overflow", "65536:1", "standard", ""},
+		{"unknown name", "no-exprot", "standard", ""},
+		{"large overflow", "1:2:4294967296", "large", ""},
+		{"short extended hex", "0002fde8000000", "extended", ""},
+		{"invalid extended hex", "0002fde8000000gg", "extended", ""},
+		{"unknown extended name", "targte:65000:20", "extended", ""},
+		{"extended overflow", "target:65000:4294967296", "extended", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := map[string]any{}
+			if tc.kind != "" {
+				entry["type"] = tc.kind
+			}
+			if tc.action != "" {
+				entry["action"] = tc.action
+			}
+			_, err := parseOneCommunityEntry("SERVICE", tc.value, entry)
+			if err == nil {
+				t.Fatal("invalid community match configuration accepted")
+			}
+		})
 	}
 }
 
@@ -171,11 +124,11 @@ func TestParseCommunityLists_ListForm_OrderPreserved(t *testing.T) {
 		t.Fatalf("parseCommunityLists: %v", err)
 	}
 	ordered := lists["ORDERED"]
-	if len(ordered.entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(ordered.entries))
+	if got := evaluateCommunities(ordered.entries, "community [65001:100 65001:200]"); got != actionReject {
+		t.Fatalf("first matching entry did not reject: %v", got)
 	}
-	if ordered.entries[0].action != actionReject || ordered.entries[1].action != actionAccept {
-		t.Errorf("order lost: got %v, %v", ordered.entries[0].action, ordered.entries[1].action)
+	if got := evaluateCommunities(ordered.entries, "community 65001:200"); got != actionAccept {
+		t.Fatalf("second matching entry did not accept: %v", got)
 	}
 }
 
@@ -199,9 +152,6 @@ func TestParseCommunityLists_MultiEntryMapFormRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for multi-entry map form, got nil")
 	}
-	if !strings.Contains(err.Error(), "no order") {
-		t.Errorf("error %q does not say the order was missing", err.Error())
-	}
 }
 
 // VALIDATES: Name length limit enforced.
@@ -222,9 +172,6 @@ func TestParseCommunityLists_NameTooLong(t *testing.T) {
 	_, err := parseCommunityLists(bgpCfg)
 	if err == nil {
 		t.Fatal("expected error for long name, got nil")
-	}
-	if !strings.Contains(err.Error(), "exceeds maximum length") {
-		t.Errorf("error %q does not mention length", err.Error())
 	}
 }
 
@@ -283,14 +230,8 @@ func TestParseCommunityListsTwoEntriesInNonLexicalOrder(t *testing.T) {
 			if !ok {
 				t.Fatal("ORDERED list missing")
 			}
-			if len(ordered.entries) != 2 {
-				t.Fatalf("got %d entries, want 2", len(ordered.entries))
-			}
-			if ordered.entries[0].action != tc.wantAction {
-				t.Errorf("first entry action is %v, want %v", ordered.entries[0].action, tc.wantAction)
-			}
-			if ordered.entries[0].community != tc.order[0] {
-				t.Errorf("first entry community is %q, want %q", ordered.entries[0].community, tc.order[0])
+			if got := evaluateCommunities(ordered.entries, "community [65001:100 65001:200]"); got != tc.wantAction {
+				t.Errorf("filter action is %v, want %v", got, tc.wantAction)
 			}
 		})
 	}

@@ -11,8 +11,11 @@
 package filtertext
 
 import (
+	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // CommunityKind selects which community attribute to read.
@@ -37,6 +40,40 @@ func (k CommunityKind) String() string {
 		return "extended"
 	}
 	return "unknown"
+}
+
+// CanonicalCommunity parses one configured value into the attribute formatter's
+// text representation. Both community filters call it at configure time so
+// matching an UPDATE needs no value parsing.
+func CanonicalCommunity(text string, kind CommunityKind) (string, error) {
+	switch kind {
+	case CommunityStandard:
+		value, err := attribute.ParseCommunity(text)
+		if err != nil {
+			return "", err
+		}
+		return attribute.Community(value).String(), nil
+	case CommunityLarge:
+		value, err := attribute.ParseLargeCommunity(text)
+		if err != nil {
+			return "", err
+		}
+		return value.String(), nil
+	case CommunityExtended:
+		var value attribute.ExtendedCommunity
+		var err error
+		if strings.Contains(text, ":") {
+			value, err = attribute.ParseSingleExtCommunity(text)
+		} else {
+			value, err = attribute.ParseExtendedCommunityHex(text)
+		}
+		if err != nil {
+			return "", err
+		}
+		var buf [16]byte
+		return string(value.AppendText(buf[:0])), nil
+	}
+	return "", fmt.Errorf("unsupported community type %d", kind)
 }
 
 // FieldName returns the attribute keyword this kind carries in the filter text
