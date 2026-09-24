@@ -17,21 +17,6 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// TestEnableValidation verifies enable-validation command sets the flag.
-//
-// VALIDATES: request bgp adj-rib-in enable-validation command sets validationEnabled=true.
-// PREVENTS: Validation gate being permanently disabled.
-func TestEnableValidation(t *testing.T) {
-	r := newTestManager(t)
-
-	assert.False(t, r.validationEnabled, "validation should be disabled by default")
-
-	status, _, err := r.handleCommand("request bgp adj-rib-in enable-validation", nil, "")
-	require.NoError(t, err)
-	assert.Equal(t, statusDone, status)
-	assert.True(t, r.validationEnabled, "validation should be enabled after command")
-}
-
 // TestPendingRouteStorage verifies routes are stored as pending when validation is enabled.
 //
 // VALIDATES: Route stored as Pending when validationEnabled=true.
@@ -463,7 +448,7 @@ func TestReValidationAppliesToInstalledRoutes(t *testing.T) {
 	t.Run("string batch accept rewrites the state", func(t *testing.T) {
 		r := install(t)
 		status, _, err := r.handleCommand("request bgp adj-rib-in batch-validate",
-			commandArgs("a 10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1"), "")
+			commandArgs("a 10.0.0.1 ipv4/unicast 10.0.0.0/24 0 1 0"), "")
 		require.NoError(t, err)
 		assert.Equal(t, statusDone, status)
 

@@ -568,6 +568,123 @@ type FamilyRIB struct {
 }
 ```
 
+### Validation eligibility
+
+`bgp-adj-rib-in` retains the received wire attributes, next hop and NLRI when a
+validation decision marks a path `Ineligible`. This is separate from origin
+validation's ordinary rejection, which removes the stored route. A retained path
+does not enter the timeout queue and cannot become eligible through fail-open.
+It becomes usable when a later decision accepts the same received generation.
+
+`rpc.ValidationDecision.MsgID` identifies that generation. A stale decision is
+ignored; a decision for a newer UPDATE waits for its route and removes the
+previous path from selection immediately. Zero explicitly means an unversioned
+decision for the current route, or the next arrival if no route is stored. The
+text batch command uses seven fields per decision:
+`action peer family prefix pathID state msgID`. Its actions are `a` (accept),
+`r` (remove), and `i` (retain ineligible); accepted and retained routes carry the
+origin state, 1 (Valid), 2 (NotFound), or 3 (Invalid).
+
+`enable-validation [refresh] [timeout seconds]` applies the configured timeout
+before taking a revalidation snapshot. The timeout accepts 1 through 65535 seconds
+and defaults to 30. A timeout change applies to the original receive deadline of
+a still-pending path; retained rejected paths remain outside fail-open.
+
+The selecting RIB consults `ribevents.RouteEligible` against this receive store.
+After changing it, Adj-RIB-In releases its lock and emits `ValidationChange`;
+`RIBManager.validationChanged` reruns best-path selection and updates the shared
+Loc-RIB, including withdrawal or selection of another peer's path. Recovery
+therefore needs no new UPDATE. Stored replay excludes ineligible paths, and
+recovery advances their replay sequence so an existing cursor can discover them.
+Ordinary withdrawals and session removal delete retained routes.
+
+`ribevents.RoutePresent` separately reports pending or installed ownership,
+including ineligible paths. Cache eviction uses it to preserve the regenerated
+ADD-PATH identifier across a temporary validation withdrawal; an actual route
+removal releases that ownership. Eligibility and presence callbacks are registered
+together, and both read the same receive-store lock without invoking the cache.
+
+The internal `replay-path` command takes destination, source, family, prefix and
+path identifier. It carries the current path, including pending or ineligible
+state, to the reactor's validation gate for reconciliation. An absent path uses
+`StoredRoute.Withdraw`; every retained path carries its original `MsgID`.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyDecision, applyToInstalled, promoteToInstalled -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go -- routeEligible, unlockValidation -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayPathCommand -->
+<!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- validationChanged, validationEligible -->
+<!-- source: internal/core/bgp/ribevents/validation.go -- RouteEligible, ValidationChange -->
+
+### Mandatory FlowSpec authorization
+
+FlowSpec feasibility is independent of optional RPKI validation. Enabling
+SAFI 133 or 134 makes configuration derivation feed received UPDATE and session
+events from every peer into `bgp-rib`, including the unicast routes needed to
+authorize rules. The feature-only binding is `receive [ update-received state ]`:
+it grants neither sent-UPDATE nor refresh delivery, and no send permission.
+Explicit peer bindings and BGP-source redistribution retain their separate
+grants; the authorization feed does not take ownership of a family's exporter
+replay. A missing FlowSpec provider fails closed; disabling an RPKI validator
+does not bypass this check.
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+
+The received rule remains in its peer's RIB while infeasible. Its destination
+component must have a best covering unicast route in the same AFI. VPN FlowSpec
+uses VPN unicast with the same Route Distinguisher, not global unicast or another
+VPN. Authorization implements RFC 8955 Section 6 as replaced by RFC 9117
+Section 4:
+
+- The originators must match, using ORIGINATOR_ID when present and the peer
+  transport address otherwise. A peer's BGP Identifier is not the fallback.
+- An empty or confederation-only AS_PATH identifies a locally originated
+  controller rule and permits the same-domain originator alternative by default.
+  RFC 9117 Section 1 includes AS_CONFED_SET as well as AS_CONFED_SEQUENCE.
+- For an external rule, the leftmost AS_SEQUENCE ASN must match the best covering
+  unicast route's leftmost ASN. It need not match the route-server peer's ASN.
+- A more-specific unicast route from another neighboring AS makes the rule
+  infeasible.
+
+`reconcileFlowSpecs` recomputes authorization after received-route changes,
+unicast best-path changes, validation changes, withdrawals and session removal.
+It selects one eligible path per native FlowSpec NLRI with the ordinary BGP
+comparison. ADD-PATH identifies received candidates but is not part of the rule
+identity. Equivalent one- and two-octet length fields share a canonical native
+key with the shortest length encoding. An immutable snapshot records each path's generation and feasibility,
+and the selected path's action communities. Pool handles are released before
+publication.
+The advertised MP_REACH next-hop bytes are ignored for FlowSpec, including
+self-address and non-address values; they do not drive next-hop eligibility or
+interior-distance selection.
+
+The selected state emits both the ordinary best-change notification and the
+typed `ribevents.FlowSpecChanged` event. The latter owns the full encoded native
+NLRI, without an ADD-PATH identifier, and the winning path's concatenated
+eight-octet extended communities and twenty-octet IPv6 extended communities in
+separate fields. A replacement changing either action attribute emits a new
+install; loss of the winner emits a withdrawal unless another feasible path
+wins. `ReplayRequest` also emits the selected actions. Changes and replay are
+serialized without holding RIB locks during event delivery.
+
+`RouteEligible` combines this mandatory gate with any optional validation gate.
+`RoutePresent` preserves ADD-PATH ownership while an infeasible path is retained.
+Route-server and reflector recovery fetch current attributes from
+`LookupFlowSpecPath` and send them through the ordinary generation-sensitive
+reactor gate. On every peer-up, route servers and reflectors enumerate these
+authorized paths before End-of-RIB, whether optional Adj-RIB-In replay succeeds
+or fails. Adj-RIB-In excludes FlowSpec copies from its ordinary store replay so
+there is only one snapshot source. When Adj-RIB-In itself owns replay for a
+peer, it fetches the mandatory RIB's authorized paths before reporting ready;
+it stands down for a delegated owner, including the per-peer unheld-role
+exception. Its bounded relay preserves source identity and generation and uses
+the reactor's destination session, family and export checks. Route-server
+snapshots retain the received-generation cut; RS and RR also reject stale
+destination replay generations.
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs, flowSpecAuthorized, drainFlowSpecEvents -->
+<!-- source: internal/core/bgp/ribevents/flowspec.go -- FlowSpecChanged, LookupFlowSpecPath, FlowSpecRoutes -->
+<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- processValidation, replayFlowSpecs -->
+<!-- source: internal/component/bgp/plugins/rr/validation.go -- startValidation, replayValidation, replayFlowSpecs -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayFlowSpecs -->
+
 ### Who Reads a Best-Path Change
 
 `publishBestChanges` (`rib_bestchange.go`) turns a best-path change into an
@@ -606,7 +723,7 @@ stores -- one non-ADD-PATH (`*Store[bestPathRecord]`), one ADD-PATH
 flag. This lets one family host peers with mixed ADD-PATH capability without
 key collision between the two wire shapes.
 
-A non-CIDR family takes the same opaque-map backend `FamilyRIB` does, for the
+Other non-CIDR families take the same opaque-map backend `FamilyRIB` does, for the
 same reason: its NLRI leads with a label stack and a Route Distinguisher, or
 with a route type, so `store.NLRIToPrefix` names no `netip.Prefix` for it. The
 key is the full wire bytes, which already carry the ADD-PATH path-id, and
@@ -629,7 +746,7 @@ backends; `FamilyRIB` retains its two build-tagged files
 PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The
 three index fields resolve through a shared `bestPrevInterner` on the
 RIBManager (one interner across every family's `bestPrevStore`), which
-dedupes peer addresses, next-hops, and MED values to dense uint16
+dedupes peer addresses, next-hops, and received MED/AIGP tuples to dense uint16
 indices. The hot-path same-best check is a single `uint64` equality;
 emission resolves indices back to their original values via reverse
 tables. BART fringe nodes are opaque to GC because the stored value

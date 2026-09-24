@@ -31,12 +31,14 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/seqmap"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 const (
@@ -113,6 +115,7 @@ type RawRoute struct {
 	NLRIFraming rpc.NLRIFraming
 
 	ValidationState uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+	Ineligible      bool  // Retained by validation, excluded from selection and replay.
 
 	// MsgID is the reactor's MessageID of the UPDATE this route arrived in
 	// (reactor.nextMsgID, a process-global monotonic counter stamped on every
@@ -122,9 +125,8 @@ type RawRoute struct {
 	// peer-up cut be expressed identically on both sides. See buildReplayRoutes'
 	// maxMsgID bound and rs PeerState.ForwardFrom.
 	//
-	// Zero means "unknown" (the legacy text/JSON ingest path does not carry a
-	// MessageID). A zero-MsgID route is always eligible for replay, which is the
-	// safe direction: it can be sent twice, never dropped.
+	// Zero means the producer supplied no generation. Validation decisions with
+	// MsgID zero apply to the current route, or buffer until its arrival.
 	MsgID uint64
 }
 
@@ -154,10 +156,16 @@ type AdjRIBInManager struct {
 	// validationEnabled is set by "request bgp adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
 	validationEnabled bool
+	validationPeers   map[netip.Addr]validationPeer
 
 	// validationTimeout is the fail-open timeout for pending routes.
 	// Zero means use defaultValidationTimeout (30s).
 	validationTimeout time.Duration
+
+	// validationChanges is drained after mu is released, so selection can query
+	// this store without acquiring mu recursively.
+	validationChanges []ribevents.ValidationRoute
+	validationBus     ze.EventBus
 
 	mu sync.RWMutex
 
@@ -170,7 +178,7 @@ type AdjRIBInManager struct {
 	// already carries, which every test using this seam exists to avoid.
 	routeRelayer func(destination string, routes []rpc.StoredRoute) error
 
-	// replayOwned is set when another plugin owns peer-up replay (bgp-rs). While
+	// replayOwned is set when another plugin owns peer-up replay (bgp-rs or bgp-rr). While
 	// set, this plugin does NOT self-replay on peer-up -- except for a peer the
 	// owner takes no delivery of, which the engine states on the state event
 	// itself and replayDrivenElsewhere (rib_claims.go) reads. The flag is
@@ -196,7 +204,7 @@ type AdjRIBInManager struct {
 	//     plugin was configured (mid-life auto-load or respawn). A late-join
 	//     corrective only.
 	//
-	// With bgp-rs absent nothing claims the role, the flag stays false, and
+	// With no replay role claimant the flag stays false, and
 	// self-replay remains the only path. That is also the fail-closed answer
 	// when ownership cannot be determined at all: a duplicate BGP UPDATE is
 	// idempotent at the receiver, whereas standing down for an owner that never
@@ -272,6 +280,11 @@ func commandDecls() []sdk.CommandDecl {
 			Name:      "request bgp adj-rib-in replay",
 			ShortHelp: "Replay the stored routes of every other peer to one target peer.",
 		},
+		{
+			Name:      "request bgp adj-rib-in replay-path",
+			ShortHelp: "Reconcile one source path to one target after validation changes.",
+			Hidden:    true,
+		},
 		// Plugin-to-plugin plumbing, not an operator verb: bgp-rs claims
 		// peer-up replay ownership with this at startup.
 		{
@@ -282,6 +295,10 @@ func commandDecls() []sdk.CommandDecl {
 		{
 			Name:      "request bgp adj-rib-in enable-validation",
 			ShortHelp: "Turn the validation gate on, so each new route waits in the pending state.",
+		},
+		{
+			Name:      "request bgp adj-rib-in disable-validation",
+			ShortHelp: "Remove RPKI gating without changing independent route authorization.",
 		},
 		{
 			Name:      "request bgp adj-rib-in accept-routes",
@@ -320,6 +337,10 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 		// event can observe it unset.
 		ingestTracked: p.IsInternal(),
 	}
+	if bus := validationBusPtr.Load(); bus != nil {
+		r.validationBus = *bus
+	}
+	defer ribevents.RegisterValidationLookup(nil, nil)
 
 	// Structured event handler for DirectBridge delivery.
 	// State events use metadata fields directly. UPDATE events are dispatched
@@ -443,7 +464,10 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer r.unlockValidation()
+	r.rememberValidationPeer(peerAddr, validationPeer{
+		Name: se.PeerName, Group: se.PeerGroup, ASN: se.PeerAS, LocalAS: se.LocalAS,
+	})
 
 	// WITHDRAWALS RUN FIRST, AND THE ORDER IS LOAD-BEARING.
 	//
@@ -542,7 +566,8 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			MsgID:       msgID,
 		}
 
-		if r.validationEnabled {
+		if r.validationEnabled && isSimplePrefixFamily(fam) {
+			r.removeInstalled(peerAddr, rk)
 			pr := &pendingRoute{
 				peerAddr:   peerAddr,
 				family:     fam,
@@ -562,6 +587,9 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			}
 			r.seqCounter++
 			r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+			// The registered lookup still fences received generations when
+			// RPKI is disabled. Wake selection if it saw this UPDATE first.
+			r.noteValidationChange(peerAddr, rk)
 		}
 	}
 }
@@ -626,7 +654,8 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			NLRIFraming: rpc.NLRIFramingSourceWire,
 			MsgID:       msgID,
 		}
-		if r.validationEnabled {
+		if r.validationEnabled && isSimplePrefixFamily(fam) {
+			r.removeInstalled(peerAddr, rk)
 			pr := &pendingRoute{
 				peerAddr:   peerAddr,
 				family:     fam,
@@ -690,10 +719,10 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.peerUp[peerAddr] = isUp
 
 	if !isUp {
-		delete(r.ribIn, peerAddr)
+		r.removePeerInstalled(peerAddr)
 		r.clearPeerPending(peerAddr)
 	}
-	r.mu.Unlock()
+	r.unlockValidation()
 
 	if !isUp {
 		return
@@ -704,6 +733,9 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(se.PeerAddress, routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", se.PeerAddress, "routes", len(routes), "error", err)
+		}
+		if err := r.replayFlowSpecs(peerAddr); err != nil {
+			logger().Error("FlowSpec peer-up replay failed", "peer", se.PeerAddress, "error", err)
 		}
 	}
 	r.signalSessionReady(se.PeerAddress)
@@ -770,7 +802,8 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer r.unlockValidation()
+	r.rememberValidationPeer(peerAddr, validationPeerFromEvent(event))
 
 	// The event's own next-hop is an address STRING, so it cannot express the
 	// two-address form RFC 2545 Section 3 defines for an IPv6 next hop. The raw
@@ -856,9 +889,11 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							NLRIHex:     nlriHex,
 							PathID:      pathID,
 							NLRIFraming: framing,
+							MsgID:       event.GetMsgID(),
 						}
 
-						if r.validationEnabled {
+						if r.validationEnabled && isSimplePrefixFamily(fam) {
+							r.removeInstalled(peerAddr, rk)
 							pr := &pendingRoute{
 								peerAddr:   peerAddr,
 								family:     fam,
@@ -878,6 +913,9 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							}
 							r.seqCounter++
 							r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+							if isSimplePrefixFamily(fam) {
+								r.noteValidationChange(peerAddr, rk)
+							}
 						}
 					}
 
@@ -930,10 +968,10 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 
 	if !isUp {
 		// Peer went down -- clear installed and pending routes.
-		delete(r.ribIn, peerAddr)
+		r.removePeerInstalled(peerAddr)
 		r.clearPeerPending(peerAddr)
 	}
-	r.mu.Unlock()
+	r.unlockValidation()
 
 	if !isUp {
 		return
@@ -947,6 +985,9 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		routes, _ := r.buildReplayRoutes(peerAddr, 0, unboundedReplay())
 		if err := r.relayRoutes(event.GetPeerAddress(), routes); err != nil {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
+		}
+		if err := r.replayFlowSpecs(peerAddr); err != nil {
+			logger().Error("FlowSpec peer-up replay failed", "peer", event.GetPeerAddress(), "error", err)
 		}
 	}
 	r.signalSessionReady(event.GetPeerAddress())
@@ -1010,6 +1051,15 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 		}
 		sourceStr := sourcePeer.String()
 		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
+			// FlowSpec snapshots come only from the mandatory selecting RIB.
+			// Its authorization and stored attributes are authoritative even
+			// when this optional store retains a copy with a nonempty next hop.
+			if ribevents.IsFlowSpec(rt.Family) {
+				return true
+			}
+			if rt.Ineligible {
+				return true
+			}
 			if seq <= fromIndex {
 				// Already delivered in the batch that produced this cursor.
 				return true
@@ -1033,6 +1083,7 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 				NLRIHex:     rt.NLRIHex,
 				PathID:      rt.PathID,
 				NLRIFraming: rt.NLRIFraming,
+				MsgID:       rt.MsgID,
 			})
 			if seq > maxSeq {
 				maxSeq = seq

@@ -8,10 +8,14 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rs/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {
+	_ = events.RegisterNamespace(ribevents.Namespace, ribevents.EventValidationChange)
 	// Activate the reactor's route-server fast-path forwarding capability
 	// (BGP-owned filterapi seam, not the generic registry). This is the sole
 	// caller of EnableRSForwarding: deleting this plugin package removes the
@@ -21,15 +25,16 @@ func init() {
 	filterapi.EnableRSForwarding()
 
 	reg := registry.Registration{
-		Name:        "bgp-rs",
-		Description: "Route Server",
-		RFCs:        []string{"7947"},
-		ConfigRoots: []string{"bgp"},
-		Features:    "yang",
-		YANG:        yang.ZeRsConfYANG,
-		// bgp-adj-rib-in is optional: bgp-rs uses it for replay-on-peer-up
-		// when present, and gracefully disables replay with a one-shot WARN
-		// when absent. See spec-rs-fastpath-2-adjrib learned summary.
+		Name:         "bgp-rs",
+		Description:  "Route Server",
+		RFCs:         []string{"7947"},
+		ConfigRoots:  []string{"bgp"},
+		Features:     "yang",
+		YANG:         yang.ZeRsConfYANG,
+		Dependencies: []string{"bgp-rib"},
+		// bgp-adj-rib-in is optional. Without it, peer-up replay uses the
+		// mandatory RIB for authorized FlowSpec paths; other families require
+		// the receive store for replay.
 		OptionalDependencies: []string{"bgp-adj-rib-in"},
 		// This plugin drives peer-up replay explicitly (replayForPeer), so
 		// bgp-adj-rib-in must not also self-replay -- with both firing, a route
@@ -54,6 +59,9 @@ func init() {
 		SignalsSessionReady: true,
 		RunEngine:           RunRouteServer,
 		Commands:            commandDecls(),
+		ConfigureEventBus: func(bus ze.EventBus) {
+			validationBus.Store(&bus)
+		},
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

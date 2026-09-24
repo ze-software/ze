@@ -113,7 +113,18 @@ A member inherits the group's whole settings, its `attach process` blocks and it
 
 ### Forward-All Model
 
-The route server forwards all received routes to all other peers. There is no best-path selection -- every route from every peer is forwarded to every other peer. This is the RFC 7947 route server model used at Internet Exchange Points.
+The route server forwards eligible received routes to other peers without choosing a best path. Receive validation and each destination's export policy still apply.
+
+When receive validation is enabled, pending and rejected paths are withheld on both the cached forwarding path and the reactor fast path. An UPDATE containing paths with different verdicts forwards only its eligible NLRIs. A later validation change withdraws an advertised path that has become ineligible; recovery replays the retained route with its received attributes, without waiting for another UPDATE. ADD-PATH withdrawals keep the identifier used for the advertisement.
+<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- validationChanged, processValidation -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardValidationWire -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS validation fallback -->
+
+The route reflector also reconciles retained unicast paths on validation
+changes. It coalesces notifications before requesting replay, so a receive-store
+callback never waits for an RPC into that same store. Replayed routes pass the
+reactor's ordinary reflection rules and egress policy.
+<!-- source: internal/component/bgp/plugins/rr/validation.go -- startValidation, replayValidation -->
 
 ### Zero-Copy Forwarding
 
@@ -134,11 +145,46 @@ Overflow uses a two-tier pool: per-peer pools (64 slots) absorb steady-state tra
 
 ### Convergent Replay
 
-When a peer reconnects, the route server replays all stored routes from other peers:
+When a peer reconnects, the route server replays eligible stored routes from other peers:
 
-1. Full snapshot replay from adj-rib-in
-2. Delta loop catches routes received during replay
-3. End-of-RIB sent when caught up
+1. Full snapshot replay of non-FlowSpec routes from adj-rib-in
+2. Delta loop catches those routes received during replay
+3. Authorized FlowSpec paths replay from the mandatory selecting RIB
+4. End-of-RIB sent when replay completes
+
+FlowSpec has one snapshot source: ordinary adj-rib-in store replay excludes
+those families. Both the route server and reflector replay current authorized rules
+from `bgp-rib` before End-of-RIB even when optional-store replay fails. The
+route server preserves its received-generation cut, and both roles check the
+destination's reconnect generation. Reconstructed routes still pass ordinary
+authorization, reflection and export policy.
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- replayForPeer -->
+<!-- source: internal/component/bgp/plugins/rs/server_validation.go -- replayFlowSpecs -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
+<!-- source: internal/component/bgp/plugins/rr/validation.go -- replayFlowSpecs -->
+
+If no other plugin owns replay for a particular peer, `bgp-adj-rib-in` obtains
+the same authorized FlowSpec snapshot from `bgp-rib` before reporting that its
+initial update is ready. A delegated replay owner suppresses this self-replay;
+if no owner both receives state events and has permission to send UPDATEs for
+the peer, the engine's unheld-role marker restores it. The bounded relay uses
+the reactor's existing destination session, family, source-generation and
+export checks.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_replay_path.go -- replayFlowSpecs -->
+
+The route server and reflector advertise the same `bgp-peer-up-replay` role
+at startup. Adj-RIB-In consumes that claim during configure, before peers
+start; the engine retracts it per peer when no owner both receives that peer's
+state event and has `send [ update ]` permission. An observer or a plugin with
+only `send [ raw ]` does not suppress Adj-RIB-In's self-replay.
+If a reflector joins later or restarts, its post-startup callback uses the
+existing `claim-replay` command to notify a receive store that is already
+running. The startup declaration still provides ordering for the first peer.
+<!-- source: internal/component/bgp/plugins/rr/register.go -- Registration.Claims -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- applyStartupClaims, replayDrivenElsewhere -->
+<!-- source: internal/component/bgp/plugins/rr/rr.go -- runRouteReflector OnAllPluginsReady -->
+<!-- source: internal/component/bgp/server/events.go -- onPeerStateChange -->
 
 ## Plugin Bindings
 

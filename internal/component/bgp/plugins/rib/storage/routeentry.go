@@ -34,6 +34,9 @@ type RouteEntry struct {
 	// RFC 4724: GR-stale routes (level 1) compete normally in best-path.
 	// RFC 9494: LLGR-stale routes (level 2+) are least preferred.
 	StaleLevel uint8
+	// MsgID identifies the received UPDATE for validation eligibility.
+	// Zero is an unversioned producer; it asks the gate about the current path.
+	MsgID uint64
 	// AttrFingerprint is an FNV-1a hash of the raw attribute wire bytes and
 	// ASN4 flag at insert time. AttrLen stores the raw byte length. Together
 	// they form a probabilistic equality check: matching hash + length skips
@@ -112,6 +115,7 @@ func (e *RouteEntry) AddRef() error {
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
 		StaleLevel:      e.StaleLevel,
+		MsgID:           e.MsgID,
 		AttrFingerprint: e.AttrFingerprint,
 		AttrLen:         e.AttrLen,
 		Bundle:          e.Bundle,

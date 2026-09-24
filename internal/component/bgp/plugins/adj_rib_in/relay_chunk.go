@@ -24,13 +24,13 @@ const relayChunkBudget = rpc.MaxMessageSize - relayFrameReserve
 //
 // The derivation, for the widest form of each non-string field:
 //
-//	{"source-peer":"","family":"","attr-hex":"","next-hop-hex":"","nlri-hex":"","path-id":4294967295,"nlri-framing":"source-wire"},
+//	{"source-peer":"","family":"","attr-hex":"","next-hop-hex":"","nlri-hex":"","msg-id":18446744073709551615,"withdraw":true,"path-id":4294967295,"nlri-framing":"source-wire"},
 //
-// That is 127 characters: 126 for the object and one for the comma that
-// separates it from the next route. 128 carries one byte of slack.
+// The generation and withdrawal fields add 46 bytes to the earlier 127-byte
+// object-plus-separator bound. 176 carries three bytes of slack.
 // TestRelayRouteJSONMaxBoundsMarshal pins the number against encoding/json, so a
 // field added to rpc.StoredRoute reddens a test rather than losing a chunk.
-const relayRouteJSONFixed = 128
+const relayRouteJSONFixed = 176
 
 // relayRouteJSONMax reports how many bytes one route adds to the serialized
 // rpc.RelayStoredRouteInput.

@@ -169,8 +169,10 @@ func (pd *peerDelivery) addBinding(namespace string, nsID events.NamespaceID, wi
 		edges.send = append(edges.send, events.TokenWildcard)
 	}
 	sendTypes := make([]string, 0, len(b.Send))
-	for st := range b.Send {
-		sendTypes = append(sendTypes, st)
+	for st, allowed := range b.Send {
+		if allowed {
+			sendTypes = append(sendTypes, st)
+		}
 	}
 	slices.Sort(sendTypes)
 	edges.send = append(edges.send, sendTypes...)
@@ -221,6 +223,22 @@ func (g *DeliveryGraph) Receivers(ns events.NamespaceID, et events.EventTypeID, 
 		return nil
 	}
 	return pd.receive[deliveryKey{ns: ns, et: et, dir: dir}]
+}
+
+// MaySend reports the peer's actual grant for this process and message type.
+// Missing peers and processes grant nothing; raw permission is not update
+// permission. Readers use the same immutable snapshot as event delivery.
+func (g *DeliveryGraph) MaySend(peerAddr, processName, sendType string) bool {
+	pd := g.peers[peerAddr]
+	if pd == nil {
+		return false
+	}
+	for _, binding := range pd.procs {
+		if binding.name == processName {
+			return slices.Contains(binding.send, events.TokenWildcard) || slices.Contains(binding.send, sendType)
+		}
+	}
+	return false
 }
 
 // Inspect returns the graph as plain data, peers in address order. It

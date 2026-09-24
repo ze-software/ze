@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
@@ -127,6 +128,7 @@ func (a *reactorAPIAdapter) resolveRelaySource(srcAddr netip.Addr) relaySource {
 			// Set on the same condition as relaySource.ok, so the facts stay
 			// self-describing once they leave this struct for forwardUpdateCore.
 			resolved: true,
+			peer:     srcPeer,
 		}
 		if len(a.r.egressFilters) > 0 {
 			out.info.filterInfo = filterapi.PeerFilterInfo{
@@ -295,6 +297,7 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		// entry (and its pooled buffer) until the 5-minute safety valve.
 		fwdErr := func() error {
 			defer a.r.recentUpdates.Release(updateID)
+			src.info.sender = sender
 			return a.forwardUpdateCore(update, updateID, matchingPeers, src.info)
 		}()
 
@@ -379,6 +382,8 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 			next.Family != first.Family ||
 			next.NLRIFraming != first.NLRIFraming ||
 			next.NextHopHex != first.NextHopHex ||
+			next.MsgID != first.MsgID ||
+			next.Withdraw != first.Withdraw ||
 			next.AttrHex != first.AttrHex {
 			break
 		}
@@ -424,11 +429,14 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 			return nil, 0, 0, errRelayNLRIFraming
 		}
 	}
+	if route.Withdraw {
+		return a.buildRelayWithdrawal(route, src, fam, pathIDLen)
+	}
 
 	attrLen := hex.DecodedLen(len(route.AttrHex))
 	nhLen := hex.DecodedLen(len(route.NextHopHex))
 	firstNLRILen := hex.DecodedLen(len(route.NLRIHex))
-	if firstNLRILen == 0 || nhLen == 0 {
+	if firstNLRILen == 0 || (nhLen == 0 && fam.NeedsNextHop()) {
 		return nil, 0, 0, errRelayHex
 	}
 
@@ -475,10 +483,20 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	}
 
 	needNextHop := relayNeedsNextHopAttr(scanned, fam)
-	// Checked here as well as inside relayPayloadLen so the refusal names the
-	// actual defect rather than being folded into "too large".
-	if fam == family.IPv4Unicast && needNextHop && len(nextHop) != 4 {
-		return nil, 0, 0, errRelayNextHopLen
+	// The stored next hop belongs to this route. A mixed received UPDATE can
+	// also carry a legacy NEXT_HOP belonging to a different IPv4 announcement.
+	// Reconstruction emits IPv4 unicast in the legacy field, so replace that
+	// attribute in our private decoded scratch before the egress rail reads it.
+	if fam == family.IPv4Unicast {
+		if len(nextHop) != 4 {
+			return nil, 0, 0, errRelayNextHopLen
+		}
+		if _, _, value, found := attribute.AttrFind(attrs, attribute.AttrNextHop); found {
+			if len(value) != 4 {
+				return nil, 0, 0, errRelayNextHopLen
+			}
+			copy(value, nextHop)
+		}
 	}
 
 	// Fill the NLRI section with as much of the run as this UPDATE can carry.
@@ -545,8 +563,10 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		SourcePeerIP: src.addr,
 		// The forward path threads this into fwdItem.sourcePeerStr for the sent
 		// event callback; the peer's cached string avoids a per-route allocation.
-		SourcePeerStr: src.strAdr,
-		ReceivedAt:    a.r.clock.Now(),
+		SourcePeerStr:    src.strAdr,
+		validationReplay: true,
+		validationMsgID:  route.MsgID,
+		ReceivedAt:       a.r.clock.Now(),
 		// Meta is deliberately nil: the ingress annotations a live UPDATE carries
 		// (meta["src-role"], meta["stale"]) are not stored alongside the route.
 		//
@@ -586,4 +606,63 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	a.r.recentUpdates.Activate(updateID, 0)
 
 	return ru, updateID, consumed, nil
+}
+
+// buildRelayWithdrawal carries a removed validation path through the same
+// source identity and ADD-PATH regeneration as its former advertisement.
+func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src relaySource, fam family.Family, pathIDLen int) (*ReceivedUpdate, uint64, int, error) {
+	nlriLen := pathIDLen + hex.DecodedLen(len(route.NLRIHex))
+	if nlriLen == pathIDLen {
+		return nil, 0, 0, errRelayHex
+	}
+	size := 4 + nlriLen
+	if fam != family.IPv4Unicast {
+		size += attrHeaderLen(3+nlriLen) + 3
+	}
+	if size > maxUpdateBody {
+		return nil, 0, 0, errRelayTooLarge
+	}
+	out := getReadBuf(size > message.MaxMsgLen-message.HeaderLen)
+	if out.Buf == nil {
+		return nil, 0, 0, errRelayBufferPool
+	}
+	buf := out.Buf[:size]
+	clear(buf[:4])
+	off := 2
+	if fam == family.IPv4Unicast {
+		binary.BigEndian.PutUint16(buf[:2], uint16(nlriLen))
+		binary.BigEndian.PutUint16(buf[2+nlriLen:4+nlriLen], 0)
+	} else {
+		binary.BigEndian.PutUint16(buf[2:4], uint16(size-4))
+		off = 4
+		off += writeAttrHeader(buf, off, byte(attribute.FlagOptional), attribute.AttrMPUnreachNLRI, 3+nlriLen)
+		binary.BigEndian.PutUint16(buf[off:off+2], uint16(fam.AFI))
+		buf[off+2] = byte(fam.SAFI)
+		off += 3
+	}
+	if pathIDLen != 0 {
+		binary.BigEndian.PutUint32(buf[off:off+4], route.PathID)
+		off += 4
+	}
+	if _, err := hex.Decode(buf[off:off+nlriLen-pathIDLen], []byte(route.NLRIHex)); err != nil {
+		ReturnReadBuffer(out)
+		return nil, 0, 0, errRelayHex
+	}
+	update := &ReceivedUpdate{
+		poolBuf:          out,
+		SourcePeerIP:     src.addr,
+		SourcePeerStr:    src.strAdr,
+		ReceivedAt:       a.r.clock.Now(),
+		validationReplay: true,
+		validationMsgID:  route.MsgID,
+	}
+	wireu.InitWireUpdate(&update.wireUpdateInline, buf, src.ctxID)
+	updateID := nextMsgID()
+	update.wireUpdateInline.SetMessageID(updateID)
+	update.wireUpdateInline.SetSourceID(src.srcID)
+	update.WireUpdate = &update.wireUpdateInline
+	a.r.recentUpdates.Add(update)
+	a.r.recentUpdates.RetainN(updateID, 1)
+	a.r.recentUpdates.Activate(updateID, 0)
+	return update, updateID, 1, nil
 }

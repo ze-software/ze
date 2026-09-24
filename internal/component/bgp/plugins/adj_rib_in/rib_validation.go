@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Validation state constants (RFC 6811 + internal states).
@@ -50,30 +51,14 @@ func (r *AdjRIBInManager) promoteToInstalled(pr *pendingRoute, validationState u
 	}
 	r.seqCounter++
 	r.ribIn[pr.peerAddr].Put(pr.routeKey, r.seqCounter, pr.route)
+	r.noteValidationChange(pr.peerAddr, pr.routeKey)
 }
 
-// applyToInstalled applies a validation decision to a route the RIB already holds.
-//
-// RFC 6811 Section 4: when a VRP is added or deleted, the RPKI plugin re-validates every tracked
-// route and re-dispatches an accept or a reject for each one whose state changed. Those routes
-// are installed, not pending, so the pending map cannot carry them. Without this, a re-dispatched
-// decision fell through to storeEarlyDecision -- the slot for a decision that arrives BEFORE its
-// route -- and the installed route kept the state it was given on arrival for the life of the
-// session. A route validated against an empty cache stayed NotFound after the cache synced, and
-// a route that became Invalid stayed in the Adj-RIB-In under `invalid reject`.
-//
-// An accept rewrites the state in place and keeps the route's sequence number. The wire bytes did
-// not change, and a new sequence number re-sends the same route to every peer that replays from a
-// cursor (buildReplayRoutes).
-//
-// A reject removes the route. RFC 6811 Section 2 forbids excluding a route from the Adj-RIB-In as
-// a side effect of its validation state, so a reject reaches here only when the operator
-// configured `invalid reject` or `not-found reject` (the rpki plugin's buildDecisions).
-//
-// Returns false when the RIB does not hold the route, which leaves the caller's early-decision
-// path in charge.
-// Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compactRouteKey, accept bool, validationState uint8) bool {
+// applyToInstalled applies a decision only to the matching UPDATE generation.
+// A newer decision waits for its route; the previous path becomes ineligible
+// immediately so a failed replacement cannot leave it active.
+// Caller MUST hold mu and finish with unlockValidation.
+func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compactRouteKey, d *rpc.ValidationDecision) bool {
 	routes := r.ribIn[peerAddr]
 	if routes == nil {
 		return false
@@ -82,13 +67,64 @@ func (r *AdjRIBInManager) applyToInstalled(peerAddr netip.Addr, routeKey compact
 	if !ok {
 		return false
 	}
-	if !accept {
-		routes.Delete(routeKey)
-		logger().Debug("re-validation removed an installed route",
-			"peer", peerAddr, "family", routeKey.Fam, "prefix", routeKey.Prefix)
+	if d.MsgID != 0 && d.MsgID != route.MsgID {
+		if d.MsgID < route.MsgID {
+			return true
+		}
+		route.Ineligible = true
+		r.noteValidationChange(peerAddr, routeKey)
+		return false
+	}
+	if !d.Accept && !d.Ineligible {
+		r.removeInstalled(peerAddr, routeKey)
 		return true
 	}
-	route.ValidationState = validationState
+	wasIneligible := route.Ineligible
+	route.ValidationState = d.ValState
+	// draft-ietf-sidrops-aspa-verification-28 Section 5.7: an Invalid
+	// route "MUST be kept in the Adj-RIB-In for potential future re-evaluation".
+	route.Ineligible = d.Ineligible
+	if wasIneligible && d.Accept {
+		// Recovery must appear after an existing replay cursor.
+		r.seqCounter++
+		routes.Put(routeKey, r.seqCounter, route)
+	}
+	r.noteValidationChange(peerAddr, routeKey)
+	return true
+}
+
+// applyDecision is shared by typed, batch-text and individual text commands.
+// It returns true only when the decision is buffered ahead of its UPDATE.
+// Caller MUST hold mu and finish with unlockValidation.
+func (r *AdjRIBInManager) applyDecision(peer netip.Addr, key compactRouteKey, d *rpc.ValidationDecision) bool {
+	if !r.validationEnabled || !isSimplePrefixFamily(key.Fam) {
+		return false
+	}
+	pKey := pendingKey(peer, key)
+	if newer := r.earlyDecisions[pKey]; newer != nil && d.MsgID != 0 && newer.msgID > d.MsgID {
+		return false
+	}
+	if pr, ok := r.pending[pKey]; ok {
+		if d.MsgID != 0 && d.MsgID != pr.route.MsgID {
+			if d.MsgID < pr.route.MsgID {
+				return false
+			}
+			r.storeEarlyDecision(peer, key, d)
+			return true
+		}
+		delete(r.pending, pKey)
+		if d.Accept || d.Ineligible {
+			pr.route.Ineligible = d.Ineligible
+			r.promoteToInstalled(pr, d.ValState)
+		} else {
+			r.removeInstalled(peer, key)
+		}
+		return false
+	}
+	if r.applyToInstalled(peer, key, d) {
+		return false
+	}
+	r.storeEarlyDecision(peer, key, d)
 	return true
 }
 
@@ -103,6 +139,9 @@ func (r *AdjRIBInManager) sweepExpiredPending() {
 
 	for key, pr := range r.pending {
 		if now.Sub(pr.receivedAt) > timeout {
+			if ed := r.earlyDecisions[key]; ed != nil && ed.msgID > pr.route.MsgID {
+				continue
+			}
 			logger().Warn("validation timeout, promoting route (fail-open)",
 				"peer", pr.peerAddr, "family", pr.family, "prefix", pr.prefix)
 			r.promoteToInstalled(pr, ValidationNotValidated)
@@ -131,6 +170,8 @@ func (r *AdjRIBInManager) clearPeerPending(peerAddr netip.Addr) {
 func (r *AdjRIBInManager) removePending(peerAddr netip.Addr, routeKey compactRouteKey) {
 	key := pendingKey(peerAddr, routeKey)
 	delete(r.pending, key)
+	delete(r.earlyDecisions, key)
+	r.noteValidationChange(peerAddr, routeKey)
 }
 
 // parseValidationState converts a string state argument to an RFC 6811 state.
@@ -154,16 +195,18 @@ func parseValidationState(s string) (uint8, error) {
 
 // earlyDecision stores a validation decision that arrived before the route.
 type earlyDecision struct {
-	action     earlyAction // accept or reject
-	state      uint8       // validation state (only meaningful for accept)
+	action     earlyAction
+	state      uint8
+	msgID      uint64
 	receivedAt time.Time
 }
 
 type earlyAction uint8
 
 const (
-	earlyAccept earlyAction = 1
-	earlyReject earlyAction = 2
+	earlyAccept     earlyAction = 1
+	earlyReject     earlyAction = 2
+	earlyIneligible earlyAction = 3
 )
 
 // earlyDecisionTimeout is how long an early decision stays buffered.
@@ -175,16 +218,29 @@ const earlyDecisionTimeout = 1 * time.Minute
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, pr *pendingRoute) bool {
 	key := pendingKey(peerAddr, routeKey)
+	// This arrival supersedes any older pending route even when its decision
+	// is already buffered and it bypasses the pending timeout queue entirely.
+	delete(r.pending, key)
 	ed, ok := r.earlyDecisions[key]
 	if !ok {
+		return false
+	}
+	if ed.msgID != 0 && ed.msgID != pr.route.MsgID {
+		if ed.msgID < pr.route.MsgID {
+			delete(r.earlyDecisions, key)
+		}
 		return false
 	}
 	delete(r.earlyDecisions, key)
 	switch ed.action {
 	case earlyAccept:
 		r.promoteToInstalled(pr, ed.state)
+	case earlyIneligible:
+		pr.route.Ineligible = true
+		r.promoteToInstalled(pr, ed.state)
 	case earlyReject:
 		logger().Debug("applied early reject", "peer", peerAddr)
+		r.removeInstalled(peerAddr, routeKey)
 	default:
 		logger().Warn("early decision with unknown action, ignoring",
 			"peer", peerAddr, "action", ed.action)
@@ -195,21 +251,39 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr netip.Addr, routeKey compa
 
 // storeEarlyDecision buffers a validation decision for a route not yet pending.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) storeEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, action earlyAction, state uint8) {
+func (r *AdjRIBInManager) storeEarlyDecision(peerAddr netip.Addr, routeKey compactRouteKey, d *rpc.ValidationDecision) {
 	key := pendingKey(peerAddr, routeKey)
+	if old := r.earlyDecisions[key]; old != nil && d.MsgID != 0 && old.msgID > d.MsgID {
+		return
+	}
+	action := earlyReject
+	if d.Accept {
+		action = earlyAccept
+	}
+	if d.Ineligible {
+		action = earlyIneligible
+	}
 	r.earlyDecisions[key] = &earlyDecision{
-		action:     action,
-		state:      state,
-		receivedAt: time.Now(),
+		action: action, state: d.ValState, msgID: d.MsgID, receivedAt: time.Now(),
 	}
 }
 
-// sweepExpiredEarlyDecisions removes stale early decisions.
+// sweepExpiredEarlyDecisions removes stale decisions without a predecessor.
+// A known replacement must keep blocking its predecessor until receive,
+// withdrawal, or session removal resolves it; expiration cannot revive it.
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) sweepExpiredEarlyDecisions() {
 	now := time.Now()
 	for key, ed := range r.earlyDecisions {
 		if now.Sub(ed.receivedAt) > earlyDecisionTimeout {
+			if pending := r.pending[key]; pending != nil && ed.msgID > pending.route.MsgID {
+				continue
+			}
+			if routes := r.ribIn[key.PeerAddr]; routes != nil {
+				if route, ok := routes.Get(key.Route); ok && ed.msgID > route.MsgID {
+					continue
+				}
+			}
 			logger().Warn("early validation decision expired without matching route",
 				"key", key, "action", ed.action, "age", now.Sub(ed.receivedAt))
 			delete(r.earlyDecisions, key)
@@ -234,7 +308,7 @@ func (r *AdjRIBInManager) startTimeoutScanner(stopCh <-chan struct{}) {
 				r.mu.Lock()
 				r.sweepExpiredPending()
 				r.sweepExpiredEarlyDecisions()
-				r.mu.Unlock()
+				r.unlockValidation()
 			}
 		}
 	}()

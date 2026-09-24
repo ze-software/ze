@@ -1,0 +1,100 @@
+# Test: actual peer-up events retract replay claims without UPDATE authority
+# VALIDATES: the real onPeerStateChange producer distinguishes a state observer,
+# a raw-only sender and an UPDATE-authorized claimant on three established peers.
+# PREVENTS: a read-only claimant suppressing the authorized receive-store replay.
+# The observer checks delivered UnheldRoles, then waits for every carrier's EOR
+# before shutdown. Omitting the event producer's eligibility predicate must fail.
+
+stdin=observer:terminator=EOF_OBSERVER
+option=tcp_connections:value=1
+option=asn:value=65001
+option=open:value=router-id:id=192.0.2.1
+option=timeout:value=40s
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_OBSERVER
+
+stdin=raw-only:terminator=EOF_RAW
+option=tcp_connections:value=1
+option=asn:value=65001
+option=open:value=router-id:id=192.0.2.2
+option=timeout:value=40s
+option=linger:value=true
+option=bind:value=127.0.0.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_RAW
+
+stdin=writer:terminator=EOF_WRITER
+option=tcp_connections:value=1
+option=asn:value=65001
+option=open:value=router-id:id=192.0.2.3
+option=timeout:value=40s
+option=linger:value=true
+option=bind:value=127.0.0.3
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_WRITER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal rs { use bgp-rs; }
+    external claim-permission {
+        run "ze-test fixture plugin/peer-up-replay-claim-permission";
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    session {
+        asn { local 65000; }
+    }
+    peer observer {
+        session {
+            asn { remote 65001; }
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.1; accept false; }
+        }
+        attach process rs { receive [ state open-received refresh ]; }
+        attach process claim-permission { receive [ state ]; }
+    }
+    peer raw-only {
+        session {
+            asn { remote 65001; }
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.2; accept false; }
+        }
+        attach process rs { receive [ state open-received refresh ]; send [ raw ]; }
+        attach process claim-permission { receive [ state ]; }
+    }
+    peer writer {
+        session {
+            asn { remote 65001; }
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        connection {
+            remote { ip 127.0.0.3; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+        attach process claim-permission { receive [ state ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=observer
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=raw-only
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=writer
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:pattern=CLAIM-PERMISSION: checked=3 observer=true raw-only=true writer=false
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

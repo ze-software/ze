@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
@@ -286,11 +287,17 @@ func RunRouteServer(conn net.Conn) int {
 		chanSize:    rrChanSize,
 		idleTimeout: 5 * time.Second,
 		onItemDrop: func(item workItem) {
-			rs.releaseCache(item.msgID)
+			if item.msgID != 0 {
+				rs.releaseCache(item.msgID)
+			}
 		},
 		onDrained: rs.flushWorkerBatch,
 	})
 	defer rs.workers.Stop()
+	if bus := validationBus.Load(); bus != nil {
+		unsubscribe := ribevents.ValidationChange.Subscribe(*bus, rs.validationChanged)
+		defer unsubscribe()
+	}
 
 	rs.wireFlowControl()
 	defer rs.resumeAllPaused()

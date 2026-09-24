@@ -251,23 +251,12 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 // engine delivers that on bgp-adj-rib-in's Stage-2 configure callback, which
 // completes before it sends Stage 5 ready and therefore before peers start.
 //
-// It reaches LESS of the mid-life case than an earlier version of this comment
-// claimed. The only caller is OnAllPluginsReady (server.go), which the engine
-// produces once, from sendPostStartupToAll inside signalStartupComplete.
-// Nothing dispatches it again. So:
-//
-//   - A bgp-adj-rib-in AUTO-LOADED later needs nothing from this dispatch. It
-//     is started by autoLoadForNewConfigPaths through runPluginPhase, so it gets
-//     its own Stage 2, and advertiseClaims reads this plugin's live
-//     Registration.Claims and tells it there.
-//   - A RESPAWNED bgp-adj-rib-in is never told. ProcessManager.Respawn calls
-//     StartWithContext and runs no startup handshake, so no Stage 2 happens.
-//   - An already-running bgp-adj-rib-in is never told when THIS plugin is the
-//     one that joins mid-life, because Stage 2 runs per handshake and is not
-//     re-delivered to a plugin that is already configured.
-//
-// The last two are acceptance criteria of
-// spec-fixit-stored-route-relay-hardening, AC-5 and AC-12.
+// Config reload and post-startup restart deliver OnAllPluginsReady through
+// sendPostStartupToNames (plugin/server/poststartup.go), so this command also
+// reaches a receive store that was already running when this owner joined.
+// A newly loaded or restarted receive store gets the declarative claim from
+// its own Stage-2 configure handshake. The callback remains a corrective, not
+// the ordering mechanism for the daemon's first peer-up.
 //
 // Called from OnAllPluginsReady, which guarantees the dispatcher's command
 // registry is frozen so the dispatch resolves. That callback is NOT ordered
@@ -356,7 +345,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64) {
 		// visible.
 		if isDispatchUnknownCommand(err) {
 			rs.adjRibInMissingOnce.Do(func() {
-				logger().Warn("bgp-adj-rib-in not loaded; replay-on-peer-up disabled (optional dependency)")
+				logger().Warn("bgp-adj-rib-in not loaded; peer-up replay limited to authorized FlowSpec routes")
 			})
 		} else {
 			logger().Error("replay failed", "peer", peerAddr, "command", replayCommand, "args", replayArgs, "status", status, "error", err)
@@ -375,6 +364,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64) {
 		// the replay itself succeeded, failed transiently, or was skipped
 		// because adj-rib-in is not loaded. Without this, any replay-failure
 		// path left the peer waiting for EOR that would never come.
+		rs.replayFlowSpecs(peerAddr, gen, cut)
 		rs.sendEOR(peerAddr, gen)
 		return
 	}
@@ -456,6 +446,7 @@ func (rs *routeServer) replayForPeer(peerAddr string, gen, cut uint64) {
 
 	// Send End-of-RIB per negotiated family (RFC 4271).
 	// Re-check generation: peer may have reconnected during the delta loop.
+	rs.replayFlowSpecs(peerAddr, gen, cut)
 	rs.sendEOR(peerAddr, gen)
 }
 

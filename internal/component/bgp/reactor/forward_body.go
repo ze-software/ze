@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
 )
@@ -298,11 +298,11 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 	// ask the same table with the same ingress key.
 	memo := fwdPathIDMemo{source: srcID}
 
-	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx, &memo)
+	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx, &memo, true)
 	if err != nil {
 		return nil, BufHandle{}, fmt.Errorf("withdrawn routes: %w", err)
 	}
-	announced, err := fwdReencodeNLRIs(baseUpdate.NLRI, family.IPv4Unicast, srcCtx, destCtx, &memo)
+	announced, err := fwdReencodeNLRIs(baseUpdate.NLRI, family.IPv4Unicast, srcCtx, destCtx, &memo, false)
 	if err != nil {
 		return nil, BufHandle{}, fmt.Errorf("nlri: %w", err)
 	}
@@ -432,7 +432,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 				return nil, err
 			}
 			fam := family.Family{AFI: family.AFI(mp.AFI), SAFI: family.SAFI(mp.SAFI)}
-			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo)
+			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo, false)
 			if err != nil {
 				return nil, err
 			}
@@ -447,7 +447,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 				return nil, err
 			}
 			fam := family.Family{AFI: family.AFI(mp.AFI), SAFI: family.SAFI(mp.SAFI)}
-			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo)
+			reencoded, err := fwdReencodeNLRIs(mp.NLRI, fam, srcCtx, destCtx, memo, true)
 			if err != nil {
 				return nil, err
 			}
@@ -480,7 +480,7 @@ func fwdReencodeMPAttributes(attrs []byte, srcCtx, destCtx *bgpctx.EncodingConte
 	return out, nil
 }
 
-func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.EncodingContext, memo *fwdPathIDMemo) ([]byte, error) {
+func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.EncodingContext, memo *fwdPathIDMemo, withdraw bool) ([]byte, error) {
 	srcAddPath := srcCtx.AddPath(fam)
 	destAddPath := destCtx.AddPath(fam)
 	if len(data) == 0 || (!srcAddPath && !destAddPath) {
@@ -498,44 +498,56 @@ func fwdReencodeNLRIs(data []byte, fam family.Family, srcCtx, destCtx *bgpctx.En
 	// session, which is what separates two such sources at the destination. A
 	// source that did negotiate it names a path by (identifier, prefix), so each
 	// pair is keyed and freed on its own withdraw (forward_path_id.go).
-	iter := nlri.NewNLRIIterator(data, srcAddPath)
-	out := make([]byte, 0, fwdReencodedNLRILen(data, iter, srcAddPath, destAddPath))
-	iter.Reset()
-	for prefix, pathID, ok := iter.Next(); ok; prefix, pathID, ok = iter.Next() {
+	split := nlrisplit.Get(fam)
+	if withdraw {
+		split = nlrisplit.GetWithdraw(fam)
+	}
+	if split == nil {
+		return nil, nlrisplit.ErrUnsupported
+	}
+	count, err := split(data, srcAddPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	size := len(data)
+	if srcAddPath {
+		size -= count * 4
+	}
+	if destAddPath {
+		size += count * 4
+	}
+	out := make([]byte, size)
+	off := 0
+	var keyErr error
+	_, err = split(data, srcAddPath, func(raw []byte) {
+		if keyErr != nil {
+			return
+		}
+		var received uint32
+		if srcAddPath {
+			received = binary.BigEndian.Uint32(raw[:4])
+			raw = raw[4:]
+		}
 		if destAddPath {
 			var id uint32
 			if srcAddPath {
-				framed, err := memo.framed(fam, pathID, prefix)
-				if err != nil {
-					return nil, err
+				id, keyErr = memo.framed(fam, received, raw, withdraw)
+				if keyErr != nil {
+					return
 				}
-				id = framed
 			} else {
-				id = memo.unframed(pathID)
+				id = memo.unframed(0)
 			}
-			var pathBuf [4]byte
-			binary.BigEndian.PutUint32(pathBuf[:], id)
-			out = append(out, pathBuf[:]...)
+			binary.BigEndian.PutUint32(out[off:off+4], id)
+			off += 4
 		}
-		out = append(out, prefix...)
+		off += copy(out[off:], raw)
+	})
+	if err != nil {
+		return nil, err
 	}
-	if iter.Remaining() != 0 {
-		return nil, fmt.Errorf("trailing malformed NLRI bytes: %d", iter.Remaining())
+	if keyErr != nil {
+		return nil, keyErr
 	}
 	return out, nil
-}
-
-// fwdReencodedNLRILen sizes the re-framed section exactly: four octets per NLRI
-// appear when only the destination reads path IDs, disappear when only the
-// source wrote them, and neither when both do -- ze rewrites the value in place
-// of the source's and the length does not move.
-func fwdReencodedNLRILen(data []byte, iter *nlri.NLRIIterator, srcAddPath, destAddPath bool) int {
-	switch {
-	case srcAddPath == destAddPath:
-		return len(data)
-	case destAddPath:
-		return len(data) + iter.Count()*4
-	default:
-		return len(data) - iter.Count()*4
-	}
 }

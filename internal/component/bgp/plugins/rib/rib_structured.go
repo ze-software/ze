@@ -235,6 +235,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		parsed, fp, attrLen, parseErr = storage.ParseRouteEntry(attrBytes)
 		if parseErr == nil {
 			haveParsed = true
+			parsed.MsgID = msg.MessageID
 			defer parsed.Release()
 		}
 	}
@@ -258,6 +259,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				} else {
 					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
 				}
+				peerRIB.ModifyFamilyEntry(ipv4Family, wirePrefix, func(entry *storage.RouteEntry) {
+					entry.MsgID = msg.MessageID
+				})
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
 		}
@@ -291,6 +295,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						} else {
 							peerRIB.Insert(fam, attrBytes, wirePrefix)
 						}
+						peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
+							entry.MsgID = msg.MessageID
+						})
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 					}
 				}

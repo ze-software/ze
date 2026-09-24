@@ -6,12 +6,13 @@ package reactor
 import (
 	"encoding/binary"
 	"fmt"
+	"net/netip"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/source"
 )
@@ -52,15 +53,13 @@ import (
 // frees it when it has relayed that pair's withdraw.
 var fwdPathIDs = newFwdPathIDTable()
 
-// fwdPathNLRIMax bounds the NLRI octets one path key holds: the prefix-length
-// octet, then the 32 octets nlri.PrefixBytes returns for the largest length that
-// octet can state.
+// fwdPathNLRIMax keeps ordinary IP path keys inline. Larger native NLRIs use
+// overflow rather than truncating FlowSpec's octet-length framing to a prefix.
 const fwdPathNLRIMax = 1 + 32
 
 // fwdPathKey names one path a source that frames Path Identifiers advertised:
-// the family it arrived in, the identifier the source chose for it, and the NLRI
-// bytes it chose them for. The octets of nlri past the ones the source sent stay
-// zero, so two NLRIs of different lengths never compare equal.
+// the family it arrived in, the identifier the source chose, and the family's
+// canonical route key. length distinguishes a native key from inline padding.
 //
 // The family is part of the key because NLRI bytes alone are ambiguous across
 // families: 10.0.0.0/24 and 0a00::/24 carry the same length octet and the same
@@ -69,16 +68,27 @@ type fwdPathKey struct {
 	family   family.Family
 	received uint32
 	nlri     [fwdPathNLRIMax]byte
+	length   uint16
+	overflow string
 }
 
-// fwdPathKeyFor writes the key of one ingress path into out. raw is the NLRI as
-// the source framed it, prefix-length octet included.
-func fwdPathKeyFor(out *fwdPathKey, fam family.Family, received uint32, raw []byte) error {
-	if len(raw) > len(out.nlri) {
-		return fmt.Errorf("nlri of %d octets exceeds the %d a path key holds", len(raw), len(out.nlri))
+// fwdPathKeyFor writes the key of one ingress path into out. raw includes native
+// NLRI framing but excludes ADD-PATH. The family removes non-key fields, such as
+// label stacks and FlowSpec length octets, before identity is assigned.
+func fwdPathKeyFor(out *fwdPathKey, fam family.Family, received uint32, raw []byte, withdraw bool, scratch []byte) error {
+	key, err := nlrisplit.GetPrefixKey(fam)(raw, scratch, withdraw)
+	if err != nil {
+		return err
 	}
-	*out = fwdPathKey{family: fam, received: received}
-	copy(out.nlri[:], raw)
+	if len(key) > message.ExtMsgLen {
+		return fmt.Errorf("nlri key of %d octets exceeds the BGP message limit", len(key))
+	}
+	*out = fwdPathKey{family: fam, received: received, length: uint16(len(key))}
+	if len(key) <= len(out.nlri) {
+		copy(out.nlri[:], key)
+	} else {
+		out.overflow = string(key)
+	}
 	return nil
 }
 
@@ -185,9 +195,14 @@ func (t *fwdPathIDTable) generatePath(src source.SourceID, key *fwdPathKey) uint
 // entry inside the per-destination rewrite would mint a fresh identifier for
 // every destination the fan-out had not reached yet, and each of those would
 // hold a route ze can never withdraw.
-func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey) {
+func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer netip.Addr, raw []byte) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// Query while holding the identifier lock: no concurrent forward can take
+	// the old identifier between this presence check and its removal.
+	if validationRetainsPath(peer, key.family, key.received, raw) {
+		return
+	}
 	perSource, ok := t.byPath[src]
 	if !ok {
 		return
@@ -247,14 +262,14 @@ func (t *fwdPathIDTable) releaseSource(src source.SourceID) {
 //
 // unframed holds the last answer, so a walk over a source that negotiated no
 // ADD-PATH -- every prefix arriving under identifier 0 -- takes one table lock
-// for the whole section rather than one per prefix. framed holds nothing,
-// because a source that frames identifiers names a different path with every
-// NLRI in the section.
+// for the whole section rather than one per prefix. Framed lookups reuse key
+// scratch, but cache no answer: each NLRI can name a different path.
 type fwdPathIDMemo struct {
-	source    source.SourceID
-	have      bool
-	received  uint32
-	generated uint32
+	source     source.SourceID
+	have       bool
+	received   uint32
+	generated  uint32
+	keyScratch [nlrisplit.PrefixKeyScratchSize]byte
 }
 
 // unframed returns ze's identifier for a path whose source framed none.
@@ -268,10 +283,10 @@ func (m *fwdPathIDMemo) unframed(received uint32) uint32 {
 }
 
 // framed returns ze's identifier for a path whose source framed one. raw is the
-// NLRI the source sent, prefix-length octet included.
-func (m *fwdPathIDMemo) framed(fam family.Family, received uint32, raw []byte) (uint32, error) {
+// NLRI the source sent, native framing included.
+func (m *fwdPathIDMemo) framed(fam family.Family, received uint32, raw []byte, withdraw bool) (uint32, error) {
 	var key fwdPathKey
-	if err := fwdPathKeyFor(&key, fam, received, raw); err != nil {
+	if err := fwdPathKeyFor(&key, fam, received, raw, withdraw, m.keyScratch[:]); err != nil {
 		return 0, err
 	}
 	return fwdPathIDs.generatePath(m.source, &key), nil
@@ -374,14 +389,14 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 		if sectionErr != nil {
 			return nil, BufHandle{}, sectionErr
 		}
-		if err := fwdPatchPathIDs(section, family.IPv4Unicast, &memo); err != nil {
+		if err := fwdPatchPathIDs(section, family.IPv4Unicast, &memo, false); err != nil {
 			return nil, BufHandle{}, fmt.Errorf("nlri: %w", err)
 		}
 		section, sectionErr = copied.Withdrawn()
 		if sectionErr != nil {
 			return nil, BufHandle{}, sectionErr
 		}
-		if err := fwdPatchPathIDs(section, family.IPv4Unicast, &memo); err != nil {
+		if err := fwdPatchPathIDs(section, family.IPv4Unicast, &memo, true); err != nil {
 			return nil, BufHandle{}, fmt.Errorf("withdrawn routes: %w", err)
 		}
 	}
@@ -390,7 +405,7 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 		if sectionErr != nil {
 			return nil, BufHandle{}, sectionErr
 		}
-		if err := fwdPatchPathIDs(section.NLRIBytes(), section.Family(), &memo); err != nil {
+		if err := fwdPatchPathIDs(section.NLRIBytes(), section.Family(), &memo, false); err != nil {
 			return nil, BufHandle{}, fmt.Errorf("mp_reach nlri: %w", err)
 		}
 	}
@@ -399,7 +414,7 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 		if sectionErr != nil {
 			return nil, BufHandle{}, sectionErr
 		}
-		if err := fwdPatchPathIDs(section.WithdrawnBytes(), section.Family(), &memo); err != nil {
+		if err := fwdPatchPathIDs(section.WithdrawnBytes(), section.Family(), &memo, true); err != nil {
 			return nil, BufHandle{}, fmt.Errorf("mp_unreach withdrawn: %w", err)
 		}
 	}
@@ -408,30 +423,33 @@ func fwdRegenerateRawPathIDs(peerWire *wireu.WireUpdate, ctx *bgpctx.EncodingCon
 	return dst, handle, nil
 }
 
-// fwdPatchPathIDs replaces the Path Identifier of every NLRI in data with ze's
-// own, in place. data must be ADD-PATH framed (RFC 7911 Section 3): four octets
-// of identifier, one octet of prefix length, then the prefix. Its source framed
-// those identifiers, which is what the same-context branch above established, so
-// every path here is keyed on the path rather than on the source alone.
-func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo) error {
-	for off := 0; off < len(data); {
-		if off+5 > len(data) {
-			return fmt.Errorf("truncated path identifier at offset %d", off)
-		}
-		received := binary.BigEndian.Uint32(data[off:])
-		start := off + 4
-		end := start + 1 + nlri.PrefixBytes(int(data[start]))
-		if end > len(data) {
-			return fmt.Errorf("truncated prefix at offset %d", start)
-		}
-		id, err := memo.framed(fam, received, data[start:end])
-		if err != nil {
-			return err
-		}
-		binary.BigEndian.PutUint32(data[off:], id)
-		off = end
+// fwdPatchPathIDs replaces the Path Identifier of every native NLRI in data.
+// The registered family splitter owns framing; only the leading four octets
+// belong to ADD-PATH. The walk is bounded by the UPDATE section's length.
+func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo, withdraw bool) error {
+	split := nlrisplit.Get(fam)
+	if withdraw {
+		split = nlrisplit.GetWithdraw(fam)
 	}
-	return nil
+	if split == nil {
+		return nlrisplit.ErrUnsupported
+	}
+	var keyErr error
+	_, err := split(data, true, func(raw []byte) {
+		if keyErr != nil {
+			return
+		}
+		received := binary.BigEndian.Uint32(raw[:4])
+		var id uint32
+		id, keyErr = memo.framed(fam, received, raw[4:], withdraw)
+		if keyErr == nil {
+			binary.BigEndian.PutUint32(raw[:4], id)
+		}
+	})
+	if err != nil {
+		return err
+	}
+	return keyErr
 }
 
 // fwdReleaseWithdrawnPathIDs frees ze's identifier for every path this UPDATE
@@ -451,11 +469,12 @@ func fwdPatchPathIDs(data []byte, fam family.Family, memo *fwdPathIDMemo) error 
 // (releaseSource). So an UPDATE from a session that negotiated ADD-PATH for
 // nothing costs one context-registry read and returns.
 //
-// Lock ordering: the caller holds the cache mutex and this takes the identifier
-// table's, so cache.mu -> fwdPathIDs.mu is the only nesting. The forward path
-// takes fwdPathIDs.mu holding neither, and nothing takes cache.mu while holding
-// fwdPathIDs.mu.
-func fwdReleaseWithdrawnPathIDs(peerWire *wireu.WireUpdate) {
+// Lock ordering: cache.mu -> fwdPathIDs.mu -> Adj-RIB-In read lock. The receive
+// store MUST release its lock before cache operations or validation events.
+// Retained paths keep their identifiers even if a stale withdrawal cache entry
+// is evicted after a replacement has become eligible.
+func fwdReleaseWithdrawnPathIDs(update *ReceivedUpdate) {
+	peerWire := update.WireUpdate
 	if peerWire == nil {
 		return
 	}
@@ -465,16 +484,16 @@ func fwdReleaseWithdrawnPathIDs(peerWire *wireu.WireUpdate) {
 	}
 
 	src := peerWire.SourceID()
-	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, src); err != nil {
+	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, src, update.SourcePeerIP); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
-	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, src); err != nil {
+	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, src, update.SourcePeerIP); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
 }
 
 // fwdReleaseIPv4Withdrawn frees the identifiers of the Withdrawn Routes field.
-func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID) error {
+func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr) error {
 	if !srcCtx.AddPath(family.IPv4Unicast) {
 		return nil
 	}
@@ -489,11 +508,11 @@ func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.Encoding
 	if err != nil {
 		return fmt.Errorf("nlri: %w", err)
 	}
-	return fwdReleaseSection(src, family.IPv4Unicast, withdrawn, announced)
+	return fwdReleaseSection(src, peer, family.IPv4Unicast, withdrawn, announced)
 }
 
 // fwdReleaseMPWithdrawn frees the identifiers of the MP_UNREACH_NLRI attribute.
-func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID) error {
+func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr) error {
 	mpUnreach, err := peerWire.MPUnreach()
 	if err != nil {
 		return fmt.Errorf("mp_unreach: %w", err)
@@ -520,7 +539,7 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 	if mpReach != nil && mpReach.Family() == fam {
 		announced = mpReach.NLRIBytes()
 	}
-	return fwdReleaseSection(src, fam, withdrawn, announced)
+	return fwdReleaseSection(src, peer, fam, withdrawn, announced)
 }
 
 // fwdReleaseSection frees ze's identifier for every path one withdrawn section
@@ -531,35 +550,35 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 // pair, so ze must keep the identifier that named it. RFC 7606 Section 5.1
 // forbids a conforming sender to put both fields in one UPDATE, so an ordinary
 // withdraw reaches an empty announced section and builds no set at all.
-func fwdReleaseSection(src source.SourceID, fam family.Family, withdrawn, announced []byte) error {
+func fwdReleaseSection(src source.SourceID, peer netip.Addr, fam family.Family, withdrawn, announced []byte) error {
 	alsoAnnounced, err := fwdAnnouncedPaths(fam, announced)
 	if err != nil {
 		return fmt.Errorf("announced section: %w", err)
 	}
 
-	for off := 0; off < len(withdrawn); {
-		if off+5 > len(withdrawn) {
-			return fmt.Errorf("truncated path identifier at offset %d", off)
-		}
-		received := binary.BigEndian.Uint32(withdrawn[off:])
-		start := off + 4
-		end := start + 1 + nlri.PrefixBytes(int(withdrawn[start]))
-		if end > len(withdrawn) {
-			return fmt.Errorf("truncated prefix at offset %d", start)
+	split := nlrisplit.GetWithdraw(fam)
+	if split == nil {
+		return nlrisplit.ErrUnsupported
+	}
+	var keyErr error
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	_, err = split(withdrawn, true, func(raw []byte) {
+		if keyErr != nil {
+			return
 		}
 		var key fwdPathKey
-		// An NLRI too long to key is an NLRI fwdPatchPathIDs and
-		// fwdReencodeNLRIs could not key either, so no entry exists to free
-		// and the forward that met it was already dropped.
-		if err := fwdPathKeyFor(&key, fam, received, withdrawn[start:end]); err != nil {
-			return err
+		keyErr = fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(raw[:4]), raw[4:], true, scratch[:])
+		if keyErr != nil {
+			return
 		}
 		if _, both := alsoAnnounced[key]; !both {
-			fwdPathIDs.releasePath(src, &key)
+			fwdPathIDs.releasePath(src, &key, peer, raw[4:])
 		}
-		off = end
+	})
+	if err != nil {
+		return err
 	}
-	return nil
+	return keyErr
 }
 
 // fwdAnnouncedPaths keys every path an ADD-PATH framed announced section names,
@@ -575,30 +594,35 @@ func fwdReleaseSection(src source.SourceID, fam family.Family, withdrawn, announ
 // cost 41 million comparisons, measured at 137ms per UPDATE on the developer
 // machine, repeatable at line rate. The set costs one pass over each section.
 //
-// The map is bounded by one message: 65535 octets of ADD-PATH framed NLRI hold
-// at most 13107 pairs, and it is freed when the release returns.
-//
-// A malformed tail ends the walk rather than failing it. The section is the one
-// the forward already walked, so it is well formed on every path that reaches
-// here, and a pair the walk cannot read is a pair the release cannot match
-// either.
+// The set is bounded by the number of NLRIs in one BGP message. The registered
+// splitter rejects malformed native framing before an unrelated key is freed.
 func fwdAnnouncedPaths(fam family.Family, section []byte) (map[fwdPathKey]struct{}, error) {
+	if len(section) == 0 {
+		return nil, nil
+	}
+	split := nlrisplit.Get(fam)
+	if split == nil {
+		return nil, nlrisplit.ErrUnsupported
+	}
 	var paths map[fwdPathKey]struct{}
-	for off := 0; off+5 <= len(section); {
-		start := off + 4
-		end := start + 1 + nlri.PrefixBytes(int(section[start]))
-		if end > len(section) {
-			return paths, nil
+	var keyErr error
+	var scratch [nlrisplit.PrefixKeyScratchSize]byte
+	_, err := split(section, true, func(raw []byte) {
+		if keyErr != nil {
+			return
 		}
 		var key fwdPathKey
-		if err := fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(section[off:]), section[start:end]); err != nil {
-			return nil, err
+		keyErr = fwdPathKeyFor(&key, fam, binary.BigEndian.Uint32(raw[:4]), raw[4:], false, scratch[:])
+		if keyErr != nil {
+			return
 		}
 		if paths == nil {
 			paths = make(map[fwdPathKey]struct{})
 		}
 		paths[key] = struct{}{}
-		off = end
+	})
+	if err != nil {
+		return nil, err
 	}
-	return paths, nil
+	return paths, keyErr
 }

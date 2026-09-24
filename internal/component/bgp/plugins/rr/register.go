@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // appendOriginatorIDJSON renders ORIGINATOR_ID as the address it is.
@@ -72,7 +73,11 @@ func init() {
 		Name:         "bgp-rr",
 		Description:  "Route Reflector",
 		RFCs:         []string{"4456"},
-		Dependencies: []string{"bgp-adj-rib-in"},
+		Dependencies: []string{"bgp-adj-rib-in", "bgp-rib"},
+		// The reflector owns peer-up replay for peers whose state it receives.
+		// Share the RS claim so Adj-RIB-In stands down before the first peer
+		// establishes; UnheldRoles restores self-replay for other peers.
+		Claims: []string{"bgp-peer-up-replay"},
 		// The peer-up replay reflects the stored adj-rib-in into the client that
 		// establishes, which is that client's initial routing update, and
 		// signalSessionReady reports when it is out, after this plugin's own
@@ -80,6 +85,9 @@ func init() {
 		SignalsSessionReady: true,
 		RunEngine:           runRouteReflector,
 		Commands:            commandDecls(),
+		ConfigureEventBus: func(bus ze.EventBus) {
+			validationBus.Store(&bus)
+		},
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

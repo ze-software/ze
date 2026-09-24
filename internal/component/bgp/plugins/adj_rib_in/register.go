@@ -7,6 +7,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 func init() {
@@ -23,6 +24,9 @@ func init() {
 		// (rib.go) -- including when bgp-rs holds the replay role and this plugin
 		// sends nothing, which is finished the instant the event arrives.
 		SignalsSessionReady: true,
+		ConfigureEventBus: func(bus ze.EventBus) {
+			validationBusPtr.Store(&bus)
+		},
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

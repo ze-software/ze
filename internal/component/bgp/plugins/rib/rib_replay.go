@@ -112,6 +112,9 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, fil
 			continue
 		}
 		for key, entry := range familyRoutes {
+			if !r.replaySourceEligible(fam, key) {
+				continue
+			}
 			gk := groupKey{
 				Family:     fam,
 				AttrHandle: entry.AttrHandle,

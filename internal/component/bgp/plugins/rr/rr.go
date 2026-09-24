@@ -154,6 +154,21 @@ func runRouteReflector(conn net.Conn) int {
 		return rr.handleCommand(command)
 	})
 
+	// Startup ownership comes from Registration.Claims. Mid-life auto-load
+	// and restart deliver this callback to notify an already-running store.
+	p.OnAllPluginsReady(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		status, _, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in claim-replay")
+		if err == nil && status != statusDone {
+			err = fmt.Errorf("adj-rib-in replay claim returned status %q", status)
+		}
+		if err != nil {
+			logger().Warn("could not claim adj-rib-in replay ownership; peer-up routes may be announced twice", "error", err)
+		}
+		return err
+	})
+
 	// Subscribe to received-direction only for UPDATE and OPEN events.
 	// Same rationale as bgp-rs: subscribing to "both" for UPDATEs creates
 	// a circular deadlock (ForwardUpdate -> onMessageSent -> deliver -> block).
@@ -168,6 +183,10 @@ func runRouteReflector(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	defer rr.stopping.Store(true)
+	if bus := validationBus.Load(); bus != nil {
+		stop := rr.startValidation(ctx, *bus)
+		defer stop()
+	}
 	err := p.Run(ctx, sdk.Registration{
 		CacheConsumer:          true,
 		CacheConsumerUnordered: true,
@@ -481,22 +500,29 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	// Report on every path out, including the failed replay below: each one
-	// ends what this plugin owes the peer's initial routing update, and the
-	// End-of-RIB is held until it arrives (signalSessionReady).
-	defer rr.signalSessionReady(peerAddr, gen)
+	// The mandatory selecting RIB owns FlowSpec replay independently of the
+	// optional store. Complete it before EOR and the readiness report on both
+	// successful and failed optional-store replay.
+	var replayed int
+	defer func() {
+		replayed += rr.replayFlowSpecs(peerAddr, gen)
+		if replayed > 0 {
+			rr.sendEOR(peerAddr, gen)
+		}
+		rr.signalSessionReady(peerAddr, gen)
+	}()
 
 	// Full replay from adj-rib-in index 0.
 	status, data, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, "0")
 	if err != nil || status != statusDone {
-		// Replay failure is non-fatal: the peer will still receive new routes
-		// going forward. Log and return without sending EOR.
+		// Optional-store failure does not prevent mandatory FlowSpec replay.
 		logger().Warn("replay failed", "peer", peerAddr, "status", status, "error", err)
 		return
 	}
 
 	// Parse last-index for convergent delta replay.
-	lastIndex, replayed := parseReplayResponse(data)
+	lastIndex, replayCount := parseReplayResponse(data)
+	replayed = replayCount
 
 	// Convergent delta replay: catch routes adj-rib-in received after the
 	// full replay snapshot (race between event delivery and replay).
@@ -521,11 +547,6 @@ func (rr *routeReflector) replayForPeer(peerAddr string, gen uint64) {
 		lastIndex = newLast
 	}
 
-	// Send EOR only after a non-empty replay. On initial session establishment
-	// with empty RIB, the reactor already sends EOR for negotiated families.
-	if replayed > 0 {
-		rr.sendEOR(peerAddr, gen)
-	}
 }
 
 // dispatchCommand sends a command to the engine via the SDK.

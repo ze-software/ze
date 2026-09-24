@@ -254,6 +254,9 @@ func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family)
 	}
 	routes := make([]*Route, 0, len(familyRoutes))
 	for key, entry := range familyRoutes {
+		if !r.replaySourceEligible(fam, key) {
+			continue
+		}
 		src := r.ribOutSourcePeer(fam, key)
 		routes = append(routes, reconstructRoute(entry, fam, key, src))
 	}

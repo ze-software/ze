@@ -601,7 +601,7 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 // released, and the paths this UPDATE really withdrew leak for the session's
 // life. TestEvictionWalksTheBodyBeforeItFreesTheBuffer holds the order.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
-	fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
+	fwdReleaseWithdrawnPathIDs(e.update)
 	ReturnReadBuffer(e.update.poolBuf)
 	e.update.returnFwdHandles()
 	c.entries.Delete(id)
@@ -666,7 +666,7 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 	defer c.mu.Unlock()
 
 	if e, ok := c.entries.Get(id); ok {
-		fwdReleaseWithdrawnPathIDs(e.update.WireUpdate)
+		fwdReleaseWithdrawnPathIDs(e.update)
 		ReturnReadBuffer(e.update.poolBuf)
 		e.update.returnFwdHandles()
 		c.entries.Delete(id)

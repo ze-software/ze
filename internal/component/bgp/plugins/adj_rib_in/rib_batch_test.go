@@ -56,7 +56,7 @@ func BenchmarkAcceptRoutesBatch(b *testing.B) {
 		end := min(i+batchSize, benchN)
 		args := make([]string, 0, (end-i)*batchValidateStride)
 		for j := i; j < end; j++ {
-			args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefixes[j], "0", "1")
+			args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefixes[j], "0", "1", "0")
 		}
 		batchArgs = append(batchArgs, args)
 	}
@@ -143,9 +143,9 @@ func TestBatchValidateMixedAcceptReject(t *testing.T) {
 	r.mu.Unlock()
 
 	args := []string{
-		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1",
-		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "0", "0",
-		"a", "10.0.0.1", "ipv6/unicast", "2001:db8::/32", "0", "2",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1", "0",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "0", "0", "0",
+		"a", "10.0.0.1", "ipv6/unicast", "2001:db8::/32", "0", "2", "0",
 	}
 
 	status, data, err := r.handleCommand("request bgp adj-rib-in batch-validate", args, "")
@@ -195,7 +195,7 @@ func TestBatchValidateOddPeerIdentifiers(t *testing.T) {
 	}
 	r.mu.Unlock()
 
-	args := []string{"a", peer, "ipv4/unicast", "203.0.113.0/24", "42", "1"}
+	args := []string{"a", peer, "ipv4/unicast", "203.0.113.0/24", "42", "1", "0"}
 	status, _, err := r.handleCommand("request bgp adj-rib-in batch-validate", args, "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid peer address")
@@ -216,8 +216,8 @@ func TestBatchValidateEarlyDecisions(t *testing.T) {
 	r.validationEnabled = true
 
 	args := []string{
-		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1",
-		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "0", "0",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1", "0",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "0", "0", "0",
 	}
 
 	status, data, err := r.handleCommand("request bgp adj-rib-in batch-validate", args, "")
@@ -258,7 +258,7 @@ func TestBatchValidateEmptyBatch(t *testing.T) {
 	assert.Equal(t, 0, result["early"])
 }
 
-// TestBatchValidateInvalidStride verifies non-multiple-of-6 args are rejected.
+// TestBatchValidateInvalidStride verifies incomplete decisions are rejected.
 func TestBatchValidateInvalidStride(t *testing.T) {
 	r := newTestManager(t)
 
@@ -273,7 +273,7 @@ func TestBatchValidateInvalidAction(t *testing.T) {
 	r := newTestManager(t)
 
 	status, _, err := r.handleCommand("request bgp adj-rib-in batch-validate",
-		[]string{"x", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1"}, "")
+		[]string{"x", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1", "0"}, "")
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown action")
@@ -290,7 +290,7 @@ func TestBatchValidateAtMaxCount(t *testing.T) {
 	args := make([]string, 0, n*batchValidateStride)
 	for i := range n {
 		prefix := "10.0." + strconv.Itoa(i/256) + "." + strconv.Itoa(i%256) + "/32"
-		args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefix, "0", "1")
+		args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefix, "0", "1", "0")
 	}
 
 	status, data, err := r.handleCommand("request bgp adj-rib-in batch-validate", args, "")
@@ -313,7 +313,7 @@ func TestBatchValidateExceedsMaxCount(t *testing.T) {
 	args := make([]string, 0, n*batchValidateStride)
 	for i := range n {
 		prefix := "10.0." + strconv.Itoa(i/256) + "." + strconv.Itoa(i%256) + "/32"
-		args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefix, "0", "1")
+		args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefix, "0", "1", "0")
 	}
 
 	status, _, err := r.handleCommand("request bgp adj-rib-in batch-validate", args, "")
@@ -365,7 +365,7 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 	batched := setup()
 	var batchArgs []string
 	for i, p := range prefixes {
-		batchArgs = append(batchArgs, actions[i], "10.0.0.1", "ipv4/unicast", p, strconv.Itoa(i), states[i])
+		batchArgs = append(batchArgs, actions[i], "10.0.0.1", "ipv4/unicast", p, strconv.Itoa(i), states[i], "0")
 	}
 	_, _, _ = batched.handleCommand("request bgp adj-rib-in batch-validate", batchArgs, "")
 
@@ -418,10 +418,10 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 
 	stringPath := setup()
 	stringArgs := []string{
-		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1",
-		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "1", "0",
-		"a", "10.0.0.1", "ipv4/unicast", "10.0.2.0/24", "2", "3",
-		"r", "10.0.0.1", "ipv4/unicast", "10.0.3.0/24", "3", "0",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1", "0",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "1", "0", "0",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.2.0/24", "2", "3", "0",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.3.0/24", "3", "0", "0",
 	}
 	_, stringData, err := stringPath.handleCommand("request bgp adj-rib-in batch-validate", stringArgs, "")
 	require.NoError(t, err)

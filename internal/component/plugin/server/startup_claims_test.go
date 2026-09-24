@@ -391,28 +391,28 @@ func TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed(t *testing.T) {
 
 	t.Run("nothing advertised retracts nothing", func(t *testing.T) {
 		s := &Server{}
-		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown}),
+		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown}, nil),
 			"a daemon where no plugin claims a role has nothing to retract")
 	})
 
 	t.Run("claimant fed this peer holds the role", func(t *testing.T) {
 		s := &Server{}
 		s.recordAdvertisedClaim(role, "bgp-rs")
-		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown, owner}),
+		assert.Empty(t, s.UnheldRoles([]*process.Process{stoodDown, owner}, nil),
 			"the claimant takes delivery, so the Stage-2 promise holds for this peer")
 	})
 
 	t.Run("claimant not fed this peer holds nothing", func(t *testing.T) {
 		s := &Server{}
 		s.recordAdvertisedClaim(role, "bgp-rs")
-		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}),
+		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}, nil),
 			"the claimant takes no delivery, so the plugin that stood down must act")
 	})
 
 	t.Run("an empty delivery set holds nothing", func(t *testing.T) {
 		s := &Server{}
 		s.recordAdvertisedClaim(role, "bgp-rs")
-		assert.Equal(t, []string{role}, s.UnheldRoles(nil),
+		assert.Equal(t, []string{role}, s.UnheldRoles(nil, nil),
 			"an event delivered to nobody is held by nobody")
 	})
 
@@ -421,7 +421,7 @@ func TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed(t *testing.T) {
 		s.recordAdvertisedClaim(role, "bgp-rs")
 		s.recordAdvertisedClaim(role, "rs-under-another-name")
 		second := process.NewProcess(plugin.PluginConfig{Name: "rs-under-another-name"})
-		assert.Empty(t, s.UnheldRoles([]*process.Process{second}),
+		assert.Empty(t, s.UnheldRoles([]*process.Process{second}, nil),
 			"the role has a holder here, whichever claimant it is")
 	})
 
@@ -429,7 +429,7 @@ func TestUnheldRolesRetractsAClaimForAPeerTheClaimantIsNotFed(t *testing.T) {
 		s := &Server{}
 		s.recordAdvertisedClaim(role, "bgp-rs")
 		s.recordAdvertisedClaim("some-other-role", "bgp-adj-rib-in")
-		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}),
+		assert.Equal(t, []string{role}, s.UnheldRoles([]*process.Process{stoodDown}, nil),
 			"the role whose claimant IS fed must not be retracted with the one that is not")
 	})
 }
@@ -484,11 +484,75 @@ func TestUnheldRolesOverTheRealDeliverySet(t *testing.T) {
 	unheldFor := func(peerAddr string) []string {
 		procs := s.PeerScopedProcs(ns, stateET, events.DirUnspecified, peerAddr, "")
 		require.NotEmpty(t, procs, "the fixture must feed %s something", peerAddr)
-		return s.UnheldRoles(procs)
+		return s.UnheldRoles(procs, nil)
 	}
 
 	assert.Empty(t, unheldFor(bothPeer),
 		"the peer attaches the claimant, so the claim holds for it")
 	assert.Equal(t, []string{role}, unheldFor(alonePeer),
 		"the peer attaches only the plugin that stood down, so nothing here holds the role")
+}
+
+// VALIDATES: delivered claimants hold only the roles whose event-specific
+// capabilities the peer grants; another eligible claimant can still own a role.
+// PREVENTS: an observer suppressing a writer's fallback, or writer requirements
+// incorrectly retracting an unrelated observation role.
+func TestUnheldRolesRespectsDeliveredClaimantAuthority(t *testing.T) {
+	const (
+		writeRole = "test-write-role"
+		readRole  = "test-read-role"
+		owner     = "claim-owner"
+		second    = "second-owner"
+		peerAddr  = "10.0.0.9"
+	)
+	s, err := NewServer(&ServerConfig{}, &mockReactor{})
+	require.NoError(t, err)
+	s.recordAdvertisedClaim(writeRole, owner)
+	s.recordAdvertisedClaim(writeRole, second)
+	s.recordAdvertisedClaim(readRole, owner)
+	ns, _, stateET := graphIDs(t)
+	for _, name := range []string{owner, second} {
+		s.Subscriptions().Add(process.NewProcess(plugin.PluginConfig{Name: name}), &Subscription{
+			Namespace: ns, EventType: stateET, Direction: events.DirUnspecified,
+		})
+	}
+	for _, tc := range []struct {
+		name                                       string
+		receive, sendAll, secondWriter, wantUnheld bool
+		send                                       map[string]bool
+	}{
+		{name: "observer", receive: true, wantUnheld: true},
+		{name: "raw-only", receive: true, send: map[string]bool{"raw": true}, wantUnheld: true},
+		{name: "update-authorized", receive: true, send: map[string]bool{"update": true}},
+		{name: "wildcard-authorized", receive: true, sendAll: true},
+		{name: "not-receiving-state", send: map[string]bool{"update": true}, wantUnheld: true},
+		{name: "other-claimant-authorized", receive: true, secondWriter: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bindings := []plugin.PeerProcessBinding{{
+				PluginName: owner, ReceiveAll: tc.receive, SendAll: tc.sendAll, Send: tc.send,
+			}}
+			if tc.secondWriter {
+				bindings = append(bindings, plugin.PeerProcessBinding{
+					PluginName: second, ReceiveAll: true, Send: map[string]bool{"update": true},
+				})
+			}
+			s.UpdateDeliveryGraph(graphNS, []DeliveryPeer{{Addr: peerAddr, Bindings: bindings}})
+			procs := s.PeerScopedProcs(ns, stateET, events.DirUnspecified, peerAddr, "")
+			graph := s.DeliveryGraph()
+			unheld := s.UnheldRoles(procs, func(role string, proc *process.Process) bool {
+				return role != writeRole || graph.MaySend(peerAddr, proc.Name(), "update")
+			})
+			if tc.wantUnheld {
+				require.Contains(t, unheld, writeRole)
+			} else {
+				require.NotContains(t, unheld, writeRole)
+			}
+			if tc.receive {
+				require.NotContains(t, unheld, readRole, "an observation role does not require write permission")
+			} else {
+				require.Contains(t, unheld, readRole, "send permission cannot substitute for event delivery")
+			}
+		})
+	}
 }

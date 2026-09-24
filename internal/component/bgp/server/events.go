@@ -89,6 +89,8 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.RouterID = peer.RouterID
 	se.RemoteRouterID = peer.RemoteRouterID
 	se.LocalAddress = peer.LocalAddrStr()
+	se.LocalPort = peer.LocalPort
+	se.RemotePort = peer.RemotePort
 	se.EventType = messageTypeToEventKind(msg.Type)
 	se.Direction = msg.Direction
 	se.MessageID = msg.MessageID
@@ -110,6 +112,8 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.RouterID = peer.RouterID
 	se.RemoteRouterID = peer.RemoteRouterID
 	se.LocalAddress = peer.LocalAddrStr()
+	se.LocalPort = peer.LocalPort
+	se.RemotePort = peer.RemotePort
 	se.EventType = rpc.EventKindState
 	se.State = state
 	se.Reason = reason
@@ -582,7 +586,13 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	// Server.UnheldRoles states why the daemon-wide answer is not enough. It
 	// costs one map read on a daemon where nothing ever claimed a role, which is
 	// every daemon running neither bgp-rs nor another claiming plugin.
-	unheldRoles := s.UnheldRoles(procs)
+	graph := s.DeliveryGraph()
+	unheldRoles := s.UnheldRoles(procs, func(role string, proc *process.Process) bool {
+		// A replay claimant must be able to emit RelayStoredRoute's UPDATEs,
+		// not merely observe this peer's state. Other roles keep their own
+		// delivery semantics.
+		return role != "bgp-peer-up-replay" || graph.MaySend(peerAddr, proc.Name(), bgpevents.SendUpdate)
+	})
 
 	// Arm the peer-up barrier before the first delivery. Its expected count is
 	// the barrier-declaring plugins among the ones this event is ACTUALLY being

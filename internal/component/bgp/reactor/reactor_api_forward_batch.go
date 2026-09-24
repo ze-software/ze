@@ -185,6 +185,7 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 		}
 
 		if len(filtered) > 0 {
+			srcInfo.sender = sender
 			fwdErr := a.forwardUpdateCore(update, id, filtered, srcInfo)
 			if fwdErr != nil {
 				fwdLogger().Debug("ForwardUpdatesDirect: dispatch returned",
@@ -293,6 +294,7 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 			remoteRouterID: srcPeer.RemoteRouterID(),
 			globalLocalAS:  s.GlobalLocalAS,
 			resolved:       true,
+			peer:           srcPeer,
 		}
 		if len(a.r.egressFilters) > 0 {
 			info.filterInfo = filterapi.PeerFilterInfo{

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // workerKey identifies a per-source-peer worker goroutine.
@@ -25,6 +26,7 @@ type workItem struct {
 	msgID       uint64
 	sourcePeer  string
 	msg         *bgptypes.RawMessage
+	validation  ribevents.ValidationRoute
 	textPayload string
 }
 
@@ -83,9 +85,8 @@ func (w *worker) depth() int {
 // Workers are created lazily on first Dispatch and exit after idle timeout.
 // Each key has exactly one worker goroutine — FIFO ordering is preserved per key.
 //
-// Concurrency constraint: Dispatch and PeerDown/Stop must not be called
-// concurrently for the same sourcePeer. In the current design this is guaranteed
-// because both are called from the OnEvent handler (single goroutine).
+// Dispatch holds mu through enqueue, so validation callbacks may race with
+// PeerDown/Stop without sending to a closed or idle-expired worker.
 type workerPool struct {
 	mu      sync.Mutex
 	workers map[workerKey]*worker
@@ -147,8 +148,8 @@ func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *
 // Callers must clean up associated state (e.g., cache entries) on false.
 func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	wp.mu.Lock()
+	defer wp.mu.Unlock()
 	if wp.stopped {
-		wp.mu.Unlock()
 		return false
 	}
 
@@ -163,7 +164,12 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 		wp.count.Add(1)
 		go wp.runWorker(key, w)
 	}
-	wp.mu.Unlock()
+	select {
+	case <-w.closeCh:
+		return false
+	default:
+		// The registered worker is still accepting this source's events.
+	}
 
 	// Non-blocking enqueue. If overflow is non-empty or the drain goroutine
 	// has an in-flight item, all new items must go through overflow to
@@ -299,7 +305,11 @@ func (wp *workerPool) PeerDown(sourcePeer string) {
 	key := workerKey{sourcePeer: sourcePeer}
 	w, ok := wp.workers[key]
 	if ok {
-		delete(wp.workers, key)
+		select {
+		case <-w.closeCh:
+		default:
+			close(w.closeCh)
+		}
 	}
 	wp.mu.Unlock()
 
@@ -314,11 +324,16 @@ func (wp *workerPool) PeerDown(sourcePeer string) {
 	wp.backpressure.Delete(key)
 	wp.bpLastLog.Delete(key)
 
-	// Signal drain goroutine to stop, wait for it, then close channel.
-	close(w.closeCh)
+	// Keep the closing worker registered until it finishes. Concurrent
+	// validation callbacks must not create a second worker for this source.
 	w.drainWg.Wait()
 	close(w.ch)
 	<-w.done
+	wp.mu.Lock()
+	if wp.workers[key] == w {
+		delete(wp.workers, key)
+	}
+	wp.mu.Unlock()
 }
 
 // Stop closes all workers and waits for them to drain.
@@ -343,7 +358,11 @@ func (wp *workerPool) Stop() {
 
 	// Signal all drain goroutines and workers to stop via closeCh.
 	for _, w := range all {
-		close(w.closeCh)
+		select {
+		case <-w.closeCh:
+		default:
+			close(w.closeCh)
+		}
 	}
 	// Wait for all drain goroutines to exit.
 	for _, w := range all {
@@ -471,13 +490,16 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			// Check channel AND overflow under lock: if either has items
 			// or overflow is draining, we must not exit.
 			wp.mu.Lock()
-			if len(w.ch) > 0 || w.overflowLen() > 0 {
+			w.overflowMu.Lock()
+			pending := len(w.overflow) > 0 || w.draining
+			w.overflowMu.Unlock()
+			if len(w.ch) > 0 || pending {
 				wp.mu.Unlock()
 				idle.Reset(wp.cfg.idleTimeout)
 				continue
 			}
 			// Only delete if this worker is still the registered one
-			// (PeerDown may have already removed it).
+			// (Stop may have already removed it).
 			if wp.workers[key] == w {
 				delete(wp.workers, key)
 			}

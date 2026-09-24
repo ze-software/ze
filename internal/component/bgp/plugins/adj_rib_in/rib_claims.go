@@ -6,15 +6,14 @@ package adj_rib_in
 
 import "slices"
 
-// claimPeerUpReplay is the exclusive-role token bgp-rs declares to take peer-up
-// replay over from this plugin (rs/server_handlers.go ClaimPeerUpReplay declares
-// the same spelling; rs/register.go puts it in Registration.Claims). The engine
-// treats the token as opaque and delivers it on the Stage-2 configure callback.
+// claimPeerUpReplay is the role bgp-rs and bgp-rr declare to take peer-up replay
+// over from this plugin. rs/server_handlers.go ClaimPeerUpReplay and
+// rr/register.go use the same spelling. The engine treats it as opaque and
+// delivers the union of claims on the Stage-2 configure callback.
 //
-// Spelled out here rather than imported from the rs package on purpose: this
-// plugin must build and run with bgp-rs deleted from the tree
-// (ai/rules/plugins.md). An absent bgp-rs simply never claims
-// the token, and self-replay stays on.
+// Spelled out here rather than imported from either owner on purpose: this
+// plugin's production code must build and run with those plugins deleted
+// (ai/rules/plugins.md). With no claimant, self-replay stays on.
 const claimPeerUpReplay = "bgp-peer-up-replay"
 
 // applyStartupClaims stands peer-up self-replay down when another plugin has

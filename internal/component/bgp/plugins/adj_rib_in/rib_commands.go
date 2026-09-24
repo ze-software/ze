@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -20,7 +22,7 @@ var (
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
-	errBatchValidateStride                  = errors.New("batch-validate requires args in groups of 6: action peer family prefix pathID state")
+	errBatchValidateStride                  = errors.New("batch-validate requires args in groups of 7: action peer family prefix pathID state msgID")
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -33,10 +35,14 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return statusDone, r.show(showSelector(args, peer)), nil
 	case "request bgp adj-rib-in replay":
 		return r.replayCommand(args)
+	case "request bgp adj-rib-in replay-path":
+		return r.replayPathCommand(args)
 	case "request bgp adj-rib-in claim-replay":
 		return r.claimReplayCommand()
 	case "request bgp adj-rib-in enable-validation":
-		return r.enableValidationCommand()
+		return r.enableValidationCommand(args)
+	case "request bgp adj-rib-in disable-validation":
+		return r.disableValidationCommand()
 	case "request bgp adj-rib-in accept-routes":
 		return r.acceptRoutesCommand(args)
 	case "request bgp adj-rib-in reject-routes":
@@ -56,7 +62,7 @@ const (
 )
 
 const (
-	batchValidateStride   = 6
+	batchValidateStride   = 7
 	maxBatchValidateCount = 256 // higher than rpki sender's 128: external plugins may batch up to 256
 )
 
@@ -72,9 +78,12 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	}
 	peerAddrs := make([]netip.Addr, len(decisions))
 	for i := range decisions {
+		if decisions[i].Accept && decisions[i].Ineligible {
+			return nil, fmt.Errorf("batch-validate: accept and ineligible are mutually exclusive at index %d", i)
+		}
 		// RFC requirement: RFC6811-2-1 -- accepted routes retain any of the
 		// three lookup results defined by RFC 6811 Section 2.
-		if decisions[i].Accept &&
+		if (decisions[i].Accept || decisions[i].Ineligible) &&
 			decisions[i].ValState != ValidationValid &&
 			decisions[i].ValState != ValidationNotFound &&
 			decisions[i].ValState != ValidationInvalid {
@@ -88,7 +97,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer r.unlockValidation()
 
 	var accepted, rejected, early int
 	for i := range decisions {
@@ -96,36 +105,12 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 		peerAddr := peerAddrs[i]
 		dFam, _ := family.LookupFamily(d.Family)
 		rKey := routeKeyFromStrings(dFam, d.Prefix, d.PathID)
-		pKey := pendingKey(peerAddr, rKey)
-
+		if r.applyDecision(peerAddr, rKey, d) {
+			early++
+		}
 		if d.Accept {
-			pr, ok := r.pending[pKey]
-			if !ok {
-				if r.applyToInstalled(peerAddr, rKey, true, d.ValState) {
-					accepted++
-					continue
-				}
-				r.storeEarlyDecision(peerAddr, rKey, earlyAccept, d.ValState)
-				early++
-				accepted++
-				continue
-			}
-			r.promoteToInstalled(pr, d.ValState)
-			delete(r.pending, pKey)
 			accepted++
 		} else {
-			if _, ok := r.pending[pKey]; !ok {
-				if r.applyToInstalled(peerAddr, rKey, false, 0) {
-					rejected++
-					continue
-				}
-				r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
-				early++
-				rejected++
-				continue
-			}
-			delete(r.pending, pKey)
-			logger().Debug("rejected pending route (batch-typed)", "peer", d.PeerAddr, "family", d.Family, "prefix", d.Prefix, "pathID", d.PathID)
 			rejected++
 		}
 	}
@@ -134,8 +119,8 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 }
 
 // batchValidateCommand processes multiple accept/reject decisions under a single lock.
-// Args are groups of 6: action("a"|"r"), peer, family, prefix, pathID, state.
-// State is "1" (Valid) or "2" (NotFound) for accepts; ignored for rejects.
+// Args are groups of 7: action("a"|"r"|"i"), peer, family, prefix, pathID, state, msgID.
+// State is 1=Valid, 2=NotFound, 3=Invalid for accepted or retained routes.
 //
 // Pre-validates the entire args slice before mutating state so a parse error
 // mid-batch does not leave the RIB partially applied.
@@ -151,88 +136,39 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 	if n > maxBatchValidateCount {
 		return statusError, "", fmt.Errorf("batch-validate: %d decisions exceeds maximum %d", n, maxBatchValidateCount)
 	}
-	type decision struct {
-		action   byte
-		peerAddr netip.Addr
-		peerStr  string // original arg, for debug logging
-		fam      string
-		prefix   string
-		pathID   uint32
-		valState uint8
-	}
-	decisions := make([]decision, n)
-
+	decisions := make([]rpc.ValidationDecision, n)
 	for i := range n {
 		off := i * batchValidateStride
 		act := args[off]
-		if act != "a" && act != "r" {
-			return statusError, "", fmt.Errorf("batch-validate: unknown action %q at index %d (expected \"a\" or \"r\")", act, off)
-		}
-		peerAddr, err := netip.ParseAddr(args[off+1])
-		if err != nil {
-			return statusError, "", fmt.Errorf("batch-validate: invalid peer address %q at index %d: %w (expected an IP address)", args[off+1], off+1, err)
+		if act != "a" && act != "r" && act != "i" {
+			return statusError, "", fmt.Errorf("batch-validate: unknown action %q at index %d (expected a, r, or i)", act, off)
 		}
 		pathID, err := strconv.ParseUint(args[off+4], 10, 32)
 		if err != nil {
 			return statusError, "", fmt.Errorf("batch-validate: invalid pathID %q at index %d: %w", args[off+4], off+4, err)
 		}
 		var valState uint8
-		if act == "a" {
+		if act != "r" {
 			valState, err = parseValidationState(args[off+5])
 			if err != nil {
 				return statusError, "", err
 			}
 		}
-		decisions[i] = decision{
-			action: act[0], peerAddr: peerAddr, peerStr: args[off+1], fam: args[off+2],
-			prefix: args[off+3], pathID: uint32(pathID), valState: valState,
+		msgID, err := strconv.ParseUint(args[off+6], 10, 64)
+		if err != nil {
+			return statusError, "", fmt.Errorf("batch-validate: invalid msgID %q at index %d: %w", args[off+6], off+6, err)
+		}
+		decisions[i] = rpc.ValidationDecision{
+			Accept: act == "a", Ineligible: act == "i", PeerAddr: args[off+1], Family: args[off+2],
+			Prefix: args[off+3], PathID: uint32(pathID), ValState: valState, MsgID: msgID,
 		}
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	var accepted, rejected, early int
-	for i := range decisions {
-		d := &decisions[i]
-		dFam, _ := family.LookupFamily(d.fam)
-		rKey := routeKeyFromStrings(dFam, d.prefix, d.pathID)
-		pKey := pendingKey(d.peerAddr, rKey)
-
-		switch d.action {
-		case 'a':
-			pr, ok := r.pending[pKey]
-			if !ok {
-				if r.applyToInstalled(d.peerAddr, rKey, true, d.valState) {
-					accepted++
-					continue
-				}
-				r.storeEarlyDecision(d.peerAddr, rKey, earlyAccept, d.valState)
-				early++
-				accepted++
-				continue
-			}
-			r.promoteToInstalled(pr, d.valState)
-			delete(r.pending, pKey)
-			accepted++
-		case 'r':
-			if _, ok := r.pending[pKey]; !ok {
-				if r.applyToInstalled(d.peerAddr, rKey, false, 0) {
-					rejected++
-					continue
-				}
-				r.storeEarlyDecision(d.peerAddr, rKey, earlyReject, 0)
-				early++
-				rejected++
-				continue
-			}
-			delete(r.pending, pKey)
-			logger().Debug("rejected pending route (batch)", "peer", d.peerStr, "family", d.fam, "prefix", d.prefix, "pathID", d.pathID)
-			rejected++
-		}
+	result, err := r.handleBatchValidateTyped(decisions)
+	if err != nil {
+		return statusError, "", err
 	}
-
-	return statusDone, map[string]any{"accepted": accepted, "rejected": rejected, jsonKeyEarly: early}, nil
+	return statusDone, map[string]any{"accepted": result.Accepted, "rejected": result.Rejected, jsonKeyEarly: result.Early}, nil
 }
 
 func showSelector(args []string, peer string) string {
@@ -290,6 +226,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 				"nlri-hex":         rt.NLRIHex,
 				"seq-index":        seq,
 				"validation-state": rt.ValidationState,
+				"ineligible":       rt.Ineligible,
 			}
 			routeList = append(routeList, routeMap)
 			return true
@@ -411,15 +348,47 @@ func (r *AdjRIBInManager) claimReplayCommand() (string, any, error) {
 	return statusDone, map[string]any{"claimed": true, "already-owned": already}, nil
 }
 
-// enableValidationCommand handles "request bgp adj-rib-in enable-validation".
-// Sets the validationEnabled flag so subsequent routes use pending state.
-func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
+// enableValidationCommand can also gate and snapshot retained routes for a
+// config change. The snapshot and eligibility transition share the store lock.
+func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, error) {
+	refresh := false
+	if len(args) > 0 {
+		if args[0] == "refresh" {
+			refresh = true
+			args = args[1:]
+		}
+	}
+	var timeout time.Duration
+	if len(args) > 0 {
+		if len(args) != 2 {
+			return statusError, "", errors.New("enable-validation accepts [refresh] [timeout seconds]")
+		}
+		if args[0] != "timeout" {
+			return statusError, "", errors.New("enable-validation accepts [refresh] [timeout seconds]")
+		}
+		seconds, err := strconv.ParseUint(args[1], 10, 16)
+		if err != nil {
+			return statusError, "", fmt.Errorf("validation timeout: %w", err)
+		}
+		if seconds == 0 {
+			return statusError, "", errors.New("validation timeout must be between 1 and 65535 seconds")
+		}
+		timeout = time.Duration(seconds) * time.Second
+	}
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
+	defer r.unlockValidation()
+	if timeout != 0 {
+		r.validationTimeout = timeout
+	}
 	r.validationEnabled = true
-	logger().Info("validation gate enabled")
-	return statusDone, map[string]any{"validation-enabled": true}, nil
+	if r.ingestTracked {
+		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent)
+	}
+	data := map[string]any{"validation-enabled": true}
+	if refresh {
+		data["routes"] = r.suspendForRevalidation()
+	}
+	return statusDone, data, nil
 }
 
 // acceptRoutesCommand handles "request bgp adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
@@ -445,23 +414,14 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer r.unlockValidation()
 
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
-	key := pendingKey(peerAddr, rKey)
-	pr, ok := r.pending[key]
-	if !ok {
-		if r.applyToInstalled(peerAddr, rKey, true, valState) {
-			return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
-		}
-		r.storeEarlyDecision(peerAddr, rKey, earlyAccept, valState)
+	d := rpc.ValidationDecision{Accept: true, ValState: valState}
+	if r.applyDecision(peerAddr, rKey, &d) {
 		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
-
-	r.promoteToInstalled(pr, valState)
-	delete(r.pending, key)
-
 	return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 }
 
@@ -484,21 +444,14 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	}
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	defer r.unlockValidation()
 
 	lookupFam, _ := family.LookupFamily(fam)
 	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
-	key := pendingKey(peerAddr, rKey)
-	if _, ok := r.pending[key]; !ok {
-		if r.applyToInstalled(peerAddr, rKey, false, 0) {
-			return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
-		}
-		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
+	d := rpc.ValidationDecision{}
+	if r.applyDecision(peerAddr, rKey, &d) {
 		return statusDone, map[string]any{jsonKeyStatus: "ok", jsonKeyEarly: true}, nil
 	}
-
-	delete(r.pending, key)
-	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix, "pathID", pathID)
 
 	return statusDone, map[string]any{jsonKeyStatus: "ok"}, nil
 }
@@ -534,11 +487,14 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 			routes = append(routes, map[string]any{
 				"peer":             peer.String(),
 				"family":           famStr,
-				"prefix":           prefix,
+				"prefix":           key.Prefix.String(),
 				"attr-hex":         rt.AttrHex,
 				"nhop-hex":         rt.NHopHex,
 				"nlri-hex":         rt.NLRIHex,
 				"validation-state": rt.ValidationState,
+				"ineligible":       rt.Ineligible,
+				"path-id":          rt.PathID,
+				"msg-id":           rt.MsgID,
 			})
 			return true
 		})

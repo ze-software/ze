@@ -63,11 +63,21 @@ type ReceivedUpdate struct {
 	// Set once at creation from the peer's cached address string.
 	SourcePeerStr string
 
-	// fwdHandleMu is a dedicated LEAF mutex guarding fwdHandles. Lock ordering:
-	// adopters (the forward path) hold NO other lock when calling adoptFwdHandle;
-	// the cache takes it strictly inside cache.mu when draining at eviction
-	// (cache.mu -> fwdHandleMu is the only nesting). Never acquire another lock
-	// while holding it. See spec-fixit-forward-readbuf-leak D-3.
+	// Live cache entries retain their receiving peer and session generation.
+	// Stored-route reconstruction has no receive snapshot and leaves the peer nil.
+	receivedPeer       *Peer
+	receivedGeneration uint64
+
+	// A replay gets a new cache ID but retains the received generation for the
+	// validation gate. Zero is explicitly unversioned for a removed route.
+	validationReplay bool
+	validationMsgID  uint64
+	aigpReplay       *aigpAdvertisement
+
+	// fwdHandleMu is a leaf mutex guarding fwdHandles. The forward path may
+	// hold the source's validationForwardMu; eviction holds cache.mu. Neither
+	// path acquires another lock while holding fwdHandleMu, and eviction never
+	// acquires validationForwardMu.
 	fwdHandleMu sync.Mutex
 
 	// fwdHandles holds read-pool buffer handles borrowed on the forward path
@@ -78,6 +88,15 @@ type ReceivedUpdate struct {
 	fwdHandles []BufHandle
 }
 
+// sourceMessageID names the received generation even when a retained replay
+// has a newer cache ID. The same fence governs eligibility and AIGP replay.
+func (u *ReceivedUpdate) sourceMessageID() uint64 {
+	if u.validationReplay {
+		return u.validationMsgID
+	}
+	return u.WireUpdate.MessageID()
+}
+
 // adoptFwdHandle takes ownership of a read-pool buffer handle borrowed on the
 // forward path for a per-destination wire variant (dual-AS prepend, per-key
 // local-AS override, ASN4->ASN2 transcode, or export-filter override). The handle
@@ -86,7 +105,7 @@ type ReceivedUpdate struct {
 // when the cache evicts this entry -- the same point that returns poolBuf
 // (spec-fixit-forward-readbuf-leak D-1/D-2). Callers adopt on the
 // success path ONLY; error paths return the handle immediately (D-5). A zero
-// handle (Buf == nil) is ignored. Adopters must hold no other lock (D-3).
+// handle (Buf == nil) is ignored. Callers MUST follow the lock order above.
 func (u *ReceivedUpdate) adoptFwdHandle(h BufHandle) {
 	if h.Buf == nil {
 		return

@@ -41,6 +41,8 @@ func TestRelayRouteJSONMaxBoundsMarshal(t *testing.T) {
 		{"widest-scalars", rpc.StoredRoute{
 			PathID:      ^uint32(0),
 			NLRIFraming: rpc.NLRIFramingSourceWire,
+			MsgID:       ^uint64(0),
+			Withdraw:    true,
 		}},
 		{"prefix-only-framing", rpc.StoredRoute{
 			SourcePeer:  "2001:db8:0000:0000:0000:0000:0000:0001",

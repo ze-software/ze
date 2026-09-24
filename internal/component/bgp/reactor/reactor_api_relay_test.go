@@ -646,9 +646,10 @@ func storedAddPathRoute(pathID uint32) rpc.StoredRoute {
 // when ze relays that path's withdraw.
 func relayIngressPathID(t *testing.T, src *Peer, received uint32) uint32 {
 	t.Helper()
-	var key fwdPathKey
-	require.NoError(t, fwdPathKeyFor(&key, family.IPv4Unicast, received, relayStoredNLRIWire))
-	return fwdPathIDs.generatePath(src.SourceID(), &key)
+	memo := fwdPathIDMemo{source: src.SourceID()}
+	id, err := memo.framed(family.IPv4Unicast, received, relayStoredNLRIWire, false)
+	require.NoError(t, err)
+	return id
 }
 
 // relayStoredNLRIWire is the RFC 4271 encoding of the prefix every stored route

@@ -235,9 +235,12 @@ func (s *Server) advertisedClaimants() map[string][]string {
 // procs is the set the event is being delivered to, never the delivery graph's
 // edges alone: a process that is granted the event but has not subscribed to it
 // takes no delivery and will not act on it either.
+// eligible can impose the event's capability requirements on a delivered
+// claimant. A nil predicate imposes no additional requirement. Role tokens
+// remain opaque here; protocol delivery owns their permission semantics.
 //
 // Safe for concurrent use.
-func (s *Server) UnheldRoles(procs []*process.Process) []string {
+func (s *Server) UnheldRoles(procs []*process.Process, eligible func(string, *process.Process) bool) []string {
 	advertised := s.advertisedClaimants()
 	if len(advertised) == 0 {
 		return nil
@@ -245,7 +248,14 @@ func (s *Server) UnheldRoles(procs []*process.Process) []string {
 
 	var unheld []string
 	for token, claimants := range advertised {
-		if procsHoldRole(procs, claimants) {
+		held := false
+		for _, proc := range procs {
+			if slices.Contains(claimants, proc.Name()) && (eligible == nil || eligible(token, proc)) {
+				held = true
+				break
+			}
+		}
+		if held {
 			continue
 		}
 		unheld = append(unheld, token)
@@ -253,17 +263,6 @@ func (s *Server) UnheldRoles(procs []*process.Process) []string {
 
 	slices.Sort(unheld)
 	return unheld
-}
-
-// procsHoldRole reports whether any process in procs is one of the claimants of
-// a role.
-func procsHoldRole(procs []*process.Process, claimants []string) bool {
-	for _, proc := range procs {
-		if slices.Contains(claimants, proc.Name()) {
-			return true
-		}
-	}
-	return false
 }
 
 // unbackedClaims returns the advertised role tokens whose every claimant failed
