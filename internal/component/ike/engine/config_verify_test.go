@@ -223,7 +223,7 @@ func TestValidateIPsecSectionsDoesNotMutatePKIStore(t *testing.T) {
 	}
 
 	sections := []sdk.ConfigSection{
-		{Root: "pki", Data: `{"ca": {"verify-probe-ca": {"certificate": "` + testCADER(t) + `"}}}`},
+		{Root: "pki", Data: `{"pki":{"ca": {"verify-probe-ca": {"certificate": "` + testCADER(t) + `"}}}}`},
 		vpnSection(`{
 		  "vpn": {
 		  "ipsec": {
@@ -263,8 +263,8 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 	// ValidatePKIRefs requires a certificate on every EAP peer. Both names must
 	// resolve against this same delivery, which is what the test is about.
 	good := []sdk.ConfigSection{
-		{Root: "pki", Data: `{"ca": {"corp-ca": {"certificate": "` + ca + `"}},` +
-			`"certificate": {"corp-cert": {"certificate": "` + ca + `"}}}`},
+		{Root: "pki", Data: `{"pki":{"ca": {"corp-ca": {"certificate": "` + ca + `"}},` +
+			`"certificate": {"corp-cert": {"certificate": "` + ca + `"}}}}`},
 		vpnSection(`{
 		  "vpn": {
 		  "ipsec": {
@@ -333,7 +333,7 @@ func TestStagingParseDoesNotMutatePKIStore(t *testing.T) {
 	// runs on a config that passed validation, so the case that matters is the one where
 	// nothing refuses the delivery and the side effect would simply happen.
 	sections := []sdk.ConfigSection{
-		{Root: "pki", Data: `{"ca": {"` + probe + `": {"certificate": "` + testCADER(t) + `"}}}`},
+		{Root: "pki", Data: `{"pki":{"ca": {"` + probe + `": {"certificate": "` + testCADER(t) + `"}}}}`},
 		vpnSection(`{
 		  "vpn": {
 		  "ipsec": {

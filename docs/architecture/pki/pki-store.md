@@ -87,6 +87,14 @@ block the writer.
 config load produces a better error and stops the daemon from running with a
 broken certificate.
 
+Config verification parses the candidate section through `ParseJSON` without
+loading it into the live store. The section is one root-wrapped `pki` object;
+an empty object represents removal. `TreeFromPluginMap` reconstructs its keyed
+certificate lists and leaf-lists before `ParseConfig` validates the material.
+The apply path alone calls `Load`, so a rejected candidate cannot replace the
+certificates used by current sessions.
+<!-- source: internal/component/pki/config_json.go -- ParseJSON -->
+
 **PEM export goes to a temporary directory.** A consumer that expects PEM file
 paths rather than inline data gets them from `ExportPEM`, and `CleanupPEM`
 removes them.

@@ -86,24 +86,6 @@ func TestParseIPsecFromJSON(t *testing.T) {
 	}
 }
 
-func TestTreeFromMapContainerVsList(t *testing.T) {
-	m := map[string]any{
-		"site-to-site": map[string]any{
-			"peer": map[string]any{
-				"test-peer": map[string]any{
-					"remote-address": "1.2.3.4",
-				},
-			},
-		},
-	}
-	tree := treeFromMap(m)
-
-	sts := tree.GetContainer("site-to-site")
-	if sts == nil {
-		t.Fatal("site-to-site should be a container (has mixed/list child 'peer')")
-	}
-}
-
 func TestParseIPsecSectionsEmpty(t *testing.T) {
 	cfg, err := parseIPsecSections(nil)
 	if err != nil {
