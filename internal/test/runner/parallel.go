@@ -81,7 +81,12 @@ func DefaultSuiteConcurrency() int {
 // binary. withParallelHeadroom reaches the budgets this runner measures a child
 // against; it cannot reach a deadline the child sets for itself, and the MCP
 // test client's readiness wait was one of those.
-const ParallelFactorEnv = "ze.test.parallel-factor"
+//
+// Every separator is a dot, never a hyphen: env.Get reads a dot and an
+// underscore as one separator but keeps a hyphen, and the runner writes the
+// underscore spelling so the name survives a daemon's /bin/sh -c (see
+// (*Runner).parallelFactorEnv). A hyphen would leave a name dash drops.
+const ParallelFactorEnv = "ze.test.parallel.factor"
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         ParallelFactorEnv,
@@ -394,7 +399,7 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			// parsingRunner.runTest are reached through t.Run below, so a
 			// short-circuit here bypasses their own ParseFailed checks entirely.
 			if t.Record.ParseFailed {
-				t.Record.State = StateFail
+				t.Record.SetState(StateFail)
 				results <- result{test: t, passed: false, err: t.Record.Error}
 				return
 			}
@@ -403,13 +408,12 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			// running. Keeps the signal meaningful (feature is stubbed on
 			// this OS, not "it regressed") -- see rules/os-specific-tests.md.
 			if t.Record.SkipReason != "" {
-				t.Record.State = StateSkip
+				t.Record.SetState(StateSkip)
 				results <- result{test: t, passed: true, err: nil}
 				return
 			}
 
-			t.Record.State = StateRunning
-			t.Record.StartTime = time.Now()
+			t.Record.Begin(StateRunning)
 
 			passed, err := t.Run(ctx, t.Test)
 			t.Record.Duration = time.Since(t.Record.StartTime)
@@ -422,9 +426,9 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 				// already terminal
 			default:
 				if passed {
-					t.Record.State = StateSuccess
+					t.Record.SetState(StateSuccess)
 				} else {
-					t.Record.State = StateFail
+					t.Record.SetState(StateFail)
 					t.Record.Error = err
 				}
 			}

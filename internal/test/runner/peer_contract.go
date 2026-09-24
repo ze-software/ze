@@ -177,7 +177,7 @@ func isSelfValidated(rec *Record, hasCheckPeer bool) bool {
 	if hasCheckPeer {
 		return false
 	}
-	hasOutputAssertion := rec.HasStreamAssertion() ||
+	hasOutputAssertion := rec.hasStreamAssertion() ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
 		len(rec.FileChecks) > 0 ||

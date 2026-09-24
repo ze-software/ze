@@ -206,7 +206,7 @@ func TestInjectEndToEnd(t *testing.T) {
 	}
 	t.Cleanup(func() { closeIgnoreErr(conn) })
 
-	if _, err := conn.Write(minimalOpenMsg(asn, "127.0.0.1")); err != nil {
+	if _, err := conn.Write(minimalOpenMsg(asn)); err != nil {
 		t.Fatalf("write OPEN: %v", err)
 	}
 	if _, _, err := ReadMessage(conn); err != nil {
@@ -293,7 +293,7 @@ func TestInjectActiveMode(t *testing.T) {
 			return
 		}
 		// Send our OPEN (reuse the minimal OPEN helper from TestInjectEndToEnd).
-		if _, werr := conn.Write(minimalOpenMsg(asn, "127.0.0.1")); werr != nil {
+		if _, werr := conn.Write(minimalOpenMsg(asn)); werr != nil {
 			errCh <- fmt.Errorf("write our OPEN: %w", werr)
 			return
 		}
@@ -427,8 +427,8 @@ func countMPReachNLRI(attrs []byte) int {
 // minimalOpenMsg builds a syntactically-valid OPEN advertising IPv4-unicast
 // and 4-byte ASN capabilities. Used only by the end-to-end test as the
 // active peer; ze-test peer mirrors the capabilities it sees.
-func minimalOpenMsg(asn uint32, routerID string) []byte {
-	rid := net.ParseIP(routerID).To4()
+func minimalOpenMsg(asn uint32) []byte {
+	rid := net.IPv4(127, 0, 0, 1).To4() // the router ID
 	capIPv4 := []byte{0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01}
 	capASN4 := []byte{0x02, 0x06, 0x41, 0x04, 0, 0, 0, 0}
 	binary.BigEndian.PutUint32(capASN4[4:8], asn)

@@ -711,14 +711,44 @@ func TestTerminateAfterSelfExitLetsTheProcessFinish(t *testing.T) {
 // Mutation that must break it: publish a constant (any constant) instead of
 // r.parallelFactor(), and one of the two cases below disagrees.
 func TestParallelFactorEnvPublishesTheRunnerFactor(t *testing.T) {
+	name := strings.ReplaceAll(ParallelFactorEnv, ".", "_")
 	serial := (&Runner{concurrency: 1}).parallelFactorEnv()
-	if want := ParallelFactorEnv + "=1"; serial != want {
+	if want := name + "=1"; serial != want {
 		t.Errorf("serial run published %q, want %q: a single test must keep the deadline its author wrote", serial, want)
 	}
 	parallel := (&Runner{concurrency: 8}).parallelFactorEnv()
-	if want := ParallelFactorEnv + "=" + strconv.Itoa(ParallelTimeoutHeadroom); parallel != want {
+	if want := name + "=" + strconv.Itoa(ParallelTimeoutHeadroom); parallel != want {
 		t.Errorf("concurrent run published %q, want %q", parallel, want)
 	}
+}
+
+// TestParallelFactorEnvSurvivesAShell starts a child the way a daemon starts a
+// plugin's `run` string, through /bin/sh -c, and reads the factor back.
+//
+// VALIDATES: the published factor reaches a child that runs as a plugin.
+// PREVENTS: a name dash drops (a dot or a hyphen in it), so a plugin child's
+// ChildParallelFactor answered 1 in silence under any contention.
+// DISCRIMINATES: publish ParallelFactorEnv verbatim, or put a hyphen back in
+// the key, and the shell's child reads no factor at all.
+func TestParallelFactorEnvSurvivesAShell(t *testing.T) {
+	r := &Runner{concurrency: 8}
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exec env")
+	cmd.Env = []string{r.parallelFactorEnv()}
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("run /bin/sh: %v", err)
+	}
+	want := strings.ReplaceAll(ParallelFactorEnv, ".", "_")
+	for line := range strings.SplitSeq(string(out), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok && strings.EqualFold(strings.ReplaceAll(key, ".", "_"), want) {
+			if value != strconv.Itoa(ParallelTimeoutHeadroom) {
+				t.Fatalf("factor = %q, want %d", value, ParallelTimeoutHeadroom)
+			}
+			return
+		}
+	}
+	t.Fatalf("the factor did not survive /bin/sh -c; child env:\n%s", out)
 }
 
 // cmdPointers adapts a table's []RunCommand to the []*RunCommand the runner
@@ -748,7 +778,7 @@ func TestTestBudgetEnvSurvivesAShell(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run /bin/sh: %v", err)
 	}
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		key, value, ok := strings.Cut(line, "=")
 		if ok && strings.EqualFold(strings.ReplaceAll(key, ".", "_"), strings.ReplaceAll(TestBudgetEnv, ".", "_")) {
 			if value != "30s" {

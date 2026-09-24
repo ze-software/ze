@@ -53,7 +53,7 @@ func TestDialCheckPeerRunsTheScriptOverTheDialedConnection(t *testing.T) {
 		// An accepting BGP speaker sends its OPEN without waiting for the
 		// caller's. This is what makes the dialing check peer's read-first
 		// handshake correct.
-		if _, werr := conn.Write(minimalOpenMsg(asn, "127.0.0.1")); werr != nil {
+		if _, werr := conn.Write(minimalOpenMsg(asn)); werr != nil {
 			errCh <- werr
 			return
 		}

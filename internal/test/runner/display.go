@@ -125,7 +125,8 @@ func (d *Display) Status() {
 	now := time.Now()
 	for _, nick := range d.tests.ordered {
 		r := d.tests.byNick[nick]
-		switch r.State {
+		state, startTime := r.progress()
+		switch state {
 		case StateSuccess:
 			passed++
 		case StateFail:
@@ -137,8 +138,8 @@ func (d *Display) Status() {
 		case StateRunning, StateStarting:
 			running++
 			runningTests = append(runningTests, nick)
-			if !r.StartTime.IsZero() {
-				elapsed := now.Sub(r.StartTime)
+			if !startTime.IsZero() {
+				elapsed := now.Sub(startTime)
 				if elapsed > maxRunningElapsed {
 					maxRunningElapsed = elapsed
 				}

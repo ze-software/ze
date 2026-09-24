@@ -406,7 +406,7 @@ func pluginShellExtra4AAALocalFailover(ctx context.Context, args []string) error
 	address := net.JoinHostPort("127.0.0.1", args[0])
 	var dialErr error
 	if !Poll(ctx, 100, 200*time.Millisecond, func() bool {
-		conn, err := net.DialTimeout("tcp", address, time.Second)
+		conn, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "tcp", address)
 		dialErr = err
 		if err != nil {
 			return false

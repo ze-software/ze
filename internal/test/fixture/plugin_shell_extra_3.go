@@ -249,7 +249,7 @@ func sshCLIStatusExtra3(ctx context.Context, args []string) error {
 			envConfigDir:   configDir,
 			envSSHHost:     "127.0.0.1",
 			envSSHPort:     port,
-			envSSHUsername: "admin",
+			envSSHUsername: valueTestUser,
 			envSSHPassword: valueTestPassword,
 		})
 		output, commandErr := command.CombinedOutput()

@@ -102,7 +102,7 @@ func (et *EncodingTests) Discover(dir string) error {
 				rec.Files = append(rec.Files, ciFile)
 			}
 			rec.ParseFailed = true
-			rec.State = StateFail
+			rec.SetState(StateFail)
 			rec.FailureType = failParseError
 			rec.Error = err
 		}

@@ -66,7 +66,7 @@ func playDaemon(conn net.Conn, marker string) error {
 	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return err
 	}
-	if _, err := conn.Write(minimalOpenMsg(65001, "127.0.0.1")); err != nil {
+	if _, err := conn.Write(minimalOpenMsg(65001)); err != nil {
 		return err
 	}
 	for range 2 { // the peer's OPEN and KEEPALIVE

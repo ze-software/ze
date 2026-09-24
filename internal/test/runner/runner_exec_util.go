@@ -218,9 +218,13 @@ func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 // A factor rather than a duration, because the child owns the value it is
 // scaling. Handing it a wall-clock deadline would move the choice of how long a
 // readiness wait should be out of the code that knows what it is waiting for.
+//
+// The name is written in the underscore spelling for the reason testBudgetEnv
+// gives: dash drops a name that is not a shell identifier, so a fixture running
+// as a plugin would never see the dot spelling.
 func (r *Runner) parallelFactorEnv() string {
 	var tb textbuf.Buffer
-	return tb.Str(ParallelFactorEnv).Byte('=').Int(int64(r.parallelFactor())).String()
+	return tb.Str(strings.ReplaceAll(ParallelFactorEnv, ".", "_")).Byte('=').Int(int64(r.parallelFactor())).String()
 }
 
 // parallelFactor is the multiplier withParallelHeadroom applies:

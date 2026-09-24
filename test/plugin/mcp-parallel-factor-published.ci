@@ -20,7 +20,7 @@
 # PREVENTS: the MCP readiness deadline silently falling back to the authored
 # value on every host, which is the fixed-10s defect this spec exists to close.
 
-cmd=foreground:seq=1:exec=printenv ze.test.parallel-factor:timeout=15s
+cmd=foreground:seq=1:exec=printenv ze_test_parallel_factor:timeout=15s
 expect=exit:code=0
 # (?m) is load-bearing: the runner matches the regex against the whole captured
 # stdout, trailing newline included, and Go anchors ^ and $ to the text without

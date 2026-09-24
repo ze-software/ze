@@ -427,7 +427,7 @@ func runExaBGPSelected(ctx context.Context, suite *exabgpSuite, cli exabgpCLI) b
 	for _, rec := range selected {
 		test := suite.byNick[rec.Nick]
 		if test == nil {
-			rec.State = runner.StateFail
+			rec.SetState(runner.StateFail)
 			rec.Error = errors.New("missing ExaBGP test metadata")
 			allOK = false
 			continue
@@ -495,8 +495,7 @@ type exabgpRunDetail struct {
 
 func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI) (bool, exabgpRunDetail) {
 	rec := test.record
-	rec.State = runner.StateRunning
-	rec.StartTime = time.Now()
+	rec.Begin(runner.StateRunning)
 
 	// Make the addresses this fixture's config binds usable before either
 	// process starts. A host missing one used to learn it only from the test's
@@ -504,7 +503,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	// the runner reported `context deadline exceeded` 180 seconds later with no
 	// cause and no fix in the output.
 	if err := runner.EnsureConfigFileBindAddresses(test.configs); err != nil {
-		rec.State = runner.StateFail
+		rec.SetState(runner.StateFail)
 		rec.Duration = time.Since(rec.StartTime)
 		rec.Error = err
 		rec.FailureType = runner.FailTypeLoopbackMissing
@@ -516,7 +515,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 
 	server, events, err := startExaBGPServer(testCtx, test, 0, cli.saveDir)
 	if err != nil {
-		rec.State = runner.StateFail
+		rec.SetState(runner.StateFail)
 		rec.Duration = time.Since(rec.StartTime)
 		rec.Error = err
 		return false, exabgpRunDetail{}
@@ -542,7 +541,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
 		detail.serverStderr = server.stderr.String()
-		rec.State = runner.StateFail
+		rec.SetState(runner.StateFail)
 		rec.Duration = time.Since(rec.StartTime)
 		rec.Error = err
 		return false, detail
@@ -554,7 +553,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
 		detail.serverStderr = server.stderr.String()
-		rec.State = runner.StateFail
+		rec.SetState(runner.StateFail)
 		rec.Duration = time.Since(rec.StartTime)
 		rec.Error = err
 		return false, detail
@@ -574,7 +573,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 			stopExaProcess(client)
 			stopExaProcess(server)
 			detail = collectExaBGPDetail(server, client, port)
-			rec.State = runner.StateTimeout
+			rec.SetState(runner.StateTimeout)
 			rec.Duration = time.Since(rec.StartTime)
 			rec.Error = testCtx.Err()
 			return false, detail
@@ -602,11 +601,11 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	rec.Duration = time.Since(rec.StartTime)
 	serverOK := serverErr == nil && strings.Contains(detail.serverStdout, "successful")
 	if serverOK && !clientFailed {
-		rec.State = runner.StateSuccess
+		rec.SetState(runner.StateSuccess)
 		rec.Error = nil
 		return true, detail
 	}
-	rec.State = runner.StateFail
+	rec.SetState(runner.StateFail)
 	rec.Error = exaBGPFailure(clientFailed, clientErrEarly, serverErr)
 	return false, detail
 }

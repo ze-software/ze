@@ -608,7 +608,7 @@ func plugin01AnswerTruncationDetected(ctx context.Context, args []string) error 
 		return err
 	}
 	relayEnvironment := map[string]string{
-		envSSHUsername: "admin",
+		envSSHUsername: valueTestUser,
 		envSSHPassword: valueTestPassword,
 		envSSHPort:     strings.TrimSpace(string(wholePortRaw)),
 	}

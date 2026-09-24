@@ -641,7 +641,7 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		// (and pass) instead of failing. See the argument in parallel.go.
 		if test.ParseError != nil {
 			rec.ParseFailed = true
-			rec.State = StateFail
+			rec.SetState(StateFail)
 			rec.Error = test.ParseError
 			continue
 		}

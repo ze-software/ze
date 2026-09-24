@@ -417,7 +417,7 @@ environment {
 	}
 	defer os.RemoveAll(adminDir) //nolint:errcheck // scratch cleanup on exit, so a removal failure changes no assertion
 	initEnv := plugin15Environment(map[string]string{envConfigDir: adminDir})
-	initInput := strings.Join([]string{"admin", valueTestPassword, host, port, ""}, "\n")
+	initInput := strings.Join([]string{valueTestUser, valueTestPassword, host, port, ""}, "\n")
 	code, _, initErr, runErr := plugin15RunCommand(ctx, initEnv, initInput, "init")
 	if runErr != nil || code != 0 {
 		return fmt.Errorf("ze init exit=%d: %w %s", code, runErr, initErr)

@@ -21,6 +21,7 @@ package sitewiki
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -282,7 +283,7 @@ func (h headTree) file(name string) ([]byte, error) {
 // wikiGit runs one read-only git command in the wiki checkout and answers its
 // standard output, or an error carrying git's own message.
 func wikiGit(wikiRoot string, args ...string) ([]byte, error) {
-	cmd := exec.Command("git", append([]string{"-C", wikiRoot}, args...)...) //nolint:gosec // fixed git verbs over the wiki checkout this action was pointed at
+	cmd := exec.CommandContext(context.Background(), "git", append([]string{"-C", wikiRoot}, args...)...) //nolint:gosec // fixed git verbs over the wiki checkout this action was pointed at
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

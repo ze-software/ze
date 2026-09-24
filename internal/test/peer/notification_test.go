@@ -204,7 +204,7 @@ func TestCheckerEORSilentAccept(t *testing.T) {
 	eorMsg := &Message{Header: eorHeader, Body: eorBody}
 
 	// EOR should be silently accepted (not match, not fail).
-	matched, silent := c.ExpectedOrKeepalive(eorMsg)
+	matched, silent := c.expectedOrKeepalive(eorMsg)
 	if matched {
 		t.Error("EOR should not match NOTIFICATION expectation")
 	}
@@ -215,7 +215,7 @@ func TestCheckerEORSilentAccept(t *testing.T) {
 	// Now send the expected NOTIFICATION — it should match.
 	notifBytes, _ := hex.DecodeString(notifHex)
 	notifMsg := &Message{Header: notifBytes[:HeaderLen], Body: notifBytes[HeaderLen:]}
-	matched, silent = c.ExpectedOrKeepalive(notifMsg)
+	matched, silent = c.expectedOrKeepalive(notifMsg)
 	if !matched {
 		t.Error("NOTIFICATION should match the pending expectation")
 	}
@@ -350,7 +350,7 @@ func TestCheckerEORExplicitExpectation(t *testing.T) {
 	eorBody := []byte{0x00, 0x00, 0x00, 0x00}
 	eorMsg := &Message{Header: eorHeader, Body: eorBody}
 
-	matched, silent := c.ExpectedOrKeepalive(eorMsg)
+	matched, silent := c.expectedOrKeepalive(eorMsg)
 	if !matched {
 		t.Error("explicitly expected EOR should be matched, not silently accepted")
 	}

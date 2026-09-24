@@ -98,7 +98,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// parallel.go's per-test goroutine, which short-circuits before this function
 	// is ever reached. This ordering governs only direct callers.
 	if rec.ParseFailed {
-		rec.State = StateFail
+		rec.SetState(StateFail)
 		return false
 	}
 
@@ -107,12 +107,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// stubbed on this platform (see rules/os-specific-tests.md); running
 	// it would produce a meaningless failure.
 	if rec.SkipReason != "" {
-		rec.State = StateSkip
+		rec.SetState(StateSkip)
 		return true
 	}
 
-	rec.State = StateStarting
-	rec.StartTime = time.Now()
+	rec.Begin(StateStarting)
 
 	// Lease this test's port pair NOW, and hold the lease until the test is
 	// done. Every consumer of rec.Port below this line reads the leased value:
@@ -126,7 +125,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// see LeaseTestPorts.
 	portLease, err := LeaseTestPorts(rec.Port)
 	if err != nil {
-		rec.State = StateFail
+		rec.SetState(StateFail)
 		rec.Error = fmt.Errorf("lease ports for test: %w", err)
 		return false
 	}
@@ -273,7 +272,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	waitCancel()
 
-	rec.State = StateRunning
+	rec.SetState(StateRunning)
 
 	// Start test-syslog server if syslog patterns are expected or rejected.
 	// Both expect=syslog and reject=syslog need the capture server: a reject is
@@ -432,7 +431,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Check if we timed out
 	if testCtx.Err() != nil {
-		rec.State = StateTimeout
+		rec.SetState(StateTimeout)
 		rec.FailureType = stateTimeout
 		return false
 	}
@@ -540,7 +539,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	testCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	rec.State = StateRunning
+	rec.SetState(StateRunning)
 
 	// Fix B: opt-in per-test network-namespace isolation. When ZE_TEST_NETNS is
 	// set (Linux only) this locks the goroutine's OS thread into a fresh netns
@@ -1389,7 +1388,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Check for timeout
 	if testCtx.Err() != nil {
-		rec.State = StateTimeout
+		rec.SetState(StateTimeout)
 		rec.FailureType = stateTimeout
 		return false
 	}

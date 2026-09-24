@@ -4,7 +4,13 @@
 
 package crashlog
 
-import "os"
+import (
+	"errors"
+	"os"
+)
+
+// errNoLock is what lockFile answers where the platform has no flock.
+var errNoLock = errors.New("crashlog: file locks are not supported on this platform")
 
 // lockFile refuses where the platform has no flock. armCrashOutput then arms
 // nothing, and a harvest leaves every pending file alone, because neither can

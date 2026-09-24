@@ -168,7 +168,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 |----------|-----|----------|
 | `le functional` ↔ bgp runner | the `-p` flag | Yes -- `TestParallelIsFlooredAndOverridable` and `TestScaledSuitesCarryTheDerivedConcurrency` drive `Suite.Command`, which is the argv the run executes. The makefile the row named was retired in `eae282592` |
 | runner ↔ per-test budget | `parallelFactor` | Yes -- `withParallelHeadroom`, unchanged |
-| runner ↔ an in-test deadline | `ze.test.parallel-factor` in the child environment | Yes -- `mcp-parallel-factor-published.ci` (producer), `TestMCPReadinessScalesWithConcurrency` (consumer) |
+| runner ↔ an in-test deadline | `ze.test.parallel.factor` in the child environment | Yes -- `mcp-parallel-factor-published.ci` (producer), `TestMCPReadinessScalesWithConcurrency` (consumer) |
 
 ### Integration Points
 - `parallelFactor`, already published to and read by the MCP readiness wait.
@@ -212,7 +212,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | an MCP test under concurrency | → | the scaled readiness deadline | `TestMCPReadinessScalesWithConcurrency`, `mcp-ready-under-load.ci` |
-| the runner exec'ing any `cmd=` child | → | `ze.test.parallel-factor` in its environment | `TestParallelFactorEnvPublishesTheRunnerFactor`, `mcp-parallel-factor-published.ci` |
+| the runner exec'ing any `cmd=` child | → | `ze.test.parallel.factor` in its environment | `TestParallelFactorEnvPublishesTheRunnerFactor`, `mcp-parallel-factor-published.ci` |
 | `./le functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `TestParallelIsFlooredAndOverridable`, `TestScaledSuitesCarryTheDerivedConcurrency` |
 | a 4-vCPU host | → | the floor | `TestParallelIsFlooredAndOverridable` (cores 1, 7 and 8 all answer 8), `TestConcurrencyFloorIsTheRunnersOwn` |
 | `reload`, `managed`, `vpp` | → | their recorded serial setting | `TestSerialSuitesStaySerial` |

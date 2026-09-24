@@ -152,23 +152,3 @@ func snapshot(mu *sync.Mutex, delivered *[]string) []string {
 	defer mu.Unlock()
 	return slices.Clone(*delivered)
 }
-
-// apply replays the delivered log into a table: "+p" installs p, "-p" removes
-// it, anything else is not a route. Returns the prefixes installed, sorted.
-func apply(delivered []string) []string {
-	table := map[string]bool{}
-	for _, event := range delivered {
-		switch {
-		case strings.HasPrefix(event, "+"):
-			table[event[1:]] = true
-		case strings.HasPrefix(event, "-"):
-			delete(table, event[1:])
-		}
-	}
-	var out []string
-	for prefix := range table {
-		out = append(out, prefix)
-	}
-	slices.Sort(out)
-	return out
-}

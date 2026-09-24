@@ -98,7 +98,7 @@ func isAcceptOnly(r *Record) bool {
 		len(r.Expects) != 0 ||
 		len(r.ExpectStderr) != 0 ||
 		len(r.ExpectSyslog) != 0 ||
-		r.HasStreamAssertion() ||
+		r.hasStreamAssertion() ||
 		len(r.AwaitStderr) != 0 ||
 		len(r.FileChecks) != 0 ||
 		len(r.HTTPChecks) != 0 ||
@@ -107,7 +107,7 @@ func isAcceptOnly(r *Record) bool {
 		return false
 	}
 	// Any reject= disqualifies (a negative expectation observes output).
-	// The scoped reject= forms are covered by HasStreamAssertion above.
+	// The scoped reject= forms are covered by hasStreamAssertion above.
 	if len(r.RejectStderr) != 0 || len(r.RejectSyslog) != 0 {
 		return false
 	}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ func serveOneConnection(conn net.Conn) error {
 	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return err
 	}
-	if _, err := conn.Write(minimalOpenMsg(65001, "127.0.0.1")); err != nil {
+	if _, err := conn.Write(minimalOpenMsg(65001)); err != nil {
 		return err
 	}
 	if _, _, err := ReadMessage(conn); err != nil { // the peer's OPEN
@@ -47,9 +48,15 @@ func serveOneConnection(conn net.Conn) error {
 	if _, err := conn.Write(frame); err != nil {
 		return err
 	}
+	// Only an orderly close ends conn=1. A deadline or a reset is the peer
+	// failing to close, which the caller MUST see rather than read as success.
 	for {
-		if _, _, err := ReadMessage(conn); err != nil {
+		_, _, err := ReadMessage(conn)
+		if errors.Is(err, io.EOF) {
 			return nil // the peer closed its side: conn=1 is over
+		}
+		if err != nil {
+			return err
 		}
 	}
 }

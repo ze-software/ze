@@ -375,6 +375,7 @@ const (
 	valueRedacted     = "<set>"
 	valueSecret       = "secret"
 	valueTestPassword = "testpass"
+	valueTestUser     = "admin"
 	valueTrue         = "true"
 	valueUnknown      = "unknown"
 	valueYes          = "yes"

@@ -132,14 +132,20 @@ type messageExpect struct {
 
 // Record holds test configuration and state.
 type Record struct {
-	Name      string
-	Nick      string
-	Port      int
-	State     State
-	Active    bool
-	StartTime time.Time
-	Duration  time.Duration
-	Error     error
+	Name string
+	Nick string
+	Port int
+	// State and StartTime are written by the goroutine that runs the test and
+	// read by Display.Status on the status ticker, so every write goes through
+	// SetState or Begin and Status reads through progress, all under
+	// progressMu. The test's own goroutine MAY read them without the lock,
+	// because it is their only writer.
+	State      State
+	Active     bool
+	StartTime  time.Time
+	progressMu sync.Mutex
+	Duration   time.Duration
+	Error      error
 
 	// Files
 	CIFile     string
@@ -388,7 +394,7 @@ func (c *RunCommand) assertsAStream() bool {
 		len(c.ExpectStderrHas) != 0 || len(c.RejectStderrHas) != 0
 }
 
-// HasStreamAssertion reports whether any command in this test asserts on a
+// hasStreamAssertion reports whether any command in this test asserts on a
 // stream.
 //
 // DERIVED from the commands rather than kept beside them: a second field
@@ -396,7 +402,7 @@ func (c *RunCommand) assertsAStream() bool {
 // it, and the callers that ask this question decide whether a test observes
 // anything at all (accept_only.go, peer_contract.go), so the answer must be the
 // same set checkOutputAssertions will check.
-func (r *Record) HasStreamAssertion() bool {
+func (r *Record) hasStreamAssertion() bool {
 	for i := range r.RunCommands {
 		if r.RunCommands[i].assertsAStream() {
 			return true
@@ -481,6 +487,31 @@ func ResetNickCounter() {
 	nickIndex = 0
 }
 
+// SetState records the test's state. Safe for concurrent use with progress.
+func (r *Record) SetState(state State) {
+	r.progressMu.Lock()
+	defer r.progressMu.Unlock()
+	r.State = state
+}
+
+// Begin records that the test entered state now, setting State and StartTime
+// together so Display.Status never sees a running test without its start
+// time. Safe for concurrent use with progress.
+func (r *Record) Begin(state State) {
+	r.progressMu.Lock()
+	defer r.progressMu.Unlock()
+	r.State = state
+	r.StartTime = time.Now()
+}
+
+// progress returns State and StartTime as one consistent pair, for a reader on
+// another goroutine than the test's. Safe for concurrent use.
+func (r *Record) progress() (State, time.Time) {
+	r.progressMu.Lock()
+	defer r.progressMu.Unlock()
+	return r.State, r.StartTime
+}
+
 // Activate marks the test for execution.
 func (r *Record) Activate() {
 	r.Active = true
@@ -489,7 +520,7 @@ func (r *Record) Activate() {
 // Deactivate marks the test as not selected for execution.
 func (r *Record) Deactivate() {
 	r.Active = false
-	r.State = StateNone
+	r.SetState(StateNone)
 }
 
 // IsActive returns true if the test should run.

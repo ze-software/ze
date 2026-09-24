@@ -6,7 +6,6 @@ package crashlog
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,7 +26,7 @@ const runtimeOutputMarker = "\n=== Runtime Output ===\n"
 
 // crashOut is this process's armed crash output file. It stays open for the life
 // of the process, because its lock is what tells a harvest the process is alive.
-var crashOut *os.File
+var crashOut *os.File //nolint:unused // held, never read: the reference keeps the armed file open, and no read expresses that
 
 // armCrashOutput hands the Go runtime a file of its own in dir, where it writes a
 // copy of every fatal error, unrecovered panic and SIGQUIT dump.
@@ -153,6 +152,3 @@ func holdsRuntimeOutput(data []byte) bool {
 	}
 	return i+len(runtimeOutputMarker) < len(data)
 }
-
-// errNoLock is what lockFile answers where the platform has no flock.
-var errNoLock = errors.New("crashlog: file locks are not supported on this platform")
