@@ -39,7 +39,7 @@ plugin {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
 expect=exit:code=0
 expect=stderr:pattern=OK: super-admin baseline
 expect=stderr:pattern=OK: --user alice authenticated and was identified as alice

@@ -239,29 +239,44 @@ func sshCLIStatusExtra3(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(configDir) //nolint:errcheck // fixture cleanup
 
-	initCommand := exec.CommandContext(ctx, "ze", "init")
-	initCommand.Env = environmentExtra3(map[string]string{envConfigDir: configDir})
-	initCommand.Stdin = strings.NewReader(fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n", port))
-	if output, initErr := initCommand.CombinedOutput(); initErr != nil {
-		return fmt.Errorf("ze init: %w\n%s", initErr, output)
-	}
+	// The client reaches the fixture port through the ze.ssh.* overrides
+	// rather than `ze init`. Init creates and fills a store, measured at 36
+	// fsyncs and 6-10s on a loaded disk, and none of it is the subject here:
+	// the subject is the exit code of `ze cli -c`.
 	run := func(commandText string) (string, error) {
 		command := exec.CommandContext(ctx, "ze", "cli", "-c", commandText) //nolint:gosec // the fixture chooses the program and its arguments
 		command.Env = environmentExtra3(map[string]string{
 			envConfigDir:   configDir,
+			envSSHHost:     "127.0.0.1",
+			envSSHPort:     port,
+			envSSHUsername: "admin",
 			envSSHPassword: valueTestPassword,
 		})
 		output, commandErr := command.CombinedOutput()
 		return strings.TrimSpace(string(output)), commandErr
 	}
-	if output, err := run("request as112 healthcheck"); err == nil {
-		return fmt.Errorf("request as112 healthcheck exited 0 for StatusError: %s", output)
-	}
-	fmt.Fprintln(os.Stderr, "OK: 'request as112 healthcheck' exited non-zero as expected (Status:StatusError mapped to exit code)")
-	if output, err := run("show version"); err != nil {
-		return fmt.Errorf("show version should exit 0: %w\n%s", err, output)
+
+	// A daemon that is not listening yet also makes `ze cli` exit non-zero,
+	// so the StatusError check below would pass without reaching the
+	// handler. The success path is the readiness barrier, and the failure
+	// check then asserts the handler's own message.
+	var output string
+	var runErr error
+	if !Poll(ctx, WaitAttempts(70, 250*time.Millisecond, 60), 250*time.Millisecond, func() bool {
+		output, runErr = run("show version")
+		return runErr == nil
+	}) {
+		return fmt.Errorf("show version should exit 0: %w\n%s", runErr, output)
 	}
 	fmt.Fprintln(os.Stderr, "OK: 'show version' exited 0 as expected")
+	output, runErr = run("request as112 healthcheck")
+	if runErr == nil {
+		return fmt.Errorf("request as112 healthcheck exited 0 for StatusError: %s", output)
+	}
+	if !strings.Contains(output, "as112 healthcheck:") {
+		return fmt.Errorf("request as112 healthcheck failed before the handler answered: %w\n%s", runErr, output)
+	}
+	fmt.Fprintln(os.Stderr, "OK: 'request as112 healthcheck' exited non-zero as expected (Status:StatusError mapped to exit code)")
 	fmt.Fprintln(os.Stderr, "OK: all ssh-cli-status-error-exit-code tests passed")
 	return nil
 }

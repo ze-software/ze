@@ -24,15 +24,19 @@
 #    code under test) when bgp {} is present; without it, the no-bgp{}
 #    standalone path (sshBuildStandaloneImpl) wires a different executor that
 #    does not go through responseExecErr at all.
-# 2. The compiled driver connects directly to the fixed fixture SSH port with
-#    the configured password.
-# 3. `request as112 healthcheck` queries the default target 127.0.0.1:53.
+# 2. The compiled driver runs `ze cli -c` against the fixture SSH port with
+#    the configured password, through the ze.ssh.* overrides: no `ze init`,
+#    whose store setup is dozens of fsyncs and not the subject.
+# 3. `show version` returns Status:StatusDone. It is polled until it exits
+#    0, which is the readiness barrier: a daemon not yet listening also makes
+#    `ze cli` exit non-zero, so step 4 run first could pass without ever
+#    reaching the handler. It proves the success path still exits 0.
+# 4. `request as112 healthcheck` queries the default target 127.0.0.1:53.
 #    Nothing binds the privileged port 53 in this unprivileged sandbox (see
 #    test/plugin/as112-health.ci's identical rationale), so the health check
 #    fails and handleAS112Health returns Status:StatusError with a nil Go
-#    error. The SSH command MUST fail -- the core regression proof.
-# 4. `show version` returns Status:StatusDone under normal conditions. The SSH
-#    command succeeds, proving the fix did not break the success path.
+#    error. The SSH command MUST fail, and its output MUST carry the
+#    handler's own "as112 healthcheck:" message -- the core regression proof.
 #
 # VALIDATES: cmd/ze/hub/service_ssh.go's responseExecErr -- the SSH exec
 # session's exit code matches the dispatched Response's Status.
@@ -73,8 +77,8 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze start ssh-cli-status-error.conf:timeout=15s
-cmd=foreground:seq=2:exec=ze-test fixture plugin/ssh-cli-status-error-exit-code $PORT2:timeout=15s
+cmd=foreground:seq=1:exec=ze start ssh-cli-status-error.conf:timeout=60s
+cmd=foreground:seq=2:exec=ze-test fixture plugin/ssh-cli-status-error-exit-code $PORT2:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: 'request as112 healthcheck' exited non-zero
 expect=stderr:contains=OK: 'show version' exited 0
