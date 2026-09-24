@@ -24,6 +24,28 @@
       "break": "body of normalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",
+      "unit-sha": "570f2fc3bdbcb784",
+      "claim-sha": "cad98c96f41a79b3",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
+      "producer-sha": "b69a4cf1a2479d72",
+      "break": "line 46: \"if len(hops) == 0 || hops[len(hops)-1] != asn {\" -\u003e \"if true { // MUTATION-APPLIED: retain consecutive duplicate ASNs\""
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops",
+      "unit-sha": "7eabc5ee446a0c23",
+      "claim-sha": "37d162baa35957cd",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
+      "producer-sha": "b69a4cf1a2479d72",
+      "break": "line 46: \"if len(hops) == 0 || hops[len(hops)-1] != asn {\" -\u003e \"if func() bool { for _, hop := range hops { if hop == asn { return false } }; return true }() { // MUTATION-APPLIED: deduplicate all ASNs, including separated repeats\""
+    },
+    {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast",

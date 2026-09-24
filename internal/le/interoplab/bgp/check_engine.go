@@ -45,6 +45,7 @@ const (
 	opWaitJSONFields
 	opWaitContainsAny
 	opDelayRequireContains
+	opWaitRPKI
 )
 
 type operation struct {
@@ -77,7 +78,7 @@ func checkScenario(ctx context.Context, check *interoplab.CheckContext, name str
 }
 func checkerFailure(ctx context.Context, lab interoplab.CheckerLab, name string, assertion int, cause error) error {
 	var diagnostics textbuf.Buffer
-	for _, peer := range []string{"ze", peerFRR, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2} {
+	for _, peer := range []string{"ze", peerFRR, peerFRRTransit, peerBIRD, peerGoBGP, peerInject, peerSpeaker, peerSpeaker2} {
 		logs, err := lab.Logs(ctx, peer, 80)
 		if err != nil || !logs.Available || strings.TrimSpace(logs.Text) == "" {
 			continue
@@ -212,6 +213,15 @@ func runOperation(ctx context.Context, network interoplab.Network, lab interopla
 		return waitAbsent(ctx, lab, current.peer, current.command, current.timeout, current.absent, current.proof)
 	case opWaitJSONFields:
 		return waitJSONFields(ctx, lab, current.peer, current.command, current.timeout, current.fields, current.minimum)
+	case opWaitRPKI:
+		last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+			Timeout: current.timeout, Interval: time.Second, Description: "RPKI route retention and eligibility",
+		}, func(probeCtx context.Context) (string, error) {
+			return lab.Query(probeCtx, current.peer, current.command, nil)
+		}, func(output string) bool {
+			return requireRPKIResult(output) == nil
+		})
+		return withLastOutput(err, last)
 	case opExec:
 		_, err := lab.Exec(ctx, current.peer, current.command, queryEnvironment(current.peer, current.command))
 		return err

@@ -49,13 +49,14 @@ Both entry points run one VM for the whole population, never one VM per test.
 
 | Command | Population |
 |---------|------------|
-| `./le qemu netns-test suites <comma-separated-suites>` | The selected kernel-dependent functional suites. A tight iteration loop |
+| `./le qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects only the seven ASPA cases |
 | `./le qemu run ... command "./le qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
 | `./le qemu run ... command "./le qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 
-Neither entry point needs per-test wiring. The suites are the same ones the
-native runner discovers, so the QEMU pass finds a new `needs-linux` test with no
-registration.
+`all-tests` discovers the suites' tests through the native runner, so a new
+`needs-linux` test needs no registration there. `netns-test` uses the explicit
+named populations in `netnsSelections`; selecting a suite does not run every
+test in its directory.
 
 <!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
 <!-- source: internal/le/qemu/guestlabs.go -- the netns-test suite selection -->
@@ -144,15 +145,35 @@ dropped user a state directory to write in.
 Routing a suite also un-skips its `option=netns-link` tests. Outside this mode
 the runner SKIPS them (`applyNetnsLinkGate`, `internal/test/runner/caps.go`),
 so eight `test/ospf` and three `test/ospfv3` tests ran in no VM phase at all.
-The two `option=netns-link` tests in `test/plugin` still do: that suite holds
-742 tests, and routing all of them for two is a change nobody has evidence for.
+The `plugin` suite stays in the guest root namespace under `all-tests`; its
+`netns-link` cases are therefore skipped there. The separate
+`netns-test suites plugin` selection runs the seven ASPA validation and policy
+cases with their declared `eth1` address, `10.0.0.254/24`. Their received
+NEXT_HOP, `10.0.0.1`, is then nonlocal, on-link and syntactically valid.
+The selector does not include other plugin namespace cases or move the whole
+plugin suite into namespaces.
 
 `./le qemu netns-test suites <names>` is the same launcher over a named subset,
 and it also asserts the guest root nft ruleset is unchanged by the run. It is
-the tight loop; `all-tests` runs the whole suite.
+the tight loop; `all-tests` retains the whole-suite namespace table above.
+
+The seven-case ASPA subset is scheduled in `qemu-nightly.yml`'s
+`runtime-kernel-labs` job, alongside the PPPoE proof. Run the same action inside
+the runtime-kernel guest:
+
+```bash
+./le qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap kmod" \
+  timeout 1200s command 'bin/ze-le-linux-amd64 le qemu netns-test suites plugin'
+```
+
+This uses the architecture-qualified guest binaries selected by the existing
+`ZE_QEMU_BIN`, `ZE_QEMU_STRIPPED_BIN` and `ZE_QEMU_TEST_BIN` overrides or their
+defaults. A native prerequisite skip is not evidence for this subset.
 
 <!-- source: internal/le/qemu/netns.go -- the namespace table's producer and the capability preparation -->
 <!-- source: internal/le/qemu/alltests.go -- vmSuites, the Namespace of each row -->
+<!-- source: internal/le/qemu/netns_linux.go -- netnsSelections, runNetnsSuite -->
+<!-- source: .github/workflows/qemu-nightly.yml -- runtime-kernel-labs ASPA plugin namespace subset -->
 
 ### A run says what it planned, what it reached, and how many tests ran
 
@@ -516,9 +537,38 @@ actions.
 | L2TP (Ze LNS against xl2tpd) | `./le deployment docker-l2tp-ppp-test` | `./le deployment gokrazy-l2tp-ppp-test` | `internal/le/deployment` |
 | PPPoE (Ze client against accel-ppp) | `./le deployment docker-pppoe-accel-test` | `./le qemu pppoe-accel-test` | `internal/le/qemu/pppoe_accel_linux.go` |
 | VRRP (Ze against keepalived) | `./le integration interop`, scenario `vrrp-mastership-keepalived` | `./le qemu vrrp-keepalived-test` | `internal/le/qemu/vrrp_keepalived_linux.go` |
+| MOBIKE (Ze initiator and responder against strongSwan) | `./le integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le qemu ipsec-mobike-test kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
 
 <!-- source: internal/le/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
 <!-- source: internal/le/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
+
+The MOBIKE action is a manual runtime-kernel proof, not a merge gate or a
+scheduled job. It runs both existing movement scenarios, without a selector:
+
+```text
+./le --name mobike-proof qemu ipsec-mobike-test kernel <runtime-vmlinuz> timeout 1200s
+```
+
+The host builds a static Linux daemon and the native guest runner through build
+admission, with tags derived from `feature-gates.txt`. Both artifacts live under
+the invoking session's scratch directory until the VM run ends; host tools are
+not cross-compiled. The existing QEMU harness boots the supplied runtime kernel,
+checks its release, installs Alpine's `strongswan`, `iproute2`, `iputils` and
+`util-linux` packages, and invokes
+`le deployment ipsec-mobike-test daemon <guest-daemon-path>` in the guest.
+No Docker daemon or guest Go build is involved.
+
+The deployment action also accepts explicit `charon <path>` and `swanctl <path>`;
+its defaults are Alpine's `/usr/lib/strongswan/charon` and `/usr/sbin/swanctl`.
+The adapter creates private namespaces and process directories and reuses the
+Docker scenarios' MOBIKE checks. A pass requires unchanged IKE and Child SA
+identities, new installed endpoints with no stale states, and encrypted traffic
+in both directions before and after the old address is removed. A new SA or an
+unprotected ping cannot satisfy those checks.
+<!-- source: internal/le/qemu/mobike.go -- runIPsecMOBIKEHere, buildMOBIKEGuests -->
+<!-- source: internal/le/deployment/mobike.go -- runIPsecMOBIKEHere -->
+<!-- source: internal/le/interoplab/ipsec/mobike_netns_linux.go -- RunMOBIKENetns -->
+<!-- source: internal/le/interoplab/ipsec/mobike.go -- checkMOBIKE -->
 
 The native PPPoE and VRRP guest labs create their scenario work directories
 under the guest's `/tmp`, where the invoking user owns them, and write Ze's

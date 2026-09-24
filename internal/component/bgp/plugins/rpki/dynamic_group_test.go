@@ -10,6 +10,7 @@
 package rpki
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net"
 	"testing"
@@ -31,12 +32,11 @@ import (
 // groupMemberPlugin builds a plugin that enqueues to a buffered channel instead
 // of a running worker, so one UPDATE can be read back as the requests it made.
 //
-// Both rails emit an rpki event per family, so the plugin needs a working
+// Both rails emit one rpki event per UPDATE, so the plugin needs a working
 // EmitEvent. It gets the DirectBridge the engine itself gives an internal plugin
-// (rpc.NewBridgedConn), with a handler that counts nothing: the event is not what
-// is under test here, and the alternative is an RPC round trip over a pipe with
-// nobody at the other end.
-func groupMemberPlugin(t *testing.T) *rPKIPlugin {
+// (rpc.NewBridgedConn). Tests that inspect emitted events can replace the
+// default handler on the returned bridge before feeding an UPDATE.
+func groupMemberPlugin(t *testing.T) (*rPKIPlugin, *rpc.DirectBridge) {
 	t.Helper()
 
 	bridge := rpc.NewDirectBridge()
@@ -63,7 +63,7 @@ func groupMemberPlugin(t *testing.T) *rPKIPlugin {
 	}
 	rp.active.Store(true)
 	t.Cleanup(func() { close(rp.stopCh) })
-	return rp
+	return rp, bridge
 }
 
 // drainRequests reads every request the channel holds without blocking.
@@ -95,7 +95,7 @@ func memberPeerJSON(t *testing.T, addr, group string) json.RawMessage {
 // The JSON rail. handleEvent must read the group off the event, or every route
 // from a dynamic member reaches buildDecisions with no identity to resolve.
 func TestJSONRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
-	rp := groupMemberPlugin(t)
+	rp, _ := groupMemberPlugin(t)
 
 	rp.handleEvent(&bgp.Event{
 		Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 7},
@@ -118,7 +118,7 @@ func TestJSONRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
 // address, the name and the group all come off one StructuredEvent three lines
 // above the call in handleStructuredUpdate.
 func TestStructuredRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
-	rp := groupMemberPlugin(t)
+	rp, _ := groupMemberPlugin(t)
 
 	// 10.0.0.0/24 as wire NLRI: one length octet, then the significant bytes.
 	nlri := []byte{24, 10, 0, 0}
@@ -137,7 +137,7 @@ func TestStructuredRailCarriesTheGroupIntoTheValidationRequest(t *testing.T) {
 // deleting that read leaves every rpki test green while an IXP member loses its
 // group's RFC 6811 actions and its RFC 7999 exemption.
 func TestStructuredRailReadsTheGroupOffTheEvent(t *testing.T) {
-	rp := groupMemberPlugin(t)
+	rp, _ := groupMemberPlugin(t)
 
 	// One UPDATE announcing 10.0.0.0/24 from AS 64511: withdrawn length 0, then
 	// ORIGIN, a one-ASN AS_PATH and NEXT_HOP, then the NLRI.
@@ -176,32 +176,15 @@ func TestStructuredRailReadsTheGroupOffTheEvent(t *testing.T) {
 			"resolves the global actions instead of its group's")
 }
 
-// Re-validation has no UPDATE in hand. RFC 6811 Section 4 re-runs the decision on
-// a VRP change, and a member whose actions came from its group must keep them: a
-// route accepted on arrival and rejected on re-validation is one route judged by
-// two policies. The group is not part of routeKey, so nothing about the route's
-// identity carries it.
-func TestOriginRevalidationKeepsTheGroupIdentity(t *testing.T) {
-	tr := newOriginTracker()
-	key := routeKey{peerAddr: "192.0.2.50", family: "ipv4/unicast", prefix: "10.0.0.0/24"}
-	tr.Track(key, "ix", 65001, ValidationNotFound, aspaStateNone, false)
-
-	cache := newROACache()
-	cache.Add(makeVRP("10.0.0.0/24", 24, 65001))
-
-	changed := tr.revalidate(cache)
-	require.Len(t, changed, 1)
-	assert.Equal(t, "ix", changed[0].peerGroup, "re-validation lost the session's group")
-}
-
 // The tracker keeping the group is only half of it: handleROAChange is what turns
 // a re-validated route back into a validationRequest, and that is the value
 // buildDecisions resolves the actions from. Asserting the tracker alone leaves
 // the dispatch site free to drop the field.
 func TestOriginRevalidationDispatchesWithTheGroup(t *testing.T) {
-	rp := groupMemberPlugin(t)
+	rp, _ := groupMemberPlugin(t)
 	key := routeKey{peerAddr: "192.0.2.50", family: "ipv4/unicast", prefix: "10.0.0.0/24"}
-	rp.originTracker.Track(key, "ix", 65001, ValidationNotFound, aspaStateNone, false)
+	rp.originTracker.Track(key, originRoute{peerGroup: "ix", originAS: 65001,
+		state: ValidationNotFound, aspaState: aspaStateNone, unavailable: true})
 
 	rp.cache.Add(makeVRP("10.0.0.0/24", 24, 65001))
 	rp.handleROAChange()
@@ -216,7 +199,7 @@ func TestOriginRevalidationDispatchesWithTheGroup(t *testing.T) {
 // The same for the ASPA rail: handleASPAChange re-dispatches from a trackedRoute
 // when the new ASPA state overrides accept.
 func TestASPARevalidationDispatchesWithTheGroup(t *testing.T) {
-	rp := groupMemberPlugin(t)
+	rp, _ := groupMemberPlugin(t)
 	rp.aspaEnabled.Store(true)
 	rp.aspaInvalidAction.Store(uint32(ASPAPolicyReject))
 
@@ -224,6 +207,8 @@ func TestASPARevalidationDispatchesWithTheGroup(t *testing.T) {
 	rp.aspaCache.Set(64502, []uint32{64501})
 
 	key := routeKey{peerAddr: "192.0.2.50", family: "ipv4/unicast", prefix: "10.0.0.0/24"}
+	rp.originTracker.Track(key, originRoute{peerGroup: "ix", originAS: 64502,
+		state: ValidationNotFound, aspaState: ASPAValid, unavailable: true})
 	rp.aspaTracker.Track(trackedRoute{
 		key:       key,
 		peerName:  "ix-192.0.2.50",
@@ -231,6 +216,7 @@ func TestASPARevalidationDispatchesWithTheGroup(t *testing.T) {
 		peerASN:   64500,
 		path:      []uint32{64500, 64501, 64502},
 		aspaState: ASPAValid,
+		mode:      aspaUpstream,
 	})
 
 	// 64502 stops authorizing 64501, which flips the route to Invalid. With the
@@ -244,21 +230,184 @@ func TestASPARevalidationDispatchesWithTheGroup(t *testing.T) {
 		"handleASPAChange dropped the group, so the member's route would be re-judged by the global actions")
 }
 
-// The ASPA tracker keeps the same identity for the same reason: handleASPAChange
-// re-dispatches from a trackedRoute, also with no UPDATE in hand.
-func TestASPATrackerKeepsTheGroupIdentity(t *testing.T) {
-	tr := newASPATracker()
-	key := routeKey{peerAddr: "192.0.2.50", family: "ipv4/unicast", prefix: "10.0.0.0/24"}
-	tr.Track(trackedRoute{
-		key:       key,
-		peerName:  "ix-192.0.2.50",
-		peerGroup: "ix",
-		peerASN:   64511,
-		path:      []uint32{64511},
-		aspaState: ASPAUnknown,
-	})
+// TestASPAJSONRailKeepsSegmentTypes rejects an AS_SET even when the JSON
+// projection also contains a flattened path whose ordered hops are authorized.
+func TestASPAJSONRailKeepsSegmentTypes(t *testing.T) {
+	rp, _ := aspaRolePlugin(t, "provider")
+	rp.aspaCache.Set(200, []uint32{100})
+	rp.aspaCache.Set(300, []uint32{200})
+	rp.cache.Add(makeVRP("10.0.0.0/24", 24, 300))
+	event := &bgp.Event{
+		Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 71},
+		Peer:    memberPeerJSON(t, "192.0.2.50", "ix"),
+		ASPath:  []uint32{100, 200, 300},
+		RawAttributeBytes: []byte{
+			0x40, 0x02, 16,
+			2, 2, 0, 0, 0, 100, 0, 0, 0, 200,
+			1, 1, 0, 0, 1, 44,
+		},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {{Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	rp.handleEvent(event)
+	reqs := drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAInvalid, reqs[0].aspaState)
+	assert.Equal(t, ValidationInvalid, reqs[0].state)
+	assert.False(t, rp.buildDecisions(reqs)[0].Accept)
 
-	got, ok := tr.routes[key]
-	require.True(t, ok)
-	assert.Equal(t, "ix", got.peerGroup, "the ASPA tracker lost the session's group")
+	// Without segment-bearing attributes the ordered JSON fallback remains usable.
+	event.RawAttributeBytes = nil
+	event.Message.ID++
+	rp.handleEvent(event)
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAValid, reqs[0].aspaState)
+	assert.True(t, rp.buildDecisions(reqs)[0].Accept)
+
+	// Invalid explicitly supplied raw bytes cannot fall back to a flattened
+	// sequence that discards their segment boundaries.
+	event.RawAttributes = "not-hex"
+	event.Message.ID++
+	rp.handleEvent(event)
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAInvalid, reqs[0].aspaState)
+	assert.Equal(t, ValidationInvalid, reqs[0].state)
+	assert.False(t, rp.buildDecisions(reqs)[0].Accept)
+}
+
+// TestASPASessionDownStopsRevalidation prevents cache changes from producing
+// decisions for received routes whose session and Adj-RIB-In are gone.
+func TestASPASessionDownStopsRevalidation(t *testing.T) {
+	rp := aspaInvalidPlugin(t)
+	feedASPAUpdate(t, rp,
+		aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 0}))
+	rp.handleEvent(&bgp.Event{
+		Message: &bgp.MessageInfo{Type: rpc.EventKindState},
+		Peer:    memberPeerJSON(t, "192.0.2.50", "ix"),
+		State:   "down",
+	})
+	rp.aspaCache.Set(300, []uint32{200})
+	rp.handleASPAChange([]uint32{300})
+	rp.cache.Add(makeVRP("10.0.0.0/24", 24, 300))
+	rp.handleROAChange()
+	assert.Empty(t, drainRequests(rp.validateCh))
+}
+
+// Both event delivery forms must use the local speaker AS for an empty or
+// confederation-ending path, while an AS_SET still has no origin.
+func TestJSONOriginUsesLocalASAndRawSegmentTypes(t *testing.T) {
+	for _, path := range [][]byte{
+		{},
+		{3, 1, 0, 0, 0xfd, 0xe9},
+		{4, 1, 0, 0, 0xfd, 0xe9},
+		{1, 1, 0, 0, 0xfd, 0xe8},
+	} {
+		for _, encoded := range []bool{false, true} {
+			rp, _ := groupMemberPlugin(t)
+			rp.cache.Add(makeVRP("10.0.0.0/24", 24, 65000))
+			raw := append([]byte{0x40, 2, byte(len(path))}, path...)
+			event := &bgp.Event{
+				Message: &bgp.MessageInfo{Type: rpc.EventKindUpdate, ID: 71},
+				Peer:    json.RawMessage(`{"local":{"as":65000},"remote":{"address":"192.0.2.50","as":65000}}`),
+				FamilyOps: map[family.Family][]bgp.FamilyOperation{
+					family.IPv4Unicast: {{Action: routeaction.Add, NLRIs: []any{"10.0.0.0/24"}}},
+				},
+			}
+			if encoded {
+				event.RawAttributes = hex.EncodeToString(raw)
+			} else {
+				event.RawAttributeBytes = raw
+			}
+			rp.handleEvent(event)
+			decisions := rp.buildDecisions(drainRequests(rp.validateCh))
+			require.Len(t, decisions, 1)
+			want := ValidationValid
+			if len(path) > 0 {
+				if path[0] == 1 {
+					want = ValidationInvalid
+				}
+			}
+			assert.Equal(t, want, decisions[0].ValState, "path=%x encoded=%t", path, encoded)
+		}
+	}
+}
+
+// An UPDATE can arrive before the first RTR load. Cache availability is an
+// observable transition even when both validation verdicts stay unchanged.
+func TestCacheAvailabilityRepublishesUnchangedRPKIVerdicts(t *testing.T) {
+	for _, name := range []string{"disabled", "unknown", "valid"} {
+		t.Run(name, func(t *testing.T) {
+			rp, bridge := aspaRolePlugin(t, "provider")
+			if name == "disabled" {
+				rp.aspaEnabled.Store(false)
+			}
+			if name == "valid" {
+				rp.aspaCache.Set(200, []uint32{100})
+				rp.aspaCache.Set(300, []uint32{200})
+			}
+			type observedEvent struct {
+				BGP struct {
+					Peer struct {
+						Name   string `json:"name"`
+						Remote struct {
+							Address string `json:"address"`
+							AS      uint32 `json:"as"`
+						} `json:"remote"`
+					} `json:"peer"`
+					Message struct {
+						ID uint64 `json:"id"`
+					} `json:"message"`
+					RPKI struct {
+						Status    string            `json:"status"`
+						ASPAState *string           `json:"aspa-state"`
+						Origins   map[string]string `json:"ipv4/unicast"`
+					} `json:"rpki"`
+				} `json:"bgp"`
+			}
+			var events []observedEvent
+			bridge.SetEmitEvent(func(_, _, _, _, raw string) (int, error) {
+				var event observedEvent
+				err := json.Unmarshal([]byte(raw), &event)
+				if err == nil {
+					events = append(events, event)
+				}
+				return 1, err
+			})
+			reqs := feedASPAUpdate(t, rp,
+				aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 1}))
+			require.Len(t, reqs, 1)
+			require.Equal(t, ValidationNotFound, reqs[0].state)
+			require.Len(t, events, 1)
+			require.Equal(t, "unavailable", events[0].BGP.RPKI.Status)
+
+			// This unrelated VRP makes the cache available without changing
+			// this route's NotFound origin or its existing ASPA verdict.
+			rp.cache.Add(makeVRP("203.0.113.0/24", 24, 65001))
+			rp.handleROAChange()
+			assert.Empty(t, drainRequests(rp.validateCh),
+				"availability alone must not rerun an unchanged eligibility decision")
+			require.Len(t, events, 2)
+			got := events[1].BGP
+			assert.Empty(t, got.RPKI.Status)
+			assert.Equal(t, "not-found", got.RPKI.Origins["10.0.1.0/24"])
+			if name == "disabled" {
+				assert.Nil(t, got.RPKI.ASPAState)
+			} else {
+				require.NotNil(t, got.RPKI.ASPAState)
+				assert.Equal(t, name, *got.RPKI.ASPAState)
+			}
+			assert.Equal(t, "ix-192.0.2.50", got.Peer.Name)
+			assert.Equal(t, "192.0.2.50", got.Peer.Remote.Address)
+			assert.Equal(t, uint32(100), got.Peer.Remote.AS)
+			assert.Equal(t, uint64(71), got.Message.ID)
+
+			rp.cache.Clear()
+			rp.handleROAChange()
+			require.Len(t, events, 3)
+			assert.Equal(t, "unavailable", events[2].BGP.RPKI.Status)
+		})
+	}
 }

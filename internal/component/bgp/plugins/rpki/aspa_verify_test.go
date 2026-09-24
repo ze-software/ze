@@ -13,9 +13,6 @@ import (
 // VALIDATES: AC-2 — route with all authorized providers -> Valid.
 // PREVENTS: Valid paths incorrectly classified.
 func TestASPAVerifyValid(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 negative -- a path with no AS_SET
-	// runs the normal upstream verification algorithm (here yielding Valid), rather than being
-	// short-circuited to Unknown.
 	c := newASPACache()
 	// Path: 100 -> 200 -> 300 (neighbor=100, origin=300)
 	// 200 authorizes 100 as provider, 300 authorizes 200 as provider.
@@ -54,20 +51,16 @@ func TestASPAVerifyUnknown(t *testing.T) {
 	assert.Equal(t, ASPAUnknown, state)
 }
 
-// TestASPAVerifyASSet verifies AS_SET in path yields Unknown.
-//
-// VALIDATES: AC-9 — AS_SET -> Unknown.
-// PREVENTS: Attempting to verify unordered sets.
+// TestASPAVerifyASSet checks the Invalid outcome in Section 5.5 step 3.
 func TestASPAVerifyASSet(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 positive -- an AS_SET in the path is
-	// flagged as unverifiable by normalization (the signal handleStructuredUpdate maps to Unknown).
+	// An AS_SET path resolves to Invalid rather than Unknown.
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
 		{Type: attribute.ASSet, ASNs: []uint32{300, 400}},
 	}
 
-	_, hasASSet := normalizeASPath(segments)
-	assert.True(t, hasASSet)
+	state, _ := aspaStateForPath(newASPACache(), segments, aspaUpstream)
+	assert.Equal(t, ASPAInvalid, state)
 }
 
 // TestASPAVerifySingleHop verifies single-hop path is trivially Valid.
@@ -81,46 +74,15 @@ func TestASPAVerifySingleHop(t *testing.T) {
 	assert.Equal(t, ASPAValid, state)
 }
 
-// TestASPAVerifyEmptyPath verifies empty path is Valid.
-//
-// VALIDATES: Empty AS_PATH (IBGP/local) -> Valid.
-// PREVENTS: Panic on nil/empty path.
+// TestASPAVerifyEmptyPath checks the Invalid outcome of Section 5.5 step 1.
 func TestASPAVerifyEmptyPath(t *testing.T) {
 	c := newASPACache()
 
-	assert.Equal(t, ASPAValid, verifyASPA(c, nil))
-	assert.Equal(t, ASPAValid, verifyASPA(c, []uint32{}))
+	assert.Equal(t, ASPAInvalid, verifyASPA(c, nil))
+	assert.Equal(t, ASPAInvalid, verifyASPA(c, []uint32{}))
 }
 
-// TestASPANormalizePrepends verifies consecutive duplicate removal.
-//
-// VALIDATES: [A,A,B,B,B] -> [A,B]; [A,B,A] unchanged.
-// PREVENTS: Incorrect prepend handling (must be consecutive-only).
-func TestASPANormalizePrepends(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3 positive -- consecutive duplicate
-	// ASNs (prepending artifacts) are collapsed: [100,100,200,200,200] -> [100,200].
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3 negative -- non-consecutive
-	// duplicates are preserved: [100,200,100] is left unchanged (only consecutive dups collapse).
-	segments := []attribute.ASPathSegment{
-		{Type: attribute.ASSequence, ASNs: []uint32{100, 100, 200, 200, 200}},
-	}
-	path, hasSet := normalizeASPath(segments)
-	assert.False(t, hasSet)
-	assert.Equal(t, []uint32{100, 200}, path)
-
-	// Non-consecutive duplicates must NOT be removed.
-	segments = []attribute.ASPathSegment{
-		{Type: attribute.ASSequence, ASNs: []uint32{100, 200, 100}},
-	}
-	path, hasSet = normalizeASPath(segments)
-	assert.False(t, hasSet)
-	assert.Equal(t, []uint32{100, 200, 100}, path)
-}
-
-// TestASPANormalizeConfed verifies confederation segments are stripped.
-//
-// VALIDATES: AS_CONFED_SEQUENCE stripped, AS_CONFED_SET yields Unknown.
-// PREVENTS: Confederation-internal hops affecting verification.
+// TestASPANormalizeConfed rejects confederation segments on the external path.
 func TestASPANormalizeConfed(t *testing.T) {
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
@@ -128,8 +90,8 @@ func TestASPANormalizeConfed(t *testing.T) {
 		{Type: attribute.ASSequence, ASNs: []uint32{300}},
 	}
 	path, hasSet := normalizeASPath(segments)
-	assert.False(t, hasSet)
-	assert.Equal(t, []uint32{100, 200, 300}, path)
+	assert.True(t, hasSet)
+	assert.Nil(t, path)
 
 	// AS_CONFED_SET -> has AS_SET flag.
 	segments = []attribute.ASPathSegment{
@@ -211,18 +173,10 @@ func TestASPANormalizeEmptySegments(t *testing.T) {
 	assert.Nil(t, path)
 }
 
-// TestASPAStateForPath verifies the received-UPDATE ASPA entry point: it normalizes a route's
-// AS_PATH segments and either verifies them or maps an AS_SET to Unknown. This is the exact logic
-// handleStructuredUpdate applies to every received UPDATE that carries an AS_PATH.
-//
-// VALIDATES: aspaStateForPath runs verification on received customer/lateral-peer paths and maps
-// AS_SET to Unknown.
-// PREVENTS: Received routes bypassing ASPA verification, or AS_SET paths being verified as if
-// ordered.
+// TestASPAStateForPath checks authorized and unauthorized ordered paths against
+// the same structural entry point used for received UPDATEs.
 func TestASPAStateForPath(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1 positive -- ASPA verification is run
-	// for a received route's AS_PATH: a customer/lateral-peer path with authorized providers
-	// resolves to Valid via the same entry point handleStructuredUpdate uses.
+	// An authorized ordered path does not take the AS_SET Invalid outcome.
 	c := newASPACache()
 	// Path 100 -> 200 -> 300: 200 authorizes 100, 300 authorizes 200.
 	c.Set(200, []uint32{100})
@@ -231,7 +185,7 @@ func TestASPAStateForPath(t *testing.T) {
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200, 300}},
 	}
-	state, normalized := aspaStateForPath(c, segments)
+	state, normalized := aspaStateForPath(c, segments, aspaUpstream)
 	assert.Equal(t, ASPAValid, state)
 	assert.Equal(t, []uint32{100, 200, 300}, normalized)
 
@@ -239,15 +193,42 @@ func TestASPAStateForPath(t *testing.T) {
 	badCache := newASPACache()
 	badCache.Set(200, []uint32{100})
 	badCache.Set(300, []uint32{999}) // 200 not authorized
-	state, _ = aspaStateForPath(badCache, segments)
+	state, _ = aspaStateForPath(badCache, segments, aspaUpstream)
 	assert.Equal(t, ASPAInvalid, state)
 
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2 positive -- an AS_SET in a received
-	// path is mapped to Unknown (unverifiable) instead of being run through verification.
 	setSegments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
 		{Type: attribute.ASSet, ASNs: []uint32{300, 400}},
 	}
-	state, _ = aspaStateForPath(c, setSegments)
-	assert.Equal(t, ASPAUnknown, state)
+	state, _ = aspaStateForPath(c, setSegments, aspaUpstream)
+	assert.Equal(t, ASPAInvalid, state)
+}
+
+// TestASPAZeroDoesNotAuthorizeOrInvalidate checks the AS0 sentinel at the
+// verification boundary, where SPAS is the union of valid ASPA records.
+func TestASPAZeroDoesNotAuthorizeOrInvalidate(t *testing.T) {
+	// A mixed AS0 does not invalidate a real authorization; AS0 alone does not
+	// authorize an unlisted provider (Section 4).
+	c := newASPACache()
+	c.Set(200, []uint32{100})
+	c.Set(300, []uint32{0, 200})
+	assert.Equal(t, ASPAValid, verifyASPA(c, []uint32{100, 200, 300}))
+	c.Set(300, []uint32{0})
+	assert.Equal(t, ASPAInvalid, verifyASPA(c, []uint32{100, 200, 300}))
+}
+
+// TestASPADownstreamRampBounds checks the distinction between a peer edge, a
+// proven valley, and an unproven gap in provider data.
+func TestASPADownstreamRampBounds(t *testing.T) {
+	c := newASPACache()
+	c.Set(100, []uint32{0})
+	c.Set(200, []uint32{0})
+	c.Set(300, []uint32{0})
+	assert.Equal(t, ASPAValid, verifyASPADownstream(c, []uint32{100, 200}),
+		"a two-AS path may be the peer edge between the two ramps")
+	assert.Equal(t, ASPAInvalid, verifyASPADownstream(c, []uint32{100, 200, 300}),
+		"both ramps stop before covering a three-AS path")
+	assert.Equal(t, ASPAUnknown, verifyASPADownstream(newASPACache(), []uint32{100, 200, 300}),
+		"missing attestations are not proof of a valley")
+	assert.Equal(t, ASPAInvalid, verifyASPADownstream(c, nil))
 }

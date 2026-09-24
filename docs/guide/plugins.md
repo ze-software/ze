@@ -426,7 +426,7 @@ A reason string reaches CLI output as data, so never put a secret in one.
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
 | `bgp-gr` | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) | `receive [ open-received state eor ] send [ update ]` |
-| `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update-received ]` |
+| `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update-received state ]` |
 | `bgp-rpki-decorator` | Merged UPDATE+RPKI events | `receive [ update-received rpki ]` |
 | `bgp-route-refresh` | Route Refresh (RFC 2918) | `send [ refresh ]` |
 | `bgp-role` | BGP Role (RFC 9234) | -- |
@@ -529,8 +529,10 @@ Subscribes to `bgp-rib/best-change/` Bus topic prefix, publishes `system-rib/bes
 The `fib-kernel` plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
 ze-installed routes. Crash recovery marks existing ze routes as stale at startup
-and sweeps them after reconvergence. A kernel route monitor detects external
-changes and re-asserts ze routes when overwritten.
+and sweeps them after reconvergence. A kernel route monitor restores externally
+deleted Ze routes with their accepted forwarding metadata. Recovery requires
+matching ownership of the prefix, table and priority, so withdrawn routes stay
+withdrawn. Conflicting foreign replacements are retained and reported.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
 

@@ -190,7 +190,7 @@ func TestEveryScenarioOperationUsesRecorder(t *testing.T) {
 		opBIRDRoute, opGoBGPRoute, opFRRCommunity, opFRRNoAS,
 		opWaitContains, opWaitContainsAny, opWaitAbsent, opRequireContains, opRequireAbsent,
 		opRequireJSONFields, opWaitJSONFields, opExec, opSignal, opStart,
-		opWaitLogFields, opWaitLogContains, opDelayRequireContains,
+		opWaitLogFields, opWaitLogContains, opDelayRequireContains, opWaitRPKI,
 	} {
 		if covered[branch] == 0 {
 			t.Errorf("operation branch %d has no scenario fixture", branch)
@@ -465,6 +465,7 @@ func TestSpecialCheckerParsers(t *testing.T) {
 // generic presence assertion cannot represent.
 func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(pathsLimitScenario, pathsLimitCheckerBranches)
+	t.Run(rpkiReloadScenario, rpkiReloadCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
 		if bfdSessionDown("BGP state = Established") {
@@ -1633,6 +1634,8 @@ func recorderFor(current *operation) *recordingLab {
 			panic("BUG: recorder JSON contains only supported scalar values")
 		}
 		recorder.output = string(data)
+	case opWaitRPKI:
+		recorder.output = rpkiRetainedObservation
 	case opWaitLogFields:
 		var report strings.Builder
 		for key, value := range current.fields {
@@ -1683,6 +1686,8 @@ func contradictoryRecorderFor(current *operation) *recordingLab {
 		recorder.output = strings.Join(values, " ")
 	case opRequireJSONFields, opWaitJSONFields:
 		recorder.output = `{}`
+	case opWaitRPKI:
+		recorder.output = strings.Replace(rpkiRetainedObservation, `"ineligible":true`, `"ineligible":false`, 1)
 	case opExec, opSignal, opStart:
 		recorder.failure = fmt.Errorf("recorded mutation failed")
 	case opWaitLogFields:

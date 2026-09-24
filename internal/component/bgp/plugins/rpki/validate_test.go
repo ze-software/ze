@@ -2,12 +2,12 @@ package rpki
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // TestValidateValid verifies Valid state when origin AS matches a covering VRP.
@@ -165,11 +165,11 @@ func TestUnparseablePrefixIsNotAcceptedByDefaultPolicy(t *testing.T) {
 	assert.True(t, decisions[1].Accept, "a parsed, uncovered prefix is still accepted under the default")
 }
 
-// TestExtractOriginAS verifies origin AS extraction from AS_PATH attribute.
+// TestRPKIOriginFromWireSequence verifies origin extraction from a wire AS_PATH.
 //
 // VALIDATES: Rightmost AS in final AS_SEQUENCE segment is extracted.
 // PREVENTS: Wrong origin AS causing incorrect validation.
-func TestExtractOriginAS(t *testing.T) {
+func TestRPKIOriginFromWireSequence(t *testing.T) {
 	// Build raw path attributes: ORIGIN(1) + AS_PATH(2)
 	// ORIGIN: flags=0x40, type=1, len=1, value=0 (IGP)
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
@@ -188,25 +188,16 @@ func TestExtractOriginAS(t *testing.T) {
 	asPathVal = append(asPathVal, asn2...)
 	asPath = append(asPath, asPathVal...)
 
-	rawHex := hex.EncodeToString(append(origin, asPath...))
-	result := extractOriginAS(rawHex)
+	attrs := attribute.NewAttributesWire(append(origin, asPath...), bgpctx.APIContextID)
+	result := rpkiOriginASFromASPath(rpkiASPathFromWire(attrs), 65000)
 	assert.Equal(t, uint32(65002), result, "origin AS should be rightmost in AS_SEQUENCE")
 }
 
-// TestExtractOriginASEmpty verifies empty AS_PATH yields OriginNone.
-//
-// VALIDATES: Empty attributes or no AS_PATH returns OriginNone.
-// PREVENTS: Panic on empty input.
-func TestExtractOriginASEmpty(t *testing.T) {
-	assert.Equal(t, OriginNone, extractOriginAS(""))
-	assert.Equal(t, OriginNone, extractOriginAS("invalid"))
-}
-
-// TestExtractOriginASSet verifies AS_SET yields OriginNone.
+// TestRPKIOriginFromWireASSet verifies AS_SET yields OriginNone.
 //
 // VALIDATES: Final AS_SET segment returns OriginNone per RFC 6811.
 // PREVENTS: AS_SET origin being treated as valid.
-func TestExtractOriginASSet(t *testing.T) {
+func TestRPKIOriginFromWireASSet(t *testing.T) {
 	// AS_PATH with AS_SET (type=1)
 	asPath := []byte{0x40, 0x02, 0x06} // flags, type=2, len=6
 	asPathVal := []byte{
@@ -217,8 +208,8 @@ func TestExtractOriginASSet(t *testing.T) {
 	asPathVal = append(asPathVal, asn...)
 	asPath = append(asPath, asPathVal...)
 
-	rawHex := hex.EncodeToString(asPath)
-	result := extractOriginAS(rawHex)
+	attrs := attribute.NewAttributesWire(asPath, bgpctx.APIContextID)
+	result := rpkiOriginASFromASPath(rpkiASPathFromWire(attrs), 65000)
 	assert.Equal(t, OriginNone, result)
 }
 

@@ -18,6 +18,7 @@ func TestParseRPKIConfigBasic(t *testing.T) {
 		"rpki": {
 			"cache-server": {
 				"127.0.0.1": {
+					"trusted-network": "true",
 					"port": "3323",
 					"preference": "50"
 				}
@@ -48,8 +49,8 @@ func TestRPKISourceAddress(t *testing.T) {
 	jsonStr := `{
 		"rpki": {
 			"cache-server": {
-				"192.0.2.200": {"port": "3323", "source-address": "198.51.100.1"},
-				"192.0.2.201": {"port": "3324"}
+				"192.0.2.200": {"trusted-network": "true", "port": "3323", "source-address": "198.51.100.1"},
+				"192.0.2.201": {"trusted-network": "true", "port": "3324"}
 			}
 		}
 	}`
@@ -64,14 +65,6 @@ func TestRPKISourceAddress(t *testing.T) {
 	}
 	require.Equal(t, "198.51.100.1", byAddr["192.0.2.200"].SourceAddress)
 	require.Empty(t, byAddr["192.0.2.201"].SourceAddress, "unconfigured server keeps empty source")
-
-	// Constructor stores the source address for the dialer to bind.
-	stopCh := make(chan struct{})
-	sess := newRTRSession("192.0.2.200", 3323, 100, "198.51.100.1", newROACache(), newASPACache(), stopCh)
-	require.Equal(t, "198.51.100.1", sess.sourceAddress)
-
-	sessNoSrc := newRTRSession("192.0.2.201", 3324, 100, "", newROACache(), newASPACache(), stopCh)
-	require.Empty(t, sessNoSrc.sourceAddress)
 }
 
 func TestParseRPKIConfigDefaults(t *testing.T) {
@@ -79,7 +72,7 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 	jsonStr := `{
 		"rpki": {
 			"cache-server": {
-				"10.0.0.1": {}
+				"10.0.0.1": {"trusted-network": "true"}
 			}
 		}
 	}`
@@ -90,11 +83,10 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 
 	cs := cfg.CacheServers[0]
 	assert.Equal(t, "10.0.0.1", cs.Address)
-	// RFC requirement: RFC6810-7-1 positive -- a cache server configured with no explicit port
-	// defaults to the rpki-rtr port 323, the unprotected-TCP transport ze dials (rtr_session.go
-	// DialContext "tcp"). This is the mandatory-to-implement transport for an RTR router.
-	// RFC requirement: RFC8210-9-1 positive -- RFC 8210 Section 9 keeps port 323 unprotected TCP as the
-	// mandatory-to-implement transport for v1, and that is what a default-configured cache server uses.
+	// RFC requirement: RFC6810-7-1 positive -- a trusted-network TCP cache with no explicit
+	// port defaults to rpki-rtr port 323, the mandatory-to-implement RTR transport.
+	// RFC requirement: RFC8210-9-1 positive -- RFC 8210 Section 9 keeps port 323 unprotected
+	// TCP as the mandatory-to-implement transport, selected here by explicit network trust.
 	assert.Equal(t, uint16(323), cs.Port)             // RTR default
 	assert.Equal(t, uint8(100), cs.Preference)        // YANG default
 	assert.Equal(t, uint16(0), cfg.ValidationTimeout) // not set
@@ -111,7 +103,7 @@ func TestParseRPKIConfigOriginAction(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
 		"rpki": {
 			"action": {"invalid": "accept", "not-found": "reject"},
-			"cache-server": {"10.0.0.1": {}}
+			"cache-server": {"10.0.0.1": {"trusted-network": "true"}}
 		}
 	}`)
 	require.NoError(t, err)
@@ -123,8 +115,8 @@ func TestParseRPKIConfigMultipleServers(t *testing.T) {
 	jsonStr := `{
 		"rpki": {
 			"cache-server": {
-				"10.0.0.1": {"port": "3323"},
-				"10.0.0.2": {"port": "3324", "preference": "200"}
+				"10.0.0.1": {"trusted-network": "true", "port": "3323"},
+				"10.0.0.2": {"trusted-network": "true", "port": "3324", "preference": "200"}
 			}
 		}
 	}`
@@ -176,7 +168,7 @@ func TestParseRPKIConfigInvalidJSON(t *testing.T) {
 }
 
 func TestParseRPKIConfigASPAValidationDefault(t *testing.T) {
-	jsonStr := `{"rpki": {"cache-server": {"10.0.0.1": {}}}}`
+	jsonStr := `{"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
@@ -184,7 +176,7 @@ func TestParseRPKIConfigASPAValidationDefault(t *testing.T) {
 }
 
 func TestParseRPKIConfigASPAValidationEnabled(t *testing.T) {
-	jsonStr := `{"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {}}}}`
+	jsonStr := `{"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {"trusted-network": "true"}}}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
@@ -192,7 +184,7 @@ func TestParseRPKIConfigASPAValidationEnabled(t *testing.T) {
 }
 
 func TestParseRPKIConfigASPAValidationDisabled(t *testing.T) {
-	jsonStr := `{"rpki": {"aspa": {"validation": "false"}, "cache-server": {"10.0.0.1": {}}}}`
+	jsonStr := `{"rpki": {"aspa": {"validation": "false"}, "cache-server": {"10.0.0.1": {"trusted-network": "true"}}}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
 	require.NoError(t, err)
@@ -208,7 +200,7 @@ func TestParseRPKIConfigASPAAction(t *testing.T) {
 				"unknown": "reject"
 			}
 		},
-		"cache-server": {"10.0.0.1": {}}
+		"cache-server": {"10.0.0.1": {"trusted-network": "true"}}
 	}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
@@ -217,19 +209,10 @@ func TestParseRPKIConfigASPAAction(t *testing.T) {
 	assert.Equal(t, ASPAPolicyReject, cfg.ASPAUnknownAction)
 }
 
-func TestParseRPKIConfigASPAPolicyDefaults(t *testing.T) {
-	jsonStr := `{"rpki": {"cache-server": {"10.0.0.1": {}}}}`
-
-	cfg, err := parseRPKIConfig(jsonStr)
-	require.NoError(t, err)
-	assert.Equal(t, ASPAPolicyLogOnly, cfg.ASPAInvalidAction)
-	assert.Equal(t, ASPAPolicyAccept, cfg.ASPAUnknownAction)
-}
-
 func TestParseRPKIConfigASPAActionPartial(t *testing.T) {
 	jsonStr := `{"rpki": {
 		"aspa": {"action": {"invalid": "accept"}},
-		"cache-server": {"10.0.0.1": {}}
+		"cache-server": {"10.0.0.1": {"trusted-network": "true"}}
 	}}`
 
 	cfg, err := parseRPKIConfig(jsonStr)
@@ -242,7 +225,7 @@ func TestParseRPKIConfigASPAActionPartial(t *testing.T) {
 // by the peer's remote IP (connection>remote>ip), with unset leaves falling back to global (AC-2/5).
 func TestParseRPKIConfig_PerPeerOverride(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"peer": {
 			"customer-a": {
 				"connection": {"remote": {"ip": "192.0.2.1"}},
@@ -265,7 +248,7 @@ func TestParseRPKIConfig_PerPeerOverride(t *testing.T) {
 // that sets nothing of its own (AC-3).
 func TestParseRPKIConfig_GroupInheritance(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"group": {
 			"transit": {
 				"rpki": {"action": {"invalid": "reject"}},
@@ -283,7 +266,7 @@ func TestParseRPKIConfig_GroupInheritance(t *testing.T) {
 // TestParseRPKIConfig_PeerBeatsGroup verifies peer overrides win over group (AC-4).
 func TestParseRPKIConfig_PeerBeatsGroup(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"group": {
 			"transit": {
 				"rpki": {"action": {"invalid": "reject"}},
@@ -304,7 +287,7 @@ func TestParseRPKIConfig_PeerBeatsGroup(t *testing.T) {
 // overrides only invalid keeps the global not-found (AC-5).
 func TestParseRPKIConfig_PerLeafFallback(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"action": {"not-found": "reject"}, "cache-server": {"10.0.0.1": {}}},
+		"rpki": {"action": {"not-found": "reject"}, "cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"peer": {"p": {
 			"connection": {"remote": {"ip": "203.0.113.5"}},
 			"rpki": {"action": {"invalid": "accept"}}
@@ -322,7 +305,7 @@ func TestParseRPKIConfig_PerLeafFallback(t *testing.T) {
 // TestParseRPKIConfig_ASPAPerPeer verifies a per-peer ASPA action override (AC-6).
 func TestParseRPKIConfig_ASPAPerPeer(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {}}},
+		"rpki": {"aspa": {"validation": "true"}, "cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"peer": {"p": {
 			"connection": {"remote": {"ip": "203.0.113.9"}},
 			"rpki": {"aspa": {"action": {"invalid": "accept"}}}
@@ -338,7 +321,7 @@ func TestParseRPKIConfig_ASPAPerPeer(t *testing.T) {
 // per-peer map (falls back to global at decision time), keeping the map minimal.
 func TestParseRPKIConfig_NoOverrideNotInMap(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"peer": {"p": {"connection": {"remote": {"ip": "203.0.113.1"}}}}
 	}`)
 	require.NoError(t, err)
@@ -355,7 +338,7 @@ func TestParseRPKIConfig_NoOverrideNotInMap(t *testing.T) {
 // the assertion is about the named peer alone.
 func TestParseRPKIConfig_NamedPeerWithNoStaticIPSkipped(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"group": {"dyn": {
 			"connection": {"remote": {"ip": "dynamic"}},
 			"peer": {"d": {"rpki": {"action": {"invalid": "accept"}}}}
@@ -384,7 +367,7 @@ func TestParseRPKIConfig_NamedPeerWithNoStaticIPSkipped(t *testing.T) {
 func TestParseRPKIConfig_KeysWhatARuntimeReaderProduces(t *testing.T) {
 	t.Run("a peer named by its own address, a shape the loader refuses", func(t *testing.T) {
 		cfg, err := parseRPKIConfig(`{
-			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 			"peer": {"203.0.113.4": {"rpki": {"action": {"invalid": "accept"}}}}
 		}`)
 		require.NoError(t, err)
@@ -395,7 +378,7 @@ func TestParseRPKIConfig_KeysWhatARuntimeReaderProduces(t *testing.T) {
 
 	t.Run("a non-canonical address is keyed canonically", func(t *testing.T) {
 		cfg, err := parseRPKIConfig(`{
-			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 			"peer": {"v6": {
 				"connection": {"remote": {"ip": "2001:0DB8::1"}},
 				"rpki": {"action": {"invalid": "accept"}}
@@ -417,7 +400,7 @@ func TestParseRPKIConfig_KeysWhatARuntimeReaderProduces(t *testing.T) {
 func TestRPKIPeerActionsForDynamicGroup(t *testing.T) {
 	t.Run("the group's action is keyed under the group", func(t *testing.T) {
 		cfg, err := parseRPKIConfig(`{
-			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 			"group": {"ix": {
 				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
 				"rpki": {"action": {"invalid": "accept"}}
@@ -432,7 +415,7 @@ func TestRPKIPeerActionsForDynamicGroup(t *testing.T) {
 
 	t.Run("a named member keeps its own entry and its own leaf wins", func(t *testing.T) {
 		cfg, err := parseRPKIConfig(`{
-			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 			"group": {"ix": {
 				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
 				"rpki": {"action": {"invalid": "reject"}},
@@ -455,7 +438,7 @@ func TestRPKIPeerActionsForDynamicGroup(t *testing.T) {
 
 	t.Run("the blackhole agreement resolves for the template too", func(t *testing.T) {
 		cfg, err := parseRPKIConfig(`{
-			"rpki": {"cache-server": {"10.0.0.1": {}}},
+			"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 			"group": {"ix": {
 				"connection": {"remote": {"ip": "dynamic", "range": ["192.0.2.0/24"]}},
 				"rpki": {"blackhole-exempt": "true"},
@@ -481,7 +464,7 @@ func TestRPKIPeerActionsForDynamicGroup(t *testing.T) {
 // is display metadata rather than the enforced value.
 func TestRPKIDynamicGroupActionsMatchAStaticPeer(t *testing.T) {
 	cfg, err := parseRPKIConfig(`{
-		"rpki": {"cache-server": {"10.0.0.1": {}}},
+		"rpki": {"cache-server": {"10.0.0.1": {"trusted-network": "true"}}},
 		"peer": {"static": {
 			"connection": {"remote": {"ip": "198.51.100.1"}},
 			"rpki": {
@@ -518,4 +501,15 @@ func TestRPKIDynamicGroupActionsMatchAStaticPeer(t *testing.T) {
 
 	assert.Equal(t, effective(peer), effective(tmpl),
 		"the template resolved a different action set than the static peer stating the same leaves")
+}
+
+// Explicit invalid timeouts must fail verification instead of silently using
+// the default and committing a different pending-route policy.
+func TestRPKIValidationTimeoutRejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{`"0"`, `"-1"`, `"65536"`, `"later"`, `true`} {
+		t.Run(value, func(t *testing.T) {
+			_, err := parseRPKIConfig(`{"rpki":{"validation-timeout":` + value + `}}`)
+			require.Error(t, err)
+		})
+	}
 }

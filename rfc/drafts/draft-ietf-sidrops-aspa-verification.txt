@@ -1,11 +1,7 @@
-
-
-
-
 Network Working Group                                          A. Azimov
 Internet-Draft                                                    Yandex
 Intended status: Standards Track                            E. Bogomazov
-Expires: 21 January 2027                                     Qrator Labs
+Expires: 25 February 2027                                    Qrator Labs
                                                                  R. Bush
                                                             IIJ & Arrcus
                                                                 K. Patel
@@ -14,12 +10,11 @@ Expires: 21 January 2027                                     Qrator Labs
                                                                      BSD
                                                                K. Sriram
                                                                 USA NIST
-                                                            20 July 2026
-
+                                                          24 August 2026
 
       BGP AS_PATH Verification Based on Autonomous System Provider
                       Authorization (ASPA) Objects
-                draft-ietf-sidrops-aspa-verification-27
+                draft-ietf-sidrops-aspa-verification-28
 
 Abstract
 
@@ -45,18 +40,11 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 21 January 2027.
+   This Internet-Draft will expire on 25 February 2027.
 
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 1]
+Azimov, et al.          Expires 25 February 2027                [Page 1]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
 Copyright Notice
 
@@ -79,41 +67,39 @@ Table of Contents
    3.  Terminology and List of Acronyms  . . . . . . . . . . . . . .   4
    4.  ASPA Registration Recommendations . . . . . . . . . . . . . .   4
    5.  AS_PATH Verification  . . . . . . . . . . . . . . . . . . . .   5
-     5.1.  Principles  . . . . . . . . . . . . . . . . . . . . . . .   6
-     5.2.  Provider Authorization Function . . . . . . . . . . . . .   7
-     5.3.  Bounds on Up-Ramp and Down-Ramp Lengths . . . . . . . . .   8
-     5.4.  Algorithm for Upstream Paths  . . . . . . . . . . . . . .   9
-     5.5.  Algorithm for Downstream Paths  . . . . . . . . . . . . .   9
-     5.6.  Mitigation Policy . . . . . . . . . . . . . . . . . . . .  10
+     5.1.  Prerequisite AS_PATH Checks . . . . . . . . . . . . . . .   5
+     5.2.  Principles of ASPA Verification . . . . . . . . . . . . .   6
+     5.3.  Provider Authorization Function . . . . . . . . . . . . .   7
+     5.4.  Bounds on Up-Ramp and Down-Ramp Lengths . . . . . . . . .   8
+     5.5.  Algorithm for Upstream Paths  . . . . . . . . . . . . . .   9
+     5.6.  Algorithm for Downstream Paths  . . . . . . . . . . . . .   9
+     5.7.  Mitigation Policy . . . . . . . . . . . . . . . . . . . .  10
    6.  Deployment Recommendations  . . . . . . . . . . . . . . . . .  10
      6.1.  ASPA Verification Examples  . . . . . . . . . . . . . . .  10
      6.2.  Application of Verification Procedures  . . . . . . . . .  10
      6.3.  BGP Roles . . . . . . . . . . . . . . . . . . . . . . . .  11
      6.4.  Complex Peering Relationships . . . . . . . . . . . . . .  11
      6.5.  AS Migration  . . . . . . . . . . . . . . . . . . . . . .  11
-     6.6.  Logging . . . . . . . . . . . . . . . . . . . . . . . . .  11
-   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  11
+     6.6.  Logging . . . . . . . . . . . . . . . . . . . . . . . . .  12
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  12
      7.1.  Incongruence in IPv4 and IPv6 Connectivity  . . . . . . .  12
      7.2.  Correctness of the ASPA . . . . . . . . . . . . . . . . .  12
      7.3.  Manipulation of AS_PATH by Provider . . . . . . . . . . .  12
-     7.4.  Manipulating AS_PATH Prepends . . . . . . . . . . . . . .  12
-   8.  Relation to Other Technologies  . . . . . . . . . . . . . . .  12
+     7.4.  Manipulating AS_PATH Prepends . . . . . . . . . . . . . .  13
+   8.  Relation to Other Technologies  . . . . . . . . . . . . . . .  13
      8.1.  ROA . . . . . . . . . . . . . . . . . . . . . . . . . . .  13
      8.2.  BGPsec  . . . . . . . . . . . . . . . . . . . . . . . . .  13
      8.3.  Peerlock  . . . . . . . . . . . . . . . . . . . . . . . .  13
-     8.4.  Only to Customer (OTC) Attribute  . . . . . . . . . . . .  13
+     8.4.  Only to Customer (OTC) Attribute  . . . . . . . . . . . .  14
    9.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
    10. Implementation Status . . . . . . . . . . . . . . . . . . . .  14
    11. References  . . . . . . . . . . . . . . . . . . . . . . . . .  15
-     11.1.  Normative References . . . . . . . . . . . . . . . . . .  15
 
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 2]
+Azimov, et al.          Expires 25 February 2027                [Page 2]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
-
+     11.1.  Normative References . . . . . . . . . . . . . . . . . .  15
      11.2.  Informative References . . . . . . . . . . . . . . . . .  16
    Appendix A.  Acknowledgments  . . . . . . . . . . . . . . . . . .  18
    Appendix B.  Properties and Early Adoption Benefits . . . . . . .  19
@@ -159,16 +145,9 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    intent) -- should significantly improve the robustness of the global
    inter-domain routing system.
 
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 3]
+Azimov, et al.          Expires 25 February 2027                [Page 3]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
 2.  Requirements Language
 
@@ -217,25 +196,19 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    The ASes on the boundary of an AS Confederation MUST register ASPAs
    using the Confederation's global AS number (ASN) as the CAS.
 
-
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 4]
+Azimov, et al.          Expires 25 February 2027                [Page 4]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
    An ASPA object showing only AS 0 as a provider AS is referred to as
    an AS0 ASPA.  A non-transparent Route Server AS (RS AS) is one that
-   includes its AS number in the AS_PATH.  Registering as AS0 ASPA is a
+   includes its AS number in the AS_PATH.  Registering an AS0 ASPA is a
    statement by the registering AS that it has no transit providers, and
-   it is also not an RS-client at a non-transparent RS AS.  If that
-   statement is true, then the AS MUST register an AS0 ASPA.
+   it is also not an RS-client at a non-transparent RS AS.
 
    Normally, a SPAS (see Section 3) is not expected to contain both an
    AS 0 and other Provider ASes, but an unexpected presence of AS 0 has
-   no influence on the AS_PATH verification procedures (see Section 5.2,
+   no influence on the AS_PATH verification procedures (see Section 5.3,
    Section 5).
 
    An AS SHOULD register a single ASPA object.  A single ASPA record for
@@ -248,8 +221,8 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    through a DDoS mitigation provider.  Another use case involves
    bridging isolated segments, where an AS might use an emergency
    provider to receive routes with its own ASN in the AS_PATH.  It is
-   RECOMMENDED to add such standby or emergency providers in ASPA object
-   in advance to prevent race conditions between global ASPA
+   RECOMMENDED to add such standby or emergency providers in the ASPA
+   object in advance to prevent race conditions between global ASPA
    distribution and route propagation.
 
    During a transition process between different certification authority
@@ -266,39 +239,33 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    document to refer to the usual AS_PATH [RFC4271] as well as the
    reconstructed AS_PATH.
 
-
-
-
-
-
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 5]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
-   If an attacker creates a route leak intentionally, they may try to
-   strip their AS from the AS_PATH.  To partly guard against that, a
-   check is necessary to match the most recently added AS in the AS_PATH
-   to the BGP neighbor's ASN.  This check SHOULD be performed as
-   specified in Section 6.3 of [RFC4271] with the exception when a route
-   is received from a transparent Internet Exchange (IX).  If the check
-   fails, then the AS_PATH is considered semantically invalid, and the
-   UPDATE SHALL be handled using the approach of "treat-as-withdraw"
-   [RFC7606].
+5.1.  Prerequisite AS_PATH Checks
 
    [RFC9774] specifies that "treat-as-withdraw" error handling [RFC7606]
-   MUST be applied to routes with AS_SET in the AS_PATH.  In the current
-   document, routes with AS_SET are given Invalid evaluation in the
-   AS_PATH verification procedures (Section 5.4 and Section 5.5).  See
-   Section 5.6 for how routes with Invalid AS_PATH are handled.
+   MUST be applied to any route containing an AS_SET in the AS_PATH.
 
-5.1.  Principles
+   If an attacker intentionally creates a route leak, they may attempt
+   to strip their AS from the AS_PATH.  To mitigate this, a check is
+   necessary to match the most recently added AS in the AS_PATH to the
+   BGP neighbor's ASN, with a standard exception for routes received
+
+Azimov, et al.          Expires 25 February 2027                [Page 5]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
+   from a transparent Internet Exchange (IX) route server.  This AS_PATH
+   check is specified in Section 6.3 of [RFC4271] and its handling is
+   updated in [RFC7606].
+
+   If the aforementioned AS_PATH checks and error handling are
+   implemented, they MUST be applied prior to ASPA verification.  If a
+   BGP speaker applies ASPA procedures to an AS_PATH without first
+   enforcing these checks, any route that fails either condition (i.e.,
+   it contains an AS_SET or has a mismatched neighbor ASN) is evaluated
+   as Invalid by the ASPA verification procedures (Section 5.5 and
+   Section 5.6).
+
+5.2.  Principles of ASPA Verification
 
    Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2),
    AS(1)} represent the AS_PATH after removing consecutive duplicate
@@ -306,8 +273,6 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    added neighbor AS of the receiving/verifying AS.  AS(N+1) represents
    the local (receiving/verifying) AS; it does not explicitly appear in
    the description of the AS_PATH verification procedures.
-
-
 
                          AS(L) ............. AS(K)
                          /                      \
@@ -323,21 +288,16 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
              Each ramp has consecutive customer-to-provider hops
              in the bottom-to-top direction
 
+              Figure 1: Illustration of up-ramp and down-ramp.
 
-              Figure 2: Illustration of up-ramp and down-ramp.
+Azimov, et al.          Expires 25 February 2027                [Page 6]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
    The COMPRESSED_AS_PATH may in general have both an up-ramp (on the
    right starting at AS(1)) and a down-ramp (on the left starting at
    AS(N)).  The up-ramp runs from AS(1) to AS(K).  In this ramp, each
    hop AS(i) to AS(i+1) represents a customer-to-provider peering
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 6]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
    relationship.  The down-ramp runs backward from AS(N) to AS(L).  In
    the down-ramp, each pair AS(j) to AS(j-1) represents a customer-to-
    provider peering relationship.  AS(K) is the apex of the up-ramp, and
@@ -353,12 +313,12 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    If the combined length is less than N, the route was leaked or the
    AS_PATH was malformed (i.e., the AS_PATH is invalid).
 
-5.2.  Provider Authorization Function
+5.3.  Provider Authorization Function
 
    This section defines the provider authorization function that uses
    ASPA to check, for a given pair (AS x, AS y), if AS y is an attested
-   provider of AS x.  The function can be used to measure the bounds on
-   the up-ramp and down-ramp lengths (Section 5.1).
+   provider of AS x.  The function can be used to calculate the bounds
+   on the up-ramp and down-ramp lengths (Section 5.2).
 
    A CAS is expected to register a single ASPA listing all its Provider
    ASes (see Section 4).  If a CAS has a single cryptographically valid
@@ -374,7 +334,9 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    function signals that AS y plays the role of Provider or non-
    transparent RS.  This function is specified as follows:
 
-
+Azimov, et al.          Expires 25 February 2027                [Page 7]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
                               /
                               | "No Attestation" if there is no entry
@@ -386,15 +348,7 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
                               | Else, "Not Provider+"
                               \
 
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 7]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
-                 Figure 1: Provider authorization function.
+                 Figure 2: Provider authorization function.
 
    The "No Attestation" result is returned only when no ASPA is
    retrieved for the CAS or none of its ASPAs are cryptographically
@@ -402,10 +356,10 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 
    The "Not Provider+" outcome of the provider authorization function
    can be used to calculate the upper bound of the ramp (up-ramp/down-
-   ramp) length (Section 5.1) and the 'No Attestation' outcome can be
+   ramp) length (Section 5.2) and the 'No Attestation' outcome can be
    used to calculate its lower bound.
 
-5.3.  Bounds on Up-Ramp and Down-Ramp Lengths
+5.4.  Bounds on Up-Ramp and Down-Ramp Lengths
 
    Determine the maximum up-ramp length as I, where I is the minimum
    index for which authorized(A(I), A(I+1)) returns "Not Provider+".  If
@@ -429,6 +383,10 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    set equal to the COMPRESSED_AS_PATH length N.  This parameter is
    abbreviated as min_down_ramp.
 
+Azimov, et al.          Expires 25 February 2027                [Page 8]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    If the sum of max_up_ramp and max_down_ramp is less than N, the
    AS_PATH is Invalid.  Else, if the sum of min_up_ramp and
    min_down_ramp is less than N, enough information is not available to
@@ -438,19 +396,10 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    Below are formal procedures for path verification depending on the
    peering relationship between the receiving AS and its neighbor.
    These procedures use the COMPRESSED_AS_PATH and the above-defined
-   parameters max_up_ramp, min_up_ramp, max_down_ramp, and min_up_ramp.
+   parameters max_up_ramp, min_up_ramp, max_down_ramp, and
+   min_down_ramp.
 
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 8]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
-5.4.  Algorithm for Upstream Paths
+5.5.  Algorithm for Upstream Paths
 
    The upstream verification algorithm described here is applied when a
    route is received from a Customer or Peer, or is received by an RS
@@ -479,13 +428,17 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 
    6.  Else, the procedure halts with the outcome "Valid".
 
-5.5.  Algorithm for Downstream Paths
+5.6.  Algorithm for Downstream Paths
 
    The downstream verification algorithm described here is applied when
    a route is received from a Provider.
 
    1.  If the AS_PATH is empty, then the procedure halts with the
        outcome "Invalid".
+
+Azimov, et al.          Expires 25 February 2027                [Page 9]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
    2.  If the most recently added AS in the AS_PATH does not match the
        neighbor AS, then the procedure halts with the outcome "Invalid".
@@ -499,16 +452,9 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    5.  If min_up_ramp + min_down_ramp < N, the procedure halts with the
        outcome "Unknown".
 
-
-
-Azimov, et al.           Expires 21 January 2027                [Page 9]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
    6.  Else, the procedure halts with the outcome "Valid".
 
-5.6.  Mitigation Policy
+5.7.  Mitigation Policy
 
    The specific configuration of a mitigation policy based on AS_PATH
    verification using ASPA is at the discretion of the network operator.
@@ -531,7 +477,7 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 6.1.  ASPA Verification Examples
 
    A set of examples of AS_PATH verification using the above procedures
-   (Section 5.1, Section 5.4, and Section 5.5) for illustrative network
+   (Section 5.2, Section 5.5, and Section 5.6) for illustrative network
    topologies are provided online (see [aspa-examples]).
 
 6.2.  Application of Verification Procedures
@@ -541,26 +487,16 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF].  The
    procedures MUST NOT be applied to other address families by default.
 
+Azimov, et al.          Expires 25 February 2027               [Page 10]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    The procedures for ASPA-based AS_PATH verification are intended for
    implementation on edge routers on the ingress side.  This includes
    edge routers on the boundary of an AS Confederation facing external
    ASes.  However, the procedures are NOT RECOMMENDED for use on
    internal BGP (iBGP) sessions or eBGP sessions internal to an AS
    Confederation.
-
-
-
-
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 10]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
 6.3.  BGP Roles
 
@@ -575,18 +511,18 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 6.4.  Complex Peering Relationships
 
    If multiple eBGP sessions can segregate the Complex peering
-   relationship into eBGP sessions with normal peering relationships the
-   receiving/verifying AS SHOULD select the algorithm (per Section 5.4
-   or Section 5.5) for each of the normal sessions based on its peering
-   relation type.
+   relationship into eBGP sessions with normal peering relationships,
+   the receiving/verifying AS SHOULD select the algorithm (per
+   Section 5.5 or Section 5.6) for each of the normal sessions based on
+   its peering relation type.
 
    If a Complex peering relation cannot be segregated (i.e., when a
    Complex BGP relationship occurs within one single BGP session), an
    operator may want to achieve an equivalent outcome by applying an
-   appropriate algorithm (Section 5.4 or Section 5.5) on a per-prefix
+   appropriate algorithm (Section 5.5 or Section 5.6) on a per-prefix
    basis corresponding to the peering relation for the prefix.  If this
    option is not feasible, then an operator MAY apply the algorithm for
-   downstream paths (Section 5.5) to avoid false positive outcomes.
+   downstream paths (Section 5.6) to avoid false positive outcomes.
 
 6.5.  AS Migration
 
@@ -596,6 +532,10 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    notify its customer ASes and advise them to update ASPA records to
    include both the globally configured ASN and the legacy ASN in their
    SPAS.
+
+Azimov, et al.          Expires 25 February 2027               [Page 11]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
 6.6.  Logging
 
@@ -607,16 +547,6 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    determine the AS that caused the route leak.
 
 7.  Security Considerations
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 11]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
 7.1.  Incongruence in IPv4 and IPv6 Connectivity
 
@@ -644,7 +574,7 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 7.3.  Manipulation of AS_PATH by Provider
 
    A Provider may hijack prefixes of its direct or indirect customers by
-   using forged-origin/forged-segment AS_PATH.  It may also manipulate
+   using a forged-origin/forged-segment AS_PATH.  It may also manipulate
    the AS_PATH of routes that are sent to its customers.  Such attacks
    may not be detectable with ASPA.
 
@@ -655,6 +585,10 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    the relationship with such a provider and remove the corresponding
    ASPA record.
 
+Azimov, et al.          Expires 25 February 2027               [Page 12]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
 7.4.  Manipulating AS_PATH Prepends
 
    The ASPA verification procedures cannot detect the removal (or
@@ -663,16 +597,6 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    capability.
 
 8.  Relation to Other Technologies
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 12]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
 8.1.  ROA
 
@@ -714,22 +638,18 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    ASPA is intended to be a complete solution and replacement for
    existing Peerlock deployments.
 
+Azimov, et al.          Expires 25 February 2027               [Page 13]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
 8.4.  Only to Customer (OTC) Attribute
 
    While the ASPA-based AS_PATH verification method (Section 5,
-   Section 5.6) detects and mitigates route leaks that were created by
+   Section 5.7) detects and mitigates route leaks that were created by
    preceding ASes listed in the AS_PATH, it lacks the ability to prevent
    the local AS from initiating a route leak towards its neighbor.  ASPA
-   verification may also fail to detect route leaks in case of presence
-   of Complex relations in the AS_PATH.  The use of the Only to Customer
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 13]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
+   verification may also fail to detect route leaks in the presence of
+   Complex relations in the AS_PATH.  The use of the Only to Customer
    (OTC) Attribute fills in that gap (see Section 5, [RFC9234]).  The
    implementation of the procedures utilizing the OTC Attribute is
    RECOMMENDED to complement the ASPA-based AS_PATH verification.
@@ -771,20 +691,14 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
       written in C, was provided by Claudio Jeker, Theo Buehler, and Job
       Snijders.
 
+Azimov, et al.          Expires 25 February 2027               [Page 14]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    *  Implementation of ASPA-based AS_PATH verification in the BIRD
       Internet Routing Daemon [BIRD] is provided in a side branch
       (branch mq-aspa) by Katerina Kubecova and Maria Matejka.  Its
       release is expected after RTR v2 is finalized.
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 14]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
    *  RTRLib [RTRlib] provides an implementation of version 22 in C.
       The implementation was created by Tassilo Tanneberger, Carl
@@ -796,7 +710,7 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
       router (Quagga-SRx).  It includes unit test cases for testing the
       ASPA-based path verification.  It was provided by Oliver Borchert,
       Kyehwan Lee, and their colleagues at US NIST.  The current
-      implementation does not support IXP/RS enhancements to the
+      implementation does not support IX RS enhancements to the
       algorithm.
 
    *  Implementation of ASPA-based AS_PATH verification in the FreeRTR
@@ -810,9 +724,9 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
               Snijders, J., Azimov, A., Uskov, E., Bush, R., Housley,
               R., and B. Maddison, "A Profile for Autonomous System
               Provider Authorization", Work in Progress, Internet-Draft,
-              draft-ietf-sidrops-aspa-profile-27, 19 June 2026,
+              draft-ietf-sidrops-aspa-profile-29, 29 July 2026,
               <https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-
-              aspa-profile-27>.
+              aspa-profile-29>.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -828,19 +742,14 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
               Secure Internet Routing", RFC 6480, DOI 10.17487/RFC6480,
               February 2012, <https://www.rfc-editor.org/info/rfc6480>.
 
+Azimov, et al.          Expires 25 February 2027               [Page 15]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    [RFC6793]  Vohra, Q. and E. Chen, "BGP Support for Four-Octet
               Autonomous System (AS) Number Space", RFC 6793,
               DOI 10.17487/RFC6793, December 2012,
               <https://www.rfc-editor.org/info/rfc6793>.
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 15]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
    [RFC6811]  Mohapatra, P., Scudder, J., Ward, D., Bush, R., and R.
               Austein, "BGP Prefix Origin Validation", RFC 6811,
@@ -884,19 +793,14 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
 
 11.2.  Informative References
 
+Azimov, et al.          Expires 25 February 2027               [Page 16]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    [aspa-examples]
               "ASPA-based AS Path Verification Examples",
               <https://github.com/ksriram25/IETF/blob/main/
               ASPA_path_verification_examples.pdf>.
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 16]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
    [bgp-cycling]
               Azimov, A., "BGP Route Security Cycling to the Future!",
@@ -942,17 +846,13 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
               Based_Bgp_As_Path_v1.pdf (slides)
               https://www.youtube.com/watch?v=GdVnZGd7jMo (video)>.
 
+Azimov, et al.          Expires 25 February 2027               [Page 17]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
    [Peerlock] Snijders, J., "Peerlock", June 2016,
               <https://www.nanog.org/sites/default/files/
               Snijders_Everyday_Practical_Bgp.pdf>.
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 17]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
 
    [RFC6483]  Huston, G. and G. Michaelson, "Validation of Route
               Origination Using the Resource Certificate Public Key
@@ -998,17 +898,13 @@ Appendix A.  Acknowledgments
    implementation and testing of the procedures in the document, the
    authors wish to thank Claudio Jeker and Theo Buehler [bgpd]; Kyehwan
    Lee and Oliver Borchert [BGP-SRx]; Katerina Kubecova and Maria
-   Matejka [BIRD]; Tassilo Tanneberger, Carl Seifer, Moritz Schulz, and
-   Matthias Braeuerand [RTRlib]; and Csaba Mate [FreeRTR].
 
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 18]
+Azimov, et al.          Expires 25 February 2027               [Page 18]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
+   Matejka [BIRD]; Tassilo Tanneberger, Carl Seifer, Moritz Schulz, and
+   Matthias Braeuer [RTRlib]; and Csaba Mate [FreeRTR].
 
 Appendix B.  Properties and Early Adoption Benefits
 
@@ -1055,17 +951,14 @@ Appendix B.  Properties and Early Adoption Benefits
       the Internet doing ASPA (registration and path verification).
       Assume that AS A's providers, AS P and AS Q, also register ASPA.
       No assumption is made about the ASPA deployment status of any
+
+Azimov, et al.          Expires 25 February 2027               [Page 19]
+
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
+
       other ASes in the Internet.  Consider a route received at AS B on
       a customer or lateral peer interface that is a prefix hijack with
       a forged-path-segment {AS P, AS A} or {AS Q, AS A}.  That is, the
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 19]
-
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
-
       offending AS X attaches this path-segment at the beginning of its
       (AS X's) route announcement.  Assume that AS X is not included in
       the ASPA of AS P or AS Q.  The ASPA-based path verification at AS
@@ -1094,7 +987,6 @@ Authors' Addresses
    Russian Federation
    Email: a.e.azimov@gmail.com
 
-
    Eugene Bogomazov
    Qrator Labs
    1-y Magistralnyy tupik 5A
@@ -1103,7 +995,6 @@ Authors' Addresses
    Russian Federation
    Email: eb@qrator.net
 
-
    Randy Bush
    Internet Initiative Japan & Arrcus, Inc.
    5147 Crystal Springs
@@ -1111,16 +1002,9 @@ Authors' Addresses
    United States of America
    Email: randy@psg.com
 
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 20]
+Azimov, et al.          Expires 25 February 2027               [Page 20]
 
-Internet-Draft       ASPA-based AS_PATH Verification           July 2026
-
+Internet-Draft       ASPA-based AS_PATH Verification         August 2026
 
    Keyur Patel
    Arrcus
@@ -1130,14 +1014,12 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    United States of America
    Email: keyur@arrcus.com
 
-
    Job Snijders
    BSD Software Development
    Amsterdam
    Netherlands
    Email: job@bsd.nl
    URI:   https://www.bsd.nl
-
 
    Kotikalapudi Sriram
    USA National Institute of Standards and Technology
@@ -1146,31 +1028,4 @@ Internet-Draft       ASPA-based AS_PATH Verification           July 2026
    United States of America
    Email: sriram.ietf@gmail.com
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Azimov, et al.           Expires 21 January 2027               [Page 21]
+Azimov, et al.          Expires 25 February 2027               [Page 21]

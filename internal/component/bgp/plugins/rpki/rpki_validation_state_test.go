@@ -76,9 +76,21 @@ func TestValidationStateIsMeasuredNotAsserted(t *testing.T) {
 		// loaded. RFC 8210 Section 10 has the router retain that data, and the session
 		// carries exactly this state between polls, connection closed and set held.
 		assert.Equal(t, sessionIdle, rp.snapshots()[0].State)
-		assert.Equal(t, true, validationEnabled(rp.snapshots()),
+		assert.Equal(t, true, rp.validationEnabled(),
 			"a cache lost after it delivered leaves every route still validated against the set it delivered")
 	})
+}
+
+// Removing the last server must publish the new policy as well as stop the
+// transport; otherwise status continues reporting the previous ASPA switch.
+func TestInactiveConfigReplacesReportedASPAPolicy(t *testing.T) {
+	rp := newStatePlugin(t)
+	rp.startSessions(&rpkiConfig{ASPAValidation: true})
+	assert.Equal(t, true, commandJSON(t, rp, "show bgp rpki status")["aspa-enabled"])
+	rp.startSessions(&rpkiConfig{})
+	status := commandJSON(t, rp, "show bgp rpki status")
+	assert.Equal(t, false, status["running"])
+	assert.Equal(t, false, status["aspa-enabled"])
 }
 
 // newStatePlugin builds a plugin whose trackers are real, because the End of Data of a
@@ -88,7 +100,12 @@ func newStatePlugin(t *testing.T) *rPKIPlugin {
 	rp := newTestPlugin()
 	rp.originTracker = newOriginTracker()
 	rp.aspaTracker = newASPATracker()
-	t.Cleanup(rp.stopSessions)
+	t.Cleanup(func() {
+		rp.stopSessions()
+		if rp.dataLease != nil {
+			rp.dataLease.stop()
+		}
+	})
 	return rp
 }
 
@@ -136,11 +153,11 @@ func replyEmptySync(t *testing.T) func(net.Conn) {
 		}
 
 		resp := make([]byte, pduHeaderLen)
-		resp[1] = pduCacheResp
+		resp[0], resp[1] = query[0], pduCacheResp
 		binary.BigEndian.PutUint32(resp[4:8], pduHeaderLen)
 
 		eod := make([]byte, pduEndOfDataLen)
-		eod[1] = pduEndOfData
+		eod[0], eod[1] = query[0], pduEndOfData
 		binary.BigEndian.PutUint32(eod[4:8], pduEndOfDataLen)
 		binary.BigEndian.PutUint32(eod[12:16], 3600) // refresh interval, seconds
 		binary.BigEndian.PutUint32(eod[16:20], 600)  // retry interval, seconds

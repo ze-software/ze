@@ -208,194 +208,103 @@ func TestParseHeaderTooShort(t *testing.T) {
 // VALIDATES: Only "No Data Available" (code 2) is non-fatal.
 // PREVENTS: Fatal errors being silently ignored.
 func TestIsFatalError(t *testing.T) {
-	assert.True(t, isFatalError(0))  // Corrupt Data
-	assert.True(t, isFatalError(1))  // Internal Error
-	assert.False(t, isFatalError(2)) // No Data Available
-	assert.True(t, isFatalError(3))  // Invalid Request
-	assert.True(t, isFatalError(8))  // Unexpected Version
+	// RFC requirement: RFC8210-12-1 negative -- No Data Available is a non-fatal condition, unlike the fatal version error.
+	assert.False(t, isFatalError(errNoDataAvail))
+	assert.True(t, isFatalError(errUnsupportedVersion))
 }
 
-// TestParseASPAPDU verifies ASPA PDU parsing from wire bytes.
-//
-// VALIDATES: AC-1 — ASPA PDU type 11 parsed: flags, AFI, customer-AS, provider list.
-// PREVENTS: Incorrect extraction of ASPA record fields.
-func TestParseASPAPDU(t *testing.T) {
-	// RFC requirement: RFC9582-5.12-1 positive -- ASPA PDU with >=1 provider (three) is accepted.
-	// RFC requirement: RFC9582-5.12-2 positive -- customer AS absent from its own provider set is accepted.
-	// RFC requirement: RFC9582-5.12-3 positive -- providers in strictly ascending order are accepted.
-	// RFC requirement: RFC9582-5.12-6 positive -- known AFI (0) PDU is parsed rather than skipped.
-	// RFC requirement: RFC9582-5.12-7 positive -- a normal (non-reserved) customer AS is accepted.
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-x-1 negative -- provider set free of AS0 is accepted (reserved-provider guard does not fire).
-	// Build valid ASPA PDU: customer=64500, providers=[100, 200, 300], announce.
-	buf := make([]byte, 28) // 16 fixed + 3*4 providers
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 28) // length
-	buf[8] = 1                               // flags: announce
-	buf[9] = 0                               // AFI: both
-	binary.BigEndian.PutUint32(buf[12:16], 64500)
-	binary.BigEndian.PutUint32(buf[16:20], 100)
-	binary.BigEndian.PutUint32(buf[20:24], 200)
-	binary.BigEndian.PutUint32(buf[24:28], 300)
+// aspaPDU encodes the 8210bis-27 Section 5.12 layout independently of the parser.
+func aspaPDU(customer uint32, providers ...uint32) []byte {
+	buf := make([]byte, 12+4*len(providers))
+	buf[0], buf[1], buf[2] = 2, 11, 1
+	binary.BigEndian.PutUint32(buf[4:8], uint32(len(buf))) //nolint:gosec // bounded fixture
+	binary.BigEndian.PutUint32(buf[8:12], customer)
+	for i, provider := range providers {
+		binary.BigEndian.PutUint32(buf[12+4*i:], provider)
+	}
+	return buf
+}
 
-	rec, announce, err := parseASPAPDU(buf)
+// TestParseASPAPDU checks the actual RTR v2 offsets and complete provider list.
+func TestParseASPAPDU(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-5.12-1 positive -- an ASPA announcement containing three providers is accepted.
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-5.12-3 positive -- distinct ascending providers are accepted.
+	rec, announce, err := parseASPAPDU(aspaPDU(64500, 100, 200, 300))
 	require.NoError(t, err)
 	assert.True(t, announce)
 	assert.Equal(t, uint32(64500), rec.CustomerAS)
 	assert.Equal(t, []uint32{100, 200, 300}, rec.Providers)
 }
 
-// TestParseASPAPDUWithdraw verifies withdraw flag parsing.
-//
-// VALIDATES: flags=0 means withdraw.
-// PREVENTS: Withdrawals treated as announcements.
+// TestParseASPAPDUWithdraw checks a withdrawal contains only the customer AS.
 func TestParseASPAPDUWithdraw(t *testing.T) {
-	buf := make([]byte, 20) // 16 fixed + 1 provider
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 20)
-	buf[8] = 0 // flags: withdraw
-	buf[9] = 0
-	binary.BigEndian.PutUint32(buf[12:16], 64501)
-	binary.BigEndian.PutUint32(buf[16:20], 100)
-
+	buf := aspaPDU(64501)
+	buf[2] = 0
 	rec, announce, err := parseASPAPDU(buf)
 	require.NoError(t, err)
 	assert.False(t, announce)
 	assert.Equal(t, uint32(64501), rec.CustomerAS)
+	assert.Empty(t, rec.Providers)
 }
 
-// TestParseASPAPDUMalformed verifies malformed ASPA PDU handling.
-//
-// VALIDATES: AC-8 — malformed ASPA PDU returns error (too short, zero providers, length mismatch).
-// PREVENTS: Panics or cache corruption from malformed wire data.
+// TestParseASPAPDUMalformed rejects truncated framing and an empty announcement.
 func TestParseASPAPDUMalformed(t *testing.T) {
-	// RFC requirement: RFC9582-5.12-1 negative -- an ASPA PDU carrying zero providers is rejected.
-	// The minimal wire encoding of a zero-provider ASPA PDU is the 16-byte fixed portion with no
-	// provider words; parseASPAPDU rejects it (pduASPAMinLen already requires one provider word, so
-	// the ">=1 provider" MUST is enforced by the length floor).
-	// Too short.
-	_, _, err := parseASPAPDU(make([]byte, 16))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "too short")
-
-	// Zero providers (length = 16, no provider bytes).
-	buf := make([]byte, 16)
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 16)
-	binary.BigEndian.PutUint32(buf[12:16], 64500)
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-5.12-1 negative -- an announcement with no providers returns the provider-list error.
+	_, _, err := parseASPAPDU(aspaPDU(64500))
+	require.ErrorIs(t, err, errASPAProviderList)
+	_, _, err = parseASPAPDU([]byte{2, 11})
+	require.Error(t, err)
+	buf := aspaPDU(64500, 100)
+	binary.BigEndian.PutUint32(buf[4:8], uint32(len(buf)+4)) //nolint:gosec // bounded fixture
 	_, _, err = parseASPAPDU(buf)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
-// TestParseASPAPDUUnknownAFI verifies unknown AFI handling.
-//
-// VALIDATES: RFC 9582 — router MUST ignore PDUs with unknown AFI (>=3).
-// PREVENTS: Unknown AFI causing errors or being stored.
-func TestParseASPAPDUUnknownAFI(t *testing.T) {
-	buf := make([]byte, 20)
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 20)
-	buf[8] = 1 // announce
-	buf[9] = 3 // unknown AFI
-	binary.BigEndian.PutUint32(buf[12:16], 64500)
-	binary.BigEndian.PutUint32(buf[16:20], 100)
-
-	// RFC requirement: RFC9582-5.12-6 negative -- a PDU with an unknown AFI (>=3) is silently skipped:
-	// no error, and the returned record is the zero-CustomerAS skip sentinel with announce=false.
+// TestParseASPAPDUReservedIgnored verifies the zero field and reserved flags do
+// not alter the announcement. There is no AFI field in the current ASPA PDU.
+func TestParseASPAPDUReservedIgnored(t *testing.T) {
+	buf := aspaPDU(64500, 100)
+	buf[2], buf[3] = 0xff, 0xff
 	rec, announce, err := parseASPAPDU(buf)
-	assert.NoError(t, err)
-	assert.False(t, announce)                  // skipped: not treated as an announce
-	assert.Equal(t, uint32(0), rec.CustomerAS) // zero = skip
-	assert.Nil(t, rec.Providers)               // no record extracted
+	require.NoError(t, err)
+	assert.True(t, announce)
+	assert.Equal(t, uint32(64500), rec.CustomerAS)
+	assert.Equal(t, []uint32{100}, rec.Providers)
 }
 
-// TestParseASPAPDUSelfRef verifies customer AS in own provider set is rejected.
-//
-// VALIDATES: RFC 9582 — customer AS MUST NOT appear in own provider set.
-// PREVENTS: Self-referencing ASPA records entering cache.
+// TestParseASPAPDUSelfRef rejects a customer naming itself as provider.
 func TestParseASPAPDUSelfRef(t *testing.T) {
-	// RFC requirement: RFC9582-5.12-2 negative -- customer AS appearing in its own provider set is rejected.
-	buf := make([]byte, 24) // 16 + 2 providers
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 24)
-	buf[8] = 1
-	buf[9] = 0
-	binary.BigEndian.PutUint32(buf[12:16], 64500)
-	binary.BigEndian.PutUint32(buf[16:20], 100)
-	binary.BigEndian.PutUint32(buf[20:24], 64500) // self-reference
-
-	_, _, err := parseASPAPDU(buf)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "own provider set")
+	_, _, err := parseASPAPDU(aspaPDU(64500, 100, 64500))
+	require.ErrorIs(t, err, errASPAProviderList)
 }
 
-// TestParseASPAPDUUnsorted verifies unsorted providers are rejected.
-//
-// VALIDATES: RFC 9582 — provider ASNs MUST be sorted ascending.
-// PREVENTS: Unsorted provider lists entering cache.
+// TestParseASPAPDUUnsorted rejects both inversions and duplicate providers.
 func TestParseASPAPDUUnsorted(t *testing.T) {
-	// RFC requirement: RFC9582-5.12-3 negative -- providers not in ascending order are rejected.
-	buf := make([]byte, 24) // 16 + 2 providers
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 24)
-	buf[8] = 1
-	buf[9] = 0
-	binary.BigEndian.PutUint32(buf[12:16], 64500)
-	binary.BigEndian.PutUint32(buf[16:20], 300) // not ascending
-	binary.BigEndian.PutUint32(buf[20:24], 100)
-
-	_, _, err := parseASPAPDU(buf)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not sorted")
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-5.12-3 negative -- unordered or duplicate provider lists are rejected.
+	for _, providers := range [][]uint32{{300, 100}, {100, 100}} {
+		_, _, err := parseASPAPDU(aspaPDU(64500, providers...))
+		require.ErrorIs(t, err, errASPAProviderList)
+	}
 }
 
-// TestParseASPAPDUReservedCustomerAS verifies a reserved customer AS (0) is rejected.
-//
-// VALIDATES: RFC 9582 Section 5.12 — customer AS 0 (and 0xFFFFFFFF) are reserved and MUST NOT
-// appear in an ASPA record.
-// PREVENTS: Reserved customer AS entering the ASPA cache.
+// TestParseASPAPDUReservedCustomerAS rejects a reserved customer ASN.
 func TestParseASPAPDUReservedCustomerAS(t *testing.T) {
-	// RFC requirement: RFC9582-5.12-7 negative -- an ASPA PDU whose customer AS is the reserved
-	// value 0 is rejected (drives the reserved-customer-AS guard).
-	buf := make([]byte, 20) // 16 fixed + 1 provider
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 20)
-	buf[8] = 1                                  // announce
-	buf[9] = 0                                  // known AFI (so the AFI-skip does not pre-empt this guard)
-	binary.BigEndian.PutUint32(buf[12:16], 0)   // reserved customer AS
-	binary.BigEndian.PutUint32(buf[16:20], 100) // valid provider
-
-	_, _, err := parseASPAPDU(buf)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "reserved customer AS")
+	_, _, err := parseASPAPDU(aspaPDU(0, 100))
+	require.Error(t, err)
 }
 
-// TestParseASPAPDUReservedProviderAS verifies a reserved provider AS (0) is rejected.
-//
-// VALIDATES: RFC 9582 Section 5.12 — provider AS 0 (and 0xFFFFFFFF) are reserved; an ASPA record
-// listing AS0 as a provider MUST be discarded rather than stored.
-// PREVENTS: AS0 being treated as an authorized provider during ASPA verification.
-func TestParseASPAPDUReservedProviderAS(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-x-1 positive -- an ASPA PDU whose
-	// provider set contains AS0 is rejected (drives the reserved-provider-AS guard), so AS0 can
-	// never enter the provider set used by verification.
-	buf := make([]byte, 20) // 16 fixed + 1 provider
-	buf[0] = rtrVersionMax
-	buf[1] = pduASPA
-	binary.BigEndian.PutUint32(buf[4:8], 20)
-	buf[8] = 1                                    // announce
-	buf[9] = 0                                    // known AFI
-	binary.BigEndian.PutUint32(buf[12:16], 64500) // valid customer AS
-	binary.BigEndian.PutUint32(buf[16:20], 0)     // reserved provider AS
-
-	_, _, err := parseASPAPDU(buf)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "reserved provider AS")
+// TestParseASPAZeroProvider distinguishes an AS0 ASPA from a mixed provider list.
+func TestParseASPAZeroProvider(t *testing.T) {
+	rec, announce, err := parseASPAPDU(aspaPDU(64500, 0))
+	require.NoError(t, err)
+	assert.True(t, announce)
+	assert.Equal(t, []uint32{0}, rec.Providers)
+	_, _, err = parseASPAPDU(aspaPDU(64500, 0, 100))
+	require.ErrorIs(t, err, errASPAProviderList)
+	buf := aspaPDU(64500, 100)
+	buf[2] = 0
+	_, _, err = parseASPAPDU(buf)
+	require.ErrorIs(t, err, errASPAProviderList)
 }
 
 // TestParsePrefixPDUFlagsHighBitsIgnored verifies that only bit 0 of the Prefix PDU Flags field is

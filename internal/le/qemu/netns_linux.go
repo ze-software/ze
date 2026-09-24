@@ -50,6 +50,10 @@ var netnsSelections = map[string][]string{
 		"pppoe-basic", "pppoe-concurrent-l2tp", "pppoe-service-name", "pppoe-vlan",
 		"pppoe-per-mac-cap", "pppoe-padr-flood",
 	},
+	netnsPlugin: {
+		"rpki-aspa-valid", "rpki-aspa-invalid", "rpki-aspa-unknown", "rpki-aspa-disabled",
+		"rpki-aspa-policy-logonly", "rpki-aspa-policy-reject", "rpki-aspa-policy-unknown-reject",
+	},
 }
 
 type netnsBinaries struct {
@@ -214,7 +218,20 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 		netnsGIDKey:     netnsUID,
 		netnsConfigKey:  netnsStateDir,
 	})
-	argv := append([]string{binaries.Test, suiteName, "-p", "1"}, ids...)
+	suiteArgs := []string{suiteName} // PPPoE is not in the functional registry.
+	if suite, ok := functional.SuiteNamed(suiteName); ok {
+		suiteArgs = suite.Args
+	}
+	argv := make([]string, 1, len(suiteArgs)+len(ids)+3)
+	argv[0] = binaries.Test
+	for _, arg := range suiteArgs {
+		if arg == allTests {
+			break // Replace the registry's population and concurrency with this subset.
+		}
+		argv = append(argv, arg)
+	}
+	argv = append(argv, "-p", "1")
+	argv = append(argv, ids...)
 	var tb textbuf.Buffer
 	gaterun.Note(tb.Str("+ ").Join(argv, " ").String())
 	deadline, cancel := context.WithTimeout(ctx, netnsSuiteTimeout)

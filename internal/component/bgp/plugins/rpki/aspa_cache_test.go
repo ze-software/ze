@@ -38,7 +38,7 @@ func TestASPACacheRemove(t *testing.T) {
 
 // TestASPACacheLookup verifies CheckPair returns correct hop results.
 //
-// VALIDATES: check_pair function per draft-ietf-sidrops-aspa-verification Section 6.
+// VALIDATES: check_pair function per draft-ietf-sidrops-aspa-verification Section 5.3.
 // PREVENTS: Wrong hop classification (Provider+, Not Provider+, No Attestation).
 func TestASPACacheLookup(t *testing.T) {
 	c := newASPACache()
@@ -52,7 +52,7 @@ func TestASPACacheLookup(t *testing.T) {
 
 // TestASPACacheReplace verifies announce replaces the entire provider set.
 //
-// VALIDATES: RFC 9582 Section 5.12 — announce = full replacement, not delta.
+// VALIDATES: Replacing a cached customer entry replaces its entire provider set.
 // PREVENTS: Old providers persisting after a new announce.
 func TestASPACacheReplace(t *testing.T) {
 	c := newASPACache()
@@ -168,9 +168,6 @@ func TestASPACacheRemoveNonexistent(t *testing.T) {
 // reads the replaced (latest) data rather than the superseded set.
 // PREVENTS: Stale ASPA records driving verification after an incremental cache update.
 func TestASPAApplyDeltaMostRecent(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-2 positive -- verification uses the
-	// most recent ASPA data: after ApplyDelta replaces 300's provider set, verifyASPA reflects the
-	// new authorization outcome for the same path.
 	c := newASPACache()
 	// Initial state: 200 authorizes 100, 300 authorizes 200 -> path is Valid.
 	c.ApplyDelta(nil, []ASPARecord{

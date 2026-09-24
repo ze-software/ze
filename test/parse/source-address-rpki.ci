@@ -5,6 +5,7 @@ bgp {
     router-id 198.51.100.1
     rpki {
         cache-server 192.0.2.200 {
+            trusted-network true
             port 3323
             preference 10
             source-address 198.51.100.1

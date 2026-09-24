@@ -138,10 +138,18 @@ func plugin14EventObserver(name string, subscriptions []string, scenario plugin1
 }
 
 func plugin14ASPAStateObserver(name, want string) Driver {
-	return plugin14EventObserver(name, []string{textRPKIDirectionReceived}, func(ctx context.Context, _ *sdk.Plugin, events <-chan plugin14Event) error {
+	return plugin14EventObserver(name, []string{textRPKIDirectionReceived}, func(ctx context.Context, plugin *sdk.Plugin, events <-chan plugin14Event) error {
 		if ok := plugin14WaitEvent(ctx, events, 15*time.Second, func(event plugin14Event) bool {
 			return plugin14RPKISection(event, false)["aspa-state"] == want
 		}); !ok {
+			if want == "valid" {
+				diagnosticCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				defer cancel()
+				for _, command := range []string{"show bgp rpki status", plugin14AdjRIBInCommand, "show bgp peer 127.0.0.1 statistics", "show bgp peer 127.0.0.1 detail"} {
+					status, value, err := plugin14Dispatch(diagnosticCtx, plugin, command)
+					fmt.Fprintf(os.Stderr, "ASPA failure diagnostic: command=%q status=%q error=%v data=%s\n", command, status, err, plugin14Text(value))
+				}
+			}
 			return fmt.Errorf("no rpki event with aspa-state=%s", want)
 		}
 		fmt.Fprintf(os.Stderr, "OK: rpki event has aspa-state=%s\n", want)
@@ -580,44 +588,16 @@ func plugin14WaitRPKIReady(ctx context.Context, plugin *sdk.Plugin) error {
 // plugin14AdjRIBInCommand is the command these presence assertions read.
 const plugin14AdjRIBInCommand = "show bgp adj-rib-in"
 
-// plugin14AssertRoutePresence asserts that a validated route is, or is not, in
-// the Adj-RIB-In.
-//
-// The two directions are not symmetrical, because installation is asynchronous
-// and takes one of two rails. With the adj-rib-in validation gate already on,
-// an arriving route is parked in the manager's pending map and reaches ribIn
-// only when the RPKI verdict comes back (adj_rib_in/rib.go,
-// installStructuredNLRIs; the promotion is rib_commands.go, acceptRoutesCommand
-// and batchValidateCommand). With the gate not yet on, the route is installed at
-// ingest and a later cache sync re-decides it in place (applyToInstalled). Which
-// rail runs depends on whether the rpki plugin's `request bgp adj-rib-in
-// enable-validation` (rpki/rpki.go) landed before the UPDATE, and neither the
-// peer's updates-received counter nor `request quiesce`, which drains the
-// reactor's forward pool, covers the verdict round trip.
-//
-// So a presence assertion WAITS for the install it asserts: a single read
-// answered `{"adj-rib-in":{}}` a millisecond after the last event and failed the
-// case. An absence assertion cannot wait, because an empty Adj-RIB-In is what
-// both a rejected route and an unfinished validation look like; it reads once,
-// as it always has.
-func plugin14AssertRoutePresence(ctx context.Context, plugin *sdk.Plugin, prefix string, present bool, label string) error {
-	if present {
-		status, value, err := plugin14PollCommand(ctx, plugin, 40, plugin14AdjRIBInCommand, func(status string, value any) bool {
-			return status == rpc.StatusDone && strings.Contains(plugin14Text(value), prefix)
-		})
-		if err != nil {
-			return fmt.Errorf("%s: route %s never reached the adj-rib-in: status=%q data=%s: %w",
-				label, prefix, status, plugin14Text(value), err)
-		}
-		return nil
-	}
-
-	status, value, err := plugin14Dispatch(ctx, plugin, plugin14AdjRIBInCommand)
-	if err != nil || status != rpc.StatusDone {
-		return fmt.Errorf("%s status=%q: %w", label, status, err)
-	}
-	if strings.Contains(plugin14Text(value), prefix) {
-		return fmt.Errorf("%s: route %s is in the adj-rib-in and must not be: %s", label, prefix, plugin14Text(value))
+// plugin14AssertRouteValidation waits for the retained route's completed
+// validation result. Absence cannot distinguish rejection from a verdict
+// still in flight; eligibility and origin state can.
+func plugin14AssertRouteValidation(ctx context.Context, plugin *sdk.Plugin, prefix string, state int, ineligible bool, label string) error {
+	status, value, err := plugin14PollCommand(ctx, plugin, 100, plugin14AdjRIBInCommand, func(status string, value any) bool {
+		return status == rpc.StatusDone && plugin14RouteValidation(value, prefix, state, ineligible)
+	})
+	if err != nil || status != rpc.StatusDone || !plugin14RouteValidation(value, prefix, state, ineligible) {
+		return fmt.Errorf("%s: route %s never reached validation state %d, ineligible=%t: status=%q data=%s",
+			label, prefix, state, ineligible, status, plugin14Text(value))
 	}
 	return nil
 }
@@ -626,7 +606,7 @@ func plugin14RPKIAsSet(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", false, "AS_SET validation"); err != nil {
+	if err := plugin14AssertRouteValidation(ctx, plugin, "10.0.1.0/24", 3, true, "AS_SET validation"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: route with AS_SET correctly rejected (OriginNone -> Invalid)")
@@ -656,9 +636,9 @@ func plugin14ASPAPolicyLogOnly(ctx context.Context, plugin *sdk.Plugin, events <
 	}
 	fmt.Fprintln(os.Stderr, "OK: rpki event has aspa-state=invalid (log-only mode)")
 	status, value, err := plugin14PollCommand(ctx, plugin, 100, "show bgp adj-rib-in", func(_ string, value any) bool {
-		return strings.Contains(plugin14Text(value), "10.0.1.0/24")
+		return plugin14RouteValidation(value, "10.0.1.0/24", 1, false)
 	})
-	if err != nil || status != rpc.StatusDone || !strings.Contains(plugin14Text(value), "10.0.1.0/24") {
+	if err != nil || status != rpc.StatusDone || !plugin14RouteValidation(value, "10.0.1.0/24", 1, false) {
 		return fmt.Errorf("route 10.0.1.0/24 should be accepted under log-only policy: status=%q data=%s", status, plugin14Text(value))
 	}
 	fmt.Fprintln(os.Stderr, "OK: route 10.0.1.0/24 correctly accepted under log-only ASPA policy")
@@ -672,10 +652,49 @@ func plugin14ASPAPolicyReject(ctx context.Context, plugin *sdk.Plugin, events <-
 		return fmt.Errorf("no rpki event with aspa-state=%s", state)
 	}
 	fmt.Fprintf(os.Stderr, "OK: rpki event has aspa-state=%s\n", state)
-	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", false, label); err != nil {
-		return err
+	status, value, err := plugin14PollCommand(ctx, plugin, 100, "show bgp adj-rib-in", func(_ string, value any) bool {
+		return plugin14RouteValidation(value, "10.0.1.0/24", 1, true)
+	})
+	if err != nil || status != rpc.StatusDone || !plugin14RouteValidation(value, "10.0.1.0/24", 1, true) {
+		return fmt.Errorf("%s must retain route 10.0.1.0/24 as ineligible: status=%q data=%s", label, status, plugin14Text(value))
 	}
-	fmt.Fprintf(os.Stderr, "OK: route 10.0.1.0/24 correctly rejected by ASPA%s\n", outputSuffix)
+	fmt.Fprintf(os.Stderr, "OK: route 10.0.1.0/24 retained as ineligible by ASPA%s\n", outputSuffix)
+	return nil
+}
+
+func plugin14RouteValidation(value any, prefix string, state int, ineligible bool) bool {
+	route := plugin14FindRoute(value, prefix)
+	if route == nil {
+		return false
+	}
+	if plugin14Number(route["validation-state"]) != state {
+		return false
+	}
+	if route["ineligible"] != ineligible {
+		return false
+	}
+	for _, key := range []string{"attr-hex", "nhop-hex", "nlri-hex"} {
+		wire, ok := route[key].(string)
+		if !ok {
+			return false
+		}
+		if wire == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func plugin14FindRoute(value any, prefix string) map[string]any {
+	rib := plugin14Map(plugin14Map(value)["adj-rib-in"])
+	for _, routes := range rib {
+		for _, item := range plugin14Maps(routes) {
+			route := plugin14Map(item)
+			if route["key"] == "ipv4/unicast:"+prefix {
+				return route
+			}
+		}
+	}
 	return nil
 }
 
@@ -842,7 +861,7 @@ func plugin14RPKIGroupAction(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/24", true, "group override"); err != nil {
+	if err := plugin14AssertRouteValidation(ctx, plugin, "10.0.1.0/24", 3, false, "group override"); err != nil {
 		return err
 	}
 	_, statusData, err := plugin14DispatchMap(ctx, plugin, "show bgp rpki status")
@@ -872,7 +891,7 @@ func plugin14RPKIMaxlength(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	if err := plugin14AssertRoutePresence(ctx, plugin, "10.0.1.0/25", false, "maxLength validation"); err != nil {
+	if err := plugin14AssertRouteValidation(ctx, plugin, "10.0.1.0/25", 3, true, "maxLength validation"); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: route 10.0.1.0/25 correctly rejected (exceeds maxLength /24)")
@@ -883,22 +902,18 @@ func plugin14RPKIMultiPrefix(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin14WaitRPKIReady(ctx, plugin); err != nil {
 		return err
 	}
-	status, value, err := plugin14PollCommand(ctx, plugin, 40, "show bgp adj-rib-in", func(_ string, value any) bool {
-		text := plugin14Text(value)
-		return strings.Contains(text, "10.0.1.0/24") && strings.Contains(text, "192.168.1.0/24")
-	})
-	if err != nil || status != rpc.StatusDone {
-		return fmt.Errorf("rib routes received status=%q data=%s: %w", status, plugin14Text(value), err)
-	}
-	text := plugin14Text(value)
-	if !strings.Contains(text, "10.0.1.0/24") {
-		return fmt.Errorf("valid route 10.0.1.0/24 not in RIB: %s", text)
-	}
-	if strings.Contains(text, "10.0.2.0/24") {
-		return fmt.Errorf("invalid route 10.0.2.0/24 should be rejected: %s", text)
-	}
-	if !strings.Contains(text, "192.168.1.0/24") {
-		return fmt.Errorf("notfound route 192.168.1.0/24 not in RIB: %s", text)
+	for _, route := range []struct {
+		prefix     string
+		state      int
+		ineligible bool
+	}{
+		{"10.0.1.0/24", 1, false},
+		{"10.0.2.0/24", 3, true},
+		{"192.168.1.0/24", 2, false},
+	} {
+		if err := plugin14AssertRouteValidation(ctx, plugin, route.prefix, route.state, route.ineligible, "multi-prefix validation"); err != nil {
+			return err
+		}
 	}
 	fmt.Fprintln(os.Stderr, "OK: 2 routes accepted, 1 rejected (multi-prefix validation)")
 	return nil

@@ -1,6 +1,6 @@
 # RPKI Origin Validation
 
-Ze validates received BGP routes against RPKI ROA data. Invalid routes are rejected before entering the RIB. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.
+Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
 
 ## Configuration
@@ -21,6 +21,7 @@ bgp {
     rpki {
         cache-server 192.0.2.1 {
             port 323
+            trusted-network true
         }
     }
 
@@ -49,7 +50,7 @@ bgp {
         }
 
         attach process rpki {
-            receive [ update-received ]
+            receive [ update-received state ]
         }
         attach process adj-rib-in {
             receive [ update-received state ]
@@ -58,21 +59,84 @@ bgp {
 }
 ```
 
+### RTR Protocol Versions
+
+Ze starts RTR negotiation at version 2 and can reconnect at an advertised
+version 1. It does not implement version 0. Ze rejects an Unsupported Protocol
+Version reply advertising version 0 rather than guessing another version.
+
+StayRTR v0.6.4 needs `-protocol 1 -enforce.version=true` for this exchange.
+Without enforcement, its unsupported-version reply can carry the new client's
+initial version 0 even though the server supports version 1. Enforcement
+initializes the client at version 1 before it rejects Ze's version-2 query.
+This cache setting leaves Ze's version negotiation unchanged.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- newRTRSession, handlePDU -->
+<!-- source: test/interop/Dockerfile.stayrtr -- pinned v1 cache configuration -->
+
+### Trusted RTR Transport
+
+Choose TLS unless the cache is on a trusted, controlled network. Unprotected TCP
+requires an explicit `trusted-network true`; that setting records the operator's
+choice, not a measurement of the network's security.
+
+For native mutual TLS, name a CA and a client identity from the
+[PKI certificate store](configuration.md#pki-certificate-store):
+
+```
+bgp {
+    rpki {
+        cache-server 192.0.2.1 {
+            source-address 192.0.2.2
+            tls {
+                ca-certificate rtr-ca
+                certificate rtr-router
+                server-name cache.example.net
+            }
+        }
+    }
+}
+```
+
+The client certificate needs its private key, its intermediate chain, and one
+or more `iPAddress` subjectAltNames. The cache checks those against the client's
+address as the cache sees it, including any NAT translation, and must request
+and authenticate this identity. Ze validates the cache
+against the named CA and the DNS name in `server-name`, using a `dNSName`
+subjectAltName, never the Common Name. A DNS cache address supplies the reference
+name when `server-name` is omitted; an IP cache address requires an explicit
+DNS name. TLS defaults to port 324, unprotected TCP to port 323.
+An authentication failure sends no RTR query. Ze never downgrades that cache
+connection to plaintext, even if `trusted-network true` is also present.
+Candidate configuration validates
+the named credentials without changing live PKI. A committed PKI-only rotation
+restarts the cache transport with the candidate identity; rollback restores the
+identity from before that transaction's apply. If the transaction fails before
+RPKI applies its candidate, rollback leaves the committed policy and credentials
+unchanged. Transport changes retain the last complete payload set only until
+its existing expiration deadline.
+Reload replaces only roots named in the delivery. An omitted `bgp` or `pki`
+root keeps its committed value; an explicitly removed root does not.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_tls.go -- buildRTRTLSConfig, startTLS; internal/component/bgp/plugins/rpki/rpki_config_verify.go -- parseRPKISections; internal/component/bgp/plugins/rpki/rpki_reload.go -- replaceConfig -->
+
 ### Config Reference
 
 | Path | Type | Default | Description |
 |------|------|---------|-------------|
 | `rpki / cache-server <addr>` | list | -- | RTR cache server (keyed by IP/hostname) |
-| `rpki / cache-server / port` | uint16 | 323 | RTR TCP port |
+| `rpki / cache-server / port` | 1..65535 | 323 TCP, 324 TLS | RTR transport port |
+| `rpki / cache-server / trusted-network` | boolean | false | Explicitly permit unprotected TCP on a trusted, controlled network |
+| `rpki / cache-server / tls / ca-certificate` | string | required with TLS | Named PKI CA for cache authentication |
+| `rpki / cache-server / tls / certificate` | string | required with TLS | Named PKI client certificate and private key |
+| `rpki / cache-server / tls / server-name` | string | cache DNS address | DNS reference identity; required for an IP cache address |
 | `rpki / cache-server / preference` | uint8 | 100 | Server preference (lower preferred) |
-| `rpki / validation-timeout` | uint16 | 30 | Seconds before fail-open on pending routes |
+| `rpki / validation-timeout` | 1..65535 | 30 | Seconds before fail-open on pending routes; a reload applies the new deadline |
 | `rpki / action / invalid` | enum | reject | Action for Invalid routes: reject, log-only, accept |
 | `rpki / action / not-found` | enum | accept | Action for NotFound routes: accept, reject, log-only |
 | `rpki / aspa / validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
-| `rpki / aspa / action / invalid` | enum | log-only | Action for ASPA Invalid routes: reject, log-only, accept |
+| `rpki / aspa / action / invalid` | enum | reject | Action for ASPA Invalid routes: reject, log-only, accept |
 | `rpki / aspa / action / unknown` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
-Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).
+Multiple cache servers are supported for redundancy. Ze tries them in preference order and uses the most preferred server that answers. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set.
 <!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 
 #### Per-peer and per-group actions
@@ -93,7 +157,7 @@ it has no address at all and it uses the global actions. It is reported at start
 ```
 bgp {
     rpki {                                  /* global: caches + baseline actions */
-        cache-server 192.0.2.1 { port 323; }
+        cache-server 192.0.2.1 { port 323; trusted-network true; }
         action { invalid reject; not-found accept; }
     }
     group transit {
@@ -114,12 +178,11 @@ overrides with the source of each leaf (`peer-actions`). An entry names what it 
 carries a remote address, and `"group"` carries a listen-range group's name and states what
 every session that group accepts inherits.
 
-`running` and `synced` are measured rather than asserted. `running` is the flag
-the per-prefix work reads, so it answers whether this daemon would consult the
-cache at all, and `synced` counts the cache servers that have delivered a set.
-`synced` false beside `running` true is the state an operator cannot otherwise
-see: validation is switched on and no cache has answered, so every route is
-Not-Found rather than validated.
+`running` is the flag that controls per-prefix validation. `synced` reports a
+completed synchronization for a configured session whose payload set is still
+current and unexpired. After a transport change, those sessions can be unsynced
+while Ze still uses the previous generation's unexpired data. The summary's
+`validation-enabled` reports whether validation has a usable payload set.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand, validationEnabled -->
 
 #### Blackhole exemption
@@ -168,9 +231,14 @@ nothing: it would accept a route it would have rejected and discard nothing. See
 `blackhole` container itself.
 <!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- blackhole-exempt; internal/component/bgp/plugins/rpki/blackhole.go -- invalidByLengthOnly, carriesAgreedBlackhole -->
 
+Cache updates also reconsider this exemption when the origin state remains
+Invalid. Replacing a length-only authorization with one for a different origin
+makes the retained route ineligible; restoring the correct origin can admit it
+again without another UPDATE.
+
 ### Plugin Bindings
 
-The rpki plugin must be bound to peers with `attach process rpki { receive [ update-received ]; }`. It validates what the peer announces, so it asks for one direction. The adj-rib-in plugin must also be bound with `attach process adj-rib-in { receive [ update-received state ]; }` -- it provides the validation gate that holds routes pending validation.
+Bind the rpki plugin with `attach process rpki { receive [ update-received state ]; }`. UPDATEs supply the received routes; state events remove a disconnected peer's tracked paths. Bind adj-rib-in with `attach process adj-rib-in { receive [ update-received state ]; }` too: it owns the validation gate and retained received routes.
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
 ## How It Works
@@ -198,23 +266,36 @@ never validated fails closed instead.
 3. The adj-rib-in plugin stores the route as "pending"
 4. The rpki plugin extracts the origin AS (rightmost AS in final AS_SEQUENCE segment)
 5. For each NLRI prefix, the rpki plugin looks up covering VRPs and computes the validation state
-6. Valid/NotFound routes are promoted to installed; Invalid routes are discarded
+6. The configured actions determine eligibility. Rejected routes retain their received data and validation state, but cannot be selected or exported.
 
 ### Fail-Open Safety
 
 If the rpki plugin does not respond within `validation-timeout` seconds (default: 30), pending routes are automatically promoted to installed. This prevents route black-holing if the RPKI infrastructure is unavailable.
 
-If all RTR cache servers disconnect, the existing VRP cache is retained until the connection is re-established. Routes continue to be validated against the last known good cache.
+If all RTR cache servers disconnect or fail authentication, the last complete VRP and ASPA sets remain usable only until the Expire Interval from their last completed End of Data. Expiry clears both sets and triggers re-validation. Partial responses, reconnects, and credential changes do not extend that deadline.
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI validation logic, RTR client, fail-open -->
 
 ### Re-validation on VRP Change
 
-When the VRP set changes, ze re-validates every tracked route and applies the
-current action to each route whose state changed (RFC 6811 Section 4). The
-decision reaches routes that are already installed, not only routes still
-pending: an accept rewrites the state in place and keeps the route's sequence
-number, and a reject removes the route from the Adj-RIB-In. No session clear and
-no route refresh is needed to pick up a new ROA.
+When the VRP set changes, Ze re-validates every tracked route and applies the
+current action (RFC 6811 Section 4). A rejection marks the received route
+ineligible rather than deleting it. A later valid authorization can make that
+same received path eligible again, without another UPDATE or a route refresh.
+
+RPKI events also report cache availability changes. A route received before a
+nonempty ROA load initially reports `unavailable`; synchronization publishes its
+current origin and ASPA verdicts even if both verdicts are unchanged. Cache
+expiry publishes `unavailable` again. No second UPDATE is required.
+
+Changing validation policy re-evaluates retained received attributes while
+Adj-RIB-In holds the affected routes pending. Disabling RPKI removes only
+RPKI's denial, not another validator's decision or a newer UPDATE's generation
+fence. Rolling back the configuration re-applies the previous policy.
+The retained-route snapshot also publishes current RPKI verdicts. This covers
+an UPDATE that arrived before RPKI's asynchronous startup callback, without
+waiting for another UPDATE or a later cache change. Each event groups all
+retained prefixes and families from the same peer and received UPDATE, so the
+RPKI decorator can correlate the complete verdict set with that UPDATE.
 
 This matters most when UPDATEs arrive before the first sync completes. Those
 routes validate NotFound against an empty VRP set, and the default
@@ -224,12 +305,17 @@ an RPKI-Invalid one into a reject.
 
 ### RTR Poll Timing
 
-RFC 8210 Section 6 splits two intervals, and ze uses each for its own event. The
-Refresh Interval from the End Of Data PDU is the wait before the next poll, and
-its countdown starts when that PDU arrives. The Retry Interval is the wait after
-a query FAILED, and it also covers a session that has never completed a
-successful query.
-<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- pollDelay -->
+The Refresh Interval from End of Data controls the next successful-cache poll;
+the Retry Interval controls attempts after a failed query, including a cache
+that has never answered. The Expire Interval is a separate data lease starting
+at End of Data. Its timer runs independently of blocked network reads and
+route re-validation. A successful End of Data renews the lease; expiration
+invalidates the serial base, so the next query requests a complete reset.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- pollDelay; internal/component/bgp/plugins/rpki/rtr_expire.go -- prepareQuery, rtrDataLease -->
+
+A cache answering No Data Available ends the current attempt. Ze tries the next
+cache in preference order; if none answers, it retries with Reset Queries after
+the Retry Interval. It does not wait for the cache to close its connection.
 
 ### AS_PATH Edge Cases
 
@@ -237,7 +323,8 @@ successful query.
 |---------|-----------|--------|
 | Normal sequence `[65000 65001]` | 65001 (rightmost) | Normal validation |
 | Ends with AS_SET `{65001 65002}` | None | Always Invalid if covered by VRP |
-| Empty (iBGP, no AS prepend) | None | NotFound (no origin to match) |
+| Empty (iBGP, no AS prepend) | Local speaker AS | Normal validation |
+| Ends with AS_CONFED_SEQUENCE or AS_CONFED_SET | Local speaker AS | Normal validation |
 
 ## CLI Commands
 
@@ -267,11 +354,10 @@ alias the plugin declares over its own command, and it answers the same record
 `validation-enabled`, `sessions-total`, `sessions-established`,
 `sessions-synced`, `aspa-enabled` and `aspa-records`.
 
-`validation-enabled` is derived from `sessions-synced`, not from whether the
-plugin is loaded: it answers true only while at least one cache server has
-delivered a set. A daemon carrying the plugin with no cache reachable therefore
-reports it false, which is the honest answer, because no route is being
-validated against anything.
+`validation-enabled` is true when validation is active and an unexpired payload
+set is available, including an authenticated empty set. It remains true while
+that set is retained across a transport change, and becomes false on expiration
+or when RPKI is disabled. It is not a claim that every prefix has a covering ROA.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- summaryFieldNames, summaryAliasExpansion, appendSummaryFields -->
 
 A plugin's pipe alias lives in the daemon's registry. `ze cli` with no command
@@ -285,19 +371,19 @@ Example:
 
 ```
 $ ze cli -c "show bgp rpki status | json compact"
-{"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled":false,"aspa-records":0,"cache-servers":[{"address":"192.0.2.1","port":3323,"state":"idle","synced":true,"version":2}],"actions":{"invalid":"reject","not-found":"accept","aspa-invalid":"log-only","aspa-unknown":"accept"},"peer-actions":[]}
+{"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1,"sessions-synced":1,"synced":true,"aspa-enabled":false,"aspa-records":0,"cache-servers":[{"address":"192.0.2.1","port":3323,"state":"idle","synced":true,"version":2}],"actions":{"invalid":"reject","not-found":"accept","aspa-invalid":"reject","aspa-unknown":"accept"},"peer-actions":[]}
 ```
 
 The `| json compact` pipe asks for that shape. Without it the answer is rendered
 in the format `environment cli format default` names, whose registered value is
 `text`.
 
-`running` says that a cache server is configured. `synced` says that a cache
-server completed a sync and gave ze a VRP set. The two are different states:
-while `synced` is false, ze holds no VRP set, so every prefix reads `not-found`
-and the default `not-found accept` action accepts it. `sessions-synced` counts
-the cache servers that delivered data, and each entry in `cache-servers` carries
-its own `synced`. `state` is the RTR connection state, which returns to `idle`
+`running` says that a cache server is configured. `sessions-synced` counts the
+configured sessions supplying a current, unexpired set; each cache row has its
+own `synced` flag. During transport rotation, a retained set may still be usable
+even though none of the new sessions has synchronized. See `validation-enabled`
+in the summary for data availability. `state` is the RTR connection state,
+which returns to `idle`
 between polls even after a successful sync.
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
 
@@ -341,7 +427,7 @@ bgp {
             receive [ update-rpki ]
         }
         attach process rpki {
-            receive [ update-received ]
+            receive [ update-received state ]
         }
         attach process rpki-decorator {
             receive [ update-received rpki ]
@@ -372,12 +458,12 @@ If the RPKI validation does not arrive within the timeout (2 seconds), the event
 
 ## ASPA Path Verification
 
-ASPA (Autonomous System Provider Authorization) verifies that AS_PATH hops are authorized by provider-customer relationships. ASPA records are distributed via RTR v2 (RFC 9582) alongside VRPs. Ze implements the verification algorithm from draft-ietf-sidrops-aspa-verification Section 6.
+ASPA (Autonomous System Provider Authorization) checks AS paths against published provider authorizations. Ze uses the RTR v2 wire format from draft-ietf-sidrops-8210bis-27 Section 5.12 and the verification procedures from draft-ietf-sidrops-aspa-verification-28 Section 5. RFC 9582 specifies the ROA profile, not RTR v2.
 
 Verification runs on IPv4 unicast and IPv6 unicast routes only, as draft-ietf-sidrops-aspa-verification Section 6.2 requires. A route of any other address family carries no ASPA state, is not tracked for re-validation, and no ASPA action excludes it.
 <!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaAppliesTo -->
 
-ASPA is opt-in. Enable it under the `rpki { aspa { ... } }` block. By default ASPA results are informational (included in the RPKI event JSON as `"aspa-state"`). Configure policy actions in the same block to enforce ASPA verification by rejecting routes with Invalid or Unknown paths.
+ASPA is opt-in. Enable it under `rpki / aspa / validation` and configure `role / import` on each participating peer or group. Once enabled, the default policy keeps Invalid routes in the Adj-RIB-In but excludes them from route selection and advertisement. Valid and Unknown routes are accepted unless another configured policy rejects them.
 
 ### Configuration
 
@@ -386,6 +472,7 @@ bgp {
     rpki {
         cache-server 192.0.2.1 {
             port 323;
+            trusted-network true;
         }
         aspa {
             validation true;
@@ -397,16 +484,28 @@ bgp {
 }
 ```
 
+The configured role describes **Ze's local role**. It selects the procedure for routes received on that session:
+
+| Local `role / import` | Route received from | Procedure |
+|---|---|---|
+| `provider` | Customer | Upstream |
+| `peer` | Peer | Upstream |
+| `rs` | Route-server client | Upstream |
+| `rs-client` | Transparent route server | Upstream |
+| `customer` | Provider | Downstream |
+
+Without a configured role, an ordered nonempty path is Unknown: Ze cannot infer whether the neighbor is a provider or a customer from the AS numbers. ASPA verification is not applied to iBGP UPDATEs.
+
 ### ASPA Policy Actions
 
 | Setting | Values | Default | Effect |
 |---------|--------|---------|--------|
-| `aspa / action / invalid` | reject, log-only, accept | log-only | Action when a route's AS_PATH fails ASPA verification |
+| `aspa / action / invalid` | reject, log-only, accept | reject | Action when a route's AS_PATH fails ASPA verification |
 | `aspa / action / unknown` | accept, reject, log-only | accept | Action when ASPA records are missing for some ASes in the path |
 
-The default for `invalid` is `log-only` (conservative) rather than `reject` because ASPA deployment is incomplete and missing ASPA records can cause false Invalid results. Set to `reject` once your upstream providers have published ASPA records.
+Missing ASPA records produce Unknown, not a false Invalid. Invalid means the procedure found an unauthorized relationship or a structurally invalid path. An ASPA that omits a real provider can therefore make a legitimate path Invalid. Operators can choose `log-only` or `accept` instead of the default `reject`; `log-only` records a warning without making ASPA itself a reason to exclude the route.
 
-ASPA policy overrides origin validation: a route that is ROA Valid but ASPA Invalid will be rejected when `invalid` is set to `reject`.
+Both origin and path policies apply. An ASPA rejection excludes an otherwise ROA-Valid route. Repairing its ASPA state does not override a remaining origin-validation rejection.
 
 ### ASPA Validation States
 
@@ -414,17 +513,17 @@ Each route receives one of three ASPA states:
 
 | State | Meaning |
 |-------|---------|
-| Valid | Every hop pair in the AS_PATH is authorized by an ASPA record |
-| Invalid | At least one hop pair has an ASPA record that does not list the provider candidate |
-| Unknown | No ASPA records exist for one or more customer ASNs in the path |
+| Valid | The applicable upstream path or downstream ramps satisfy the authorization procedure |
+| Invalid | The procedure proves an unauthorized path, or the path is empty or contains an AS_SET |
+| Unknown | Available authorizations or the configured relationship do not establish Valid or Invalid |
 
 ### How It Works
 
-1. The RTR session negotiates v2 (with v1 fallback on error code 4)
-2. The cache server sends ASPA PDUs (type 11) alongside VRPs
-3. For each received UPDATE, the plugin normalizes the AS_PATH: removes consecutive duplicate ASNs (prepend artifacts), strips AS_CONFED_SEQUENCE segments, and flags AS_SET or AS_CONFED_SET as unverifiable
-4. Each adjacent pair (provider candidate, customer) is checked against the ASPA cache
-5. The result is included as `"aspa-state"` in the RPKI event JSON
+1. The RTR session starts at v2. If the cache names supported v1 in an Unsupported Version response, Ze reconnects at v1; ASPA records are unavailable at that version.
+2. The cache sends ASPA PDUs alongside VRPs. An announcement replaces the provider list for one customer AS; a 12-byte withdrawal removes that customer's complete record. An AS0-only list means no authorized providers. AS0 mixed with other providers is an RTR error.
+3. The BGP receive path checks the first AS against the neighbor after AS4 reconstruction. A mismatch is treated as withdrawal, except on a local transparent route-server-client session. AS_SET handling follows the receive path's RFC 9774 policy; when an AS_SET reaches ASPA verification, its result is Invalid.
+4. ASPA removes consecutive duplicate ASNs. Upstream verification checks authorization from origin toward neighbor; downstream verification compares the authorized and possible ramps from both ends of the path.
+5. The result appears as `"aspa-state"` in the RPKI event JSON.
 
 ### ASPA Event Format
 
@@ -446,11 +545,11 @@ The `"aspa-state"` field is included alongside per-prefix origin validation resu
 }
 ```
 
-When ASPA validation is disabled or the cache has no ASPA records, the `"aspa-state"` field is omitted.
+The `"aspa-state"` field is omitted when ASPA verification does not apply, including disabled ASPA and UPDATEs containing only non-unicast families. In a mixed-family UPDATE, it describes the IPv4 and IPv6 unicast routes, not the other families sharing that event. An enabled verifier with an empty ASPA cache reports Unknown for a multi-AS path, not an omitted state.
 
 ### Re-validation on Cache Change
 
-Routes are tracked with their normalized AS_PATH. When ASPA cache data changes (new records from the RTR server), affected routes are automatically re-validated and updated events are emitted for any route whose ASPA state changed. If policy is set to `reject` and a route's state changes to Invalid or Unknown, the route is withdrawn from the RIB.
+Routes retain their received attributes and normalized AS_PATH. When ASPA data changes, Ze re-evaluates affected routes and emits updated states. A configured rejection makes the retained route ineligible and withdraws any advertisement; it does not delete the Adj-RIB-In copy. If later cache data makes both configured validation policies accept the route, it becomes eligible and can be advertised again without a new UPDATE from the neighbor. Withdrawals, replacement UPDATEs, and session teardown prevent old cache decisions from restoring obsolete routes.
 
 ### Testing ASPA
 
@@ -485,14 +584,14 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 ## Without RPKI
 
-When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends `request bgp adj-rib-in enable-validation` during startup.
+When the rpki plugin is not loaded, routes flow directly into Adj-RIB-In without an RPKI pending state or validation delay. The plugin enables the validation gate when startup or a configuration change adds a cache server. Removing the last cache server disables the gate and releases retained routes from RPKI policy.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in validation gate -->
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Routes delayed 30s then accepted | RTR cache server unreachable | Check connectivity to cache server, verify port |
+| Routes delayed 30s then accepted | RPKI validation callback missing or unresponsive | Check process bindings and plugin logs; an empty or expired cache returns NotFound without this delay |
 | All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
-| No VRPs loaded | RTR session not established | Check `show bgp rpki status`, verify cache server is running |
-| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received ]; }` to peer config |
+| No VRPs loaded | Cache empty or RTR synchronization failed | Check `show bgp rpki status` and plugin logs; for TLS, check the named credentials, certificate chains, and DNS reference name |
+| Routes accepted without validation | rpki plugin not bound to peer | Add `attach process rpki { receive [ update-received state ]; }` to peer config |

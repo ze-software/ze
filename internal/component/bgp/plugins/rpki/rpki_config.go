@@ -6,11 +6,13 @@ package rpki
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/blackholecfg"
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -18,10 +20,12 @@ var errRpkiInvalidBgpConfigJson = errors.New("rpki: invalid BGP config JSON")
 
 // cacheServerConfig holds parsed config for a single RTR cache server.
 type cacheServerConfig struct {
-	Address       string
-	Port          uint16
-	Preference    uint8
-	SourceAddress string
+	Address        string
+	Port           uint16
+	Preference     uint8
+	SourceAddress  string
+	TrustedNetwork bool
+	TLS            *rtrTLSSettings
 }
 
 // ASPA policy actions.
@@ -91,6 +95,7 @@ type peerActionSet struct {
 	OriginNotFound resolvedAction
 	ASPAInvalid    resolvedAction
 	ASPAUnknown    resolvedAction
+	ASPAMode       aspaMode
 	// BlackholeExempt keeps a BLACKHOLE-tagged route whose ONLY origin-validation
 	// fault is that its prefix is longer than a covering VRP allows. RFC 7999
 	// Section 3.3 puts that obligation on the operator and names no mechanism;
@@ -111,7 +116,7 @@ type rpkiConfig struct {
 	CacheServers      []cacheServerConfig
 	ValidationTimeout uint16 // seconds, 0 = use default (30s)
 	ASPAValidation    bool   // enable/disable ASPA path verification (default false)
-	ASPAInvalidAction uint8  // action for ASPA Invalid routes (default: log-only)
+	ASPAInvalidAction uint8  // action for ASPA Invalid routes (default: reject)
 	ASPAUnknownAction uint8  // action for ASPA Unknown routes (default: accept)
 	// OriginInvalidAction is the RFC 6811 Section 3 operator-configurable action for the Invalid
 	// origin-validation state (default: reject). It is what makes the exclusion of Invalid routes
@@ -126,6 +131,7 @@ type rpkiConfig struct {
 	// or group-level config overrode at least one leaf; absent peers use the global actions
 	// above. Readers resolve both with configjson.LookupPeerConfig.
 	PeerActions map[configjson.PeerConfigKey]peerActionSet
+	pkiConfig   *pki.PKIConfig
 }
 
 // parseRPKIConfig extracts RPKI configuration from a BGP config JSON string.
@@ -139,7 +145,7 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 
 	cfg := &rpkiConfig{
 		ASPAValidation:       false,
-		ASPAInvalidAction:    ASPAPolicyLogOnly,
+		ASPAInvalidAction:    ASPAPolicyReject,
 		ASPAUnknownAction:    ASPAPolicyAccept,
 		OriginInvalidAction:  ASPAPolicyReject, // RFC 6811: default reject Invalid (matches YANG default)
 		OriginNotFoundAction: ASPAPolicyAccept, // default accept NotFound (matches YANG default)
@@ -150,12 +156,20 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 		return cfg, nil // No RPKI config section -- empty config
 	}
 
-	// Parse validation-timeout
-	if vtStr, ok := rpkiMap["validation-timeout"].(string); ok {
-		vt, err := strconv.ParseUint(vtStr, 10, 16)
-		if err == nil {
-			cfg.ValidationTimeout = uint16(vt) //nolint:gosec // range checked by ParseUint
+	// An explicit timeout must be usable by the Adj-RIB-In pending-route gate.
+	if rawTimeout, present := rpkiMap["validation-timeout"]; present {
+		timeout, ok := rawTimeout.(string)
+		if !ok {
+			return nil, errors.New("rpki: validation-timeout must be a number of seconds")
 		}
+		seconds, err := strconv.ParseUint(timeout, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("rpki: validation-timeout: %w", err)
+		}
+		if seconds == 0 {
+			return nil, errors.New("rpki: validation-timeout must be between 1 and 65535 seconds")
+		}
+		cfg.ValidationTimeout = uint16(seconds) //nolint:gosec // ParseUint bounds the value to 16 bits.
 	}
 
 	// Parse origin-validation actions from rpki/action container. RFC 6811 Section 3: the action
@@ -210,12 +224,53 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 			Port:       323, // RTR default port
 			Preference: 100, // YANG default
 		}
-
-		if portStr, ok := serverMap["port"].(string); ok {
-			p, err := strconv.ParseUint(portStr, 10, 16)
-			if err == nil {
-				cs.Port = uint16(p) //nolint:gosec // range checked by ParseUint
+		switch trusted := serverMap["trusted-network"].(type) {
+		case string:
+			cs.TrustedNetwork = trusted == "true" || trusted == "1"
+		case bool:
+			cs.TrustedNetwork = trusted
+		}
+		if rawTLS, present := serverMap["tls"]; present {
+			tlsMap, ok := rawTLS.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("rpki: cache %q TLS must be a container", addr)
 			}
+			settings := &rtrTLSSettings{}
+			settings.Certificate, _ = tlsMap["certificate"].(string)
+			settings.CACertificate, _ = tlsMap["ca-certificate"].(string)
+			if settings.Certificate == "" || settings.CACertificate == "" {
+				return nil, fmt.Errorf("rpki: cache %q TLS requires certificate and ca-certificate", addr)
+			}
+			name := addr
+			if rawName, present := tlsMap["server-name"]; present {
+				name, ok = rawName.(string)
+				if !ok {
+					return nil, fmt.Errorf("rpki: cache %q TLS server-name must be a DNS name", addr)
+				}
+			}
+			settings.ServerName, err = rtrServerName(name)
+			if err != nil {
+				return nil, fmt.Errorf("rpki: cache %q: %w", addr, err)
+			}
+			cs.TLS = settings
+			cs.Port = 324
+		} else if !cs.TrustedNetwork {
+			return nil, fmt.Errorf("rpki: cache %q requires TLS or explicit trusted-network true for unprotected TCP", addr)
+		}
+
+		if rawPort, present := serverMap["port"]; present {
+			port, ok := rawPort.(string)
+			if !ok {
+				return nil, fmt.Errorf("rpki: cache %q port must be a number", addr)
+			}
+			number, err := strconv.ParseUint(port, 10, 16)
+			if err != nil {
+				return nil, fmt.Errorf("rpki: cache %q port: %w", addr, err)
+			}
+			if number == 0 {
+				return nil, fmt.Errorf("rpki: cache %q port must be between 1 and 65535", addr)
+			}
+			cs.Port = uint16(number) //nolint:gosec // ParseUint bounds the value to 16 bits.
 		}
 
 		if prefStr, ok := serverMap["preference"].(string); ok {
@@ -334,6 +389,7 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjso
 			ASPAInvalid:     resolveLeaf(global.ASPAInvalidAction, groupOv.aspaInvalid, peerOv.aspaInvalid),
 			ASPAUnknown:     resolveLeaf(global.ASPAUnknownAction, groupOv.aspaUnknown, peerOv.aspaUnknown),
 			BlackholeExempt: resolveBoolLeaf(groupOv.blackholeExempt, peerOv.blackholeExempt),
+			ASPAMode:        configuredASPAMode(peerMap, groupMap),
 		}
 
 		// All-global: no override, so the global path already covers this peer.
@@ -341,7 +397,7 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjso
 		// must still be recorded.
 		if set.OriginInvalid.Source == sourceGlobal && set.OriginNotFound.Source == sourceGlobal &&
 			set.ASPAInvalid.Source == sourceGlobal && set.ASPAUnknown.Source == sourceGlobal &&
-			!set.BlackholeExempt {
+			!set.BlackholeExempt && set.ASPAMode == aspaModeUnspecified {
 			return
 		}
 
@@ -393,6 +449,30 @@ func parsePeerActions(bgpTree map[string]any, global *rpkiConfig) (map[configjso
 		result = nil
 	}
 	return result, nil
+}
+
+// configuredASPAMode reads the local RFC 9234 role, using the same peer-over-group
+// precedence as the role plugin. A local Customer receives downstream paths.
+func configuredASPAMode(peer, group map[string]any) aspaMode {
+	for _, values := range []map[string]any{peer, group} {
+		role, ok := values["role"].(map[string]any)
+		if !ok {
+			continue
+		}
+		local, ok := role["import"].(string)
+		if !ok {
+			continue
+		}
+		switch local {
+		case "customer":
+			return aspaDownstream
+		case "provider", "peer", "rs", "rs-client":
+			return aspaUpstream
+		default:
+			return aspaModeUnspecified
+		}
+	}
+	return aspaModeUnspecified
 }
 
 // parseBoolLeaf reads a YANG boolean that may be absent. The config framework

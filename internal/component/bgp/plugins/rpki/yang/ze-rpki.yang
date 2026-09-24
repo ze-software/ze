@@ -110,9 +110,9 @@ can name a cache server, because the RTR transport is global.";
 
       list cache-server {
         key "address";
-        description "The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to
-every entry at the same time, and merges what the entries send into one cache. A second entry gives redundancy.
-Each entry carries the port, the preference and the source address. An empty list leaves validation off.";
+        description "The list key is an IP address or a hostname. Ze tries entries in increasing preference order,
+publishes only a completed cache response, and replaces the selected cache's records atomically.
+An empty list leaves validation off.";
         ze:help "RTR cache servers Ze reads the validated ROA and ASPA records from.";
         leaf address {
           type string;
@@ -121,17 +121,14 @@ server.";
           ze:help "IP address or hostname of the RTR cache server.";
         }
         leaf port {
-          type uint16;
-          default "323";
-          description "Ze opens a TCP connection to this port on the cache server. The default
-is 323.";
+          type zt:port;
+          description "The cache transport port. When omitted, unprotected TCP uses 323 and TLS uses 324.";
           ze:help "TCP port of the RTR cache server.";
         }
         leaf preference {
           type uint8;
           default "100";
-          description "Ze runs a session to every cache server at the same time and selects none of them, so the value
-changes no behavior today. show bgp rpki status reports it for each server.";
+          description "Lower values are tried first. Each polling round starts with the most preferred cache.";
           ze:help "Preference of this cache server.";
         }
         leaf source-address {
@@ -140,14 +137,60 @@ changes no behavior today. show bgp rpki status reports it for each server.";
 specific local address.";
           ze:help "Source IP address of an outbound RTR connection.";
         }
+        leaf trusted-network {
+          type boolean;
+          default "false";
+          description "Explicit operator selection of unprotected RTR over TCP. Use only when the router and cache
+are on the same trusted, controlled network (RFC 8210 Section 9). This setting does not prove network trust
+and never permits a TLS-configured cache to fall back to plaintext.";
+          ze:help "Permit unprotected RTR only on an explicitly trusted network.";
+        }
+        container tls {
+          presence "Use mutually authenticated TLS for this cache.";
+          description "Native RTR over mutual TLS (RFC 8210 Section 9.2). The router presents the named PKI
+certificate and its intermediate chain. The cache must request client authentication and present a trusted
+DNS-ID certificate; CN-ID is never used. Authentication failure never falls back to unprotected TCP.";
+          ze:help "Authenticate the RTR cache and router with TLS.";
+          leaf ca-certificate {
+            type string {
+              length "1..255";
+              pattern '[A-Za-z0-9._-]+';
+            }
+            mandatory true;
+            description "Named PKI CA used to authenticate this cache. System roots are not used.";
+            ze:help "PKI CA certificate trusted for the cache.";
+          }
+          leaf certificate {
+            type string {
+              length "1..255";
+              pattern '[A-Za-z0-9._-]+';
+            }
+            mandatory true;
+            description "Named PKI router certificate with its private key and a subjectAltName iPAddress identity
+matching the connection's source IP address. The certificate must permit TLS client authentication.";
+            ze:help "PKI certificate and private key identifying this router.";
+          }
+          leaf server-name {
+            type string {
+              length "1..254";
+            }
+            description "Cache DNS reference identifier, matched against certificate dNSName identities.
+Defaults to the cache address when that address is a DNS name. Required for IP-address endpoints.
+An IP address, wildcard reference, or certificate common name cannot supply this identity.";
+            ze:help "Expected DNS name of the TLS cache.";
+          }
+        }
+
       }
 
       leaf validation-timeout {
-        type uint16;
+        type uint16 {
+          range "1..65535";
+        }
         default "30";
         units "seconds";
         description "The default is 30 seconds. A longer timeout holds a route in the pending
-state for longer.";
+state for longer. Reloading this leaf refreshes retained routes under the new timeout.";
         ze:help "Fail-open timeout of a route whose validation is pending.";
       }
 
@@ -158,8 +201,8 @@ configurable by the operator.";
         leaf invalid {
           type validation-action;
           default "reject";
-          description "The default is reject, which excludes the route from the Adj-RIB-In and
-the decision process.";
+          description "The default is reject. The received route remains in Adj-RIB-In but is
+ineligible for the decision process until validation or configured policy admits it.";
           ze:help "Action Ze applies to a route in the Invalid validation state.";
         }
         leaf not-found {
@@ -188,9 +231,9 @@ apply only while aspa validation is true. A peer or a group overrides each leaf.
           ze:help "Global action Ze applies for each ASPA path state.";
           leaf invalid {
             type validation-action;
-            default "log-only";
-            description "The default is log-only, which keeps the route, marks it with its
-state, and writes a log line.";
+            default "reject";
+            description "The default is reject. Ze retains the route in the Adj-RIB-In for
+re-evaluation and excludes it from route selection until the path becomes acceptable.";
             ze:help "Action Ze applies to a route in the ASPA Invalid path state.";
           }
           leaf unknown {

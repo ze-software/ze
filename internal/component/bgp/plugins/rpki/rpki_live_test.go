@@ -157,7 +157,7 @@ func TestLiveRPKIValidation(t *testing.T) {
 	// Short retry for tests: stayrtr may need time to download RPKI data.
 	cache := newROACache()
 	stopCh := make(chan struct{})
-	session := newRTRSession("127.0.0.1", uint16(port), 100, "", cache, newASPACache(), stopCh)
+	session := newTestRTRSession(t, "127.0.0.1", uint16(port), 100, "", cache, newASPACache(), stopCh)
 	session.retryInterval = 5 * time.Second
 
 	// Run session in background.
@@ -353,7 +353,7 @@ func TestLiveASPAValidation(t *testing.T) {
 	roaCache := newROACache()
 	aspaC := newASPACache()
 	stopCh := make(chan struct{})
-	sess := newRTRSession("127.0.0.1", uint16(rtrPort), 100, "", roaCache, aspaC, stopCh) //nolint:gosec // port fits uint16
+	sess := newTestRTRSession(t, "127.0.0.1", uint16(rtrPort), 100, "", roaCache, aspaC, stopCh) //nolint:gosec // port fits uint16
 	sess.retryInterval = 5 * time.Second
 
 	done := make(chan struct{})

@@ -34,6 +34,7 @@ func cacheServerTree(addr, port string) *config.Tree {
 	tree := config.NewTree()
 	rpki := tree.GetOrCreateContainer("bgp").GetOrCreateContainer("rpki")
 	server := config.NewTree()
+	server.Set("trusted-network", "true")
 	if port != "" {
 		server.Set("port", port)
 	}

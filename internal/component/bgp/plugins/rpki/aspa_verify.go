@@ -9,7 +9,7 @@ import (
 )
 
 // ASPA validation states.
-// draft-ietf-sidrops-aspa-verification Section 6.
+// draft-ietf-sidrops-aspa-verification-28 Section 5.
 const (
 	ASPAValid     uint8 = 0
 	ASPAInvalid   uint8 = 1
@@ -29,12 +29,9 @@ func aspaStateString(state uint8) string {
 	}
 }
 
-// normalizeASPath extracts a unique hop list from AS_PATH segments for ASPA verification.
-// Returns the normalized path and whether AS_SET/AS_CONFED_SET was encountered.
-// draft-ietf-sidrops-aspa-verification Section 6, Step 0:
-//   - Remove consecutive duplicate ASNs (prepending artifacts)
-//   - Strip AS_CONFED_SEQUENCE segments (confederation-internal)
-//   - Flag AS_SET or AS_CONFED_SET as unverifiable
+// normalizeASPath builds COMPRESSED_AS_PATH in wire order (neighbor to origin).
+// Section 5.2 removes consecutive duplicates only. Sets cannot be ordered, and
+// confederation segments must not escape onto the external sessions verified here.
 func normalizeASPath(segments []attribute.ASPathSegment) ([]uint32, bool) {
 	var hops []uint32
 
@@ -43,7 +40,7 @@ func normalizeASPath(segments []attribute.ASPathSegment) ([]uint32, bool) {
 		case attribute.ASSet, attribute.ASConfedSet:
 			return nil, true
 		case attribute.ASConfedSequence:
-			continue
+			return nil, true
 		case attribute.ASSequence:
 			for _, asn := range seg.ASNs {
 				if len(hops) == 0 || hops[len(hops)-1] != asn {
@@ -73,7 +70,7 @@ func deduplicateASPath(path []uint32) []uint32 {
 }
 
 // verifyASPA runs the upstream path verification algorithm.
-// draft-ietf-sidrops-aspa-verification Section 6.
+// draft-ietf-sidrops-aspa-verification-28 Section 5.5.
 //
 // Input: normalized unique-hop list [neighbor, ..., origin] and ASPA cache.
 // Output: ASPAValid, ASPAInvalid, or ASPAUnknown.
@@ -81,6 +78,11 @@ func deduplicateASPath(path []uint32) []uint32 {
 // Walk from neighbor toward origin. For each adjacent pair (path[i], path[i+1]),
 // path[i+1] is the customer, path[i] is the provider candidate.
 func verifyASPA(cache *aSPACache, path []uint32) uint8 {
+	// Section 5.5 step 1: "If the AS_PATH is empty, then the procedure halts
+	// with the outcome 'Invalid'."
+	if len(path) == 0 {
+		return ASPAInvalid
+	}
 	if len(path) <= 1 {
 		return ASPAValid
 	}
@@ -122,16 +124,77 @@ func aspaAppliesTo(fam family.Family) bool {
 	return fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6
 }
 
-// aspaStateForPath maps a received route's AS_PATH segments to an ASPA validation state.
-// draft-ietf-sidrops-aspa-verification Section 6: an AS_SET (or AS_CONFED_SET) makes the
-// path unverifiable and yields Unknown; otherwise the normalized unique-hop list is run
-// through the upstream verification algorithm. This is the entry point handleStructuredUpdate
-// uses to verify received customer and lateral-peer routes. Returns the state and the
-// normalized path (retained by the caller for re-validation tracking).
-func aspaStateForPath(cache *aSPACache, segments []attribute.ASPathSegment) (uint8, []uint32) {
+// aspaMode is the algorithm selected from our configured BGP role.
+type aspaMode uint8
+
+const (
+	aspaModeUnspecified aspaMode = iota
+	aspaUpstream
+	aspaDownstream
+)
+
+// aspaStateForPath applies Section 5's structural checks before measuring ramps.
+// The receive session checks the neighbor ASN, including the transparent RS exception.
+func aspaStateForPath(cache *aSPACache, segments []attribute.ASPathSegment, mode aspaMode) (uint8, []uint32) {
 	normalizedPath, hasASSet := normalizeASPath(segments)
+	// Sections 5.5 and 5.6 step 3: "If the AS_PATH has an AS_SET, then the
+	// procedure halts with the outcome 'Invalid'."
 	if hasASSet {
-		return ASPAUnknown, normalizedPath
+		return ASPAInvalid, normalizedPath
 	}
-	return verifyASPA(cache, normalizedPath), normalizedPath
+	return verifyASPAPath(cache, normalizedPath, mode), normalizedPath
+}
+
+// verifyASPAPath selects the relationship-specific algorithm. An unspecified
+// relationship supplies no basis for choosing an upstream or downstream ramp.
+func verifyASPAPath(cache *aSPACache, path []uint32, mode aspaMode) uint8 {
+	if len(path) == 0 {
+		return ASPAInvalid
+	}
+	switch mode {
+	case aspaUpstream:
+		return verifyASPA(cache, path)
+	case aspaDownstream:
+		return verifyASPADownstream(cache, path)
+	default:
+		return ASPAUnknown
+	}
+}
+
+// verifyASPADownstream implements Sections 5.4 and 5.6. Each ramp starts with
+// one AS, even when its first hop is denied. The two ramps may meet at a single
+// unverified apex hop. Only the first denial from each end bounds its ramp.
+func verifyASPADownstream(cache *aSPACache, path []uint32) uint8 {
+	if len(path) == 0 {
+		return ASPAInvalid
+	}
+	upMin, upMax := len(path), len(path)
+	for i := len(path) - 1; i > 0; i-- {
+		hop := cache.checkPair(path[i-1], path[i])
+		if hop != HopProviderPlus && upMin == len(path) {
+			upMin = len(path) - i
+		}
+		if hop == HopNotProviderPlus {
+			upMax = len(path) - i
+			break
+		}
+	}
+	downMin, downMax := len(path), len(path)
+	for i := 0; i+1 < len(path); i++ {
+		hop := cache.checkPair(path[i+1], path[i])
+		if hop != HopProviderPlus && downMin == len(path) {
+			downMin = i + 1
+		}
+		if hop == HopNotProviderPlus {
+			downMax = i + 1
+			break
+		}
+	}
+	if upMax+downMax < len(path) {
+		return ASPAInvalid
+	}
+	if upMin+downMin < len(path) {
+		return ASPAUnknown
+	}
+	return ASPAValid
 }

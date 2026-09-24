@@ -83,6 +83,64 @@ func TestDispatchDocumentAcceptsObjectAndEncodedObject(t *testing.T) {
 	}
 }
 
+const rpkiRetainedObservation = `{"status":"ok","detail":{"rpki":{"sessions":1,"vrp-count-ipv4":171},"adj-rib-in":{"adj-rib-in":{"172.30.0.3":[
+	{"family":"ipv4/unicast","key":"ipv4/unicast:9.43.0.0/24","validation-state":1,"ineligible":false},
+	{"family":"ipv4/unicast","key":"ipv4/unicast:10.43.0.0/24","validation-state":3,"ineligible":true},
+	{"family":"ipv4/unicast","key":"ipv4/unicast:11.43.0.0/24","validation-state":2,"ineligible":false}
+]}}}}`
+
+// An observer verdict cannot hide a missing or eligible Invalid path.
+func TestRPKIResultRequiresRetainedIneligibleInvalid(t *testing.T) {
+	if err := requireRPKIResult(rpkiRetainedObservation); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(map[string]any, []any)
+	}{
+		{"invalid removed", func(peers map[string]any, routes []any) {
+			peers["172.30.0.3"] = []any{routes[0], routes[2]}
+		}},
+		{"invalid eligible", func(_ map[string]any, routes []any) {
+			routes[1].(map[string]any)["ineligible"] = false
+		}},
+		{"invalid state lost", func(_ map[string]any, routes []any) {
+			routes[1].(map[string]any)["validation-state"] = float64(0)
+		}},
+		{"valid ineligible", func(_ map[string]any, routes []any) {
+			routes[0].(map[string]any)["ineligible"] = true
+		}},
+		{"notfound ineligible", func(_ map[string]any, routes []any) {
+			routes[2].(map[string]any)["ineligible"] = true
+		}},
+		{"eligibility missing", func(_ map[string]any, routes []any) {
+			delete(routes[0].(map[string]any), "ineligible")
+		}},
+		{"eligible invalid sibling", func(peers map[string]any, routes []any) {
+			peers["172.30.0.3"] = append(routes, map[string]any{
+				"key": "ipv4/unicast:10.43.0.0/24:1", "validation-state": float64(3), "ineligible": false,
+			})
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var result map[string]any
+			if err := json.Unmarshal([]byte(rpkiRetainedObservation), &result); err != nil {
+				t.Fatal(err)
+			}
+			detail := result["detail"].(map[string]any)
+			peers := detail["adj-rib-in"].(map[string]any)["adj-rib-in"].(map[string]any)
+			test.mutate(peers, peers["172.30.0.3"].([]any))
+			output, err := json.Marshal(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := requireRPKIResult(string(output)); err == nil {
+				t.Fatal("incorrect route retention or eligibility accepted")
+			}
+		})
+	}
+}
+
 func TestDropMEDPreservesExactUpdateSections(t *testing.T) {
 	body := []byte{
 		0, 0, // withdrawn length

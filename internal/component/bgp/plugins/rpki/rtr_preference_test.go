@@ -4,6 +4,8 @@ package rpki
 
 import (
 	"encoding/binary"
+	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -26,6 +28,8 @@ import (
 // under which an operator who ordered three caches got a session to all three at once and the
 // union of their records.
 func TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers(t *testing.T) {
+	// RFC requirement: RFC8210-4-1 positive -- the lowest configured preference that answers supplies the payload set.
+	// RFC requirement: RFC8210-4-1 negative -- a less-preferred cache is not contacted while the preferred cache answers.
 	t.Run("the less preferred cache is not contacted while the preferred one answers", func(t *testing.T) {
 		standbyPort, standbyAccepts := serveRTR(t, replyEmptySync(t))
 		preferredPort, preferredAccepts := serveRTR(t, replyEmptySync(t))
@@ -74,7 +78,7 @@ func TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers(t *testing.T) {
 		cache := newROACache()
 		cache.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
-		s := newRTRSession("127.0.0.1", 3323, 100, "", cache, newASPACache(), make(chan struct{}))
+		s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", cache, newASPACache(), make(chan struct{}))
 		s.startFullSync()
 		applyPDU(t, s, cacheResponsePDU(), false)
 		applyPDU(t, s, endOfDataPDU(), true)
@@ -101,7 +105,7 @@ func applyPDU(t *testing.T, s *RTRSession, pdu []byte, wantDone bool) {
 // cacheResponsePDU is a Cache Response carrying session id zero.
 func cacheResponsePDU() []byte {
 	pdu := make([]byte, pduHeaderLen)
-	pdu[1] = pduCacheResp
+	pdu[0], pdu[1] = rtrVersionMax, pduCacheResp
 	binary.BigEndian.PutUint32(pdu[4:8], pduHeaderLen)
 	return pdu
 }
@@ -109,10 +113,86 @@ func cacheResponsePDU() []byte {
 // endOfDataPDU is an End of Data carrying the three default intervals and no prefix before it.
 func endOfDataPDU() []byte {
 	pdu := make([]byte, pduEndOfDataLen)
-	pdu[1] = pduEndOfData
+	pdu[0], pdu[1] = rtrVersionMax, pduEndOfData
 	binary.BigEndian.PutUint32(pdu[4:8], pduEndOfDataLen)
 	binary.BigEndian.PutUint32(pdu[12:16], 3600)
 	binary.BigEndian.PutUint32(pdu[16:20], 600)
 	binary.BigEndian.PutUint32(pdu[20:24], 7200)
 	return pdu
+}
+
+func TestRTRCacheSwitchKeepsSerialBasesSeparate(t *testing.T) {
+	// RFC requirement: RFC8210-10-2 positive -- each cache switch replaces the published VRPs and ASPAs with the selected cache's complete set.
+	// RFC requirement: RFC8210-10-2 negative -- an old cache's matching serial cannot reuse the other cache's base, merge its prefixes, or preserve its provider authorization.
+	queries := make(chan [2]uint8, 8)
+	failures := make(chan error, 8)
+	reply := func(octet byte, provider uint32, failSecond bool) func(net.Conn) {
+		calls := 0
+		return func(conn net.Conn) {
+			calls++
+			if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+				failures <- err
+				return
+			}
+			var query [8]byte
+			if _, err := io.ReadFull(conn, query[:]); err != nil {
+				failures <- err
+				return
+			}
+			if query[1] == pduSerialQuery {
+				var serial [4]byte
+				if _, err := io.ReadFull(conn, serial[:]); err != nil {
+					failures <- err
+					return
+				}
+			}
+			queries <- [2]uint8{octet, query[1]}
+			if failSecond && calls == 2 {
+				return
+			}
+			response, end := cacheResponsePDU(), endOfDataPDU()
+			response[0], end[0] = 2, 2
+			// Both caches deliberately use the same session ID and serial.
+			binary.BigEndian.PutUint32(end[8:12], 1)
+			prefix := []byte{2, pduIPv4Prefix, 0, 0, 0, 0, 0, 20, 1, 24, 24, 0, 192, 0, octet, 0, 0, 0, 0xfb, 0xf4}
+			for _, pdu := range [][]byte{response, prefix, aspaPDU(64500, provider), end} {
+				if _, err := conn.Write(pdu); err != nil {
+					failures <- err
+					return
+				}
+			}
+		}
+	}
+	first, _ := serveRTR(t, reply(2, 64501, true))
+	second, _ := serveRTR(t, reply(3, 64502, false))
+	roas, aspas := newROACache(), newASPACache()
+	stop := make(chan struct{})
+	group := newCacheGroup([]*RTRSession{
+		newTestRTRSession(t, "127.0.0.1", first, 10, "", roas, aspas, stop),
+		newTestRTRSession(t, "127.0.0.1", second, 20, "", roas, aspas, stop),
+	}, stop)
+	for _, selected := range []int{2, 3, 2} {
+		group.poll()
+		for _, candidate := range []int{2, 3} {
+			prefix := "192.0.2.0/24"
+			provider := uint32(64501)
+			if candidate == 3 {
+				prefix, provider = "192.0.3.0/24", 64502
+			}
+			want := ValidationNotFound
+			if candidate == selected {
+				want = ValidationValid
+			}
+			require.Equal(t, want, roas.Validate(prefix, 64500), "cache %d selected, checking %s", selected, prefix)
+			require.Equal(t, candidate == selected, aspas.isProvider(64500, provider))
+		}
+	}
+	for _, want := range [][2]uint8{{2, pduResetQuery}, {2, pduSerialQuery}, {3, pduResetQuery}, {2, pduResetQuery}} {
+		require.Equal(t, want, <-queries)
+	}
+	select {
+	case err := <-failures:
+		t.Fatal(err)
+	default:
+	}
 }

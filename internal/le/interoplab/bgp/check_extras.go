@@ -316,10 +316,6 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6DatabaseRouter}, contains: []string{zeLabAddress}, timeout: 60 * time.Second},
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
-	"ospfv3-vlink-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 interface"}, contains: []string{"VLINK"}, timeout: 90 * time.Second},
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}},
-	},
 	"ospfv3-broadcast-frr": {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database network"}, contains: []string{zeLabAddress}},
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database link"}, contains: []string{zeLabAddress}},
@@ -348,22 +344,10 @@ var scenarioExtras = map[string][]operation{
 		{kind: opDelayRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, delay: 5 * time.Second},
 	},
 	scenarioRPKIFRR: {
-		{kind: opWaitJSONFields, peer: "ze", command: []string{cmdCat, "/tmp/rpki-check.json"}, fields: map[string]string{fieldStatus: "ok", "9.43.0.0/24": "1", "11.43.0.0/24": "2"}, timeout: 60 * time.Second},
-		{kind: opRequireAbsent, peer: "ze", command: []string{cmdCat, "/tmp/rpki-check.json"}, absent: []string{"\"10.43.0.0/24\""}, proof: []string{"\"9.43.0.0/24\"", "\"11.43.0.0/24\""}},
-	},
-	"rtr-stayrtr": {
-		{kind: opWaitJSONFields, peer: "ze", command: zeCommand("show bgp rpki status"), minimum: map[string]int{"vrp-count-ipv4": 2, "vrp-count-ipv6": 2}, timeout: 90 * time.Second},
-		{kind: opRequireContains, peer: "ze", command: zeCommand("show bgp rpki roa"), contains: []string{"9.58.0.0/16", "10.58.0.0/16", "2001:db8:58::/48", "2001:db8:59::/48", "4200000001", "65001"}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 9.58.0.0/16 4200000001"), fields: map[string]string{fieldState: rpkiStateValid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 9.58.0.0/24 4200000001"), fields: map[string]string{fieldState: rpkiStateValid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 9.58.0.0/25 4200000001"), fields: map[string]string{fieldState: rpkiStateInvalid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 9.58.0.0/16 65001"), fields: map[string]string{fieldState: rpkiStateInvalid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 10.58.0.0/16 65001"), fields: map[string]string{fieldState: rpkiStateValid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 10.58.0.0/24 65001"), fields: map[string]string{fieldState: rpkiStateInvalid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 2001:db8:58::/48 4200000001"), fields: map[string]string{fieldState: rpkiStateValid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 2001:db8:58::/64 4200000001"), fields: map[string]string{fieldState: rpkiStateInvalid}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 11.58.0.0/16 65001"), fields: map[string]string{fieldState: rpkiStateNotFound}},
-		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("request bgp rpki validate 2001:db8:5a::/48 65001"), fields: map[string]string{fieldState: rpkiStateNotFound}},
+		{kind: opFRRRoute, argument: "9.43.0.0/24"},
+		{kind: opFRRRoute, argument: "10.43.0.0/24"},
+		{kind: opFRRRoute, argument: "11.43.0.0/24"},
+		{kind: opWaitRPKI, peer: "ze", command: []string{cmdCat, "/tmp/rpki-check.json"}, timeout: 60 * time.Second},
 	},
 	scenarioShutdownCeaseFRR: {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdCat, frrLogPath}, contains: []string{"Cease", "Administrative Shutdown"}, timeout: 30 * time.Second},

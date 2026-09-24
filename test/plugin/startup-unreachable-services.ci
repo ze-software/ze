@@ -7,7 +7,7 @@ tmpfs=unreachable.conf:mode=600:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
 	session { asn { local 65000; } }
-	rpki { cache-server 203.0.113.2 { port 3323; } }
+	rpki { cache-server 203.0.113.2 { trusted-network true; port 3323; } }
 	bmp {
 		sender {
 			collector c1 { address 203.0.113.3; port 11019; }

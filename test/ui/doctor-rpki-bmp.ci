@@ -11,6 +11,7 @@ bgp {
     }
     rpki {
         cache-server 198.51.100.1 {
+            trusted-network true
             port 8282
         }
     }

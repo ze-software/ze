@@ -165,10 +165,12 @@ bgp {
     }
     rpki {
         cache-server 192.0.2.200 {
+            trusted-network true
             port 3323
             preference 10
         }
         cache-server 198.51.100.7 {
+            trusted-network true
             port 3324
             preference 20
         }

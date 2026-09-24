@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -41,6 +42,7 @@ import (
 
 const (
 	configRootBGP   = "bgp"
+	configRootPKI   = "pki"
 	commandShowRPKI = "show bgp rpki"
 	shapeTab        = "tab"
 	columnAddress   = "address"
@@ -97,14 +99,16 @@ type validationRequest struct {
 	// standalone peer. It is carried because a session created from a listen-range
 	// group has an address the config document never mentions, so the group's name
 	// is the only key its stated actions can be found under.
-	peerGroup string
-	family    string
-	prefix    string
-	pathID    uint32
-	state     uint8 // origin validation state
-	aspaState uint8 // ASPA path verification state
-	originAS  uint32
-	blackhole bool // the announcement carried the RFC 7999 BLACKHOLE community
+	peerGroup  string
+	family     string
+	prefix     string
+	pathID     uint32
+	msgID      uint64
+	state      uint8 // origin validation state
+	aspaState  uint8 // ASPA path verification state
+	originAS   uint32
+	blackhole  bool   // the announcement carried the RFC 7999 BLACKHOLE community
+	generation uint64 // configuration generation that produced this verdict
 }
 
 // aspaOverridesAccept returns true if ASPA policy demands rejecting a route
@@ -126,6 +130,7 @@ type rPKIPlugin struct {
 	plugin      *sdk.Plugin
 	cache       *ROACache
 	aspaCache   *aSPACache
+	dataLease   *rtrDataLease
 	aspaTracker *aSPATracker
 	// originTracker records active routes for RFC 6811 Section 4 re-validation when the ROA
 	// cache (VRP set) changes. Populated whenever origin validation runs (independent of ASPA).
@@ -143,10 +148,16 @@ type rPKIPlugin struct {
 	// (a remote IP, or a dynamic group's name for the template its members inherit),
 	// swapped atomically on each config reload. nil (or a miss) means the route uses the
 	// global actions.
-	// Read lock-free from the single validationWorker goroutine; written from OnConfigure.
+	// Read lock-free from the validation worker; published during config apply.
 	perPeerActions atomic.Pointer[map[configjson.PeerConfigKey]peerActionSet]
 	mu             sync.RWMutex
 
+	// Serialize route registration with cache-change callbacks: a notification
+	// must not run between the initial verdict and registration of its route.
+	validationMu sync.Mutex
+	// dispatchMu fences in-flight decisions while configuration changes policy.
+	dispatchMu           sync.Mutex
+	validationGeneration atomic.Uint64
 	// sessions holds the RTR sessions of the current config generation, most preferred
 	// first. startSessions is the only writer; a status snapshot reads it under mu.
 	sessions []*RTRSession
@@ -309,6 +320,9 @@ func runRPKIPlugin(conn net.Conn) int {
 		// The cache group runs on its own generation channel, which rp.stopCh does not
 		// reach, so the group is stopped and waited for by name.
 		rp.stopSessions()
+		if rp.dataLease != nil {
+			rp.dataLease.stop()
+		}
 		workerWg.Wait()
 	}()
 
@@ -317,10 +331,14 @@ func runRPKIPlugin(conn net.Conn) int {
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
-			if !ok || se.EventType != rpc.EventKindUpdate || se.PeerAddress == "" {
+			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			rp.handleStructuredUpdate(se)
+			if se.EventType == rpc.EventKindState && se.State == rpc.SessionStateDown {
+				rp.removePeer(se.PeerAddress)
+			} else if se.EventType == rpc.EventKindUpdate {
+				rp.handleStructuredUpdate(se)
+			}
 		}
 		return nil
 	})
@@ -340,20 +358,51 @@ func runRPKIPlugin(conn net.Conn) int {
 		return rp.handleCommand(command, args)
 	})
 
-	// OnConfigure: parse RPKI config and start RTR sessions to cache servers.
-	// Called during Stage 2 of the 5-stage plugin startup protocol.
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
-			}
-			cfg, err := parseRPKIConfig(section.Data)
-			if err != nil {
-				logger().Error("rpki: config parse failed", "error", err)
-				return err
-			}
-			rp.startSessions(cfg)
+	// Runtime verify deliveries contain changed roots only. Compose them over
+	// the committed candidate; serialized SDK callbacks own these pointers.
+	var current, pending, previous *rpkiConfig
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		pending = nil
+		// Rollback belongs to this transaction, not the last successful apply.
+		previous = nil
+		cfg, err := parseRPKISections(sections, current)
+		if err != nil {
+			return err
 		}
+		pending = cfg
+		return nil
+	})
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		cfg, err := parseRPKISections(sections, nil)
+		if err != nil {
+			return err
+		}
+		current = cfg
+		return nil
+	})
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		if pending == nil {
+			return errors.New("rpki: config apply requires a verified candidate")
+		}
+		next := pending
+		pending = nil
+		if err := rp.replaceConfig(current, next); err != nil {
+			restoreErr := rp.replaceConfig(next, current)
+			previous = nil
+			return errors.Join(err, restoreErr)
+		}
+		previous, current = current, next
+		return nil
+	})
+	p.OnConfigRollback(func(_ string) error {
+		pending = nil
+		if previous == nil {
+			return nil
+		}
+		if err := rp.replaceConfig(current, previous); err != nil {
+			return err
+		}
+		current, previous = previous, nil
 		return nil
 	})
 
@@ -367,29 +416,17 @@ func runRPKIPlugin(conn net.Conn) int {
 	// signalStartupComplete has frozen the dispatcher command registry, so
 	// the cross-plugin dispatch is guaranteed to find the target command.
 	p.OnAllPluginsReady(func() error {
-		if !rp.active.Load() {
-			logger().Info("rpki: no cache servers configured, skipping validation gate")
-			return nil
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		status, _, err := p.DispatchCommandArgs(ctx, "request bgp adj-rib-in enable-validation", nil, "")
-		if err != nil {
-			logger().Error("rpki: failed to enable validation gate", "error", err)
-			return fmt.Errorf("enable validation gate: %w", err)
-		}
-		logger().Info("rpki: validation gate enabled", "status", status)
-		return nil
+		return rp.replaceConfig(nil, current)
 	})
 
-	p.SetStartupSubscriptions([]string{"update direction received"}, nil, "full")
+	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
 
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands:    commandDecls(),
 		Pipes:       pipeDecls(),
-		WantsConfig: []string{configRootBGP},
+		WantsConfig: []string{configRootBGP, configRootPKI},
 	})
 	if err != nil {
 		logger().Error("bgp-rpki plugin failed", "error", err)
@@ -417,6 +454,7 @@ func setSessionsActive(count int) {
 func (rp *rPKIPlugin) stopSessions() {
 	rp.mu.Lock()
 	stopCh := rp.groupStopCh
+	sessions := rp.sessions
 	rp.groupStopCh = nil
 	rp.sessions = nil
 	rp.mu.Unlock()
@@ -426,6 +464,9 @@ func (rp *rPKIPlugin) stopSessions() {
 	}
 
 	close(stopCh)
+	for _, session := range sessions {
+		session.close()
+	}
 	rp.sessionWg.Wait()
 }
 
@@ -437,14 +478,16 @@ func (rp *rPKIPlugin) stopSessions() {
 // whether any of those servers ever delivers data is RTRSession.synced (syncedSessions).
 func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.stopSessions()
-	rp.active.Store(false)
-	setSessionsActive(0)
-	if cfg == nil || len(cfg.CacheServers) == 0 {
-		logger().Info("rpki: no cache servers configured")
-		return
+	if cfg == nil {
+		cfg = &rpkiConfig{
+			OriginNotFoundAction: ASPAPolicyAccept,
+			ASPAUnknownAction:    ASPAPolicyAccept,
+		}
 	}
+	active := len(cfg.CacheServers) != 0
+	rp.active.Store(active)
+	setSessionsActive(0)
 
-	rp.active.Store(true)
 	rp.aspaEnabled.Store(cfg.ASPAValidation)
 	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))
 	rp.aspaUnknownAction.Store(uint32(cfg.ASPAUnknownAction))
@@ -454,6 +497,10 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	// atomic.Pointer publishes an immutable map; buildDecisions reads it lock-free.
 	peerActions := cfg.PeerActions
 	rp.perPeerActions.Store(&peerActions)
+	if !active {
+		logger().Info("rpki: no cache servers configured")
+		return
+	}
 
 	// RFC 8210 Section 10: "The client router attempts to establish a session with each
 	// potential serving cache in preference order", where "Preference: An unsigned integer
@@ -464,10 +511,18 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 		return cmp.Compare(a.Preference, b.Preference)
 	})
 
+	rp.mu.Lock()
+	if rp.dataLease == nil {
+		rp.dataLease = newRTRDataLease(rp.cache, rp.aspaCache, rp.handleROAChange, rp.handleASPAChange)
+	}
+	rp.mu.Unlock()
 	stopCh := make(chan struct{})
 	sessions := make([]*RTRSession, 0, len(cfg.CacheServers))
 	for _, cs := range cfg.CacheServers {
 		session := newRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, stopCh)
+		session.tlsSettings = cs.TLS
+		session.pkiConfig = cfg.pkiConfig
+		session.dataLease = rp.dataLease
 		session.onASPAChange = rp.handleASPAChange
 		session.onROAChange = rp.handleROAChange
 		sessions = append(sessions, session)
@@ -486,6 +541,16 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	rp.sessionWg.Go(newCacheGroup(sessions, stopCh).Run)
 }
 
+// aspaModeForPeer uses the role/import leaf resolved with the peer's actions.
+func (rp *rPKIPlugin) aspaModeForPeer(address, name, group string) aspaMode {
+	if configured := rp.perPeerActions.Load(); configured != nil {
+		if peer, ok := configjson.LookupPeerConfig(*configured, address, name, group); ok {
+			return peer.ASPAMode
+		}
+	}
+	return aspaModeUnspecified
+}
+
 // handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
 // Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
 // each prefix against the ROA cache. No JSON parsing needed.
@@ -496,6 +561,11 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
+		return
+	}
+	rp.validationMu.Lock()
+	defer rp.validationMu.Unlock()
+	if !rp.active.Load() {
 		return
 	}
 
@@ -525,8 +595,12 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
-	if rp.aspaEnabled.Load() && asp != nil {
-		aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments)
+	if rp.aspaEnabled.Load() && se.PeerAS != se.LocalAS {
+		aspaState = ASPAInvalid
+		if asp != nil {
+			aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments,
+				rp.aspaModeForPeer(peerAddr, peerName, peerGroup))
+		}
 	}
 
 	// Remove withdrawn routes from the ASPA and origin trackers FIRST. Unconditional: the
@@ -540,14 +614,17 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// and must stay tracked (RFC4271-4.3-5, RFC4271-4.3-7). Pruning last dropped it from
 	// the tracker, and a route missing from the tracker is a route ASPA re-validation
 	// never revisits.
-	rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
+	rp.removeWithdrawnFromTracker(peerAddr, msgID, wu, ctx)
 
+	results := make(map[string]map[string]uint8)
+	eventASPA := aspaStateNone
 	// Validate IPv4 unicast NLRIs.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
-		rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
+		results["ipv4/unicast"] = rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
 			nlriData, addPath, false, originAS, cacheEmpty, aspaState, carriesBlackhole)
+		eventASPA = aspaState
 		// Track announced routes for ASPA re-validation (AC-5).
 		if aspaState != aspaStateNone {
 			rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, "ipv4/unicast",
@@ -570,21 +647,33 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 			if !aspaAppliesTo(fam) {
 				mpASPAState, mpNormalizedPath = aspaStateNone, nil
 			}
-			rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
+			prefixes := rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
 				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, mpASPAState, carriesBlackhole)
+			if existing := results[fam.String()]; existing != nil {
+				for prefix, state := range prefixes {
+					existing[prefix] = state
+				}
+			} else {
+				results[fam.String()] = prefixes
+			}
+			if mpASPAState != aspaStateNone {
+				eventASPA = mpASPAState
+			}
 			if mpASPAState != aspaStateNone {
 				rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
 					nlriBytes, addPath, fam.AFI == 2, mpNormalizedPath, mpASPAState)
 			}
 		}
 	}
-
+	if len(results) > 0 {
+		rp.emitRPKIEvent(peerAddr, peerName, peerASN, msgID, results, cacheEmpty, eventASPA)
+	}
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
 func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerASN uint32, msgID uint64,
 	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool, aspaState uint8,
-	blackhole bool) {
+	blackhole bool) map[string]uint8 {
 
 	addrLen := 4
 	if isIPv6 {
@@ -628,35 +717,41 @@ func (rp *rPKIPlugin) validateNLRIs(peerAddr, peerName, peerGroup string, peerAS
 
 		select {
 		case rp.validateCh <- validationRequest{
-			peerAddr:  peerAddr,
-			peerGroup: peerGroup,
-			family:    family,
-			prefix:    prefix,
-			pathID:    pathID,
-			state:     state,
-			aspaState: aspaState,
-			originAS:  originAS,
-			blackhole: blackhole,
+			peerAddr:   peerAddr,
+			peerGroup:  peerGroup,
+			family:     family,
+			prefix:     prefix,
+			pathID:     pathID,
+			msgID:      msgID,
+			state:      state,
+			aspaState:  aspaState,
+			originAS:   originAS,
+			blackhole:  blackhole,
+			generation: rp.validationGeneration.Load(),
 		}:
 		case <-rp.stopCh:
-			return
+			return familyResults
 		}
 
 		// Track the route for RFC 6811 Section 4 origin re-validation when the ROA cache (VRP set)
 		// changes. Independent of ASPA: origin validation runs whenever RPKI is active.
 		rp.originTracker.Track(routeKey{peerAddr: peerAddr, family: family, prefix: prefix, pathID: pathID},
-			peerGroup, originAS, state, aspaState, blackhole)
+			originRoute{peerGroup: peerGroup, peerName: peerName, peerASN: peerASN,
+				originAS: originAS, state: state, aspaState: aspaState,
+				blackhole: blackhole, msgID: msgID, unavailable: cacheEmpty})
 	}
 
-	if len(familyResults) > 0 || cacheEmpty {
-		rp.emitRPKIEvent(peerAddr, peerName, peerASN, msgID, family, familyResults, cacheEmpty, aspaState)
-	}
+	return familyResults
 }
 
 // handleEvent processes BGP events (UPDATE received).
 // Validates each prefix against the ROA cache, enqueues accept/reject decisions
 // to the async worker, and emits an rpki event with per-prefix validation states.
 func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
+	if event.GetEventType() == rpc.EventKindState && event.GetPeerState() == "down" {
+		rp.removePeer(event.GetPeerAddress())
+		return
+	}
 	if !rp.active.Load() {
 		return
 	}
@@ -666,22 +761,40 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 		return
 	}
 
-	peerAddr := event.GetPeerAddress()
-	if peerAddr == "" {
+	var peer bgp.PeerInfoJSON
+	if err := json.Unmarshal(event.Peer, &peer); err != nil || peer.Remote.Address == "" {
 		return
 	}
-	peerName := event.GetPeerName()
-	peerGroup := event.GetPeerGroup()
+	rp.validationMu.Lock()
+	defer rp.validationMu.Unlock()
+	if !rp.active.Load() {
+		return
+	}
+	peerAddr, peerName, peerGroup := peer.Remote.Address, peer.Name, peer.Group
 
-	// Use parsed AS_PATH (already ASN4-normalized) when available.
-	// Fall back to raw attribute parsing only if ASPath is empty.
+	// Use the same segment-aware origin rule on both delivery paths, including
+	// the local speaker AS for an empty or confederation-ending AS_PATH.
 	originAS := originASFromParsed(event.ASPath)
-	if originAS == OriginNone {
-		if len(event.RawAttributeBytes) > 0 {
-			originAS = extractOriginASFromBytes(event.RawAttributeBytes)
-		} else if event.RawAttributes != "" {
-			originAS = extractOriginAS(event.RawAttributes)
+	var localAS uint32
+	if peer.Local != nil {
+		localAS = peer.Local.AS
+		if len(event.ASPath) == 0 {
+			originAS = localAS
 		}
+	}
+	var attrs *attribute.AttributesWire
+	var asp *attribute.ASPath
+	raw := event.GetRawAttributesBytes()
+	if len(raw) > 0 {
+		attrs = attribute.NewAttributesWire(raw, bgpctx.APIContextID)
+		asp = rpkiASPathFromWire(attrs)
+		originAS = OriginNone
+		if asp != nil {
+			originAS = rpkiOriginASFromASPath(asp, localAS)
+		}
+	} else if event.RawAttributes != "" {
+		// A malformed hex field must not fall back to the flattened path.
+		originAS = OriginNone
 	}
 
 	// Check if ROA cache is empty (unavailable).
@@ -695,76 +808,116 @@ func (rp *rPKIPlugin) handleEvent(event *bgp.Event) {
 	// carries no raw attributes at all the answer is false, and the exemption
 	// stays closed: a route whose communities were never delivered must not be
 	// treated as if it asked for a blackhole.
-	blackhole := false
-	if len(event.RawAttributeBytes) > 0 {
-		blackhole = rp.carriesAgreedBlackhole(peerAddr, peerGroup,
-			attribute.NewAttributesWire(event.RawAttributeBytes, bgpctx.APIContextID))
-	}
+	blackhole := rp.carriesAgreedBlackhole(peerAddr, peerGroup, attrs)
 
-	// ASPA verification on JSON fallback path.
-	// event.ASPath is a flat []uint32 without segment types, so AS_SET
-	// detection is unavailable. Consecutive-dup removal is applied.
+	// Full events preserve the segment types, including AS_SET. Flattened JSON
+	// AS paths are used only when the event carries no raw attributes.
 	aspaState := aspaStateNone
-	if rp.aspaEnabled.Load() && len(event.ASPath) > 0 {
-		path := deduplicateASPath(event.ASPath)
-		aspaState = verifyASPA(rp.aspaCache, path)
+	var normalizedPath []uint32
+	if rp.aspaEnabled.Load() && (peer.Local == nil || peer.Remote.AS != peer.Local.AS) {
+		mode := rp.aspaModeForPeer(peerAddr, peerName, peerGroup)
+		if len(raw) > 0 || event.RawAttributes != "" {
+			if asp != nil {
+				aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments, mode)
+			} else {
+				aspaState = ASPAInvalid
+			}
+		} else {
+			normalizedPath = deduplicateASPath(event.ASPath)
+			aspaState = verifyASPAPath(rp.aspaCache, normalizedPath, mode)
+		}
 	}
 
 	// Validate each NLRI prefix against the ROA cache.
-	// Collect per-family results for rpki event emission.
+	// A single secondary must contain all families for the decorator's UPDATE.
+	results := make(map[string]map[string]uint8)
+	eventASPA := aspaStateNone
 	for fam, ops := range event.FamilyOps {
 		famName := fam.String()
 		familyResults := make(map[string]uint8)
+		familyASPA := aspaState
+		if !aspaAppliesTo(fam) {
+			familyASPA = aspaStateNone
+		}
 
-		for _, op := range ops {
-			if op.Action != routeaction.Add {
-				continue
-			}
-
-			for _, nlriVal := range op.NLRIs {
-				prefix, pathID := bgp.ParseNLRIValue(nlriVal)
-				if prefix == "" {
+		// RFC 4271 Section 4.3: a simultaneous announcement wins over
+		// withdrawal, regardless of the order of operations in JSON.
+		for _, pass := range [...]routeaction.Action{routeaction.Del, routeaction.Add} {
+			for _, op := range ops {
+				if op.Action != pass {
 					continue
 				}
 
-				state := rp.cache.Validate(prefix, originAS)
-				familyResults[prefix] = state
+				for _, nlriVal := range op.NLRIs {
+					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
+					if prefix == "" {
+						continue
+					}
+					key := routeKey{peerAddr: peerAddr, family: famName, prefix: prefix, pathID: pathID}
+					if op.Action == routeaction.Del {
+						rp.aspaTracker.Remove(key, event.GetMsgID())
+						rp.originTracker.Remove(key, event.GetMsgID())
+						continue
+					}
 
-				// Blocking enqueue to async worker (backpressure if worker falls behind).
-				select {
-				case rp.validateCh <- validationRequest{
-					peerAddr:  peerAddr,
-					peerGroup: peerGroup,
-					family:    famName,
-					prefix:    prefix,
-					pathID:    pathID,
-					state:     state,
-					aspaState: aspaState,
-					originAS:  originAS,
-					blackhole: blackhole,
-				}:
-				case <-rp.stopCh:
-					return
+					state := rp.cache.Validate(prefix, originAS)
+					familyResults[prefix] = state
+
+					// Blocking enqueue to async worker (backpressure if worker falls behind).
+					select {
+					case rp.validateCh <- validationRequest{
+						peerAddr:   peerAddr,
+						peerGroup:  peerGroup,
+						family:     famName,
+						prefix:     prefix,
+						pathID:     pathID,
+						msgID:      event.GetMsgID(),
+						state:      state,
+						aspaState:  familyASPA,
+						originAS:   originAS,
+						blackhole:  blackhole,
+						generation: rp.validationGeneration.Load(),
+					}:
+					case <-rp.stopCh:
+						return
+					}
+					rp.originTracker.Track(key, originRoute{
+						peerGroup: peerGroup, peerName: peerName, peerASN: peer.Remote.AS,
+						originAS: originAS, state: state, aspaState: familyASPA,
+						blackhole: blackhole, msgID: event.GetMsgID(), unavailable: cacheEmpty,
+					})
+					if familyASPA != aspaStateNone {
+						rp.aspaTracker.Track(trackedRoute{
+							key: key, peerName: peerName, peerGroup: peerGroup, peerASN: peer.Remote.AS,
+							msgID: event.GetMsgID(), path: normalizedPath, aspaState: familyASPA,
+							mode: rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
+						})
+					}
 				}
 			}
 		}
 
-		// Emit rpki event only if there were "add" operations (skip pure withdrawals).
-		if len(familyResults) > 0 || cacheEmpty {
-			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), famName, familyResults, cacheEmpty, aspaState)
+		if len(familyResults) > 0 {
+			results[famName] = familyResults
+			if familyASPA != aspaStateNone {
+				eventASPA = familyASPA
+			}
 		}
+	}
+	if len(results) > 0 {
+		rp.emitRPKIEvent(peerAddr, peerName, peer.Remote.AS, event.GetMsgID(), results, cacheEmpty, eventASPA)
 	}
 }
 
 // emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
-// Called after validating all prefixes in a family for a single UPDATE.
+// Called after validating all prefixes and families for a single UPDATE.
 // aspaState is included when != aspaStateNone.
-func (rp *rPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool, aspaState uint8) {
+func (rp *rPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, results map[string]map[string]uint8, cacheEmpty bool, aspaState uint8) {
 	var event string
 	if cacheEmpty {
 		event = buildRPKIEventUnavailable(peerAddr, peerName, peerASN, msgID)
 	} else {
-		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, famName, results, aspaState)
+		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, results, aspaState)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -854,6 +1007,14 @@ func (rp *rPKIPlugin) drainAndDispatch(batch []validationRequest) {
 // dispatchBatch sends a batch of validation decisions to adj-rib-in
 // via the typed BatchValidate path (no string serialization for internal plugins).
 func (rp *rPKIPlugin) dispatchBatch(batch []validationRequest) {
+	rp.dispatchMu.Lock()
+	defer rp.dispatchMu.Unlock()
+	// Enqueue is serialized by validationMu, so generations are monotonic.
+	// Discard only the obsolete prefix; current requests need no copying.
+	generation := rp.validationGeneration.Load()
+	for len(batch) != 0 && batch[0].generation != generation {
+		batch = batch[1:]
+	}
 	if len(batch) == 0 {
 		return
 	}
@@ -953,18 +1114,24 @@ func (rp *rPKIPlugin) buildDecisions(batch []validationRequest) []rpc.Validation
 		if !reject && req.aspaState != aspaStateNone {
 			reject = aspaOverridesAccept(req.aspaState, invalidAction, unknownAction)
 		}
-
-		var valState uint8
-		if !reject {
-			valState = req.state
+		if (req.aspaState == ASPAInvalid && invalidAction == ASPAPolicyLogOnly) ||
+			(req.aspaState == ASPAUnknown && unknownAction == ASPAPolicyLogOnly) {
+			logger().Warn("rpki: ASPA log-only policy", "prefix", req.prefix,
+				"peer", req.peerAddr, "aspa-state", aspaStateString(req.aspaState))
 		}
+
+		// Retain received bytes for cache/config revalidation and rollback.
+		// ASPA Section 5.7 requires this for Invalid paths; origin policy
+		// rejection likewise changes eligibility, not ownership of the UPDATE.
 		decisions[i] = rpc.ValidationDecision{
-			Accept:   !reject,
-			PeerAddr: req.peerAddr,
-			Family:   req.family,
-			Prefix:   req.prefix,
-			PathID:   req.pathID,
-			ValState: valState,
+			Accept:     !reject,
+			Ineligible: reject,
+			MsgID:      req.msgID,
+			PeerAddr:   req.peerAddr,
+			Family:     req.family,
+			Prefix:     req.prefix,
+			PathID:     req.pathID,
+			ValState:   req.state,
 		}
 	}
 	return decisions
@@ -988,10 +1155,6 @@ func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN u
 	if isIPv6 {
 		addrLen = 16
 	}
-
-	// Make an owned copy of the path for the tracker.
-	pathCopy := make([]uint32, len(normalizedPath))
-	copy(pathCopy, normalizedPath)
 
 	offset := 0
 	for offset < len(nlriData) {
@@ -1030,19 +1193,20 @@ func (rp *rPKIPlugin) trackNLRIs(peerAddr, peerName, peerGroup string, peerASN u
 			peerGroup: peerGroup,
 			peerASN:   peerASN,
 			msgID:     msgID,
-			path:      pathCopy,
+			path:      normalizedPath,
 			aspaState: aspaState,
+			mode:      rp.aspaModeForPeer(peerAddr, peerName, peerGroup),
 		})
 	}
 }
 
 // removeWithdrawnFromTracker removes withdrawn routes from the ASPA tracker.
-func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
+func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, msgID uint64, wu *wireu.WireUpdate, ctx *bgpctx.EncodingContext) {
 	// IPv4 withdrawn routes.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
-		rp.removeTrackedNLRIs(peerAddr, "ipv4/unicast", wdData, addPath, false)
+		rp.removeTrackedNLRIs(peerAddr, msgID, "ipv4/unicast", wdData, addPath, false)
 	}
 
 	// MP_UNREACH_NLRI withdrawn routes.
@@ -1052,13 +1216,13 @@ func (rp *rPKIPlugin) removeWithdrawnFromTracker(peerAddr string, wu *wireu.Wire
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			rp.removeTrackedNLRIs(peerAddr, fam.String(), wdBytes, addPath, fam.AFI == 2)
+			rp.removeTrackedNLRIs(peerAddr, msgID, fam.String(), wdBytes, addPath, fam.AFI == 2)
 		}
 	}
 }
 
 // removeTrackedNLRIs walks wire NLRI bytes and removes each from the ASPA tracker.
-func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, addPath, isIPv6 bool) {
+func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr string, msgID uint64, fam string, nlriData []byte, addPath, isIPv6 bool) {
 	addrLen := 4
 	if isIPv6 {
 		addrLen = 16
@@ -1096,72 +1260,91 @@ func (rp *rPKIPlugin) removeTrackedNLRIs(peerAddr, fam string, nlriData []byte, 
 		prefix := netip.PrefixFrom(addr, prefixLen).String()
 
 		key := routeKey{peerAddr: peerAddr, family: fam, prefix: prefix, pathID: pathID}
-		rp.aspaTracker.Remove(key)
-		rp.originTracker.Remove(key)
+		rp.aspaTracker.Remove(key, msgID)
+		rp.originTracker.Remove(key, msgID)
 	}
 }
 
 // handleROAChange is called by RTR sessions when the ROA cache (VRP set) changes at End of Data.
-// RFC 6811 Section 4: it re-validates every tracked route's origin state against the updated cache
-// and re-dispatches an accept/reject decision for each route whose state changed, so the
-// Adj-RIB-In and the decision process reflect the new VRPs. buildDecisions applies the configured
-// invalid-action to the re-dispatched decisions, exactly as it does for freshly received routes.
+// RFC 6811 Section 4: it re-validates tracked origins against the updated cache.
+// Changed origin states and Invalid BLACKHOLE routes reach buildDecisions again:
+// the latter can gain or lose their length-only exemption without changing state.
 func (rp *rPKIPlugin) handleROAChange() {
+	rp.validationMu.Lock()
+	defer rp.validationMu.Unlock()
 	changed := rp.originTracker.revalidate(rp.cache)
 	if len(changed) == 0 {
 		return
 	}
+	affected := make(map[rpkiUpdateKey]struct{})
 	for _, c := range changed {
+		affected[rpkiUpdateKey{peerAddr: c.key.peerAddr, msgID: c.msgID}] = struct{}{}
+		if !c.decisionRequired {
+			continue
+		}
 		select {
 		case rp.validateCh <- validationRequest{
-			peerAddr:  c.key.peerAddr,
-			peerGroup: c.peerGroup,
-			family:    c.key.family,
-			prefix:    c.key.prefix,
-			pathID:    c.key.pathID,
-			state:     c.state,
-			aspaState: c.aspaState,
-			originAS:  c.originAS,
-			blackhole: c.blackhole,
+			peerAddr:   c.key.peerAddr,
+			peerGroup:  c.peerGroup,
+			family:     c.key.family,
+			prefix:     c.key.prefix,
+			pathID:     c.key.pathID,
+			msgID:      c.msgID,
+			state:      c.state,
+			aspaState:  c.aspaState,
+			originAS:   c.originAS,
+			blackhole:  c.blackhole,
+			generation: rp.validationGeneration.Load(),
 		}:
 		case <-rp.stopCh:
 			return
 		}
 	}
+	rp.emitRPKIUpdates(rp.originTracker.updateResults(affected))
 	logger().Info("rpki: re-validated routes after VRP change", "changed", len(changed))
 }
 
-// handleASPAChange is called by RTR sessions when ASPA cache data changes.
-// Re-validates tracked routes, emits updated events for state changes,
-// and dispatches reject for routes that ASPA policy now demands rejecting.
+// handleASPAChange re-evaluates affected paths and applies both current verdicts.
+// Recovery is a decision too: a repaired ASPA can restore a retained route without
+// a fresh UPDATE, but cannot override an origin-validation rejection.
 func (rp *rPKIPlugin) handleASPAChange(changedCustomers []uint32) {
 	if !rp.aspaEnabled.Load() {
 		return
 	}
-	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8
-	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8
-
+	rp.validationMu.Lock()
+	defer rp.validationMu.Unlock()
 	changed := rp.aspaTracker.revalidate(rp.aspaCache, changedCustomers)
+	affected := make(map[rpkiUpdateKey]struct{})
 	for _, rt := range changed {
-		rp.emitRPKIEvent(rt.key.peerAddr, rt.peerName, rt.peerASN, rt.msgID,
-			rt.key.family, nil, false, rt.aspaState)
-
-		if aspaOverridesAccept(rt.aspaState, invalidAction, unknownAction) {
-			select {
-			case rp.validateCh <- validationRequest{
-				peerAddr:  rt.key.peerAddr,
-				peerGroup: rt.peerGroup,
-				family:    rt.key.family,
-				prefix:    rt.key.prefix,
-				pathID:    rt.key.pathID,
-				state:     ValidationValid,
-				aspaState: rt.aspaState,
-			}:
-			case <-rp.stopCh:
-				return
-			}
+		current, ok := rp.originTracker.updateASPA(rp.cache, rt.key, rt.msgID, rt.aspaState)
+		if !ok {
+			continue
+		}
+		affected[rpkiUpdateKey{peerAddr: current.key.peerAddr, msgID: current.msgID}] = struct{}{}
+		select {
+		case rp.validateCh <- validationRequest{
+			peerAddr: current.key.peerAddr, peerGroup: current.peerGroup,
+			family: current.key.family, prefix: current.key.prefix, pathID: current.key.pathID,
+			state: current.state, aspaState: current.aspaState, originAS: current.originAS,
+			blackhole: current.blackhole, msgID: current.msgID,
+			generation: rp.validationGeneration.Load(),
+		}:
+		case <-rp.stopCh:
+			return
 		}
 	}
+	if len(affected) > 0 {
+		rp.emitRPKIUpdates(rp.originTracker.updateResults(affected))
+	}
+}
+
+// removePeer prunes received-route metadata when the corresponding Adj-RIB-In
+// is cleared, so later cache changes cannot issue decisions for an old session.
+func (rp *rPKIPlugin) removePeer(peerAddr string) {
+	rp.validationMu.Lock()
+	defer rp.validationMu.Unlock()
+	rp.aspaTracker.removePeer(peerAddr)
+	rp.originTracker.removePeer(peerAddr)
 }
 
 // rpkiASPathFromWire extracts the full *attribute.ASPath from AttrsWire.
@@ -1234,23 +1417,22 @@ func (rp *rPKIPlugin) snapshots() []SessionSnapshot {
 	return snaps
 }
 
-// syncedSessions counts how many configured cache servers have completed at least one sync.
-// This is the question rp.active does not answer: active says a cache server is configured,
-// and stays true for a server whose data never arrives or arrives unreadable. Without this
-// count an operator cannot tell "the VRP set covers nothing" from "ze has no VRP set".
-// validationEnabled answers the question an operator brings to the summary: is a route
-// reaching an RPKI verdict right now?
-//
-// It is true once a configured cache server has completed one sync, which is the point at
-// which the VRP set is an answer rather than the absence of one. Before it, every prefix
-// reads NotFound for want of data, so a daemon whose cache server is unreachable would be
-// reporting the opposite of what it does. A cache that synced and then dropped keeps it
-// true, because RFC 8210 Section 10 has the router hold the data it loaded across the loss
-// and every route is still validated against that set.
-//
-// It was written as the literal true until 2026-09-20.
-func validationEnabled(snaps []SessionSnapshot) bool {
-	return syncedSessions(snaps) > 0
+// validationEnabled reports usable data, including a retained set while a new
+// transport/config generation has not synchronized yet. An authenticated empty
+// set is data too; record counts cannot distinguish it from an expired cache.
+func (rp *rPKIPlugin) validationEnabled() bool {
+	if !rp.active.Load() {
+		return false
+	}
+	rp.mu.RLock()
+	lease := rp.dataLease
+	rp.mu.RUnlock()
+	if lease == nil {
+		return false
+	}
+	lease.mu.Lock()
+	defer lease.mu.Unlock()
+	return !lease.stopped && !lease.deadline.IsZero() && time.Now().Before(lease.deadline)
 }
 
 func syncedSessions(snaps []SessionSnapshot) int {
@@ -1283,9 +1465,8 @@ func (rp *rPKIPlugin) statusCommand() (string, any, error) {
 	b.Str(`,"vrp-count-ipv6":`).Int(int64(v6))
 	b.Str(`,"sessions":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-synced":`).Int(int64(synced))
-	// "synced" false with "running" true is the state an operator cannot otherwise see:
-	// RPKI is configured and validating, and no cache server has ever delivered data, so
-	// every prefix reads not-found for want of a VRP set rather than for want of a ROA.
+	// Configured sessions can all be unsynced while a previous generation's
+	// data remains usable until its original expiration deadline.
 	b.Str(`,"synced":`).Bool(synced > 0)
 	b.Str(`,"aspa-enabled":`).Bool(aspaEnabled)
 	b.Str(`,"aspa-records":`).Int(int64(aspaCount))
@@ -1456,7 +1637,7 @@ func (rp *rPKIPlugin) appendSummaryFields(b *textbuf.Buffer, snaps []SessionSnap
 	}
 
 	b.Str(`"vrp-count":`).Int(int64(v4 + v6))
-	b.Str(`,"validation-enabled":`).Bool(validationEnabled(snaps))
+	b.Str(`,"validation-enabled":`).Bool(rp.validationEnabled())
 	b.Str(`,"sessions-total":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-established":`).Int(int64(established))
 	b.Str(`,"sessions-synced":`).Int(int64(syncedSessions(snaps)))

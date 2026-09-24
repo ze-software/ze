@@ -5,6 +5,7 @@
 package rpki
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,11 +23,28 @@ import (
 // an ASPA record that does not name 200.
 func aspaInvalidPlugin(t *testing.T) *rPKIPlugin {
 	t.Helper()
-	rp := groupMemberPlugin(t)
-	rp.aspaEnabled.Store(true)
+	rp, _ := aspaRolePlugin(t, "provider")
 	rp.aspaCache.Set(200, []uint32{100})
 	rp.aspaCache.Set(300, []uint32{999})
 	return rp
+}
+
+// aspaRolePlugin applies a real dynamic-group role and the global ASPA policy.
+func aspaRolePlugin(t *testing.T, role string) (*rPKIPlugin, *rpc.DirectBridge) {
+	t.Helper()
+	cfg, err := parseRPKIConfig(fmt.Sprintf(`{
+		"rpki": {"aspa": {"validation": "true"}, "action": {"invalid": "reject"}, "cache-server": {"192.0.2.1": {"trusted-network": "true"}}},
+		"group": {"ix": {"connection": {"remote": {"ip": "dynamic"}}, "role": {"import": %q}}}
+	}`, role))
+	require.NoError(t, err)
+	rp, bridge := groupMemberPlugin(t)
+	rp.aspaEnabled.Store(cfg.ASPAValidation)
+	rp.aspaInvalidAction.Store(uint32(cfg.ASPAInvalidAction))
+	rp.aspaUnknownAction.Store(uint32(cfg.ASPAUnknownAction))
+	rp.originInvalidAction.Store(uint32(cfg.OriginInvalidAction))
+	rp.originNotFoundAction.Store(uint32(cfg.OriginNotFoundAction))
+	rp.perPeerActions.Store(&cfg.PeerActions)
+	return rp, bridge
 }
 
 // aspaMPReachBody builds an UPDATE body with ORIGIN, AS_PATH [100 200 300] and
@@ -67,6 +85,7 @@ func feedASPAUpdate(t *testing.T, rp *rPKIPlugin, body []byte) []validationReque
 		PeerGroup:   "ix",
 		PeerAS:      100,
 		LocalAS:     65000,
+		MessageID:   71,
 		RawMessage: &bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,
 			RawBytes:   body,
@@ -181,4 +200,91 @@ func TestASPANotAppliedToOtherFamilies(t *testing.T) {
 				"a %s route must not be tracked for ASPA re-validation", tc.family)
 		})
 	}
+}
+
+// TestASPAUpstreamRoles verifies the configured local role selects upstream
+// verification on the received route, including a transparent route server.
+func TestASPAUpstreamRoles(t *testing.T) {
+	// Section 5.5 applies upstream verification to these receiving roles:
+	// authorized paths are Valid; a denied upstream hop remains Invalid.
+	for _, role := range []string{"provider", "peer", "rs", "rs-client"} {
+		t.Run(role, func(t *testing.T) {
+			rp, _ := aspaRolePlugin(t, role)
+			rp.aspaCache.Set(200, []uint32{100})
+			rp.aspaCache.Set(300, []uint32{200})
+			body := aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 0})
+			reqs := feedASPAUpdate(t, rp, body)
+			require.Len(t, reqs, 1)
+			assert.Equal(t, ASPAValid, reqs[0].aspaState)
+			assert.True(t, rp.buildDecisions(reqs)[0].Accept)
+
+			rp.aspaCache.Set(300, []uint32{999})
+			reqs = feedASPAUpdate(t, rp, body)
+			require.Len(t, reqs, 1)
+			assert.Equal(t, ASPAInvalid, reqs[0].aspaState)
+			assert.False(t, rp.buildDecisions(reqs)[0].Accept)
+		})
+	}
+}
+
+// TestASPADownstreamRole accepts a provider path whose ramps meet at AS200.
+// Interpreting the local customer role as upstream verification rejects it.
+func TestASPADownstreamRole(t *testing.T) {
+	rp, _ := aspaRolePlugin(t, "customer")
+	rp.aspaCache.Set(100, []uint32{200})
+	rp.aspaCache.Set(200, []uint32{0})
+	rp.aspaCache.Set(300, []uint32{200})
+	reqs := feedASPAUpdate(t, rp,
+		aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 0}))
+	require.Len(t, reqs, 1)
+	assert.Equal(t, ASPAValid, reqs[0].aspaState)
+	assert.True(t, rp.buildDecisions(reqs)[0].Accept)
+}
+
+// TestASPARecoveryKeepsCurrentOriginVerdict drives the real receive path and
+// both cache callbacks; repairing one validation result cannot erase the other.
+func TestASPARecoveryKeepsCurrentOriginVerdict(t *testing.T) {
+	rp := aspaInvalidPlugin(t)
+	rp.originInvalidAction.Store(uint32(ASPAPolicyReject))
+	rp.cache.Replace([]VRP{makeVRP("10.0.0.0/24", 24, 300)})
+	reqs := feedASPAUpdate(t, rp,
+		aspaMPReachBody(1, 1, []byte{192, 0, 2, 50}, []byte{24, 10, 0, 0}))
+	require.Len(t, reqs, 1)
+	initial := rp.buildDecisions(reqs)[0]
+	assert.False(t, initial.Accept)
+	assert.True(t, initial.Ineligible)
+	assert.Equal(t, ValidationValid, initial.ValState)
+
+	rp.aspaCache.Set(300, []uint32{200})
+	rp.handleASPAChange([]uint32{300})
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	repaired := rp.buildDecisions(reqs)[0]
+	assert.True(t, repaired.Accept)
+	assert.False(t, repaired.Ineligible)
+	assert.Equal(t, initial.MsgID, repaired.MsgID)
+
+	rp.cache.Replace([]VRP{makeVRP("10.0.0.0/24", 24, 999)})
+	rp.handleROAChange()
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	assert.False(t, rp.buildDecisions(reqs)[0].Accept)
+	rp.aspaCache.Set(300, []uint32{999})
+	rp.handleASPAChange([]uint32{300})
+	drainRequests(rp.validateCh)
+	rp.aspaCache.Set(300, []uint32{200})
+	rp.handleASPAChange([]uint32{300})
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	originRejected := rp.buildDecisions(reqs)[0]
+	assert.False(t, originRejected.Accept)
+	assert.True(t, originRejected.Ineligible)
+	assert.Equal(t, ValidationInvalid, originRejected.ValState)
+
+	// A later origin repair sees the latest ASPA verdict, not the original Invalid.
+	rp.cache.Replace([]VRP{makeVRP("10.0.0.0/24", 24, 300)})
+	rp.handleROAChange()
+	reqs = drainRequests(rp.validateCh)
+	require.Len(t, reqs, 1)
+	assert.True(t, rp.buildDecisions(reqs)[0].Accept)
 }

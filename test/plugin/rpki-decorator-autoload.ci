@@ -64,7 +64,7 @@ bgp {
 			receive [ update-rpki ]
 		}
 		attach process bgp-rpki {
-			receive [ update-received ]
+			receive [ update-received state ]
 		}
 		attach process bgp-rpki-decorator {
 			receive [ update-received rpki ]

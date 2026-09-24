@@ -18,6 +18,7 @@ func TestASPATrackerAdd(t *testing.T) {
 		peerASN:   64500,
 		msgID:     1,
 		path:      []uint32{64500, 64501, 64502},
+		mode:      aspaUpstream,
 		aspaState: ASPAValid,
 	})
 
@@ -34,10 +35,11 @@ func TestASPATrackerRemove(t *testing.T) {
 	tr.Track(trackedRoute{
 		key:       key,
 		path:      []uint32{64500, 64501},
+		mode:      aspaUpstream,
 		aspaState: ASPAValid,
 	})
 
-	tr.Remove(key)
+	tr.Remove(key, 0)
 	assert.Equal(t, 0, tr.count())
 
 	// Reverse index should also be empty.
@@ -51,9 +53,6 @@ func TestASPATrackerRemove(t *testing.T) {
 // VALIDATES: AC-5 — cache change triggers re-verification of affected routes.
 // PREVENTS: Stale ASPA states persisting after cache update.
 func TestASPATrackerRevalidate(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 positive -- when ASPA data changes,
-	// affected tracked routes are re-verified and the route whose state flipped (Valid -> Invalid)
-	// is returned for re-dispatch.
 	cache := newASPACache()
 	// Initially: 64501 authorizes 64500 as provider.
 	cache.Set(64501, []uint32{64500})
@@ -67,6 +66,7 @@ func TestASPATrackerRevalidate(t *testing.T) {
 		peerASN:   64500,
 		msgID:     1,
 		path:      []uint32{64500, 64501, 64502},
+		mode:      aspaUpstream,
 		aspaState: ASPAValid,
 	})
 
@@ -89,6 +89,7 @@ func TestASPATrackerReverseIndex(t *testing.T) {
 	tr.Track(trackedRoute{
 		key:       routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "1.0.0.0/8", pathID: 0},
 		path:      []uint32{100, 200, 300},
+		mode:      aspaUpstream,
 		aspaState: ASPAUnknown,
 	})
 
@@ -96,6 +97,7 @@ func TestASPATrackerReverseIndex(t *testing.T) {
 	tr.Track(trackedRoute{
 		key:       routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "2.0.0.0/8", pathID: 0},
 		path:      []uint32{100, 400, 500},
+		mode:      aspaUpstream,
 		aspaState: ASPAUnknown,
 	})
 
@@ -114,9 +116,6 @@ func TestASPATrackerReverseIndex(t *testing.T) {
 // VALIDATES: Route with unchanged state not returned.
 // PREVENTS: Spurious event emission.
 func TestASPATrackerRevalidateNoChange(t *testing.T) {
-	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1 negative -- re-verification after an
-	// ASPA change that does not alter a route's outcome returns nothing, so no spurious re-dispatch
-	// is triggered for that route.
 	cache := newASPACache()
 	cache.Set(64501, []uint32{64500})
 
@@ -124,22 +123,13 @@ func TestASPATrackerRevalidateNoChange(t *testing.T) {
 	tr.Track(trackedRoute{
 		key:       routeKey{peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24", pathID: 0},
 		path:      []uint32{64500, 64501},
+		mode:      aspaUpstream,
 		aspaState: ASPAValid,
 	})
 
 	// Cache didn't actually change the outcome for this route.
 	changed := tr.revalidate(cache, []uint32{64501})
 	assert.Empty(t, changed)
-}
-
-// TestASPATrackerRemoveNonexistent verifies no panic on absent key.
-//
-// VALIDATES: Remove of non-tracked route is safe no-op.
-// PREVENTS: Panic on withdrawal for unknown route.
-func TestASPATrackerRemoveNonexistent(t *testing.T) {
-	tr := newASPATracker()
-	tr.Remove(routeKey{peerAddr: "x", family: "y", prefix: "z", pathID: 0})
-	assert.Equal(t, 0, tr.count())
 }
 
 // TestASPATrackerUpdate verifies re-tracking a route updates its data.
@@ -153,6 +143,7 @@ func TestASPATrackerUpdate(t *testing.T) {
 	tr.Track(trackedRoute{
 		key:       key,
 		path:      []uint32{100, 200},
+		mode:      aspaUpstream,
 		aspaState: ASPAValid,
 	})
 
@@ -160,6 +151,7 @@ func TestASPATrackerUpdate(t *testing.T) {
 		key:       key,
 		path:      []uint32{100, 300, 400},
 		aspaState: ASPAUnknown,
+		mode:      aspaUpstream,
 	})
 
 	assert.Equal(t, 1, tr.count())

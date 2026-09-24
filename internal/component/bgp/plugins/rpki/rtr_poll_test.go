@@ -22,32 +22,53 @@ import (
 // PREVENTS: The parsed Refresh Interval being stored and never used, which made ze poll a cache
 // sending refresh 3600 and retry 600 once every 600 seconds, six times more often than asked.
 func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
+	// RFC requirement: RFC8210-8.1-1 positive -- actual v1 Reset and Serial Queries recur on the cache-supplied Refresh Interval.
 	t.Run("a completed sync waits the refresh interval", func(t *testing.T) {
+		queries := make(chan uint8, 2)
 		// The cache answers every query with a Cache Response and an End of Data carrying
 		// refresh 1 and retry 7200. Only the refresh value can produce a second query here.
 		port, accepts := serveRTR(t, func(conn net.Conn) {
-			query := make([]byte, pduResetQueryLen)
+			if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+				return
+			}
+			query := make([]byte, pduHeaderLen)
 			if _, err := io.ReadFull(conn, query); err != nil {
 				return
 			}
+			if query[1] == pduSerialQuery {
+				if _, err := io.CopyN(io.Discard, conn, 4); err != nil {
+					return
+				}
+			}
+			select {
+			case queries <- query[1]:
+			default:
+			}
 			resp := make([]byte, pduHeaderLen)
-			resp[1] = pduCacheResp
+			resp[0], resp[1] = query[0], pduCacheResp
 			binary.BigEndian.PutUint32(resp[4:8], pduHeaderLen)
 			eod := make([]byte, pduEndOfDataLen)
-			eod[1] = pduEndOfData
+			eod[0], eod[1] = query[0], pduEndOfData
 			binary.BigEndian.PutUint32(eod[4:8], pduEndOfDataLen)
-			binary.BigEndian.PutUint32(eod[12:16], 1)    // refresh interval, seconds
-			binary.BigEndian.PutUint32(eod[16:20], 7200) // retry interval, seconds
-			binary.BigEndian.PutUint32(eod[20:24], 7200) // expire interval, seconds
+			binary.BigEndian.PutUint32(eod[8:12], 1)      // serial, retained for the next query
+			binary.BigEndian.PutUint32(eod[12:16], 1)     // refresh interval, seconds
+			binary.BigEndian.PutUint32(eod[16:20], 7200)  // retry interval, seconds
+			binary.BigEndian.PutUint32(eod[20:24], 14400) // expiry exceeds both poll intervals
 			if _, err := conn.Write(append(resp, eod...)); err != nil {
 				t.Logf("cache write failed: %v", err)
 			}
 		})
 
 		stopCh := make(chan struct{})
-		s := newRTRSession("127.0.0.1", port, 100, "", newROACache(), newASPACache(), stopCh)
+		s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), stopCh)
+		s.version = rtrVersionMin
 		done := make(chan struct{})
 		go func() { defer close(done); newCacheGroup([]*RTRSession{s}, stopCh).Run() }()
+		t.Cleanup(func() {
+			close(stopCh)
+			s.close()
+			<-done
+		})
 
 		first := waitAccept(t, accepts, "the session never opened its first connection")
 		second := waitAccept(t, accepts,
@@ -55,10 +76,14 @@ func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
 		assert.Less(t, second.Sub(first), 30*time.Second,
 			"the second query follows the 1s refresh interval, not the 7200s retry interval")
 
-		close(stopCh)
-		<-done
-		assert.Equal(t, time.Second, s.pollDelay(true), "the refresh interval times a completed sync")
-		assert.Equal(t, 7200*time.Second, s.pollDelay(false), "the retry interval times a failure")
+		for _, want := range []uint8{pduResetQuery, pduSerialQuery} {
+			select {
+			case got := <-queries:
+				assert.Equal(t, want, got)
+			case <-time.After(5 * time.Second):
+				t.Fatal("a connection was opened without its required query")
+			}
+		}
 	})
 
 	t.Run("a failed query waits the retry interval", func(t *testing.T) {
@@ -67,11 +92,16 @@ func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
 		port, accepts := serveRTR(t, func(net.Conn) {})
 
 		stopCh := make(chan struct{})
-		s := newRTRSession("127.0.0.1", port, 100, "", newROACache(), newASPACache(), stopCh)
+		s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), stopCh)
 		s.refreshInterval = time.Hour
 		s.retryInterval = 200 * time.Millisecond
 		done := make(chan struct{})
 		go func() { defer close(done); newCacheGroup([]*RTRSession{s}, stopCh).Run() }()
+		t.Cleanup(func() {
+			close(stopCh)
+			s.close()
+			<-done
+		})
 
 		first := waitAccept(t, accepts, "the session never opened its first connection")
 		second := waitAccept(t, accepts,
@@ -79,8 +109,6 @@ func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
 		assert.Less(t, second.Sub(first), 30*time.Second,
 			"the retry follows the 200ms retry interval, not the one-hour refresh interval")
 
-		close(stopCh)
-		<-done
 	})
 }
 

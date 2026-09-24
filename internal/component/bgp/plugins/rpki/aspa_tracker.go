@@ -3,7 +3,10 @@
 // Related: aspa_cache.go -- cache whose changes trigger re-validation
 package rpki
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // routeKey uniquely identifies a tracked route.
 type routeKey struct {
@@ -27,6 +30,7 @@ type trackedRoute struct {
 	msgID     uint64
 	path      []uint32 // owned copy of normalized AS_PATH
 	aspaState uint8
+	mode      aspaMode
 }
 
 // maxTrackedRoutes bounds tracker memory.
@@ -56,6 +60,9 @@ func (t *aSPATracker) Track(rt trackedRoute) {
 	defer t.mu.Unlock()
 
 	if existing, ok := t.routes[rt.key]; ok {
+		if rt.msgID != 0 && existing.msgID > rt.msgID {
+			return
+		}
 		t.removeFromIndexLocked(existing)
 	} else if len(t.routes) >= maxTrackedRoutes {
 		logger().Warn("aspa: tracker full, dropping route",
@@ -63,21 +70,40 @@ func (t *aSPATracker) Track(rt trackedRoute) {
 		return
 	}
 
+	rt.path = slices.Clone(rt.path)
 	t.routes[rt.key] = &rt
 	t.addToIndexLocked(&rt)
 }
 
-// Remove deletes a tracked route and its reverse index entries.
-func (t *aSPATracker) Remove(key routeKey) {
+// Remove deletes a withdrawal's generation, never a newer config snapshot.
+func (t *aSPATracker) Remove(key routeKey, msgID uint64) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	existing, ok := t.routes[key]
-	if !ok {
+	if !ok || (msgID != 0 && existing.msgID > msgID) {
 		return
 	}
 	t.removeFromIndexLocked(existing)
 	delete(t.routes, key)
+}
+
+func (t *aSPATracker) removePeer(peerAddr string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for key, route := range t.routes {
+		if key.peerAddr == peerAddr {
+			t.removeFromIndexLocked(route)
+			delete(t.routes, key)
+		}
+	}
+}
+
+func (t *aSPATracker) clear() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	clear(t.routes)
+	clear(t.reverseIndex)
 }
 
 // revalidate re-verifies routes affected by ASPA cache changes.
@@ -101,7 +127,7 @@ func (t *aSPATracker) revalidate(cache *aSPACache, changedCustomers []uint32) []
 		if !ok {
 			continue
 		}
-		newState := verifyASPA(cache, rt.path)
+		newState := verifyASPAPath(cache, rt.path, rt.mode)
 		if newState != rt.aspaState {
 			rt.aspaState = newState
 			changed = append(changed, *rt)

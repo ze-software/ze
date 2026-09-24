@@ -5,9 +5,9 @@ package rpki
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
-	"slices"
 )
 
 // RTR protocol versions.
@@ -16,7 +16,7 @@ const (
 	rtrVersionMin uint8 = 1 // minimum fallback version
 )
 
-// PDU type constants (RFC 8210 Section 5, RFC 9582 Section 5.12).
+// PDU type constants (RFC 8210 Section 5, draft-ietf-sidrops-8210bis Section 5.12).
 const (
 	pduSerialNotify uint8 = 0
 	pduSerialQuery  uint8 = 1
@@ -29,7 +29,7 @@ const (
 	pduCacheReset uint8 = 8
 	pduRouterKey  uint8 = 9
 	pduErrorRpt   uint8 = 10
-	pduASPA       uint8 = 11 // RFC 9582: ASPA PDU (v2 only)
+	pduASPA       uint8 = 11 // RTR v2 ASPA PDU.
 )
 
 // PDU fixed lengths.
@@ -40,15 +40,16 @@ const (
 	pduIPv4PrefixLen  = 20
 	pduIPv6PrefixLen  = 32
 	pduEndOfDataLen   = 24
-	pduASPAFixedLen   = 16 // RFC 9582: header(8) + flags/AFI/zero(4) + customer-AS(4)
-	pduASPAMinLen     = 20 // fixed(16) + at least one provider(4)
+	pduASPAFixedLen   = 12 // Header (8) and Customer AS (4).
 )
 
-// RTR error codes (RFC 8210 Section 12, RFC 9582 Section 12).
+// RTR error codes (RFC 8210 Section 12, draft-ietf-sidrops-8210bis Section 12).
 const (
 	errNoDataAvail        uint16 = 2
 	errUnsupportedVersion uint16 = 4
 )
+
+var errASPAProviderList = errors.New("rtr: ASPA provider list error")
 
 // VRP represents a Validated ROA Payload (prefix + maxLength + origin AS).
 type VRP struct {
@@ -165,70 +166,74 @@ func parseEndOfData(buf []byte) (endOfDataParams, error) {
 
 // isFatalError returns true if the RTR error code is fatal (must drop session).
 func isFatalError(code uint16) bool {
-	return code != errNoDataAvail && code != errUnsupportedVersion
+	return code != errNoDataAvail
 }
 
-// parseASPAPDU parses an ASPA PDU (Type 11, RFC 9582 Section 5.12).
-// Returns the record, whether it's an announce (vs withdraw), and any error.
-// A zero CustomerAS in the returned record means "skip this PDU" (unknown AFI).
+// parseASPAPDU reads draft-ietf-sidrops-8210bis-27 Section 5.12's ASPA PDU:
+//
+//	Offset  0        1        2        3
+//	        Version  Type=11  Flags    Zero
+//	        Length (4 octets, offset 4)
+//	        Customer AS (4 octets, offset 8)
+//	        Provider ASes (4 octets each, offset 12; absent for withdrawals)
+//
+// The union provider set is independent of address family.
 func parseASPAPDU(buf []byte) (ASPARecord, bool, error) {
-	if len(buf) < pduASPAMinLen {
-		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU too short: %d < %d", len(buf), pduASPAMinLen)
+	if len(buf) < pduASPAFixedLen {
+		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU too short: %d", len(buf))
 	}
-
-	flags := buf[8]
-	afiFlags := buf[9]
-	customerAS := binary.BigEndian.Uint32(buf[12:16])
-
-	announce := flags&1 == 1
-
-	// RFC 9582: router MUST ignore ASPA PDUs with unknown AFI values (>=3).
-	if afiFlags >= 3 {
-		return ASPARecord{}, false, nil
+	if uint64(binary.BigEndian.Uint32(buf[4:8])) != uint64(len(buf)) {
+		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU length does not match framing")
 	}
-
-	// RFC 9582: customer AS 0 and 0xFFFFFFFF are reserved.
+	customerAS := binary.BigEndian.Uint32(buf[8:12])
 	if customerAS == 0 || customerAS == 0xFFFFFFFF {
 		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU reserved customer AS: %d", customerAS)
 	}
-
+	announce := buf[2]&1 != 0
 	providerBytes := len(buf) - pduASPAFixedLen
-	if providerBytes%4 != 0 {
-		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU provider data not aligned: %d bytes", providerBytes)
-	}
-	provCount := providerBytes / 4
-
-	// RFC 9582 Section 5.12: must have at least one provider.
-	if provCount == 0 {
-		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU has zero providers")
-	}
-
-	providers := make([]uint32, provCount)
-	for i := range provCount {
-		providers[i] = binary.BigEndian.Uint32(buf[pduASPAFixedLen+i*4 : pduASPAFixedLen+i*4+4])
-	}
-
-	// RFC 9582: customer AS MUST NOT appear in its own provider set.
-	if slices.Contains(providers, customerAS) {
-		return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU customer AS %d in own provider set", customerAS)
-	}
-
-	// RFC 9582: provider ASNs 0 and 0xFFFFFFFF are reserved.
-	for _, p := range providers {
-		if p == 0 || p == 0xFFFFFFFF {
-			return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU reserved provider AS: %d", p)
+	if !announce {
+		// Section 5.12: "there MUST be no Provider list, and the PDU Length MUST be 12."
+		if providerBytes != 0 {
+			return ASPARecord{}, false, fmt.Errorf("%w: withdrawal contains providers", errASPAProviderList)
 		}
+		return ASPARecord{CustomerAS: customerAS}, false, nil
 	}
-
-	// RFC 9582: provider ASNs MUST be sorted ascending (duplicates also rejected).
-	for i := 1; i < len(providers); i++ {
-		if providers[i] <= providers[i-1] {
-			return ASPARecord{}, false, fmt.Errorf("rtr: ASPA PDU providers not sorted ascending (duplicate or out of order at index %d)", i)
+	// Section 5.12: "For an announcement, the PDU MUST contain at least one
+	// Provider Autonomous System Number."
+	if providerBytes == 0 || providerBytes%4 != 0 {
+		return ASPARecord{}, false, fmt.Errorf("%w: empty or unaligned provider list", errASPAProviderList)
+	}
+	count := providerBytes / 4
+	providers := make([]uint32, count)
+	for i := range count {
+		provider := binary.BigEndian.Uint32(buf[pduASPAFixedLen+i*4:])
+		// Section 5.12: an announcement with multiple providers "MUST NOT contain AS 0."
+		if provider == 0 && count > 1 {
+			return ASPARecord{}, false, fmt.Errorf("%w: AS 0 alongside other providers", errASPAProviderList)
 		}
+		if provider == customerAS || provider == 0xFFFFFFFF {
+			return ASPARecord{}, false, fmt.Errorf("%w: reserved or self provider AS %d", errASPAProviderList, provider)
+		}
+		// Section 5.12: "Each Provider Autonomous System Number in a given
+		// ASPA PDU MUST be unique." Fields are in increasing numeric order.
+		if i > 0 && provider <= providers[i-1] {
+			return ASPARecord{}, false, fmt.Errorf("%w: providers not sorted or unique", errASPAProviderList)
+		}
+		providers[i] = provider
 	}
+	return ASPARecord{CustomerAS: customerAS, Providers: providers}, true, nil
+}
 
-	return ASPARecord{
-		CustomerAS: customerAS,
-		Providers:  providers,
-	}, announce, nil
+// writeErrorReport writes the RFC 8210 Section 5.11 Error Report layout.
+// Offsets: header 0..7, encapsulated-length 8..11, PDU at 12, text-length last.
+// The caller MUST provide 16+len(pdu) writable bytes.
+func writeErrorReport(buf []byte, version uint8, code uint16, pdu []byte) int {
+	length := 16 + len(pdu)
+	buf[0], buf[1] = version, pduErrorRpt
+	binary.BigEndian.PutUint16(buf[2:4], code)
+	binary.BigEndian.PutUint32(buf[4:8], uint32(length))
+	binary.BigEndian.PutUint32(buf[8:12], uint32(len(pdu)))
+	copy(buf[12:], pdu)
+	clear(buf[12+len(pdu) : length])
+	return length
 }

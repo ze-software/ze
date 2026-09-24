@@ -6,16 +6,20 @@
 # ze-peer: send route 10.0.1.0/24 with AS_PATH [64500, 64501, 64502]
 # 64502 has ASPA record but does NOT authorize 64501 -> Invalid
 # VRP matches (ROA Valid) but ASPA Invalid -> should be rejected
+option=needs-linux:caps=net-admin
+option=netns-link:name=eth1:address=10.0.0.254/24
+
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=linger:value=true
 option=timeout:value=15s
+# NEXT_HOP is nonlocal and on eth1's connected subnet in the isolated test namespace.
 option=update:value=send-route:prefix=10.0.1.0/24:origin-as=64502:next-hop=10.0.0.1:as-path=64500,64501,64502
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# native observer: verify route is NOT in adj-rib-in (rejected by ASPA policy)
+# native observer: verify full route bytes remain in adj-rib-in marked ineligible
 # Native compiled fixture: plugin/rpki-aspa-policy-reject
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
@@ -39,8 +43,10 @@ plugin {
 }
 
 bgp {
+	policy { reject-asn NO-TRANSIT { indirect [ 64496 ]; } }
 	rpki {
 		cache-server 127.0.0.1 {
+			trusted-network true
 			port $PORT2
 		}
 		aspa {
@@ -51,6 +57,9 @@ bgp {
 		}
 	}
 	peer peer1 {
+		role { import provider; }
+		# Isolate ASPA from the independent transit-leak filter.
+		filter { import [ inactive:NO-TRANSIT ]; }
 		connection {
 			remote {
 				ip 127.0.0.1
@@ -81,7 +90,7 @@ bgp {
 			receive [ rpki-received ]
 		}
 		attach process rpki {
-			receive [ update-received ]
+			receive [ update-received state ]
 		}
 		attach process adj-rib-in {
 			receive [ update-received state ]

@@ -33,8 +33,15 @@ func plugin15RPKIPassthrough(ctx context.Context, p *sdk.Plugin) error {
 
 func plugin15RPKICount(ctx context.Context, p *sdk.Plugin) float64 {
 	r := plugin15Dispatch(ctx, p, "show bgp rpki status")
-	m, _ := plugin15Map(r)
-	return plugin15Number(m["vrp-count-ipv4"])
+	m, err := plugin15Map(r)
+	if err != nil {
+		return -1
+	}
+	count, ok := m["vrp-count-ipv4"].(float64)
+	if !ok {
+		return -1
+	}
+	return count
 }
 
 func plugin15UpdatesReceived(ctx context.Context, p *sdk.Plugin) float64 {
@@ -72,29 +79,8 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: %s", r.text())
 	}
-	// The peer sends a FENCE route, 10.0.99.0/24, behind the route under test.
-	// Both carry origin AS 65999, so both are Invalid against the one VRP, both
-	// take the per-peer accept, and both travel one path: stored pending, then
-	// promoted by the validator's batch-validate, which applies its decisions in
-	// slice order under a single lock (adj_rib_in/rib_commands.go). The fence
-	// therefore cannot be installed before the route ahead of it.
-	//
-	// So the wait is on the FENCE and the assertion is one read of the route
-	// under test. Waiting on the route itself would be a sleep wearing a loop:
-	// it encodes "six seconds ought to be enough", which is true on this host
-	// and false on a loaded one, and it reports a product defect when the guess
-	// runs out. `request quiesce` above cannot serve here either -- it drains
-	// what ze owes the wire and its plugins, and this route waits on a round
-	// trip OUT to the validator and back, which no queue drain can promise.
-	var rib plugin15Result
-	if !Poll(ctx, 60, 100*time.Millisecond, func() bool {
-		rib = plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
-		return plugin15Done(rib) && strings.Contains(rib.text(), "10.0.99.0/24")
-	}) {
-		return fmt.Errorf("the fence route 10.0.99.0/24 never reached the adj-RIB-in, so the validator answered nothing: status=%s data=%s", rib.status, rib.text())
-	}
-	if !strings.Contains(rib.text(), "10.0.1.0/24") {
-		return fmt.Errorf("invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override, and the fence behind it arrived: status=%s data=%s", rib.status, rib.text())
+	if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", 3, false, "per-peer accept override"); err != nil {
+		return err
 	}
 	status, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp rpki status"))
 	if err != nil {
@@ -124,32 +110,51 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	return nil
 }
 
-func plugin15AdjRIBTotal(ctx context.Context, p *sdk.Plugin) float64 {
-	r := plugin15Dispatch(ctx, p, "show bgp adj-rib-in status")
-	if !plugin15Done(r) {
-		return -1
-	}
-	m, _ := plugin15Map(r)
-	return plugin15Number(m["total-routes"])
-}
-
 func plugin15RPKILateSync(ctx context.Context, p *sdk.Plugin) error {
 	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15UpdatesReceived(ctx, p) >= 1 }) {
 		return fmt.Errorf("ze never received the UPDATE")
 	}
-	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15AdjRIBTotal(ctx, p) >= 1 }) {
-		return fmt.Errorf("route 10.0.1.0/24 was never installed as NotFound")
+	if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", 2, false, "before cache synchronization"); err != nil {
+		return err
 	}
-	if plugin15RPKICount(ctx, p) != 0 {
+	count := plugin15RPKICount(ctx, p)
+	if count < 0 {
+		return fmt.Errorf("the pre-sync RPKI status did not report its VRP count")
+	}
+	if count != 0 {
 		return fmt.Errorf("the cache synced before the UPDATE arrived, so this run does not exercise re-validation")
+	}
+	before, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp adj-rib-in"))
+	if err != nil {
+		return err
+	}
+	original := plugin14FindRoute(before, "10.0.1.0/24")
+	if !plugin14RouteValidation(before, "10.0.1.0/24", 2, false) {
+		return fmt.Errorf("the pre-sync route changed before releasing the cache: %v", before)
+	}
+	if err := os.WriteFile("rpki-sync.release", nil, 0o600); err != nil {
+		return fmt.Errorf("release the initial RTR synchronization: %w", err)
 	}
 	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15RPKICount(ctx, p) >= 1 }) {
 		return fmt.Errorf("the RTR cache never synced a VRP")
 	}
-	if !Poll(ctx, 24, 500*time.Millisecond, func() bool { return plugin15AdjRIBTotal(ctx, p) == 0 }) {
-		return fmt.Errorf("route 10.0.1.0/24 stayed in the Adj-RIB-In after the VRP made it Invalid")
+	if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", 3, true, "after cache synchronization"); err != nil {
+		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK re-validation removed 10.0.1.0/24 once the cache synced")
+	after, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp adj-rib-in"))
+	if err != nil {
+		return err
+	}
+	retained := plugin14FindRoute(after, "10.0.1.0/24")
+	if !plugin14RouteValidation(after, "10.0.1.0/24", 3, true) {
+		return fmt.Errorf("the post-sync route lost its validation result: %v", after)
+	}
+	for _, key := range []string{"attr-hex", "nhop-hex", "nlri-hex"} {
+		if retained[key] != original[key] {
+			return fmt.Errorf("RPKI revalidation changed received %s: before=%v after=%v", key, original[key], retained[key])
+		}
+	}
+	fmt.Fprintln(os.Stderr, "OK re-validation retained 10.0.1.0/24 as ineligible once the cache synced")
 	return nil
 }
 
@@ -179,21 +184,8 @@ func plugin15RPKIRouteState(ctx context.Context, p *sdk.Plugin, prefix string, s
 	if err := plugin15RPKIReady(ctx, p, true); err != nil {
 		return err
 	}
-	needleA := fmt.Sprintf(`"validation-state":%d`, state)
-	needleB := fmt.Sprintf(`"validation-state": %d`, state)
-	r := plugin15PollCommand(ctx, p, "show bgp adj-rib-in", 40, 250*time.Millisecond, func(r plugin15Result) bool {
-		text := r.text()
-		return plugin15Done(r) && strings.Contains(text, prefix) && (strings.Contains(text, needleA) || strings.Contains(text, needleB))
-	})
-	if !plugin15Done(r) {
-		return fmt.Errorf("rib routes received status=%s: %s", r.status, r.text())
-	}
-	text := r.text()
-	if !strings.Contains(text, prefix) {
-		return fmt.Errorf("route %s not in adj-rib-in: %s", prefix, text)
-	}
-	if !strings.Contains(text, needleA) && !strings.Contains(text, needleB) {
-		return fmt.Errorf("validation-state not %d: %s", state, text)
+	if err := plugin14AssertRouteValidation(ctx, p, prefix, state, false, "origin validation"); err != nil {
+		return err
 	}
 	fmt.Fprintln(os.Stderr, success)
 	return nil
@@ -211,21 +203,19 @@ func plugin15RPKIBatch(ctx context.Context, p *sdk.Plugin) error {
 	if err := plugin15RPKIReady(ctx, p, true); err != nil {
 		return err
 	}
-	r := plugin15PollCommand(ctx, p, "show bgp adj-rib-in", 40, 250*time.Millisecond, func(r plugin15Result) bool {
-		text := r.text()
-		return plugin15Done(r) && strings.Contains(text, "10.0.1.0/24") && strings.Contains(text, "10.0.2.0/24") && strings.Contains(text, "192.168.1.0/24")
-	})
-	if !plugin15Done(r) {
-		return fmt.Errorf("rib query failed: status=%s data=%s", r.status, r.text())
-	}
-	text := r.text()
-	for _, prefix := range []string{"10.0.1.0/24", "10.0.2.0/24", "192.168.1.0/24"} {
-		if !strings.Contains(text, prefix) {
-			return fmt.Errorf("accepted route %s not in adj-rib-in: %s", prefix, text)
+	for _, route := range []struct {
+		prefix     string
+		state      int
+		ineligible bool
+	}{
+		{"10.0.1.0/24", 1, false},
+		{"10.0.2.0/24", 1, false},
+		{"10.0.3.0/24", 3, true},
+		{"192.168.1.0/24", 2, false},
+	} {
+		if err := plugin14AssertRouteValidation(ctx, p, route.prefix, route.state, route.ineligible, "batch validation"); err != nil {
+			return err
 		}
-	}
-	if strings.Contains(text, "10.0.3.0/24") {
-		return fmt.Errorf("10.0.3.0/24 (Invalid) should have been rejected: %s", text)
 	}
 	fmt.Fprintln(os.Stderr, "OK: batch validation correct: 2 Valid accepted, 1 Invalid rejected, 1 NotFound accepted")
 	return nil
@@ -241,12 +231,8 @@ func plugin15RPKIReject(ctx context.Context, p *sdk.Plugin) error {
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: %s", r.text())
 	}
-	r := plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
-	if !plugin15Done(r) {
-		return fmt.Errorf("rib routes received status=%s: %s", r.status, r.text())
-	}
-	if strings.Contains(r.text(), "10.0.1.0/24") {
-		return fmt.Errorf("route 10.0.1.0/24 should have been rejected: %s", r.text())
+	if err := plugin14AssertRouteValidation(ctx, p, "10.0.1.0/24", 3, true, "origin rejection"); err != nil {
+		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: route 10.0.1.0/24 correctly rejected (Invalid)")
 	return nil

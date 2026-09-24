@@ -23,9 +23,8 @@ import (
 // `ze explain doctor-rpki-unreachable` answers.
 const codeRPKIUnreachable = "doctor-rpki-unreachable"
 
-// rtrDefaultPort is the RTR port a cache-server entry that names none listens
-// on (RFC 8210 Section 9: "rpki-rtr (323)"). It is the default rpki_config.go
-// applies when the plugin runs.
+// rtrDefaultPort is the unprotected RTR TCP port (RFC 8210 Section 9).
+// A TLS cache with no explicit port uses 324 instead.
 const rtrDefaultPort = "323"
 
 // rpkiCacheProbeTimeout bounds one cache probe. DoctorProbeTimeout can only
@@ -86,6 +85,9 @@ func checkRPKICacheServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 		port, hasPort := server.Value.Get("port")
 		if !hasPort || port == "" {
 			port = rtrDefaultPort
+			if server.Value.GetContainer("tls") != nil {
+				port = "324"
+			}
 		}
 		if rpkiTCPReachable(net.JoinHostPort(server.Key, port), timeout) {
 			return nil

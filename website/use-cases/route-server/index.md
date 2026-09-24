@@ -23,7 +23,7 @@ Each member peers only with the route server. The route server distributes accep
 A practical deployment uses:
 
 - `bgp-rs` for route-server forwarding;
-- `bgp-adj-rib-in` for accepted inbound route state and replay;
+- `bgp-adj-rib-in` for retained inbound routes and eligible-route replay;
 - `bgp-rib` where local RIB operations or route visibility require it;
 - BGP Role for route-server and route-server-client relationships;
 - RPKI and IRR policy where the IXP requires them;
@@ -44,6 +44,7 @@ plugin {
     internal adj-rib-in { use bgp-adj-rib-in; }
     internal rpki { use bgp-rpki; }
     internal role { use bgp-role; }
+    internal transit-filter { use bgp-filter-path-asn; }
 }
 
 environment {
@@ -58,19 +59,38 @@ bgp {
     session { asn { local 65000; } }
 
     rpki {
-        cache-server 192.0.2.100 { port 323; }
+        cache-server 192.0.2.100 { port 323; trusted-network true; }
         action { invalid reject; not-found accept; }
+    }
+
+    policy {
+        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
     }
 
     group members {
         session {
+            rs-client true;
             family {
                 ipv4/unicast { prefix { maximum 10000; } }
             }
         }
         role { import rs; strict false; }
-        process rpki { receive [ update ]; }
-        process adj-rib-in { receive [ update state ]; }
+        attach process rpki { receive [ update-received state ]; }
+        filter {
+            import [ NO-TRANSIT ];
+            export [ NO-TRANSIT ];
+        }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+        attach process rib {
+            receive [ update state refresh ];
+        }
+        attach process rs {
+            receive [ update-received state open-received refresh ];
+            send [ update ];
+        }
 
         peer member-a {
             connection {
@@ -97,16 +117,20 @@ bgp {
 }
 ```
 
-Replace the RTR cache address and prefix maximum with the values approved for
-the IXP. Validate the exact file before starting it:
+Replace the RTR cache address, prefix maximum, and transit-AS list with the values
+approved for the IXP. The example permits plaintext RTR only on a trusted network;
+use TLS for a cache outside that boundary. Invalid routes remain visible in
+Adj-RIB-In but cannot be selected or exported. Validate the exact file before
+starting it:
 
 ```console
 ze config validate route-server.conf
 ze start route-server.conf
 ```
 
-This baseline sends the best eligible path to each member. Configure ADD-PATH
-only after both directions and every member implementation have been tested.
+The route-server plugin distributes eligible routes without prepending the
+server's ASN. Configure ADD-PATH only after both directions and every member
+implementation have been tested.
 
 ## Session policy
 

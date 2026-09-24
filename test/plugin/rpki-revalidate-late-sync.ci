@@ -1,15 +1,15 @@
 # Test: a route validated against an empty VRP set is re-validated when the cache syncs
 # VALIDATES: RFC 6811 Section 4 re-validation reaches the Adj-RIB-In -- a route installed as
-#            NotFound before the cache answered is removed once the VRPs make it Invalid
+#            NotFound before the cache answered is retained as ineligible once the VRPs make it Invalid
 # PREVENTS: bgp-rpki re-dispatching a decision that bgp-adj-rib-in drops, which pins every route to
 #           the state it carried on arrival for the life of the session
 #
 # Flow:
-# 1. the RTR cache holds its answer back 3 seconds (--sync-delay)
+# 1. the RTR cache waits for the observer's rpki-sync.release file
 # 2. ze-peer sends 10.0.1.0/24 from AS 65999; the VRP set is still empty, so the route validates
 #    NotFound and `not-found accept` installs it
-# 3. the cache answers: 10.0.0.0/8 maxlen 24 AS 65001 covers the prefix, the route is Invalid, and
-#    `invalid reject` must take it back out of the Adj-RIB-In
+# 3. after observing NotFound, the observer releases 10.0.0.0/8 maxlen 24 AS 65001; the route becomes Invalid, and
+#    `invalid reject` must retain its received attributes and exclude it from routing
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -50,6 +50,7 @@ plugin {
 bgp {
 	rpki {
 		cache-server 127.0.0.1 {
+			trusted-network true
 			port $PORT2
 		}
 		action {
@@ -85,7 +86,7 @@ bgp {
 		}
 
 		attach process rpki {
-			receive [ update-received ]
+			receive [ update-received state ]
 		}
 		attach process adj-rib-in {
 			receive [ update-received state ]
@@ -94,12 +95,11 @@ bgp {
 }
 EOF_CONF
 
-# VRP: 10.0.0.0/8 maxlen=24 AS=65001, answered 3 seconds after ze asks, so the UPDATE is validated
-# against an empty cache first (the ordering this test exists for).
-cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --sync-delay 3s --vrp 10.0.0.0/8,24,65001
+# The observer releases this cache only after checking the pre-sync route.
+cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --sync-release rpki-sync.release --vrp 10.0.0.0/8,24,65001
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
-# A helper that dies before printing its success line fails here rather than passing on ze's clean
-# exit.
-expect=stderr:pattern=OK re-validation removed 10.0.1.0/24 once the cache synced
+# The compiled observer checks the retained route's state, eligibility and received bytes.
+# It reports a failure before requesting daemon shutdown; do not pin its success wording.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

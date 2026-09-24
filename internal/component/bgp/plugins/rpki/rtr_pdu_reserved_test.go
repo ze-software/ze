@@ -41,8 +41,8 @@ func dirtyBuf(size int) []byte {
 // output buffer arrives full of 0xFF, and the specified fields around them still
 // carry their real values.
 // PREVENTS: a Reset Query that ships stack or pool residue in its reserved
-// field. RFC 8210 makes the receive side "MUST be ignored", but RFC 6810 makes
-// it only "MAY be ignored", so a v0 cache is free to reject the PDU.
+// field. RFC 6810 Section 5.1 also requires that reserved fields be ignored on
+// receipt; the general Section 5 wording does not permit rejecting them.
 //
 // TestWriteResetQuery asserts the same two octets on a make([]byte, 16), where
 // they were already zero before the call. Deleting both `buf[off+2] = 0` and
@@ -72,4 +72,43 @@ func TestWriteResetQueryZeroesReservedOverGarbage(t *testing.T) {
 	// The obligation stops at the PDU. Octets past it belong to the caller.
 	assert.Equal(t, byte(0xFF), buf[pduResetQueryLen],
 		"the writer must not touch octets past the 8-octet PDU")
+}
+
+// TestReservedPrefixFieldsPreserveValidation drives nonzero reserved header
+// and prefix octets through the session into the cache used for route validation.
+func TestReservedPrefixFieldsPreserveValidation(t *testing.T) {
+	// RFC requirement: RFC8210-5-1 positive -- nonzero reserved header and prefix octets do not prevent IPv4 or IPv6 VRPs from authorizing a received route.
+	// RFC requirement: RFC8210-5.1-1 negative -- reserved flag bits do not turn a withdrawal into an announcement; the authorization is removed.
+	for _, tc := range []struct {
+		name      string
+		pduType   byte
+		ip        []byte
+		prefixLen byte
+		prefix    string
+	}{
+		{"ipv4", pduIPv4Prefix, []byte{10, 0, 0, 0}, 24, "10.0.0.0/24"},
+		{"ipv6", pduIPv6Prefix, []byte{0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 32, "2001:db8::/32"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cache := newROACache()
+			s := newTestRTRSession(t, "127.0.0.1", 3323, 100, "", cache, newASPACache(), make(chan struct{}))
+			s.version = rtrVersionMin
+			end := endOfDataPDU()
+			end[0] = rtrVersionMin
+			pdu := dirtyBuf(16 + len(tc.ip))
+			pdu[0], pdu[1] = rtrVersionMin, tc.pduType
+			binary.BigEndian.PutUint32(pdu[4:8], uint32(len(pdu))) //nolint:gosec // bounded fixture
+			pdu[8], pdu[9], pdu[10] = 0xff, tc.prefixLen, tc.prefixLen
+			copy(pdu[12:], tc.ip)
+			binary.BigEndian.PutUint32(pdu[12+len(tc.ip):], 65001)
+
+			applyPDU(t, s, pdu, false)
+			applyPDU(t, s, end, true)
+			assert.Equal(t, ValidationValid, cache.Validate(tc.prefix, 65001))
+			pdu[8] = 0xfe
+			applyPDU(t, s, pdu, false)
+			applyPDU(t, s, end, true)
+			assert.Equal(t, ValidationNotFound, cache.Validate(tc.prefix, 65001))
+		})
+	}
 }

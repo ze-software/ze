@@ -20,7 +20,8 @@ The two sessions may carry full tables or a constrained lab table. Size prefix l
 
 Save this two-transit example as `transit-edge.conf`. Transit A receives local
 preference 200 and Transit B receives 100, so Transit A wins when both paths are
-otherwise eligible. RPKI Invalid routes are rejected before they reach the RIB.
+otherwise eligible. RPKI Invalid routes remain in Adj-RIB-In but cannot be selected
+or exported.
 
 ```text
 plugin {
@@ -29,6 +30,7 @@ plugin {
     internal rpki { use bgp-rpki; }
     internal role { use bgp-role; }
     internal modify { use bgp-filter-modify; }
+    internal transit-filter { use bgp-filter-path-asn; }
 }
 
 bgp {
@@ -36,11 +38,12 @@ bgp {
     session { asn { local 64500; } }
 
     rpki {
-        cache-server 203.0.113.53 { port 323; }
+        cache-server 203.0.113.53 { port 323; trusted-network true; }
         action { invalid reject; not-found accept; }
     }
 
     policy {
+        reject-asn NO-TRANSIT { indirect [ 174 701 3356 ]; }
         modify TRANSIT-A-PREF {
             set { local-preference 200; }
         }
@@ -56,8 +59,15 @@ bgp {
             }
         }
         role { import customer; strict false; }
-        process rpki { receive [ update ]; }
-        process adj-rib-in { receive [ update state ]; }
+        attach process rpki { receive [ update-received state ]; }
+        filter { export [ NO-TRANSIT ]; }
+        attach process adj-rib-in {
+            receive [ update-received state ];
+            send [ update ];
+        }
+        attach process rib {
+            receive [ update state refresh ];
+        }
 
         peer transit-a {
             connection {
@@ -80,9 +90,10 @@ bgp {
 }
 ```
 
-Replace the documentation addresses, RTR cache, ASNs, and limits. Keep
-`strict false` until both providers advertise a compatible BGP Role, then test
-and enable strict enforcement deliberately.
+Replace the documentation addresses, RTR cache, ASNs, limits, and transit-AS list.
+The example permits plaintext RTR on a trusted network; use TLS for a cache
+outside that boundary. Keep `strict false` until both providers advertise a
+compatible BGP Role, then test and enable strict enforcement deliberately.
 
 ```console
 ze config validate transit-edge.conf
@@ -120,7 +131,11 @@ Use [BGP policy](../../guides/bgp-policy/) to keep these filters ordered and ind
 
 ## Failure behaviour
 
-Decide cache failure behaviour before deployment. A cache timeout can fail open, fail closed, or retain a previously validated state depending on the configured component and policy. Record that decision and test it with the cache unavailable.
+After a cache disconnects, Ze retains its last complete payload set until the
+original RTR expiration deadline. Expiry removes that set and revalidates retained
+routes against the remaining cache data. Pending validations have a separate
+fail-open timeout. Test both transitions with the deployment's Invalid and NotFound
+actions; a disconnected cache alone does not make its unexpired VRPs disappear.
 
 A transit failure and an RPKI cache failure are different events. Monitor them separately so a routing incident does not hide a validation outage.
 
@@ -143,7 +158,10 @@ Test at least four routes:
 3. A NotFound route with the deployment's chosen action.
 4. The same valid prefix from both transits, proving the expected best path and failover.
 
-Then disconnect the preferred transit. Confirm the alternate path becomes active and is installed in the FIB. Restore the session and verify the intended preference returns without stale paths.
+Then disconnect the preferred transit. Confirm the alternate path becomes selected
+in the RIB. If the deployment also configures a forwarding backend, check its FIB
+and packet delivery separately. Restore the session and verify the intended
+preference returns without stale paths.
 
 ## What to watch
 

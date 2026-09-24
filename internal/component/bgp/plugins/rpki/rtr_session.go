@@ -15,12 +15,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/pki"
 	"github.com/ze-software/ze/internal/core/network"
 )
 
 var (
 	errRtrCacheResetReceivedWillDo = errors.New("rtr: cache reset received, will do full sync")
 	errRtrVersionDowngrade         = errors.New("rtr: version downgrade required")
+	errRtrUnsupportedProtocol      = errors.New("rtr: unrecognized protocol version")
+	errRtrDataExpired              = errors.New("rtr: serial response cannot update expired data")
+	errRtrNoDataAvailable          = errors.New("rtr: cache has no data available")
 )
 
 // RTR session states.
@@ -47,6 +51,8 @@ type RTRSession struct {
 	port          uint16
 	preference    uint8
 	sourceAddress string
+	tlsSettings   *rtrTLSSettings
+	pkiConfig     *pki.PKIConfig
 
 	conn      net.Conn
 	state     string
@@ -79,10 +85,12 @@ type RTRSession struct {
 	pendingASPAs    []ASPARecord
 	pendingASPADels []uint32
 
-	mu        sync.Mutex
-	stopCh    <-chan struct{}
-	cache     *ROACache
-	aspaCache *aSPACache
+	mu             sync.Mutex
+	stopCh         <-chan struct{}
+	cache          *ROACache
+	aspaCache      *aSPACache
+	dataLease      *rtrDataLease
+	dataGeneration uint64
 
 	// onASPAChange is called after ASPA data changes at End of Data.
 	// The argument is the set of customer ASNs that were modified.
@@ -139,6 +147,16 @@ type cacheGroup struct {
 
 // newCacheGroup creates the group over sessions, which MUST be ordered most preferred first.
 func newCacheGroup(sessions []*RTRSession, stopCh <-chan struct{}) *cacheGroup {
+	if len(sessions) != 0 {
+		sessions[0].mu.Lock()
+		lease := sessions[0].dataLeaseLocked()
+		sessions[0].mu.Unlock()
+		for _, session := range sessions[1:] {
+			session.mu.Lock()
+			session.dataLease = lease
+			session.mu.Unlock()
+		}
+	}
 	return &cacheGroup{sessions: sessions, stopCh: stopCh}
 }
 
@@ -184,7 +202,11 @@ func (g *cacheGroup) poll() time.Duration {
 		err := s.syncOnce()
 		if err == nil {
 			g.holder = s
-			setSessionsActive(1)
+			if s.Snapshot().Synced {
+				setSessionsActive(1)
+			} else {
+				setSessionsActive(0)
+			}
 			return s.pollDelay(true)
 		}
 
@@ -268,7 +290,7 @@ func (s *RTRSession) stopped() bool {
 	return stopped(s.stopCh)
 }
 
-// connectAndSync establishes TCP connection and runs the RTR protocol.
+// connectAndSync authenticates the selected transport and runs the RTR protocol.
 func (s *RTRSession) connectAndSync() error {
 	addr := net.JoinHostPort(s.address, strconv.Itoa(int(s.port)))
 	dialer := &network.RealDialer{Timeout: 30 * time.Second}
@@ -276,12 +298,9 @@ func (s *RTRSession) connectAndSync() error {
 		return err
 	}
 
-	// Cancel an in-progress dial when the session is stopped, so shutdown is
-	// not blocked for up to the 30s connect timeout. The watcher is scoped to
-	// the dial (the explicit cancelDial after the dial releases it), and the
-	// deferred cancel is a panic-safe backstop -- both paths close dialCtx,
-	// which the goroutine waits on.
-	dialCtx, cancelDial := context.WithCancel(context.Background())
+	// The dial and TLS handshake share one bounded, cancellable attempt. A
+	// stopped session must not wait for an unauthenticated peer to finish TLS.
+	dialCtx, cancelDial := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelDial()
 	go func() {
 		select {
@@ -292,12 +311,16 @@ func (s *RTRSession) connectAndSync() error {
 	}()
 
 	conn, err := dialer.DialContext(dialCtx, "tcp", addr)
-	cancelDial()
 	if err != nil {
 		return fmt.Errorf("connect %s: %w", addr, err)
 	}
 
 	s.mu.Lock()
+	if s.stopped() {
+		s.mu.Unlock()
+		_ = conn.Close()
+		return context.Canceled
+	}
 	s.conn = conn
 	s.state = sessionConnect
 	s.mu.Unlock()
@@ -307,8 +330,21 @@ func (s *RTRSession) connectAndSync() error {
 		s.state = sessionIdle
 		s.mu.Unlock()
 	}()
+	if s.tlsSettings != nil {
+		secure, err := s.startTLS(dialCtx, conn)
+		if err != nil {
+			_ = conn.Close()
+			return err
+		}
+		conn = secure
+		s.mu.Lock()
+		s.conn = conn
+		s.mu.Unlock()
+	}
+	cancelDial()
 
 	// Send initial query with current negotiated version.
+	s.prepareQuery()
 	buf := make([]byte, pduSerialQueryLen)
 	if s.serial == 0 {
 		n := writeResetQuery(buf, 0, s.version)
@@ -331,7 +367,8 @@ func (s *RTRSession) readLoop(conn net.Conn) error {
 	headerBuf := make([]byte, pduHeaderLen)
 
 	for {
-		// Set read deadline based on expire interval.
+		// Bound an idle read separately from the published data's lease. A
+		// received PDU may extend this deadline, never the payload lifetime.
 		if err := conn.SetReadDeadline(time.Now().Add(s.expireInterval)); err != nil {
 			return fmt.Errorf("set deadline: %w", err)
 		}
@@ -364,6 +401,24 @@ func (s *RTRSession) readLoop(conn net.Conn) error {
 
 		done, err := s.handlePDU(hdr, pduBuf)
 		if err != nil {
+			if hdr.Type != pduErrorRpt && (hdr.Type == pduASPA || errors.Is(err, errRtrUnsupportedProtocol)) {
+				// 8210bis Section 5.12: an invalid provider list requires Error
+				// Report 9. Other malformed ASPA PDUs carry Corrupt Data (0).
+				code := uint16(0)
+				if errors.Is(err, errRtrUnsupportedProtocol) {
+					code = errUnsupportedVersion
+				} else if errors.Is(err, errASPAProviderList) {
+					code = 9
+				}
+				report := make([]byte, 16+len(pduBuf))
+				n := writeErrorReport(report, s.version, code, pduBuf)
+				if deadlineErr := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); deadlineErr != nil {
+					return errors.Join(err, deadlineErr)
+				}
+				if _, writeErr := conn.Write(report[:n]); writeErr != nil {
+					return errors.Join(err, writeErr)
+				}
+			}
 			return err
 		}
 		if done {
@@ -374,6 +429,14 @@ func (s *RTRSession) readLoop(conn net.Conn) error {
 
 // handlePDU processes a single RTR PDU. Returns true when session sync is complete.
 func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
+	// Section 7: unrecognized versions require downgrade or Error Report 4
+	// and termination. Serial Notify is ignored during initial synchronization
+	// regardless of its version; Error Reports must not elicit Error Reports.
+	if hdr.Type != pduSerialNotify && hdr.Type != pduErrorRpt {
+		if hdr.Version < rtrVersionMin || hdr.Version > rtrVersionMax {
+			return false, errRtrUnsupportedProtocol
+		}
+	}
 	switch hdr.Type {
 	case pduCacheResp:
 		s.mu.Lock()
@@ -420,11 +483,7 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		}
 		rec, announce, err := parseASPAPDU(buf)
 		if err != nil {
-			logger().Warn("rtr: malformed ASPA PDU, skipping", "error", err)
-			return false, nil
-		}
-		if rec.CustomerAS == 0 {
-			return false, nil
+			return false, err
 		}
 		s.mu.Lock()
 		if announce {
@@ -440,7 +499,20 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		received := time.Now()
 		s.mu.Lock()
+		lease := s.dataLeaseLocked()
+		lease.mu.Lock()
+		// An overdue timer may not have run yet. A serial delta cannot renew
+		// a base whose absolute lifetime ended before this EOD arrived.
+		expired := !lease.deadline.IsZero() && !received.Before(lease.deadline)
+		if !s.fullSync && (s.dataGeneration != lease.generation || expired) {
+			s.serial = 0
+			s.fullSync = true
+			lease.mu.Unlock()
+			s.mu.Unlock()
+			return false, errRtrDataExpired
+		}
 		s.serial = params.SerialNumber
 		s.synced = true
 		if params.RefreshInterval > 0 {
@@ -461,6 +533,7 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		announced := len(s.pendingVRPs)
 		withdrawn := len(s.pendingDels)
 		if fullSync {
+			lease.generation++
 			s.cache.Replace(s.pendingVRPs)
 		} else {
 			s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
@@ -483,6 +556,9 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		}
 		s.pendingASPAs = nil
 		s.pendingASPADels = nil
+		s.dataGeneration = lease.generation
+		lease.renewLocked(received, s.expireInterval)
+		lease.mu.Unlock()
 		s.mu.Unlock()
 
 		// Notify ASPA change callback (re-validation trigger).
@@ -530,11 +606,30 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 
 	case pduErrorRpt:
 		errCode := hdr.SessionID // Error code is in bytes 2-3.
-		// RFC 9582 Section 7: Unsupported Protocol Version -> downgrade.
-		if errCode == errUnsupportedVersion && s.version > rtrVersionMin {
-			s.version--
+		// 8210bis Section 7: retry at the cache's advertised version C,
+		// never at a guessed version or one this cache has already rejected.
+		if errCode == errUnsupportedVersion {
+			if hdr.Version < rtrVersionMin || hdr.Version >= s.version {
+				return false, fmt.Errorf("rtr: no supported common version with cache version %d", hdr.Version)
+			}
+			s.mu.Lock()
+			s.version = hdr.Version
+			// Serial numbers and session IDs belong to the negotiated version.
+			// Fetch a complete lower-version set; no ASPAs survive a v1 sync.
+			s.serial = 0
+			s.fullSync = true
+			s.mu.Unlock()
 			logger().Info("rtr: version downgrade", "address", s.address, "new-version", s.version)
 			return false, errRtrVersionDowngrade
+		}
+		if errCode == errNoDataAvail {
+			// Section 8.4: leave this response and try the next cache. If none
+			// answers, the group retries with a Reset Query, not an old serial.
+			s.mu.Lock()
+			s.serial = 0
+			s.fullSync = true
+			s.mu.Unlock()
+			return false, errRtrNoDataAvailable
 		}
 		if isFatalError(errCode) {
 			return false, fmt.Errorf("rtr: fatal error code %d from cache", errCode)
@@ -567,8 +662,7 @@ type SessionSnapshot struct {
 	Port       uint16
 	Preference uint8
 	State      string
-	// Synced reports whether this cache server has ever completed a sync (End of Data).
-	// A configured server that never delivers data keeps Synced false for its whole life.
+	// Synced reports a completed sync whose published data has not expired.
 	Synced          bool
 	Version         uint8
 	SessionID       uint16
@@ -587,7 +681,7 @@ func (s *RTRSession) Snapshot() SessionSnapshot {
 		Port:            s.port,
 		Preference:      s.preference,
 		State:           s.state,
-		Synced:          s.synced,
+		Synced:          s.synced && (s.dataLease == nil || s.dataLease.current(s.dataGeneration)),
 		Version:         s.version,
 		SessionID:       s.sessionID,
 		Serial:          s.serial,

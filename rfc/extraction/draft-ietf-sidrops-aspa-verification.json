@@ -3,102 +3,122 @@
   "stem": "draft-ietf-sidrops-aspa-verification",
   "register": "rfc2119",
   "source-path": "rfc/drafts/draft-ietf-sidrops-aspa-verification.txt",
-  "source-sha": "d11e36f2253bad3f",
-  "signed-off": "2026-09-21",
-  "reviewer": "claude",
+  "source-sha": "b90c021fcc40be45",
+  "signed-off": "2026-09-22",
+  "reviewer": "Main integration; independent source-mapping review: SourceIdentityReview",
+  "resign-reason": " Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. ASPA retired 5-1/5-2 identities and RFC8571-x-4 retirement remain unresolved where applicable; no replacement obligation was invented.",
   "sections": [
     {
       "id": "front",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Abstract, draft status, copyright and table of contents; no router-verification obligation."
     },
     {
       "id": "1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Introduction describes threats and the purpose of the procedures; it adds no distinct checklist obligation."
     },
     {
       "id": "2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "BCP 14 keyword interpretation boilerplate; no operational requirement."
     },
     {
       "id": "3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Terminology defines route ineligibility, CAS, PAS, SPAS and local peering relationships used by the later algorithms."
     },
     {
       "id": "4",
-      "sites": 5,
+      "sites": 4,
       "disposition": "walked",
+      "reason": "The indicative verification rule retained under 4-1 is: \"Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures (see Section 5.3, Section 5).\" It carries no uppercase MUST, so it is declared here rather than mapped to a registration site. The uppercase registration sites bind the separate registrar. The SHOULDs to register an ASPA, use a single object, enforce that practice in CA hosting software and keep registries identical, plus the RECOMMENDED advance inclusion of standby providers, likewise address registration/CA operations. Revision 28 omits revision 27's AS0-registration MUST, so old site 4:5 has no current counterpart.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1"
       ]
     },
     {
       "id": "5",
-      "sites": 2,
+      "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-2"
-      ]
+      "reason": "The procedures apply to four-octet-compatible speakers and use the reconstructed AS_PATH when AS_PATH and AS4_PATH arrive together. This input definition is retained in the summary's prerequisite discussion. Former section-5 neighbor-check SHOULD and mismatch SHALL sentences are absent; their allocated IDs are source-level conflicts documented in aspa-metadata-migration.json, not assigned to unrelated current sites."
     },
     {
       "id": "5.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "The AS_SET treat-as-withdraw MUST is attributed to RFC 9774/RFC 7606. The draft's own MUST is: \"If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification.\" This is DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2. The neighbor-AS check is described with the transparent route-server exception and attributed to RFC 4271/RFC 7606. The following sentence describes ASPA Invalid if the prerequisites are not enforced; it does not restate the former unconditional SHALL."
+    },
+    {
+      "id": "5.2",
       "sites": 0,
       "disposition": "walked",
+      "reason": "The compression definition retains 5.1-1: \"Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent the AS_PATH after removing consecutive duplicate ASNs, where AS(1) is the origin AS, and AS(N) is the most recently added neighbor AS of the receiving/verifying AS.\" The definition is indicative prose. The section also defines the ramp topology and apex separation used by the formal algorithms.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1"
       ]
     },
     {
-      "id": "5.2",
-      "sites": 0,
-      "disposition": "walked"
-    },
-    {
       "id": "5.3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Defines the union of cryptographically valid ASPA provider sets and the Provider+, Not Provider+ and No Attestation results. The summary retains the function table and the restriction that No Attestation means no retrieved or cryptographically valid ASPA."
     },
     {
       "id": "5.4",
       "sites": 0,
       "disposition": "walked",
+      "reason": "Defines maximum/minimum up-ramp and down-ramp lengths and their Invalid/Unknown/Valid bounds; the summary's ramp table and algorithm steps retain these indicative rules. This is not the current source of the permanently allocated 5.4-1 and 5.4-2 IDs."
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The role obligation retaining 5.4-1 reads: \"The upstream verification algorithm described here is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS.\" Step 3 retains 5.4-2: \"If the AS_PATH has an AS_SET, then the procedure halts with the outcome \"Invalid\".\" Both are indicative algorithm rules. Empty path, neighbor mismatch with the RS-client exception, ramp denial, missing attestation and the Valid fallback are retained in the summary's upstream algorithm.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2"
       ]
     },
     {
-      "id": "5.5",
+      "id": "5.6",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Downstream applies to a route from a Provider and uses both ramps. Step 3 repeats the AS_SET Invalid obligation already recorded as DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 under section 5.5; no duplicate requirement is allocated. The summary retains all downstream steps. This is not the source of the old mitigation IDs."
     },
     {
-      "id": "5.6",
+      "id": "5.7",
       "sites": 1,
       "disposition": "walked",
+      "reason": "The MUST-bearing Invalid sentence maps to retained ID 5.6-1, and also says the route \"SHOULD be considered ineligible for route selection\" (5.6-2). The same paragraph is one inventory site, so the SHOULD has no separate mapping. The other advisory rows come from: \"When a route is evaluated as Unknown (using ASPA-based AS_PATH verification), it SHOULD be treated at the same preference level as a route evaluated as Valid.\" (5.6-3), and \"However, the following mitigation policy is RECOMMENDED.\" (5.6-4), preceded by operator discretion over the specific policy configuration.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2",
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-4",
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3"
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-4"
       ]
     },
     {
       "id": "6",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Introduces deployment recommendations."
     },
     {
       "id": "6.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Links illustrative verification examples; no additional normative requirement."
     },
     {
       "id": "6.2",
       "sites": 2,
       "disposition": "walked",
+      "reason": "The two uppercase MUST sites retain their AFI/SAFI IDs. The advisory row reads: \"However, the procedures are NOT RECOMMENDED for use on internal BGP (iBGP) sessions or eBGP sessions internal to an AS Confederation.\" The ingress placement and external Confederation boundary context are retained.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-3"
       ]
@@ -107,6 +127,7 @@
       "id": "6.3",
       "sites": 0,
       "disposition": "walked",
+      "reason": "6.3-1: \"The BGP Role configuration parameter and its cross-check in BGP OPEN message as specified in [RFC9234] are RECOMMENDED.\" 6.3-2: \"The configured BGP Roles SHOULD be used to automate the use of the above-described AS_PATH verification procedures helping to distinguish whether upstream or downstream procedures should be applied.\" Both are advisory and outside the uppercase MUST inventory.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-1",
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-2"
@@ -116,20 +137,23 @@
       "id": "6.4",
       "sites": 0,
       "disposition": "walked",
+      "reason": "6.4-1: \"If multiple eBGP sessions can segregate the Complex peering relationship into eBGP sessions with normal peering relationships, the receiving/verifying AS SHOULD select the algorithm (per Section 5.5 or Section 5.6) for each of the normal sessions based on its peering relation type.\" For a relation that cannot be segregated and where the described per-prefix option is infeasible, 6.4-2 reads: \"If this option is not feasible, then an operator MAY apply the algorithm for downstream paths (Section 5.6) to avoid false positive outcomes.\"",
       "unsourced-ids": [
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-2",
-        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-1"
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-1",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-2"
       ]
     },
     {
       "id": "6.5",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "The migration notification MUST binds the AS operator's customer-notification process, as classified at 6.5:1."
     },
     {
       "id": "6.6",
       "sites": 0,
       "disposition": "walked",
+      "reason": "The advisory requirement reads: \"For any route with an Invalid AS_PATH, the cause of the Invalid state SHOULD be logged for monitoring and diagnostic purposes.\" The following prose suggests listing Not Provider+ hops and warns that the logging router cannot necessarily identify the leak's author.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.6-1"
       ]
@@ -137,52 +161,62 @@
     {
       "id": "7",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Security considerations heading; substantive text follows in subsections."
     },
     {
       "id": "7.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Explains the cross-family permissiveness caused by a single union of IPv4 and IPv6 providers; retained in the summary."
     },
     {
       "id": "7.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Operational advice to maintain correct ASPAs and monitor customer SPAS membership; explains reduced detection or false Invalid caused by erroneous provider sets. The lowercase modals add no uppercase requirement site."
     },
     {
       "id": "7.3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Describes provider-origin/path manipulation that ASPA may not detect and its operational consequences; no new verification rule."
     },
     {
       "id": "7.4",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "ASPA cannot detect added or removed prepends, but that change alone does not affect route-leak detection. It does not authorise removing non-consecutive repeats."
     },
     {
       "id": "8",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Relation-to-other-technologies heading."
     },
     {
       "id": "8.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Explains complementary origin verification with ROAs."
     },
     {
       "id": "8.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Explains complementary cryptographic path protection with BGPsec; no ASPA requirement added."
     },
     {
       "id": "8.3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Compares ASPA with Peerlock; descriptive text adds no distinct algorithm obligation."
     },
     {
       "id": "8.4",
       "sites": 0,
       "disposition": "walked",
+      "reason": "The advisory requirement reads: \"The implementation of the procedures utilizing the OTC Attribute is RECOMMENDED to complement the ASPA-based AS_PATH verification.\" It follows the limitations on preventing locally initiated leaks and detecting leaks through Complex relationships.",
       "unsourced-ids": [
         "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8.4-1"
       ]
@@ -190,37 +224,49 @@
     {
       "id": "9",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "The section states that the document includes no request to IANA."
     },
     {
       "id": "10",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Describes third-party implementation reports under RFC 7942 and expressly disclaims independent verification. These reports supply no Ze execution evidence."
     },
     {
       "id": "11",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Reference-list heading."
     },
     {
       "id": "11.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative bibliography; titles and dates are not router requirements."
     },
     {
       "id": "11.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative bibliography."
     },
     {
       "id": "A",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledges contributors."
     },
     {
       "id": "B",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Explains route-leak, forged-origin and forged-segment detection properties and assumptions during partial deployment; introduces no new procedure. Authors' addresses follow without a numbered heading."
     }
   ],
   "sites": [
@@ -229,51 +275,44 @@
       "quote": "An AS MUST list in its SPAS the union of all its Provider AS(es) and non-transparent RS AS(es) at which it is an RS-client.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "An AS MUST list its Provider ASes and non-transparent RS ASes in its SPAS. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+      "reason": "Section 4 says: \"An AS MUST list in its SPAS the union of all its Provider AS(es) and non-transparent RS AS(es) at which it is an RS-client.\" This action belongs to the resource holder's ASPA registration service. internal/component/bgp/plugins/rpki/aspa_cache.go::ApplyDelta stores customer/provider records received through RTR; internal/component/bgp/plugins/rpki/aspa_cache.go::checkPair and internal/component/bgp/plugins/rpki/rpki.go::handleStructuredUpdate consume them for verification. These functions neither choose the resource holder's published SPAS nor register signed objects. The registrar acts for the resource holder independently of this router's verification role; a cache supplying verified records does not register the router operator's ASPA on its behalf."
     },
     {
       "id": "4:2",
       "quote": "An AS MUST include a Provider AS in its SPAS regardless of whether it provides connectivity for only IPv4 or only IPv6 or both.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "An AS MUST include a Provider AS in its SPAS whatever address families that provider serves. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+      "reason": "Section 4 says: \"An AS MUST include a Provider AS in its SPAS regardless of whether it provides connectivity for only IPv4 or only IPv6 or both.\" The resource holder's ASPA registration service chooses that SPAS. internal/component/bgp/plugins/rpki/aspa_cache.go::ApplyDelta receives a provider set with no address-family field, and internal/component/bgp/plugins/rpki/aspa_cache.go::checkPair reads it. Receiving the union does not perform the independent resource holder's duty to publish it, and no layer used by these router-verification producers selects or registers that holder's providers."
     },
     {
       "id": "4:3",
       "quote": "In the Complex relationship case (Section 3 and [RFC9234]), an AS MUST include the neighbor AS in its SPAS if the neighbor plays the Provider role for all or a subset of received or sent prefixes.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "In the Complex relationship case an AS MUST include the neighbor AS in its SPAS. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+      "reason": "Section 4 says: \"In the Complex relationship case (Section 3 and [RFC9234]), an AS MUST include the neighbor AS in its SPAS if the neighbor plays the Provider role for all or a subset of received or sent prefixes.\" The resource holder's ASPA registration service publishes those provider relationships. internal/component/bgp/plugins/rpki/aspa_cache.go::ApplyDelta stores received sets and internal/component/bgp/plugins/rpki/rpki_config.go::configuredASPAMode selects the router's verification algorithm; neither publishes ASPAs. A Complex verification relationship does not turn those consumers, or the cache supplying them, into the resource holder's registrar."
     },
     {
       "id": "4:4",
       "quote": "The ASes on the boundary of an AS Confederation MUST register ASPAs using the Confederation's global AS number (ASN) as the CAS.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The ASes on the boundary of an AS Confederation MUST register ASPAs under the Confederation's global ASN. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+      "reason": "Section 4 says: \"The ASes on the boundary of an AS Confederation MUST register ASPAs using the Confederation's global AS number (ASN) as the CAS.\" The Confederation resource holder's ASPA registration service chooses the CAS of the published object. internal/component/bgp/plugins/rpki/aspa_cache.go::ApplyDelta indexes the CAS supplied through RTR and does not register it. Operating a boundary router does not make its verification consumer or its supplying cache the registrant for that resource holder."
     },
     {
-      "id": "4:5",
-      "quote": "If that statement is true, then the AS MUST register an AS0 ASPA.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "An AS with no transit providers MUST register an AS0 ASPA. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
-    },
-    {
-      "id": "5:1",
-      "quote": "If the check fails, then the AS_PATH is considered semantically invalid, and the UPDATE SHALL be handled using the approach of \"treat-as-withdraw\" [RFC7606].",
-      "disposition": "mapped",
-      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-1"
-    },
-    {
-      "id": "5:2",
-      "quote": "[RFC9774] specifies that \"treat-as-withdraw\" error handling [RFC7606] MUST be applied to routes with AS_SET in the AS_PATH.",
+      "id": "5.1:1",
+      "quote": "[RFC9774] specifies that \"treat-as-withdraw\" error handling [RFC7606] MUST be applied to any route containing an AS_SET in the AS_PATH.",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
-      "reason": "The sentence attributes the obligation to the document it cites: \"[RFC9774] specifies that 'treat-as-withdraw' error handling [RFC7606] MUST be applied to routes with AS_SET in the AS_PATH.\" This draft's own directive on AS_SET is the next sentence, \"routes with AS_SET are given Invalid evaluation in the AS_PATH verification procedures (Section 5.4 and Section 5.5)\", which is carried by DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2."
+      "reason": "The sentence explicitly attributes the obligation elsewhere: \"[RFC9774] specifies that \"treat-as-withdraw\" error handling [RFC7606] MUST be applied to any route containing an AS_SET in the AS_PATH.\" This attribution does not exclude ASPA's own AS_SET Invalid result: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 retains that distinct algorithm obligation from sections 5.5 and 5.6. The conditional requirement that implemented checks run before ASPA is separately mapped at 5.1:2."
     },
     {
-      "id": "5.6:1",
+      "id": "5.1:2",
+      "quote": "If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2"
+    },
+    {
+      "id": "5.7:1",
       "quote": "*Invalid*: If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).",
       "disposition": "mapped",
       "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1"
@@ -295,7 +334,7 @@
       "quote": "The AS operator MUST notify its customer ASes and advise them to update ASPA records to include both the globally configured ASN and the legacy ASN in their SPAS.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "\"The AS operator MUST notify its customer ASes and advise them to update ASPA records to include both the globally configured ASN and the legacy ASN in their SPAS.\" The role is the AS operator conducting an out-of-band notification of its customers during AS migration, and the action it demands is performed by the customers' RPKI registrations, not by any router. Ze's ASPA surface is the RTR client at internal/component/bgp/plugins/rpki/aspa_cache.go, which consumes ASPA records and neither issues them nor addresses customers; no producer in the tree could send such a notification. Producer: the AS operator's out-of-band notification of its customer ASes during AS migration; ze holds no code for this role."
+      "reason": "Section 6.5 says: \"The AS operator MUST notify its customer ASes and advise them to update ASPA records to include both the globally configured ASN and the legacy ASN in their SPAS.\" The migrating AS operator's out-of-band customer notification process performs this communication. internal/component/bgp/plugins/rpki/aspa_cache.go::ApplyDelta receives provider sets and internal/component/bgp/plugins/rpki/rpki.go::handleStructuredUpdate verifies received routes; neither contacts the operator's customers or changes their registrations. A cache delivering verified ASPAs does not fulfil this human operational notification on the router's behalf."
     }
   ]
 }

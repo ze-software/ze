@@ -37,6 +37,7 @@ plugin {
 bgp {
 	rpki {
 		cache-server 127.0.0.1 {
+			trusted-network true
 			port $PORT2
 		}
 	}
@@ -68,7 +69,7 @@ bgp {
 		}
 
 		attach process rpki {
-			receive [ update-received ]
+			receive [ update-received state ]
 		}
 		attach process adj-rib-in {
 			receive [ update-received state ]

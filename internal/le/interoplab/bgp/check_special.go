@@ -31,6 +31,9 @@ const (
 )
 
 var specialCheckers = map[string]interoplab.Checker{
+	rpkiReloadScenario:                      checkRPKIPolicyReload,
+	ospfVirtualLinkScenario:                 checkOSPFVirtualLink,
+	ospfv3VirtualLinkScenario:               checkOSPFVirtualLink,
 	"bfd-frr":                               checkBFDFailover,
 	"show-rib-under-frr-load":               checkShowRIBUnderFRRLoad,
 	"bgp-addpath-rail-agreement-speaker":    checkAddPathRailAgreement,

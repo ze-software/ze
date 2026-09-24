@@ -14,16 +14,18 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-rpki",
-		Description:  "RPKI origin validation via RTR protocol",
-		RFCs:         []string{"6811", "8210"},
-		Features:     "yang",
-		YANG:         rpkiyang.ZeRPKIYANG,
-		ConfigRoots:  []string{configRootBGP},
-		Dependencies: []string{configRootBGP, "bgp-adj-rib-in"},
-		RunEngine:    runRPKIPlugin,
-		Commands:     commandDecls(),
-		Pipes:        pipeDecls(),
+		Name:                    "bgp-rpki",
+		Description:             "RPKI origin validation via RTR protocol",
+		RFCs:                    []string{"6811", "8210"},
+		Features:                "yang",
+		YANG:                    rpkiyang.ZeRPKIYANG,
+		ConfigRoots:             []string{configRootBGP, configRootPKI},
+		Dependencies:            []string{configRootBGP, "bgp-adj-rib-in"},
+		RunEngine:               runRPKIPlugin,
+		InProcessConfigVerifier: validateRPKISections,
+		FatalOnConfigError:      true,
+		Commands:                commandDecls(),
+		Pipes:                   pipeDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

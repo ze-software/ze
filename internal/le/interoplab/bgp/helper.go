@@ -452,13 +452,9 @@ func observeRPKI(ctx context.Context, plugin *sdk.Plugin, statusPath string) err
 			status, statusDecodeErr := decodeDispatchDocument(statusData)
 			routes, routesDecodeErr := decodeDispatchDocument(routesData)
 			if statusDecodeErr == nil && routesDecodeErr == nil {
-				states := make(map[string]int64)
-				collectValidationStates(routes, states)
-				sessions := recursiveNumber(status, "sessions")
-				vrps := recursiveNumber(status, "vrp-count-ipv4")
-				_, invalidPresent := states["10.43.0.0/24"]
-				if sessions >= 1 && vrps >= 1 && states["9.43.0.0/24"] == 1 && !invalidPresent && states["11.43.0.0/24"] == 2 {
-					return writeJSON(statusPath, map[string]any{fieldStatus: "ok", "detail": map[string]any{fieldRPKI: status, "routes": states}})
+				last = map[string]any{fieldRPKI: status, "adj-rib-in": routes}
+				if requireRPKIObservation(last) == nil {
+					return writeJSON(statusPath, map[string]any{fieldStatus: "ok", "detail": last})
 				}
 			}
 		}
@@ -485,25 +481,73 @@ func decodeDispatchDocument(data []byte) (any, error) {
 	return document, nil
 }
 
-func collectValidationStates(value any, states map[string]int64) {
+func collectValidationRoutes(value any, routes map[string][]map[string]any) {
 	switch current := value.(type) {
 	case map[string]any:
 		if key, ok := current["key"].(string); ok {
 			parts := strings.Split(key, ":")
 			if len(parts) >= 2 {
-				if state, valid := number(current["validation-state"]); valid {
-					states[parts[1]] = state
-				}
+				routes[parts[1]] = append(routes[parts[1]], current)
 			}
 		}
 		for _, child := range current {
-			collectValidationStates(child, states)
+			collectValidationRoutes(child, routes)
 		}
 	case []any:
 		for _, child := range current {
-			collectValidationStates(child, states)
+			collectValidationRoutes(child, routes)
 		}
 	}
+}
+
+// requireRPKIObservation checks received route state and eligibility together.
+// A missing Invalid route cannot prove that validation retained it.
+func requireRPKIObservation(detail map[string]any) error {
+	status := detail[fieldRPKI]
+	if recursiveNumber(status, "sessions") < 1 || recursiveNumber(status, "vrp-count-ipv4") < 1 {
+		return errors.New("RPKI cache has no session or IPv4 VRPs")
+	}
+	routes := make(map[string][]map[string]any)
+	collectValidationRoutes(detail["adj-rib-in"], routes)
+	for _, expected := range []struct {
+		prefix     string
+		state      int64
+		ineligible bool
+	}{
+		{"9.43.0.0/24", 1, false},
+		{"10.43.0.0/24", 3, true},
+		{"11.43.0.0/24", 2, false},
+	} {
+		paths := routes[expected.prefix]
+		if len(paths) == 0 {
+			return fmt.Errorf("RPKI route %s is missing from Adj-RIB-In", expected.prefix)
+		}
+		for _, path := range paths {
+			state, stateOK := number(path["validation-state"])
+			ineligible, eligibilityOK := path["ineligible"].(bool)
+			if !stateOK || state != expected.state || !eligibilityOK || ineligible != expected.ineligible {
+				return fmt.Errorf("RPKI route %s has validation-state=%v ineligible=%v, expected %d/%t",
+					expected.prefix, path["validation-state"], path["ineligible"], expected.state, expected.ineligible)
+			}
+		}
+	}
+	return nil
+}
+
+func requireRPKIResult(output string) error {
+	document, err := decodeDispatchDocument([]byte(output))
+	if err != nil {
+		return err
+	}
+	result, ok := document.(map[string]any)
+	if !ok || result[fieldStatus] != "ok" {
+		return errors.New("RPKI observer has not succeeded")
+	}
+	detail, ok := result["detail"].(map[string]any)
+	if !ok {
+		return errors.New("RPKI observer result has no detail")
+	}
+	return requireRPKIObservation(detail)
 }
 
 func recursiveNumber(value any, key string) int64 {

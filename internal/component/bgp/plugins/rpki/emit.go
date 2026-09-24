@@ -66,25 +66,20 @@ type rpkiEventMessage struct {
 // Per-prefix states are grouped under the family key. If results is nil or empty,
 // the rpki section is an empty object (withdrawal).
 // When aspaState != aspaStateNone, an "aspa-state" field is included.
-func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8, aspaState uint8) string {
-	// Build per-prefix state strings.
-	var rpkiSection any
-	if len(results) == 0 {
-		section := map[string]any{}
-		if aspaState != aspaStateNone {
-			section["aspa-state"] = aspaStateString(aspaState)
+func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, results map[string]map[string]uint8, aspaState uint8) string {
+	rpkiSection := make(map[string]any, len(results)+1)
+	for family, prefixes := range results {
+		if len(prefixes) == 0 {
+			continue
 		}
-		rpkiSection = section
-	} else {
-		prefixStates := make(map[string]string, len(results))
-		for prefix, state := range results {
+		prefixStates := make(map[string]string, len(prefixes))
+		for prefix, state := range prefixes {
 			prefixStates[prefix] = validationStateString(state)
 		}
-		section := map[string]any{family: prefixStates}
-		if aspaState != aspaStateNone {
-			section["aspa-state"] = aspaStateString(aspaState)
-		}
-		rpkiSection = section
+		rpkiSection[family] = prefixStates
+	}
+	if aspaState != aspaStateNone {
+		rpkiSection["aspa-state"] = aspaStateString(aspaState)
 	}
 
 	evt := rpkiEventJSON{
@@ -122,4 +117,49 @@ func buildRPKIEventUnavailable(peerAddr, peerName string, peerASN uint32, msgID 
 		return `{"type":"bgp","bgp":{"rpki":{"status":"unavailable"}}}`
 	}
 	return string(data)
+}
+
+// The decorator correlates one RPKI event with one UPDATE by peer and MsgID.
+// Neither an address family nor a prefix is a separate correlation unit.
+type rpkiUpdateKey struct {
+	peerAddr string
+	msgID    uint64
+}
+
+type rpkiUpdateResults struct {
+	peerName    string
+	peerASN     uint32
+	results     map[string]map[string]uint8
+	unavailable bool
+	aspaState   uint8
+}
+
+func collectRPKIUpdate(updates map[rpkiUpdateKey]*rpkiUpdateResults, key routeKey, route originRoute) {
+	updateKey := rpkiUpdateKey{peerAddr: key.peerAddr, msgID: route.msgID}
+	update := updates[updateKey]
+	if update == nil {
+		update = &rpkiUpdateResults{
+			peerName: route.peerName, peerASN: route.peerASN,
+			results:     make(map[string]map[string]uint8),
+			unavailable: route.unavailable, aspaState: aspaStateNone,
+		}
+		updates[updateKey] = update
+	}
+	prefixes := update.results[key.family]
+	if prefixes == nil {
+		prefixes = make(map[string]uint8)
+		update.results[key.family] = prefixes
+	}
+	prefixes[key.prefix] = route.state
+	// ASPA is a path verdict shared by the UPDATE's applicable families.
+	if route.aspaState != aspaStateNone {
+		update.aspaState = route.aspaState
+	}
+}
+
+func (rp *rPKIPlugin) emitRPKIUpdates(updates map[rpkiUpdateKey]*rpkiUpdateResults) {
+	for key, update := range updates {
+		rp.emitRPKIEvent(key.peerAddr, update.peerName, update.peerASN, key.msgID,
+			update.results, update.unavailable, update.aspaState)
+	}
 }

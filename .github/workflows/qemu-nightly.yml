@@ -221,6 +221,17 @@ jobs:
           packages "nftables iproute2 libcap kmod"
           timeout 1200s
           command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le qemu pppoe-test'
+      - name: ASPA plugin namespace subset
+        if: ${{ !cancelled() }}
+        env:
+          ZE_QEMU_MEMORY: "8192"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: >-
+          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          packages "nftables iproute2 libcap kmod"
+          timeout 1200s
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le qemu netns-test suites plugin'
       - name: Traffic-usage eBPF proof
         if: ${{ !cancelled() }}
         env:

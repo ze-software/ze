@@ -18,7 +18,7 @@ need.
 | `./le deployment docker-pppoe-accel-test` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
 | `./le qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
 | The LDP, IS-IS and VRRP protocol labs, each inside `./le qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
-| The L2TP appliance proof, the PPPoE labs and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
+| The L2TP appliance proof, the PPPoE labs, the seven-case ASPA plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
 | `bin/ze-perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
@@ -27,6 +27,13 @@ Every job in the three nightly workflows carries `continue-on-error: true`: a
 red suite reports without marking the run failed. The nightly may run under TCG
 emulation, so it is slower than the merge gate and reports rather than blocks.
 Run the QEMU target locally when you add a test, and say so.
+
+The ASPA cases run through `qemu netns-test suites plugin`, whose closed
+selection contains only the seven `rpki-aspa-*` validation and policy carriers.
+It uses per-test namespaces and the existing functional registry's `bgp plugin`
+command prefix. `all-tests` still runs the full plugin suite in the guest root
+namespace, where these cases' `netns-link` prerequisite causes a skip; that run
+does not replace the separate scheduled subset.
 
 ## Why the privileged suites are on GitHub
 

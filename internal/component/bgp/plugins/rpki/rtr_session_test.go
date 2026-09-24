@@ -12,88 +12,275 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRTRSessionStartsAtV2 verifies a fresh RTR session opens at protocol version 2.
-//
-// VALIDATES: RFC 9582 Section 7 — a router that supports RTR v2 starts the session by sending its
-// first query with version=2 (rtrVersionMax).
-// PREVENTS: Silently negotiating an older version and never exercising the ASPA (v2) PDU path.
+func newTestRTRSession(t *testing.T, address string, port uint16, pref uint8, source string, cache *ROACache, aspas *aSPACache, stop <-chan struct{}) *RTRSession {
+	t.Helper()
+	session := newRTRSession(address, port, pref, source, cache, aspas, stop)
+	t.Cleanup(func() {
+		session.close()
+		if session.dataLease != nil {
+			session.dataLease.stop()
+		}
+	})
+	return session
+}
+
+// TestRTRSessionStartsAtV2 exercises the actual TCP queries, including a cache
+// that requires a supported lower version rather than the router's first choice.
 func TestRTRSessionStartsAtV2(t *testing.T) {
-	// RFC requirement: RFC9582-7-1 positive -- a fresh session's negotiated version is rtrVersionMax
-	// (2) and the first query it writes (a Reset Query, since serial==0) carries version byte 2.
-	stopCh := make(chan struct{})
-	session := newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
-
-	assert.Equal(t, rtrVersionMax, session.version, "fresh session negotiates the max version")
-	assert.Equal(t, uint8(2), session.version, "RFC 9582 v2 session")
-
-	// The first query a serial==0 session sends is a Reset Query written with the negotiated version.
-	buf := make([]byte, pduResetQueryLen)
-	n := writeResetQuery(buf, 0, session.version)
-	assert.Equal(t, pduResetQueryLen, n)
-	assert.Equal(t, uint8(2), buf[0], "first query carries protocol version 2")
-	assert.Equal(t, pduResetQuery, buf[1])
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-7-1 positive -- the first TCP query uses the highest implemented RTR version, 2.
+	queries := make(chan [2]byte, 2)
+	replies := make(chan error, 2)
+	attempt := 0
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			replies <- err
+			return
+		}
+		query := make([]byte, pduResetQueryLen)
+		if _, err := io.ReadFull(conn, query); err != nil {
+			replies <- err
+			return
+		}
+		if query[1] == pduSerialQuery {
+			var serial [4]byte
+			if _, err := io.ReadFull(conn, serial[:]); err != nil {
+				replies <- err
+				return
+			}
+		}
+		queries <- [2]byte{query[0], query[1]}
+		attempt++
+		if attempt == 1 {
+			report := make([]byte, 16)
+			n := writeErrorReport(report, 1, errUnsupportedVersion, nil)
+			_, err := conn.Write(report[:n])
+			replies <- err
+			return
+		}
+		response, end := cacheResponsePDU(), endOfDataPDU()
+		response[0], end[0] = 1, 1
+		_, err := conn.Write(append(response, end...))
+		replies <- err
+	})
+	roas, aspas := newROACache(), newASPACache()
+	roas.Add(makeVRP("10.0.0.0/24", 24, 64500))
+	aspas.Set(64500, []uint32{100})
+	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", roas, aspas, make(chan struct{}))
+	s.serial = 42
+	require.NoError(t, s.syncOnce())
+	require.NoError(t, <-replies)
+	require.NoError(t, <-replies)
+	assert.Equal(t, [2]byte{2, pduSerialQuery}, <-queries)
+	assert.Equal(t, [2]byte{1, pduResetQuery}, <-queries)
+	assert.Equal(t, HopNoAttestation, aspas.checkPair(100, 64500))
+	assert.Equal(t, ValidationNotFound, roas.Validate("10.0.0.0/24", 64500))
 }
 
-// TestHandlePDUVersionDowngrade verifies the response to an RTR Error Report PDU.
-//
-// VALIDATES: RFC 9582 Section 7 — an "Unsupported Protocol Version" error (code 4) makes the router
-// decrement its version and re-establish (signaled via errRtrVersionDowngrade, which Run treats as
-// a reconnect); an unrelated error code does not change the negotiated version.
-// PREVENTS: Version downgrade firing on the wrong error, or never firing on version mismatch.
+// TestHandlePDUVersionDowngrade rejects an unsupported-version response with
+// no common lower version, rather than tolerating it forever on the same stream.
 func TestHandlePDUVersionDowngrade(t *testing.T) {
-	newSession := func() *RTRSession {
-		stopCh := make(chan struct{})
-		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
-	}
-
-	t.Run("unsupported version downgrades and reconnects", func(t *testing.T) {
-		// RFC requirement: RFC9582-7-2 positive -- an Error Report with code 4 (Unsupported Version)
-		// decrements the session version (2 -> 1) and signals a reconnect (errRtrVersionDowngrade).
-		s := newSession()
-		require.Equal(t, rtrVersionMax, s.version)
-
-		hdr := rTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errUnsupportedVersion, Length: pduHeaderLen}
-		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
-
-		require.ErrorIs(t, err, errRtrVersionDowngrade, "reconnect must be signaled")
-		assert.False(t, done, "sync is not complete on downgrade")
-		assert.Equal(t, rtrVersionMin, s.version, "version decremented to v1")
+	// RFC requirement: RFC8210-12-1 positive -- a fatal Unsupported Protocol Version error with no common version closes the transport.
+	closed := make(chan error, 1)
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			closed <- err
+			return
+		}
+		query := make([]byte, pduResetQueryLen)
+		if _, err := io.ReadFull(conn, query); err != nil {
+			closed <- err
+			return
+		}
+		report := make([]byte, 16)
+		n := writeErrorReport(report, query[0], errUnsupportedVersion, nil)
+		if _, err := conn.Write(report[:n]); err != nil {
+			closed <- err
+			return
+		}
+		_, err := conn.Read(query)
+		closed <- err
 	})
-
-	t.Run("unrelated error code does not downgrade", func(t *testing.T) {
-		// RFC requirement: RFC9582-7-2 negative -- an Error Report carrying a different code (No Data
-		// Available, 2) does NOT decrement the version: the downgrade is specific to code 4.
-		s := newSession()
-		require.Equal(t, rtrVersionMax, s.version)
-
-		hdr := rTRHeader{Version: rtrVersionMax, Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
-		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
-
-		require.NoError(t, err, "a non-fatal, non-version error is tolerated")
-		assert.False(t, done)
-		assert.Equal(t, rtrVersionMax, s.version, "version unchanged by an unrelated error")
-	})
+	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), make(chan struct{}))
+	require.Error(t, s.syncOnce())
+	require.ErrorIs(t, <-closed, io.EOF)
 }
 
-// TestPollingCadenceAtLeastHourly verifies a fresh session re-queries its cache at least once an
-// hour.
-//
-// VALIDATES: RFC 6810 Section 6.1 -- the router polls (Serial/Reset Query) no less frequently than
-// once an hour. The Run loop re-connects and re-queries after waiting pollDelay: the refresh
-// interval when the last sync completed, the retry interval when the last query failed (RFC 8210
-// Section 6). Both defaults seed that cadence at or below the one-hour ceiling.
-// PREVENTS: A default cadence that lets VRP data go stale for more than an hour.
-func TestPollingCadenceAtLeastHourly(t *testing.T) {
-	// RFC requirement: RFC6810-6.1-1 positive -- a fresh session's default intervals (the wait
-	// between one query and the next in Run's loop, whichever branch it takes) are <= one hour, so
-	// the router re-queries at least hourly without any cache-supplied interval.
-	// RFC requirement: RFC8210-8.1-1 positive -- the same Run-loop wait is what makes the router send
-	// a Serial Query or Reset Query periodically under v1; the seeded interval is finite and short, so
-	// polling recurs rather than stopping after the first sync.
-	stopCh := make(chan struct{})
-	s := newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
+// TestRTRSessionRejectsV0Advertisement guards against guessing v1 after a cache
+// advertises v0, as StayRTR v0.6.4 does with its default negotiation settings.
+func TestRTRSessionRejectsV0Advertisement(t *testing.T) {
+	queries := make(chan byte, 4)
+	closed := make(chan error, 4)
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			closed <- err
+			return
+		}
+		query := make([]byte, pduResetQueryLen)
+		if _, err := io.ReadFull(conn, query); err != nil {
+			closed <- err
+			return
+		}
+		queries <- query[0]
+		report := make([]byte, 16)
+		n := writeErrorReport(report, 0, errUnsupportedVersion, nil)
+		if _, err := conn.Write(report[:n]); err != nil {
+			closed <- err
+			return
+		}
+		_, err := conn.Read(query)
+		closed <- err
+	})
+	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), make(chan struct{}))
+	require.Error(t, s.syncOnce())
+	require.ErrorIs(t, <-closed, io.EOF)
+	require.Equal(t, byte(2), <-queries)
+	select {
+	case version := <-queries:
+		t.Fatalf("cache advertised unsupported v0, but router retried at v%d", version)
+	default:
+	}
+}
 
-	assert.LessOrEqual(t, s.retryInterval, time.Hour, "default re-query cadence is at least hourly")
+// TestASPAProviderListErrorOnWire checks the fatal report actually leaves the
+// router and the rejected announcement never becomes a usable authorization.
+func TestASPAProviderListErrorOnWire(t *testing.T) {
+	// RFC requirement: RFC8210-5.11-1 negative -- a malformed non-Error-Report PDU still receives its required Error Report.
+	// RFC requirement: RFC8210-5.11-4 positive -- the actual transmitted report has zero text length when diagnostic text is omitted.
+	reported := make(chan []byte, 1)
+	serverErr := make(chan error, 1)
+	bad := aspaPDU(64500)
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			serverErr <- err
+			return
+		}
+		query := make([]byte, pduResetQueryLen)
+		if _, err := io.ReadFull(conn, query); err != nil {
+			serverErr <- err
+			return
+		}
+		if _, err := conn.Write(bad); err != nil {
+			serverErr <- err
+			return
+		}
+		report := make([]byte, 16+len(bad))
+		_, err := io.ReadFull(conn, report)
+		reported <- report
+		serverErr <- err
+	})
+	cache := newASPACache()
+	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), cache, make(chan struct{}))
+	require.ErrorIs(t, s.syncOnce(), errASPAProviderList)
+	require.NoError(t, <-serverErr)
+	report := <-reported
+	assert.Equal(t, byte(2), report[0])
+	assert.Equal(t, byte(pduErrorRpt), report[1])
+	assert.Equal(t, uint16(9), binary.BigEndian.Uint16(report[2:4]))
+	assert.Equal(t, bad, report[12:12+len(bad)])
+	assert.Equal(t, uint32(0), binary.BigEndian.Uint32(report[12+len(bad):]))
+	assert.Equal(t, HopNoAttestation, cache.checkPair(100, 64500))
+}
+
+func TestRTRErrorReportIsNotAnswered(t *testing.T) {
+	// RFC requirement: RFC8210-5.11-1 positive -- an erroneous Error Report is not answered with another Error Report.
+	client, cache := net.Pipe()
+	finished := make(chan struct{})
+	observed := make(chan error, 1)
+	t.Cleanup(func() {
+		_ = client.Close()
+		_ = cache.Close()
+		<-finished
+	})
+	go func() {
+		defer close(finished)
+		defer func() { _ = cache.Close() }()
+		if err := cache.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			observed <- err
+			return
+		}
+		// An unknown-version Error Report exercises the otherwise applicable
+		// Unsupported Protocol Version response, not a harmless error code.
+		report := []byte{99, pduErrorRpt, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0}
+		if _, err := cache.Write(report); err != nil {
+			observed <- err
+			return
+		}
+		var answer [1]byte
+		_, err := io.ReadFull(cache, answer[:])
+		observed <- err
+	}()
+	s := newTestRTRSession(t, "cache.invalid", 323, 100, "", newROACache(), newASPACache(), make(chan struct{}))
+	require.Error(t, s.readLoop(client))
+	require.NoError(t, client.Close())
+	require.ErrorIs(t, <-observed, io.EOF)
+}
+
+// TestRTRUnknownNegotiationVersion checks the receive-side negotiation rule
+// over TCP, including the required Error Report and transport termination.
+func TestRTRUnknownNegotiationVersion(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-7-2 positive -- an unrecognized version 99 Cache Response produces Error Report 4 and transport termination.
+	// RFC requirement: DRAFT-IETF-SIDROPS-8210BIS-7-2 negative -- a recognized version 2 Cache Response completes synchronization without an Unsupported Version report.
+	// RFC requirement: RFC8210-7-7 positive -- an unknown received version produces Error Report 4 and closes the stream.
+	// RFC requirement: RFC8210-7-7 negative -- a supported received version completes its data transfer without an unsupported-version error.
+	// RFC requirement: RFC8210-7-3 positive -- a v0 Cache Response closes the stream instead of publishing an unsupported-version load.
+	for _, version := range []byte{0, 2, 99} {
+		name := map[byte]string{0: "unsupported v0", 2: "recognized", 99: "unrecognized"}[version]
+		t.Run(name, func(t *testing.T) {
+			type reply struct {
+				report []byte
+				err    error
+			}
+			observed := make(chan reply, 1)
+			port, _ := serveRTR(t, func(conn net.Conn) {
+				if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+					observed <- reply{err: err}
+					return
+				}
+				query := make([]byte, pduResetQueryLen)
+				if _, err := io.ReadFull(conn, query); err != nil {
+					observed <- reply{err: err}
+					return
+				}
+				response := cacheResponsePDU()
+				response[0] = version
+				payload := response
+				if version == 2 {
+					end := endOfDataPDU()
+					end[0] = version
+					payload = append(payload, end...)
+				}
+				if _, err := conn.Write(payload); err != nil {
+					observed <- reply{err: err}
+					return
+				}
+				var report []byte
+				if version != 2 {
+					report = make([]byte, 16+len(response))
+					if _, err := io.ReadFull(conn, report); err != nil {
+						observed <- reply{err: err}
+						return
+					}
+				}
+				_, err := conn.Read(query)
+				observed <- reply{report: report, err: err}
+			})
+			s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), make(chan struct{}))
+			err := s.syncOnce()
+			if version != 2 {
+				require.ErrorIs(t, err, errRtrUnsupportedProtocol)
+			} else {
+				require.NoError(t, err)
+			}
+			got := <-observed
+			require.ErrorIs(t, got.err, io.EOF)
+			if version != 2 {
+				require.Len(t, got.report, 24)
+				assert.Equal(t, pduErrorRpt, got.report[1])
+				assert.Equal(t, errUnsupportedVersion, binary.BigEndian.Uint16(got.report[2:4]))
+				assert.Equal(t, version, got.report[12])
+			}
+		})
+	}
 }
 
 // TestCacheResetTriggersResetQuery verifies a Cache Reset PDU puts the session back into full-reset
@@ -107,7 +294,7 @@ func TestPollingCadenceAtLeastHourly(t *testing.T) {
 func TestCacheResetTriggersResetQuery(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
+		return newTestRTRSession(t, "192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("cache reset clears serial for a reset query", func(t *testing.T) {
@@ -119,7 +306,7 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 		s := newSession()
 		s.serial = 42 // pretend a prior incremental sync
 
-		done, err := s.handlePDU(rTRHeader{Type: pduCacheReset}, make([]byte, pduHeaderLen))
+		done, err := s.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduCacheReset}, make([]byte, pduHeaderLen))
 
 		require.ErrorIs(t, err, errRtrCacheResetReceivedWillDo, "cache reset signals a full re-sync")
 		assert.True(t, done, "the current sync attempt ends")
@@ -143,60 +330,78 @@ func TestCacheResetTriggersResetQuery(t *testing.T) {
 	})
 }
 
-// TestNoDataAvailableKeepsResetQueryMode verifies that a No Data Available error leaves the session
-// in the state that re-issues Reset Queries.
-//
-// VALIDATES: RFC 6810 Section 6.4 -- when the cache reports No Data Available and there is no other
-// cache to fall back to, the router keeps issuing periodic Reset Queries. handlePDU treats code 2 as
-// non-fatal (the session is not torn down as an error) and leaves the serial at 0, so each Run-loop
-// reconnect re-sends a Reset Query.
-// PREVENTS: A No Data Available report being treated as fatal (giving up) or silently advancing the
-// serial (switching to Serial Queries the empty cache cannot satisfy).
+// No Data Available must end the current response, even if the cache keeps the
+// TCP connection open. Otherwise neither failover nor the retry timer can run.
 func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
-	newSession := func() *RTRSession {
-		stopCh := make(chan struct{})
-		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
+	// RFC requirement: RFC8210-8.4-1 positive -- consecutive No Data Available responses on open connections produce periodic Reset Queries.
+	// RFC requirement: RFC8210-8.4-1 negative -- after a complete load arrives, the next query uses its serial rather than discarding it for another reset.
+	queries := make(chan uint8, 4)
+	attempt := 0
+	port, _ := serveRTR(t, func(conn net.Conn) {
+		if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			return
+		}
+		query := make([]byte, pduHeaderLen)
+		if _, err := io.ReadFull(conn, query); err != nil {
+			return
+		}
+		if query[1] == pduSerialQuery {
+			if _, err := io.CopyN(io.Discard, conn, 4); err != nil {
+				return
+			}
+		}
+		queries <- query[1]
+		attempt++
+		if attempt <= 2 {
+			report := []byte{1, pduErrorRpt, 0, 2, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0}
+			if _, err := conn.Write(report); err != nil {
+				return
+			}
+			// The router must close this unanswered transaction rather than
+			// wait for the cache's EOF before scheduling the retry.
+			_, _ = conn.Read(query)
+			return
+		}
+		response, end := cacheResponsePDU(), endOfDataPDU()
+		response[0], end[0] = 1, 1
+		binary.BigEndian.PutUint32(end[8:12], 77)
+		prefix := []byte{1, pduIPv4Prefix, 0, 0, 0, 0, 0, 20, 1, 24, 24, 0, 192, 0, 2, 0, 0, 0, 0xfb, 0xf4}
+		payload := append(response, prefix...)
+		if _, err := conn.Write(append(payload, end...)); err != nil {
+			return
+		}
+	})
+	stop := make(chan struct{})
+	s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), stop)
+	s.version = rtrVersionMin
+	s.retryInterval = time.Second
+	done := make(chan struct{})
+	go func() { defer close(done); newCacheGroup([]*RTRSession{s}, stop).Run() }()
+	t.Cleanup(func() {
+		close(stop)
+		s.close()
+		<-done
+	})
+	for range 3 {
+		select {
+		case query := <-queries:
+			assert.Equal(t, pduResetQuery, query)
+		case <-time.After(4 * time.Second):
+			t.Fatal("No Data Available did not trigger a periodic Reset Query")
+		}
 	}
-
-	t.Run("no data available is non-fatal and keeps serial at zero", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.4-1 positive -- an Error Report with code 2 (No Data Available)
-		// is non-fatal: handlePDU returns no error and leaves serial at 0, so the periodic Run-loop
-		// reconnect keeps issuing Reset Queries.
-		// RFC requirement: RFC8210-8.4-1 positive -- when the cache cannot supply an update and there
-		// is no other cache to switch to, this is the state that makes the router keep issuing periodic
-		// Reset Queries: non-fatal handling plus serial 0.
-		s := newSession()
-		require.Equal(t, uint32(0), s.serial)
-
-		hdr := rTRHeader{Type: pduErrorRpt, SessionID: errNoDataAvail, Length: pduHeaderLen}
-		done, err := s.handlePDU(hdr, make([]byte, pduHeaderLen))
-
-		require.NoError(t, err, "No Data Available must not be fatal")
-		assert.False(t, done, "the session stays up to retry")
-		assert.Equal(t, uint32(0), s.serial, "serial stays 0 so the next query is a Reset Query")
-		assert.False(t, isFatalError(errNoDataAvail), "code 2 is classified non-fatal")
-	})
-
-	t.Run("a completed sync advances the serial out of reset mode", func(t *testing.T) {
-		// RFC requirement: RFC6810-6.4-1 negative -- once a sync completes (End of Data), the serial
-		// advances to a non-zero value, so the next query is an incremental Serial Query, not a
-		// periodic Reset Query. Reset-query polling is specific to the no-data (serial==0) condition.
-		// RFC requirement: RFC8210-8.4-1 negative -- a session that HAS been supplied an update leaves
-		// periodic-Reset-Query mode, so the periodic reload is confined to the cannot-supply case and
-		// does not discard a healthy incremental sync.
-		s := newSession()
-
-		buf := make([]byte, pduEndOfDataLen)
-		buf[1] = pduEndOfData
-		binary.BigEndian.PutUint32(buf[4:8], pduEndOfDataLen)
-		binary.BigEndian.PutUint32(buf[8:12], 77) // serial number
-
-		done, err := s.handlePDU(rTRHeader{Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
-
-		require.NoError(t, err)
-		assert.True(t, done, "End of Data completes the sync")
-		assert.Equal(t, uint32(77), s.serial, "serial advanced: session leaves reset-query mode")
-	})
+	require.Eventually(t, func() bool {
+		return s.cache.Validate("192.0.2.0/24", 64500) == ValidationValid && s.Snapshot().State == sessionIdle
+	}, 4*time.Second, time.Millisecond, "the later complete load was not published")
+	// The group is now waiting an hour for refresh. A direct next poll must
+	// retain the just-published serial rather than the no-data reset state.
+	require.NoError(t, s.syncOnce())
+	select {
+	case query := <-queries:
+		assert.Equal(t, pduSerialQuery, query)
+	case <-time.After(4 * time.Second):
+		t.Fatal("completed load did not permit the next incremental query")
+	}
 }
 
 // TestSerialNotifyIgnoredDuringStartup verifies that a Serial Notify arriving in the startup window
@@ -211,7 +416,7 @@ func TestNoDataAvailableKeepsResetQueryMode(t *testing.T) {
 func TestSerialNotifyIgnoredDuringStartup(t *testing.T) {
 	newSession := func() *RTRSession {
 		stopCh := make(chan struct{})
-		return newRTRSession("192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
+		return newTestRTRSession(t, "192.0.2.1", 3323, 100, "", newROACache(), newASPACache(), stopCh)
 	}
 
 	t.Run("serial notify in the startup window is ignored", func(t *testing.T) {
@@ -280,7 +485,7 @@ func TestFirstPDUOnConnectionIsAQuery(t *testing.T) {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 
-		s := newRTRSession("127.0.0.1", uint16(port), 100, "", newROACache(), newASPACache(), stopCh) //nolint:gosec // listener port fits uint16
+		s := newTestRTRSession(t, "127.0.0.1", uint16(port), 100, "", newROACache(), newASPACache(), stopCh) //nolint:gosec // listener port fits uint16
 		prepare(s)
 
 		done := make(chan error, 1)

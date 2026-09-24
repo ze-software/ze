@@ -10,14 +10,14 @@ import (
 )
 
 // ASPARecord holds an ASPA record received via RTR: customer AS and its authorized provider set.
-// RFC 9582 Section 5.12: ASPA PDU distributes these records from cache to router.
+// draft-ietf-sidrops-8210bis Section 5.12 distributes these records from cache to router.
 type ASPARecord struct {
 	CustomerAS uint32
 	Providers  []uint32
 }
 
 // hopResult is the outcome of checking a single hop pair against the ASPA database.
-// draft-ietf-sidrops-aspa-verification Section 6: check_pair function.
+// draft-ietf-sidrops-aspa-verification Section 5.3: provider authorization check.
 type hopResult uint8
 
 const (
@@ -47,7 +47,7 @@ func newASPACache() *aSPACache {
 }
 
 // Set stores or replaces the provider set for a customer AS.
-// RFC 9582 Section 5.12: announce = full replacement, not delta.
+// draft-ietf-sidrops-8210bis Section 5.12: an announcement is a full replacement.
 func (c *aSPACache) Set(customerAS uint32, providers []uint32) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -94,7 +94,7 @@ func (c *aSPACache) isProvider(customerAS, providerAS uint32) bool {
 }
 
 // checkPair checks a single hop pair for ASPA authorization.
-// draft-ietf-sidrops-aspa-verification Section 6: check_pair function.
+// draft-ietf-sidrops-aspa-verification Section 5.3: provider authorization check.
 func (c *aSPACache) checkPair(providerCandidate, customerAS uint32) hopResult {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -142,6 +142,11 @@ func (c *aSPACache) ApplyDelta(dels []uint32, adds []ASPARecord) {
 func (c *aSPACache) Replace(recs []ASPARecord) []uint32 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if len(recs) == 0 {
+		changed := slices.Collect(maps.Keys(c.records))
+		c.records = make(map[uint32]map[uint32]struct{})
+		return changed
+	}
 
 	changed := make(map[uint32]struct{}, len(c.records)+len(recs))
 	for customerAS := range c.records {

@@ -119,11 +119,9 @@ func Run(args []string) int {
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
 	serialFlag := fs.Uint("serial", 1, "initial serial number")
-	// A cache that answers late is the ordering RFC 6811 Section 4 re-validation exists for: the
-	// peer's UPDATEs arrive first and are validated against an empty VRP set, so their states are
-	// only correct after the cache syncs and every affected route is validated again. Zero keeps
-	// the immediate answer every other test expects.
-	syncDelay := fs.Duration("sync-delay", 0, "wait this long before answering the first query on a connection")
+	// The observer releases this barrier only after it sees the initial
+	// NotFound route. Host scheduling cannot move the first sync ahead of it.
+	syncRelease := fs.String("sync-release", "", "wait for this file before answering a query")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
@@ -151,16 +149,12 @@ func Run(args []string) int {
 		if err != nil {
 			return 0
 		}
-		go rtrMockHandleConn(conn, vrps, aspas, serial, *syncDelay)
+		go rtrMockHandleConn(conn, vrps, aspas, serial, *syncRelease)
 	}
 }
 
-func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, syncDelay time.Duration) {
+func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint32, syncRelease string) {
 	defer func() { _ = conn.Close() }()
-
-	// The delay covers the FIRST answer only. A cache that is slow to sync is slow once, while it
-	// builds its view; the client's later serial queries are answered at speed.
-	answered := false
 
 	header := make([]byte, rtrMockHeaderLen)
 	for {
@@ -185,14 +179,39 @@ func rtrMockHandleConn(conn net.Conn, vrps vrpList, aspas aspaList, serial uint3
 
 		switch pduType {
 		case rtrMockPDUResetQuery, rtrMockPDUSerialQuery:
-			if !answered && syncDelay > 0 {
-				time.Sleep(syncDelay)
+			if err := rtrMockWaitRelease(syncRelease); err != nil {
+				fmt.Fprintf(os.Stderr, "error: wait for RTR sync release: %v\n", err)
+				return
 			}
-			answered = true
 			if err := rtrMockSendResponse(conn, vrps, aspas, serial, clientVersion); err != nil {
 				return
 			}
 		default:
+		}
+	}
+}
+
+func rtrMockWaitRelease(path string) error {
+	if path == "" {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	// The timeout bounds a fixture whose observer failed before releasing it.
+	for {
+		_, err := os.Stat(path)
+		if err == nil {
+			return nil
+		}
+		if !os.IsNotExist(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
 		}
 	}
 }
@@ -272,16 +291,15 @@ func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag, version uint8) error {
 }
 
 func rtrMockSendASPAPDU(conn net.Conn, aspa aspaFlag) error {
-	pduLen := 16 + 4*len(aspa.providers)
+	pduLen := 12 + 4*len(aspa.providers)
 	pdu := make([]byte, pduLen)
 	pdu[0] = rtrMockVersion2
 	pdu[1] = rtrMockPDUASPA
 	binary.BigEndian.PutUint32(pdu[4:8], uint32(pduLen)) //nolint:gosec // bounded by provider count
-	pdu[8] = 1
-	pdu[9] = 0
-	binary.BigEndian.PutUint32(pdu[12:16], aspa.customerAS)
+	pdu[2] = 1
+	binary.BigEndian.PutUint32(pdu[8:12], aspa.customerAS)
 	for i, p := range aspa.providers {
-		binary.BigEndian.PutUint32(pdu[16+i*4:16+i*4+4], p)
+		binary.BigEndian.PutUint32(pdu[12+i*4:12+i*4+4], p)
 	}
 	_, err := conn.Write(pdu)
 	return err

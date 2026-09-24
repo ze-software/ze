@@ -156,9 +156,9 @@ func TestStatusReportsSyncSeparatelyFromConfiguration(t *testing.T) {
 
 	// One End of Data completes a sync on that session.
 	buf := make([]byte, pduEndOfDataLen)
-	buf[1] = pduEndOfData
+	buf[0], buf[1] = rtrVersionMax, pduEndOfData
 	binary.BigEndian.PutUint32(buf[4:8], pduEndOfDataLen)
-	done, err := sess.handlePDU(rTRHeader{Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
+	done, err := sess.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduEndOfData, Length: pduEndOfDataLen}, buf)
 	require.NoError(t, err)
 	require.True(t, done)
 

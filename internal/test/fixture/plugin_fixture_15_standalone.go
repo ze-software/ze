@@ -89,6 +89,7 @@ func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {
 bgp {
     rpki {
         cache-server 127.0.0.1 {
+            trusted-network true
             port %d
         }
     }

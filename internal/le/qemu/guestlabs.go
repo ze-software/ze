@@ -43,12 +43,13 @@ const (
 	netnsOSPF     = "ospf"
 	netnsOSPFv3   = "ospfv3"
 	netnsPPPoE    = "pppoe"
+	netnsPlugin   = "plugin"
 )
 
 var (
 	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3, vrrpTrackedUplink}
 	defaultNetnsSuites = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3}
-	netnsSuiteNames    = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3, netnsPPPoE}
+	netnsSuiteNames    = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3, netnsPPPoE, netnsPlugin}
 )
 
 // GuestScenario is one scenario or suite attempted by a guest-side proof.

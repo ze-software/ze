@@ -69,7 +69,7 @@ func TestRFC8210ResetQueryFallback(t *testing.T) {
 		buf := openingPDU(t, func(s *RTRSession) {
 			s.serial = 42
 			s.sessionID = 0x1234
-			_, err := s.handlePDU(rTRHeader{Type: pduCacheReset}, make([]byte, pduHeaderLen))
+			_, err := s.handlePDU(rTRHeader{Version: rtrVersionMax, Type: pduCacheReset}, make([]byte, pduHeaderLen))
 			require.ErrorIs(t, err, errRtrCacheResetReceivedWillDo)
 		}, pduResetQueryLen)
 
