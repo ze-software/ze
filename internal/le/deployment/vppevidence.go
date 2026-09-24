@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const (
@@ -144,7 +144,7 @@ func (v *VPP) buildBinaries() error {
 	if err := buildDaemon(v.Tree, v.Goarch, v.Progress); err != nil {
 		return err
 	}
-	tags, err := featuretags.DaemonTags(v.Tree)
+	tags, err := repofeaturetags.DaemonTags(v.Tree)
 	if err != nil {
 		return err
 	}

@@ -36,8 +36,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/changed"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // featureManifest is the single source of truth for the compile-out-able
@@ -125,7 +125,7 @@ func (n Notice) Text() string {
 // The feature-tag answer comes from the environment, which is how the verify
 // runner hands one run's scope to every stage it starts.
 func Derive(tree string) (Matrix, Notice, error) {
-	return DeriveScoped(tree, env.Get(changed.ScopeTagsKey))
+	return DeriveScoped(tree, env.Get(repochanged.ScopeTagsKey))
 }
 
 // DeriveScoped is Derive with the feature-tag answer named explicitly.
@@ -298,7 +298,7 @@ func (m Matrix) Part(index, count int) (Matrix, error) {
 // cannot render as a row name is refused. So is a personality tag, which every
 // row already supplies.
 func readFeatureTags(tree string) ([]string, error) {
-	rows, err := featuretags.Gates(tree)
+	rows, err := repofeaturetags.Gates(tree)
 	if err != nil {
 		return nil, fmt.Errorf("read feature manifest %s: %w", featureManifest, err)
 	}

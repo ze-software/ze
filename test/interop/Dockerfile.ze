@@ -15,7 +15,7 @@
 # takes ze_core ze_distro and the test personality takes ze_test. Both also
 # carry every gate feature-gates.txt declares, because a personality tag alone
 # leaves every compile-out-able feature off and BGP itself is one of them
-# (ze_bgp). The producer reads that manifest through internal/le/featuretags, so
+# (ze_bgp). The producer reads that manifest through internal/le/repo/featuretags, so
 # this file names no feature and cannot drift from the shipped binary.
 
 FROM alpine:3.21

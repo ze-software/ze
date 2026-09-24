@@ -40,7 +40,7 @@ jobs:
 
       # A bare build excludes the feature-gated daemon and appliance surface.
       # These shipped combinations are generated from feature-gates.txt by
-      # internal/le/featuretags/actions.go (`./le feature-tags write`).
+      # internal/le/repo/featuretags/actions.go (`./le feature-tags write`).
       - name: Build Go shipped feature combinations
         if: matrix.build-mode == 'manual'
         shell: bash

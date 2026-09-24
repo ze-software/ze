@@ -249,7 +249,7 @@ to the capture port's kernel device.
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
-<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
+<!-- source: internal/le/arch/ifaceresolution/ifaceresolution.go -- Answer -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each

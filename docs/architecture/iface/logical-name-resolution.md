@@ -215,12 +215,12 @@ empty `default:` branch is refused by the pretool hook.
 
 ## The consumer side is a standing gate, not a one-time migration
 
-`internal/le/ifaceresolution.Answer` rejects new direct kernel name resolution
+`internal/le/arch/ifaceresolution.Answer` rejects new direct kernel name resolution
 outside its allowlist. It runs as a `./le verify current mode full` stage through
 `stagesForMode`, and the allowlist records every legitimate direct-resolution
 site.
 
-<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
+<!-- source: internal/le/arch/ifaceresolution/ifaceresolution.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 The gate proved load-bearing: the VPP tunnel, mirror and LCP files had to pass

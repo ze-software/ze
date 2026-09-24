@@ -6,7 +6,7 @@ The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` hos
 
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
-<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
+<!-- source: internal/le/repo/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->

@@ -42,9 +42,9 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 var (
@@ -215,7 +215,7 @@ func ExtrasFor(suites ...Suite) Extras {
 // cmd_web.go expects it.
 //
 // The le build carries the personality tag and tc.Features, which is every
-// gate featuretags.DaemonTags read out of the manifest, so the binary a
+// gate repofeaturetags.DaemonTags read out of the manifest, so the binary a
 // fixture drives holds the same feature set as the one ./le builds.
 func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][]string {
 	cover := []string{}
@@ -241,7 +241,7 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][
 	}
 	if extras.LE {
 		commands = append(commands, build(nil,
-			tagString(tc, append([]string{featuretags.LEBase}, tc.Features...)...), LE))
+			tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE))
 	}
 	return commands
 }

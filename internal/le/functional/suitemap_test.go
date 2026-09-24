@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/job"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 // writeSuiteMap puts one map body at the artifact path inside a throwaway
@@ -471,15 +471,15 @@ func everySuiteReaching(reaching, silent []string) map[string][]string {
 //
 // The checkout goes into the file because that is what the answer is about: a
 // reader asking about another checkout falls through to the selector
-// (changed.Scope.fromFile), so the root here MUST be the one selectSuites is
+// (repochanged.Scope.fromFile), so the root here MUST be the one selectSuites is
 // then called with.
 func changeSetIs(t *testing.T, root string, packages ...string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "scope-packages.txt")
-	if err := changed.WriteScopePackages(path, root, packages); err != nil {
+	if err := repochanged.WriteScopePackages(path, root, packages); err != nil {
 		t.Fatalf("write the change-set answer: %v", err)
 	}
-	nameForTest(t, changed.ScopeFileKey, path)
+	nameForTest(t, repochanged.ScopeFileKey, path)
 }
 
 // nameForTest gives one environment key a value for this test alone.

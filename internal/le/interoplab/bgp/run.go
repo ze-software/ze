@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
@@ -37,7 +37,7 @@ const defaultPMACCTImage = "pmacct/pmbmpd:latest"
 // shipped daemon.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
-		{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"},
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
 		{Name: "ze-test", Base: "ze_test", Output: "test/interop/ze-test-linux"},
 	}
 }

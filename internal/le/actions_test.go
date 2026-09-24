@@ -29,9 +29,10 @@ import (
 // now registers one. plan/spec-le-every-area-dispatches-through-one-table.md
 // empties it.
 var areasWithoutAnActionTable = []string{
-	"cli-grammar",
-	"command list",
-	"command ownership",
+	"arch iface-resolution",
+	"cli grammar",
+	"cli list",
+	"cli ownership",
 	"commit",
 	"config claims",
 	"consistency",
@@ -40,20 +41,19 @@ var areasWithoutAnActionTable = []string{
 	"docvalid",
 	"go-extract",
 	"gokrazy-gosum",
-	"iface-resolution",
-	"inventory",
 	"job",
+	"repo inventory",
+	"repo tracked-le",
+	"repo working-tree",
 	"spec citation",
 	"spec session",
 	"spec status",
 	"stress-repro",
 	"test-helper",
 	"token-economy",
-	"tracked",
 	"verify lock",
 	"verify summary",
 	"weekly",
-	"working-tree",
 }
 
 // TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList holds le to

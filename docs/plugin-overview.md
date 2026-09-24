@@ -38,11 +38,11 @@ for platform plugins that other plugins depend on (BGP, iface, the RIB),
 OSPF). A config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
 `./le tier check` gate, as does a new `internal/core/` import of
 `internal/component/` or `internal/plugins/` (core is the leaf tier; the
-grandfathered pairs live in `internal/le/tier/testdata/core_import_baseline.txt`).
+grandfathered pairs live in `internal/le/arch/tier/testdata/core_import_baseline.txt`).
 Full rule and the audit tool:
 [`ai/rules/architecture.md`](../ai/rules/architecture.md).
 <!-- source: ai/rules/architecture.md -- tier taxonomy and the engine-placement gate -->
-<!-- source: internal/le/tier/actions.go -- Answer -->
+<!-- source: internal/le/arch/tier/actions.go -- Answer -->
 <!-- source: internal/plugins/ospf/register.go -- OSPF edge plugin registration -->
 
 OSPF is also a Loc-RIB source named `ospf`: SPF inserts one path per equal-cost

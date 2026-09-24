@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // labBuildTimeout bounds one cross-compile. Five minutes is what the two
@@ -53,7 +53,7 @@ type LabBinary struct {
 	// Name is what the binary is called in a message: `ze`, `ze-test`.
 	Name string
 	// Base is the tag pair this personality carries before the feature gates,
-	// such as featuretags.DaemonBase for a daemon and `ze_test` for the test
+	// such as repofeaturetags.DaemonBase for a daemon and `ze_test` for the test
 	// personality. The gates themselves are read from feature-gates.txt, so a
 	// lab cannot declare a feature set that differs from the shipped one.
 	Base string
@@ -137,7 +137,7 @@ func stageBinary(ctx context.Context, runner processRunner, root string, environ
 			Str(" and output ").Quoted(binary.Output).String())
 	}
 
-	tags, err := featuretags.DaemonBuildTags(root, binary.Base)
+	tags, err := repofeaturetags.DaemonBuildTags(root, binary.Base)
 	if err != nil {
 		return err
 	}

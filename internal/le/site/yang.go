@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const schemaExtractionTimeout = 5 * time.Minute
@@ -39,7 +39,7 @@ var liveYANGConfigTree = runYANGConfigTree
 func runYANGConfigTree(repository, binary string) ([]byte, error) {
 	name, args := binary, []string{"cli", "-c", "show yang tree --config | json"}
 	if binary == "" {
-		tags, err := featuretags.DaemonTags(repository)
+		tags, err := repofeaturetags.DaemonTags(repository)
 		if err != nil {
 			return nil, err
 		}

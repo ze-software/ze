@@ -2,7 +2,7 @@
 //
 // The answer is the ROWS: one record per spec. A slice rather than a struct
 // wrapping one, so `| json` answers the array the script's --json answered and
-// `| count` counts specs (internal/le/inventory taught this: a payload whose answer
+// `| count` counts specs (internal/le/repo/inventory taught this: a payload whose answer
 // IS the rows declares itself as the rows).
 //
 // Everything the page prints above the rows -- the total, the per-status

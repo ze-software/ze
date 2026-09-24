@@ -2,14 +2,14 @@
 #
 # A developer edits `internal/component/ssh/ssh.go` and asks which packages must
 # be retested and which features the change can reach. The selector
-# (`internal/le/changed/scope.go`) answers three packages and one
+# (`internal/le/repo/changed/scope.go`) answers three packages and one
 # feature. This test drives the native action for real and pins both answers
 # exactly, so it proves what the selector NAMES and also that it names nothing
 # more.
 #
 # `./cmd/ze/hub` is the load-bearing member of that set. The hub imports
 # `internal/component/ssh` only from files carrying `//go:build ze_ssh`, so the
-# untagged import graph that `internal/le/changed/actions.go` used to build reported
+# untagged import graph that `internal/le/repo/changed/actions.go` used to build reported
 # the SSH package as having no importer at all. `loadPackageGraph` now runs one
 # `go list` with `ze_core` and every manifest tag on. Drop those tags and this
 # set collapses to `./internal/component/ssh` alone, which is the revert that

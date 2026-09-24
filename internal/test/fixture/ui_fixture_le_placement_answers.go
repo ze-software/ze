@@ -133,7 +133,7 @@ func lePlacementAnswers(ctx context.Context) error {
 	}
 
 	// count selects the only list in the payload.
-	counted, err := command("tier", "check", "|", "count")
+	counted, err := command(areaTier, "check", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -154,18 +154,18 @@ func lePlacementAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: the refusal does not say why: %s", refused.stderr)
 	}
 
-	refused, err = command("repository", "nope")
+	refused, err = command(areaRepository, "nope")
 	if err != nil {
 		return err
 	}
 	if refused.code != 2 {
 		return fmt.Errorf("FAIL: an unknown action exited %d, want 2", refused.code)
 	}
-	if !strings.Contains(refused.stderr, "no such action in repository") {
+	if !strings.Contains(refused.stderr, "no such action in repo") {
 		return fmt.Errorf("FAIL: the refusal does not name the area: %s", refused.stderr)
 	}
 
-	refused, err = command("tier", "check", "extra")
+	refused, err = command(areaTier, "check", "extra")
 	if err != nil {
 		return err
 	}

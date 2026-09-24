@@ -102,7 +102,7 @@ func TestReportAreasWriteNothing(t *testing.T) {
 // directoryFor answers the path a command name predicts, relative to
 // internal/le. A space is a level, and a hyphen inside a level joins words
 // naming one thing: `verify lint` predicts verify/lint, and
-// `repository tracked-build` predicts repository/trackedbuild.
+// `repo tracked-build` predicts repo/trackedbuild.
 //
 // This is the whole naming rule, and it is one function so the test and the
 // reader read the same statement of it.
@@ -122,9 +122,9 @@ func TestDirectoryForReadsBothHalvesOfTheNamingRule(t *testing.T) {
 	for _, row := range []struct{ name, want string }{
 		{"verify", "verify"},
 		{"verify lint", "verify/lint"},
-		{"dash-stdio", "dashstdio"},
-		{"repository tracked-build", "repository/trackedbuild"},
-		{"yang leaf-mentions", "yang/leafmentions"},
+		{"cli stdio", "cli/stdio"},
+		{"repo tracked-build", "repo/trackedbuild"},
+		{"config unread-leaves", "config/unreadleaves"},
 	} {
 		if got := directoryFor(row.name); got != row.want {
 			t.Errorf("directoryFor(%q) = %q, want %q", row.name, got, row.want)

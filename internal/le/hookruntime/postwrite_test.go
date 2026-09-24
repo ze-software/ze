@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	"github.com/ze-software/ze/internal/le/docstocode"
+	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 )
 
 // derivedFixture builds a throwaway checkout holding one Go package and one
@@ -32,7 +32,7 @@ func derivedFixture(t *testing.T) string {
 	writeHookFixture(t, root, "docs/architecture/core-design.md",
 		"# Core design\n\n<!-- source: internal/core/x/x.go -- x -->\n")
 
-	if _, err := discoveryindex.Update(root); err != nil {
+	if _, err := repopackagemap.Update(root); err != nil {
 		t.Fatalf("seed ai/PACKAGE-MAP.md: %v", err)
 	}
 	if _, err := docstocode.Update(root); err != nil {

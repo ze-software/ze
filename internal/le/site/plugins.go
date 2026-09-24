@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/inventory"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 // The plugin catalog registers from here. A build discovers it through the
@@ -106,7 +106,7 @@ const pluginProducerName = "plugins"
 // reader of data/plugin-registry.json gets. An absent list is published as an
 // empty array rather than as null, because a reader of JSON should not have to
 // tell those apart.
-func marshalPluginRegistry(plugins []inventory.Plugin) (string, error) {
+func marshalPluginRegistry(plugins []repoinventory.Plugin) (string, error) {
 	published := make([]registryPlugin, 0, len(plugins))
 	for index := range plugins {
 		plugin := &plugins[index]

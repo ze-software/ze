@@ -95,7 +95,7 @@ a read verb changes the system" lists every one.
 The counts come from `./le command list`, which reads the live handlers and
 schemas and reports 364 commands on this checkout. Run it rather than trusting
 this column.
-<!-- source: internal/le/command/list/commandlist.go -- Collect, Answer -->
+<!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
 
 Three roots outside the thirteen carry commands, and each is exempt for a stated
 reason:

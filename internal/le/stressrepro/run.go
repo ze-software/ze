@@ -19,7 +19,7 @@ import (
 	"github.com/anmitsu/go-shlex"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 var crashSignatures = []string{
@@ -315,7 +315,7 @@ const raceBase = "ze_core ze_distro ze_setup"
 // raceTags answers the `-tags` value for the race build, with the caller's
 // extra tag last.
 func raceTags(root, extra string) (string, error) {
-	tags, err := featuretags.DaemonBuildTags(root, raceBase)
+	tags, err := repofeaturetags.DaemonBuildTags(root, raceBase)
 	if err != nil {
 		return "", fmt.Errorf("read feature gates: %w", err)
 	}

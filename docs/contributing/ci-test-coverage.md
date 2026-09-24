@@ -1,6 +1,6 @@
 # .ci Test Coverage Priorities
 
-<!-- source: internal/le/inventory/inventory.go -- Answer -->
+<!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
 
 For current counts and uncovered RPCs, run `./le inventory`.
 

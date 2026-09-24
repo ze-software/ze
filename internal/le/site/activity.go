@@ -1,7 +1,7 @@
 // Design: website/AI.md -- the commit calendar, measured once and drawn here
 // Detail: activitystyle.go dresses the published page, activityslidestyle.go
 // the deck embed, and activityscript.go drives both.
-// Related: internal/le/sourcerewrite/activitymeasure.go measures the history.
+// Related: internal/le/repo/rewrite/activitymeasure.go measures the history.
 package site
 
 import (
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/sourcerewrite"
+	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
 // The activity page registers from here. A build discovers it through the
@@ -57,7 +57,7 @@ type activityMetric struct {
 // clock is the seam the footer stamp already reads, so the two cannot disagree
 // about the date, and a test fixes both at once.
 func renderActivityPage(paths Paths) ([]string, error) {
-	window, err := sourcerewrite.MeasureActivity(paths.Repository, sourcerewrite.ActivityDaysDefault, "", buildClock())
+	window, err := reporewrite.MeasureActivity(paths.Repository, reporewrite.ActivityDaysDefault, "", buildClock())
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ const (
 
 // activityBody renders the widget that holds the summary cards, the calendar,
 // the Go inventory and the tooltip, inside the shell its surface asks for.
-func activityBody(window *sourcerewrite.ActivityWindow, surface activitySurface) string {
+func activityBody(window *reporewrite.ActivityWindow, surface activitySurface) string {
 	var body textbuf.Buffer
 	body.Reset()
 	switch surface {
@@ -147,7 +147,7 @@ func activityBody(window *sourcerewrite.ActivityWindow, surface activitySurface)
 // The page asks the site script to fade the widget in as the reader scrolls to
 // it, which is what the reveal class marks. The slide carries neither that
 // script nor a scroll, so it does not claim the class.
-func activityWidgetHTML(window *sourcerewrite.ActivityWindow, surface activitySurface) string {
+func activityWidgetHTML(window *reporewrite.ActivityWindow, surface activitySurface) string {
 	class := "activity-widget"
 	if surface == activitySurfacePage {
 		class = "activity-widget reveal"
@@ -168,7 +168,7 @@ func activityWidgetHTML(window *sourcerewrite.ActivityWindow, surface activitySu
 }
 
 // activityLineMetric labels the added-line series, which the page opens on.
-func activityLineMetric(window *sourcerewrite.ActivityWindow) activityMetric {
+func activityLineMetric(window *reporewrite.ActivityWindow) activityMetric {
 	return activityMetric{
 		TotalLabel: "Total added lines", TotalValue: groupThousands(window.Lines.Total),
 		ActiveLabel: "Days with added lines", ActiveValue: groupThousands(window.Lines.ActiveDays),
@@ -179,7 +179,7 @@ func activityLineMetric(window *sourcerewrite.ActivityWindow) activityMetric {
 
 // activityCommitMetric labels the commit series, which the metric switch moves
 // the same four cards onto.
-func activityCommitMetric(window *sourcerewrite.ActivityWindow) activityMetric {
+func activityCommitMetric(window *reporewrite.ActivityWindow) activityMetric {
 	return activityMetric{
 		TotalLabel: "Total commits", TotalValue: groupThousands(window.Commits.Total),
 		ActiveLabel: "Days with commits", ActiveValue: groupThousands(window.Commits.ActiveDays),
@@ -190,7 +190,7 @@ func activityCommitMetric(window *sourcerewrite.ActivityWindow) activityMetric {
 
 // activityThresholdText lists the four heat-level boundaries the way the page
 // prints every other number on it.
-func activityThresholdText(series sourcerewrite.ActivitySeries) string {
+func activityThresholdText(series reporewrite.ActivitySeries) string {
 	text := make([]string, len(series.Thresholds))
 	for index, value := range series.Thresholds {
 		text[index] = groupThousands(value)
@@ -200,7 +200,7 @@ func activityThresholdText(series sourcerewrite.ActivitySeries) string {
 
 // activityRangeText names the measured window the way the pill beside the
 // metric switch shows it.
-func activityRangeText(window *sourcerewrite.ActivityWindow) string {
+func activityRangeText(window *reporewrite.ActivityWindow) string {
 	const dayLayout = "2006-01-02"
 	return window.Start.Format(dayLayout) + " to " + window.End.Format(dayLayout)
 }
@@ -212,7 +212,7 @@ func activityRangeText(window *sourcerewrite.ActivityWindow) string {
 // because the measurement chooses the span: a number written twice is a page
 // that can disagree with the grid beside it. Both bounds are inclusive, so the
 // count is one more than the days between them.
-func activityDaysShown(window *sourcerewrite.ActivityWindow) int {
+func activityDaysShown(window *reporewrite.ActivityWindow) int {
 	const day = 24 * time.Hour
 	return int(window.End.Sub(window.Start)/day) + 1
 }
@@ -254,7 +254,7 @@ func activityStatHTML(name, label, value string) string {
 // The grid is one image to a screen reader rather than a year of focusable
 // squares with no shared meaning, so it states role="img" and a label naming
 // the span it covers.
-func activityChartHTML(window *sourcerewrite.ActivityWindow) string {
+func activityChartHTML(window *reporewrite.ActivityWindow) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<div class="chart-scroll">`).Byte('\n')
 	out.Str(`            <div class="chart">`).Byte('\n')
@@ -285,7 +285,7 @@ const activityLegendHTML = `        <div class="legend"><span>Less</span>` +
 	`<span>More</span></div>` + "\n"
 
 // activityGoPanelHTML renders the four buckets of the Go source inventory.
-func activityGoPanelHTML(inventory sourcerewrite.ActivityGo) string {
+func activityGoPanelHTML(inventory reporewrite.ActivityGo) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<section class="panel go-panel" aria-label="Go code stats">`).Byte('\n')
 	out.Str("        <h2>Go code composition</h2>\n")
@@ -304,7 +304,7 @@ func activityGoPanelHTML(inventory sourcerewrite.ActivityGo) string {
 // activityGoBucketHTML renders one bucket: five counts, then whatever extra
 // card that bucket alone carries. Only the vendored bucket has one, the module
 // count, so extraCard is empty for the other three.
-func activityGoBucketHTML(title string, bucket sourcerewrite.ActivityGoBucket, extraCard string) string {
+func activityGoBucketHTML(title string, bucket reporewrite.ActivityGoBucket, extraCard string) string {
 	var out textbuf.Buffer
 	out.Reset().Str(`<div class="go-bucket">`).Byte('\n')
 	out.Str("            <h3>").Str(html.EscapeString(title)).Str("</h3>\n")

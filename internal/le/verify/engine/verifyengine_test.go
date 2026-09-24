@@ -16,9 +16,9 @@ import (
 
 func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 	want := []string{
-		"verify lint/run", "tier/check", "rfc/check", "iface-resolution",
-		"plugin boundary/check", "config coercion/check", "fs-persistence/check",
-		"dash-stdio/check", "port-defaults/check", "go-version/check", "config claims",
+		"verify lint/run", "arch tier/check", "rfc/check", "arch iface-resolution",
+		"plugin boundary/check", "config coercion/check", "arch fs-persistence/check",
+		"cli stdio/check", "config ports/check", "go-version/check", "config claims",
 		"test-sensitivity/check", "test-weakened/check",
 		"staticcheck-feature-matrix/check/part/1/of/6",
 		"staticcheck-feature-matrix/check/part/2/of/6",
@@ -26,13 +26,13 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"staticcheck-feature-matrix/check/part/4/of/6",
 		"staticcheck-feature-matrix/check/part/5/of/6",
 		"staticcheck-feature-matrix/check/part/6/of/6",
-		"repository tracked-build/check", "platform-vet/darwin/freebsd", "doc wiring",
-		"doc check/verify", "doc check/links", "repository/tree-check",
-		"plugin imports/check", "plugin declarations/check", "enumeration/check",
-		"yang glue/check", "feature-tags/check",
+		"repo tracked-build/check", "platform-vet/darwin/freebsd", "doc wiring",
+		"doc check/verify", "doc check/links", "repo/tree-check",
+		"plugin imports/check", "plugin declarations/check", "arch enumeration/check",
+		"yang glue/check", "repo feature-tags/check",
 		"doc check/templ-output", "vendor-web/check", "web-assets/check",
 		"docs-to-code/index-check", "rules/render-check", "rules/index-check",
-		"rules/condensed-check", "rules/lint", "arch-map/check",
+		"rules/condensed-check", "rules/lint", "repo arch-map/check",
 		"test-health/check", "site facts/check",
 		"htmx-upgrade/check", "verify deps/evidence-vet", "hook-check/unit",
 		"verify deps/vulnerability", "verify deps/unit-cached",
@@ -61,9 +61,9 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 
 func TestEveryActionStageCarriesExplicitArgsOrIsBare(t *testing.T) {
 	bare := map[string]bool{
-		"iface-resolution": true,
-		"config claims":    true,
-		"doc wiring":       true,
+		"arch iface-resolution": true,
+		"config claims":         true,
+		"doc wiring":            true,
 	}
 	for _, current := range fullStages() {
 		if len(current.Identity.Args) != 0 || bare[current.Identity.Name] {
@@ -162,7 +162,7 @@ func TestAStageFailureIsStructuredLoggedAndDoesNotHideLaterStages(t *testing.T) 
 	if !strings.Contains(string(content), "output from "+failed.Identity.Name) {
 		t.Fatalf("stage log did not preserve runner output: %s", content)
 	}
-	if !strings.Contains(string(content), "Command: tier check") {
+	if !strings.Contains(string(content), "Command: arch tier check") {
 		t.Fatalf("stage log omitted native action args: %s", content)
 	}
 }

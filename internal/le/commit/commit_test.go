@@ -112,15 +112,15 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
 		{"stage":"verify lint/run","exit-code":1,"groups":[
 			{"group-id":"lint:theirs","kind":"lint","related":["theirs/b.go"]}]},
-		{"stage":"tier/check","exit-code":1,"groups":[
+		{"stage":"arch tier/check","exit-code":1,"groups":[
 			{"group-id":"tier:unknown","kind":"subcheck","related":["theirs/b.go"]}]},
 		{"stage":"doc wiring","exit-code":1,"groups":[
 			{"group-id":"files:mine","kind":"files","related":["mine/a.go"]}]}
 	]}`)
 	reds := structuralGateReds(root, []string{"mine/a.go"})
-	if !slices.Equal(reds.Charged, []string{"tier/check", "doc wiring"}) ||
+	if !slices.Equal(reds.Charged, []string{"arch tier/check", "doc wiring"}) ||
 		!slices.Equal(reds.Foreign, []string{"verify lint/run"}) ||
-		!slices.Equal(reds.Unattributed, []string{"tier/check (tier:unknown)"}) {
+		!slices.Equal(reds.Unattributed, []string{"arch tier/check (tier:unknown)"}) {
 		t.Fatalf("structuralGateReds = %#v", reds)
 	}
 }

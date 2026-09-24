@@ -25,7 +25,7 @@ placement rule that a gate can audit.
 | B. Does a feature depend on it? | Does any `.go` file under `internal/component/` or `internal/plugins/` import it, excluding its own subtree, the generated composition root, `cmd/ze` dispatch, `internal/core`, `internal/chaos`, `internal/test`, and `_test.go`? |
 
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn -->
-<!-- source: internal/le/tier/tier.go -- the placement gate and the reverse-dependency report -->
+<!-- source: internal/le/arch/tier/tier.go -- the placement gate and the reverse-dependency report -->
 
 The normative rule follows from the two axes. A config-driven engine at a
 top-level subsystem belongs in `internal/component/` when a feature depends on
@@ -42,9 +42,9 @@ verb providers, and setup-feature commands. There is no permanent allowlist.
 
 ## The non-engine category manifest
 
-`internal/le/tier/testdata/tier_non_engine_categories.txt` is the source of
+`internal/le/arch/tier/testdata/tier_non_engine_categories.txt` is the source of
 truth for intentional non-engine placements outside `internal/core/`. It is
-non-code data consumed by `./le tier check`, so an exception is never hidden in
+non-code data consumed by `./le arch tier check`, so an exception is never hidden in
 Go code.
 
 Each row is:
@@ -81,18 +81,18 @@ keeps its direct package and YANG imports behind the matching `ze_<feature>`
 build tag.
 
 `feature-gates.txt` at the repository root is the source of truth, declaring
-gates as `<tag> <pkg>` rows. `./le feature-tags write` updates the static
-consumers and `./le feature-tags check` refuses drift.
+gates as `<tag> <pkg>` rows. `./le repo feature-tags write` updates the static
+consumers and `./le repo feature-tags check` refuses drift.
 
 ## What the gate enforces
 
-`./le tier check` enforces engine placement, the non-engine manifest, core
+`./le arch tier check` enforces engine placement, the non-engine manifest, core
 import direction, disable-ability, and build-tag drift. Grandfathered core
 import pairs are non-code data in
-`internal/le/tier/testdata/core_import_baseline.txt`; a new pair and a stale
+`internal/le/arch/tier/testdata/core_import_baseline.txt`; a new pair and a stale
 row both fail.
 
-`internal/le/tier/testdata/tier_migration_baseline.txt` lists engines scheduled
+`internal/le/arch/tier/testdata/tier_migration_baseline.txt` lists engines scheduled
 to move. The gate fails on a new violation and on a stale entry, so the file
 can only shrink. An empty baseline means zero exceptions.
 

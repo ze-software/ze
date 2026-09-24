@@ -129,7 +129,7 @@ exported symbols, and incomplete spec AC tables. Run it after `./le verify curre
 before presenting work as complete.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
-<!-- source: internal/le/repository/actions.go -- Answer -->
+<!-- source: internal/le/repo/actions.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->

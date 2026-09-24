@@ -60,7 +60,7 @@ shared renderer rather than add a private JSON mode.
 **The package sits at the path its command name predicts.** A space in the name
 is a directory level, and a hyphen inside a level joins words naming one thing:
 `le spec session` lives at `internal/le/spec/session`, and
-`le repository tracked-build` at `internal/le/repository/trackedbuild`. The rule
+`le repo tracked-build` at `internal/le/repo/trackedbuild`. The rule
 holds in both directions, and
 `TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
 reader who knows the command knows the directory. A package that registers
@@ -69,10 +69,11 @@ nothing is a library, and it names nothing.
 **A hyphen joins one name; a space separates a namespace.** This is the rule
 `docs/architecture/cli/command-namespacing.md` states for the product CLI, and
 le follows it: `le verify lint`, not `le verify-lint`, because `verify` is an
-object with members. A shared prefix is not a namespace, so `dash-stdio` and
-the six `test-*` commands keep their hyphen; there is no `dash` object, and the
-`test-*` commands are five kinds of thing sharing a word. Feeder 6 of the
-grammar gate (`./le cli-grammar`) derives le's namespaces from the live
+object with members, and `le cli stdio`, not `le dash-stdio`, because the
+check belongs to the `cli` subject. A shared prefix alone is not a namespace,
+so the six `test-*` commands keep their hyphen until their family moves: they
+are five kinds of thing sharing a word. Feeder 6 of the
+grammar gate (`./le cli grammar`) derives le's namespaces from the live
 registry and refuses a root that hyphenates an object to its member.
 
 **A bare namespace token is a question, answered with exit 0.** `le spec` names
@@ -119,7 +120,7 @@ rendering help through the handler would scan the tree or start a build.
 
 **The area's own table decides which help word is a question and which is
 data.** A help word that a declared keyword introduced is the value the operator
-typed, wherever it stands on the line. So `le source-rewrite replace file
+typed, wherever it stands on the line. So `le repo rewrite replace file
 <path> old beta new help` runs the replacement. Every other help word asks the
 question, and the registry answers it.
 
@@ -203,7 +204,7 @@ artifact at all.
 Nothing compares a re-render against a committed copy, because there is no
 committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
-`internal/le/discoveryindex`, `internal/le/docstocode` and `internal/le/rfc` are
+`internal/le/repo/packagemap`, `internal/le/docstocode` and `internal/le/rfc` are
 the packages that register today.
 `docs/contributing/navigating-the-code.md` is the consumer contract for the
 index artifacts, and `docs/contributing/rfc-conformance-gates.md` for the five

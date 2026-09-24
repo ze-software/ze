@@ -284,7 +284,7 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 			// A tree with no internal/ registers no local handler, and a file
 			// that VANISHED between the walk listing it and this callback was
 			// never part of the tree either: another session shares this
-			// checkout (internal/le/inventory, vanished). Anything else is a part
+			// checkout (internal/le/repo/inventory, vanished). Anything else is a part
 			// of the tree this scan cannot read, and a scan that silently
 			// skips a register.go reports every command it holds as orphaned
 			// in one direction and none in the other.
@@ -313,7 +313,7 @@ func localCommandRegistryFiles(root string) ([]string, error) {
 
 // vanished reports whether path is gone from the filesystem, which is how a
 // read failure in a SHARED checkout is told from one this scan must report.
-// The precedent and the reason are internal/le/inventory, vanished.
+// The precedent and the reason are internal/le/repo/inventory, vanished.
 func vanished(path string) bool {
 	_, err := os.Lstat(path)
 	return errors.Is(err, fs.ErrNotExist)

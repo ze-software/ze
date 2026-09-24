@@ -453,7 +453,7 @@ func runSysctlPlugin(conn net.Conn) int {
 //
 // An argument is spelled in ANGLE BRACKETS, because both readers publish the
 // tokens verbatim as the command's invocation form (pluginUsage,
-// cmd/ze/help_command.go and internal/le/wikicatalog/catalog.go). A bare
+// cmd/ze/help_command.go and internal/le/cli/catalog/catalog.go). A bare
 // identifier reads as a keyword an operator types, so `show sysctl key` was
 // published as `show sysctl key key`.
 func commandDecls() []sdk.CommandDecl {

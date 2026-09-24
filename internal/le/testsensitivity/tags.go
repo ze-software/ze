@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	verifylint "github.com/ze-software/ze/internal/le/verify/lint"
 )
 
@@ -32,7 +32,7 @@ const maxFreeTags = 16
 
 // tagUniverse returns every project tag the native action population supplies.
 func tagUniverse(root string) (map[string]bool, error) {
-	features, err := featuretags.DaemonTags(root)
+	features, err := repofeaturetags.DaemonTags(root)
 	if err != nil {
 		return nil, err
 	}

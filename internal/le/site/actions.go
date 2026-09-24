@@ -10,7 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/sourcerewrite"
+	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
 const area = "site"
@@ -155,7 +155,7 @@ func runActivity(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	days := sourcerewrite.ActivityDaysDefault
+	days := reporewrite.ActivityDaysDefault
 	if raw := arguments.One("days"); raw != "" {
 		days, err = strconv.Atoi(raw)
 		if err != nil {

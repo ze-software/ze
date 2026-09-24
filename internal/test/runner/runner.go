@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
@@ -118,7 +118,7 @@ func featureGateTags() ([]string, error) {
 		return nil, errors.New(tb.Str("no checkout found above the working directory, so ").
 			Str(featureGatesFile).Str(" cannot be read").String())
 	}
-	return featuretags.DaemonTags(root)
+	return repofeaturetags.DaemonTags(root)
 }
 
 // findRepoRoot walks up from the working directory to the module root (the dir

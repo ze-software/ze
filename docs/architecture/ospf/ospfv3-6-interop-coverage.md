@@ -1,7 +1,7 @@
 # OSPFv3 stub-area default origination and export hygiene
 
 Two results the interop-coverage work produced: the v6 stub default origination
-that was missing, and the interface-seam rule that `internal/le/repository.Answer`
+that was missing, and the interface-seam rule that `internal/le/repo.Answer`
 now applies.
 
 ## Decisions
@@ -33,7 +33,7 @@ now applies.
 - **`./le repository check` scans untracked files**, so a wholly new tree IS
   scanned, and a non-zero exit can be mostly other work's symbols. Scope the
   count before believing a claim about one package.
-  <!-- source: internal/le/repository/wiring.go -- exported symbol caller and interface-seam checks -->
+  <!-- source: internal/le/repo/wiring.go -- exported symbol caller and interface-seam checks -->
 - **Unexporting a type that only tests name breaks the tests that name it.**
   Compare a value against a known instance instead of naming the type.
 - A stub adjacency that forms at all proves the v6 Hello option bits are cleared

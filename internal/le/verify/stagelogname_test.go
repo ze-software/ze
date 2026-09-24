@@ -1,7 +1,6 @@
-// VALIDATES: a namespaced stage writes the log file name its hyphenated
-// spelling wrote, so no verification artifact path moved when the twenty-one
-// commands gained a space. AC-18 of spec-le-subject-first-command-tree
-// moves these names to the new stage names.
+// VALIDATES: every stage writes a log file named after its command, with both
+// separators flattened to a hyphen, so a renamed command renames its log file
+// (AC-18 of spec-le-subject-first-command-tree).
 package verify
 
 import (
@@ -13,15 +12,14 @@ import (
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
-// TestStageLogNamesAreUnchangedByNamespacing pins the flattening every
-// verification artifact depends on.
+// TestStageLogNamesFollowTheCommandName pins the flattening every verification
+// artifact depends on.
 //
-// `stageLogPath` turns both separators into a hyphen, so `verify lint/run`
-// writes 01-verify-lint-run.log, which is the name it wrote when the command
-// was spelled `verify-lint`. That was luck rather than design at the rename,
-// and the failure index, every rerun line and the functional fixtures read
-// those paths. This test is what makes it design.
-func TestStageLogNamesAreUnchangedByNamespacing(t *testing.T) {
+// `stageLogPath` turns both separators into a hyphen, so `arch tier/check`
+// writes NN-arch-tier-check.log. The failure index, every rerun line and the
+// functional fixtures read those paths, so a stage rename is a changed
+// expectation here, never a silent move.
+func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 	repo := newFixtureRepo(t)
 	repo.commit(t, "fixture", "one")
 
@@ -36,13 +34,17 @@ func TestStageLogNamesAreUnchangedByNamespacing(t *testing.T) {
 	// One row per namespaced family that owns a stage, named in full so a
 	// changed name is a changed expectation rather than a silent pass.
 	want := map[string]string{
-		"verify lint/run":                "01-verify-lint-run.log",
-		"verify deps/unit-cached":        "verify-deps-unit-cached.log",
-		"doc wiring":                     "doc-wiring.log",
-		"doc check/verify":               "doc-check-verify.log",
-		"repository tracked-build/check": "repository-tracked-build-check.log",
-		"plugin boundary/check":          "plugin-boundary-check.log",
-		"site facts/check":               "site-facts-check.log",
+		"verify lint/run":          "01-verify-lint-run.log",
+		"verify deps/unit-cached":  "verify-deps-unit-cached.log",
+		"doc wiring":               "doc-wiring.log",
+		"doc check/verify":         "doc-check-verify.log",
+		"repo tracked-build/check": "repo-tracked-build-check.log",
+		"repo/tree-check":          "repo-tree-check.log",
+		"arch tier/check":          "arch-tier-check.log",
+		"cli stdio/check":          "cli-stdio-check.log",
+		"config ports/check":       "config-ports-check.log",
+		"plugin boundary/check":    "plugin-boundary-check.log",
+		"site facts/check":         "site-facts-check.log",
 	}
 
 	seen := 0

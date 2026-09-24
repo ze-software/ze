@@ -12,7 +12,7 @@ import (
 	schemacli "github.com/ze-software/ze/internal/component/config/schema/cli"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // liveInventory resolves the config-schema tree and the claim union exactly as
@@ -235,7 +235,7 @@ func repoRoot(t *testing.T) string {
 func gatedYANGModules(t *testing.T, root string) map[string]string {
 	t.Helper()
 
-	rows, err := featuretags.Gates(root)
+	rows, err := repofeaturetags.Gates(root)
 	if err != nil {
 		t.Fatalf("read the feature manifest: %v", err)
 	}

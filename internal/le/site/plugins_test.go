@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/inventory"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 // pluginCatalogPaths lays out one tree whose artifact carries the plugin
@@ -52,7 +52,7 @@ func writePublishedRegistry(t *testing.T, paths Paths, plugins []registryPlugin)
 //
 // The method renders one plugin whose registration declares an optional
 // dependency, a source directory and two YANG files, and looks for each of the
-// three on the detail page. Before this phase inventory.Plugin held none of
+// three on the detail page. Before this phase repoinventory.Plugin held none of
 // them, so all three would be blank.
 func TestPluginCatalogCarriesTheFieldsThePageShows(t *testing.T) {
 	paths := pluginCatalogPaths(t)
@@ -369,7 +369,7 @@ func TestAnUnusableRegistryIsRefusedByName(t *testing.T) {
 // VALIDATES: the published registry file states every field the catalog shows,
 // and states an absent list as an empty array rather than as null.
 func TestThePublishedRegistryStatesEveryFieldTheCatalogShows(t *testing.T) {
-	content, err := marshalPluginRegistry([]inventory.Plugin{
+	content, err := marshalPluginRegistry([]repoinventory.Plugin{
 		{
 			Name: "static", Description: "Static routes",
 			ConfigRoots:          []string{"static"},

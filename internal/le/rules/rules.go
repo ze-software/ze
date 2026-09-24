@@ -55,7 +55,7 @@ var skip = map[string]bool{"INDEX.md": true, "CONDENSED.md": true}
 // The all-caps stem test is what recognizes TRIGGERS.md and CORE.md, which are
 // named in no list: they are generated, and a generator that adds a third
 // aggregate should not have to be remembered here. That shape test is the half
-// a second copy of this predicate loses. internal/le/sourcerewrite kept one --
+// a second copy of this predicate loses. internal/le/repo/rewrite kept one --
 // three names and no shape -- so its rewriter walked into both generated files
 // and, on 2026-08-29, they were the only two files it would have rewritten.
 // Exported so that copy could be deleted rather than corrected.

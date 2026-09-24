@@ -6,7 +6,7 @@
 // none.
 //
 // PREVENTS: a completeness claim that reads one package's action table. The
-// test that carried this name before pinned four verbs of internal/le/sourcerewrite
+// test that carried this name before pinned four verbs of internal/le/repo/rewrite
 // and could not go red for a producer missing anywhere else in the repository.
 //
 // Both populations are DERIVED, and neither is written down here. The producer

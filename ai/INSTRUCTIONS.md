@@ -236,7 +236,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
-<!-- BEGIN GENERATED: arch-components (internal/le/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-components (internal/le/repo/archmap.Update; ./le arch-map update) -->
 46 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
@@ -248,7 +248,7 @@ trafficfeature, trafficstat, vpp, web
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
-<!-- BEGIN GENERATED: arch-system-plugins (internal/le/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le arch-map update) -->
 66 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
@@ -264,7 +264,7 @@ traffic-cmd, trafficusage, update-cmd, vrrp
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
-<!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/repo/archmap.Update; ./le arch-map update) -->
 33 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, capa, cmd, epe, filter_aspath, filter_aspath_length,

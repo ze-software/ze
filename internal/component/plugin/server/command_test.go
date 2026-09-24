@@ -2221,7 +2221,7 @@ func TestBuiltinPathsResolveToTheirOwnHandler(t *testing.T) {
 //
 // VALIDATES: `show bgp summary` is no command. The YANG tree produces no path
 // for it and no wire method of its own, so `./le command list`, which reads the
-// same WireMethodToPath map (internal/le/command/list/register.go), cannot name
+// same WireMethodToPath map (internal/le/cli/list/register.go), cannot name
 // it. Typed anyway, it matches `show bgp` and hands `summary` over as an
 // argument, which is what makes handleBgpOverview
 // (internal/component/bgp/plugins/cmd/peer/summary.go) answer the

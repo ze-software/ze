@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1a/5 |
+| Phase | 1b/5 |
 | Handoff | - |
 | Updated | 2026-09-24 |
 

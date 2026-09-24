@@ -8,12 +8,12 @@
 # <gated-package>; that is what lets the linker drop it when the tag is off.
 #
 # THIS FILE IS THE ONE PLACE A GATE IS DECLARED, and it has two readers.
-# internal/le/featuretags is the Go one, and every Go consumer derives from it:
+# internal/le/repo/featuretags is the Go one, and every Go consumer derives from it:
 #   - internal/le/gotoolchain derives the default daemon and test build tags
 #   - internal/test/runner.TestBuildTags adds the functional-test personality
 #   - internal/le/plugin/imports gates each package and its YANG package
-#   - internal/le/tier proves no always-on package imports a gated package
-#   - internal/le/changed and internal/le/staticcheckfeaturematrix scope the gates
+#   - internal/le/arch/tier proves no always-on package imports a gated package
+#   - internal/le/repo/changed and internal/le/staticcheckfeaturematrix scope the gates
 # feature-tags is the shell one, for the bootstrap that has no le binary yet:
 # the root ze and le launchers and the two Docker images source it.
 #

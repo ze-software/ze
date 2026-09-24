@@ -38,8 +38,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/job"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 // suiteMapPath is where the suite map lives, relative to the checkout root.
@@ -194,10 +194,10 @@ func selectSuites(root string) suiteSelection {
 
 	// A verify run selects its change set once, before its first stage, and
 	// names the answer to every stage it starts (publishChangeScope,
-	// internal/le/verify/engine/scope.go). changed.Packages reads that answer,
+	// internal/le/verify/engine/scope.go). repochanged.Packages reads that answer,
 	// so a gating run inside a verify run judges the tree that run selected
 	// rather than the tree as it stands this minute.
-	answer, code := changed.Packages(root)
+	answer, code := repochanged.Packages(root)
 	if code != 0 {
 		return everySuite("the change-set selector refused this checkout, so no changed package is known")
 	}
@@ -306,7 +306,7 @@ func touchedSince(root, head string) (map[string]bool, error) {
 //
 // Git answers with forward slashes on every platform, so the path arithmetic is
 // path rather than filepath. A file at the module root belongs to ".", which is
-// the selector's own answer for one (rootPackage, internal/le/changed/selector.go).
+// the selector's own answer for one (rootPackage, internal/le/repo/changed/selector.go).
 // Any file counts, not only a .go one: a package whose testdata moved is a
 // package whose recorded reach was observed on another tree.
 func packageOf(repoPath string) string {

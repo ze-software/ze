@@ -1,6 +1,6 @@
 # Running Development Commands
 
-<!-- source: internal/le/gotoolchain, internal/le/changed, internal/le/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
+<!-- source: internal/le/gotoolchain, internal/le/repo/changed, internal/le/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
 
 How the `./le` action surface, the session scratch tree, and the Bash guard
 behave. The obligations that follow from this page are `ai/rules/commands.md`.
@@ -150,7 +150,7 @@ cold analysis for each build, which is minutes.
 
 `./le changed scope` is the one selector, and `./le verify current mode changed`
 reuses its answer. It reports the changed packages plus two levels of their
-importers (`defaultDepth`, `internal/le/changed/selector.go`), and the feature
+importers (`defaultDepth`, `internal/le/repo/changed/selector.go`), and the feature
 tags the change can reach.
 
 ```
@@ -162,7 +162,7 @@ A non-Go path seeds the Go packages whose tests read it, so a `.ci` file or a
 rule point selects the native tooling packages rather than nothing.
 
 Every route that fails to narrow WIDENS to `./...` and names its reason on stderr
-(`widen`, `internal/le/changed/scope.go`). One reason is routine:
+(`widen`, `internal/le/repo/changed/scope.go`). One reason is routine:
 `tmp/ze-verify.status` holding no green commit. With nothing proven, every scoped
 target judges the whole tree until a full run passes. The contract is
 `../architecture/testing/verify-freshness-scope.md`.
@@ -170,7 +170,7 @@ target judges the whole tree until a full run passes. The contract is
 One directory answers with the whole tree by design. Every file in
 `cmd/ze-installer` carries `//go:build linux && ze_installer`, so `go list` under
 the unit tag set reports no package there, and `seedPackages`
-(`internal/le/changed/selector.go`) has nothing narrower to name. The wide answer
+(`internal/le/repo/changed/selector.go`) has nothing narrower to name. The wide answer
 is what makes the `ze_installer` lint flavor run at all.
 
 A scoped run also judges fewer Staticcheck feature-matrix rows. `scopeMatrix`
@@ -597,7 +597,7 @@ recipe needs.
 `./le doc check verify` and `./le repository generated-check` are separate actions.
 `internal/le/doc/wiring.Verify` owns the ordered documentation gate, including the
 `internal/le/docvalid` command and drift checks, the `internal/le/doc/check` links,
-and RFC freshness. `internal/le/repository` owns the generated repository artifacts.
+and RFC freshness. `internal/le/repo` owns the generated repository artifacts.
 
 ## Waiting for another session's job
 

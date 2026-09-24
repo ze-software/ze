@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -450,11 +450,11 @@ func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
 		t.Fatalf("no command builds %s: %v", LE, commands)
 	}
 
-	gates, err := featuretags.DaemonTags(root)
+	gates, err := repofeaturetags.DaemonTags(root)
 	if err != nil {
 		t.Fatalf("read the feature manifest: %v", err)
 	}
-	for _, want := range append([]string{featuretags.LEBase}, gates...) {
+	for _, want := range append([]string{repofeaturetags.LEBase}, gates...) {
 		if !strings.Contains(build, want) {
 			t.Errorf("the le build carries no %s tag: %s", want, build)
 		}

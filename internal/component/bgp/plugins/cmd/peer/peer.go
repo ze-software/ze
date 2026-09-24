@@ -54,7 +54,7 @@ const (
 //
 // `./le command list` reports only part of this list, so building it from the
 // inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and the
-// streaming prefixes alone (internal/le/command/list/register.go), and reports
+// streaming prefixes alone (internal/le/cli/list/register.go), and reports
 // neither of these two kinds:
 //
 //   - `show bgp decode` and `show bgp encode`, offline handlers the CLI

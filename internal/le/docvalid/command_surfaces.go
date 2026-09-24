@@ -31,8 +31,8 @@ import (
 	xhtml "golang.org/x/net/html"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
-	"github.com/ze-software/ze/internal/le/wikicatalog"
+	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // The four availability keys the live command catalog publishes for a pipe
@@ -94,8 +94,8 @@ const (
 // The published surfaces and sibling producers this gate reads by name.
 const (
 	llmsSurfaceName             = "llms.txt"
-	wikiCatalogProducer         = "internal/le/wikicatalog/catalog.go"
-	wikiCatalogRenderer         = "internal/le/wikicatalog/render.go"
+	wikiCatalogProducer         = "internal/le/cli/catalog/catalog.go"
+	wikiCatalogRenderer         = "internal/le/cli/catalog/render.go"
 	wikiCatalogNormalizeFailure = "could not normalize the shipping wiki command catalog producer"
 )
 
@@ -211,10 +211,10 @@ func (c *checker) checkPublishedCommandSurfaces(commandCatalogPath string) []Iss
 	if producerIssues := compareWikiCatalogProducer(live, wikiEntries); len(producerIssues) != 0 {
 		return producerIssues
 	}
-	expectedWiki, err := wikicatalog.Render(wikiEntries)
+	expectedWiki, err := clicatalog.Render(wikiEntries)
 	if err != nil {
 		return []Issue{{
-			File:    "internal/le/wikicatalog/render.go",
+			File:    "internal/le/cli/catalog/render.go",
 			Message: "could not generate the expected wiki command catalog",
 			Detail:  err.Error(),
 		}}
@@ -396,7 +396,7 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 		return data, commands, err
 	}
 
-	tags, err := featuretags.DaemonBuildTags(root, shippedCommandCatalogBase)
+	tags, err := repofeaturetags.DaemonBuildTags(root, shippedCommandCatalogBase)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -609,11 +609,11 @@ func compareWebsiteCommandCatalog(root, path string, live []publishedCommand) []
 	}}
 }
 
-func (c *checker) collectWikiCatalogEntries() []wikicatalog.Entry {
+func (c *checker) collectWikiCatalogEntries() []clicatalog.Entry {
 	if c.wikiCatalogCollect != nil {
 		return c.wikiCatalogCollect()
 	}
-	return wikicatalog.Collect()
+	return clicatalog.Collect()
 }
 
 // compareWikiCatalogProducer holds the shipping wiki producer and the live
@@ -628,13 +628,13 @@ func (c *checker) collectWikiCatalogEntries() []wikicatalog.Entry {
 // kept and its subject is restated here.
 //
 // The remaining independent half is small and cannot be collapsed: an internal
-// package cannot import cmd/ze's main package, so wikicatalog.Collect carries
+// package cannot import cmd/ze's main package, so clicatalog.Collect carries
 // four main-package commands as literal Entry values and drops every `le `
 // path the product binary never registers. Nothing derives those, and this
 // comparison is what catches them going stale.
 func compareWikiCatalogProducer(
 	live []publishedCommand,
-	entries []wikicatalog.Entry,
+	entries []clicatalog.Entry,
 ) []Issue {
 	producedRaw, err := json.Marshal(entries)
 	if err != nil {
@@ -644,7 +644,7 @@ func compareWikiCatalogProducer(
 			Detail:  err.Error(),
 		}}
 	}
-	produced, err := parseCommandCatalog("wikicatalog.Collect", producedRaw)
+	produced, err := parseCommandCatalog("clicatalog.Collect", producedRaw)
 	if err != nil {
 		return []Issue{{
 			File:    wikiCatalogProducer,
@@ -691,11 +691,11 @@ func renderExpectedWikiCommandSurface(
 	_, _ string,
 	liveRaw []byte,
 ) ([]byte, error) {
-	var entries []wikicatalog.Entry
+	var entries []clicatalog.Entry
 	if err := json.Unmarshal(liveRaw, &entries); err != nil {
 		return nil, fmt.Errorf("decode wiki command catalog: %w", err)
 	}
-	return wikicatalog.Render(entries)
+	return clicatalog.Render(entries)
 }
 
 func compareWikiCommandCatalog(root, path string, want []byte) []Issue {
@@ -742,7 +742,7 @@ func validateGeneratedWikiCommandSurface(
 		// The summary column takes the declared summary whole, and the detail
 		// block takes the declared long form. Neither is a cut of the other:
 		// the wiki renderer reads two fields the command model declares
-		// separately (internal/le/wikicatalog/render.go, Render).
+		// separately (internal/le/cli/catalog/render.go, Render).
 		summary := wikiTableProse(normalizeWikiDescription(command.ShortHelp))
 		explanation := normalizeWikiDescription(command.Description)
 		wantRow := rendered.Reset().Str("| ").
@@ -1108,7 +1108,7 @@ func wikiTotalLines(content string) ([]string, bool) {
 
 // wikiTableProse answers one prose value as the wiki renders it into a Markdown
 // table cell, which cannot hold a line break
-// (internal/le/wikicatalog/render.go, tableProse).
+// (internal/le/cli/catalog/render.go, tableProse).
 func wikiTableProse(value string) string {
 	if !strings.ContainsRune(value, '\n') {
 		return value

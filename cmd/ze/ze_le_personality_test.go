@@ -16,7 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	_ "github.com/ze-software/ze/internal/le"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const internalLeImport = "github.com/ze-software/ze/internal/le"
@@ -242,7 +242,7 @@ func normalZeTags(t *testing.T, root string) []string {
 // every shipped binary.
 func personalityFeatureTags(t *testing.T, root string) []string {
 	t.Helper()
-	tags, err := featuretags.DaemonTags(root)
+	tags, err := repofeaturetags.DaemonTags(root)
 	if err != nil {
 		t.Fatalf("read the feature manifest: %v", err)
 	}

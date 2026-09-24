@@ -121,7 +121,7 @@ func warnUncommitted(changes []change) {
 //
 // A stale file answers 1 and a checkout that could not be judged answers 2, so
 // a caller reads "the numbers are out of date" apart from "the question was
-// never put" (internal/le/archmap, run).
+// never put" (internal/le/repo/archmap, run).
 func runCheck() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {

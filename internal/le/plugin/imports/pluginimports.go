@@ -35,8 +35,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // allDir is the composition root's package directory, relative to the tree.
@@ -140,7 +140,7 @@ func pluginSearchRoots() []string {
 // schema. A feature without one of those packages never matches the
 // corresponding discovery list, so deriving both for every entry is safe.
 func loadFeatureTags(root string) (map[string]string, error) {
-	rows, err := featuretags.Gates(root)
+	rows, err := repofeaturetags.Gates(root)
 	if err != nil {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("read ").Str(featureGatesManifest).Str(": ").Err(err).String())

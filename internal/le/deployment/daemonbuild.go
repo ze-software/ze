@@ -11,7 +11,7 @@
 // The tags are DERIVED rather than written down. A literal list creates a second
 // record of one fact, and a record that nothing compares can drift. ze_l2tp
 // became a gate on 2026-07-24, and the evidence scripts continued to build a
-// daemon with no L2TP for a month (internal/le/featuretags/daemontags.go).
+// daemon with no L2TP for a month (internal/le/repo/featuretags/daemontags.go).
 
 package deployment
 
@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // buildTimeout bounds the cross-compile. It allows a cold-cache build on a slow
@@ -59,7 +59,7 @@ func daemonBuildArgs(tree, goarch string) ([]string, error) {
 // after the architecture it was cross-compiled for. The tags are the same in
 // both cases. They are derived here, so neither proof can carry its own list.
 func daemonBuildArgsTo(tree, outRel string) ([]string, error) {
-	tags, err := featuretags.DaemonBuildTags(tree, featuretags.DaemonBase)
+	tags, err := repofeaturetags.DaemonBuildTags(tree, repofeaturetags.DaemonBase)
 	if err != nil {
 		return nil, err
 	}

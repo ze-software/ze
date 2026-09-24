@@ -12,7 +12,7 @@
 # compile-out-able feature are tag-gated, so an UNTAGGED build has neither: it
 # answers `start` with "unknown command" and would not carry PPPoE even if it
 # booted. The producer derives both from feature-gates.txt through
-# internal/le/featuretags, so this file names no tag and cannot drift from the
+# internal/le/repo/featuretags, so this file names no tag and cannot drift from the
 # shipped binary's feature set.
 
 FROM alpine:3.21

@@ -32,8 +32,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 const (
@@ -62,8 +62,8 @@ func publishChangeScope(root, logDir string) func() {
 			"), so every stage judges the whole tree")
 		return func() {}
 	}
-	restorePackages := nameChangeScope(changed.ScopeFileKey, answer.packagesPath)
-	restoreTags := nameChangeScope(changed.ScopeTagsKey, answer.tagsPath)
+	restorePackages := nameChangeScope(repochanged.ScopeFileKey, answer.packagesPath)
+	restoreTags := nameChangeScope(repochanged.ScopeTagsKey, answer.tagsPath)
 	return func() {
 		restoreTags()
 		restorePackages()
@@ -77,7 +77,7 @@ func publishChangeScope(root, logDir string) func() {
 // Only a selector that refused the checkout leaves the run with nothing to
 // publish.
 func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
-	report, code := (changed.Scope{Root: root}).Resolve([]string{"--print=both"})
+	report, code := (repochanged.Scope{Root: root}).Resolve([]string{"--print=both"})
 	if code != 0 {
 		return changeScopeAnswer{}, errors.New("the selector refused this checkout")
 	}
@@ -86,8 +86,8 @@ func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
 		tagsPath:     filepath.Join(logDir, scopeTagsFile),
 	}
 	// The package answer carries the checkout it is about, so a child process
-	// asking about another one selects its own (changed.WriteScopePackages).
-	if err := changed.WriteScopePackages(answer.packagesPath, root, report.Packages); err != nil {
+	// asking about another one selects its own (repochanged.WriteScopePackages).
+	if err := repochanged.WriteScopePackages(answer.packagesPath, root, report.Packages); err != nil {
 		return changeScopeAnswer{}, err
 	}
 	if err := writeChangeScopeAnswer(answer.tagsPath, report.Tags); err != nil {
@@ -101,7 +101,7 @@ func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
 // tells a stage the run did select, and its emptiness is the selector's own
 // answer that no changed path is compiled or read by a Go package.
 //
-// The package answer has a writer of its own (changed.WriteScopePackages),
+// The package answer has a writer of its own (repochanged.WriteScopePackages),
 // because it carries the checkout it was selected for and its reader lives in
 // that package. The tag answer needs no checkout: its consumer is the
 // Staticcheck feature matrix, which subtracts matrix rows and asks about no

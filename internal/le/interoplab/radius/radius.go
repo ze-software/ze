@@ -26,9 +26,9 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const (
@@ -281,12 +281,12 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 // LabBinaries declares the one binary this lab stages into its Docker build
 // context, which is what test/interop-radius/Dockerfile.ze copies in.
 //
-// The base is featuretags.DaemonBase, so the lab daemon carries the same
+// The base is repofeaturetags.DaemonBase, so the lab daemon carries the same
 // personality and the same features as every other build of this tree and a
 // scenario cannot fail on a feature that was compiled out.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
-		{Name: "ze", Base: featuretags.DaemonBase, Output: filepath.Join(labDirectory, "ze-linux")},
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: filepath.Join(labDirectory, "ze-linux")},
 	}
 }
 

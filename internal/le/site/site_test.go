@@ -10,8 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/leroot"
-
-	"github.com/ze-software/ze/internal/le/inventory"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 // VALIDATES: every former website launcher has a native site action.
@@ -287,8 +286,8 @@ func stubLiveInputs(t *testing.T, catalog string) {
 		liveRequirementLedger = previousLedger
 	})
 	liveCommandCatalog = func(string) ([]byte, error) { return []byte(catalog), nil }
-	livePluginRegistry = func(string) ([]inventory.Plugin, error) {
-		return []inventory.Plugin{{
+	livePluginRegistry = func(string) ([]repoinventory.Plugin, error) {
+		return []repoinventory.Plugin{{
 			Name: "static", Description: "Static routes",
 			ConfigRoots: []string{"static"}, SourceDir: "internal/plugins/static",
 		}}, nil

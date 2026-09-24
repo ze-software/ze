@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // VALIDATES: `./le integration interop` wires the shared staging producer, and no longer hands the image its feature tags.
@@ -58,7 +58,7 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	}
 
 	want := map[string]struct{ base, output string }{
-		"ze":      {base: featuretags.DaemonBase, output: "test/interop/ze-linux"},
+		"ze":      {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
 		"ze-test": {base: "ze_test", output: "test/interop/ze-test-linux"},
 	}
 	for _, binary := range declared {

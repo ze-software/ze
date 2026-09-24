@@ -6,7 +6,7 @@
 // The package DERIVES these values from the checkout instead of defining them
 // here. A literal beside the source value in go.mod or feature-gates.txt would
 // create two records of one fact. An unchecked copy can drift. The manifest read
-// uses internal/le/featuretags, which already reads this value for daemon builds.
+// uses internal/le/repo/featuretags, which already reads this value for daemon builds.
 //
 // Four variables have behavior that their names do not show:
 //
@@ -61,7 +61,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // DefaultTestTimeout is the per-test-binary timeout. The environment can
@@ -167,7 +167,7 @@ type Toolchain struct {
 // builds a daemon with every feature excluded from compilation. The caller
 // cannot distinguish that result from a defect in the subject under test.
 func New(root string) (Toolchain, error) {
-	features, err := featuretags.DaemonTags(root)
+	features, err := repofeaturetags.DaemonTags(root)
 	if err != nil {
 		return Toolchain{}, err
 	}

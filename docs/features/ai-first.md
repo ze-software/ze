@@ -4,7 +4,7 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai machine-readable reference -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/repo-maintenance.md -- Current Discovery Surfaces -->
-<!-- source: internal/le/inventory/register.go -- inventory command registration -->
+<!-- source: internal/le/repo/inventory/register.go -- inventory command registration -->
 
 Ze is built around a single command and discovery surface. Commands,
 configuration nodes, RPCs, events, and plugin metadata are registered once, then

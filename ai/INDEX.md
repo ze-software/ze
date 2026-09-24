@@ -304,29 +304,30 @@ disagree, the manifest is right and the row is stale.
 | Command | Producer | Purpose |
 |---------|----------|---------|
 | `./le ai` | `internal/le/ai.Answer` | the generated agent files: sync every tool's copy of the skills and instructions, or check them |
-| `./le arch-map` | `internal/le/archmap.Answer` | the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them |
+| `./le arch enumeration` | `internal/le/arch/enumeration.Answer` | no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself |
+| `./le arch fs-persistence` | `internal/le/arch/fspersistence.Answer` | daemon runtime state is persisted through the managed `database/` store, never as a loose file a reimage would drop |
+| `./le arch iface-resolution` | `internal/le/arch/ifaceresolution.Answer` | no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver |
+| `./le arch tier` | `internal/le/arch/tier.Answer` | module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature |
 | `./le build-artifacts` | `internal/le/buildartifacts.Answer` | build the host appliance driver and the amd64 or arm64 installer initrd |
-| `./le changed` | `internal/le/changed.Answer` | what this checkout changed: the test groups it touches, and the packages a scoped verify must cover |
-| `./le ci-dispatch` | `internal/le/cidispatch.Answer` | every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone |
-| `./le cli-grammar` | `internal/le/cligrammar.Answer` | every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register |
-| `./le command list` | `internal/le/command/list.Answer` | every registered command, by verb, read from the live handlers and schemas |
-| `./le command ownership` | `internal/le/command/ownership.Answer` | each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner |
+| `./le cli catalog` | `internal/le/cli/catalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |
+| `./le cli dispatch` | `internal/le/cli/dispatch.Answer` | every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone |
+| `./le cli grammar` | `internal/le/cli/grammar.Answer` | every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register |
+| `./le cli list` | `internal/le/cli/list.Answer` | every registered command, by verb, read from the live handlers and schemas |
+| `./le cli ownership` | `internal/le/cli/ownership.Answer` | each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner |
+| `./le cli stdio` | `internal/le/cli/stdio.Answer` | every command that takes a filename routes it through the helper that resolves "-", so an operator can always pipe into and out of one |
 | `./le commit` | `internal/le/commit.Answer` | prepare explicit commits without touching the shared staging index; `debt-list`, `debt-status`, `debt-clear` and `debt-discharge` (keywords `shard`, `line`, `kind`, `commit`, `artifact`, `owner`; `line` and `commit` repeat, and a row covering N commits needs N of them) answer the verification-debt ledger |
 | `./le config claims` | `internal/le/config/claims.Answer` | every config subtree an operator can write is delivered to a plugin, a hub handler, or a recorded exception |
 | `./le config coercion` | `internal/le/config/coercion.Answer` | config parsers coerce the string form every YANG leaf is delivered as, so an operator's value is never silently replaced by the default |
+| `./le config ports` | `internal/le/config/ports.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
+| `./le config unread-leaves` | `internal/le/config/unreadleaves.Answer` | which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible |
 | `./le consistency` | `internal/le/consistency.Answer` | where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes |
-| `./le dash-stdio` | `internal/le/dashstdio.Answer` | every command that takes a filename routes it through the helper that resolves "-", so an operator can always pipe into and out of one |
 | `./le deployment` | `internal/le/deployment.Answer` | ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything |
 | `./le digest` | `internal/le/digest.Answer` | every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line |
-| `./le discovery-index` | `internal/le/discoveryindex.Answer` | the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree |
 | `./le doc check` | `internal/le/doc/check.Answer` | native documentation links, aggregate verification, and templ output checks |
 | `./le doc wiring` | `internal/le/doc/wiring.Answer` | the changed-file wiring, documentation, command and inventory gate |
 | `./le docs-to-code` | `internal/le/docstocode.Answer` | the two generated doc indexes, ai/DOCS-TO-CODE.md and its reverse ai/CODE-TO-DOCS.md: check either against the tree, or rewrite it |
 | `./le docvalid` | `internal/le/docvalid.Answer` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |
-| `./le enumeration` | `internal/le/enumeration.Answer` | no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself |
 | `./le evidence` | `internal/le/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
-| `./le feature-tags` | `internal/le/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
-| `./le fs-persistence` | `internal/le/fspersistence.Answer` | daemon runtime state is persisted through the managed `database/` store, never as a loose file a reimage would drop |
 | `./le functional` | `internal/le/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le fuzz` | `internal/le/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le go-extract` | `internal/le/goextract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
@@ -335,9 +336,7 @@ disagree, the manifest is right and the row is stale.
 | `./le hook-check` | `internal/le/hookcheck.Answer` | native hook dispatcher golden and behavioral fixture selftests |
 | `./le htmx-upgrade` | `internal/le/htmxupgrade.Answer` | htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue |
 | `./le iana-asn` | `internal/le/ianaasn.Answer` | the shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table |
-| `./le iface-resolution` | `internal/le/ifaceresolution.Answer` | no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver |
 | `./le integration` | `internal/le/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
-| `./le inventory` | `internal/le/inventory.Answer` | what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le journal` | `internal/le/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le module` | `internal/le/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
@@ -348,22 +347,28 @@ disagree, the manifest is right and the row is stale.
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
 | `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |
 | `./le plugin imports` | `internal/le/plugin/imports.Answer` | the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it |
-| `./le port-defaults` | `internal/le/portdefaults.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
 | `./le protocol-skeleton` | `internal/le/protocolskeleton.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |
 | `./le qemu` | `internal/le/qemu.Answer` | proofs that boot a real appliance image in a virtual machine and ask it what it did |
-| `./le repository` | `internal/le/repository.Answer` | the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, an in-progress spec's acceptance criteria say how they are demonstrated, and every 32-bit text-to-integer parse is on the allowlist that keeps AS numbers going through `asn.Parse` (`internal/le/repository/numberparse-allowlist.txt`) |
-| `./le repository tracked-build` | `internal/le/repository/trackedbuild.Answer` | the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit |
+| `./le repo arch-map` | `internal/le/repo/archmap.Answer` | the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them |
+| `./le repo changed` | `internal/le/repo/changed.Answer` | what this checkout changed: the test groups it touches, and the packages a scoped verify must cover |
+| `./le repo feature-tags` | `internal/le/repo/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
+| `./le repo inventory` | `internal/le/repo/inventory.Answer` | what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes |
+| `./le repo package-map` | `internal/le/repo/packagemap.Answer` | the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree |
+| `./le repo rewrite` | `internal/le/repo/rewrite.Answer` | deterministic repository rewrites: rules, BGP expectations, replacements, and activity HTML |
+| `./le repo tracked-build` | `internal/le/repo/trackedbuild.Answer` | the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit |
+| `./le repo tracked-le` | `internal/le/repo/trackedle.Answer` | does le still work when built from what git holds, rather than from the working tree |
+| `./le repo working-tree` | `internal/le/repo/workingtree.Answer` | how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling |
+| `./le repo` | `internal/le/repo.Answer` | the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, an in-progress spec's acceptance criteria say how they are demonstrated, and every 32-bit text-to-integer parse is on the allowlist that keeps AS numbers going through `asn.Parse` (`internal/le/repo/numberparse-allowlist.txt`) |
 | `./le rfc` | `internal/le/rfc.Answer` | RFC conformance: bind every MUST-level requirement of an enrolled RFC to the tests that enforce it, prove each binding with a recorded break under which the tagged test goes red, and bound what the summaries missed |
 | `./le rules` | `internal/le/rules.Answer` | the rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript |
 | `./le scratch` | `internal/le/scratch.Answer` | keep disposable scratch and durable caches outside the checkout without overwriting existing work, and empty both Go build caches when the cache disk fills |
 | `./le session` | `internal/le/session.Answer` | manage this development session's isolated state |
 | `./le setup` | `internal/le/setup.Answer` | install and verify every tool a Ze dev or test workflow needs |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
-| `./le source-rewrite` | `internal/le/sourcerewrite.Answer` | deterministic repository rewrites: rules, BGP expectations, replacements, and activity HTML |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
+| `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le spec session` | `internal/le/spec/session.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
-| `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le staticcheck-feature-matrix` | `internal/le/staticcheckfeaturematrix.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
 | `./le ste` | `internal/le/ste.Answer` | the repository's writing, against ASD-STE100 Simplified Technical English: review every surface, and gate each changed file against its own HEAD version |
 | `./le stress-repro` | `internal/le/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
@@ -373,23 +378,18 @@ disagree, the manifest is right and the row is stale.
 | `./le test-sensitivity` | `internal/le/testsensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
 | `./le test-unit` | `internal/le/testunit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
 | `./le test-weakened` | `internal/le/testweakened.Answer` | detect and record test weakenings against a commit baseline |
-| `./le tier` | `internal/le/tier.Answer` | module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature |
 | `./le token-economy` | `internal/le/tokeneconomy.Answer` | where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store |
-| `./le tracked` | `internal/le/tracked.Answer` | does le still work when built from what git holds, rather than from the working tree |
 | `./le vendor-web` | `internal/le/vendorweb.Answer` | the vendored web assets: check every consumer copy against third_party/web/, sync them, or ask npm what is newer |
-| `./le verify` | `internal/le/verify.Answer` | the full pre-commit gate against a fixed commit in a detached worktree |
 | `./le verify deps` | `internal/le/verify/deps.Answer` | the Go-tool and dependency stages used only by native pre-commit verification |
 | `./le verify lint` | `internal/le/verify/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
 | `./le verify lock` | `internal/le/verify/lock.Answer` | run a verify-class command through the shared heavy-job admission |
 | `./le verify status` | `internal/le/verify/status.Answer` | read and write the verification certificate for the current checkout |
 | `./le verify summary` | `internal/le/verify/summary.Answer` | append one stage failure block to the verification failure index |
+| `./le verify` | `internal/le/verify.Answer` | the full pre-commit gate against a fixed commit in a detached worktree |
 | `./le web-assets` | `internal/le/webassets.Answer` | the per-page web asset sets derived from the markup each page renders: check them, write them, or print them |
 | `./le weekly` | `internal/le/weekly.Answer` | publish the weekly update to Discord; the bare command shows what would be sent |
-| `./le wiki-catalog` | `internal/le/wikicatalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |
-| `./le working-tree` | `internal/le/workingtree.Answer` | how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling |
 | `./le worktree` | `internal/le/worktree.Answer` | bring a linked git worktree up to date with main, stashing and restoring its uncommitted work |
 | `./le yang glue` | `internal/le/yang/glue.Answer` | the generated YANG glue: check that every embed.go and register.go agrees with the .yang files beside it, or write them |
-| `./le yang leaf-mentions` | `internal/le/yang/leafmentions.Answer` | which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible |
 | `./le yang migration` | `internal/le/yang/migration.Answer` | repository-wide YANG ownership and path migrations |
 
 ## Pattern Cookbooks
@@ -609,14 +609,14 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | docker, container, scratch, lab image | `docs/guide/docker.md` (both images), `docker/Dockerfile`, `docker/Dockerfile.lab` |
 | netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le netlab render-check`, `docker/Dockerfile.lab` |
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
-| changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le changed scope`, `internal/le/changed.Answer`, `internal/le/staticcheckfeaturematrix.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
+| changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le changed scope`, `internal/le/repo/changed.Answer`, `internal/le/staticcheckfeaturematrix.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
 | commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
 | spec status, spec metadata, spec closure, release bucket, immediate, pre-release, work not done, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/TEMPLATE.md`, `plan/TEMPLATE-CLOSURE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
-| literal restates a registry, hardcoded plugin name list, copied key set, central enumeration, hand-called doctor check, enumeration exempt marker, enumeration gated marker, gated by, agreement test, YANG enumeration agreement | `ai/rules/principles.md`, `./le enumeration check`, `./le enumeration report`, `internal/le/enumeration` |
+| literal restates a registry, hardcoded plugin name list, copied key set, central enumeration, hand-called doctor check, enumeration exempt marker, enumeration gated marker, gated by, agreement test, YANG enumeration agreement | `ai/rules/principles.md`, `./le enumeration check`, `./le enumeration report`, `internal/le/arch/enumeration` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
 | command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `./le cli-grammar`, `docs/architecture/cli/root-namespace-grammar.md` |
 | which verb, verb semantics, read-only verb, idempotent command, side effect, selector placement, narrowing versus shaping, least surprise | `docs/architecture/cli/command-verbs.md` |

@@ -325,7 +325,7 @@ func TestHelpCommandReportsTheDeclaredColumnOrder(t *testing.T) {
 // VALIDATES: AC-8 at the shared producer. Every column order, answer shape and
 // address-field list this catalog publishes comes from
 // command.DeclaredForCommand, which reads the declaration registries and then a
-// plugin's registry.Registration.Commands. internal/le/wikicatalog reads the
+// plugin's registry.Registration.Commands. internal/le/cli/catalog reads the
 // same function, so the two catalogs agree by derivation.
 // PREVENTS: a second join in this file that reads the registries directly and
 // drifts from the wiki producer, which is the drift compareWikiCatalogProducer

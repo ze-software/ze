@@ -3,8 +3,8 @@
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
-<!-- source: internal/le/inventory/inventory.go -- Answer -->
-<!-- source: internal/le/command/list/commandlist.go -- Answer -->
+<!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
+<!-- source: internal/le/cli/list/commandlist.go -- Answer -->
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
 
@@ -104,7 +104,7 @@ registers from and every YANG file beside it. Both are DERIVED, so no plugin
 declares either: the directory is the package the plugin's engine function was
 compiled in, and the file list is the directory holding the module the
 registration carries. The public plugin catalog publishes both.
-<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+<!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 
 ## Design Principle
 

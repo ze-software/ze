@@ -115,7 +115,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		// Neither area has a `check` verb. The map is derived and untracked, so
 		// no stored copy exists for a verdict to disagree with: the walk that
 		// would decide it is the walk that writes the answer (7629e90135,
-		// 2026-09-11, internal/le/discoveryindex/actions.go). What that call
+		// 2026-09-11, internal/le/repo/packagemap/actions.go). What that call
 		// asserted -- that the bytes update wrote are the accepted bytes -- is
 		// the byte-for-byte comparison of the second update below.
 		wroteAgain := runLE(tree, tc.command, "update")

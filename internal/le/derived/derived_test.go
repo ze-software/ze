@@ -19,9 +19,9 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/discoveryindex"
 	_ "github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/hookruntime"
+	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 )
 
 // TestRegisteredArtifactsCarryAPredicateAndARebuild reads the real registry and
@@ -75,7 +75,7 @@ func TestAGrepAfterAnEditReadsTheEditedPackage(t *testing.T) {
 	source := "internal/core/x/x.go"
 	writeDerivedFixture(t, root, source, "// Package x reads the old summary.\npackage x\n")
 
-	if _, err := discoveryindex.Update(root); err != nil {
+	if _, err := repopackagemap.Update(root); err != nil {
 		t.Fatalf("seed the fixture map: %v", err)
 	}
 	mapPath := filepath.Join(root, "ai", "PACKAGE-MAP.md")

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/sourcerewrite"
+	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
 var presentationMIME = map[string]string{
@@ -233,7 +233,7 @@ func renderActivity(options ActivityOptions) error {
 	if options.Today.IsZero() {
 		options.Today = time.Now().UTC()
 	}
-	window, err := sourcerewrite.MeasureActivity(options.Repository, options.Days, options.Ref, options.Today)
+	window, err := reporewrite.MeasureActivity(options.Repository, options.Days, options.Ref, options.Today)
 	if err != nil {
 		return fmt.Errorf("measure activity: %w", err)
 	}

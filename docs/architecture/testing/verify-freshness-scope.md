@@ -31,12 +31,12 @@ Four properties of the narrower question matter to a caller:
 
 ## One change-set selection
 
-`./le changed packages` and `./le changed group-packages` derive the package scope from the current change set. Non-Go inputs seed the packages that consume them, and every unresolved case widens to `./...`. An empty answer is never used as a successful narrow selection.
+`./le repo changed packages` and `./le repo changed group-packages` derive the package scope from the current change set. Non-Go inputs seed the packages that consume them, and every unresolved case widens to `./...`. An empty answer is never used as a successful narrow selection.
 
 `verify deps/unit-race-changed` sizes its race pass from that selection, and an empty selection is two different answers rather than one. A change set holding no Go file is a SKIP: the stage runs no test, exits 0, and its report carries `skipped` with the reason, because an exit code cannot tell that run from one that raced every changed group. A change set whose every directory the toolchain calls no package is a REFUSAL: Go files changed, `Selection.Unresolved` names each directory `go list` dropped, and the stage exits non-zero instead of certifying a change it never tested. A dropped directory beside a selection that still holds packages is named on stderr and on the report, so a partial population does not read as the whole one.
 
 <!-- source: internal/le/verify/deps/verifydeps.go -- runUnitRaceChanged, skipUnitRaceChanged -->
-<!-- source: internal/le/changed/changed.go -- Selection, unresolvedDirs -->
+<!-- source: internal/le/repo/changed/changed.go -- Selection, unresolvedDirs -->
 
 The verify runner resolves the selection once and publishes its package and feature-tag answers to the run's artifact directory. `publishChangeScope` writes `scope-packages.txt` and `scope-tags.txt` beside the run's logs and names each one in `ZE_VERIFY_SCOPE_PACKAGES` and `ZE_VERIFY_SCOPE_TAGS`. `le staticcheck-feature-matrix check` reads the tag answer, and the functional stage reads the package answer: `selectSuites` intersects it with the recorded suite map to decide which suites run. `scope-packages.txt` opens with a `root <path>` line naming the checkout the answer was selected for, and a reader asking about a different checkout selects its own change set instead of taking this one. Every child process of a verify run inherits the two variable names, `go test` among them, so without that line a unit test driving the selector over a fixture directory was handed the run's own package list. This keeps the unit pass and the staticcheck matrix on the same snapshot, and it avoids a second reverse-import walk after another session changes the checkout. A run that cannot select publishes neither name, and unset is the widest reading of both: the stage selects its own packages and the matrix judges every row.
 
@@ -46,11 +46,11 @@ The verify runner resolves the selection once and publishes its package and feat
 
 The retained rows are then cut across six stages, `check part 1 of 6` through `check part 6 of 6`. The scope decides WHICH rows a run judges; the cut decides WHICH STAGE judges each of them. `Matrix.Part` deals the rows round robin, so a scoped run of three rows puts one row in each of three pieces and the other three pieces report that they were dealt none.
 
-One producer answers the change set: `Scope.resolveSelector` (`internal/le/changed/selector.go`). `internal/le/changed/changed.go` holds no selection logic and only dispatches between the two routes to it. A direct `./le verify lint run` or `./le test-unit all` outside a verify run has no published answer, so it selects its own (2.4 to 2.9s measured). Both routes reach the same producer. The import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected: one file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone. The reverse walk stops at two levels of importers, and `./le changed scope drop-log FILE` records which packages that bound dropped.
+One producer answers the change set: `Scope.resolveSelector` (`internal/le/repo/changed/selector.go`). `internal/le/repo/changed/changed.go` holds no selection logic and only dispatches between the two routes to it. A direct `./le verify lint run` or `./le test-unit all` outside a verify run has no published answer, so it selects its own (2.4 to 2.9s measured). Both routes reach the same producer. The import graph is built with `ze_core` and every tag in `feature-gates.txt`, so a `//go:build ze_<feature>` importer is selected: one file under `internal/component/ssh` selects `./cmd/ze`, `./cmd/ze/hub` and `./internal/component/ssh`, and the feature answer is `ze_ssh` alone. The reverse walk stops at two levels of importers, and `./le repo changed scope drop-log FILE` records which packages that bound dropped.
 
 ### What each changed path selects
 
-<!-- source: internal/le/changed/selector.go -- nonGoPathRules, packageDirsFor, uncompiledTreeReaders -->
+<!-- source: internal/le/repo/changed/selector.go -- nonGoPathRules, packageDirsFor, uncompiledTreeReaders -->
 
 | The change set holds | The scoped stages get |
 |----------------------|-----------------------|
@@ -65,7 +65,7 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/chang
 | a kind no rule names | the package it sits in when that directory holds Go source, the tooling packages otherwise. The path is NAMED on stderr, which is the evidence for writing it a rule |
 | nothing, and `tmp/ze-verify.status` holds no green commit | `./...`, and the widening names the condition. Without a proven commit, every commit in history is unverified, so a clean tree must not select nothing |
 
-<!-- source: internal/le/changed/actions.go -- Answer -->
+<!-- source: internal/le/repo/changed/actions.go -- Answer -->
 <!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
@@ -206,10 +206,10 @@ Which gates the file list can rule out follows from what each one declares:
 
 | Gate | What its groups name | Expect |
 |------|----------------------|--------|
-| `./le verify lint run`, `./le changed scope` | the `.go` file each finding sits in | a drop when none of them is in the file list |
+| `./le verify lint run`, `./le repo changed scope` | the `.go` file each finding sits in | a drop when none of them is in the file list |
 | `ze-evidence-vet` | the package pattern of each red | a drop when the list holds no file under it |
 | `./le doc wiring` | the files each sub-check is about, one declared group per failure (`declareFailureGroup`, `internal/le/doc/wiring/groups.go`) | a drop, except for the ci-sleep ratchet and a delegated target, which name no file |
-| Every other stage, `./le repository generated-check`, `./le doc check links` and `./le test-weakened check` among them | the stage's own name, through the `generic` fallback group in `writeRunArtifacts` (`internal/le/verify/engine/artifacts.go`) | a charge, always |
+| Every other stage, `./le repo generated-check`, `./le doc check links` and `./le test-weakened check` among them | the stage's own name, through the `generic` fallback group in `writeRunArtifacts` (`internal/le/verify/engine/artifacts.go`) | a charge, always |
 
 The declared-group protocol is available to EVERY stage, not only `./le doc wiring`: a stage that emits its own groups is read back by `declaredGroups` (`internal/le/verify/engine/artifacts.go`), and the generic fallback applies only when it emits none. Attribution also answers a NARROWER question than the ledger asks: it says the files this commit carries cannot have caused the red. It never says the red is somebody else's work rather than the author's from an earlier session.
 

@@ -10,14 +10,14 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	commandlist "github.com/ze-software/ze/internal/le/command/list"
-	commandownership "github.com/ze-software/ze/internal/le/command/ownership"
+	clilist "github.com/ze-software/ze/internal/le/cli/list"
+	cliownership "github.com/ze-software/ze/internal/le/cli/ownership"
 	"github.com/ze-software/ze/internal/le/digest"
 	"github.com/ze-software/ze/internal/le/docstocode"
 	"github.com/ze-software/ze/internal/le/docvalid"
-	"github.com/ze-software/ze/internal/le/inventory"
 	"github.com/ze-software/ze/internal/le/leroot"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
 )
 
@@ -35,12 +35,12 @@ func registered(answer leroot.Answer, args []string) call {
 // goActions is the complete selected action table.
 var goActions = map[string]call{
 	actionDocvalidCommandContract: registered(docvalid.Answer, []string{"command-contract"}),
-	"command ownership":           registered(commandownership.Answer, nil),
+	"command ownership":           registered(cliownership.Answer, nil),
 	actionDocCheckVerify:          {answer: answerDocVerify},
 	actionDocsToCodeIndexCheck:    {answer: answerDocIndex},
 	actionDigest:                  registered(digest.Answer, nil),
-	actionInventory:               registered(inventory.Answer, nil),
-	actionCommandList:             registered(commandlist.Answer, nil),
+	actionInventory:               registered(repoinventory.Answer, nil),
+	actionCommandList:             registered(clilist.Answer, nil),
 	actionPluginImportsCheck:      registered(pluginimports.Answer, []string{"check"}),
 	"doc check/templ-output":      {answer: answerTemplOutput},
 	"spec citation/anchors":       {answer: answerSpecCitation},

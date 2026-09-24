@@ -142,7 +142,7 @@ func isPlanSource(path string) bool {
 // gate. Sources include the checker, registry, shim, owner register.go files,
 // and the ze dispatch and central-registration files.
 func isCommandOwnershipSource(path string) bool {
-	if path == "internal/le/command/ownership/register.go" || path == "cmd/ze/main.go" {
+	if path == "internal/le/cli/ownership/register.go" || path == "cmd/ze/main.go" {
 		return true
 	}
 	if strings.HasPrefix(path, "internal/component/command/registry/") {
@@ -168,7 +168,7 @@ var commandMarkers = [...]string{
 // isCommandSource reports a change that must re-run the command contract gate.
 func isCommandSource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/docvalid/actions.go", "internal/le/command/list/register.go",
+	case "internal/le/docvalid/actions.go", "internal/le/cli/list/register.go",
 		"internal/component/config/yang/command.go",
 		"internal/component/plugin/server/command.go":
 		return true, nil
@@ -289,7 +289,7 @@ var registryMarkers = [...]string{
 // isInventorySource reports a change that must re-run the inventory gates.
 func isInventorySource(root, path string) (bool, error) {
 	switch path {
-	case "internal/le/inventory/inventory.go", "internal/le/plugin/imports/pluginimports.go",
+	case "internal/le/repo/inventory/inventory.go", "internal/le/plugin/imports/pluginimports.go",
 		"internal/component/plugin/all/all.go":
 		return true, nil
 	}

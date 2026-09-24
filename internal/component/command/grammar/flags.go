@@ -21,7 +21,7 @@
 //	   reverse
 //
 // Each is a pure function over a population the caller collects, so the gate
-// (internal/le/cligrammar) and a fixture test read the same rules.
+// (internal/le/cli/grammar) and a fixture test read the same rules.
 
 package grammar
 

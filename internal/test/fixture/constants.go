@@ -10,13 +10,13 @@ package fixture
 
 import (
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // Environment variables and build tags.
 const (
 	binaryLE           = "le"
-	buildTagLE         = featuretags.LEBase
+	buildTagLE         = repofeaturetags.LEBase
 	envCGOEnabled      = "CGO_ENABLED"
 	envCLIFormat       = "ze.cli.format"
 	envConfigDir       = "ZE_CONFIG_DIR"
@@ -272,25 +272,25 @@ const (
 	areaDigest                    = "digest"
 	areaEvidence                  = "evidence"
 	areaQEMU                      = "qemu" // The le area.
-	areaRepository                = "repository"
+	areaRepository                = "repo"
 	areaRules                     = "rules"
-	areaTier                      = "tier"
-	checkCIDispatch               = "ci-dispatch"
-	checkCLIGrammar               = "cli-grammar"
-	checkCommandOwnership         = "command ownership"
+	areaTier                      = "arch tier"
+	checkCIDispatch               = "cli dispatch"
+	checkCLIGrammar               = "cli grammar"
+	checkCommandOwnership         = "cli ownership"
 	checkConfigClaims             = "config claims"
 	checkConfigCoercion           = "config coercion"
-	checkDashStdio                = "dash-stdio"
+	checkDashStdio                = "cli stdio"
 	checkDocWiring                = "doc wiring"
-	checkFSPersistence            = "fs-persistence"
+	checkFSPersistence            = "arch fs-persistence"
 	checkGoVersion                = "go-version"
-	checkIfaceResolution          = "iface-resolution"
+	checkIfaceResolution          = "arch iface-resolution"
 	checkPluginBoundary           = "plugin boundary"
-	checkPortDefaults             = "port-defaults"
-	checkRepositoryTrackedBuild   = "repository tracked-build"
+	checkPortDefaults             = "config ports"
+	checkRepositoryTrackedBuild   = "repo tracked-build"
 	checkStaticcheckFeatureMatrix = "staticcheck-feature-matrix"
 	checkTestSensitivity          = "test-sensitivity"
-	checkYANGLeafMentions         = "yang leaf-mentions"
+	checkYANGLeafMentions         = "config unread-leaves"
 	gateGokrazyGosum              = "gokrazy-gosum"
 	gateProtocolSkeleton          = "protocol-skeleton"
 )

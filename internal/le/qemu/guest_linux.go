@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const (
@@ -397,7 +397,7 @@ func buildGuestZe(ctx context.Context, root, output string, overrideKeys ...stri
 	if err := requireGuestCommands("go"); err != nil {
 		return "", err
 	}
-	tags, err := featuretags.DaemonBuildTags(root, featuretags.DaemonBase)
+	tags, err := repofeaturetags.DaemonBuildTags(root, repofeaturetags.DaemonBase)
 	if err != nil {
 		return "", err
 	}

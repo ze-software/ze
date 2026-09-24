@@ -111,7 +111,7 @@ allowlist entry, not a resolver call. The initrd must not pull the `iface`
 component: it is a self-contained PID 1 binary. `internal/plugins/provision/`
 carries the same exemption for the same reason.
 
-<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
+<!-- source: internal/le/arch/ifaceresolution/ifaceresolution.go -- Answer -->
 
 **arm64 `virt` has no IDE bus.** The ISO cdrom must attach as virtio-scsi, not
 `if=ide`. You can prove the attachment parses without a bootable image: run

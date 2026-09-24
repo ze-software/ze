@@ -6,7 +6,7 @@ import (
 	"net"
 	"os/exec"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 func uiDriver(driver any) Driver {
@@ -34,7 +34,7 @@ func registerFixture(name string, driver any) {
 // A fixture therefore cannot build a binary with a feature set the tooling
 // never selects.
 func uiLEFeatureTags(root string, extra ...string) ([]string, error) {
-	gates, err := featuretags.DaemonTags(root)
+	gates, err := repofeaturetags.DaemonTags(root)
 	if err != nil {
 		return nil, fmt.Errorf("read the feature manifest: %w", err)
 	}

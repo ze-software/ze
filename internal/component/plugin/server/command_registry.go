@@ -43,7 +43,7 @@ type deprecatedAlias struct {
 // Scope: this registration gate applies ONLY to plugin-registered commands
 // (Register and RegisterDeprecated). Core builtins are registered through a
 // separate path (AddBuiltin) and are covered instead by the static grammar gate
-// (internal/le/cligrammar/register.go) walking the YANG command tree.
+// (internal/le/cli/grammar/register.go) walking the YANG command tree.
 //
 // validVerbList returns the sorted, comma-separated list of valid command verbs,
 // derived from the canonical command.Verbs registry (internal/component/command)

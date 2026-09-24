@@ -68,7 +68,7 @@ a field to fill in. The source directory is the package the plugin's engine
 function was compiled in. The YANG file list is every `.yang` file in the
 directory that holds the module the registration carries, and beside the
 package when it carries none.
-<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
+<!-- source: internal/le/repo/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 
 A build reads the plugin registrations, writes
 `../gh-pages/data/plugin-registry.json`, and renders the catalog plus one local

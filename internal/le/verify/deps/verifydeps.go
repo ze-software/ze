@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 	"github.com/ze-software/ze/internal/perf"
 )
@@ -77,13 +77,13 @@ type CommandPlan struct {
 
 // Plan is the complete command and population contract for one action.
 type Plan struct {
-	Verb         string             `json:"verb"`
-	Action       string             `json:"action"`
-	Packages     []string           `json:"packages,omitempty"`
-	Changed      *changed.Selection `json:"changed,omitempty"`
-	Benchtime    string             `json:"benchtime,omitempty"`
-	BenchmarkLog string             `json:"benchmark-log,omitempty"`
-	Commands     []CommandPlan      `json:"commands,omitempty"`
+	Verb         string                 `json:"verb"`
+	Action       string                 `json:"action"`
+	Packages     []string               `json:"packages,omitempty"`
+	Changed      *repochanged.Selection `json:"changed,omitempty"`
+	Benchtime    string                 `json:"benchtime,omitempty"`
+	BenchmarkLog string                 `json:"benchmark-log,omitempty"`
+	Commands     []CommandPlan          `json:"commands,omitempty"`
 }
 
 // ChildReport records one external process in execution order.
@@ -113,14 +113,14 @@ type AllocationVerdict struct {
 // Report is the structured answer for one stage. Children remain ordered, and
 // Code is the first child failure or the native allocation verdict.
 type Report struct {
-	Verb         string              `json:"verb"`
-	Action       string              `json:"action"`
-	Packages     []string            `json:"packages,omitempty"`
-	Changed      *changed.Selection  `json:"changed,omitempty"`
-	Benchtime    string              `json:"benchtime,omitempty"`
-	BenchmarkLog string              `json:"benchmark-log,omitempty"`
-	Children     []ChildReport       `json:"children,omitempty"`
-	Allocations  []AllocationVerdict `json:"allocations,omitempty"`
+	Verb         string                 `json:"verb"`
+	Action       string                 `json:"action"`
+	Packages     []string               `json:"packages,omitempty"`
+	Changed      *repochanged.Selection `json:"changed,omitempty"`
+	Benchtime    string                 `json:"benchtime,omitempty"`
+	BenchmarkLog string                 `json:"benchmark-log,omitempty"`
+	Children     []ChildReport          `json:"children,omitempty"`
+	Allocations  []AllocationVerdict    `json:"allocations,omitempty"`
 	// FailedPackages are the checkout-relative directories `go test` named as
 	// failing. A stage that answers a red and names nothing is charged to
 	// EVERY commit in the checkout rather than to the one that caused it
@@ -603,9 +603,9 @@ func allPackages(ctx context.Context, root string, chain gotoolchain.Toolchain, 
 	return packages, children, 0, nil
 }
 
-func changedSelection(ctx context.Context, root string, chain gotoolchain.Toolchain, execute commandExecutor, children *[]ChildReport) (changed.Selection, int, error) {
+func changedSelection(ctx context.Context, root string, chain gotoolchain.Toolchain, execute commandExecutor, children *[]ChildReport) (repochanged.Selection, int, error) {
 	var firstCode int
-	selector := changed.Selector{
+	selector := repochanged.Selector{
 		Root: root,
 		Run: func(_ string, argv []string) (string, error) {
 			step := commandPlan("changed-population", argv, chain, gotoolchain.EnvOptions{})
@@ -625,7 +625,7 @@ func changedSelection(ctx context.Context, root string, chain gotoolchain.Toolch
 		if firstCode == 0 {
 			firstCode = 1
 		}
-		return changed.Selection{}, firstCode, err
+		return repochanged.Selection{}, firstCode, err
 	}
 	return selection, 0, nil
 }
@@ -730,11 +730,11 @@ func actionForVerb(verb string) (string, error) {
 	}
 }
 
-func cloneSelection(selection *changed.Selection) *changed.Selection {
+func cloneSelection(selection *repochanged.Selection) *repochanged.Selection {
 	if selection == nil {
 		return nil
 	}
-	clone := &changed.Selection{Rest: slices.Clone(selection.Rest)}
+	clone := &repochanged.Selection{Rest: slices.Clone(selection.Rest)}
 	clone.Groups = slices.Clone(selection.Groups)
 	clone.Unresolved = slices.Clone(selection.Unresolved)
 	return clone

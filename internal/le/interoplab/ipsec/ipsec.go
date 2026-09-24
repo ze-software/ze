@@ -19,9 +19,9 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 const (
@@ -97,16 +97,16 @@ func (r Report) Text() string {
 // LabBinaries declares the one binary this lab stages into its Docker build
 // context, which is what test/interop-ipsec/Dockerfile.ze copies in.
 //
-// The base is featuretags.DaemonBase, which is the same pair the deleted local
+// The base is repofeaturetags.DaemonBase, which is the same pair the deleted local
 // copy of this producer prepended by hand. What that copy did NOT have is the
 // manifest read's refusal: it parsed feature-gates.txt itself and returned the
-// base alone for a manifest declaring no gate, where featuretags.DaemonTags
+// base alone for a manifest declaring no gate, where repofeaturetags.DaemonTags
 // answers ErrNoGateTags. A silent base-only answer builds a daemon with every
 // feature compiled out, which then dies on "unknown top-level keyword" for the
 // protocol the scenario was about to prove.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
-		{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop-ipsec/ze-linux"},
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop-ipsec/ze-linux"},
 	}
 }
 

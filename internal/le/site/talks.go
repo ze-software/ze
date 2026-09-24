@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/sourcerewrite"
+	reporewrite "github.com/ze-software/ze/internal/le/repo/rewrite"
 )
 
 const talkStatsTimeout = 30 * time.Second
@@ -89,7 +89,7 @@ func updateTalk(options talkUpdateOptions) (talkUpdateReport, error) {
 				if renderErr := renderActivity(ActivityOptions{
 					Repository: options.Repository,
 					Output:     activity,
-					Days:       sourcerewrite.ActivityDaysDefault,
+					Days:       reporewrite.ActivityDaysDefault,
 					Today:      options.Today,
 				}); renderErr != nil {
 					return talkUpdateReport{}, renderErr
@@ -140,7 +140,7 @@ func refreshTalks(repository, talksDirectory string) ([]talkUpdateReport, error)
 			if renderErr := renderActivity(ActivityOptions{
 				Repository: repository,
 				Output:     activity,
-				Days:       sourcerewrite.ActivityDaysDefault,
+				Days:       reporewrite.ActivityDaysDefault,
 				Today:      time.Date(2026, time.June, 11, 0, 0, 0, 0, time.UTC),
 			}); renderErr != nil {
 				return nil, fmt.Errorf("update talk %s activity: %w", entry.Name(), renderErr)

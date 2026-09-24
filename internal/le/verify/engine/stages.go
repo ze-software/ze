@@ -73,34 +73,34 @@ func staticcheckStages() []Stage {
 func fullStages() []Stage {
 	stages := []Stage{
 		structural("verify lint", "run"),
-		structural("tier", "check"),
+		structural("arch tier", "check"),
 		stage("rfc", "check"),
-		structural("iface-resolution"),
+		structural("arch iface-resolution"),
 		structural("plugin boundary", "check"),
 		stage("config coercion", "check"),
-		stage("fs-persistence", "check"),
-		stage("dash-stdio", "check"),
-		stage("port-defaults", "check"),
+		stage("arch fs-persistence", "check"),
+		stage("cli stdio", "check"),
+		stage("config ports", "check"),
 		stage("go-version", "check"),
 		stage("config claims"),
 		stage("test-sensitivity", "check"),
 		stage("test-weakened", "check"),
 	}
 	stages = slices.Concat(stages, staticcheckStages(), []Stage{
-		structural("repository tracked-build", "check"),
+		structural("repo tracked-build", "check"),
 		stage("platform-vet", "darwin", "freebsd"),
 		structural("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),
-		stage("repository", "tree-check"),
+		stage("repo", "tree-check"),
 		stage("plugin imports", "check"),
 		stage("plugin declarations", "check"),
-		// enumeration judges the CHANGE SET rather than the tree: the copies
-		// already in the tree are `le enumeration report`, and this stage's red
+		// arch enumeration judges the CHANGE SET rather than the tree: the copies
+		// already in the tree are `le arch enumeration report`, and this stage's red
 		// means the change under test added one (owner decision, 2026-09-14).
-		stage("enumeration", "check"),
+		stage("arch enumeration", "check"),
 		stage("yang glue", "check"),
-		stage("feature-tags", "check"),
+		stage("repo feature-tags", "check"),
 		stage("doc check", "templ-output"),
 		stage("vendor-web", "check"),
 		stage("web-assets", "check"),
@@ -109,7 +109,7 @@ func fullStages() []Stage {
 		stage("rules", "index-check"),
 		stage("rules", "condensed-check"),
 		stage("rules", "lint"),
-		stage("arch-map", "check"),
+		stage("repo arch-map", "check"),
 		stage("test-health", "check"),
 		stage("site facts", "check"),
 		stage("htmx-upgrade", "check"),

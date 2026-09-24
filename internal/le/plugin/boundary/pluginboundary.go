@@ -23,7 +23,7 @@
 // locally-defined warnIfExternal( helper somewhere (not necessarily the same
 // file or function) -- this is a presence heuristic, not proof the guard
 // actually covers the call at runtime, the same rigor level as
-// internal/le/ifaceresolution.
+// internal/le/arch/ifaceresolution.
 //
 // The scan roots are DERIVED from the generator, never a second hardcoded list,
 // so a namespace added to the generator is automatically scanned. The

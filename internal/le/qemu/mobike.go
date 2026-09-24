@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
@@ -101,13 +101,13 @@ func buildMOBIKEGuests(ctx context.Context, root, directory string) error {
 	}
 	environment := toolchain.Environment(gotoolchain.EnvOptions{GOOS: "linux", GOARCH: architecture})
 	for _, binary := range []struct{ name, base string }{
-		{"ze", featuretags.DaemonBase},
-		{"le", featuretags.LEBase},
+		{"ze", repofeaturetags.DaemonBase},
+		{"le", repofeaturetags.LEBase},
 	} {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		tags, err := featuretags.DaemonBuildTags(root, binary.base)
+		tags, err := repofeaturetags.DaemonBuildTags(root, binary.base)
 		if err != nil {
 			return err
 		}

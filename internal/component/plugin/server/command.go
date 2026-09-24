@@ -1340,7 +1340,7 @@ func unmatchedDefCount(defs []command.ArgDef, matched map[string]bool) int {
 //
 // The shape itself is grammar.FlagShaped, so the static gate that hunts a
 // client building a flag into a daemon command string (F2,
-// internal/le/cligrammar) and this refusal read one definition. A gate judging
+// internal/le/cli/grammar) and this refusal read one definition. A gate judging
 // the shape differently from the daemon would pass a command the daemon
 // rejects.
 func firstFlagToken(args []string) string {

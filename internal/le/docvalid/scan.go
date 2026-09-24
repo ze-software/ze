@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/wikicatalog"
+	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 )
 
 // checker is one run of the drift gate over one tree.
@@ -36,7 +36,7 @@ import (
 type checker struct {
 	root               string
 	unreadable         []Issue
-	wikiCatalogCollect func() []wikicatalog.Entry
+	wikiCatalogCollect func() []clicatalog.Entry
 }
 
 // noteUnreadable records a file whose scan stopped before the end.

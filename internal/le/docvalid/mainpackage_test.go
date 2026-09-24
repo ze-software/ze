@@ -8,8 +8,8 @@ package docvalid
 import (
 	"testing"
 
+	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/wikicatalog"
 )
 
 // VALIDATES: the four local commands Collect declares by hand carry the path,
@@ -37,7 +37,7 @@ func TestBuiltinsAgreeWithTheMainPackage(t *testing.T) {
 	}
 
 	published := map[string]bool{}
-	for _, entry := range wikicatalog.Collect() {
+	for _, entry := range clicatalog.Collect() {
 		want, ok := registered[entry.Path]
 		if !ok {
 			continue

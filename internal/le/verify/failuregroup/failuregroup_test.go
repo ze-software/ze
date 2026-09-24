@@ -23,13 +23,13 @@ func TestBothToolchainDiagnosticShapesAreRead(t *testing.T) {
 		"# github.com/ze-software/ze/internal/test/fixture\n" +
 		"    internal/test/fixture/misc_fixture_runner.go:62:35: undefined: argInit\n" +
 		"    internal/test/fixture/misc_fixture_runner.go:99:3: undefined: fileGoMod\n" +
-		"internal/le/tier/tier.go:40:1: File is not properly formatted (goimports)\n" +
+		"internal/le/arch/tier/tier.go:40:1: File is not properly formatted (goimports)\n" +
 		"level=info golangci-lint has version 2.1.0\n" +
 		"internal/core/family/family.go:12: a position with no column\n"
 
 	want := []string{
 		"internal/core/family/family.go",
-		"internal/le/tier/tier.go",
+		"internal/le/arch/tier/tier.go",
 		"internal/test/fixture/misc_fixture_runner.go",
 	}
 	if got := Paths(text); !slices.Equal(got, want) {

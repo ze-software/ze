@@ -418,7 +418,7 @@ build flavors.
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repository tracked-build check` (`internal/le/repository/trackedbuild.Answer`) is the
+included. `./le repository tracked-build check` (`internal/le/repo/trackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -431,7 +431,7 @@ clones. Run it after the commit script when the commit carried Go:
 REV=7abe8a07e ./le repository tracked-build check
 ```
 
-The action builds every flavor in `internal/le/repository/trackedbuild/matrix.go` over
+The action builds every flavor in `internal/le/repo/trackedbuild/matrix.go` over
 `./...`. Each row pins its tags, operating system where required, and a
 tag-gated anchor file that proves the flavor selected code. Naming the package
 alone is insufficient because `go build ./...` can skip every constrained file

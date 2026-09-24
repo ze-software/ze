@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/wikicatalog"
+	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
 )
 
 const renderedCommandCatalogFixture = `[{
@@ -37,7 +37,7 @@ func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string
 	entries := renderedWikiCatalogEntries(t)
 	report := DriftReport{Issues: (&checker{
 		root: root,
-		wikiCatalogCollect: func() []wikicatalog.Entry {
+		wikiCatalogCollect: func() []clicatalog.Entry {
 			return entries
 		},
 	}).checkPublishedCommandSurfaces(livePath)}
@@ -47,9 +47,9 @@ func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string
 	return report.Text(), errors.New("documentation drift")
 }
 
-func renderedWikiCatalogEntries(t *testing.T) []wikicatalog.Entry {
+func renderedWikiCatalogEntries(t *testing.T) []clicatalog.Entry {
 	t.Helper()
-	var entries []wikicatalog.Entry
+	var entries []clicatalog.Entry
 	if err := json.Unmarshal([]byte(renderedCommandCatalogFixture), &entries); err != nil {
 		t.Fatalf("decode rendered wiki catalog fixture: %v", err)
 	}
@@ -320,30 +320,30 @@ func TestDocDriftNoSiblingsStillValidatesRenderedCommands(t *testing.T) {
 	}
 }
 
-// VALIDATES: the drift gate compares wikicatalog.Collect's complete inventory
+// VALIDATES: the drift gate compares clicatalog.Collect's complete inventory
 // with the live command catalog before passing those entries to Render.
 // PREVENTS: a collector that drops renderer-owned fields agreeing with its own
 // output and masking updater drift.
 func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T) {
 	tests := []struct {
 		name   string
-		mutate func(*wikicatalog.Entry)
+		mutate func(*clicatalog.Entry)
 	}{
 		{
 			name: "address fields",
-			mutate: func(entry *wikicatalog.Entry) {
+			mutate: func(entry *clicatalog.Entry) {
 				entry.AddressFields = nil
 			},
 		},
 		{
 			name: "operators",
-			mutate: func(entry *wikicatalog.Entry) {
+			mutate: func(entry *clicatalog.Entry) {
 				entry.Operators = nil
 			},
 		},
 		{
 			name: "aliases",
-			mutate: func(entry *wikicatalog.Entry) {
+			mutate: func(entry *clicatalog.Entry) {
 				entry.Aliases = nil
 			},
 		},
@@ -357,7 +357,7 @@ func TestDocDriftRejectsWikiCatalogProducerFieldLossBeforeRendering(t *testing.T
 			calls := 0
 			issues := (&checker{
 				root: root,
-				wikiCatalogCollect: func() []wikicatalog.Entry {
+				wikiCatalogCollect: func() []clicatalog.Entry {
 					calls++
 					return entries
 				},
@@ -715,7 +715,7 @@ func TestDocDriftRejectsDuplicateOperatorGroupsOnEveryRenderedSurface(t *testing
 		)
 		if err == nil ||
 			!strings.Contains(out, "duplicate operator availability group") ||
-			!strings.Contains(out, "internal/le/wikicatalog/render.go") {
+			!strings.Contains(out, "internal/le/cli/catalog/render.go") {
 			t.Fatalf("doc drift did not identify the duplicate wiki group:\n%s", out)
 		}
 	})
@@ -1187,7 +1187,7 @@ func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
 		)
 		if err == nil ||
 			!strings.Contains(out, "does not have exactly one command container") ||
-			!strings.Contains(out, "internal/le/wikicatalog/render.go") ||
+			!strings.Contains(out, "internal/le/cli/catalog/render.go") ||
 			!strings.Contains(out, `command "show test"`) {
 			t.Fatalf("doc drift did not identify the duplicate wiki command detail:\n%s", out)
 		}

@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/changed"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 func init() {
@@ -324,7 +324,7 @@ const suiteMapArtifact = "tmp/ze-suite-map.json"
 // select` what a gating run would start, and judges the answer.
 func checkSuiteMapScenario(ctx context.Context, le, repo string, scenario suiteMapScenario) error {
 	scopeFile := filepath.Join(repo, "tmp", "scope-packages.txt")
-	if err := changed.WriteScopePackages(scopeFile, repo, scenario.packages); err != nil {
+	if err := repochanged.WriteScopePackages(scopeFile, repo, scenario.packages); err != nil {
 		return err
 	}
 	environment := suiteMapEnvironment(repo, scopeFile, scenario.skipSuites)

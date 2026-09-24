@@ -177,7 +177,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 // check` answers from (internal/le/plugin/imports/actions.go), so this test and
 // the gate cannot disagree about what "current" means. The uncached backstop is
 // `./le repository generated-check`, whose first step is that same action
-// (generationChecks, internal/le/repository/generate.go).
+// (generationChecks, internal/le/repo/generate.go).
 //
 // Reading the tree in-process is what keeps the test honest about its own
 // cache. `go help test`: "Tests that open files within the package's module ...
@@ -375,14 +375,14 @@ func TestCapabilityMappings(t *testing.T) {
 
 // TestRegistrationCarriesTheDeclaredCommands is AC-4 of
 // spec-daemon-backed-command-catalog, and it lives in
-// internal/le/command/list/commandlist_test.go rather than here.
+// internal/le/cli/list/commandlist_test.go rather than here.
 //
 // AC-4 is a claim about a READER: it answers a plugin's declarations without
 // starting an engine. This package holds the composition root and no reader, so
 // a test written here could stub every RunEngine and then never reach one,
 // which is what the first version did: it read registry.All().Commands itself,
 // so its `no engine started` assertion had nothing that could have started one.
-// Collect (internal/le/command/list) is the reader `./le command list` runs, and
+// Collect (internal/le/cli/list) is the reader `./le command list` runs, and
 // the test drives it under the stub there.
 
 // TestEveryDeclaredShapeIsOneStage1Accepts holds every command declaration in

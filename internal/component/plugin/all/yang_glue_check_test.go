@@ -14,7 +14,7 @@ import (
 // from (internal/le/yang/glue/actions.go), so the check is the generator that
 // writes the file rather than a reimplementation that can drift. The uncached
 // backstop is `./le repository generated-check`, which runs that same action
-// (generationChecks, internal/le/repository/generate.go).
+// (generationChecks, internal/le/repo/generate.go).
 //
 // It mirrors TestGeneratedPluginImportsCurrent in all_test.go deliberately:
 // same package, same call into the generator's own library.

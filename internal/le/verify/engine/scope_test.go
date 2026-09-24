@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/changed"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 // scopeSeenByStage is what one stage of a run could read about the change set.
@@ -101,8 +101,8 @@ func runWatchingScope(t *testing.T, root string) (Report, []scopeSeenByStage) {
 	var seen []scopeSeenByStage
 	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
 		seen = append(seen, scopeSeenByStage{
-			packagesPath: env.Get(changed.ScopeFileKey),
-			tagsPath:     env.Get(changed.ScopeTagsKey),
+			packagesPath: env.Get(repochanged.ScopeFileKey),
+			tagsPath:     env.Get(repochanged.ScopeTagsKey),
 		})
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
@@ -168,7 +168,7 @@ func TestVerifyRunPublishesTheChangeSetPerRun(t *testing.T) {
 
 func TestVerifyRunRestoresTheChangeScopeItNamed(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
-	for _, key := range []string{changed.ScopeFileKey, changed.ScopeTagsKey} {
+	for _, key := range []string{repochanged.ScopeFileKey, repochanged.ScopeTagsKey} {
 		before := env.Get(key)
 		t.Cleanup(func() {
 			if err := env.Set(key, before); err != nil {
@@ -182,7 +182,7 @@ func TestVerifyRunRestoresTheChangeScopeItNamed(t *testing.T) {
 
 	runWatchingScope(t, root)
 
-	for _, key := range []string{changed.ScopeFileKey, changed.ScopeTagsKey} {
+	for _, key := range []string{repochanged.ScopeFileKey, repochanged.ScopeTagsKey} {
 		if got := env.Get(key); got != "/outer/"+filepath.Base(key) {
 			t.Errorf("%s = %q after the run, want the value the run found", key, got)
 		}
@@ -201,8 +201,8 @@ func TestVerifyRunWidensWhenTheChangeSetCannotBeSelected(t *testing.T) {
 	// test rather than the fixture the test drives, and it could only fail from
 	// inside a verify.
 	ambient := scopeSeenByStage{
-		packagesPath: env.Get(changed.ScopeFileKey),
-		tagsPath:     env.Get(changed.ScopeTagsKey),
+		packagesPath: env.Get(repochanged.ScopeFileKey),
+		tagsPath:     env.Get(repochanged.ScopeTagsKey),
 	}
 
 	_, seen := runWatchingScope(t, root)
@@ -228,8 +228,8 @@ func TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces(t *testing.T) {
 	}
 	// The package answer is read back through the reader a stage uses, because
 	// the file states the checkout it is about on its first line and that line
-	// is part of the contract (changed.WriteScopePackages).
-	answer, code := (changed.Scope{Root: root, File: seen[0].packagesPath}).Resolve(nil)
+	// is part of the contract (repochanged.WriteScopePackages).
+	answer, code := (repochanged.Scope{Root: root, File: seen[0].packagesPath}).Resolve(nil)
 	if code != 0 {
 		t.Fatalf("read the published package answer: exit %d", code)
 	}
@@ -238,7 +238,7 @@ func TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces(t *testing.T) {
 	}
 	// And it is about THIS checkout alone: a stage of another one selects its
 	// own change set rather than taking this run's.
-	elsewhere, code := (changed.Scope{Root: t.TempDir(), File: seen[0].packagesPath}).Resolve(nil)
+	elsewhere, code := (repochanged.Scope{Root: t.TempDir(), File: seen[0].packagesPath}).Resolve(nil)
 	if code == 0 && len(elsewhere.Packages) == 1 && elsewhere.Packages[0] == "./ssh" {
 		t.Error("a caller asking about another checkout was handed this run's answer")
 	}

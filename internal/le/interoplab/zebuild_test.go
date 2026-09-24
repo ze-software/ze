@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // buildRunner answers the two commands a staging preflight issues: the daemon
@@ -75,7 +75,7 @@ func TestPreflightBuildsEveryDeclaredBinary(t *testing.T) {
 		t.Fatalf("resolve the checkout root: %v", err)
 	}
 	declared := []LabBinary{
-		{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"},
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
 		{Name: "ze-test", Base: "ze_test", Output: "test/interop/ze-test-linux"},
 	}
 
@@ -89,7 +89,7 @@ func TestPreflightBuildsEveryDeclaredBinary(t *testing.T) {
 		t.Fatalf("the preflight ran %d builds, want %d", len(builds), len(declared))
 	}
 	for index, binary := range declared {
-		wantTags, tagErr := featuretags.DaemonBuildTags(root, binary.Base)
+		wantTags, tagErr := repofeaturetags.DaemonBuildTags(root, binary.Base)
 		if tagErr != nil {
 			t.Fatalf("read the daemon tags for %s: %v", binary.Name, tagErr)
 		}
@@ -135,7 +135,7 @@ func TestLabCrossBuildIsStaticLinuxAtTheDaemonArch(t *testing.T) {
 	const daemonArchitecture = "arm64"
 
 	runner := newBuildRunner(daemonArchitecture)
-	binary := LabBinary{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"}
+	binary := LabBinary{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"}
 	if err := StageBinaries(root, false, binary)(context.Background(), newDocker(runner)); err != nil {
 		t.Fatalf("StageBinaries returned an error: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestPreflightRefusesAnUnreadableDaemonArchitecture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve the checkout root: %v", err)
 	}
-	binary := LabBinary{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"}
+	binary := LabBinary{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"}
 
 	cases := []struct {
 		name   string
@@ -216,7 +216,7 @@ func TestPreflightRefusesAnUnreadableDaemonArchitecture(t *testing.T) {
 // PREVENTS: a run that reuses yesterday's images paying for a cross-compile it will not use.
 func TestPreflightSkippedUnderNoBuild(t *testing.T) {
 	runner := newBuildRunner("amd64")
-	binary := LabBinary{Name: "ze", Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"}
+	binary := LabBinary{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"}
 	if err := StageBinaries("/nowhere", true, binary)(context.Background(), newDocker(runner)); err != nil {
 		t.Fatalf("StageBinaries returned an error under NO_BUILD: %v", err)
 	}
@@ -234,8 +234,8 @@ func TestStagingRefusesAnIncompleteDeclarationAndANonPositiveBound(t *testing.T)
 	}
 	incomplete := []LabBinary{
 		{Name: "ze", Output: "test/interop/ze-linux"},
-		{Name: "ze", Base: featuretags.DaemonBase},
-		{Base: featuretags.DaemonBase, Output: "test/interop/ze-linux"},
+		{Name: "ze", Base: repofeaturetags.DaemonBase},
+		{Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
 	}
 	for _, binary := range incomplete {
 		runner := newBuildRunner("amd64")

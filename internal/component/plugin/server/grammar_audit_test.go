@@ -1,7 +1,7 @@
 // Design: docs/architecture/cli/command-namespacing.md -- CLI command grammar gate
 //
 // Feeder 3 of the CLI grammar gate (ai/rules/cli.md, "Mechanical
-// Enforcement"). Feeders 1 (static YANG tree, internal/le/cligrammar/register.go) and
+// Enforcement"). Feeders 1 (static YANG tree, internal/le/cli/grammar/register.go) and
 // 2 (plugin registration, validateCommandName) already enforce grammar on 100% of
 // This in-process test locks that coverage against regression from the runtime
 // side, WITHOUT booting a daemon or maintaining an all-plugins config.

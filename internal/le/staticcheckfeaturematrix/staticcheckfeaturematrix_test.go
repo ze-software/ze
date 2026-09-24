@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -499,16 +499,16 @@ func TestDeriveReadsTheAnswerTheRunPublished(t *testing.T) {
 	// env.Set, not t.Setenv: env.Get caches the environment on its first call,
 	// so a variable planted after that call is invisible to it. The verify
 	// runner names the answer through the same door.
-	previous := env.Get(changed.ScopeTagsKey)
+	previous := env.Get(repochanged.ScopeTagsKey)
 	answer := filepath.Join(t.TempDir(), "scope-tags.txt")
 	if err := os.WriteFile(answer, []byte(reached+"\n"), 0o600); err != nil {
 		t.Fatalf("write the feature-tag answer: %v", err)
 	}
-	if err := env.Set(changed.ScopeTagsKey, answer); err != nil {
+	if err := env.Set(repochanged.ScopeTagsKey, answer); err != nil {
 		t.Fatalf("name the feature-tag answer: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := env.Set(changed.ScopeTagsKey, previous); err != nil {
+		if err := env.Set(repochanged.ScopeTagsKey, previous); err != nil {
 			t.Errorf("restore the feature-tag answer: %v", err)
 		}
 	})
@@ -619,7 +619,7 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 
 	// The answer the selector produces for that changed file: the tag gating its
 	// package, plus the tag the file NEGATES (reachedTags,
-	// internal/le/changed/selector.go).
+	// internal/le/repo/changed/selector.go).
 	if judgeFixture(t, root, []string{"ze_web", "ze_ssh"}) {
 		t.Error("the scoped matrix passed over a tree holding a type error in without_ze_ssh")
 	}

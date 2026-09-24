@@ -18,7 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/docvalid"
-	"github.com/ze-software/ze/internal/le/inventory"
+	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 
 const sourceListTimeout = 30 * time.Second
@@ -423,7 +423,7 @@ func publishCommandCatalog(paths Paths) error {
 // is a variable so a test can state a registry rather than depend on the
 // feature gates its own test binary was built with: an untagged `go test`
 // registers twelve plugins where the shipped daemon registers eighty-eight.
-var livePluginRegistry = inventory.Plugins
+var livePluginRegistry = repoinventory.Plugins
 
 // publishPluginRegistry republishes the plugin registry read from this
 // process's own plugin registrations.

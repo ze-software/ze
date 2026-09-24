@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/featuretags"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // fakeLoopbackMount models what a real `mount -o loop,ro` makes VISIBLE, not just
@@ -234,7 +234,7 @@ func TestGokrazyConfigMatchesApplianceBuildTags(t *testing.T) {
 // judge the gokrazy config against its own idea of the manifest.
 func readFeatureGateTags(t *testing.T) []string {
 	t.Helper()
-	tags, err := featuretags.DaemonTags(filepath.Join("..", ".."))
+	tags, err := repofeaturetags.DaemonTags(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("read the feature manifest: %v", err)
 	}

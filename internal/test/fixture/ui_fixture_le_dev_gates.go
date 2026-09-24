@@ -53,7 +53,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		args []string
 	}{
 		{name: gateGokrazyGosum, args: []string{gateGokrazyGosum}},
-		{name: "arch-map check", args: []string{"arch-map", actionCheck}},
+		{name: "repo arch-map check", args: []string{"repo", "arch-map", actionCheck}},
 		{name: "protocol-skeleton report", args: []string{gateProtocolSkeleton, actionReport}},
 		{name: "protocol-skeleton selftest", args: []string{gateProtocolSkeleton, actionSelftest}},
 	}

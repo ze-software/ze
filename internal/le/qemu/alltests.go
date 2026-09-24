@@ -39,11 +39,11 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/population"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // The guest uses fixed paths. The repository arrives on a 9p mount at a known
@@ -974,7 +974,7 @@ const integrationBase = "ze_core integration"
 // featuretags derives the set from feature-gates.txt, so a missing manifest is
 // an error, not a smaller tag set.
 func (a *allTestsRun) integrationTags() (string, error) {
-	tags, err := featuretags.DaemonBuildTags(a.Workspace, integrationBase)
+	tags, err := repofeaturetags.DaemonBuildTags(a.Workspace, integrationBase)
 	if err != nil {
 		var tb textbuf.Buffer
 		return "", errors.New(tb.Str("qemu: the feature manifest could not be read, and without it every").
