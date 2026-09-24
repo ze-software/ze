@@ -1528,27 +1528,28 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 	close(doneCh)
 }
 
-// waitLoop dispatches signals: SIGHUP to reloadCh, others trigger shutdown return.
-// If doneCh is non-nil, also returns when it closes (server exit).
+// waitLoop dispatches signals: SIGHUP to reloadCh, any other signal returns so
+// the caller shuts down. It also returns when doneCh closes (server exit); a
+// nil doneCh never fires.
+//
+// It MUST NOT block on reloadCh, because it is the only reader of sigCh: a loop
+// parked on a full reloadCh reads no SIGTERM until the reload worker takes the
+// queued SIGHUP, which a wedged or slow reload delays by up to its 30s timeout
+// per queued signal. A SIGHUP that finds one already queued is coalesced into
+// it: the queued reload reads the config source when it runs
+// (handleSIGHUPReload), so it applies every edit the dropped signal announced.
 func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}) {
 	for {
-		if doneCh != nil {
+		select {
+		case sig := <-sigCh:
+			if sig != syscall.SIGHUP {
+				return
+			}
 			select {
-			case sig := <-sigCh:
-				if sig == syscall.SIGHUP {
-					reloadCh <- sig
-					continue
-				}
-				return
-			case <-doneCh:
-				return
+			case reloadCh <- sig:
+			default: // A reload is already queued and covers this signal.
 			}
-		} else {
-			sig := <-sigCh
-			if sig == syscall.SIGHUP {
-				reloadCh <- sig
-				continue
-			}
+		case <-doneCh:
 			return
 		}
 	}

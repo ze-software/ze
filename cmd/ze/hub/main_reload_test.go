@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io/fs"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -374,6 +376,87 @@ func TestAwaitReloadWorker(t *testing.T) {
 			t.Fatal("shutdown did not return after reload cleanup")
 		}
 	})
+}
+
+// VALIDATES: SIGTERM ends the daemon's signal loop at once while a SIGHUP
+// reload is running and failing, even when more SIGHUPs arrive meanwhile.
+// PREVENTS: waitLoop parking on a full reloadCh, so the daemon reads no SIGTERM
+// until the wedged reload returns (up to its 30s timeout per queued signal).
+//
+// Method: the real reload worker (handleSIGHUPReload) runs a reload whose
+// config load blocks, then fails. With that reload in flight, three SIGHUPs and
+// a SIGTERM arrive. waitLoop MUST return while the reload still blocks. The
+// test then runs the daemon's shutdown order: close reloadCh, awaitReloadWorker.
+func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
+	t.Parallel()
+
+	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
+	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
+	require.NoError(t, err)
+	t.Cleanup(func() { server.Stop() })
+
+	entered := make(chan struct{}, 1)
+	release := make(chan struct{})
+	load := func() (map[string]any, *zeconfig.Tree, error) {
+		entered <- struct{}{}
+		<-release
+		return nil, nil, errors.New("candidate verify failed")
+	}
+
+	sigCh := make(chan os.Signal, 4)
+	reloadCh := make(chan os.Signal, 1)
+	reloadDone := make(chan struct{})
+	reloadCtx, reloadCancel := context.WithCancel(context.Background())
+	defer reloadCancel()
+	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+
+	loopDone := make(chan struct{})
+	go func() {
+		waitLoop(sigCh, reloadCh, nil)
+		close(loopDone)
+	}()
+
+	sigCh <- syscall.SIGHUP
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reload worker did not start the first reload")
+	}
+	sigCh <- syscall.SIGHUP
+	sigCh <- syscall.SIGHUP
+	sigCh <- syscall.SIGTERM
+
+	select {
+	case <-loopDone:
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("SIGTERM was not read while a reload was running: waitLoop blocked on reloadCh")
+	}
+
+	// Shutdown cancels the worker before the failing reload returns, as it
+	// does when a reload outlives reloadShutdownGrace.
+	close(reloadCh)
+	canceled := make(chan struct{})
+	shutdownDone := make(chan struct{})
+	go func() {
+		awaitReloadWorker(reloadDone, 0, func() {
+			reloadCancel()
+			close(canceled)
+		})
+		close(shutdownDone)
+	}()
+	<-canceled
+	close(release)
+	select {
+	case <-shutdownDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shutdown did not finish after the failed reload returned")
+	}
+	select {
+	case <-entered:
+		t.Error("a queued SIGHUP started a reload after shutdown canceled the worker")
+	default:
+	}
 }
 
 // mustParseReloadStamp parses a version stamp in the store's own layout,

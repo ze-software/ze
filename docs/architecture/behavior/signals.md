@@ -286,6 +286,15 @@ fatal nor delivered to the hub: the plugins exited and the daemon waited for a
 second signal. The hub now registers first, and `waitLoop` drains the queued
 signal when startup finishes.
 
+`waitLoop` is the only reader of `sigCh`, so it never blocks. It gives a SIGHUP
+to the reload worker through a channel that holds one signal. When a SIGHUP is
+already queued behind a running reload, `waitLoop` drops the new SIGHUP: the
+queued reload reads the config source when it starts, so it applies every
+edit. Before 2026-09-24 the send blocked, and a SIGTERM that arrived during a
+slow or failing reload was not read until that reload returned. Each reload has
+a 30s timeout.
+<!-- source: cmd/ze/hub/main.go -- waitLoop -->
+
 The reactor runs its own `SignalHandler` only when it is standalone. Under the
 hub, `externalServer` is true, the reactor skips `startSignalHandler`, and the
 hub owns every signal.
