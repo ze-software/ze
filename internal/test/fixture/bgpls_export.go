@@ -56,7 +56,7 @@ func bgplsExportLifecycle(ctx context.Context, p *sdk.Plugin) error {
 	} {
 		var row map[string]any
 		var lastErr error
-		if !Poll(ctx, 100, 250*time.Millisecond, func() bool {
+		if !Poll(ctx, WaitAttempts(40, 250*time.Millisecond, 100), 250*time.Millisecond, func() bool {
 			row, lastErr = peerRow07(ctx, p, "127.0.0.1")
 			return lastErr == nil && number07(row["eor-sent"]) == 1 && number07(row["updates-sent"]) >= step.updates
 		}) {
@@ -97,9 +97,11 @@ func bgplsReload(ctx context.Context, p *sdk.Plugin, source string) error {
 	}
 	// A withdrawal can precede candidate promotion. Only the whole-reload
 	// generation lets the next rewrite avoid racing that file publication.
+	// A SIGHUP reload verifies and applies through every plugin, so a loaded
+	// run stretches it past any constant; the bound derives from the budget.
 	var status string
 	var result map[string]any
-	if !Poll(ctx, 100, 100*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(40, 100*time.Millisecond, 100), 100*time.Millisecond, func() bool {
 		status, result, err = dispatchMap(ctx, p, "show reload-status")
 		return err == nil && status == statusDone && int64(number07(result["generation"])) > baseline
 	}) {

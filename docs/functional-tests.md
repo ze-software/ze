@@ -831,7 +831,11 @@ for a child that owns the duration it is scaling. `ze.test.budget` is the resolv
 per-test budget, headroom included, for a child that has no duration of its own to
 scale: a compiled fixture asks `WaitBudget` for a percentage of it rather than
 writing a constant, so the fixture and its `.ci` can no longer disagree about how
-long the daemon has.
+long the daemon has. The budget is written as `ze_test_budget`, the underscore
+spelling `env.Get` reads as the same key: a daemon starts a plugin's `run` string
+through `/bin/sh -c`, and dash drops a variable whose name is not a shell
+identifier, so the dot spelling never reached a fixture that runs as a plugin.
+`ze.test.parallel-factor` still carries a hyphen and does not survive that shell.
 
 The runner does NOT read the job-admission budget. `defaultSlots`
 (`internal/le/job/job.go`) gives the machine one job slot for each core share it

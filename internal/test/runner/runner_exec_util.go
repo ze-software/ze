@@ -195,9 +195,16 @@ func childEnv(extra ...string) []string {
 // The value is headroom-SCALED, unlike the input pluginStageStallEnv takes: this
 // is the wall-clock the child is measured against, not a budget it must scale
 // itself.
+//
+// The name is written in the underscore spelling, which env.Get reads as the
+// same key. A daemon starts a plugin's `run` string through /bin/sh -c, and
+// dash drops every variable whose name is not a shell identifier, so the dot
+// spelling never reached a fixture running as a plugin: every WaitBudget there
+// silently answered its fallback (measured 2026-09-24 in /proc/<pid>/environ of
+// audit-config-commit's observer).
 func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 	var tb textbuf.Buffer
-	return tb.Str(TestBudgetEnv).Byte('=').
+	return tb.Str(strings.ReplaceAll(TestBudgetEnv, ".", "_")).Byte('=').
 		Str(r.withParallelHeadroom(testBudget).String()).
 		String()
 }

@@ -168,7 +168,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 		return fmt.Errorf("start vpp stub: %w", err)
 	}
 	defer plugin16StopProcess(stub, stubDone)
-	if !Poll(ctx, 200, 50*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(10, 50*time.Millisecond, 200), 50*time.Millisecond, func() bool {
 		_, err := os.Stat(socketPath)
 		return err == nil
 	}) {
@@ -202,7 +202,11 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 		logFile.Close() //nolint:errcheck // fixture teardown
 	}()
 
-	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", 800)
+	// The first apply waits for the whole daemon start, which creates and
+	// fsyncs the store before any plugin runs. On a saturated disk that was
+	// measured past 40s, so both waits derive from the test budget: 45% for the
+	// start and 30% for the reload leave room for the stop below.
+	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", WaitAttempts(45, 50*time.Millisecond, 800))
 	if err != nil {
 		return err
 	}
@@ -222,7 +226,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	if err := ze.Process.Signal(syscall.SIGHUP); err != nil {
 		return fmt.Errorf("reload ze: %w", err)
 	}
-	entries, err = plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", 800)
+	entries, err = plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", WaitAttempts(30, 50*time.Millisecond, 800))
 	if err != nil {
 		return err
 	}

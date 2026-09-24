@@ -44,7 +44,10 @@ func httpRequest13(ctx context.Context, method, url string, headers map[string]s
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	// A config commit is a runtime reload through every plugin, so under a
+	// loaded run it legitimately outlasts any constant. The bound derives from
+	// the test budget; a poll that wants a shorter one bounds its own ctx.
+	client := &http.Client{Timeout: WaitBudget(40, 10*time.Second)}
 	response, err := client.Do(req)
 	if err != nil {
 		return httpResult13{}, err
@@ -305,7 +308,7 @@ func peerState13(ctx context.Context, plugin *sdk.Plugin, address string) (strin
 func waitPeerPresent13(ctx context.Context, plugin *sdk.Plugin, address string) (string, bool) {
 	var state string
 	var present bool
-	Poll(ctx, 24, 500*time.Millisecond, func() bool { state, present = peerState13(ctx, plugin, address); return present })
+	Poll(ctx, WaitAttempts(20, 500*time.Millisecond, 24), 500*time.Millisecond, func() bool { state, present = peerState13(ctx, plugin, address); return present })
 	return state, present
 }
 
@@ -363,7 +366,7 @@ func restPeerLifecycle13(ctx context.Context, args []string) error {
 		if err := driver.commit(ctx, sid, "step 3"); err != nil {
 			return err
 		}
-		gone := Poll(ctx, 24, 500*time.Millisecond, func() bool { _, present := peerState13(ctx, plugin, "127.0.0.1"); return !present })
+		gone := Poll(ctx, WaitAttempts(20, 500*time.Millisecond, 24), 500*time.Millisecond, func() bool { _, present := peerState13(ctx, plugin, "127.0.0.1"); return !present })
 		beta, betaPresent = waitPeerPresent13(ctx, plugin, "127.0.0.2")
 		if !gone || !betaPresent {
 			return fmt.Errorf("after delete: alpha gone=%v beta present=%v", gone, betaPresent)

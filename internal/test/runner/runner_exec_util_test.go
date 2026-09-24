@@ -731,3 +731,31 @@ func cmdPointers(cmds []RunCommand) []*RunCommand {
 	}
 	return out
 }
+
+// TestTestBudgetEnvSurvivesAShell starts a child the way a daemon starts a
+// plugin's `run` string, through /bin/sh -c, and reads the budget back.
+//
+// VALIDATES: the published budget reaches a fixture that runs as a plugin.
+// PREVENTS: the dot spelling, which dash drops as a non-identifier name, so
+// every WaitBudget in a plugin fixture answered its fallback in silence.
+// DISCRIMINATES: publish TestBudgetEnv verbatim and the shell's child reads no
+// budget at all.
+func TestTestBudgetEnvSurvivesAShell(t *testing.T) {
+	r := &Runner{}
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exec env")
+	cmd.Env = []string{r.testBudgetEnv(30 * time.Second)}
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("run /bin/sh: %v", err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok && strings.EqualFold(strings.ReplaceAll(key, ".", "_"), strings.ReplaceAll(TestBudgetEnv, ".", "_")) {
+			if value != "30s" {
+				t.Fatalf("budget = %q, want 30s", value)
+			}
+			return
+		}
+	}
+	t.Fatalf("the budget did not survive /bin/sh -c; child env:\n%s", out)
+}

@@ -136,8 +136,12 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := apiRIBReady02(ctx, plugin); err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: 5 * time.Second}
-	if !Poll(ctx, 20, 500*time.Millisecond, func() bool {
+	// A commit is a runtime reload that verifies and applies through every
+	// plugin, so under a loaded run it takes seconds of CPU the daemon waits
+	// for. The per-request bound derives from the test budget, never a
+	// constant the .ci timeout does not know about.
+	client := &http.Client{Timeout: WaitBudget(50, 5*time.Second)}
+	if !Poll(ctx, WaitAttempts(40, 500*time.Millisecond, 20), 500*time.Millisecond, func() bool {
 		return auditRESTReady02(ctx, client)
 	}) {
 		return fmt.Errorf("REST API did not respond")
@@ -163,7 +167,7 @@ func auditConfigCommit02(ctx context.Context, plugin *sdk.Plugin) error {
 	fmt.Fprintln(os.Stderr, "OK: REST config commit succeeded")
 
 	var audit auditResult02
-	if !Poll(ctx, 20, 250*time.Millisecond, func() bool {
+	if !Poll(ctx, WaitAttempts(25, 250*time.Millisecond, 20), 250*time.Millisecond, func() bool {
 		raw, err := requireDone02(ctx, plugin, "show audit action config-commit")
 		if err != nil || decode02(raw, &audit) != nil {
 			return false

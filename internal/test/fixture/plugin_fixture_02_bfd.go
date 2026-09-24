@@ -22,8 +22,15 @@ import (
 // sixteen bytes RFC 5880 Section 6.7.2 allows.
 const bfdSimplePasswordTooLong02 = "simple-password secret is 17 bytes"
 
-const bfdRunBudget02 = 12 * time.Second
-const bfdShutdownBudget02 = 5 * time.Second
+// bfdRunBudget02 answers how long one daemon run may take to reach a state the
+// scenario waits for, and bfdShutdownBudget02 how long it may take to exit on
+// SIGTERM. Both derive from the test budget: the scenario runs two daemons and
+// stops each, so 2x35% plus 2x10% stays inside it. A fresh daemon creates and
+// fsyncs its store before it starts any plugin, and on a machine whose disk is
+// saturated that alone was measured past a fixed 12s.
+func bfdRunBudget02() time.Duration { return WaitBudget(35, 12*time.Second) }
+
+func bfdShutdownBudget02() time.Duration { return WaitBudget(10, 5*time.Second) }
 
 func init() {
 	Register("plugin/bfd-auth-meticulous-persist", bfdAuthMeticulousPersist02)
@@ -96,7 +103,7 @@ func startBFDDaemon02(ctx context.Context, stateDir string) (*bfdDaemon02, error
 }
 
 func (d *bfdDaemon02) waitFor02(ctx context.Context, what string, interval time.Duration, predicate func() bool) error {
-	deadline := d.started.Add(bfdRunBudget02)
+	deadline := d.started.Add(bfdRunBudget02())
 	for time.Now().Before(deadline) {
 		if predicate() {
 			return nil
@@ -114,7 +121,7 @@ func (d *bfdDaemon02) waitFor02(ctx context.Context, what string, interval time.
 		}
 	}
 	_ = d.abandon02()
-	return fmt.Errorf("gave up after %s waiting for %s\n%s", bfdRunBudget02, what, d.log.String())
+	return fmt.Errorf("gave up after %s waiting for %s\n%s", bfdRunBudget02(), what, d.log.String())
 }
 
 func (d *bfdDaemon02) stop02() (string, error) {
@@ -131,10 +138,10 @@ func (d *bfdDaemon02) stop02() (string, error) {
 			return captured, fmt.Errorf("ze exited after SIGTERM: %w", err)
 		}
 		return captured, nil
-	case <-time.After(bfdShutdownBudget02):
+	case <-time.After(bfdShutdownBudget02()):
 		captured := d.log.String()
 		_ = d.abandon02()
-		return captured, fmt.Errorf("ze did not exit within %s of SIGTERM\n%s", bfdShutdownBudget02, captured)
+		return captured, fmt.Errorf("ze did not exit within %s of SIGTERM\n%s", bfdShutdownBudget02(), captured)
 	}
 }
 
@@ -224,7 +231,7 @@ func bfdAuthMeticulousPersist02(ctx context.Context, args []string) error {
 		return fmt.Errorf("first run did not reach 'bfd plugin running': %w", err)
 	}
 	if err := first.waitFor02(ctx, "a sequence reached the state tree", 250*time.Millisecond, func() bool {
-		return probe.seq02(first.started.Add(bfdRunBudget02)) > 0
+		return probe.seq02(first.started.Add(bfdRunBudget02())) > 0
 	}); err != nil {
 		return fmt.Errorf("first run never persisted a sequence: %w", err)
 	}
