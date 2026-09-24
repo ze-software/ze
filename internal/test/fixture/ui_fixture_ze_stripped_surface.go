@@ -14,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -26,8 +28,28 @@ type uiZeStrippedSurfaceCommandResult struct {
 	code   int
 }
 
+// productHarness runs the stripped binary for one fixture run. It is not safe
+// for concurrent use: the fixture drives its steps one after another.
 type productHarness struct {
 	dir string
+
+	// steps names every step that finished and how long it took. A failure
+	// report carries it, so a run that ends on the fixture budget shows which
+	// step spent the time rather than only the step that was still running.
+	steps textbuf.Buffer
+}
+
+// strippedBudgetPercent is the share of the runner's test budget the whole
+// fixture may use. It stays under 100 so the fixture names the step it was in,
+// with what that step printed, before the runner kills it with nothing said.
+const strippedBudgetPercent = 90
+
+// strippedBudgetFallback bounds a run started by hand, with no runner budget.
+const strippedBudgetFallback = 60 * time.Second
+
+// record appends one finished step and its duration to the step log.
+func (h *productHarness) record(step string, started time.Time) {
+	h.steps.Str("  ").Str(step).Str(": ").Str(time.Since(started).Round(time.Millisecond).String()).Byte('\n')
 }
 
 type observedProcess struct {
@@ -68,10 +90,16 @@ func (h *productHarness) Dispatch(
 		cmd.Stderr = &stderr
 	}
 
+	step := "ze-stripped " + strings.Join(args, " ")
+	started := time.Now()
 	err := cmd.Run()
 	if ctxErr := ctx.Err(); ctxErr != nil {
-		return uiZeStrippedSurfaceCommandResult{}, ctxErr
+		return uiZeStrippedSurfaceCommandResult{}, fmt.Errorf(
+			"%s: still running after %s, when the fixture budget ended\nstdout:\n%s\nstderr:\n%s: %w",
+			step, time.Since(started).Round(time.Millisecond), stdout.String(), stderr.String(), ctxErr,
+		)
 	}
+	h.record(step, started)
 
 	result := uiZeStrippedSurfaceCommandResult{
 		stdout: stdout.String(),
@@ -121,7 +149,8 @@ func (h *productHarness) Poll(
 	interval time.Duration,
 	paths ...string,
 ) error {
-	deadline := time.Now().Add(timeout)
+	started := time.Now()
+	deadline := started.Add(timeout)
 	for {
 		select {
 		case <-p.done:
@@ -141,6 +170,7 @@ func (h *productHarness) Poll(
 			}
 		}
 		if ready {
+			h.record("daemon readiness", started)
 			return nil
 		}
 
@@ -156,7 +186,7 @@ func (h *productHarness) Poll(
 			if !timer.Stop() {
 				<-timer.C
 			}
-			return ctx.Err()
+			return fmt.Errorf("daemon did not become ready: %w", ctx.Err())
 		case <-p.done:
 			if !timer.Stop() {
 				<-timer.C
@@ -194,6 +224,17 @@ func (p *observedProcess) Stop() error {
 	return nil
 }
 
+// stopReport stops the daemon and answers what it wrote to stderr. It is
+// called when a step that needs the daemon failed, so the report carries the
+// daemon's side as well. The buffer is read only once Wait has returned,
+// because until then its copy goroutine can still write to it.
+func (p *observedProcess) stopReport() string {
+	if err := p.Stop(); err != nil {
+		return err.Error()
+	}
+	return p.stderr.String()
+}
+
 func waitForProcess(done <-chan struct{}, timeout time.Duration) bool {
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
@@ -205,13 +246,26 @@ func waitForProcess(done <-chan struct{}, timeout time.Duration) bool {
 	}
 }
 
-func runZEStrippedSurface(ctx context.Context) (retErr error) {
+func runZEStrippedSurface(parent context.Context) (retErr error) {
+	// Every step runs under one deadline derived from the test's budget. No step
+	// states its own: a step that blocks ends here, named, with its output and
+	// the time each earlier step took, instead of at the runner's kill, which
+	// reports nothing.
+	ctx, cancel := context.WithTimeout(parent, WaitBudget(strippedBudgetPercent, strippedBudgetFallback))
+	defer cancel()
+	deadline, _ := ctx.Deadline() //nolint:errcheck // WithTimeout always sets a deadline
+
 	wd, err := os.MkdirTemp("", "ze-ui-stripped-surface-")
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
 	defer os.RemoveAll(wd) //nolint:errcheck // fixture cleanup
 	h := &productHarness{dir: wd}
+	defer func() {
+		if retErr != nil {
+			retErr = fmt.Errorf("%w\nsteps completed:\n%s", retErr, h.steps.String())
+		}
+	}()
 
 	help, err := h.Dispatch(ctx, nil, "", true, "help", "command", "--json")
 	if err != nil {
@@ -335,8 +389,8 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		}
 	}()
 
-	if err := h.Poll(ctx, daemon, 15*time.Second, 100*time.Millisecond, sshAddressPath, readyPath); err != nil {
-		return err
+	if err := h.Poll(ctx, daemon, time.Until(deadline), 100*time.Millisecond, sshAddressPath, readyPath); err != nil {
+		return fmt.Errorf("%w\ndaemon stderr:\n%s", err, daemon.stopReport())
 	}
 
 	addressBytes, err := os.ReadFile(sshAddressPath) //nolint:gosec // the path is the fixture's own scratch file
@@ -365,6 +419,9 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		false,
 		"cli", "-c", "update system firmware check",
 	)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("%w\ndaemon stderr:\n%s", err, daemon.stopReport())
+	}
 	if err != nil {
 		return err
 	}
