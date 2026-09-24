@@ -67,7 +67,9 @@ interface address events. It performs no kernel lookup per UPDATE.
 A semantic failure withdraws the legacy announcements while preserving explicit
 withdrawals and MP routes in the same UPDATE. It is logged without a NOTIFICATION
 or session reset. iBGP and multihop eBGP still reject the speaker's own addresses,
-but do not apply the one-hop common-subnet condition.
+but do not apply the one-hop common-subnet condition. A sender at a loopback
+address, or at an address this host holds, runs on the receiving host. It is zero
+IP hops away, so the common-subnet condition does not apply to it either.
 
 <!-- source: internal/component/bgp/reactor/session_next_hop.go -- invalidReceiveNextHop, withdrawLegacyAnnouncements -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->

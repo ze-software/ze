@@ -29,12 +29,28 @@ func newReceiveNextHopScope(addresses []netip.Prefix, conn net.Conn, settings *P
 	if addr, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
 		remote = addr.AddrPort().Addr().Unmap()
 	}
+	// RFC 4271 Section 6.3 applies the common-subnet condition only "where the
+	// sender and receiver are one IP hop away from each other". A sender at a
+	// loopback address, or at an address this host holds, runs on the receiving
+	// host: it is zero hops away, and no link exists for a next hop to share.
+	sameHost := remote.IsLoopback() || holdsAddress(addresses, remote)
 	return &receiveNextHopScope{
 		addresses: addresses,
 		local:     local,
 		remote:    remote,
-		direct:    network.SharesSubnet(addresses, remote) || settings.OutTTL == 1 || settings.MinTTL == 255,
+		direct:    !sameHost && (network.SharesSubnet(addresses, remote) || settings.OutTTL == 1 || settings.MinTTL == 255),
 	}
+}
+
+// holdsAddress reports whether addr is one of this host's interface addresses.
+func holdsAddress(addresses []netip.Prefix, addr netip.Addr) bool {
+	addr = addr.Unmap()
+	for _, address := range addresses {
+		if addr == address.Addr().Unmap() {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Session) invalidReceiveNextHop(wu *wireu.WireUpdate) bool {
@@ -57,13 +73,8 @@ func (s *Session) invalidReceiveNextHop(wu *wireu.WireUpdate) bool {
 	}
 	// RFC 4271 Section 6.3: "It MUST NOT be the IP address of the
 	// receiving speaker." This includes addresses on other interfaces.
-	if nextHop == scope.local || nextHop == s.settings.LocalAddress {
+	if nextHop == scope.local || nextHop == s.settings.LocalAddress || holdsAddress(scope.addresses, nextHop) {
 		return true
-	}
-	for _, address := range scope.addresses {
-		if nextHop == address.Addr().Unmap() {
-			return true
-		}
 	}
 	peerAS := s.settings.PeerAS
 	if neg := s.Negotiated(); peerAS == 0 && neg != nil {

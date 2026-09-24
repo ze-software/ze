@@ -81,3 +81,42 @@ func TestSessionRFC4271IBGPNextHop(t *testing.T) {
 	length := int(binary.BigEndian.Uint16(withdrawal.Payload()[:2]))
 	require.Equal(t, prefix, withdrawal.Payload()[2:2+length])
 }
+
+// A sender on the receiving host is zero IP hops away, so RFC 4271 Section 6.3's
+// one-hop common-subnet condition does not bind it, while the receiving
+// speaker's own address stays invalid. A one-hop sender on a connected subnet
+// keeps the condition: an off-link next hop from it is still withdrawn.
+func TestSessionNextHopSameHostSender(t *testing.T) {
+	prefix := []byte{24, 203, 0, 113}
+	for _, tc := range []struct {
+		name    string
+		remote  string
+		nextHop string
+		invalid bool
+	}{
+		{"loopback sender, off-link next hop", "127.0.0.1", "1.1.1.1", false},
+		{"loopback sender, receiver address", "127.0.0.1", "127.0.0.1", true},
+		{"sender at own address, off-link next hop", "192.0.2.2", "1.1.1.1", false},
+		{"one-hop sender, off-link next hop", "192.0.2.1", "1.1.1.1", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := NewPeerSettings(netip.MustParseAddr(tc.remote), 65001, 65002, 0x01020301)
+			s, client := firstASSession(t, settings, nil, nil)
+			s.nextHopScope.Store(newReceiveNextHopScope([]netip.Prefix{
+				netip.MustParsePrefix("127.0.0.1/8"), netip.MustParsePrefix("192.0.2.2/24"),
+			}, client, settings))
+			attrs := append([]byte{}, firstASAttrs(2, 65002)...)
+			addr := netip.MustParseAddr(tc.nextHop).As4()
+			copy(attrs[len(attrs)-4:], addr[:])
+			wu := firstASReceive(t, s, client, makeUpdateBody(nil, attrs, prefix))
+			nlri, err := wu.NLRI()
+			require.NoError(t, err)
+			if tc.invalid {
+				require.Empty(t, nlri)
+				require.Equal(t, prefix, wu.Payload()[2:6])
+				return
+			}
+			require.Equal(t, prefix, nlri)
+		})
+	}
+}
