@@ -177,13 +177,14 @@ overflow queue, so the congestion controls of that queue apply to them: overflow
 denial, then teardown of the peer, never a silent drop (see
 [the replay fence](../architecture/forward-congestion-pool.md#the-replay-fence)).
 
-A peer-down withdrawal leaves the route server by selector, which the engine
-does not hold. The route server sends it to every peer at once, and sends a
-second copy to each peer whose replay is still running when that replay ends.
-A replay read before the receive store processed the peer-down can still carry
-the route, and the copy removes it.
-<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, initialUpdateOwed -->
-<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateUp, holdForReplays, endReplay -->
+A peer-down withdrawal leaves the route server by selector, on the announce
+rail. For a peer whose replay is still running, the engine puts it in the same
+forward queue as the held live changes, so the replay passes it and it reaches
+the peer after the replay's End-of-RIB. A replay read before the receive store
+processed the peer-down can still carry the route, and the withdrawal that
+follows it removes it.
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, initialUpdateOwed, withdrawBehindForwards -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateUp, endReplay -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch -->
 <!-- source: internal/component/bgp/plugins/rs/server_validation.go -- replayFlowSpecs -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->

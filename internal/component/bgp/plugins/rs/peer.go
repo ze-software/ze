@@ -40,16 +40,13 @@ type PeerState struct {
 	// end of the replay, and lets the replay's relays pass. No live rail here
 	// waits, so one peer's replay delays no other destination.
 	//
-	// The gate itself covers the rail the engine cannot hold, the peer-down
-	// withdrawal sent by selector: holdForReplays keeps a copy for each peer
-	// whose gate is set, and endReplay sends it once the replay is over.
+	// The peer-down withdrawal, sent by selector on the announce rail, joins
+	// the same hold: the engine queues it behind the peer's held live changes
+	// (reactor Peer.withdrawBehindForwards), so the replay passes it too.
 	//
 	// Protected by rs.mu. Set in the same critical section that sets Up and
 	// ForwardFrom, so no selection can see the peer as a target without its gate.
 	replayDone chan struct{}
-	// heldWithdrawals are the peer-down withdrawal commands holdForReplays kept
-	// for this peer while replayDone was set, in order. Protected by rs.mu.
-	heldWithdrawals []string
 
 	ReplayGen    uint64                 // Incremented on each handleStateUp, guards stale goroutines
 	Capabilities map[string]bool        // Negotiated capabilities (e.g., "route-refresh": true)

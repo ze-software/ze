@@ -1972,6 +1972,31 @@ func (p *Peer) forwardOverflowPending() bool {
 	return c != nil && c.Load() > 0
 }
 
+// withdrawBehindForwards reports whether an announce-rail withdrawal for this
+// peer must join the peer's forward queue instead of reaching the wire at once
+// (reactorAPIAdapter.queueBehindForwards). A peer that is not Established has
+// no forward queue that will drain, so the answer is false there.
+//
+// Two facts each make the direct write wrong. While the replay fence is up
+// (initialUpdateOwed), a withdrawal is a live change like any other: written at
+// once, it reaches the peer before the replayed announce of the same prefix,
+// which passes the fence later and leaves a withdrawn route installed. While
+// forwarded items are owed through overflow (forwardOverflowPending), a queued
+// forwarded announce of the same prefix would follow the withdrawal to the wire
+// and install it again. In both cases the withdrawal takes its place in the same
+// FIFO, and the fence holds it with the other live changes.
+//
+// A reactor without a forward pool holds no forwards, so nothing is owed ahead.
+func (p *Peer) withdrawBehindForwards() bool {
+	if p.State() != PeerStateEstablished {
+		return false
+	}
+	if p.reactor == nil || p.reactor.fwdPool == nil {
+		return false
+	}
+	return p.initialUpdateOwed.Load() || p.forwardOverflowPending()
+}
+
 // wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's
 // initial route sync or its replay fence. Call it after every store that clears
 // sendingInitialRoutes or initialUpdateOwed.

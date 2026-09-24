@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // replayFenceOwner is the process the fenced destination waits for.
@@ -109,6 +110,83 @@ func TestLiveForwardWaitsForPeerUpReplay(t *testing.T) {
 				got = append(got, u.announces)
 			}
 			require.Equal(t, tt.want, got, "wire order (true = announce, false = withdraw)")
+		})
+	}
+}
+
+// TestAnnounceRailWithdrawJoinsTheFence proves that a withdrawal sent on the
+// announce rail, the rail a route server's peer-down withdrawal takes by
+// selector, is ordered with the forwarding rails for a fenced destination.
+//
+// VALIDATES: while the replay fence is up, an announce-rail withdrawal joins the
+// destination's forward queue as a live change (Peer.withdrawBehindForwards,
+// reactorAPIAdapter.queueBehindForwards). It follows a live announce parked
+// before it, and a replayed announce passes it.
+//
+// PREVENTS: the withdrawal reaching the wire at once while the announce of the
+// same prefix waits behind the fence or rides the replay, which left the late
+// peer holding a route whose source had gone down.
+//
+// Method: the destination's connection is the record of what reached the wire.
+// Nothing live may reach it while the fence is up, and the order after the
+// report is the assertion.
+func TestAnnounceRailWithdrawJoinsTheFence(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		// liveFirst forwards a live announce before the withdrawal; otherwise a
+		// replayed announce follows the withdrawal.
+		liveFirst bool
+		// passes is how many UPDATEs reach the wire while the fence is up.
+		passes int
+	}{
+		{name: "withdraw follows a parked live announce", liveFirst: true, passes: 0},
+		{name: "replayed announce passes the withdraw", liveFirst: false, passes: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			r, src, dst, conn, ctxID := newSyncOrderRail(t)
+			adapter := &reactorAPIAdapter{r: r}
+			dst.sendingInitialRoutes.Store(0)
+			dst.resetAPISync([]string{replayFenceOwner})
+			raiseTestReplayFence(dst, replayFenceOwner)
+			// Nothing has reached the connection yet, as when the replay and
+			// the live changes are all still queued: the withdrawal must not be
+			// withheld as never advertised (splitOnAdvertised).
+
+			withdraw := func() {
+				require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.Addr(dst.Settings().Address),
+					adjOutBatch("192.0.2.0/24", "10.0.0.1"), plugin.OperatorSender()))
+			}
+			if tt.liveFirst {
+				update := syncOrderPublish(t, r, ctxID, 7700, syncOrderAnnounceBody)
+				require.NoError(t, adapter.forwardUpdateCore(update, 7700, []*Peer{dst}, replayFenceSource(src, false)))
+				withdraw()
+			} else {
+				withdraw()
+				update := syncOrderPublish(t, r, ctxID, 7701, syncOrderAnnounceBody)
+				require.NoError(t, adapter.forwardUpdateCore(update, 7701, []*Peer{dst}, replayFenceSource(src, true)))
+			}
+
+			if tt.passes > 0 {
+				require.Eventually(t, func() bool {
+					return len(parseWireUpdates(t, conn.written())) >= tt.passes
+				}, 5*time.Second, 5*time.Millisecond, "the replay must pass the fence")
+			}
+			require.Never(t, func() bool {
+				return len(parseWireUpdates(t, conn.written())) > tt.passes
+			}, 200*time.Millisecond, 5*time.Millisecond, "no live change may pass the fence, the withdrawal included")
+
+			dst.SignalAPIReady(plugin.ProcessSender(replayFenceOwner))
+
+			var seen []wireUpdate
+			require.Eventually(t, func() bool {
+				seen = parseWireUpdates(t, conn.written())
+				return len(seen) >= 2
+			}, 5*time.Second, 5*time.Millisecond, "the withdrawal must follow once the replay is reported")
+			got := make([]bool, 0, len(seen))
+			for _, u := range seen {
+				got = append(got, u.announces)
+			}
+			require.Equal(t, []bool{true, false}, got, "wire order (true = announce, false = withdraw)")
 		})
 	}
 }

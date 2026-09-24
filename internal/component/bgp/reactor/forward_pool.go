@@ -73,6 +73,11 @@ type fwdItem struct {
 	// routing update (a peer-up replay), so it passes the destination's replay
 	// fence where a live change waits (Peer.forwardOrderHold).
 	initialUpdate bool
+	// originated marks an announce-rail UPDATE queued behind this destination's
+	// forwards (reactor_api_batch.go, queueBehindForwards). It has not been
+	// through the peer's export chain, so the worker writes it through
+	// writeUpdate, which runs that chain, and not writeUpdatePreFiltered.
+	originated bool
 }
 
 // forwardSourceCurrent is lock-free because workers call it under the
@@ -216,8 +221,10 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		}
 		for _, update := range items[i].updates {
 			// Pre-filtered: forwardUpdateCore already ran this peer's export chain
-			// (and only then the EBGP prepend). See writeUpdatePreFiltered.
-			if err := session.writeUpdatePreFiltered(update); err != nil {
+			// (and only then the EBGP prepend). See writeUpdatePreFiltered. An
+			// announce-rail item has not, so it takes the gated write, exactly as
+			// it would have on its own rail (fwdItem.originated).
+			if err := session.writeUpdateGated(update, items[i].originated); err != nil {
 				fwdLogger().Warn("forward batch write failed",
 					"peer", peer.Settings().Address,
 					"err", err,

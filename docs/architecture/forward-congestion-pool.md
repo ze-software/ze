@@ -116,6 +116,18 @@ initial update goes out first, and the live changes follow in the order they
 arrived. A sentinel queued behind a held item stays behind it, so `request peer
 <sel> flush` still answers only once everything before it is written.
 
+A withdrawal on the announce rail joins the same queue. A route server's
+peer-down withdrawal leaves by selector on that rail, and a direct write would
+reach the peer before a replayed or held announce of the same prefix. So while
+the fence is up, or while the peer is owed forwarded items through overflow,
+`withdrawBatchFromPeers` queues the withdrawal as a live overflow item
+(`queueBehindForwards`) instead of writing it. The worker writes it through the
+export chain, as the direct write would have. The "previously advertised" check
+treats such a peer as armed, because the items queued ahead of the withdrawal
+can advertise the route before it is written.
+<!-- source: internal/component/bgp/reactor/peer.go -- withdrawBehindForwards -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- queueBehindForwards, splitOnAdvertised -->
+
 The fence belongs to one peer. Other destinations read their own fence, so a
 replay on one peer never delays forwarding to another. The held items are
 queued overflow like any congested destination's, so the controls above apply

@@ -655,7 +655,11 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 			// that as "the peer does not have it" re-sends a route it may still
 			// hold; reading it the other way would suppress one it does not.
 			forgetWithdrawn(peer, unit, nlriHandle.Buf, facts.addPath)
-			if err := peer.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath); err != nil {
+			send := peer.sendUpdateWithSplit
+			if peer.withdrawBehindForwards() {
+				send = a.queueBehindForwards(peer)
+			}
+			if err := send(ctx, update, maxMsgSize, facts.addPath); err != nil {
 				lastErr = err
 				continue
 			}
@@ -669,6 +673,38 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 	return sent, withheld, lastErr
 }
 
+// errForwardPoolStopped reports that an UPDATE bound for a destination's forward
+// queue was not queued, because the pool is shutting down.
+var errForwardPoolStopped = errors.New("forward pool stopped: update not queued")
+
+// queueBehindForwards returns the send for an announce-rail UPDATE that must take
+// its place in the destination's forward queue (Peer.withdrawBehindForwards). It
+// has the shape of Peer.sendUpdateWithSplit, so the caller swaps one for the
+// other.
+//
+// Each chunk the split emits becomes one overflow item, in order. The chunk
+// aliases the splitter's buffer and the caller's build buffers, and
+// dispatchOverflow copies it before it returns (ownOverflowBodies), so the next
+// chunk may reuse them. The item is live (initialUpdate false), so the replay
+// fence holds it behind the changes queued before it, and originated, so the
+// worker runs the export chain the direct write would have run.
+//
+// The write happens later on the worker, which logs a failure: a nil answer
+// means queued, as a forwarded UPDATE's does.
+func (a *reactorAPIAdapter) queueBehindForwards(peer *Peer) func(context.Context, *message.Update, int, bool) error {
+	return func(_ context.Context, update *message.Update, maxMsgSize int, addPath bool) error {
+		key := fwdKey{peerAddr: peer.settings.PeerKey()}
+		s := message.GetSplitter()
+		defer message.PutSplitter(s)
+		return s.Split(update, maxMsgSize, addPath, func(chunk *message.Update) error {
+			if !a.r.fwdPool.dispatchOverflow(key, fwdItem{updates: []*message.Update{chunk}, peer: peer, originated: true}) {
+				return errForwardPoolStopped
+			}
+			return nil
+		})
+	}
+}
+
 // splitOnAdvertised partitions a fan-out into the peers a withdrawal MAY be
 // written to and the peers it is withheld from.
 //
@@ -677,9 +713,14 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []
 // is framed into. The caller's own slice is answered untouched while every peer
 // is armed, which is the ordinary case and the one that must not allocate
 // (ai/rules/performance.md).
+//
+// A peer whose withdrawal joins its forward queue (withdrawBehindForwards) is
+// writable whatever it has been sent: the question belongs to the moment of the
+// write, and the items queued ahead of the withdrawal, a held forward or a
+// replayed announce, can advertise the route before it.
 func splitOnAdvertised(peers []*Peer) (writable, unarmed []*Peer) {
 	for i, peer := range peers {
-		if peer.hasAdvertised() {
+		if peer.hasAdvertised() || peer.withdrawBehindForwards() {
 			if unarmed != nil {
 				writable = append(writable, peer)
 			}
@@ -760,7 +801,11 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 			return err
 		}
 		peer := peers[i]
-		if !peer.shouldQueue() {
+		// A peer still in its initial sync would queue this withdrawal on its
+		// opQueue, which drains when the sync ends, before a replay the fence
+		// still holds. withdrawBehindForwards sends it to the forward queue
+		// instead, behind the replay (withdrawBatchFromPeers).
+		if !peer.shouldQueue() || peer.withdrawBehindForwards() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {

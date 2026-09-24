@@ -228,30 +228,11 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 				buf.Str(" del ").Str(p)
 			}
 			command := buf.String()
+			// A destination still replaying gets this withdrawal behind its
+			// replay: the engine queues it with the destination's held live
+			// changes (reactor Peer.withdrawBehindForwards).
 			rs.updateRouteSel(excludeSel, command)
-			rs.holdForReplays(peerAddr, command)
 		}
-	}
-}
-
-// holdForReplays gives a copy of one peer-down withdrawal to every peer, other
-// than the source, whose peer-up replay is still running. Its replay goroutine
-// sends the copy once the replay is over (endReplay).
-//
-// The withdrawal already went to that peer by selector, and may have reached it
-// BEFORE a replayed announce of the same prefix: the replay reads bgp-adj-rib-in,
-// which may not have processed this peer-down yet, so the replay can still
-// carry the route. The copy sent after the replay removes it. A second withdraw
-// of a route the peer does not hold changes nothing at the peer. Cold path,
-// once per withdrawal batch per peer-down.
-func (rs *routeServer) holdForReplays(sourcePeer, command string) {
-	rs.mu.Lock()
-	defer rs.mu.Unlock()
-	for addr, p := range rs.peers {
-		if addr == sourcePeer || p.replayDone == nil {
-			continue
-		}
-		p.heldWithdrawals = append(p.heldWithdrawals, command)
 	}
 }
 
@@ -307,10 +288,9 @@ func (rs *routeServer) claimReplayOwnership() {
 // have stored yet at full-replay time (race between event delivery and replay).
 func (rs *routeServer) handleStateUp(peerAddr string) {
 	// ONE critical section makes the peer a live forward target, captures its
-	// cut, and shuts its replay gate. selectForwardTargets and holdForReplays
-	// read all three under rs.mu, so no live forward can select this peer
-	// without the matching ForwardFrom, and no peer-down withdrawal can miss the
-	// gate (PeerState.replayDone). The live forwards themselves are ordered
+	// cut, and shuts its replay gate. selectForwardTargets reads them under
+	// rs.mu, so no live forward can select this peer without the matching
+	// ForwardFrom (PeerState.replayDone). The live forwards themselves are ordered
 	// behind the replay by the engine's replay fence, which this plugin lowers
 	// with signalSessionReady at the end of the replay.
 	//
@@ -332,9 +312,6 @@ func (rs *routeServer) handleStateUp(peerAddr string) {
 	cut := peer.ForwardFrom
 	done := make(chan struct{})
 	peer.replayDone = done
-	// Withdrawals held for a previous session belong to it: this session's
-	// replay starts from the store as it is now.
-	peer.heldWithdrawals = nil
 	rs.mu.Unlock()
 
 	// Logged outside the critical section: the same lock gates every
@@ -347,34 +324,19 @@ func (rs *routeServer) handleStateUp(peerAddr string) {
 
 // endReplay opens the replay gate of one peer-up replay. The replay goroutine
 // that owns done MUST call it exactly once, when that replay has sent
-// everything it will send, End-of-RIB included.
-//
-// While the gate is still this peer's, it first sends the peer-down
-// withdrawals held for the replay (holdForReplays), in the order they were
-// held, and closes the gate only once none is left, so a withdrawal held while
-// it sends is not lost. A stale goroutine sends nothing: the peer's newer
-// session owns the gate and dropped the held withdrawals. done is closed
-// either way.
+// everything it will send, End-of-RIB included. A stale goroutine leaves the
+// gate alone, because the peer's newer session owns it. done is closed either
+// way.
 func (rs *routeServer) endReplay(peerAddr string, done chan struct{}) {
 	defer close(done)
-	for {
-		rs.mu.Lock()
-		p := rs.peers[peerAddr]
-		if p == nil || p.replayDone != done {
-			rs.mu.Unlock()
-			return
-		}
-		held := p.heldWithdrawals
-		p.heldWithdrawals = nil
-		if len(held) == 0 {
-			p.replayDone = nil
-			rs.mu.Unlock()
-			return
-		}
-		rs.mu.Unlock()
-		for _, command := range held {
-			rs.updateRoute(peerAddr, command)
-		}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	p := rs.peers[peerAddr]
+	if p == nil {
+		return
+	}
+	if p.replayDone == done {
+		p.replayDone = nil
 	}
 }
 

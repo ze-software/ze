@@ -1,5 +1,5 @@
 // Design: docs/guide/route-reflection.md -- a late destination's replay precedes its live forwards
-// Related: server_handlers.go -- handleStateUp, holdForReplays and endReplay, the replay gate
+// Related: server_handlers.go -- handleStateUp and endReplay, the replay gate
 // Related: server_forward.go -- flushBatch, the live rail the engine fences per destination
 // Related: ../../reactor/forward_replay_fence_test.go -- the engine's replay fence
 
@@ -7,7 +7,6 @@ package rs
 
 import (
 	"encoding/json"
-	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -145,38 +144,6 @@ func TestReplayDoesNotDelayOtherDestinations(t *testing.T) {
 		t.Fatalf("sends during the replay %v, want %v", got, want)
 	}
 	f.endReplay(t)
-}
-
-// TestPeerDownWithdrawalFollowsReplay proves that a peer-down withdrawal sent
-// while a destination replays is sent to that destination again after its
-// replay.
-//
-// VALIDATES: holdForReplays keeps a copy for every peer whose replay gate is
-// set, and endReplay sends it once the replay has ended, before the gate
-// clears. Peers not replaying get the selector withdrawal only.
-// PREVENTS: the replay, read from a receive store that had not yet processed
-// the peer-down, re-installing a withdrawn route at the late peer after the
-// selector withdrawal had already reached it. The selector rail is not one the
-// engine's replay fence holds.
-func TestPeerDownWithdrawalFollowsReplay(t *testing.T) {
-	f := newReplayOrderFixture(t)
-
-	entries := map[withdrawalKey]struct{}{
-		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {},
-	}
-	f.rs.sendBatchedWithdrawals(f.source, entries)
-	f.endReplay(t)
-
-	got := snapshot(&f.mu, &f.log)
-	want := []string{
-		"!" + f.source + " withdraw",
-		f.dest + " replay",
-		f.dest + " eor",
-		f.dest + " withdraw",
-	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("sends %v, want %v", got, want)
-	}
 }
 
 // snapshot copies the delivered log under its lock.
