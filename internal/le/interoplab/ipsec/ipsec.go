@@ -114,7 +114,7 @@ func LabBinaries() []interoplab.LabBinary {
 func Run() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
-		report := Report{SetupError: err.Error(), Code: 1}
+		report := Report{SuiteReport: interoplab.SuiteReport{SetupError: err.Error(), Code: 1}}
 		return report, 1
 	}
 	report, code := RunAt(context.Background(), root)
@@ -136,7 +136,7 @@ func runAt(ctx context.Context, root string, environment interoplab.Environment,
 	scenarioRoot := filepath.Join(root, "test", "interop-ipsec", "scenarios")
 	sources, err := interoplab.Discover(scenarioRoot, environment.Selector, checkerAdapters())
 	if err != nil {
-		report := Report{SetupError: err.Error(), Code: 1}
+		report := Report{SuiteReport: interoplab.SuiteReport{SetupError: err.Error(), Code: 1}}
 		return report, 1
 	}
 
