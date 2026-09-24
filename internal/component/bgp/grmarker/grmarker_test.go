@@ -72,14 +72,15 @@ func TestWriteGRMarker(t *testing.T) {
 // PREVENTS: Valid marker ignored on startup.
 func TestReadGRMarkerValid(t *testing.T) {
 	store := newTestStore(t)
-	expiry := time.Now().Add(120 * time.Second)
+	now := time.Now()
+	expiry := now.Add(120 * time.Second)
 
 	// Write marker directly.
 	if err := store.WriteFile(markerKey, makeMarkerBytes(expiry.Unix()), 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	got, ok := Read(store)
+	got, ok := Read(store, now)
 	if !ok {
 		t.Fatal("Read returned ok=false for valid marker")
 	}
@@ -92,13 +93,14 @@ func TestReadGRMarkerValid(t *testing.T) {
 // PREVENTS: Stale marker causing R=1 after window expires.
 func TestReadGRMarkerExpired(t *testing.T) {
 	store := newTestStore(t)
-	expiry := time.Now().Add(-10 * time.Second) // 10 seconds in the past
+	now := time.Now()
+	expiry := now.Add(-10 * time.Second) // 10 seconds in the past
 
 	if err := store.WriteFile(markerKey, makeMarkerBytes(expiry.Unix()), 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	_, ok := Read(store)
+	_, ok := Read(store, now)
 	if ok {
 		t.Fatal("Read returned ok=true for expired marker")
 	}
@@ -109,7 +111,7 @@ func TestReadGRMarkerExpired(t *testing.T) {
 func TestReadGRMarkerMissing(t *testing.T) {
 	store := newTestStore(t)
 
-	_, ok := Read(store)
+	_, ok := Read(store, time.Now())
 	if ok {
 		t.Fatal("Read returned ok=true for missing marker")
 	}
@@ -134,7 +136,7 @@ func TestReadGRMarkerCorrupt(t *testing.T) {
 			if err := store.WriteFile(markerKey, tt.data, 0); err != nil {
 				t.Fatalf("WriteFile: %v", err)
 			}
-			_, ok := Read(store)
+			_, ok := Read(store, time.Unix(0, 0))
 			if ok {
 				t.Fatalf("Read returned ok=true for corrupt marker (%s)", tt.name)
 			}
@@ -384,13 +386,14 @@ func TestSetRBitMixed(t *testing.T) {
 // PREVENTS: Endianness mismatch between Write and Read.
 func TestWriteReadRoundTrip(t *testing.T) {
 	store := newTestStore(t)
-	expiry := time.Now().Add(120 * time.Second)
+	now := time.Now()
+	expiry := now.Add(120 * time.Second)
 
 	if err := Write(store, expiry); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 
-	got, ok := Read(store)
+	got, ok := Read(store, now)
 	if !ok {
 		t.Fatal("Read returned ok=false after Write")
 	}
@@ -401,9 +404,17 @@ func TestWriteReadRoundTrip(t *testing.T) {
 
 // --- Boundary time tests ---
 
-// VALIDATES: Read correctly handles timestamps near the current time.
+// VALIDATES: Read correctly handles timestamps near the reference time.
 // PREVENTS: Off-by-one in time comparison (Before vs BeforeOrEqual).
+//
+// The reference time is fixed and passed to Read, so the verdict does not
+// depend on how long the store write and read take. With the wall clock read
+// inside Read, a store write that took 9s on a loaded machine turned the
+// "1s in future" case into an expired marker.
 func TestReadGRMarkerTimeBoundary(t *testing.T) {
+	// A whole second, because the marker stores whole UNIX seconds.
+	now := time.Unix(1_700_000_000, 0)
+
 	tests := []struct {
 		name   string
 		offset time.Duration
@@ -411,7 +422,8 @@ func TestReadGRMarkerTimeBoundary(t *testing.T) {
 	}{
 		{"1s in future", 1 * time.Second, true},
 		{"1s in past", -1 * time.Second, false},
-		// At exact expiry, time.Now().Before(expiry) is false -> expired.
+		// At exact expiry, now.Before(expiry) is false -> expired.
+		{"at expiry", 0, false},
 		{"2s in future", 2 * time.Second, true},
 		{"10s in past", -10 * time.Second, false},
 	}
@@ -419,25 +431,11 @@ func TestReadGRMarkerTimeBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := newTestStore(t)
-			// Round UP to the next whole second before applying the offset.
-			//
-			// The marker stores whole seconds (makeMarkerBytes takes .Unix(), and
-			// Read rebuilds it with time.Unix(ts, 0)), so an expiry derived from an
-			// unrounded time.Now() keeps only `1 - frac(now)` of the margin the case
-			// names: at now = 12:00:00.999, "1s in future" is stored as 12:00:01 and
-			// is 1ms away, which the microseconds between this write and the Read
-			// below then cross. The case failed 3 runs in a row and passed the next
-			// 5 purely on where the clock sat inside its second.
-			//
-			// Rounding up first makes the stored margin at least the named offset in
-			// every phase. The past cases stay correct: ceil(now)-1s is never after
-			// now, and Read treats an exactly-equal expiry as expired (!Before).
-			base := time.Now().Truncate(time.Second).Add(time.Second)
-			expiry := base.Add(tt.offset)
+			expiry := now.Add(tt.offset)
 			if err := store.WriteFile(markerKey, makeMarkerBytes(expiry.Unix()), 0); err != nil {
 				t.Fatalf("WriteFile: %v", err)
 			}
-			_, ok := Read(store)
+			_, ok := Read(store, now)
 			if ok != tt.wantOK {
 				t.Errorf("Read ok = %v, want %v (offset %v)", ok, tt.wantOK, tt.offset)
 			}

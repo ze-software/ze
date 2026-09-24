@@ -382,9 +382,11 @@ selected. Both inventories are read live, so neither can drift from a list.
 
 A subtree that a component reads straight from the config tree, rather than
 through the plugin RPC, is recorded in `allowlist.json` with a reason and the
-consuming symbol. Five paths are recorded today: `plugin`, `pppoe`, `storage`,
-`system`, and `telemetry`. An entry without a reason and an owner is a failure,
-and so is an entry whose path is now claimed.
+consuming symbol. The entries are `plugin`, `pppoe`, `storage`, `system`,
+`telemetry`, and each `environment` subtree that no plugin claims. The hub reads the listener blocks (`web`, `ssh`, `mcp`, and the
+rest) through their own extractors, and the config loader pushes the other
+blocks into the env layer through `ExtractEnvironment`. An entry without a
+reason and an owner is a failure, and so is an entry whose path is now claimed.
 
 At run time `ze doctor` judges one config on one build and reports
 `doctor-config-root-unclaimed` for a configured subtree this binary delivers to

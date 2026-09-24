@@ -1,5 +1,90 @@
 [
   {
+    "path": "environment/api-server",
+    "reason": "The hub reads the REST and gRPC listener settings directly and starts the API servers. No plugin is involved.",
+    "owner": "internal/component/config/loader_extract.go ExtractAPIConfig"
+  },
+  {
+    "path": "environment/bgp",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/chaos",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/cli",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/daemon",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/exabgp",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/gnmi",
+    "reason": "The hub reads the gNMI listener settings directly and starts the gNMI server. No plugin is involved.",
+    "owner": "internal/component/config/loader_extract.go ExtractGNMIConfig"
+  },
+  {
+    "path": "environment/hide-version",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (the top-level environment leaves)"
+  },
+  {
+    "path": "environment/l2tp",
+    "reason": "The hub reads the L2TP listener endpoints with the root l2tp block and passes them to the L2TP subsystem at startup. No plugin is involved.",
+    "owner": "internal/component/l2tp/config.go ExtractParameters"
+  },
+  {
+    "path": "environment/log",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/looking-glass",
+    "reason": "The hub reads the looking-glass listener settings directly and starts the looking-glass server. No plugin is involved.",
+    "owner": "internal/component/config/loader_extract.go ExtractLGConfig"
+  },
+  {
+    "path": "environment/mcp",
+    "reason": "The hub reads the MCP listener settings directly and starts the MCP server. No plugin is involved.",
+    "owner": "internal/component/config/loader_extract.go ExtractMCPConfig"
+  },
+  {
+    "path": "environment/mtu",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/pprof",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (the top-level environment leaves)"
+  },
+  {
+    "path": "environment/reactor",
+    "reason": "The config loader pushes this block into the env layer before any plugin runs, so no plugin can claim it. It was hidden until 2b5e29db47 narrowed bgp-bmp's claim from the whole environment section to environment/bmp.",
+    "owner": "internal/component/config/environment_extract.go ExtractEnvironment, applied by applyParsedEnvironment in internal/component/config/loader.go (extractSections in internal/component/config/constants.go)"
+  },
+  {
+    "path": "environment/ssh",
+    "reason": "The hub reads the SSH server settings directly and starts the SSH server. No plugin is involved.",
+    "owner": "internal/component/config/infra/ssh.go ExtractSSHConfig"
+  },
+  {
+    "path": "environment/web",
+    "reason": "The hub reads the web listener settings directly and starts the web server. No plugin is involved.",
+    "owner": "internal/component/config/loader_extract.go ExtractWebConfig"
+  },
+  {
     "path": "plugin",
     "reason": "Plugin load configuration is read before any plugin runs, so no plugin can claim it. The config loader turns this subtree into the plugin list that the server then starts.",
     "owner": "internal/component/config/loader.go ExtractPluginsFromTree"

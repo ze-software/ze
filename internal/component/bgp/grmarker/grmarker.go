@@ -64,10 +64,12 @@ func Write(store Store, expiresAt time.Time) error {
 	return store.WriteFile(markerKey, buf, 0)
 }
 
-// Read reads the GR restart marker from zefs.
-// Returns the expiry time and true if the marker is valid (exists and not expired).
-// Returns zero time and false if the marker is missing, corrupt, or expired.
-func Read(store Store) (time.Time, bool) {
+// Read reads the GR restart marker from zefs and judges it against now.
+// Returns the expiry time and true if the marker is valid (exists and now is
+// before its expiry). Returns zero time and false if the marker is missing,
+// corrupt, or expired. The caller passes now, so the verdict does not depend on
+// how long the store read took.
+func Read(store Store, now time.Time) (time.Time, bool) {
 	data, err := store.ReadFile(markerKey)
 	if err != nil {
 		return time.Time{}, false
@@ -79,7 +81,7 @@ func Read(store Store) (time.Time, bool) {
 	ts := int64(binary.BigEndian.Uint64(data))
 	expiry := time.Unix(ts, 0)
 
-	if !time.Now().Before(expiry) {
+	if !now.Before(expiry) {
 		return time.Time{}, false
 	}
 

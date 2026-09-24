@@ -68,6 +68,14 @@ var ErrCustomValidation = errors.New("config validation failed")
 // six shipped configs carry a `rib {` block, and every distance written in them
 // is inside its declared range, so the widening newly refuses none of them.
 //
+// `rsvp-te` was added on 2026-09-24, after 2dc7ec1802 gave its reservation
+// policy two `ze:validate "ipv4-prefix"` leaves, `sender-prefix` and
+// `endpoint-prefix`. They are the only `ze:validate` the resolved model lands
+// under `rsvp-te`, and the name is a pure form check over the value in hand,
+// reading no registry and depending on no startup order, so none of the three
+// defects below reaches it. The measurement `service` had: no shipped config
+// in test/ or etc/ writes either leaf, so the widening newly refuses none.
+//
 // `static` is the same shape and is NOT added here, because nothing has walked
 // its configs to measure what its two prefix validators would newly refuse.
 //
@@ -91,6 +99,7 @@ var validatedSections = []string{
 	sectionInterface, "sysctl", "fib", sectionPlugin, sectionWeb, "ssh", "dns",
 	sectionTelemetry, sectionLookingGlass, "mcp", "managed", "vpp",
 	"vpn", "pki", "l2tp", "isis", "ospf", "service", "system", "rib",
+	"rsvp-te",
 }
 
 // SectionValidationError is one failure the walk found, paired with the

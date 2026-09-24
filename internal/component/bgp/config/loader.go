@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/internal/chaos"
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
@@ -200,7 +201,7 @@ func readGRMarker(r *reactor.Reactor, store storage.Storage, tree map[string]any
 	if store == nil {
 		return
 	}
-	if expiry, ok := grmarker.Read(store); ok {
+	if expiry, ok := grmarker.Read(store, time.Now()); ok {
 		preserved := registry.ForwardingStatePreserved(tree)
 		r.SetRestartUntil(expiry)
 		r.SetForwardingPreserved(preserved)

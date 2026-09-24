@@ -242,11 +242,18 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 		t.Fatal("ASN 65001 not enrolled: an IRR-filtered peer must be resolved")
 	}
 	// initialResolve runs detached; wait on its per-ASN completion signal rather
-	// than on a duration.
+	// than on a duration. The product bounds this wait itself: refreshASN gives
+	// the lookup a perASNRefreshTimeout context, the IRR client puts that
+	// deadline on the connection, and every completion path, the timeout
+	// included, closes firstDone. A test-side deadline shorter than that one
+	// failed on a loaded machine while the lookup was still inside its own
+	// budget; a lookup that overruns it closes firstDone with lastErr set, which
+	// the check below reports. The test's own bound sits past the product's, so
+	// it fires only when firstDone is never closed, never on a slow lookup.
 	select {
 	case <-st.firstDone:
-	case <-time.After(10 * time.Second):
-		t.Fatal("first resolution did not complete")
+	case <-time.After(perASNRefreshTimeout + 10*time.Second):
+		t.Fatal("first resolution did not complete within the product's refresh bound")
 	}
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
