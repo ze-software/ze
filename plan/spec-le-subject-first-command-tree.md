@@ -41,7 +41,7 @@ coexist only because peer sessions call the old names while this work runs.
 Phase 3 is the removal, and it is part of this spec, not a follow-up. The spec
 does not close until Phase 3 lands.
 
-**This spec SUPERSEDES `plan/spec-le-command-namespaces.md` (owner decision,
+**This spec SUPERSEDES `spec-le-command-namespaces`, closed and removed (owner decision,
 2026-09-24).** Its still-open acceptance criterion is folded in below
 ("Folded in from the superseded spec"). Three of its decisions are reversed
 here and dropped: "the test-* family is not split", "docvalid and docs-to-code
@@ -292,7 +292,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 - [ ] `docs/architecture/config/environment.md` and `internal/core/env/registry.go`, `env.go` - the env registry
   → Constraint: `MustRegister` does not filter on a `ze.` prefix, so `le.test.bin` registers. Lookup normalizes case and separators, so `LE_TEST_BIN` and `le.test.bin` are one variable.
   → Constraint: `Get(key)` resolves an alias to its canonical key, reads the canonical spelling, and reads the alias spelling ONLY when the CALLER passed the alias key. `warnDeprecated` fires on the canonical entry's `Deprecated` field. So an `Aliases` entry on `le.test.bin` does NOT make an environment that sets only `ZE_TEST_BIN` visible to `Get("le.test.bin")`. See Key Design Decisions.
-- [ ] `plan/spec-le-command-namespaces.md` - the previous rename; Status `ready`, not closed
+- [ ] `spec-le-command-namespaces` - the previous rename; closed 2026-09-24 as superseded by this spec, file removed
   → Constraint: `commandWordsMax = 2` (`internal/le/leroot/dispatch.go`): a command is at most two words after `le`. Every new name here has two words or fewer, and `./le test harness bgp ...` resolves `test harness` and hands `bgp ...` to the tool.
   → Constraint: `TestNoMemberShadowsItsNamespaceRootVerb` refuses a member whose name is a verb of its namespace root. Checked for this map: `verify` (worktree, current, reds, list) against `evidence`; `site` against `terminal-demo`; `rfc` against `skeletons`; `repo` (check, tree-check, generate, generated-check) against its nine members; `spec` (current, claim, release, state, review, wip, model) against citation, roadmap, status and journal. No clash.
   → Decision: this spec REVERSES three recorded decisions of that spec: "The test-* family is not split", "docvalid and docs-to-code are left alone", and AC-14 "every stage writes the same log file name". The owner's 2026-09-24 approval is the authority. `leNamespaceExempt` (`internal/le/cligrammar/cligrammar.go`) carries the test-* and go-* reasoning in its comment and becomes empty.
@@ -436,7 +436,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 |----------|--------|
 | What breaks if this is wrong? | Developer and agent workflows: hooks, CI workflows, verify stages, functional, interop and QEMU suites. Nothing user-visible in the shipped `ze` |
 | How is it reverted? | Phases 1 and 2 are additive and revert per commit. Phase 3 reverts as one commit |
-| Who else touches this path? | Every session in this checkout calls `./le`. `plan/spec-le-command-namespaces.md` (ready), `plan/spec-le-every-area-dispatches-through-one-table.md`, `plan/spec-le-one-verb-one-job.md` and `plan/spec-le-builds-every-personality.md` (skeletons) edit the same packages |
+| Who else touches this path? | Every session in this checkout calls `./le`. `plan/spec-le-every-area-dispatches-through-one-table.md`, `plan/spec-le-one-verb-one-job.md` and `plan/spec-le-builds-every-personality.md` (skeletons) edit the same packages |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -716,7 +716,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 | `LE_TEST_BIN` and `LE_QEMU_TEST_BIN` stay two variables | one variable | they carry different binaries in one run (owner decision, 2026-09-24; "Why the two binary-path variables are not merged") |
 | In Phases 1 and 2 each harness variable has TWO registered entries: the `le.` entry, and the `ze.` entry with `Deprecated` naming the `le.` key. One resolver per variable reads the `le.` key first and the `ze.` key second. Phase 3 deletes the `ze.` entry and the second read | register the `ze.` key in `Aliases` of the `le.` entry (the owner's stated mechanism) | `env.Get` reads an alias spelling only when the caller passes the alias key (`internal/core/env/env.go`), so an alias on `le.test.bin` does not see an environment that sets only `ZE_TEST_BIN`. `MustRegister` also panics when an alias equals a registered key, so the old key cannot be both. Changing `env.Get` to scan alias spellings would change a core package every product setting uses, to serve a migration that Phase 3 deletes |
 | `ze.test.bgp.port` keeps its `ze.` key | rename it with the harness | the daemon reads it (`internal/component/bgp/reactor/reactor_peers.go`), so it is a product setting, and both processes must read one name |
-| The new directories `go`, `test`, `build`, `arch`, `cli`, `web`, `data`, `chaos`, `perf` hold no `register.go` of their own | register the bare words as enumerators | same reason as `plan/spec-le-command-namespaces.md`: `Dispatch` answers a bare namespace token from the registry |
+| The new directories `go`, `test`, `build`, `arch`, `cli`, `web`, `data`, `chaos`, `perf` hold no `register.go` of their own | register the bare words as enumerators | same reason as the superseded `spec-le-command-namespaces`: `Dispatch` answers a bare namespace token from the registry |
 
 ## Known Limitations
 
@@ -724,7 +724,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 
 ## Folded in from the superseded spec
 
-`plan/spec-le-command-namespaces.md` AC-1 to AC-10, AC-12, AC-15, AC-16 and
+`spec-le-command-namespaces` AC-1 to AC-10, AC-12, AC-15, AC-16 and
 AC-17 are delivered in the tree: the two-word names resolve, and
 `TestDispatchBoundsTheLookupAtTwoWords`, `TestEveryCommandIsFoundAtThePathItsNamePredicts`,
 `TestEveryCommandRegistersItsOwnAnswerShape` and

@@ -1,6 +1,7 @@
 // VALIDATES: a namespaced stage writes the log file name its hyphenated
 // spelling wrote, so no verification artifact path moved when the twenty-one
-// commands gained a space (spec-le-command-namespaces, AC-14).
+// commands gained a space. AC-18 of spec-le-subject-first-command-tree
+// moves these names to the new stage names.
 package verify
 
 import (

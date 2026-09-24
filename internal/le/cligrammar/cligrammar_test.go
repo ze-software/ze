@@ -262,7 +262,7 @@ func leProbeRoots() []string {
 	return roots
 }
 
-// VALIDATES: AC-13 of spec-le-command-namespaces. Feeder 6 flags a hyphenated
+// VALIDATES: AC-19 of spec-le-subject-first-command-tree. Feeder 6 flags a hyphenated
 // le root whose left segment names an object, by both of its detectors: a left
 // segment that is a registered root of its own, and a left segment two roots
 // share.

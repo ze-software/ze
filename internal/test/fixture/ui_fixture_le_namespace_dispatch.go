@@ -60,11 +60,9 @@ func leNamespaceDispatch(ctx context.Context) error {
 	// A bare namespace token that is NOT a command of its own. It names what
 	// the namespace holds, so a half-typed command teaches the rest of itself.
 	//
-	// The EXIT CODE is deliberately not asserted here. AC-11 of
-	// spec-le-command-namespaces asks for 0, on the reading that a half-typed
-	// command is not a typo; Dispatch answers 1, on the reading that nothing
-	// ran. The two readings disagree about a contract a script reads, so the
-	// spec stays open on it and this fixture asserts only what both agree on.
+	// The EXIT CODE is deliberately not asserted here. The owner ruled 0
+	// (AC-31 of spec-le-subject-first-command-tree), and Dispatch answers 1
+	// until that spec lands, so this fixture asserts only what both agree on.
 	bare, err := leNamespaceRun(ctx, root, binary, "spec")
 	if err != nil {
 		return err
