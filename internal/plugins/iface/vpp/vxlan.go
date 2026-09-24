@@ -73,5 +73,6 @@ func (b *vppBackendImpl) createVxlanTunnel(spec iface.TunnelSpec) error {
 		}
 		return nil
 	})
+	b.emitCreated(name, spec.Kind.String(), reply.SwIfIndex)
 	return nil
 }

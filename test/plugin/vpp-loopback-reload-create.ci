@@ -1,0 +1,20 @@
+# Test: a reload that creates a VPP interface commits.
+#
+# VALIDATES: a SIGHUP reload that adds `dummy lo1` under `backend vpp` creates
+#            the loopback and completes. The add-interface operation waits for
+#            (interface, created) on lo1, and VPP sends no event for a create,
+#            so the backend emits it itself once create_loopback succeeds.
+# PREVENTS:  every reload that adds a VPP interface timing out after 5s on
+#            "settlement timeout waiting for interface/created" and rolling
+#            back.
+# DISCRIMINATION: 2026-09-24, with the emitCreated call removed from
+#            CreateDummy (internal/plugins/iface/vpp/ifacevpp.go) the fixture
+#            fails with "operation interface-add-lo1 settlement timeout waiting
+#            for interface/created lo1 after 5s"; restored, it passes.
+#
+
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/vpp-loopback-reload-create:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=OK: the reload created lo1 and committed
+reject=stderr:pattern=settlement timeout

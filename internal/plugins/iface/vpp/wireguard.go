@@ -124,6 +124,10 @@ func (b *vppBackendImpl) ensureWireguardInterface(spec iface.WireguardSpec) (int
 		b.takeWireguardPeers(name)
 		return nil
 	})
+	// The interface exists from here. The peer set ConfigureWireguardDevice
+	// installs next is configuration it reconciles on every apply, not part of
+	// the create, and a peer that fails leaves this interface in place.
+	b.emitCreated(name, "wireguard", idx)
 	return idx, nil
 }
 

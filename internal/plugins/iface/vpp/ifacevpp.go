@@ -279,6 +279,7 @@ func (b *vppBackendImpl) CreateDummy(name string) error {
 		return fmt.Errorf("ifacevpp: CreateLoopback retval=%d", reply.Retval)
 	}
 	b.names.Add(name, uint32(reply.SwIfIndex), name)
+	b.emitCreated(name, iface.TypeDummy, reply.SwIfIndex)
 	return nil
 }
 
@@ -355,6 +356,7 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 			return fmt.Errorf("ifacevpp: %s qos: %w", subName, err)
 		}
 	}
+	b.emitCreated(subName, "vlan", subIdx)
 	return nil
 }
 

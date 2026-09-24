@@ -42,10 +42,15 @@ interface {
 }
 `
 
+// plugin16VPPSecondLoopback closes lo0 and opens lo1, so a reload adds a
+// second loopback beside the first. The base config closes lo1.
+const plugin16VPPSecondLoopback = "\t}\n\tdummy lo1 {\n"
+
 const plugin16VPPAddressUnit = "\t\tunit 0 {\n\t\t\tipv4 {\n\t\t\t\taddress [ 10.42.0.1/32 ];\n\t\t\t}\n\t\t}\n"
 
 func init() {
 	Register("plugin/vpp-loopback-reapply", plugin16VPPReapply)
+	Register("plugin/vpp-loopback-reload-create", plugin16VPPReloadCreate)
 }
 
 // plugin16ReadVPPLog reads the entries the stub has written so far. A log the
@@ -168,49 +173,74 @@ func plugin16VPPFailure(reason, zeLog string, entries []plugin16VPPEntry) error 
 	return fmt.Errorf("%s", reason)
 }
 
-func plugin16VPPReapply(ctx context.Context, _ []string) error {
+// plugin16VPPRun is one ze daemon driving the VPP stub, started with the base
+// config and past its first apply.
+type plugin16VPPRun struct {
+	ze         *exec.Cmd
+	socketPath string
+	requestLog string
+	configPath string
+	zeLog      string
+}
+
+// plugin16StartVPP starts the VPP stub and a ze daemon on the base config, and
+// returns once the first apply has created lo0. The returned stop function
+// stops ze, then the stub, then removes the scratch directory; it is non-nil
+// whenever err is nil.
+func plugin16StartVPP(ctx context.Context) (run *plugin16VPPRun, stop func(), err error) {
+	var cleanups []func()
+	stopAll := func() {
+		for i := len(cleanups) - 1; i >= 0; i-- {
+			cleanups[i]()
+		}
+	}
+	defer func() {
+		if err != nil {
+			stopAll()
+		}
+	}()
 	tmp, err := os.MkdirTemp("", "ze-vpp-reapply-")
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	defer os.RemoveAll(tmp) //nolint:errcheck // fixture cleanup
+	cleanups = append(cleanups, func() { os.RemoveAll(tmp) }) //nolint:errcheck // fixture cleanup
 	socketPath := filepath.Join(tmp, "api.sock")
 	if len(socketPath) >= 108 {
-		return fmt.Errorf("driver: socket path too long: %s", socketPath)
+		return nil, nil, fmt.Errorf("driver: socket path too long: %s", socketPath)
 	}
 	requestLog := filepath.Join(tmp, "vpp-requests.jsonl")
 	configPath := filepath.Join(tmp, "ze.conf")
 	zeLog := filepath.Join(tmp, "ze.log")
 	if err := os.WriteFile(configPath, []byte(fmt.Sprintf(plugin16VPPBaseConfig, socketPath, "")), 0o600); err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	executable, err := os.Executable()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	stub := exec.CommandContext(ctx, executable, "vpp-stub", "--socket", socketPath, "--log", requestLog, "--deadline", "120") //nolint:gosec // the fixture chooses the program and its arguments
 	stub.Stdout = io.Discard
 	stub.Stderr = io.Discard
 	stubDone, err := plugin16StartProcess(stub)
 	if err != nil {
-		return fmt.Errorf("start vpp stub: %w", err)
+		return nil, nil, fmt.Errorf("start vpp stub: %w", err)
 	}
-	defer plugin16StopProcess(stub, stubDone)
+	cleanups = append(cleanups, func() { plugin16StopProcess(stub, stubDone) })
 	if !Poll(ctx, WaitAttempts(10, 50*time.Millisecond, 200), 50*time.Millisecond, func() bool {
 		_, err := os.Stat(socketPath)
 		return err == nil
 	}) {
-		return plugin16VPPFailure("the stub socket never appeared", zeLog, nil)
+		return nil, nil, plugin16VPPFailure("the stub socket never appeared", zeLog, nil)
 	}
 
 	configDir := filepath.Join(tmp, "etc")
 	if err := os.Mkdir(configDir, 0o700); err != nil {
-		return err
+		return nil, nil, err
 	}
 	logFile, err := os.OpenFile(zeLog, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	ze := exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	ze.Stdout = logFile
@@ -224,12 +254,12 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	zeDone, err := plugin16StartProcess(ze)
 	if err != nil {
 		logFile.Close() //nolint:errcheck // fixture teardown
-		return fmt.Errorf("start ze: %w", err)
+		return nil, nil, fmt.Errorf("start ze: %w", err)
 	}
-	defer func() {
+	cleanups = append(cleanups, func() {
 		plugin16StopProcess(ze, zeDone)
 		logFile.Close() //nolint:errcheck // fixture teardown
-	}()
+	})
 
 	// The first apply waits for the whole daemon start, which creates and
 	// fsyncs the store before any plugin runs. On a saturated disk that was
@@ -238,7 +268,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	// leave room for the stop below.
 	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", WaitAttempts(45, 50*time.Millisecond, 800))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	foundCreate := false
 	for _, entry := range entries {
@@ -248,15 +278,25 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 		}
 	}
 	if !foundCreate {
-		return plugin16VPPFailure("the first apply never created the loopback", zeLog, entries)
+		return nil, nil, plugin16VPPFailure("the first apply never created the loopback", zeLog, entries)
 	}
+	return &plugin16VPPRun{ze: ze, socketPath: socketPath, requestLog: requestLog, configPath: configPath, zeLog: zeLog}, stopAll, nil
+}
+
+func plugin16VPPReapply(ctx context.Context, _ []string) error {
+	run, stop, err := plugin16StartVPP(ctx)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	ze, socketPath, requestLog, configPath, zeLog := run.ze, run.socketPath, run.requestLog, run.configPath, run.zeLog
 	if err := os.WriteFile(configPath, []byte(fmt.Sprintf(plugin16VPPBaseConfig, socketPath, plugin16VPPAddressUnit)), 0o600); err != nil {
 		return err
 	}
 	if err := ze.Process.Signal(syscall.SIGHUP); err != nil {
 		return fmt.Errorf("reload ze: %w", err)
 	}
-	entries, err = plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", WaitAttempts(30, 50*time.Millisecond, 800))
+	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "sw_interface_add_del_address", WaitAttempts(30, 50*time.Millisecond, 800))
 	if err != nil {
 		return err
 	}
@@ -314,5 +354,50 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 		fmt.Fprintf(os.Stderr, "stub: %s %v\n", entry.Message, entry.Fields)
 	}
 	fmt.Fprintln(os.Stderr, "OK: one create_loopback across two applies")
+	return nil
+}
+
+// plugin16VPPReloadCreate proves a reload that creates a VPP interface commits.
+//
+// The reload adds `dummy lo1`, which the iface decomposer plans as an
+// add-interface operation, and the transaction waits for (interface, created)
+// on lo1 before it commits (settlement rule iface-add-interface-settles-created).
+// VPP sends no event for a create, so the backend announces it itself
+// (emitCreated, internal/plugins/iface/vpp/monitor.go). Without that the
+// reload times out after 5s and rolls back.
+func plugin16VPPReloadCreate(ctx context.Context, _ []string) error {
+	run, stop, err := plugin16StartVPP(ctx)
+	if err != nil {
+		return err
+	}
+	defer stop()
+	if err := os.WriteFile(run.configPath, []byte(fmt.Sprintf(plugin16VPPBaseConfig, run.socketPath, plugin16VPPSecondLoopback)), 0o600); err != nil {
+		return err
+	}
+	if err := run.ze.Process.Signal(syscall.SIGHUP); err != nil {
+		return fmt.Errorf("reload ze: %w", err)
+	}
+	outcome := plugin16ReloadOutcome(ctx, run.zeLog, WaitAttempts(45, 50*time.Millisecond, 800))
+	entries, err := plugin16ReadVPPLog(run.requestLog)
+	if err != nil {
+		return err
+	}
+	switch outcome {
+	case plugin16ReloadCompleted:
+	case plugin16ReloadFailed:
+		return plugin16VPPFailure("the reload that created lo1 failed", run.zeLog, entries)
+	default:
+		return plugin16VPPFailure("the reload never reported its outcome", run.zeLog, entries)
+	}
+	creates := 0
+	for _, entry := range entries {
+		if entry.Message == "create_loopback" {
+			creates++
+		}
+	}
+	if creates != 2 {
+		return plugin16VPPFailure(fmt.Sprintf("create_loopback count is %d, want 2 (lo0 at start, lo1 on reload)", creates), run.zeLog, entries)
+	}
+	fmt.Fprintln(os.Stderr, "OK: the reload created lo1 and committed")
 	return nil
 }

@@ -105,6 +105,7 @@ func (b *vppBackendImpl) createGRETunnel(spec iface.TunnelSpec, typ gre.GreTunne
 		}
 		return nil
 	})
+	b.emitCreated(name, spec.Kind.String(), reply.SwIfIndex)
 	return nil
 }
 
@@ -140,5 +141,6 @@ func (b *vppBackendImpl) createIPIPTunnel(spec iface.TunnelSpec) error {
 		}
 		return nil
 	})
+	b.emitCreated(name, spec.Kind.String(), idx)
 	return nil
 }

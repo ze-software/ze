@@ -510,6 +510,18 @@ interface address, so the VPP backend emits `addr-added` and `addr-removed`
 itself once the synchronous binary API reply reports success.
 <!-- source: internal/plugins/iface/vpp/monitor.go -- emitAddress -->
 
+An `add-interface` operation settles on `(interface, created)`. The netlink
+backend's monitor reports each new kernel link. VPP sends no
+`sw_interface_event` for a create, so each VPP create path (loopback, VLAN
+sub-interface, gre, gretap, ipip, vxlan, wireguard) emits `created` itself,
+after the last step of the create has succeeded. The payload carries the full
+interface name, the `sw_if_index` and the interface type, and omits the MTU
+that no create reply carries. Removal needs no VPP emit: no settlement rule
+waits on it, and VPP reports a deleted interface in a `sw_interface_event`,
+which the monitor turns into `down`, as the netlink backend does.
+<!-- source: internal/plugins/iface/vpp/monitor.go -- emitCreated -->
+<!-- source: test/plugin/vpp-loopback-reload-create.ci -- the reload that creates a VPP interface -->
+
 **Settlement waiters are armed before the apply**, so a readiness event that
 arrives fast is not missed.
 

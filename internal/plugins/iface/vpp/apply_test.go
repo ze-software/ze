@@ -112,6 +112,9 @@ func (r *progReqCtx) ReceiveReply(msg api.Message) error {
 		reply.Retval = r.ch.retval
 		reply.SwIfIndex = r.ch.loopbackIndex
 		r.ch.loopbackIndex++
+	case *interfaces.CreateVlanSubifReply:
+		reply.Retval = r.ch.retval
+		reply.SwIfIndex = r.ch.swIfIndex
 	case *gre.GreTunnelAddDelReply:
 		reply.Retval = r.ch.retval
 		reply.SwIfIndex = r.ch.swIfIndex

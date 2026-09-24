@@ -45,12 +45,15 @@ type monitor struct {
 // linkEventPayload matches the shape ifacenetlink emits on (interface,
 // created/up/down). Keeping both backends on the same JSON keeps downstream
 // subscribers (bgp/reactor, logging, web UI) backend-agnostic.
+//
+// MTU is omitted rather than reported as 0: no VPP create reply and no
+// sw_interface_event carries the MTU, and a 0 would read as a real value.
 type linkEventPayload struct {
 	Name  string `json:"name"`
 	Unit  int    `json:"unit"`
 	Type  string `json:"type"`
 	Index int    `json:"index"`
-	MTU   int    `json:"mtu"`
+	MTU   int    `json:"mtu,omitempty"`
 }
 
 // addrEventPayload matches the shape ifacenetlink emits on (interface,
@@ -96,6 +99,34 @@ func (b *vppBackendImpl) emitAddress(eventType, ifaceName string, idx interface_
 		PrefixLength: prefix.Bits(),
 		Family:       family,
 		Origin:       "static",
+	})
+}
+
+// emitCreated announces an interface the backend has just created.
+//
+// VPP sends no sw_interface_event when an interface is created, only when its
+// state changes or it is deleted, so no monitor event can report a create. The
+// create call is synchronous, so the backend announces the interface itself,
+// once every step of the create has succeeded. Without it, the config
+// transaction waits for (interface, created) on an add-interface operation
+// until its settlement timeout and rolls the whole reload back, and the
+// interface resolver never learns that the link appeared.
+//
+// The name is the full ze name ("xe0.100" for a VLAN unit, unit 0), which is
+// how ifacenetlink names a created link. kind is the ze interface type.
+//
+// Nothing is emitted before StartMonitor has given the backend an event bus.
+func (b *vppBackendImpl) emitCreated(name, kind string, idx interface_types.InterfaceIndex) {
+	b.monMu.Lock()
+	m := b.mon
+	b.monMu.Unlock()
+	if m == nil {
+		return
+	}
+	m.emit(ifaceevents.EventCreated, linkEventPayload{
+		Name:  name,
+		Type:  kind,
+		Index: int(idx),
 	})
 }
 
