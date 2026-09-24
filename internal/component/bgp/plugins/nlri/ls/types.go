@@ -274,12 +274,12 @@ func (b *bgplsBase) PathID() uint32              { return 0 }
 func (b *bgplsBase) HasPathID() bool             { return false }
 func (b *bgplsBase) SupportsAddPath() bool       { return false }
 
-// cachedBytes returns the original wire bytes if ParseBGPLS set them, or nil
+// cachedBytes returns the original wire bytes if parseBGPLS set them, or nil
 // for programmatically-constructed NLRIs. Used by the AppendJSON fast path
 // (json.go) to skip a fresh WriteTo allocation on every encode.
 func (b *bgplsBase) cachedBytes() []byte { return b.cached }
 
-// ParseBGPLS parses a BGP-LS NLRI from wire format.
+// parseBGPLS parses a BGP-LS NLRI from wire format.
 // RFC 7752 Section 3.2 defines the NLRI encoding:
 //
 //	+------------------+
@@ -293,7 +293,7 @@ func (b *bgplsBase) cachedBytes() []byte { return b.cached }
 //	+------------------+
 //	| Descriptors      |  <- body[9:]
 //	+------------------+
-func ParseBGPLS(data []byte) (bGPLSNLRI, error) {
+func parseBGPLS(data []byte) (bGPLSNLRI, error) {
 	// RFC 7752 Section 3.2 - minimum 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
@@ -483,7 +483,7 @@ func parseBGPLSWithRest(data []byte) (bGPLSNLRI, []byte, error) {
 	// attribute -- which matters because RFC 9552 Section 5.1 requires unknown NLRI types
 	// to be preserved and propagated, so meeting an unrecognized type is expected, not
 	// exceptional.
-	parsed, err := ParseBGPLS(data[:totalLen])
+	parsed, err := parseBGPLS(data[:totalLen])
 	if err != nil {
 		return nil, data[totalLen:], err
 	}

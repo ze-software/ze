@@ -166,3 +166,40 @@ func requireNoRegisterError(t *testing.T, err error) {
 		t.Fatalf("register verifier: %v", err)
 	}
 }
+
+// TestVerifyPluginConfigSendsReadRoots proves a root the plugin only reads
+// (Registration.ConfigReads) reaches its verifier beside the root it owns.
+// PREVENTS: bgp-rpki validating an RTR TLS certificate name without the pki
+// store that defines it, once `pki` left its ConfigRoots.
+func TestVerifyPluginConfigSendsReadRoots(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	var roots []string
+	requireNoRegisterError(t, registry.Register(registry.Registration{
+		Name:        "verify-reads-test",
+		Description: "test verifier",
+		ConfigRoots: []string{"bgp"},
+		ConfigReads: []string{"pki"},
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		InProcessConfigVerifier: func(sections []rpc.ConfigSection) error {
+			for _, section := range sections {
+				roots = append(roots, section.Root)
+			}
+			return nil
+		},
+	}))
+
+	errs := VerifyPluginConfigMap(map[string]any{
+		"bgp": map[string]any{"router-id": "1.2.3.4"},
+		"pki": map[string]any{"ca": map[string]any{}},
+	})
+	if len(errs) != 0 {
+		t.Fatalf("errors = %v, want none", errs)
+	}
+	if strings.Join(roots, ",") != "bgp,pki" {
+		t.Fatalf("verifier roots = %v, want [bgp pki]", roots)
+	}
+}

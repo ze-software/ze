@@ -46,8 +46,13 @@ type Registration struct {
 	RFCs            []string // Related RFC numbers (e.g., ["8955", "8956"])
 	Families        []string // Address families handled (e.g., ["ipv4/flow", "ipv6/flow"])
 	CapabilityCodes []uint8  // Capability codes decoded (e.g., [73] for FQDN)
-	ConfigRoots     []string // Config roots wanted (e.g., ["bgp"])
-	Dependencies    []string // Plugin names that MUST also be loaded. Missing => ErrMissingDependency.
+	ConfigRoots     []string // Config roots the plugin owns (e.g., ["bgp"]). A present root auto-loads the plugin.
+	// ConfigReads are roots the plugin reads but does not own: its config
+	// verifier and its schema see them beside ConfigRoots, and they never
+	// auto-load it. bgp-rpki reads `pki` for RTR over TLS, and a config that
+	// holds only `pki` MUST NOT start bgp-rpki, which drags in bgp.
+	ConfigReads  []string
+	Dependencies []string // Plugin names that MUST also be loaded. Missing => ErrMissingDependency.
 	// OptionalDependencies are plugin names the owner uses when they are loaded
 	// but can run without. Semantics vs Dependencies: ResolveDependencies pulls
 	// an optional dep in if it is registered, but silently skips it if not --
@@ -857,6 +862,14 @@ func YANGSchemas() map[string]string {
 		}
 	}
 	return m
+}
+
+// ConfigSectionRoots returns every root the plugin receives config for: the
+// roots it owns, then the roots it only reads. Auto-loading uses ConfigRoots
+// alone, because a root the plugin only reads says nothing about whether the
+// plugin is needed.
+func (r *Registration) ConfigSectionRoots() []string {
+	return slices.Concat(r.ConfigRoots, r.ConfigReads)
 }
 
 // ConfigRootsMap returns a map from plugin name to config roots.

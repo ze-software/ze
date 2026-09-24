@@ -30,23 +30,23 @@ const (
 
 // --- TLV 1030: IPv4 Router-ID (Remote) ---
 
-// LsIPv4RouterIDRemote represents BGP-LS IPv4 Remote Router-ID (TLV 1030).
+// lsIPv4RouterIDRemote represents BGP-LS IPv4 Remote Router-ID (TLV 1030).
 // RFC 7752 Section 3.3.2.1: 4-byte IPv4 address.
-type LsIPv4RouterIDRemote struct {
+type lsIPv4RouterIDRemote struct {
 	Addr netip.Addr
 }
 
-func (t *LsIPv4RouterIDRemote) Code() uint16 { return TLVIPv4RouterIDRemote }
-func (t *LsIPv4RouterIDRemote) Len() int     { return 4 + 4 }
+func (t *lsIPv4RouterIDRemote) Code() uint16 { return TLVIPv4RouterIDRemote }
+func (t *lsIPv4RouterIDRemote) Len() int     { return 4 + 4 }
 
-func (t *LsIPv4RouterIDRemote) WriteTo(buf []byte, off int) int {
+func (t *lsIPv4RouterIDRemote) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVIPv4RouterIDRemote, 4)
 	b := t.Addr.As4()
 	copy(buf[off+4:], b[:])
 	return n
 }
 
-func (t *LsIPv4RouterIDRemote) ToJSON() map[string]any {
+func (t *lsIPv4RouterIDRemote) ToJSON() map[string]any {
 	return map[string]any{
 		"remote-router-ids": []string{t.Addr.String()},
 	}
@@ -56,7 +56,7 @@ func decodeIPv4RouterIDRemote(data []byte) (lsAttrTLV, error) {
 	if len(data) != 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsIPv4RouterIDRemote{Addr: netip.AddrFrom4([4]byte(data[:4]))}, nil
+	return &lsIPv4RouterIDRemote{Addr: netip.AddrFrom4([4]byte(data[:4]))}, nil
 }
 
 // --- TLV 1031: IPv6 Router-ID (Remote) ---
@@ -214,22 +214,22 @@ func decodeUnreservedBW(data []byte) (lsAttrTLV, error) {
 
 // --- TLV 1092: TE Default Metric ---
 
-// LsTEDefaultMetric represents BGP-LS TE Default Metric (TLV 1092).
+// lsTEDefaultMetric represents BGP-LS TE Default Metric (TLV 1092).
 // RFC 7752 Section 3.3.2.7: 4-byte unsigned integer.
-type LsTEDefaultMetric struct {
+type lsTEDefaultMetric struct {
 	Metric uint32
 }
 
-func (t *LsTEDefaultMetric) Code() uint16 { return TLVTEDefaultMetric }
-func (t *LsTEDefaultMetric) Len() int     { return 4 + 4 }
+func (t *lsTEDefaultMetric) Code() uint16 { return TLVTEDefaultMetric }
+func (t *lsTEDefaultMetric) Len() int     { return 4 + 4 }
 
-func (t *LsTEDefaultMetric) WriteTo(buf []byte, off int) int {
+func (t *lsTEDefaultMetric) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVTEDefaultMetric, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], t.Metric)
 	return n
 }
 
-func (t *LsTEDefaultMetric) ToJSON() map[string]any {
+func (t *lsTEDefaultMetric) ToJSON() map[string]any {
 	return map[string]any{"te-metric": t.Metric}
 }
 
@@ -237,7 +237,7 @@ func decodeTEDefaultMetric(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsTEDefaultMetric{Metric: binary.BigEndian.Uint32(data)}, nil
+	return &lsTEDefaultMetric{Metric: binary.BigEndian.Uint32(data)}, nil
 }
 
 // lsMPLSProtocolMask is the RFC 9552 Section 5.3.2.2 link capability mask.
@@ -625,10 +625,10 @@ var srv6EndXKeys = map[uint16]string{
 	TLVSRv6LANEndXOSPF: "srv6-lan-endx-ospf",
 }
 
-// LsSRv6EndXSID represents SRv6 End.X SID (TLV 1106) or LAN variants (1107/1108).
+// lsSRv6EndXSID represents SRv6 End.X SID (TLV 1106) or LAN variants (1107/1108).
 // RFC 9514: Behavior(2) + Flags(1) + Algorithm(1) + Weight(1) + Reserved(1) +
 // [NeighborID(variable)] + SID(16) + [sub-TLVs].
-type LsSRv6EndXSID struct {
+type lsSRv6EndXSID struct {
 	TLVCode          uint16
 	EndpointBehavior uint16
 	Flags            uint8
@@ -640,9 +640,9 @@ type LsSRv6EndXSID struct {
 	hasSIDStructure  bool
 }
 
-func (t *LsSRv6EndXSID) Code() uint16 { return t.TLVCode }
+func (t *lsSRv6EndXSID) Code() uint16 { return t.TLVCode }
 
-func (t *LsSRv6EndXSID) Len() int {
+func (t *lsSRv6EndXSID) Len() int {
 	n := 4 + 6 + len(t.NeighborID) + 16 // header + fixed fields + neighbor + SID
 	if t.hasSIDStructure {
 		n += 4 + 4 // sub-TLV header + 4 bytes
@@ -650,7 +650,7 @@ func (t *LsSRv6EndXSID) Len() int {
 	return n
 }
 
-func (t *LsSRv6EndXSID) WriteTo(buf []byte, off int) int {
+func (t *lsSRv6EndXSID) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, t.TLVCode, valueLen)
 	vOff := off + 4
@@ -681,7 +681,7 @@ func (t *LsSRv6EndXSID) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsSRv6EndXSID) ToJSON() map[string]any {
+func (t *lsSRv6EndXSID) ToJSON() map[string]any {
 	addr := netip.AddrFrom16(t.SID)
 	entry := map[string]any{
 		"behavior":       int(t.EndpointBehavior),
@@ -717,7 +717,7 @@ func decodeSRv6EndXSID(code uint16, neighborIDLen int) lsAttrTLVDecoder {
 		if len(data) < minLen {
 			return nil, ErrBGPLSTruncated
 		}
-		t := &LsSRv6EndXSID{
+		t := &lsSRv6EndXSID{
 			TLVCode:          code,
 			EndpointBehavior: binary.BigEndian.Uint16(data[0:2]),
 			Flags:            data[2],

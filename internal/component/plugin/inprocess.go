@@ -32,14 +32,15 @@ func CanonicalSubsystemName(registryName string) string {
 // conn is the single bidirectional connection for all RPCs.
 type InternalPluginRunner func(conn net.Conn) int
 
-// GetInternalPluginWantsConfig returns the config roots an internal plugin wants.
+// GetInternalPluginWantsConfig returns the config roots an internal plugin
+// receives: the roots it owns and the roots it only reads.
 // Returns nil if the plugin doesn't declare any config roots.
 func GetInternalPluginWantsConfig(name string) []string {
 	reg := registry.Lookup(name)
 	if reg == nil {
 		return nil
 	}
-	return reg.ConfigRoots
+	return reg.ConfigSectionRoots()
 }
 
 // GetInternalPluginYANG returns the YANG schema for an internal plugin.

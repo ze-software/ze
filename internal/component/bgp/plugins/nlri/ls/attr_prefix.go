@@ -23,26 +23,26 @@ const (
 
 // --- TLV 1152: IGP Flags ---
 
-// LsIGPFlags represents BGP-LS IGP Flags (TLV 1152).
+// lsIGPFlags represents BGP-LS IGP Flags (TLV 1152).
 // RFC 7752 Section 3.3.3.1: 1 byte of flags.
 //
 //	+--+--+--+--+--+--+--+--+
 //	|D |N |L |P |  Reserved  |
 //	+--+--+--+--+--+--+--+--+
-type LsIGPFlags struct {
+type lsIGPFlags struct {
 	Flags uint8
 }
 
-func (t *LsIGPFlags) Code() uint16 { return TLVIGPFlags }
-func (t *LsIGPFlags) Len() int     { return 4 + 1 }
+func (t *lsIGPFlags) Code() uint16 { return TLVIGPFlags }
+func (t *lsIGPFlags) Len() int     { return 4 + 1 }
 
-func (t *LsIGPFlags) WriteTo(buf []byte, off int) int {
+func (t *lsIGPFlags) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVIGPFlags, 1)
 	buf[off+4] = t.Flags
 	return n
 }
 
-func (t *LsIGPFlags) ToJSON() map[string]any {
+func (t *lsIGPFlags) ToJSON() map[string]any {
 	return map[string]any{
 		"igp-flags": map[string]any{
 			"D":             int((t.Flags >> 7) & 1),
@@ -58,27 +58,27 @@ func decodeIGPFlags(data []byte) (lsAttrTLV, error) {
 	if len(data) < 1 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsIGPFlags{Flags: data[0]}, nil
+	return &lsIGPFlags{Flags: data[0]}, nil
 }
 
 // --- TLV 1155: Prefix Metric ---
 
-// LsPrefixMetric represents BGP-LS Prefix Metric (TLV 1155).
+// lsPrefixMetric represents BGP-LS Prefix Metric (TLV 1155).
 // RFC 7752 Section 3.3.3.4: 4-byte unsigned integer.
-type LsPrefixMetric struct {
+type lsPrefixMetric struct {
 	Metric uint32
 }
 
-func (t *LsPrefixMetric) Code() uint16 { return TLVPrefixMetric }
-func (t *LsPrefixMetric) Len() int     { return 4 + 4 }
+func (t *lsPrefixMetric) Code() uint16 { return TLVPrefixMetric }
+func (t *lsPrefixMetric) Len() int     { return 4 + 4 }
 
-func (t *LsPrefixMetric) WriteTo(buf []byte, off int) int {
+func (t *lsPrefixMetric) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVPrefixMetric, 4)
 	binary.BigEndian.PutUint32(buf[off+4:], t.Metric)
 	return n
 }
 
-func (t *LsPrefixMetric) ToJSON() map[string]any {
+func (t *lsPrefixMetric) ToJSON() map[string]any {
 	return map[string]any{"prefix-metric": t.Metric}
 }
 
@@ -86,7 +86,7 @@ func decodePrefixMetric(data []byte) (lsAttrTLV, error) {
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
-	return &LsPrefixMetric{Metric: binary.BigEndian.Uint32(data)}, nil
+	return &lsPrefixMetric{Metric: binary.BigEndian.Uint32(data)}, nil
 }
 
 // --- TLV 1157: Opaque Prefix Attribute ---

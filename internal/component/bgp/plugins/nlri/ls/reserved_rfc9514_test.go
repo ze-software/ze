@@ -52,7 +52,7 @@ func TestRFC9514EndXSIDReservedIgnored(t *testing.T) {
 			require.NoError(t, err, "a non-zero Reserved octet is not refused")
 
 			assert.Equal(t, zero, set, "the Reserved octet reaches no decoded field")
-			got, ok := set.(*LsSRv6EndXSID)
+			got, ok := set.(*lsSRv6EndXSID)
 			require.True(t, ok)
 			assert.Equal(t, uint16(5), got.EndpointBehavior)
 			assert.Equal(t, uint8(0x80), got.Flags)

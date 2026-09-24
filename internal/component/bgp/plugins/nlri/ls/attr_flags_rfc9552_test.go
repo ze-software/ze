@@ -107,10 +107,10 @@ func TestRFC9552IGPFlagsUndefinedBitsIgnored(t *testing.T) {
 	require.Len(t, clear, 2, "flag TLV and the Node Name after it")
 	require.Len(t, set, 2, "the walk does not stop at undefined bits")
 
-	clearFlags, ok := clear[0].(*LsIGPFlags)
-	require.True(t, ok, "TLV 1152 decodes to LsIGPFlags")
-	setFlags, ok := set[0].(*LsIGPFlags)
-	require.True(t, ok, "TLV 1152 with undefined bits set decodes to LsIGPFlags")
+	clearFlags, ok := clear[0].(*lsIGPFlags)
+	require.True(t, ok, "TLV 1152 decodes to lsIGPFlags")
+	setFlags, ok := set[0].(*lsIGPFlags)
+	require.True(t, ok, "TLV 1152 with undefined bits set decodes to lsIGPFlags")
 
 	assert.Equal(t, definedOnly, clearFlags.Flags, "the octet sent is the octet decoded")
 	assert.Equal(t, definedFlagBits(t, clearFlags, "igp-flags"), definedFlagBits(t, setFlags, "igp-flags"),

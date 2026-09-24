@@ -92,7 +92,7 @@ func VerifyPluginConfigMapTransition(previousTree, configTree map[string]any) []
 		if reg.InProcessConfigVerifier == nil || len(reg.ConfigRoots) == 0 {
 			continue
 		}
-		sections, err := buildPluginConfigSectionsTransition(previousTree, configTree, reg.ConfigRoots)
+		sections, err := buildPluginConfigSectionsTransition(previousTree, configTree, reg.ConfigSectionRoots())
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", reg.Name, err))
 			continue

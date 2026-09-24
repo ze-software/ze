@@ -6,7 +6,7 @@ import (
 
 // FuzzParseBGPLS tests BGP-LS NLRI binary parsing robustness.
 //
-// VALIDATES: ParseBGPLS handles arbitrary bytes without crashing.
+// VALIDATES: parseBGPLS handles arbitrary bytes without crashing.
 // PREVENTS: Panic on truncated TLVs, unknown NLRI types, descriptor overflow.
 // SECURITY: BGP-LS bytes come from untrusted BGP UPDATE NLRI.
 func FuzzParseBGPLS(f *testing.F) {
@@ -59,7 +59,7 @@ func FuzzParseBGPLS(f *testing.F) {
 	f.Add([]byte{0x00, 0x01, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}) // Node, short body
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		nlri, err := ParseBGPLS(data)
+		nlri, err := parseBGPLS(data)
 		if err != nil {
 			return
 		}

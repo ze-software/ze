@@ -55,7 +55,7 @@ func nodeNLRIWithUnknownSubTLV() []byte {
 // TestRFC7752UnknownTLVPreservedAndPropagated proves an unrecognized TLV
 // survives both halves of ze's BGP-LS path: the attribute decoder keeps its
 // bytes under a generic key, and a parsed NLRI re-encodes byte-identically
-// because ParseBGPLS caches the wire slice (types.go:333) and WriteTo copies it
+// because parseBGPLS caches the wire slice (types.go:333) and WriteTo copies it
 // back out (types_nlri.go:63).
 //
 // VALIDATES: forward compatibility -- ze never drops TLVs it cannot name.
@@ -77,7 +77,7 @@ func TestRFC7752UnknownTLVPreservedAndPropagated(t *testing.T) {
 	require.Len(t, tlvs, 1, "only the recognized TLV is typed")
 
 	wire := nodeNLRIWithUnknownSubTLV()
-	parsed, err := ParseBGPLS(wire)
+	parsed, err := parseBGPLS(wire)
 	require.NoError(t, err)
 	node, ok := parsed.(*BGPLSNode)
 	require.True(t, ok, "type 1 NLRI parses as a Node NLRI")
@@ -197,13 +197,13 @@ func TestRFC7752NodeDescriptorSubTLVsAscending(t *testing.T) {
 // always emits the full 32-bit field, so a metric sourced from a narrower IGP
 // width lands zero-padded in the high-order octets.
 //
-// VALIDATES: LsTEDefaultMetric.WriteTo (attr_link.go:226) writes 4 octets.
+// VALIDATES: lsTEDefaultMetric.WriteTo (attr_link.go:226) writes 4 octets.
 // PREVENTS: a width-guessing encoder emitting a short TE metric.
 func TestRFC7752TEDefaultMetricZeroPadded(t *testing.T) {
 	// RFC requirement: RFC7752-3.3.2.3-1 positive -- a metric narrower than 32 bits is emitted with zero-padded high-order octets in a 4-octet TE Default Metric TLV (§3.3.2.3)
 	// RFC requirement: RFC9552-5.3.2.3-1 positive -- the high-order bits of the TE Default Metric are padded with zero when the source metric is narrower than 32 bits (§5.3.2.3)
 	for _, metric := range []uint32{0, 1, 0x3F, 0xFFFF, 0xFFFFFF} {
-		tlv := &LsTEDefaultMetric{Metric: metric}
+		tlv := &lsTEDefaultMetric{Metric: metric}
 		buf := make([]byte, tlv.Len())
 		n := tlv.WriteTo(buf, 0)
 		require.Equal(t, 8, n, "4 octet header + 4 octet value")

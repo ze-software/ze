@@ -148,23 +148,23 @@ func decodeISISAreaID(data []byte) (lsAttrTLV, error) {
 
 // --- TLV 1028: IPv4 Router-ID (Local) ---
 
-// LsIPv4RouterIDLocal represents BGP-LS IPv4 Local Router-ID (TLV 1028).
+// lsIPv4RouterIDLocal represents BGP-LS IPv4 Local Router-ID (TLV 1028).
 // RFC 7752 Section 3.3.1.4: 4-byte IPv4 address.
-type LsIPv4RouterIDLocal struct {
+type lsIPv4RouterIDLocal struct {
 	Addr netip.Addr
 }
 
-func (t *LsIPv4RouterIDLocal) Code() uint16 { return TLVIPv4RouterIDLocal }
-func (t *LsIPv4RouterIDLocal) Len() int     { return 4 + 4 }
+func (t *lsIPv4RouterIDLocal) Code() uint16 { return TLVIPv4RouterIDLocal }
+func (t *lsIPv4RouterIDLocal) Len() int     { return 4 + 4 }
 
-func (t *LsIPv4RouterIDLocal) WriteTo(buf []byte, off int) int {
+func (t *lsIPv4RouterIDLocal) WriteTo(buf []byte, off int) int {
 	n := writeTLV(buf, off, TLVIPv4RouterIDLocal, 4)
 	b := t.Addr.As4()
 	copy(buf[off+4:], b[:])
 	return n
 }
 
-func (t *LsIPv4RouterIDLocal) ToJSON() map[string]any {
+func (t *lsIPv4RouterIDLocal) ToJSON() map[string]any {
 	return map[string]any{
 		"local-router-ids": []string{t.Addr.String()},
 	}
@@ -176,7 +176,7 @@ func decodeIPv4RouterIDLocal(data []byte) (lsAttrTLV, error) {
 		return nil, ErrBGPLSTruncated
 	}
 	addr := netip.AddrFrom4([4]byte(data[:4]))
-	return &LsIPv4RouterIDLocal{Addr: addr}, nil
+	return &lsIPv4RouterIDLocal{Addr: addr}, nil
 }
 
 // --- TLV 1029: IPv6 Router-ID (Local) ---
@@ -400,21 +400,21 @@ func decodeSRAlgorithm(data []byte) (lsAttrTLV, error) {
 
 // --- TLV 1036: SR Local Block ---
 
-// LsSRLocalBlock represents BGP-LS SR Local Block (TLV 1036).
+// lsSRLocalBlock represents BGP-LS SR Local Block (TLV 1036).
 // RFC 9085 Section 5: Flags(1) + Reserved(1) + N x {Range(3) + SID/Label sub-TLV}.
 // Same format as SR Capabilities but for SRLB ranges.
-type LsSRLocalBlock struct {
+type lsSRLocalBlock struct {
 	Flags  uint8
 	Ranges []LsSrLabelRange
 }
 
-func (t *LsSRLocalBlock) Code() uint16 { return TLVSRLocalBlock }
+func (t *lsSRLocalBlock) Code() uint16 { return TLVSRLocalBlock }
 
-func (t *LsSRLocalBlock) Len() int {
+func (t *lsSRLocalBlock) Len() int {
 	return 4 + 2 + srLabelRangesLen(t.Ranges) // header + flags + reserved + ranges
 }
 
-func (t *LsSRLocalBlock) WriteTo(buf []byte, off int) int {
+func (t *lsSRLocalBlock) WriteTo(buf []byte, off int) int {
 	valueLen := t.Len() - 4
 	n := writeTLV(buf, off, TLVSRLocalBlock, valueLen)
 	vOff := off + 4
@@ -424,7 +424,7 @@ func (t *LsSRLocalBlock) WriteTo(buf []byte, off int) int {
 	return n
 }
 
-func (t *LsSRLocalBlock) ToJSON() map[string]any {
+func (t *lsSRLocalBlock) ToJSON() map[string]any {
 	return map[string]any{"sr-local-block": map[string]any{"ranges": srLabelRangesToJSON(t.Ranges)}}
 }
 
@@ -436,5 +436,5 @@ func decodeSRLocalBlock(data []byte) (lsAttrTLV, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LsSRLocalBlock{Flags: data[0], Ranges: ranges}, nil
+	return &lsSRLocalBlock{Flags: data[0], Ranges: ranges}, nil
 }

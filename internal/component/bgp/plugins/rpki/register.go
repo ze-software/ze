@@ -14,12 +14,15 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:                    "bgp-rpki",
-		Description:             "RPKI origin validation via RTR protocol",
-		RFCs:                    []string{"6811", "8210"},
-		Features:                "yang",
-		YANG:                    rpkiyang.ZeRPKIYANG,
-		ConfigRoots:             []string{configRootBGP, configRootPKI},
+		Name:        "bgp-rpki",
+		Description: "RPKI origin validation via RTR protocol",
+		RFCs:        []string{"6811", "8210"},
+		Features:    "yang",
+		YANG:        rpkiyang.ZeRPKIYANG,
+		ConfigRoots: []string{configRootBGP},
+		// RTR over TLS names certificates from the pki store, so the plugin
+		// reads `pki`; a config with `pki` and no `bgp` does not need it.
+		ConfigReads:             []string{configRootPKI},
 		Dependencies:            []string{configRootBGP, "bgp-adj-rib-in"},
 		RunEngine:               runRPKIPlugin,
 		InProcessConfigVerifier: validateRPKISections,

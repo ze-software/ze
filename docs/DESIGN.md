@@ -328,6 +328,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-nlri-evpn` | EVPN NLRI encode/decode (5 route types) |
 | `bgp-nlri-flowspec` | FlowSpec NLRI encode/decode |
 | `bgp-nlri-ls` | BGP-LS NLRI decode |
+| `bgp-ls-export` | Export native routing databases through BGP-LS |
+| `bgp-epe` | Native BGP Egress Peer Engineering segments |
 | `bgp-nlri-mup` | Mobile User Plane NLRI encode/decode |
 | `bgp-nlri-vpn` | VPN NLRI encode/decode |
 | `bgp-nlri-vpls` | VPLS NLRI encode/decode |

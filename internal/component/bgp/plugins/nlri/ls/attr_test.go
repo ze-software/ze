@@ -219,7 +219,7 @@ func TestISISAreaIDRoundTrip(t *testing.T) {
 // PREVENTS: Address byte ordering error.
 func TestIPv4RouterIDLocalRoundTrip(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.1")
-	original := &LsIPv4RouterIDLocal{Addr: addr}
+	original := &lsIPv4RouterIDLocal{Addr: addr}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, addr, decoded.Addr)
 
@@ -246,7 +246,7 @@ func TestIPv6RouterIDLocalRoundTrip(t *testing.T) {
 // PREVENTS: Local/Remote ID confusion.
 func TestIPv4RouterIDRemoteRoundTrip(t *testing.T) {
 	addr := netip.MustParseAddr("172.16.0.1")
-	original := &LsIPv4RouterIDRemote{Addr: addr}
+	original := &lsIPv4RouterIDRemote{Addr: addr}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, addr, decoded.Addr)
 
@@ -322,7 +322,7 @@ func TestUnreservedBWRoundTrip(t *testing.T) {
 // VALIDATES: TE default metric uint32 round-trip.
 // PREVENTS: Metric value truncation.
 func TestTEDefaultMetricRoundTrip(t *testing.T) {
-	original := &LsTEDefaultMetric{Metric: 12345}
+	original := &lsTEDefaultMetric{Metric: 12345}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint32(12345), decoded.Metric)
 }
@@ -386,7 +386,7 @@ func TestLinkNameRoundTrip(t *testing.T) {
 // VALIDATES: IGP Flags byte round-trip with non-zero flags.
 // PREVENTS: Flag bit position errors.
 func TestIGPFlagsRoundTrip(t *testing.T) {
-	original := &LsIGPFlags{Flags: 0xE0} // D=1, N=1, L=1
+	original := &lsIGPFlags{Flags: 0xE0} // D=1, N=1, L=1
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint8(0xE0), decoded.Flags)
 
@@ -403,7 +403,7 @@ func TestIGPFlagsRoundTrip(t *testing.T) {
 // VALIDATES: Prefix metric uint32 round-trip.
 // PREVENTS: Metric value confusion with IGP metric.
 func TestPrefixMetricRoundTrip(t *testing.T) {
-	original := &LsPrefixMetric{Metric: 42}
+	original := &lsPrefixMetric{Metric: 42}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint32(42), decoded.Metric)
 }
@@ -514,8 +514,8 @@ func TestMergeRouterIDs(t *testing.T) {
 	addr1 := netip.MustParseAddr("10.0.0.1")
 	addr2 := netip.MustParseAddr("10.0.0.2")
 
-	tlv1 := &LsIPv4RouterIDLocal{Addr: addr1}
-	tlv2 := &LsIPv4RouterIDLocal{Addr: addr2}
+	tlv1 := &lsIPv4RouterIDLocal{Addr: addr1}
+	tlv2 := &lsIPv4RouterIDLocal{Addr: addr2}
 
 	// Build wire with both TLVs
 	buf := make([]byte, tlv1.Len()+tlv2.Len())
@@ -582,7 +582,7 @@ func TestSRAlgorithmRoundTrip(t *testing.T) {
 // VALIDATES: SR Local Block with label ranges round-trip.
 // PREVENTS: SRLB/SRGB confusion, flags always 0 per RFC 9085.
 func TestSRLocalBlockRoundTrip(t *testing.T) {
-	original := &LsSRLocalBlock{
+	original := &lsSRLocalBlock{
 		Flags:  0, // RFC 9085 Section 5: MUST be 0
 		Ranges: []LsSrLabelRange{{Range: 1000, FirstSID: 15000, SIDLen: 4}},
 	}
@@ -772,7 +772,7 @@ func TestPeerAdjSIDRoundTrip(t *testing.T) {
 // VALIDATES: SRv6 End.X SID with behavior, flags, SID, and SID structure sub-TLV.
 // PREVENTS: Nested sub-TLV parse failure, SID byte ordering.
 func TestSRv6EndXSIDRoundTrip(t *testing.T) {
-	original := &LsSRv6EndXSID{
+	original := &lsSRv6EndXSID{
 		TLVCode:          TLVSRv6EndXSID,
 		EndpointBehavior: 42,
 		Flags:            0xE0,
@@ -796,7 +796,7 @@ func TestSRv6EndXSIDRoundTrip(t *testing.T) {
 // VALIDATES: IS-IS LAN End.X SID with neighbor ID round-trip.
 // PREVENTS: Neighbor ID length mismatch.
 func TestSRv6LANEndXISISRoundTrip(t *testing.T) {
-	original := &LsSRv6EndXSID{
+	original := &lsSRv6EndXSID{
 		TLVCode:          TLVSRv6LANEndXISIS,
 		EndpointBehavior: 6,
 		Flags:            0x40,
@@ -945,7 +945,7 @@ func TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags(t *testing.T) {
 // VALIDATES: OSPFv3 LAN End.X SID with 4-byte neighbor ID round-trip.
 // PREVENTS: OSPFv3 neighbor ID length mismatch.
 func TestSRv6LANEndXOSPFRoundTrip(t *testing.T) {
-	original := &LsSRv6EndXSID{
+	original := &lsSRv6EndXSID{
 		TLVCode:          TLVSRv6LANEndXOSPF,
 		EndpointBehavior: 9,
 		Flags:            0x20,

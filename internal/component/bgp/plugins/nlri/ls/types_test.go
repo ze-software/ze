@@ -262,7 +262,7 @@ func TestParseBGPLSNode(t *testing.T) {
 
 	data := original.Bytes()
 
-	parsed, err := ParseBGPLS(data)
+	parsed, err := parseBGPLS(data)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
 
@@ -285,7 +285,7 @@ func TestParseBGPLSErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParseBGPLS(tt.data)
+			_, err := parseBGPLS(tt.data)
 			assert.Error(t, err)
 		})
 	}
@@ -319,7 +319,7 @@ func TestBGPLSRoundTrip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			data := tt.nlri.Bytes()
-			parsed, err := ParseBGPLS(data)
+			parsed, err := parseBGPLS(data)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.nlri.NLRIType(), parsed.NLRIType())
@@ -377,7 +377,7 @@ func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
 	original := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
 	data := original.Bytes()
 
-	parsed, err := ParseBGPLS(data)
+	parsed, err := parseBGPLS(data)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
 

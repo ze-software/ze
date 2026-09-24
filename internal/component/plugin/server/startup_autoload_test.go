@@ -1201,3 +1201,22 @@ func TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed(t *testing.T) {
 		t.Fatal("the runtime handler did not return after the dispatch drained")
 	}
 }
+
+// TestReadRootDoesNotAutoLoadThePlugin proves a root a plugin only reads
+// (Registration.ConfigReads) is not a reason to start it. bgp-rpki reads `pki`
+// for RTR over TLS and depends on bgp, which refuses to start without a `bgp`
+// block.
+// PREVENTS: a config holding `pki` and no `bgp` (a looking-glass or IPsec
+// certificate store) failing startup because bgp-rpki dragged bgp in.
+func TestReadRootDoesNotAutoLoadThePlugin(t *testing.T) {
+	rpki := registry.Lookup("bgp-rpki")
+	require.NotNil(t, rpki, "bgp-rpki must be registered")
+	require.Contains(t, rpki.ConfigReads, "pki", "bgp-rpki must read the pki store")
+
+	names := autoLoadNames([]string{"pki"}, "")
+	assert.NotContains(t, names, "bgp-rpki", "a pki-only config must not load bgp-rpki")
+	assert.NotContains(t, names, "bgp", "a pki-only config must not load bgp")
+
+	names = autoLoadNames([]string{"bgp", "pki"}, "")
+	assert.Contains(t, names, "bgp-rpki", "a bgp config still loads bgp-rpki")
+}

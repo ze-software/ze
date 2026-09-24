@@ -409,7 +409,7 @@ func bgplsToJSON(n bGPLSNLRI, data []byte) map[string]any {
 			result["srv6-sid"] = formatIPv6Compressed(v.SRv6SID.SRv6SID)
 		}
 	}
-	// Note: Unknown NLRI types are rejected by ParseBGPLS, so no default case needed.
+	// Note: Unknown NLRI types are rejected by parseBGPLS, so no default case needed.
 
 	return result
 }

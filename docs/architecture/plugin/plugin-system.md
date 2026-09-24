@@ -44,7 +44,8 @@ Optional metadata:
 | `RFCs` | `[]string` | Related RFC numbers |
 | `Families` | `[]string` | Address families handled, as `afi/safi` |
 | `CapabilityCodes` | `[]uint8` | Capability codes this plugin decodes |
-| `ConfigRoots` | `[]string` | Config roots the plugin wants |
+| `ConfigRoots` | `[]string` | Config roots the plugin owns. A present root auto-loads the plugin |
+| `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
 | `Dependencies` | `[]string` | Plugin names that must also load. A missing name gives `ErrMissingDependency` |
 | `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence |
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |

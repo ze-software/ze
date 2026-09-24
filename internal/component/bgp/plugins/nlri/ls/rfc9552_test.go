@@ -129,7 +129,7 @@ func nodeNLRIOddButLegal() []byte {
 	return append(nlri, body...)
 }
 
-// TestRFC9552NLRIContentsNeverMakeItMalformed proves ParseBGPLS (types.go:295)
+// TestRFC9552NLRIContentsNeverMakeItMalformed proves parseBGPLS (types.go:295)
 // judges an NLRI on framing alone. It reads the type, the total length, the
 // Protocol-ID and the Identifier, hands the rest to parseNodeDescriptorTLVs
 // (types.go:391) -- which switches on known sub-TLV types and ignores the rest
@@ -148,7 +148,7 @@ func TestRFC9552NLRIContentsNeverMakeItMalformed(t *testing.T) {
 	// RFC requirement: RFC9552-8.2.2-3 positive -- ze performs no semantic validation on the propagation path: the NLRI parses and re-emits byte-identically (§8.2.2)
 	wire := nodeNLRIOddButLegal()
 
-	parsed, err := ParseBGPLS(wire)
+	parsed, err := parseBGPLS(wire)
 	require.NoError(t, err, "content, not framing, is a Consumer concern")
 	node, ok := parsed.(*BGPLSNode)
 	require.True(t, ok)
@@ -164,7 +164,7 @@ func TestRFC9552NLRIContentsNeverMakeItMalformed(t *testing.T) {
 	// An empty descriptor set is likewise accepted: body is Protocol-ID plus
 	// Identifier and nothing else.
 	bare := []byte{0x00, 0x01, 0x00, 0x09, 0x03, 0, 0, 0, 0, 0, 0, 0, 0}
-	bareParsed, err := ParseBGPLS(bare)
+	bareParsed, err := parseBGPLS(bare)
 	require.NoError(t, err, "an NLRI with no Local Node Descriptors TLV is not malformed")
 	assert.Equal(t, BGPLSNodeNLRI, bareParsed.NLRIType())
 }
@@ -174,18 +174,18 @@ func TestRFC9552NLRIContentsNeverMakeItMalformed(t *testing.T) {
 // a body too short to hold the Protocol-ID and Identifier, and a sub-TLV length
 // that overruns the descriptor are all refused.
 //
-// VALIDATES: ParseBGPLS length checks (types.go:297, :306, :311) and
+// VALIDATES: parseBGPLS length checks (types.go:297, :306, :311) and
 // parseNodeDescriptorTLVs (types.go:396) reject framing errors.
 // PREVENTS: "no semantic validation" being read as "no validation".
 func TestRFC9552NLRIFramingErrorsRejected(t *testing.T) {
 	// RFC requirement: RFC9552-8.2.2-1 negative -- framing errors (Total NLRI Length past the buffer, body shorter than Protocol-ID plus Identifier, sub-TLV length overrun) ARE malformed (§8.2.2)
 	// RFC requirement: RFC9552-8.2.2-3 negative -- ze still validates syntax, so tolerating content is not tolerating everything (§8.2.2)
 	overrun := []byte{0x00, 0x01, 0x00, 0x40, 0x03, 0, 0, 0, 0, 0, 0, 0, 0}
-	_, err := ParseBGPLS(overrun)
+	_, err := parseBGPLS(overrun)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "Total NLRI Length past the buffer is malformed")
 
 	short := []byte{0x00, 0x01, 0x00, 0x04, 0x03, 0, 0, 0}
-	_, err = ParseBGPLS(short)
+	_, err = parseBGPLS(short)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a body shorter than Protocol-ID plus Identifier is malformed")
 
 	var descs []byte
@@ -200,7 +200,7 @@ func TestRFC9552NLRIFramingErrorsRejected(t *testing.T) {
 	binary.BigEndian.PutUint16(badSub[2:], uint16(len(body)))
 	badSub = append(badSub, body...)
 
-	_, err = ParseBGPLS(badSub)
+	_, err = parseBGPLS(badSub)
 	assert.ErrorIs(t, err, ErrBGPLSTruncated, "a sub-TLV length past the descriptor is malformed")
 }
 

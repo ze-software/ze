@@ -145,7 +145,7 @@ func appendProtocol(buf []byte, n bGPLSNLRI) []byte {
 }
 
 // bgplsRawBytes returns the wire bytes for n, preferring the cached slice set
-// by ParseBGPLS so wire-parsed NLRIs skip a fresh WriteTo allocation on every
+// by parseBGPLS so wire-parsed NLRIs skip a fresh WriteTo allocation on every
 // AppendJSON call. Returns n.Bytes() for programmatically-constructed NLRIs.
 func bgplsRawBytes(n bGPLSNLRI) []byte {
 	type cacher interface{ cachedBytes() []byte }
