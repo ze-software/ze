@@ -36,12 +36,10 @@ func chapReplyFrame(t *testing.T, code, id uint8, message string) []byte {
 	return out[:off]
 }
 
-// RFC requirement: RFC1994-4.2-4 positive -- two CHAP Success frames (Code 3)
-// whose Message payloads differ both resolve authentication to the same
-// successful outcome (nil error): runClientAuth branches only on pkt.Code and
-// never reads the Message field (producer
-// internal/component/l2tp/pppoeclient/session.go:270-274), so the advisory
-// Message does not affect protocol operation.
+// RFC requirement: RFC1994-4.2-4 positive -- after a Challenge/Response exchange,
+// two matching CHAP Success frames with different Message payloads both complete
+// authentication. runClientAuth correlates the Identifier and reads the Code;
+// the advisory Message does not affect the outcome.
 func TestCHAPSuccessMessageDoesNotAffectOutcome(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -52,7 +50,8 @@ func TestCHAPSuccessMessageDoesNotAffectOutcome(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			frames := make(chan readFrame, 1)
+			frames := make(chan readFrame, 2)
+			frames <- chapChallengeFrame(0x42, []byte{4, 1, 2, 3, 4})
 			frames <- readFrame{data: chapReplyFrame(t, 3, 0x42, tc.message)}
 
 			buf := make([]byte, ppp.MaxFrameLen)

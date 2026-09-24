@@ -118,7 +118,9 @@ func TestGenerateMagic(t *testing.T) {
 func TestLCPConfigRequestMRU(t *testing.T) {
 	var scratch [ppp.MaxFrameLen]byte
 	var w bytes.Buffer
-	sendLCPConfigRequest(&w, scratch[:], 1, 1492, 0x12345678, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if _, err := sendLCPConfigRequest(&w, scratch[:], 1, 1492, 0x12345678, slog.New(slog.NewTextHandler(io.Discard, nil))); err != nil {
+		t.Fatal(err)
+	}
 
 	proto, payload, _, err := ppp.ParseFrame(w.Bytes())
 	if err != nil {
@@ -159,25 +161,22 @@ func TestLCPConfigRequestMRU(t *testing.T) {
 	}
 }
 
-// VALIDATES: both client Configure-Request senders say so when their options
+// VALIDATES: full and MRU-omitting Configure-Requests report when their options
+// do not fit the buffer and write no partial frame.
 //
-//	do not fit the buffer they were given, and write no frame.
-//
-// PREVENTS: a client that sends nothing and waits out lcpNegotiationTimeout
-// with no line in the log to explain it. The buffer negotiateLCP passes is one
-// PPP frame, so ten octets of options always fit and neither refusal is
-// reachable there; a refusal that cannot answer still has to say so
+// PREVENTS: silently sending a prefix of the requested options after a reject
+// removed MRU, or when the initial request buffer is too short.
 // (`ai/rules/principles.md`).
 func TestLCPConfigRequestRefusalIsLogged(t *testing.T) {
 	senders := []struct {
 		name string
-		send func(w io.Writer, buf []byte, logger *slog.Logger)
+		send func(w io.Writer, buf []byte, logger *slog.Logger) (int, error)
 	}{
-		{"full", func(w io.Writer, buf []byte, logger *slog.Logger) {
-			sendLCPConfigRequest(w, buf, 1, 1492, 0x12345678, logger)
+		{"full", func(w io.Writer, buf []byte, logger *slog.Logger) (int, error) {
+			return sendLCPConfigRequest(w, buf, 1, 1492, 0x12345678, logger)
 		}},
-		{"minimal", func(w io.Writer, buf []byte, logger *slog.Logger) {
-			sendLCPConfigRequestMinimal(w, buf, 1, 0x12345678, logger)
+		{"minimal", func(w io.Writer, buf []byte, logger *slog.Logger) (int, error) {
+			return sendLCPConfigRequest(w, buf, 1, 0, 0x12345678, logger)
 		}},
 	}
 	for _, sender := range senders {
@@ -188,7 +187,9 @@ func TestLCPConfigRequestRefusalIsLogged(t *testing.T) {
 
 			// Two octets for the protocol and four for the LCP header leave
 			// room for no option at all.
-			sender.send(&w, make([]byte, 6), logger)
+			if _, err := sender.send(&w, make([]byte, 6), logger); err == nil {
+				t.Fatal("short buffer was accepted")
+			}
 
 			if w.Len() != 0 {
 				t.Errorf("the client wrote % x; a Configure-Request carrying a prefix of its options offers terms it never chose", w.Bytes())

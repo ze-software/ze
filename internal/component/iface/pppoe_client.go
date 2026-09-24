@@ -74,15 +74,19 @@ type PPPoEDialer interface {
 // PPPoESession represents a fully negotiated PPPoE+PPP session.
 type PPPoESession struct {
 	SessionID uint16
-	UnitNum   int
-	LocalIP   netip.Addr
-	PeerIP    netip.Addr
-	NegMTU    uint16
+	// UnitNum remains reserved until the owner invokes Cleanup, even after Done closes.
+	// The caller may finish configuring ppp<UnitNum> while retaining ownership.
+	UnitNum int
+	LocalIP netip.Addr
+	PeerIP  netip.Addr
+	NegMTU  uint16
 	// Done is closed when the session ends (echo timeout, LCP terminate).
 	// The PPPoEClient selects on this to detect session loss.
 	Done <-chan struct{}
-	// Cleanup closes kernel resources and sends PADT. Must be called
-	// exactly once, after Done fires or on explicit stop.
+	// Cleanup releases the unit reservation and other kernel resources and
+	// sends PADT. The caller MUST invoke it on every successful Dial result,
+	// including interface-setup failure, and MUST finish all use of UnitNum
+	// before doing so. Cleanup is idempotent.
 	Cleanup func()
 }
 

@@ -6,8 +6,11 @@ package pppoeclient
 import (
 	"crypto/rand"
 	"errors"
+	"io"
 	"log/slog"
 	"net"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -26,6 +29,10 @@ var errDiscoveryTimeout = errors.New("pppoeclient: discovery timeout")
 // blocks for that timeout when no frame is waiting: that is what paces
 // waitForPADO and waitForPADS. Neither loop adds a wait of its own.
 var readDiscoveryFrame = pppoe.ReadDiscoveryFrame
+
+// sendDiscoveryFrame shares the discovery socket's send path with lifecycle
+// tests that observe whether PPP has stopped at the PADT publication boundary.
+var sendDiscoveryFrame = pppoe.SendDiscoveryFrame
 
 // Dialer implements iface.PPPoEDialer using the pppoe discovery wire
 // format and ppp /dev/ppp setup.
@@ -102,7 +109,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	// RFC 2516 Section 4: after PADS, the kernel handles session framing.
 	pppoxFD, err := pppoe.PPPoECreate(cfg.SourceInterface, sessID, acMAC)
 	if err != nil {
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID)
+		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
@@ -110,12 +117,39 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD)
 	if err != nil {
 		pppoe.ClosePPPoxFD(pppoxFD)
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID)
+		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 
 	chanFile := ppp.NewFDFile(chanFD, "pppoe-client.chan")
+	link := &sessionLink{
+		channel: chanFile,
+		stopped: make(chan struct{}),
+		closeTransport: func() {
+			pppoe.ClosePPPoxFD(pppoxFD)
+		},
+	}
+	frames := startReader(link, link.stopped)
+	discoveryDone := make(chan struct{})
+	go watchPADT(discFD, ifindex, hwaddr, acMAC, sessID, link, stopCh, discoveryDone, logger)
+	var cleanupOnce sync.Once
+	cleanup := func() {
+		cleanupOnce.Do(func() {
+			_ = link.Close() //nolint:errcheck // shutdown; descriptors are released once
+			// The reader MUST exit before its discovery fd can be closed or reused.
+			<-discoveryDone
+			sendPADT(discFD, ifindex, hwaddr, acMAC, sessID, link)
+			pppoe.CloseDiscoveryFD(discFD)
+			// Closing the PPP transport MUST precede joining its reader:
+			// /dev/ppp can retain a blocking read until the channel detaches.
+			for range frames {
+			}
+			// The caller may still be configuring ppp<unitNum> after Done
+			// closes. Reserve its identity until that owner invokes Cleanup.
+			pppoe.ClosePPPoxFD(unitFD)
+		})
+	}
 
 	mtu := uint16(cfg.MTU)
 	if mtu == 0 {
@@ -127,19 +161,17 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		password: cfg.AuthSecret,
 		chanFD:   chanFD,
 	}
-	result, negErr := negotiateSession(chanFile, unitFD, unitNum, sessCfg, stopCh, logger)
+	result, negErr := negotiateSession(link, frames, unitFD, unitNum, sessCfg, link.stopped, logger)
 	if negErr != nil {
-		chanFile.Close() //nolint:errcheck // rollback; primary error is negErr
-		pppoe.ClosePPPoxFD(unitFD)
-		pppoe.ClosePPPoxFD(pppoxFD)
-		sendPADT(discFD, ifindex, hwaddr, acMAC, sessID)
-		pppoe.CloseDiscoveryFD(discFD)
+		cleanup()
 		return iface.PPPoESession{}, negErr
 	}
 
-	doneCh := make(chan struct{})
-	keepaliveStop := make(chan struct{})
-	go keepaliveLoop(chanFile, result.frames, result.magic, doneCh, keepaliveStop, logger)
+	keepaliveDone := make(chan struct{})
+	go func() {
+		keepaliveLoop(link, result.frames, result.magic, keepaliveDone, link.stopped, logger)
+		_ = link.Close() //nolint:errcheck // shutdown after PPP termination or read failure
+	}()
 
 	return iface.PPPoESession{
 		SessionID: sessID,
@@ -147,17 +179,100 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		LocalIP:   result.localIP,
 		PeerIP:    result.peerIP,
 		NegMTU:    result.negMTU,
-		Done:      doneCh,
+		Done:      link.stopped,
 		Cleanup: func() {
-			close(keepaliveStop)
-			<-doneCh
-			chanFile.Close() //nolint:errcheck // shutdown cleanup
-			pppoe.ClosePPPoxFD(unitFD)
-			sendPADT(discFD, ifindex, hwaddr, acMAC, sessID)
-			pppoe.ClosePPPoxFD(pppoxFD)
-			pppoe.CloseDiscoveryFD(discFD)
+			cleanup()
+			<-keepaliveDone
 		},
 	}, nil
+}
+
+// sessionLink owns a client's PPP channel and kernel transport. Safe for
+// concurrent Write and Close. The owner MUST close it before sending PADT,
+// then wait for watchPADT before closing the discovery descriptor.
+type sessionLink struct {
+	channel        io.ReadWriteCloser
+	closeTransport func()
+	stopped        chan struct{}
+	mu             sync.Mutex
+	closed         bool
+	closeErr       error
+}
+
+func (s *sessionLink) Read(buf []byte) (int, error) {
+	return s.channel.Read(buf)
+}
+
+func (s *sessionLink) Write(buf []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return s.channel.Write(buf)
+}
+
+// Close MUST precede outbound PADT and discovery-reader shutdown. It releases
+// the transport and blocks subsequent PPP writes before publishing Done.
+// Dial retains the PPP unit reservation until the owner invokes Cleanup.
+func (s *sessionLink) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return s.closeErr
+	}
+	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
+	// be sent after sending or receiving a PADT."
+	s.closed = true
+	s.closeErr = s.channel.Close()
+	s.closeTransport()
+	close(s.stopped)
+	return s.closeErr
+}
+
+// watchPADT owns discovery reads from PADS until the session ends. Its caller
+// MUST wait for done before closing the discovery fd. SO_RCVTIMEO bounds the
+// stop latency; this loop lasts at most the lifetime of link.
+func watchPADT(discFD, ifindex int, localMAC, peerMAC [pppoe.EthALen]byte, sid uint16, link *sessionLink, stopCh <-chan struct{}, done chan<- struct{}, logger *slog.Logger) {
+	defer close(done)
+	var buf [pppoe.EthMaxLen]byte
+	for {
+		select {
+		case <-link.stopped:
+			return
+		case <-stopCh:
+			_ = link.Close() //nolint:errcheck // shutdown requested by owner
+			return
+		default:
+			n, rxIfindex, err := readDiscoveryFrame(discFD, buf[:])
+			if err != nil {
+				if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EINTR) {
+					continue
+				}
+				logger.Warn("pppoe-client: discovery read failed", "error", err)
+				_ = link.Close() //nolint:errcheck // failed discovery socket ends session monitoring
+				return
+			}
+			if rxIfindex != ifindex {
+				continue
+			}
+			pkt, err := pppoe.ParseDiscovery(buf[:n])
+			if err != nil {
+				continue
+			}
+			if pkt.Code != pppoe.CodePADT {
+				continue
+			}
+			// RFC 2516 Section 4: "It's value is fixed for a given PPP
+			// session and, in fact, defines a PPP session along with the
+			// Ethernet SOURCE_ADDR and DESTINATION_ADDR."
+			if pkt.SID != sid || pkt.SrcMAC != peerMAC || pkt.DstMAC != localMAC {
+				continue
+			}
+			_ = link.Close() //nolint:errcheck // PADT ends PPP even when descriptor close reports an error
+			return
+		}
+	}
 }
 
 func waitForPADO(discFD, ifindex int, hostUniq [4]byte, wantACName string, stopCh <-chan struct{}) (pppoe.Packet, error) {
@@ -277,11 +392,17 @@ func tryReadPADS(discFD, ifindex int, acMAC [pppoe.EthALen]byte) (uint16, error)
 	return pkt.SID, nil
 }
 
-// sendPADT sends a session termination frame (RFC 2516 Section 5.5).
-func sendPADT(discFD, ifindex int, srcMAC, dstMAC [pppoe.EthALen]byte, sid uint16) {
+// sendPADT stops PPP before sending the session termination frame. link is nil
+// only when kernel setup failed before a PPP channel could be created.
+func sendPADT(discFD, ifindex int, srcMAC, dstMAC [pppoe.EthALen]byte, sid uint16, link *sessionLink) {
+	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
+	// be sent after sending or receiving a PADT."
+	if link != nil {
+		_ = link.Close() //nolint:errcheck // teardown still requires PADT after a close error
+	}
 	var buf [pppoe.EthMaxLen]byte
 	frame := pppoe.BuildPADT(buf[:], srcMAC, dstMAC, sid, "ze")
 	if frame != nil {
-		_ = pppoe.SendDiscoveryFrame(discFD, ifindex, frame)
+		_ = sendDiscoveryFrame(discFD, ifindex, frame)
 	}
 }

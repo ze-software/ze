@@ -96,3 +96,57 @@ func TestRFC1661ClientAcksANonZeroMagic(t *testing.T) {
 		t.Fatalf("the client answered an acceptable Configure-Request with %s, want Configure-Ack", ppp.LCPCodeName(code))
 	}
 }
+
+// RFC requirement: RFC2516-7-2 positive -- the client rejects ACCM, ACFC and FCS Alternatives and proposes none of them.
+// RFC requirement: RFC2516-7-2 negative -- a request carrying only MRU and PFC still receives Configure-Ack.
+// MUTATION: remove PPPoE from clientLCPPolicy to let the client acknowledge ACCM and ACFC.
+func TestRFC2516ClientRejectsForbiddenLCPOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"ACCM", []byte{ppp.LCPOptACCM, 6, 0xff, 0xff, 0xff, 0xff}},
+		{"ACFC", []byte{ppp.LCPOptACFC, 2}},
+		{"FCS Alternatives", []byte{9, 3, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			log := runClientLCP(t, serverFrame(ppp.LCPConfigureRequest, 0x73, tc.data))
+			code, opts, ok := clientReplyTo(t, log, 0x73)
+			if !ok || code != ppp.LCPConfigureReject {
+				t.Fatalf("reply = %d, present %v; want Configure-Reject", code, ok)
+			}
+			if len(opts) != 1 || opts[0].Type != tc.data[0] {
+				t.Fatalf("rejected options = %+v, want option %d", opts, tc.data[0])
+			}
+			if string(opts[0].Data) != string(tc.data[2:]) {
+				t.Fatalf("rejected data = %x, want %x", opts[0].Data, tc.data[2:])
+			}
+			foundRequest := false
+			for _, packet := range log.lcpPackets(t) {
+				if packet.Code != ppp.LCPConfigureRequest {
+					continue
+				}
+				foundRequest = true
+				local, err := ppp.ParseLCPOptions(packet.Data)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, opt := range local {
+					switch opt.Type {
+					case ppp.LCPOptACCM, ppp.LCPOptACFC, 9:
+						t.Fatalf("client requested forbidden option %d", opt.Type)
+					}
+				}
+			}
+			if !foundRequest {
+				t.Fatal("client sent no Configure-Request")
+			}
+		})
+	}
+	log := runClientLCP(t, serverFrame(ppp.LCPConfigureRequest, 0x74,
+		[]byte{ppp.LCPOptMRU, 4, 5, 0xd4, ppp.LCPOptPFC, 2}))
+	code, _, ok := clientReplyTo(t, log, 0x74)
+	if !ok || code != ppp.LCPConfigureAck {
+		t.Fatalf("MRU/PFC reply = %d, present %v; want Configure-Ack", code, ok)
+	}
+}

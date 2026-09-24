@@ -89,7 +89,12 @@ func runClientLCPWithMagic(t *testing.T, magic uint32, script ...readFrame) *fra
 	}
 	// MRU 1492 at Length 4: recognized, acceptable, and inside the packet.
 	goodOptions := []byte{ppp.LCPOptMRU, 4, 0x05, 0xD4}
-	frames <- serverFrame(ppp.LCPConfigureAck, 1, nil)
+	var request [16]byte
+	n, err := sendLCPConfigRequest(io.Discard, request[:], 1, clientMTU, magic, slog.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	frames <- serverFrame(ppp.LCPConfigureAck, 1, request[6:n])
 	frames <- serverFrame(ppp.LCPConfigureRequest, 0x20, goodOptions)
 
 	log := &frameLog{}
