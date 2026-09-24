@@ -2,6 +2,13 @@
 
 This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside `planning.md` to ensure complete implementations.
 
+The implementation boundary is the owner's agreed capability scope. Completing
+started code includes its callers, error paths and documentation; it does not
+commission every absent feature in the RFC. Keep unimplemented requirements
+visible as gaps and leave unstarted specs in the backlog. Source inspection,
+executed tests and remaining verification must be reported separately.
+See `ai/rules/rfc-compliance.md` and `docs/contributing/spec-workflow.md`.
+
 ## Overview
 
 An RFC implementation typically touches these areas (not all apply to every RFC):
@@ -548,6 +555,9 @@ Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
 declared by the test.
 
+The scanner includes command tests under `cmd/`, including tests of daemon listeners.
+<!-- source: internal/le/rfc/rfc.go -- testRoots -->
+
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
 | `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
@@ -729,9 +739,9 @@ in it bounds what the summary MISSED, and a green `./le rfc check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
-                                          # classify every site and section by hand,
-                                          # then move the file in as the command says
+./le rfc extraction-create stem rfcNNNN   # derive the inventory and preserve matching decisions
+                                          # an unclassified skeleton stays in session scratch;
+                                          # a fully classified refresh may replace the artifact
 ./le rfc extraction-classify decisions <path>  # or write the decisions in one file and apply them
 ./le rfc check                            # re-derives the inventory and judges it
 ```
@@ -742,6 +752,11 @@ each section is `walked` or `skipped`. An unclassified site fails the gate, so
 generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
 a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
 reference: `rfc/extraction/README.md`.
+
+Only the native writer derives source hashes and locators. A source revision
+requires a new walk of changed sites and sections; retaining an older artifact
+preserves history but does not sign off the revised document.
+<!-- source: internal/le/rfc/extraction_create.go -- deriveExtractionDocument, placeExtractionDocument -->
 
 One exclusion kind does not dismiss its sentence. `relocated-to-spec` says the
 obligation is owed by a named spec, under an id reserved there, because an owner
@@ -765,7 +780,7 @@ Read the signed, enrolled, relocated, and unsigned counts with
 Before marking implementation complete:
 
 ```
-[ ] Pre-commit verification passes: ./le verify current mode full
+[ ] Verify the agreed implementation boundary through ./le verify worktree
 [ ] Fuzz targets pass: ./le fuzz run
 [ ] Functional tests pass: ./le functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
@@ -775,8 +790,8 @@ Before marking implementation complete:
 [ ] No backwards-compatibility shims (Ze rule)
 [ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated
-[ ] Write learned summary to plan/learned/NNN-<name>.md
-[ ] All changes in single commit
+[ ] Complete the independent review and native closure steps in docs/contributing/spec-workflow.md
+[ ] Preserve the completed spec with the implementation in commit A; remove it only in commit B
 ```
 
 ---
