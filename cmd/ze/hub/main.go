@@ -51,6 +51,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var (
@@ -856,17 +857,20 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// whose fixture answers 60ms after the BFD plugin reports running.
 	//
 	// signal.Notify is wired here for the same reason, and it MUST stay ahead of
-	// apiServer.StartWithContext below. Every plugin opens sdk.SignalContext
-	// (pkg/plugin/sdk/signal.go), and an in-process plugin registers SIGINT and
-	// SIGTERM for the whole PROCESS. A SIGTERM that arrives after the first
-	// plugin starts and before this line is therefore neither fatal, because a
-	// registered handler replaces the default disposition, nor delivered here:
-	// the plugins cancel and exit, and the daemon waits in waitLoop until the
-	// operator sends a second signal. Registering before any plugin starts
-	// queues that first signal in the buffer instead, and waitLoop drains it as
-	// soon as startup finishes.
+	// apiServer.StartWithContext below. Without it, a SIGTERM that arrives
+	// before this line kills the daemon with the default disposition and runs
+	// no shutdown. Registering before any plugin starts queues that first
+	// signal in the buffer instead, and waitLoop drains it as soon as startup
+	// finishes. sdk.HostOwnsSignals MUST also run before the first plugin: every
+	// plugin opens sdk.SignalContext (pkg/plugin/sdk/signal.go), and an
+	// in-process plugin that registered SIGTERM itself would cancel on the
+	// signal the daemon is still handling.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	// This daemon ends its in-process plugins through the ordered shutdown
+	// below, after the reload worker's grace. A plugin that took SIGTERM itself
+	// would exit in the same instant and strand a reload still in flight.
+	sdk.HostOwnsSignals()
 	apiServer.SetShutdownFunc(func() {
 		select {
 		case sigCh <- syscall.SIGTERM:

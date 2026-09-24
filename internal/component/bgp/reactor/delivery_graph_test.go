@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -11,8 +12,10 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/bgp/configop"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // deliveryTree is the resolved bgp tree both wiring tests load. Two peers, two
@@ -270,4 +273,77 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 
 	assert.Empty(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"),
 		"a config apply discards the live capability addition")
+}
+
+// overrideProbeJournal is a configJournal that reports, at the moment the apply
+// reaches its first peer change, how many processes the live override still
+// adds. Record is where every peer change of a config operation runs, so the
+// count it takes is the state a restarted session's first events meet.
+type overrideProbeJournal struct {
+	testJournal
+	probe       func() int
+	atPeerStage []int
+}
+
+func (j *overrideProbeJournal) Record(apply, undo func() error) error {
+	j.atPeerStage = append(j.atPeerStage, j.probe())
+	return j.testJournal.Record(apply, undo)
+}
+
+// TestConfigOperationDiscardsRuntimeSubscriptionsBeforePeerChanges is the R-10
+// discard driven from the OTHER apply: the bgp root applies through config
+// operations (bgp/plugin OnConfigOperationApply -> applyConfigOperation), not
+// through reconcilePeersJournaled, so the discard there proves nothing here.
+//
+// The order matters as much as the call. A peer the operation restarts can
+// reach Established inside the apply, and its first events MUST be delivered
+// under the document's grant, so the override is gone before the journal runs
+// the first peer change, not after.
+//
+// VALIDATES: R-10 on the config-operation path, and its order.
+// PREVENTS: an override outliving a config apply (plugin test
+// attach-process-runtime-subscribe), or being dropped only after the
+// restarted session already emitted under it.
+func TestConfigOperationDiscardsRuntimeSubscriptionsBeforePeerChanges(t *testing.T) {
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
+
+	r := newTestReactor(t)
+	r.api = srv
+	addPeersFromTree(t, r, deliveryTree(lookingGlass))
+	r.mu.Lock()
+	r.publishDeliveryGraphLocked()
+	r.mu.Unlock()
+
+	ns := events.LookupNamespaceID(bgpevents.Namespace)
+	state := events.LookupEventTypeID(bgpevents.EventState)
+	engine := process.NewProcess(plugin.PluginConfig{Name: "looking-glass"})
+	srv.Subscriptions().Add(engine, &pluginserver.Subscription{
+		Namespace: ns, EventType: state, Direction: events.DirBoth,
+		PeerFilter: &pluginserver.PeerFilter{Selector: "192.0.2.1"}, Runtime: true,
+	})
+	live := func() int {
+		return len(srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"))
+	}
+	require.Equal(t, 1, live(), "the permitted live capability addition must take effect")
+
+	j := &overrideProbeJournal{probe: live}
+	op := rpc.ConfigOperation{
+		ID:     "bgp-add-peer-edge",
+		Root:   "bgp",
+		Owner:  "bgp",
+		Type:   configop.AddPeer,
+		Target: rpc.ResourceRef{Kind: rpc.ResourcePeer, Peer: "edge"},
+		Params: rpc.ConfigOperationParams{
+			Peer:    "edge",
+			Address: "203.0.113.1",
+			Config:  json.RawMessage(`{"connection":{"remote":{"ip":"203.0.113.1"},"local":{"ip":"192.0.2.9"}},"session":{"asn":{"local":"65000","remote":"65001"}}}`),
+		},
+	}
+	_, err = (&reactorAPIAdapter{r: r}).applyConfigOperation(&op, j)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, j.atPeerStage, "the operation must reach a peer change")
+	assert.Equal(t, 0, j.atPeerStage[0], "the override is discarded before the first peer change")
+	assert.Equal(t, 0, live(), "a config operation discards the live capability addition")
 }

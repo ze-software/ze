@@ -45,10 +45,16 @@
 # The observers are external plugins: their stderr joins the daemon's.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
+# The peer holds each connection open until ze closes it. Without linger it
+# closed connection 1 the moment its route arrived, ze dialed again on its
+# retry timer, and connection 2 then appeared whether or not any rollback ran.
+option=linger:value=true
 
-# Connection 1: the peer from the initial config.
+# Connection 1: the peer from the initial config. The remove-peer operation
+# ends it with Cease "Peer De-configured" (RFC 4486 Section 4, subcode 3).
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030603
 
 # Connection 2: the same peer, re-added by the inverse of the remove-peer that
 # the rollback replayed. It sends the SAME two messages connection 1 sent, and
