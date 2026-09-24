@@ -151,14 +151,15 @@ func (t *Table) Clear() int {
 // spec-isis-13). It is a flat value with no pointers so it crosses the CLI
 // boundary cleanly. Addresses are rendered as strings ("" when none was learned).
 type NeighborSnapshot struct {
-	SystemID   string `json:"system-id"`
-	SNPA       string `json:"snpa"`
-	Level      string `json:"level"`
-	State      string `json:"state"`
-	IPv4       string `json:"ipv4,omitempty"`
-	IPv6       string `json:"ipv6,omitempty"`
-	HoldTime   uint16 `json:"hold-time"`
-	HoldExpiry int64  `json:"hold-expiry-unix"` // Unix seconds; 0 when Down
+	SystemID   string    `json:"system-id"`
+	SNPA       string    `json:"snpa"`
+	Level      string    `json:"level"`
+	State      string    `json:"state"`
+	IPv4       string    `json:"ipv4,omitempty"`
+	IPv6       string    `json:"ipv6,omitempty"`
+	Protocols  Protocols `json:"protocols"`
+	HoldTime   uint16    `json:"hold-time"`
+	HoldExpiry int64     `json:"hold-expiry-unix"` // Unix seconds; 0 when Down
 }
 
 // Snapshot returns a stable, sorted copy of the current adjacencies for the CLI.
@@ -192,11 +193,12 @@ func (a *Adjacency) Snapshot() NeighborSnapshot { return snapshotOf(a) }
 // snapshotOf renders one adjacency as a NeighborSnapshot row.
 func snapshotOf(a *Adjacency) NeighborSnapshot {
 	row := NeighborSnapshot{
-		SystemID: a.SystemID.String(),
-		SNPA:     snpaString(a.SNPA),
-		Level:    a.Level.String(),
-		State:    a.State.String(),
-		HoldTime: a.HoldTime,
+		SystemID:  a.SystemID.String(),
+		SNPA:      snpaString(a.SNPA),
+		Level:     a.Level.String(),
+		State:     a.State.String(),
+		HoldTime:  a.HoldTime,
+		Protocols: a.Protocols,
 	}
 	if a.IPv4.IsValid() {
 		row.IPv4 = a.IPv4.String()

@@ -20,6 +20,7 @@
 package spf
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -62,6 +63,9 @@ type Computer struct {
 	// IPv6 pass only re-extracts TLV 236 leaves and installs the IPv6 family.
 	resolverV6  NextHopResolverV6
 	installerV6 *Installer
+	// runMu orders complete computations and their callbacks, not only installs.
+	// A slower old graph must never replace a newer run's reachability outcome.
+	runMu sync.Mutex
 
 	mu sync.Mutex
 	// last holds the most recent installed IPv4 route set so a re-run diffs against
@@ -74,8 +78,8 @@ type Computer struct {
 	// route delta, with the applied delta. It is the REDISTRIBUTION read seam
 	// (spec-isis-11): the engine wires it to emit redistevents batches so IS-IS
 	// SPF routes reach the redistribute-orchestrator and BGP. It is NOT the FIB
-	// install path (the Installer above owns that). Called outside the run lock so
-	// the callback cannot deadlock on a re-entrant Trigger.
+	// install path (the Installer above owns that). Called outside c.mu so the
+	// callback may Trigger, but runMu remains held: it MUST NOT call Run.
 	onChange func(RouteDelta)
 	// onChangeV6 is the IPv6 redistribution read seam (isis-12): the engine wires
 	// it to emit redistevents batches at AFI=2 for IS-IS IPv6 SPF routes. Separate
@@ -88,12 +92,14 @@ type Computer struct {
 	// reachability. The engine stores the set and re-originates ONLY when it
 	// changed; the leak skips down-bit prefixes, so the re-origination's SPF run
 	// recomputes the SAME set and the loop terminates in one pass. nil disables it
-	// (a single-level node, or an early test). Called outside the run lock so the
-	// re-Trigger it provokes cannot deadlock.
+	// (a single-level node, or an early test). Called outside c.mu so the callback
+	// may Trigger, but runMu remains held: it MUST NOT call Run.
 	onLeak func(LeakResult)
 	// lastLeak is the most recent computed leak set, exposed via LeakResult() for
 	// the engine to read after a Run (and for tests). Guarded by c.mu.
-	lastLeak LeakResult
+	lastLeak         LeakResult
+	lastReachability []Reachability
+	onComplete       func()
 
 	// Debounce state: a Trigger sets dirty and (if no timer is pending) arms one.
 	timer   *time.Timer
@@ -123,6 +129,17 @@ type Computer struct {
 	// (spec-isis-13). It has its own lock so recording on the run goroutine and
 	// reading on the CLI goroutine never contend on c.mu. Observational only.
 	spflog spfLog
+}
+
+// Reachability is one completed native SPF decision. Nodes contains every
+// originator in that run's graph: true means reached, false means unreachable,
+// and absence means unknown. Unknown is never evidence of recovery. Source IDs
+// preserve pseudonodes as distinct native vertices.
+// The Computer replaces this state wholesale; readers MUST NOT mutate it.
+type Reachability struct {
+	Root  types.SystemID
+	Level Level
+	Nodes map[types.SourceID]bool
 }
 
 // Config configures a Computer. src and resolver are mandatory (a nil Source
@@ -210,9 +227,9 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 // SetOnChange installs the redistribution read callback (spec-isis-11): after
 // every Run that produced a non-empty delta, the Computer calls fn with the
 // applied delta so the engine can emit redistevents batches (export IS-IS -> BGP).
-// nil disables it. Safe to call before any Trigger; the callback runs outside the
-// run lock so it may re-Trigger without deadlocking. This is SEPARATE from the FIB
-// install (the Installer): redistribution NEVER installs to the kernel.
+// nil disables it. Safe to call before any Trigger; the callback runs outside
+// c.mu so it may Trigger, but MUST NOT call Run because runMu remains held.
+// This is SEPARATE from the FIB install: redistribution NEVER installs to the kernel.
 func (c *Computer) SetOnChange(fn func(RouteDelta)) {
 	c.mu.Lock()
 	c.onChange = fn
@@ -237,9 +254,9 @@ func (c *Computer) SetOnChangeV6(fn func(RouteDelta)) {
 // re-originates only when it changed; because the leak skips down-bit prefixes,
 // the re-origination's SPF run recomputes the same set and the feedback loop
 // terminates in one pass (no churn). nil disables leaking. Safe to call before
-// any Trigger; the callback runs outside the run lock so it may re-Trigger
-// without deadlocking. This is SEPARATE from the FIB install and the
-// redistribution seam: leaking only re-originates the node's own LSP.
+// any Trigger; the callback runs outside c.mu so it may Trigger, but MUST NOT
+// call Run because runMu remains held. This is SEPARATE from the FIB install and
+// the redistribution seam: leaking only re-originates the node's own LSP.
 func (c *Computer) SetOnLeak(fn func(LeakResult)) {
 	c.mu.Lock()
 	c.onLeak = fn
@@ -256,10 +273,31 @@ func (c *Computer) LeakResult() LeakResult {
 	return c.lastLeak
 }
 
+// SetOnComplete installs a notification after every completed native SPF run,
+// including runs without a route delta. It runs outside c.mu and may Trigger
+// another run, but MUST NOT synchronously call Run.
+func (c *Computer) SetOnComplete(fn func()) {
+	c.mu.Lock()
+	c.onComplete = fn
+	c.mu.Unlock()
+}
+
+// Reachability returns the most recently completed native graph decisions.
+// The borrowed slice and maps are immutable and remain valid after later runs.
+// Before the first completed run, nil means unknown, not unreachable.
+func (c *Computer) Reachability() []Reachability {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastReachability
+}
+
 // SetRoot updates the System ID SPF is rooted at (the node's own ID). Called once
 // the config resolves. Safe to call before any Trigger.
 func (c *Computer) SetRoot(root types.SystemID) {
 	c.mu.Lock()
+	if c.root != root {
+		c.lastReachability = nil
+	}
 	c.root = root
 	c.mu.Unlock()
 }
@@ -272,7 +310,10 @@ func (c *Computer) SetLevels(levels []Level) {
 		return
 	}
 	c.mu.Lock()
-	c.levels = append([]Level(nil), levels...)
+	if !slices.Equal(c.levels, levels) {
+		c.levels = slices.Clone(levels)
+		c.lastReachability = nil
+	}
 	c.mu.Unlock()
 }
 
@@ -318,6 +359,8 @@ func (c *Computer) Trigger() {
 // delta. Concurrent Run calls are serialized by the run lock so two timers (or a
 // Run plus a timer) never interleave a half-applied set.
 func (c *Computer) Run() RouteDelta {
+	c.runMu.Lock()
+	defer c.runMu.Unlock()
 	c.mu.Lock()
 	if c.stopped {
 		// A Run racing Stop (a debounce callback that slipped past its own guard,
@@ -368,6 +411,17 @@ func (c *Computer) Run() RouteDelta {
 	// prevention). Over the SHARED SPF tree, no extra Dijkstra runs. Empty on a
 	// single-level node.
 	leak := LeakPrefixes(results, graphs)
+	reachability := make([]Reachability, 0, len(results))
+	for _, result := range results {
+		state := Reachability{
+			Root: result.Root, Level: result.Level,
+			Nodes: make(map[types.SourceID]bool, len(graphs[result.Level].Nodes)),
+		}
+		for id := range graphs[result.Level].Nodes {
+			_, state.Nodes[id] = result.Nodes[id]
+		}
+		reachability = append(reachability, state)
+	}
 
 	c.mu.Lock()
 	if c.stopped {
@@ -382,6 +436,14 @@ func (c *Computer) Run() RouteDelta {
 		c.mu.Unlock()
 		return RouteDelta{}
 	}
+	if c.root != root || !slices.Equal(c.levels, levels) {
+		// A configuration replacement overtook the lock-free computation.
+		// Recompute from the current root and levels before installing or
+		// publishing reachability from this obsolete graph.
+		c.mu.Unlock()
+		c.Trigger()
+		return RouteDelta{}
+	}
 	delta := c.installer.Apply(routes)
 	c.last = routes
 	var deltaV6 RouteDelta
@@ -390,15 +452,17 @@ func (c *Computer) Run() RouteDelta {
 		c.lastV6 = routesV6
 	}
 	c.lastLeak = leak
+	c.lastReachability = reachability
 	onChange := c.onChange
 	onChangeV6 := c.onChangeV6
 	onLeak := c.onLeak
+	onComplete := c.onComplete
 	c.mu.Unlock()
 
 	// Redistribution read seam (spec-isis-11 / isis-12): notify the engine of the
 	// per-family delta so it can emit redistevents batches (export IS-IS -> BGP).
-	// Outside the run lock so the callback may re-Trigger without deadlocking; only
-	// fired on a real change.
+	// Outside c.mu so the callback may Trigger; runMu still prevents another
+	// computation from overtaking these callbacks. Only fired on a real change.
 	if onChange != nil && !delta.Empty() {
 		onChange(delta)
 	}
@@ -409,10 +473,13 @@ func (c *Computer) Run() RouteDelta {
 	// set so it re-originates the other level's reachability into this node's own
 	// LSP. Always invoked (even on an empty leak) so the engine can CLEAR a stale
 	// leaked set when the source level loses a prefix; the engine re-originates
-	// only on a real change, so an unchanged leak is cheap. Outside the run lock so
-	// the re-origination's Trigger cannot deadlock.
+	// only on a real change, so an unchanged leak is cheap. Outside c.mu so
+	// the re-origination's Trigger cannot deadlock; runMu remains held.
 	if onLeak != nil {
 		onLeak(leak)
+	}
+	if onComplete != nil {
+		onComplete()
 	}
 	return delta
 }
@@ -483,6 +550,7 @@ func (c *Computer) Stop() {
 		c.installerV6.RemoveAll()
 	}
 	c.lastV6 = nil
+	c.lastReachability = nil
 	c.mu.Unlock()
 	// Drain a timer callback that already fired (it is on its own goroutine and
 	// will Done()). Its Run is a no-op now (stopped guard), but waiting guarantees

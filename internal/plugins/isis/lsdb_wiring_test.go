@@ -50,7 +50,7 @@ func startedEngine(t *testing.T, cfgJSON string) *engine {
 }
 
 // p2pHelloPDU builds a legacy (no TLV 240) point-to-point IIH from sys carrying
-// the area TLV 1 so an L1 adjacency can form. A legacy P2P Hello brings the
+// the area and IPv4 capability/address TLVs. A legacy P2P Hello brings the
 // adjacency Up on first receipt (implicit two-way, RFC 5303 sec 3.2 fall-back).
 func p2pHelloPDU(t *testing.T, sys types.SystemID, area types.AreaID) []byte {
 	t.Helper()
@@ -64,7 +64,11 @@ func p2pHelloPDU(t *testing.T, sys types.SystemID, area types.AreaID) []byte {
 		SystemID:       sys,
 		HoldingTime:    30,
 		LocalCircuitID: 1,
-		TLVs:           []packet.TLV{{Type: packet.TLVAreaAddresses, Value: areaVal}},
+		TLVs: []packet.TLV{
+			{Type: packet.TLVAreaAddresses, Value: areaVal},
+			{Type: packet.TLVProtocolsSupported, Value: []byte{packet.NLPIDIPv4}},
+			{Type: packet.TLVIPInterfaceAddress, Value: []byte{192, 0, 2, 2}},
+		},
 	}
 	buf := make([]byte, h.EncodedLen())
 	n := h.WriteTo(buf, 0)

@@ -108,14 +108,16 @@ func emitDelta(delta spf.RouteDelta, protocol redistevents.ProtocolID, sink func
 	emitDeltaFamily(delta, protocol, family.AFIIPv4, sink)
 }
 
-// addEntry maps an SPF RouteEntry to an ActionAdd redistevents entry. The next-hop
-// is the first resolved equal-cost next-hop (the redistevents entry carries a
-// single NextHop; the BGP consumer maps it to `nhop <addr>`); a zero NextHop means
-// "nhop self" on the consumer side. The metric is the SPF path cost narrowed to
-// the 32-bit redistevents field.
+// addEntry maps a forwarding route to an ActionAdd entry. A protocol-suite
+// rejection withdraws any previous export: an invalid gateway otherwise means
+// "next-hop self" to the consumer, which would advertise unreachable traffic.
+// The first resolved equal-cost next hop supplies the export's single gateway.
 func addEntry(r *spf.RouteEntry) redistevents.RouteChangeEntry {
 	var nh netip.Addr
 	if len(r.NextHops) > 0 {
+		if r.NextHops[0].Unsupported {
+			return redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: r.Prefix}
+		}
 		nh = r.NextHops[0].Addr
 	}
 	return redistevents.RouteChangeEntry{

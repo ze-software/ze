@@ -89,6 +89,8 @@ type HelloInput struct {
 	// IPv6 is the sender's first TLV 232 IPv6 interface address. Invalid when
 	// absent.
 	IPv6 netip.Addr
+	// Protocols is the received TLV 129 set; absence means CLNP-only.
+	Protocols Protocols
 
 	// ThreeWay is the sender's TLV 240 (P2P three-way) state when present.
 	// HasThreeWay reports whether the IIH carried a TLV 240 at all; its absence
@@ -106,6 +108,8 @@ type Transition struct {
 	SessionUp bool
 	// SessionDown is true exactly on a transition OUT of Up (Up -> Down/Init).
 	SessionDown bool
+	// ForwardingChanged reports a capability, address or SNPA change while Up.
+	ForwardingChanged bool
 	// Rejected is true when the Hello was rejected (e.g. L1 area mismatch) and no
 	// state change happened; the circuit logs the reason.
 	Rejected bool
@@ -156,18 +160,18 @@ func ReceiveHello(adj *Adjacency, local Local, in HelloInput, now time.Time) Tra
 	}
 
 	prev := adj.State
+	forwardingChanged := adj.Protocols != in.Protocols ||
+		adj.IPv4 != in.IPv4 || adj.IPv6 != in.IPv6 || adj.SNPA != in.SNPA
 
 	// Record neighbor identity and the SPF next-hop addresses on every Hello.
 	adj.SystemID = in.SystemID
+	adj.ISHOnly = false
 	adj.SNPA = in.SNPA
 	adj.Level = in.Level
 	adj.Areas = in.Areas
-	if in.IPv4.IsValid() {
-		adj.IPv4 = in.IPv4
-	}
-	if in.IPv6.IsValid() {
-		adj.IPv6 = in.IPv6
-	}
+	adj.IPv4 = in.IPv4
+	adj.IPv6 = in.IPv6
+	adj.Protocols = in.Protocols
 	adj.HoldTime = in.HoldTime
 	// ISO/IEC 10589 clause 8.4.5: record the neighbor's advertised DIS priority so
 	// the broadcast circuit's election (isis-8) can compare it. On P2P the field is
@@ -193,7 +197,13 @@ func ReceiveHello(adj *Adjacency, local Local, in HelloInput, now time.Time) Tra
 		adj.State = StateInitializing
 	}
 
-	return classify(prev, adj.State)
+	tr := classify(prev, adj.State)
+	if prev == StateUp {
+		if adj.State == StateUp {
+			tr.ForwardingChanged = forwardingChanged
+		}
+	}
+	return tr
 }
 
 // bidirectional reports whether the neighbor has proven it can hear us, which is

@@ -10,16 +10,15 @@
 //   carries up/down set and is NOT re-advertised UP into L2.
 // RFC: rfc/short/rfc5305.md sec 4.1 -- the up/down bit lives in the control
 //   octet, not the metric; the prefix metric is the full 32-bit field.
-// RFC: rfc/short/rfc5308.md sec 5 / RFC 5302 -- the up/down-aware preference
-//   order when a prefix is reachable at more than one level/up-down state:
-//   best to worst is L1-up > L2-up > L2-down > L1-down, ties broken by metric.
-//   An L1 DOWN (leaked) prefix is LESS preferred than an L2 prefix, so a flat
-//   "L1 always beats L2" rule is wrong.
+// RFC: rfc/short/rfc2966.md sec 3.2 -- IPv4 internal-metric routes precede
+//   external-metric routes; each group prefers L1 up, L2, then L1 down.
+// RFC: rfc/short/rfc5308.md sec 5 -- IPv6 uses the four level/up-down classes.
 
 package spf
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/plugins/isis/types"
@@ -29,13 +28,18 @@ import (
 // address to forward to and the outgoing interface. SPF resolves the first-hop
 // System ID to this via the NextHopResolver (the local adjacency table).
 type NextHop struct {
-	// Addr is the next-hop IP address (the adjacent neighbor's interface address,
-	// TLV 132). Invalid means the next-hop could not be resolved and the entry is
-	// dropped.
+	// Addr is the adjacent neighbor's interface address (TLV 132). Invalid
+	// addresses are excluded unless Unsupported marks a terminal rejection.
 	Addr netip.Addr
 	// Interface is the outgoing interface name the adjacency is on. Empty when
 	// unknown (the kernel then resolves the egress from the route table).
 	Interface string
+	// OnLink bypasses recursive gateway lookup for the physically adjacent IS.
+	OnLink bool
+	// Unsupported marks an Up adjacency that cannot forward this address family.
+	// If no capable equal-cost neighbor exists, install an unreachable route
+	// rather than letting a less-specific route forward the packet.
+	Unsupported bool
 }
 
 // RouteEntry is one prefix SPF resolved to install: the destination, the total
@@ -55,6 +59,13 @@ type RouteEntry struct {
 	// the prefix was leaked down a level. Carried for the snapshot / diagnostics;
 	// it does not change the installed next-hop.
 	UpDown bool
+	// External retains external reachability provenance (TLV 130).
+	External bool
+	// ExternalMetric identifies a route selected using an external metric.
+	ExternalMetric bool
+	// InternalMetric is the distance to the advertising router for an
+	// external-metric route; it breaks ties between equal external metrics.
+	InternalMetric uint64
 	// NextHops are the resolved equal-cost next-hops (ECMP). At least one for a
 	// route that is published; sorted by address for a stable diff.
 	NextHops []NextHop
@@ -81,23 +92,108 @@ func preferenceRank(level Level, upDown bool) int {
 
 // candidate is one (prefix, level, up/down) route option before arbitration. The
 // route builder collects every candidate from every level's SPF result, then
-// selects the single winner per prefix.
+// selects the winning preference and cost, merging equal-cost forwarding paths.
 type candidate struct {
-	metric   uint64
-	level    Level
-	upDown   bool
-	nextHops []NextHop
+	metric         uint64
+	level          Level
+	upDown         bool
+	narrow         bool
+	external       bool
+	externalMetric bool
+	internalMetric uint64
+	nextHops       []NextHop
 }
 
-// better reports whether candidate c is strictly preferred over o per the RFC
-// 5308 sec 5 order: first the preference class (rank), then the metric. Used to
-// pick the single winning route for a prefix across levels.
+// better compares IPv4 candidates by RFC 2966 section 3.2 preference, then
+// metric. External metrics are never added to internal path costs.
 func (c candidate) better(o candidate) bool {
+	rc, ro := c.ipv4Rank(), o.ipv4Rank()
+	if rc != ro {
+		return rc < ro
+	}
+	if c.metric != o.metric {
+		return c.metric < o.metric
+	}
+	// RFC 1195 section 3.10.2: "Amongst routes with an equal external
+	// metric, routes with a shorter internal metric are prefered."
+	return c.externalMetric && c.internalMetric < o.internalMetric
+}
+
+// ipv4Rank keeps external metrics below every internal-metric class.
+func (c candidate) ipv4Rank() int {
+	rank := preferenceRank(c.level, c.upDown)
+	if c.externalMetric {
+		rank += 4
+	}
+	return rank
+}
+
+// betterV6 applies RFC 5308 section 5, which has no external metric type.
+func (c candidate) betterV6(o candidate) bool {
 	rc, ro := preferenceRank(c.level, c.upDown), preferenceRank(o.level, o.upDown)
 	if rc != ro {
 		return rc < ro
 	}
 	return c.metric < o.metric
+}
+
+// mergeEqual combines originators only after their preference and cost compare
+// equal. A terminal rejection survives only when neither originator can forward.
+func (c candidate) mergeEqual(o candidate) candidate {
+	if c.nextHops[0].Unsupported {
+		if !o.nextHops[0].Unsupported {
+			return o
+		}
+		c.external = c.external && o.external
+		return c
+	}
+	if o.nextHops[0].Unsupported {
+		return c
+	}
+	c.external = c.external && o.external
+	if slices.Equal(c.nextHops, o.nextHops) {
+		return c
+	}
+	// Resolver results are shared by every prefix on their originator. Build a
+	// separate union rather than modifying either borrowed next-hop slice.
+	merged := make([]NextHop, 0, len(c.nextHops)+len(o.nextHops))
+	i, j := 0, 0
+	for i < len(c.nextHops) && j < len(o.nextHops) {
+		switch cmp := compareNextHop(c.nextHops[i], o.nextHops[j]); {
+		case cmp < 0:
+			merged = append(merged, c.nextHops[i])
+			i++
+		case cmp > 0:
+			merged = append(merged, o.nextHops[j])
+			j++
+		default:
+			merged = append(merged, c.nextHops[i])
+			i++
+			j++
+		}
+	}
+	merged = append(merged, c.nextHops[i:]...)
+	c.nextHops = append(merged, o.nextHops[j:]...)
+	return c
+}
+
+func compareNextHop(a, b NextHop) int {
+	if cmp := a.Addr.Compare(b.Addr); cmp != 0 {
+		return cmp
+	}
+	if a.Interface < b.Interface {
+		return -1
+	}
+	if a.Interface > b.Interface {
+		return 1
+	}
+	if a.OnLink == b.OnLink {
+		return 0
+	}
+	if a.OnLink {
+		return 1
+	}
+	return -1
 }
 
 // NextHopResolver maps a first-hop neighbor System ID (a directly-adjacent
@@ -116,10 +212,9 @@ type NextHopResolver interface {
 // next-hops via res; a prefix advertised with a metric at or above MaxPathMetric
 // is unreachable and skipped (RFC 5305 sec 4 / RFC 5308 sec 2). When the same
 // prefix is reachable from more than one level / up-down state, the single
-// winner is chosen by the RFC 5308 sec 5 preference order (L1-up > L2-up >
-// L2-down > L1-down, then metric). The root's own connected prefixes (distance
-// 0, empty first-hop set) are skipped here: they are installed by the connected
-// route source, not IS-IS (avoids IS-IS claiming a directly-connected prefix).
+// winner is chosen by RFC 2966 section 3.2, then by metric. The root's own
+// connected prefixes (distance 0, empty first-hop set) are skipped here: the
+// connected route source owns them, not IS-IS.
 //
 // results may hold one or both levels; resolver is the live next-hop source.
 func BuildRoutes(results []*Result, graphs map[Level]*Graph, resolver NextHopResolver) []RouteEntry {
@@ -154,18 +249,37 @@ func BuildRoutes(results []*Result, graphs map[Level]*Graph, resolver NextHopRes
 			}
 			for _, p := range node.Prefixes {
 				total := clampMetric(nr.Metric, uint64(p.Metric))
+				// RFC 1195 section 3.4: "the lowest value of the external
+				// metric is preferred regardless of the internal cost to
+				// reach the appropriate exit point."
+				if p.ExternalMetric {
+					total = uint64(p.Metric)
+				}
 				if total >= MaxPathMetric {
 					continue // RFC 5305 sec 4: at/above MAX_PATH_METRIC is unreachable
 				}
 				cand := candidate{
-					metric:   total,
-					level:    res.Level,
-					upDown:   p.UpDown,
-					nextHops: nhs,
+					metric:         total,
+					level:          res.Level,
+					upDown:         p.UpDown,
+					nextHops:       nhs,
+					external:       p.External,
+					externalMetric: p.ExternalMetric,
+					internalMetric: nr.Metric,
+				}
+				if !p.ExternalMetric {
+					cand.internalMetric = 0
+				}
+				// RFC 2966 section 3.3 recommends ignoring the up/down bit in
+				// narrow L2 entries; the wide format uses RFC 5302's order.
+				if p.Narrow && res.Level == Level2 {
+					cand.upDown = false
 				}
 				cur, ok := best[p.Prefix]
 				if !ok || cand.better(cur) {
 					best[p.Prefix] = cand
+				} else if !cur.better(cand) {
+					best[p.Prefix] = cur.mergeEqual(cand)
 				}
 			}
 		}
@@ -174,11 +288,14 @@ func BuildRoutes(results []*Result, graphs map[Level]*Graph, resolver NextHopRes
 	out := make([]RouteEntry, 0, len(best))
 	for pfx, c := range best {
 		out = append(out, RouteEntry{
-			Prefix:   pfx,
-			Metric:   c.metric,
-			Level:    c.level,
-			UpDown:   c.upDown,
-			NextHops: c.nextHops,
+			Prefix:         pfx,
+			Metric:         c.metric,
+			Level:          c.level,
+			UpDown:         c.upDown,
+			External:       c.external,
+			ExternalMetric: c.externalMetric,
+			InternalMetric: c.internalMetric,
+			NextHops:       c.nextHops,
 		})
 	}
 	// Sort for determinism. netip.Prefix.Compare is a zero-alloc NUMERIC total
@@ -196,29 +313,38 @@ func BuildRoutes(results []*Result, graphs map[Level]*Graph, resolver NextHopRes
 	return out
 }
 
-// resolveHops resolves a node's first-hop System IDs to deduplicated next-hops
-// via resolver, sorted by address. A first-hop with no usable adjacency is
-// dropped; the result is the ECMP next-hop set for the destination.
+// resolveHops resolves first-hop System IDs. Unsupported protocol suites do not
+// participate in ECMP; if every resolved adjacency is unsupported, retain a
+// terminal rejection so a default route cannot bypass RFC 1195 section 4.5.
 func resolveHops(resolver NextHopResolver, level Level, firstHops []types.SystemID) []NextHop {
 	if resolver == nil {
 		return nil
 	}
-	seen := make(map[netip.Addr]struct{}, len(firstHops))
+	seen := make(map[NextHop]struct{}, len(firstHops))
 	out := make([]NextHop, 0, len(firstHops))
+	unsupported := false
 	for _, sys := range firstHops {
 		nh, ok := resolver.ResolveNextHop(level, sys)
-		if !ok || !nh.Addr.IsValid() {
+		if !ok {
 			continue
 		}
-		if _, dup := seen[nh.Addr]; dup {
+		if nh.Unsupported {
+			unsupported = true
 			continue
 		}
-		seen[nh.Addr] = struct{}{}
+		if !nh.Addr.IsValid() {
+			continue
+		}
+		if _, dup := seen[nh]; dup {
+			continue
+		}
+		seen[nh] = struct{}{}
 		out = append(out, nh)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].Addr.Compare(out[j].Addr) < 0
-	})
+	if len(out) == 0 && unsupported {
+		return []NextHop{{Unsupported: true}}
+	}
+	slices.SortFunc(out, compareNextHop)
 	return out
 }
 
@@ -284,11 +410,17 @@ func routeEqual(a, b RouteEntry) bool {
 	if a.Metric != b.Metric || a.Level != b.Level || a.UpDown != b.UpDown {
 		return false
 	}
+	if a.External != b.External || a.ExternalMetric != b.ExternalMetric {
+		return false
+	}
+	if a.ExternalMetric && a.InternalMetric != b.InternalMetric {
+		return false
+	}
 	if len(a.NextHops) != len(b.NextHops) {
 		return false
 	}
 	for i := range a.NextHops {
-		if a.NextHops[i].Addr != b.NextHops[i].Addr || a.NextHops[i].Interface != b.NextHops[i].Interface {
+		if a.NextHops[i] != b.NextHops[i] {
 			return false
 		}
 	}
@@ -311,17 +443,21 @@ func IndexByPrefix(routes []RouteEntry) map[netip.Prefix]RouteEntry {
 // metric, level, up/down flag, and the resolved next-hops (address + interface).
 // Flat value with no pointers so it crosses the CLI/RPC boundary cleanly.
 type RouteSnapshotEntry struct {
-	Prefix   string             `json:"prefix"`
-	Metric   uint64             `json:"metric"`
-	Level    string             `json:"level"`
-	UpDown   bool               `json:"up-down,omitempty"`
-	NextHops []RouteSnapshotHop `json:"next-hops"`
+	Prefix         string             `json:"prefix"`
+	Metric         uint64             `json:"metric"`
+	Level          string             `json:"level"`
+	UpDown         bool               `json:"up-down,omitempty"`
+	External       bool               `json:"external,omitempty"`
+	ExternalMetric bool               `json:"external-metric,omitempty"`
+	InternalMetric uint64             `json:"internal-metric,omitempty"`
+	NextHops       []RouteSnapshotHop `json:"next-hops"`
 }
 
 // RouteSnapshotHop is one next-hop in a snapshot row.
 type RouteSnapshotHop struct {
-	NextHop   string `json:"next-hop"`
-	Interface string `json:"interface,omitempty"`
+	NextHop     string `json:"next-hop"`
+	Interface   string `json:"interface,omitempty"`
+	Unsupported bool   `json:"unsupported,omitempty"`
 }
 
 // Snapshot renders a route set as the `show isis route` view, sorted by prefix.
@@ -333,16 +469,20 @@ func Snapshot(routes []RouteEntry) []RouteSnapshotEntry {
 		hops := make([]RouteSnapshotHop, 0, len(r.NextHops))
 		for _, nh := range r.NextHops {
 			hops = append(hops, RouteSnapshotHop{
-				NextHop:   nh.Addr.String(),
-				Interface: nh.Interface,
+				NextHop:     nh.Addr.String(),
+				Interface:   nh.Interface,
+				Unsupported: nh.Unsupported,
 			})
 		}
 		out = append(out, RouteSnapshotEntry{
-			Prefix:   r.Prefix.String(),
-			Metric:   r.Metric,
-			Level:    r.Level.String(),
-			UpDown:   r.UpDown,
-			NextHops: hops,
+			Prefix:         r.Prefix.String(),
+			Metric:         r.Metric,
+			Level:          r.Level.String(),
+			UpDown:         r.UpDown,
+			External:       r.External,
+			ExternalMetric: r.ExternalMetric,
+			InternalMetric: r.InternalMetric,
+			NextHops:       hops,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Prefix < out[j].Prefix })

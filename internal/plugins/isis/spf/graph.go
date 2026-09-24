@@ -69,6 +69,14 @@ type Prefix struct {
 	// / RFC 2966): set means the prefix was leaked DOWN a level (L2 -> L1). A
 	// prefix with this bit set MUST NOT be re-leaked UP into L2 (loop prevention).
 	UpDown bool
+	// External distinguishes TLV 130 origin from internal reachability. It does
+	// not itself lower route preference: only the external metric type does.
+	External bool
+	// ExternalMetric marks a metric that is compared before the internal cost
+	// to the advertising router (RFC 1195 section 3.10.2).
+	ExternalMetric bool
+	// Narrow preserves TLV 128/130 encoding when leaking between levels.
+	Narrow bool
 }
 
 // Node is one vertex: a router or a LAN pseudo-node. It holds the edges it
@@ -186,6 +194,35 @@ func BuildGraph(src Source, level Level) *Graph {
 func addTLVs(n *Node, lsp packet.LSP) {
 	for _, tlv := range lsp.TLVs {
 		switch tlv.Type {
+		case packet.TLVISReachabilityNarrow:
+			t, err := packet.DecodeNarrowISReachTLV(tlv.Value)
+			if err != nil {
+				continue
+			}
+			for _, e := range t.Entries {
+				n.Edges = append(n.Edges, Edge{To: e.Neighbor, Metric: uint32(e.DefaultMetricValue)})
+			}
+		case packet.TLVIPInternalReachability, packet.TLVIPExternalReachability:
+			if n.IsPseudonode() {
+				continue
+			}
+			external := tlv.Type == packet.TLVIPExternalReachability
+			t, err := packet.DecodeNarrowIPReachTLV(tlv.Value, external)
+			if err != nil {
+				continue
+			}
+			for _, e := range t.Entries {
+				// RFC 2966 section 3.3: "Upon receipt of an IP prefix with
+				// this combination, routers must ignore this prefix."
+				if !external && e.ExternalMetric {
+					continue
+				}
+				n.Prefixes = append(n.Prefixes, Prefix{
+					Prefix: e.Prefix.Masked(), Metric: uint32(e.DefaultMetricValue),
+					UpDown: e.UpDown, External: external,
+					ExternalMetric: e.ExternalMetric, Narrow: true,
+				})
+			}
 		case packet.TLVExtendedISReach:
 			t, err := packet.DecodeExtendedISReachTLV(tlv.Value)
 			if err != nil {

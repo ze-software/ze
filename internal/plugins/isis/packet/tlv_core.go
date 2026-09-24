@@ -12,6 +12,7 @@ import "github.com/ze-software/ze/internal/plugins/isis/types"
 
 // NLPID values carried in TLV 129 (Protocols Supported, RFC 1195 / RFC 5308).
 const (
+	NLPIDCLNP = 0x81 // ISO 8473; RFC 1195 sec 5.3.1
 	NLPIDIPv4 = 0xCC // RFC 1195
 	NLPIDIPv6 = 0x8E // RFC 5308 sec 4
 )

@@ -43,6 +43,11 @@ func (s *fakeSender) SendPDUBothLevels(name string, pdu []byte) error {
 	return nil
 }
 
+func (s *fakeSender) SendISH(name string, pdu []byte) error {
+	s.sent = append(s.sent, sentPDU{name: name, pdu: append([]byte(nil), pdu...)})
+	return nil
+}
+
 func (s *fakeSender) InterfaceMTU(string) (int, bool) {
 	if s.mtu == 0 {
 		return 0, false
@@ -61,10 +66,15 @@ func testArea(t *testing.T) types.AreaID {
 
 func lanCircuit(t *testing.T, s Sender) *Circuit {
 	t.Helper()
+	net, err := types.ParseNET("49.0001.0000.0000.0001.00")
+	if err != nil {
+		t.Fatal(err)
+	}
 	return New(Config{
 		Name:     "eth0",
 		IfIndex:  3,
 		SystemID: types.SystemID{0, 0, 0, 0, 0, 1},
+		NET:      net,
 		SNPA:     adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
 		Areas:    []types.AreaID{testArea(t)},
 		IPv4:     netip.MustParseAddr("192.0.2.1"),

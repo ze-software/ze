@@ -138,3 +138,33 @@ func TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix(t *testing.T) {
 		t.Fatalf("route %s next hops = %v, want the first hop toward B (%s)", pfx, r.NextHops, wantHop)
 	}
 }
+
+// RFC requirement: RFC1195-7-3 negative -- a reachable prefix whose bytes resemble a disconnected router cannot make that router's remote prefix reachable.
+// RFC requirement: RFC1195-7-5 negative -- prefix leaves cannot act as transit vertices connecting otherwise disconnected router components.
+func TestRFC1195PrefixCannotBridgeDisconnectedRouters(t *testing.T) {
+	src := newStubSource()
+	pfx := netip.MustParsePrefix("10.4.0.0/24")
+	lookalike := types.NewSourceID(types.SystemID{0x0a, 0x04, 0x00, 0x00, 0x18, 0x00}, 0)
+	a, b, c := srcID(1), srcID(2), srcID(3)
+	src.bidir(a, b, 10)
+	src.bidir(lookalike, c, 5)
+	remote := netip.MustParsePrefix("198.51.100.0/24")
+	for i := range src.byLevel[Level1] {
+		rec := &src.byLevel[Level1][i]
+		switch rec.Source {
+		case b:
+			rec.LSP.TLVs = append(rec.LSP.TLVs, tlv135(pfx, 1, false))
+		case c:
+			rec.LSP.TLVs = append(rec.LSP.TLVs, tlv135(remote, 1, false))
+		}
+	}
+	g := BuildGraph(src, Level1)
+	res := Compute(g, sysID(1), Level1)
+	routes := routeByPrefix(BuildRoutes([]*Result{res}, map[Level]*Graph{Level1: g}, stubResolver{}))
+	if _, ok := routes[remote]; ok {
+		t.Fatalf("prefix %s bridged the disconnected router component: %+v", pfx, routes[remote])
+	}
+	if route, ok := routes[pfx]; !ok || route.Metric != 11 || len(route.NextHops) != 1 || route.NextHops[0].Addr.String() != "10.0.0.2" {
+		t.Fatalf("reachable prefix was confused with a router: %+v", route)
+	}
+}

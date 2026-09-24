@@ -9,13 +9,14 @@
 //   than MAX_V6_PATH_METRIC (0xFE000000) MUST NOT be considered during normal
 //   SPF computation." This file applies that filter to TLV 236 leaves.
 // RFC: rfc/short/rfc5308.md sec 5 -- the up/down-aware path preference order
-//   (L1-up > L2-up > L2-down > L1-down, then metric) is identical to IPv4 and is
-//   reused via the shared candidate.better / preferenceRank (route.go).
+//   (L1-up > L2-up > L2-down > L1-down, then metric) uses
+//   candidate.betterV6 / preferenceRank (route.go).
 
 package spf
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 
 	"github.com/ze-software/ze/internal/plugins/isis/types"
@@ -44,7 +45,7 @@ type NextHopResolverV6 interface {
 // results / graphs (the shared tree), but attaches each reachable node's TLV 236
 // (IPv6) prefixes instead of TLV 135, resolves next-hops via the IPv6 resolver,
 // and applies the RFC 5308 sec 2 MAX_V6_PATH_METRIC filter. The multi-level
-// arbitration (preferenceRank / candidate.better) is shared with IPv4. The root's
+// arbitration uses candidate.betterV6. The root's
 // own connected prefixes (distance 0, no first-hop) are skipped, exactly as IPv4.
 func BuildRoutesV6(results []*Result, graphs map[Level]*Graph, resolver NextHopResolverV6) []RouteEntry {
 	best := make(map[netip.Prefix]candidate)
@@ -90,8 +91,10 @@ func BuildRoutesV6(results []*Result, graphs map[Level]*Graph, resolver NextHopR
 					nextHops: nhs,
 				}
 				cur, ok := best[p.Prefix]
-				if !ok || cand.better(cur) {
+				if !ok || cand.betterV6(cur) {
 					best[p.Prefix] = cand
+				} else if !cur.betterV6(cand) {
+					best[p.Prefix] = cur.mergeEqual(cand)
 				}
 			}
 		}
@@ -118,29 +121,36 @@ func BuildRoutesV6(results []*Result, graphs map[Level]*Graph, resolver NextHopR
 	return out
 }
 
-// resolveHopsV6 resolves a node's first-hop System IDs to deduplicated IPv6
-// next-hops via resolver, sorted by address. A first-hop with no usable IPv6
-// adjacency is dropped; the result is the ECMP next-hop set for the destination.
-// Mirrors resolveHops for IPv4.
+// resolveHopsV6 applies the same protocol-suite rejection and interface-aware
+// ECMP identity as IPv4 to the IPv6 resolver.
 func resolveHopsV6(resolver NextHopResolverV6, level Level, firstHops []types.SystemID) []NextHop {
 	if resolver == nil {
 		return nil
 	}
-	seen := make(map[netip.Addr]struct{}, len(firstHops))
+	seen := make(map[NextHop]struct{}, len(firstHops))
 	out := make([]NextHop, 0, len(firstHops))
+	unsupported := false
 	for _, sys := range firstHops {
 		nh, ok := resolver.ResolveNextHopV6(level, sys)
-		if !ok || !nh.Addr.IsValid() {
+		if !ok {
 			continue
 		}
-		if _, dup := seen[nh.Addr]; dup {
+		if nh.Unsupported {
+			unsupported = true
 			continue
 		}
-		seen[nh.Addr] = struct{}{}
+		if !nh.Addr.IsValid() {
+			continue
+		}
+		if _, dup := seen[nh]; dup {
+			continue
+		}
+		seen[nh] = struct{}{}
 		out = append(out, nh)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		return out[i].Addr.Compare(out[j].Addr) < 0
-	})
+	if len(out) == 0 && unsupported {
+		return []NextHop{{Unsupported: true}}
+	}
+	slices.SortFunc(out, compareNextHop)
 	return out
 }

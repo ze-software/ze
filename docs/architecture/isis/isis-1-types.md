@@ -36,7 +36,9 @@ The two constructors have different error surfaces on purpose:
 `MetricFromBytes` cannot range-error because 3 octets cannot exceed 24 bits,
 while `NewMetric` can because a caller can pass a larger `uint32`.
 
-The narrow 6-bit metric is not modeled. Ze originates wide metrics only.
+Narrow IPv4 metrics are retained as six-bit values by the packet codec and
+marked separately in SPF and origination. Connected and redistributed routes
+use wide metrics; a received narrow route keeps its format when leaked.
 
 <!-- source: internal/plugins/isis/types/metric.go -- Metric, PrefixMetric, NewMetric, MetricFromBytes -->
 
@@ -89,3 +91,10 @@ The NET text form groups the first octet alone and then in pairs
 (`49.0001.0000.0000.0001.00`). That is a **different** grouping from the plain
 dotted hex used by `SystemID` and `LSPID`. Two append helpers exist for this
 reason. Do not unify them.
+
+`ParseNET` and `NETFromBytes` share validation. A 20-octet GOSIP NET with
+AFI 47 and ICD 0005 must carry zero in its two reserved octets. IEEE-derived
+System IDs retain canonical byte order through parsing, the NET and the wire;
+neither constructor reverses MAC-address bits.
+
+<!-- source: internal/plugins/isis/types/net.go -- ParseNET, NETFromBytes -->

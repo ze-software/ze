@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
 	"github.com/ze-software/ze/internal/plugins/isis/spf"
+	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
@@ -401,7 +402,7 @@ func levelStateEqual(a, b lsdb.LevelState) bool {
 // prefixInfoEqual reports whether two TLV 135 entries are identical (prefix,
 // metric, up/down bit).
 func prefixInfoEqual(a, b lsdb.PrefixInfo) bool {
-	return a.Prefix == b.Prefix && a.Metric.Value() == b.Metric.Value() && a.UpDown == b.UpDown
+	return a == b
 }
 
 // prefixInfoV6Equal reports whether two TLV 236 entries are identical (prefix,
@@ -420,7 +421,7 @@ func (e *engine) nodeInfo(cfg Config) lsdb.NodeInfo {
 		Areas:         areaAddresses(cfg.NETs),
 		Hostname:      cfg.Hostname,
 		AdvertiseIPv4: true,
-		AdvertiseIPv6: e.anyIPv6Circuit(),
+		AdvertiseIPv6: cfg.Protocols()&adjacency.ProtocolIPv6 != 0,
 		Overload:      cfg.Overload,
 		MaxLifetime:   cfg.LSPLifetime,
 		MaxLSPSize:    e.minCircuitMTU(),
@@ -628,9 +629,12 @@ func leakedToPrefixInfos(leaked []spf.LeakedPrefix) []lsdb.PrefixInfo {
 	out := make([]lsdb.PrefixInfo, 0, len(leaked))
 	for _, lp := range leaked {
 		out = append(out, lsdb.PrefixInfo{
-			Prefix: lp.Prefix,
-			Metric: types.NewPrefixMetric(lp.Metric),
-			UpDown: lp.UpDown,
+			Prefix:         lp.Prefix,
+			Metric:         types.NewPrefixMetric(lp.Metric),
+			UpDown:         lp.UpDown,
+			Narrow:         lp.Narrow,
+			External:       lp.External,
+			ExternalMetric: lp.ExternalMetric,
 		})
 	}
 	return out
@@ -664,7 +668,7 @@ func prefixInfosEqual(a, b []lsdb.PrefixInfo) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Prefix != b[i].Prefix || a[i].Metric.Value() != b[i].Metric.Value() || a[i].UpDown != b[i].UpDown {
+		if !prefixInfoEqual(a[i], b[i]) {
 			return false
 		}
 	}
@@ -765,6 +769,7 @@ func (e *engine) emitLSPChange(level, lspID string, sequence uint32, action stri
 // "refresh", but SPF would recompute an identical route set, so a stream of
 // duplicates must not thrash it. A nil bus makes this a no-op.
 func (e *engine) publishLSPChange(level, lspID string, sequence uint32, action string) {
+	e.publishBGPLS()
 	bus := getEventBus()
 	if bus == nil {
 		return
@@ -938,32 +943,26 @@ func configFormsLevel(cfgLevel Level, level lsdb.Level) bool {
 	}
 }
 
-// anyIPv6Circuit reports whether any running circuit enables the IPv6 family, so
-// TLV 129 advertises NLPID 0x8E (the data plane is isis-12).
-func (e *engine) anyIPv6Circuit() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	for _, ic := range e.running {
-		if advertisesIPv6(ic) {
-			return true
-		}
-	}
-	return false
-}
-
-// minCircuitMTU returns the smallest MTU across running circuits (the safe LSP
-// fragmentation bound, spec A-5), or 0 when none is known (the originator then
-// uses its default).
+// minCircuitMTU returns the unsigned LSP budget shared by ordinary and
+// pseudonode origination. The interface MTU includes LLC and the final PDU also
+// needs room for its authentication TLV.
 func (e *engine) minCircuitMTU() int {
 	e.circuitsMu.RLock()
 	defer e.circuitsMu.RUnlock()
 	min := 0
 	for name := range e.circuitByName {
-		if mtu, ok := e.transport.InterfaceMTU(name); ok && mtu > 0 {
+		if mtu, ok := e.transport.InterfaceMTU(name); ok && mtu > transport.LLCHeaderLen {
+			mtu -= transport.LLCHeaderLen
 			if min == 0 || mtu < min {
 				min = mtu
 			}
 		}
+	}
+	if authSize := e.lspAuthenticationSize(); authSize > 0 {
+		if min == 0 {
+			min = lsdb.DefaultMaxLSPSize
+		}
+		min -= authSize
 	}
 	return min
 }

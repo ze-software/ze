@@ -11,24 +11,24 @@
 package packet
 
 // TLV type codes handled by this codec (ISO/IEC 10589 clause 9 and the
-// extension RFCs). The umbrella TLV inventory enumerates the full set; this
-// codec encodes/decodes 1, 6, 8, 9, 10, 22, 129, 132, 135, 137, 232, 236, 240
-// and decode-only TLV 2.
+// extension RFCs). TLV 2 is decoded for narrow-metric interoperability.
 const (
-	TLVAreaAddresses        = 1   // ISO/IEC 10589 clause 9.2
-	TLVISReachabilityNarrow = 2   // ISO/IEC 10589 clause 9.3 (decode-only)
-	TLVISNeighbors          = 6   // ISO/IEC 10589 clause 9.4 (LAN SNPA list)
-	TLVPadding              = 8   // ISO/IEC 10589 clause 9.10
-	TLVLSPEntries           = 9   // ISO/IEC 10589 clause 9.14
-	TLVAuthentication       = 10  // ISO/IEC 10589 clause 9.8 / RFC 5304
-	TLVExtendedISReach      = 22  // RFC 5305 sec 3
-	TLVProtocolsSupported   = 129 // RFC 1195
-	TLVIPInterfaceAddress   = 132 // RFC 1195
-	TLVExtendedIPReach      = 135 // RFC 5305 sec 4
-	TLVDynamicHostname      = 137 // RFC 5301
-	TLVIPv6InterfaceAddress = 232 // RFC 5308 sec 3
-	TLVIPv6Reachability     = 236 // RFC 5308 sec 2
-	TLVP2PThreeWay          = 240 // RFC 5303 sec 3.1
+	TLVAreaAddresses          = 1   // ISO/IEC 10589 clause 9.2
+	TLVISReachabilityNarrow   = 2   // ISO/IEC 10589 clause 9.3 (decode-only)
+	TLVISNeighbors            = 6   // ISO/IEC 10589 clause 9.4 (LAN SNPA list)
+	TLVPadding                = 8   // ISO/IEC 10589 clause 9.10
+	TLVLSPEntries             = 9   // ISO/IEC 10589 clause 9.14
+	TLVAuthentication         = 10  // ISO/IEC 10589 clause 9.8 / RFC 5304
+	TLVExtendedISReach        = 22  // RFC 5305 sec 3
+	TLVIPInternalReachability = 128 // RFC 1195 sec 5.3.4
+	TLVProtocolsSupported     = 129 // RFC 1195
+	TLVIPExternalReachability = 130 // RFC 1195 sec 5.3.5
+	TLVIPInterfaceAddress     = 132 // RFC 1195
+	TLVExtendedIPReach        = 135 // RFC 5305 sec 4
+	TLVDynamicHostname        = 137 // RFC 5301
+	TLVIPv6InterfaceAddress   = 232 // RFC 5308 sec 3
+	TLVIPv6Reachability       = 236 // RFC 5308 sec 2
+	TLVP2PThreeWay            = 240 // RFC 5303 sec 3.1
 )
 
 // TLVHeaderLen is the fixed type+length framing of one TLV or sub-TLV.

@@ -116,80 +116,35 @@ type candKey struct {
 	upDown bool
 }
 
-// TestISISEqualRankEqualMetricDeterminism pins the tie-break contract when two
-// distinct paths reach the same prefix at the SAME preference class (both L1-up,
-// rank 0) with the SAME total metric. candidate.better is a STRICT order, so on a
-// rank+metric tie it returns false in BOTH directions; BuildRoutes therefore keeps
-// the FIRST candidate it placed (`if !ok || cand.better(cur)`), never flipping to
-// a later equal one. The winner's metric and level must be invariant regardless of
-// the (map-randomized) order the candidates are visited in -- no nondeterministic
-// selection across prefix/node orderings (map iteration order is randomized).
+// Equal-cost originators contribute both next hops to the selected route.
 func TestISISEqualRankEqualMetricDeterminism(t *testing.T) {
-	// Contract on better() itself: equal rank + equal metric is not "better" either
-	// way (strict), so the incumbent (first seen) wins.
-	a := candidate{metric: 50, level: Level1, upDown: false}
-	b := candidate{metric: 50, level: Level1, upDown: false}
-	if a.better(b) || b.better(a) {
-		t.Fatalf("equal rank + equal metric must not be strictly better either way: a.better(b)=%v b.better(a)=%v",
-			a.better(b), b.better(a))
-	}
-	// And a strictly lower metric at the same rank still wins (sanity on the tie axis).
-	lower := candidate{metric: 49, level: Level1, upDown: false}
-	if !lower.better(a) || a.better(lower) {
-		t.Fatalf("lower metric at equal rank must win: lower.better(a)=%v a.better(lower)=%v",
-			lower.better(a), a.better(lower))
-	}
-
-	// BuildRoutes level: two distinct nodes both advertise the same prefix, both at
-	// total metric 50 in L1-up, with DIFFERENT first-hops (so the two candidates are
-	// genuinely distinct, not deduplicated). res.Nodes is a map, so the visit order
-	// is randomized by the runtime; the chosen route's metric/level must be stable
-	// across many runs even though the surviving next-hop set is first-seen.
 	root := sysID(1)
-	nodeA := srcID(2)
-	nodeB := srcID(3)
-	pfx := netip.MustParsePrefix("10.9.0.0/24")
-
-	build := func() RouteEntry {
-		g := NewGraph()
-		g.node(types.NewSourceID(root, 0))
-		na := g.node(nodeA)
-		na.Prefixes = append(na.Prefixes, Prefix{Prefix: pfx, Metric: 0})
-		nb := g.node(nodeB)
-		nb.Prefixes = append(nb.Prefixes, Prefix{Prefix: pfx, Metric: 0})
-		res := &Result{
-			Root:  root,
-			Level: Level1,
-			Nodes: map[types.SourceID]*NodeResult{
-				// Both reach the prefix at total metric 50, distinct first-hops.
-				nodeA: {ID: nodeA, Metric: 50, FirstHops: []types.SystemID{nodeA.SystemID()}},
-				nodeB: {ID: nodeB, Metric: 50, FirstHops: []types.SystemID{nodeB.SystemID()}},
-			},
-		}
-		routes := BuildRoutes([]*Result{res}, map[Level]*Graph{Level1: g}, stubResolver{})
-		if len(routes) != 1 {
-			t.Fatalf("got %d routes, want exactly 1 winner for a tied prefix (%+v)", len(routes), routes)
-		}
-		return routes[0]
+	nodeA, nodeB := srcID(2), srcID(3)
+	prefix := netip.MustParsePrefix("10.9.0.0/24")
+	graph := NewGraph()
+	graph.node(types.NewSourceID(root, 0))
+	graph.node(nodeA).Prefixes = []Prefix{{Prefix: prefix}}
+	graph.node(nodeB).Prefixes = []Prefix{{Prefix: prefix}}
+	result := &Result{
+		Root:  root,
+		Level: Level1,
+		Nodes: map[types.SourceID]*NodeResult{
+			nodeA: {ID: nodeA, Metric: 50, FirstHops: []types.SystemID{nodeA.SystemID()}},
+			nodeB: {ID: nodeB, Metric: 50, FirstHops: []types.SystemID{nodeB.SystemID()}},
+		},
 	}
-
-	// The metric and level of the winner must be deterministic across runs; only the
-	// first-seen next-hop may vary, and it must never be empty (a real route).
-	const runs = 64
-	first := build()
-	for i := range runs {
-		got := build()
-		if got.Metric != first.Metric || got.Level != first.Level || got.UpDown != first.UpDown {
-			t.Fatalf("run %d: winner changed metric/level/up: got {m=%d l=%s u=%v} want {m=%d l=%s u=%v}",
-				i, got.Metric, got.Level, got.UpDown, first.Metric, first.Level, first.UpDown)
-		}
-		if got.Metric != 50 || got.Level != Level1 || got.UpDown {
-			t.Fatalf("run %d: winner = {m=%d l=%s u=%v}, want {m=50 l=L1 u=false}",
-				i, got.Metric, got.Level, got.UpDown)
-		}
-		if len(got.NextHops) == 0 || !got.NextHops[0].Addr.IsValid() {
-			t.Fatalf("run %d: winner has no usable next-hop: %+v", i, got.NextHops)
-		}
+	routes := BuildRoutes([]*Result{result}, map[Level]*Graph{Level1: graph}, stubResolver{})
+	if len(routes) != 1 {
+		t.Fatalf("routes = %+v, want one equal-cost route", routes)
+	}
+	got := routes[0]
+	if got.Metric != 50 || got.Level != Level1 || got.UpDown {
+		t.Fatalf("equal-cost route changed preference or cost: %+v", got)
+	}
+	a := NextHop{Addr: netip.MustParseAddr("10.0.0.2"), Interface: "eth0"}
+	b := NextHop{Addr: netip.MustParseAddr("10.0.0.3"), Interface: "eth0"}
+	if len(got.NextHops) != 2 || got.NextHops[0] != a || got.NextHops[1] != b {
+		t.Fatalf("next hops = %+v, want both originators in stable order", got.NextHops)
 	}
 }
 

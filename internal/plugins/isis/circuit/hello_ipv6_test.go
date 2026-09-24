@@ -19,7 +19,7 @@ import (
 func dualStackLAN(t *testing.T, s Sender) *Circuit {
 	t.Helper()
 	c := lanCircuit(t, s)
-	c.advertiseIPv6 = true
+	c.SetProtocols(adjacency.ProtocolIPv4 | adjacency.ProtocolIPv6)
 	c.ipv6LinkLocal = netip.MustParseAddr("fe80::1")
 	return c
 }
@@ -106,7 +106,7 @@ func TestISISIIHNoTLV232WhenIPv4Only(t *testing.T) {
 func TestISISIIHTLV232OmittedNoLinkLocal(t *testing.T) {
 	s := &fakeSender{mtu: 1500}
 	c := lanCircuit(t, s)
-	c.advertiseIPv6 = true // NLPID 0x8E, but no link-local address set
+	c.SetProtocols(adjacency.ProtocolIPv4 | adjacency.ProtocolIPv6)
 	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestISISIIHTLV232RejectsNonLinkLocal(t *testing.T) {
 		t.Run(addr, func(t *testing.T) {
 			s := &fakeSender{mtu: 1500}
 			c := lanCircuit(t, s)
-			c.advertiseIPv6 = true
+			c.SetProtocols(adjacency.ProtocolIPv4 | adjacency.ProtocolIPv6)
 			c.ipv6LinkLocal = netip.MustParseAddr(addr)
 			if err := c.SendHello(adjacency.Level1); err != nil {
 				t.Fatal(err)

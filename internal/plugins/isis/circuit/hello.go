@@ -92,12 +92,11 @@ func (c *Circuit) areaAddressesTLV() packet.TLV {
 	return packet.TLV{Type: packet.TLVAreaAddresses, Value: append([]byte(nil), buf[:off]...)}
 }
 
-// protocolsSupportedTLV builds TLV 129 advertising the configured NLPIDs (IPv4
-// always; IPv6 when an IPv6 address family is enabled on the circuit).
+// protocolsSupportedTLV builds TLV 129 from the node-wide capability set.
 func (c *Circuit) protocolsSupportedTLV() packet.TLV {
 	nlpids := make([]byte, 0, 2)
 	nlpids = append(nlpids, packet.NLPIDIPv4)
-	if c.advertiseIPv6 {
+	if c.Protocols()&adjacency.ProtocolIPv6 != 0 {
 		nlpids = append(nlpids, packet.NLPIDIPv6)
 	}
 	return packet.TLV{Type: packet.TLVProtocolsSupported, Value: nlpids}
@@ -120,7 +119,7 @@ func (c *Circuit) ipv4InterfaceAddrTLV() packet.TLV {
 // neighbor learns. Returns a zero TLV (Type 0) when IPv6 is not advertised on
 // the circuit or there is no valid link-local address, so the caller omits it.
 func (c *Circuit) ipv6InterfaceAddrTLV() packet.TLV {
-	if !c.advertiseIPv6 {
+	if c.Protocols()&adjacency.ProtocolIPv6 == 0 {
 		return packet.TLV{}
 	}
 	a := c.ipv6LinkLocal

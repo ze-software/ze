@@ -79,7 +79,7 @@ func (linuxBackend) OpenCircuit(name string) (CircuitHandle, error) {
 
 	// Join the ISO multicast groups so the kernel delivers them to this socket
 	// without enabling promiscuous mode (A-2).
-	for _, mac := range [][MACLen]byte{AllL1ISs, AllL2ISs, AllISs} {
+	for _, mac := range [][MACLen]byte{AllL1ISs, AllL2ISs, AllISs, AllESs} {
 		if jerr := joinMulticast(fd, ifindex, mac); jerr != nil {
 			closeFD(fd)
 			return nil, fmt.Errorf("isis/transport: join ISO multicast group: %w", jerr)

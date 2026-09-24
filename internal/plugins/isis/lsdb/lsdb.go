@@ -444,6 +444,24 @@ func (d *LSDB) LSPIDs(level Level) []types.LSPID {
 	return out
 }
 
+// RawSnapshot returns the live LSPs at one instant, in LSP-ID order. Returned
+// bytes are immutable entry-owned storage; callers MUST NOT mutate them.
+// A replacement allocates a new Entry, so the borrowed bytes remain valid.
+func (d *LSDB) RawSnapshot(level Level) [][]byte {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	store := d.dbFor(level)
+	out := make([][]byte, 0, len(store.idsSorted))
+	for _, id := range store.idsSorted {
+		e := store.entries[id]
+		if e.IsPurged() || e.Lifetime() == 0 {
+			continue
+		}
+		out = append(out, e.Raw())
+	}
+	return out
+}
+
 // lSPEntries returns one packet.LSPEntry (TLV 9 record) per LSP at level, in
 // LSP-ID (CSNP range) order, built directly from the typed entry metadata under
 // a single read lock. It is the source for CSNP/PSNP build (isis-7): no string

@@ -34,6 +34,8 @@ type Sender interface {
 	SendPDU(name string, level transport.Level, pdu []byte) error
 	// SendPDUBothLevels sends to both AllL1ISs and AllL2ISs (an L1L2 circuit).
 	SendPDUBothLevels(name string, pdu []byte) error
+	// SendISH sends an ISO 9542 IS Hello to AllESs on the named circuit.
+	SendISH(name string, pdu []byte) error
 	// InterfaceMTU returns the circuit MTU so the engine can size the Padding TLV.
 	InterfaceMTU(name string) (int, bool)
 }
@@ -78,14 +80,16 @@ type Config struct {
 	IfIndex int
 	// SystemID is our own System ID.
 	SystemID types.SystemID
+	// NET is the configured Network Entity Title advertised in ISO 9542 ISHs.
+	NET types.NET
 	// SNPA is our own source MAC (the LAN three-way echo target). Zero on P2P.
 	SNPA adjacency.SNPA
 	// Areas are our configured area addresses (TLV 1 origination + L1 match).
 	Areas []types.AreaID
 	// IPv4 is our IPv4 interface address (TLV 132 origination + SPF next-hop).
 	IPv4 netip.Addr
-	// AdvertiseIPv6 adds NLPID 0x8E to TLV 129 (dual-stack circuits).
-	AdvertiseIPv6 bool
+	// Protocols is the node-wide capability set, identical on every interface.
+	Protocols adjacency.Protocols
 	// IPv6LinkLocal is our IPv6 link-local interface address (fe80::/10). It is
 	// originated in the IIH TLV 232 (RFC 5308 sec 3: a Hello carries ONLY
 	// link-local addresses) so a dual-stack neighbor learns the IPv6 next-hop.
@@ -120,10 +124,11 @@ type Circuit struct {
 	name           string
 	ifIndex        int
 	systemID       types.SystemID
+	net            types.NET
 	snpa           adjacency.SNPA
 	areas          []types.AreaID
 	ipv4           netip.Addr
-	advertiseIPv6  bool
+	protocols      adjacency.Protocols
 	ipv6LinkLocal  netip.Addr
 	kind           adjacency.CircuitKind
 	levels         []adjacency.Level
@@ -154,6 +159,10 @@ type Circuit struct {
 	// Hellos) and BEFORE framing. The level lets the engine pick the per-interface
 	// (IIH) chain for that level. nil leaves the Hello unsigned (the default).
 	sign func(level adjacency.Level, pdu []byte) []byte
+	// authenticationSize reserves the TLV bytes inserted by sign after padding.
+	authenticationSize func(level adjacency.Level) int
+	// signISH applies the ISO 9542 per-link password, independently of IIH crypto.
+	signISH func(pdu []byte) ([]byte, error)
 
 	// dis holds the per-level DIS election state on a broadcast circuit (isis-8).
 	// L1 and L2 elect independently (ISO/IEC 10589 clause 8.4.5), so there is one
@@ -173,10 +182,11 @@ func New(cfg Config, s Sender, now func() time.Time) *Circuit {
 		name:           cfg.Name,
 		ifIndex:        cfg.IfIndex,
 		systemID:       cfg.SystemID,
+		net:            cfg.NET,
 		snpa:           cfg.SNPA,
 		areas:          cfg.Areas,
 		ipv4:           cfg.IPv4,
-		advertiseIPv6:  cfg.AdvertiseIPv6,
+		protocols:      cfg.Protocols,
 		ipv6LinkLocal:  cfg.IPv6LinkLocal,
 		kind:           cfg.Kind,
 		levels:         cfg.Levels,
@@ -203,6 +213,23 @@ func New(cfg Config, s Sender, now func() time.Time) *Circuit {
 		}
 	}
 	return c
+}
+
+// SetProtocols replaces the node-wide capability set after a configuration
+// commit. The caller MUST update every circuit and wake each Hello sender.
+// Safe for concurrent use.
+func (c *Circuit) SetProtocols(protocols adjacency.Protocols) {
+	c.mu.Lock()
+	c.protocols = protocols
+	c.mu.Unlock()
+}
+
+// Protocols returns the node-wide set advertised in ISH and IIH packets.
+// Safe for concurrent use.
+func (c *Circuit) Protocols() adjacency.Protocols {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.protocols | adjacency.ProtocolIPv4
 }
 
 // Name returns the interface name.
@@ -287,13 +314,21 @@ func (c *Circuit) SetTransitionHooks(onUp, onDown func(level adjacency.Level)) {
 	c.mu.Unlock()
 }
 
-// SetSigner installs the per-interface (IIH) signer (spec-isis-10). The signer
-// takes the adjacency level and a fully-built, padded IIH and returns the signed
-// bytes (TLV 10 inserted first). nil disables signing. Safe to call before the
-// circuit goroutine starts; the send path reads it under c.mu.
-func (c *Circuit) SetSigner(sign func(level adjacency.Level, pdu []byte) []byte) {
+// SetSigner installs the per-interface IIH signer and its authentication TLV
+// size. The size is reserved before padding; sign receives the final padded IIH.
+// A nil size callback reserves no bytes. nil sign disables signing.
+func (c *Circuit) SetSigner(sign func(level adjacency.Level, pdu []byte) []byte, size func(level adjacency.Level) int) {
 	c.mu.Lock()
 	c.sign = sign
+	c.authenticationSize = size
+	c.mu.Unlock()
+}
+
+// SetISHSigner installs the ISO 9542 signer. Signing failure prevents both the
+// ISH and the following IIH from being sent. Safe for concurrent use.
+func (c *Circuit) SetISHSigner(sign func([]byte) ([]byte, error)) {
+	c.mu.Lock()
+	c.signISH = sign
 	c.mu.Unlock()
 }
 

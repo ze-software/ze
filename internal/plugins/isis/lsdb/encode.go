@@ -139,6 +139,23 @@ func extIPReachEntryBytes(p PrefixInfo) []byte {
 	return buf[packet.TLVHeaderLen:n]
 }
 
+// narrowIPReachEntryBytes preserves RFC 1195 route and metric types on a leak.
+// Offsets: default/delay/expense/error at 0..3, address at 4..7, mask at 8..11.
+func narrowIPReachEntryBytes(p PrefixInfo) []byte {
+	metric := min(p.Metric.Value(), uint32(63))
+	tlv := packet.NarrowIPReachTLV{
+		External: p.External,
+		Entries: []packet.NarrowIPReachEntry{{
+			DefaultMetricValue: uint8(metric), ExternalMetric: p.ExternalMetric,
+			UpDown: p.UpDown, Prefix: p.Prefix,
+			DelayMetric: 0x80, ExpenseMetric: 0x80, ErrorMetric: 0x80,
+		}},
+	}
+	buf := make([]byte, tlv.EncodedLen())
+	n := tlv.WriteTo(buf, 0)
+	return buf[packet.TLVHeaderLen:n]
+}
+
 // interfaceAddrV6TLVs builds one or more whole TLV 232 (IPv6 Interface Address,
 // RFC 5308 sec 3) values from the node's own NON-LINK-LOCAL IPv6 interface
 // addresses. Each address is 16 octets; a TLV value holds at most 255/16 = 15

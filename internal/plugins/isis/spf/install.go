@@ -33,6 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	ribdistance "github.com/ze-software/ze/internal/core/rib/distance"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
+	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
 // isisProtocolID is the Loc-RIB / redistribute source identity for IS-IS,
@@ -239,7 +240,7 @@ func (in *Installer) insert(r RouteEntry) {
 	metric := metricToUint32(r.Metric)
 
 	for i, nh := range r.NextHops {
-		if !nh.Addr.IsValid() {
+		if !nh.Addr.IsValid() && !nh.Unsupported {
 			continue
 		}
 		instance := uint32(i) //nolint:gosec // ECMP width is bounded well below 2^32
@@ -251,10 +252,17 @@ func (in *Installer) insert(r RouteEntry) {
 		// and no ForwardHandle (IS-IS has no shared wire buffer; untyped nil per
 		// the ForwardHandle nil contract). Routed through insertPath so a forked
 		// installer ships to the engine over RPC instead of the local Loc-RIB.
+		routeType := routetype.Unicast
+		if nh.Unsupported {
+			routeType = routetype.Unreachable
+		}
 		in.insertPath(r.Prefix, locrib.Path{
-			Source:   isisProtocolID,
-			Instance: instance,
-			NextHop:  nh.Addr,
+			Source:    isisProtocolID,
+			Instance:  instance,
+			NextHop:   nh.Addr,
+			Interface: nh.Interface,
+			OnLink:    nh.OnLink,
+			RouteType: routeType,
 			// The DECLARATION decides. locrib.selectBest ranks paths on what is
 			// stamped here and runs before sysrib sees the route, so
 			// `rib { distance { isis N } }` has to reach this line to change

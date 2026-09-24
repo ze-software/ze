@@ -63,6 +63,7 @@ separate codepath).
 | Common header | `header.go` | `PDUType` + 9 constants, `Header`, `DecodeHeader`, `CommonHeaderLen`, `ProtocolDiscriminator` |
 | Dispatch | `pdu.go` | `PDU` (decoded union), `DecodePDU` |
 | Hello | `hello.go` | `LANHello`, `P2PHello`, `CircuitType`, `DecodeLANHello`, `DecodeP2PHello` |
+| ISO 9542 Hello | `ish.go`, `ish_auth.go` | `ISH`, `DecodeISH`, `SignISH`, `VerifyISH`, `ESISProtocolDiscriminator` |
 | LSP | `lsp.go` | `LSP`, `DecodeLSP`, `(*LSP).WriteTo`, `(*LSP).VerifyChecksum`, `(*LSP).IsOverloaded` |
 | CSNP / PSNP | `csnp.go`, `psnp.go` | `CSNP`, `PSNP`, `DecodeCSNP`, `DecodePSNP` |
 | Checksum | `checksum.go` | `Checksum`, `VerifyChecksum` (ISO 8473 Fletcher, two-step) |
@@ -70,6 +71,7 @@ separate codepath).
 | Core TLVs | `tlv_core.go` | TLV 1, 8 (`WritePaddingTLV`), 9 (`LSPEntry`), 22 (`ExtISReachEntry`), 129, 137, 240 (`P2PThreeWayTLV`) |
 | Neighbor TLVs | `tlv_neighbours.go` | TLV 6 (`ISNeighborsTLV`), TLV 2 (`NarrowISReachTLV`, decode-only) |
 | IPv4 TLVs | `tlv_ipv4.go` | TLV 132, 135 (`ExtIPReachEntry`, `ExtendedIPReachTLV`) |
+| Narrow IPv4 TLVs | `tlv_narrow_ipv4.go` | `NarrowIPReachTLV`, `NarrowIPReachEntry`, `DecodeNarrowIPReachTLV` (128/130) |
 | IPv6 TLVs | `tlv_ipv6.go` | TLV 232, 236 (`IPv6ReachEntry`, `IPv6ReachabilityTLV`) |
 | Auth TLV | `tlv_auth.go` | `AuthTLV`, auth-type constants (structure only; sign/verify is isis-10) |
 | JSON view | `json.go` | `PDU.ToJSON`, `JSONView` (offline decode rendering) |
@@ -147,6 +149,29 @@ across offsets and lengths, and `TestISISChecksumDetectsCorruption` proves any
 single-byte flip is detected. `(*LSP).WriteTo` backfills the checksum last;
 `(*LSP).VerifyChecksum` validates a decoded LSP over its raw bytes.
 
+## ISO 9542 ISH
+
+An ISH uses NLPID `0x82` and its own header: total length at octet 1, version
+1 at octet 2, type 4 at octet 4, holding time at octets 5..6, and Fletcher
+checksum at octets 7..8. Octet 9 gives the NET length; the NET and options
+follow. The maximum PDU length is 254 octets. A zero checksum disables checking;
+a nonzero checksum must verify.
+
+The transport carries ISHs in the same 802.3 LLC encapsulation as IS-IS and
+joins All ESs (`09:00:2b:00:00:04`) for discovery. The dispatcher selects the
+ES-IS header before interpreting an IS-IS PDU type or authentication field.
+Point-to-point circuits send an ISH before their IIH. Receiving one can initialise
+discovery, but only IIH processing can establish or renew an Up adjacency.
+
+RFC 1195's per-link cleartext password is ISH option 133 with authentication
+type 1. A configured cleartext chain rejects a missing, wrong or expired
+password, including when no configured key could be decoded. RFC 5304 and
+RFC 5310 define no ES-IS HMAC option; a crypto-only chain protects the IIH while
+the ISH retains its limited discovery role.
+
+<!-- source: internal/plugins/isis/packet/ish.go -- ISH, DecodeISH -->
+<!-- source: internal/plugins/isis/ish_auth.go -- signISHPDU, verifyISHFrame -->
+
 ## TLVs
 
 TLVs use `Type (1) | Length (1) | Value (Length)`; the same framing nests as
@@ -165,13 +190,36 @@ carrying TLVs Ze does not understand.
 | 9 | LSP Entries | 16-octet records (lifetime, LSP ID, sequence, checksum) for CSNP/PSNP |
 | 10 | Authentication | auth-type octet + opaque value; structure only (sign/verify is isis-10) |
 | 22 | Extended IS Reachability | 7-octet neighbor + **3-octet (24-bit)** metric + sub-TLV length + sub-TLVs (4/6/8) |
+| 128 | IP Internal Reachability | 12-octet entries: four metric octets, IPv4 address, mask |
 | 129 | Protocols Supported | NLPID list (`0xCC` IPv4, `0x8E` IPv6) |
+| 130 | IP External Reachability | same layout as 128; default metric's I/E bit selects metric type |
 | 132 | IP Interface Address | list of 4-octet IPv4 addresses |
+| 133 | ISO 9542 ISH Authentication | type 1 followed by the per-link password; ISH only |
 | 135 | Extended IP Reachability | see layout below |
 | 137 | Dynamic Hostname | 1..255-byte ASCII name |
 | 232 | IPv6 Interface Address | list of 16-octet IPv6 addresses |
 | 236 | IPv6 Reachability | see layout below |
 | 240 | P2P Three-Way Adjacency | value length 1, 5, or 15 (state, +local circuit ID, +neighbor) |
+
+
+### Narrow IPv4 reachability
+
+TLVs 128 and 130 use six-bit metric values. RFC 2966 assigns default-metric
+bit 8 to up/down; bit 7 selects internal or external metrics. The three
+optional metrics retain their unsupported bit and six-bit value, and their
+reserved bit 7 is cleared on transmit and ignored on receive.
+
+TLV 128 is always written with internal metric type. A received TLV 128 entry
+whose I/E bit is set is excluded from SPF under RFC 2966 section 3.3. TLV 130
+can carry either metric type. An external metric is compared before the
+internal distance to its advertising router. Narrow prefixes retain their wire
+type when leaked between levels, and a narrow internal metric sum saturates at
+63 on re-origination.
+
+The route representation is `netip.Prefix`; a non-contiguous mask is rejected
+rather than rounded to a different prefix.
+
+<!-- source: internal/plugins/isis/packet/tlv_narrow_ipv4.go -- DecodeNarrowIPReachTLV, NarrowIPReachTLV.WriteTo -->
 
 ### TLV 135 / 236 entry layout (canonical)
 
@@ -238,12 +286,14 @@ non-fragmentable TLVs and the overload bit:
 | 232 (IPv6 Interface Address, RFC 5308) | the node's own **non-link-local** IPv6 interface addresses (LSP scope); IPv6 enabled only |
 | 137 (Dynamic Hostname, RFC 5301) | configured hostname |
 | 22 (Extended IS Reachability, RFC 5305) | each Up adjacency, 24-bit wide metric |
+| 128 / 130 (Narrow IPv4 reachability) | specific narrow prefixes learned at the other level, with route and metric type retained |
 | 135 (Extended IP Reachability, RFC 5305) | connected/redistributed IPv4 prefixes, 32-bit metric |
 | 236 (IPv6 Reachability, RFC 5308) | connected/redistributed IPv6 prefixes, 32-bit metric; IPv6 enabled only |
 
-Wide metrics only (RFC 5305 / RFC 5308): TLV 22 is 24-bit, TLV 135 / 236 are
-32-bit. The overload (OL) bit (RFC 3787 sec 4) is set **only in the
-non-pseudonode LSP fragment 0**, never in higher fragments.
+Locally originated links and prefixes use wide metrics (RFC 5305 / RFC 5308):
+TLV 22 is 24-bit and TLV 135 / 236 is 32-bit. Inter-level leaks preserve a
+received narrow IPv4 format. The overload bit (RFC 3787 section 4) is set only
+in non-pseudonode fragment 0.
 
 **IPv6 address scope (RFC 5308 origination, isis-12).** The IPv6 interface-address
 TLV (232) is scoped by PDU: the **Hello (IIH)** carries **only** the
@@ -300,12 +350,15 @@ purge that arrives on the wire and a local expiry are retained identically but
 handled by distinct paths (a received purge is re-flooded; a local expiry is
 collected). Defaults: MaxAge 1200 s, refresh 900 s, ZeroAgeLifetime 60 s.
 
-**Fragmentation.** When the own state exceeds the max LSP size (the smallest
-circuit MTU, default 1492), it is split across LSP numbers 0..255 (the 256
--fragment model; RFC 3786 extended fragments are out of scope for v1). Each
-fragment is a distinct LSP with its own sequence number and Fletcher checksum; a
-single TLV entry (a TLV 22 neighbour or a TLV 135 prefix) is never split across
-fragments. Fragment 0 always exists and carries the non-fragmentable fields.
+**Fragmentation.** When the own state exceeds the max LSP size, it is split
+across LSP numbers 0..255. The bound is the smallest circuit MTU minus the
+three-byte LLC header, or 1492 PDU bytes when no circuit is open. Ordinary and
+pseudo-node LSPs reserve the largest configured level-authentication TLV before
+packing, so signing cannot make a full fragment exceed that bound.
+RFC 3786 extended fragment sets are not enabled. Each fragment is a distinct
+LSP with its own sequence number and Fletcher checksum; a single TLV entry
+(a TLV 22 neighbour or a TLV 135 prefix) is never split across fragments.
+Fragment 0 always exists and carries the non-fragmentable fields.
 
 **Flooding flags.** The LSDB holds per-LSP, per-circuit SRM (Send Routeing
 Message) and SSN (Send Sequence Number) flags (clause 7.3.4/7.3.5); origination

@@ -3,11 +3,12 @@
 // IS-IS on a LAN (and, per the umbrella Frame-addressing contract, also on
 // point-to-point circuits) addresses PDUs to ISO/IEC 10589 reserved multicast
 // MAC groups, NOT to a learned neighbor unicast MAC. The level selects the
-// group on send; AllISs is additionally accepted on receive.
+// group on send; AllISs is additionally accepted on receive. ISO 9542 ISHs use
+// AllESs on send and receive, as required by ISO 9542 section 7.2.2.
 //
 // ISO/IEC 10589 (and the research guide sec 6 "Circuit Types and Network
 // Model"): AllL1ISs = 01:80:c2:00:00:14, AllL2ISs = 01:80:c2:00:00:15,
-// AllISs = 09:00:2b:00:00:05.
+// AllISs = 09:00:2b:00:00:05, AllESs = 09:00:2b:00:00:04.
 
 package transport
 
@@ -52,6 +53,8 @@ var (
 	// Ze sends to the level-specific groups but ACCEPTS frames addressed to
 	// AllISs on receive (umbrella Frame-addressing contract).
 	AllISs = [MACLen]byte{0x09, 0x00, 0x2b, 0x00, 0x00, 0x05}
+	// AllESs carries ISO 9542 ISHs, including P2P router discovery.
+	AllESs = [MACLen]byte{0x09, 0x00, 0x2b, 0x00, 0x00, 0x04}
 )
 
 // MulticastMACForLevel returns the ISO multicast destination MAC for the given
@@ -72,10 +75,9 @@ func MulticastMACForLevel(l Level) ([MACLen]byte, bool) {
 	}
 }
 
-// IsISMulticastMAC reports whether dst is one of the three ISO multicast groups
-// IS-IS uses (AllL1ISs, AllL2ISs, AllISs). The receive path uses this to accept
-// frames the local node should process; frames to any other group are ignored
-// by the higher layers (level/area enforcement is isis-5).
+// IsISMulticastMAC reports whether dst is an IS-IS or ES-IS multicast group.
+// AllESs is required for the ISO 9542 ISH exchange on point-to-point circuits.
+// Frames to other groups are ignored; circuit policy is enforced after delivery.
 func IsISMulticastMAC(dst [MACLen]byte) bool {
-	return dst == AllL1ISs || dst == AllL2ISs || dst == AllISs
+	return dst == AllL1ISs || dst == AllL2ISs || dst == AllISs || dst == AllESs
 }

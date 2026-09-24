@@ -453,6 +453,18 @@ func (t *Transport) SendPDU(name string, level Level, pdu []byte) error {
 		return ErrNoMulticastForLevel
 	}
 
+	return t.sendTo(name, dst, pdu)
+}
+
+// SendISH sends an ISO 9542 ISH using the AllESs group and the same OSI framing
+// as IS-IS. RFC 1195 Section 4.4: "All IS-IS routers are therefore required to
+// transmit and receive ISO 9542 ISH packets on point-to-point links."
+func (t *Transport) SendISH(name string, pdu []byte) error {
+	return t.sendTo(name, AllESs, pdu)
+}
+
+// sendTo is the common final-PDU send path for IS-IS and ES-IS.
+func (t *Transport) sendTo(name string, dst [MACLen]byte, pdu []byte) error {
 	t.mu.Lock()
 	c, open := t.circuits[name]
 	t.mu.Unlock()
@@ -460,7 +472,7 @@ func (t *Transport) SendPDU(name string, level Level, pdu []byte) error {
 		return ErrCircuitNotOpen
 	}
 
-	if len(pdu) > c.handle.MTU() {
+	if len(pdu)+LLCHeaderLen > c.handle.MTU() {
 		return ErrPDUExceedsMTU
 	}
 

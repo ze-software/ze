@@ -56,16 +56,24 @@ There is no direct route push and no side channel.
 <!-- source: internal/plugins/isis/redistribute/consumer.go -- InjectRoute, WithdrawRoute, rememberSource, forgetSource -->
 <!-- source: internal/plugins/isis/redist_wiring.go -- the injector implementation, refreshConnectedPrefixes -->
 
-## Decision: no external bit on IPv4
+The node's own connected-prefix inputs are refreshed at startup and before
+origination after each configuration reconcile. Enabled interfaces contribute
+prefixes even when passive. The refresh replaces each configured level's IPv4
+and IPv6 sets using the current interface membership, address families and
+metrics, including when the first NET is added to an idle engine.
+
+## Decision: no external bit on wide IPv4 reachability
 
 RFC 5305 section 4 gives the TLV 135 control octet only the up/down bit and the
 sub-TLV-present bit. A redistributed IPv4 route is an ordinary entry with up/down
 clear on first injection; the bit is set to 1 only on a down-level leak (RFC
 2966), which the SPF leaking path does, not the consumer.
 
-The structural guarantee is that the prefix-info type carries no external field.
-The external bit exists only on IPv6 TLV 236. Ze does not fabricate an IPv4
-external marking the protocol lacks.
+The prefix-info type also carries `External` and `ExternalMetric` for narrow
+IPv4 reachability. `External` selects TLV 130 rather than TLV 128;
+`ExternalMetric` preserves the metric type when narrow reachability is leaked.
+Neither field adds an external flag to wide TLV 135. IPv6 TLV 236 has its own
+external bit.
 
 ## Decision: a fixed default redistribution metric
 

@@ -69,6 +69,9 @@ func (l lifetime) contains(t time.Time) bool {
 type keyChain struct {
 	name string
 	keys []authKey
+	// cleartext records configured intent before key decoding, so an unusable
+	// password cannot silently turn off ISO 9542 authentication.
+	cleartext bool
 }
 
 // activeKey returns the key to SIGN with at time now: the first key whose SEND
@@ -157,6 +160,9 @@ func newKeyStore(cfg Config) *keyStore {
 func resolveChain(kc KeyChainConfig) *keyChain {
 	out := &keyChain{name: kc.Name}
 	for _, k := range kc.Keys {
+		if k.Algorithm == "cleartext" {
+			out.cleartext = true
+		}
 		algo, ok := algoFromString(k.Algorithm)
 		if !ok {
 			continue

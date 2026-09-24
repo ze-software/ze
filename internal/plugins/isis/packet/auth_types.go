@@ -68,8 +68,8 @@ const (
 // received digest (security review: no leakage).
 var (
 	// ErrAuthMissing reports that authentication is configured but the received
-	// PDU carries no TLV 10 (downgrade resistance, RFC 5304 sec 2 / spec R-6).
-	ErrAuthMissing = errors.New("isis auth: authentication TLV (10) missing")
+	// PDU carries no authentication TLV (10 for IS-IS, 133 for ISO 9542 ISH).
+	ErrAuthMissing = errors.New("isis auth: authentication TLV missing")
 	// ErrAuthNotFirst reports that TLV 10 is present but is not the first TLV
 	// (RFC 5304 sec 1; AC-8).
 	ErrAuthNotFirst = errors.New("isis auth: authentication TLV (10) not first")
@@ -202,25 +202,45 @@ func authValue(key Key, valueOrDigest []byte) []byte {
 	return valueOrDigest
 }
 
+// AuthenticationTLVLen returns the bytes SignPDU adds, including the TLV header
+// and authentication-type octet. Circuits reserve this space before padding an
+// IIH, then sign the final padded PDU. No authentication adds no bytes.
+func AuthenticationTLVLen(key Key) (int, error) {
+	if key.Algorithm == AuthAlgoNone {
+		return 0, nil
+	}
+	if _, ok := authTypeFor(key.Algorithm); !ok {
+		return 0, ErrAuthUnsupported
+	}
+	n := digestLen(key.Algorithm)
+	if key.Algorithm == AuthAlgoCleartext {
+		n = len(key.Secret)
+	}
+	valueLen := 1 + keyIDOctets(key.Algorithm) + n
+	if valueLen > 255 {
+		return 0, ErrLength
+	}
+	return 2 + valueLen, nil
+}
+
 // placeholderValue returns a zero-filled TLV 10 value of the correct length for
 // a key, used so the PDU is encoded at its FINAL size before the digest is
 // computed (the digest covers the PDU with the Authentication Value zeroed,
 // RFC 5304 sec 2; encoding at the final size keeps every other field at its
 // final offset). For cleartext there is no digest: the value is the password.
 func placeholderValue(key Key) ([]byte, error) {
-	t, ok := authTypeFor(key.Algorithm)
-	if !ok {
+	size, err := AuthenticationTLVLen(key)
+	if err != nil {
+		return nil, err
+	}
+	if size == 0 {
 		return nil, ErrAuthUnsupported
 	}
-	if t == AuthTypeCleartext {
+	if key.Algorithm == AuthAlgoCleartext {
 		// Cleartext carries the password directly (sanity only, not security).
 		return append([]byte(nil), key.Secret...), nil
 	}
-	n := digestLen(key.Algorithm)
-	if n == 0 {
-		return nil, ErrAuthUnsupported
-	}
-	return authValue(key, make([]byte, n)), nil
+	return authValue(key, make([]byte, size-3-keyIDOctets(key.Algorithm))), nil
 }
 
 // pduClass distinguishes the field-zeroing rules and the position of TLV 10

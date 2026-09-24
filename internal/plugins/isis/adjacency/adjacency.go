@@ -30,6 +30,16 @@ const SNPALen = 6
 // LAN). It is comparable so it can be a map key and compared by ==.
 type SNPA [SNPALen]byte
 
+// Protocols is the set of network-layer protocols a neighbor can relay.
+// Zero is unknown; an absent RFC 1195 TLV 129 is represented by ProtocolCLNP.
+type Protocols uint8
+
+const (
+	ProtocolCLNP Protocols = 1 << iota
+	ProtocolIPv4
+	ProtocolIPv6
+)
+
 // State is the adjacency state (ISO/IEC 10589 section 8.2). The three states are
 // Down, Initializing, and Up. A new adjacency starts Down; it advances to
 // Initializing on the first valid Hello, and to Up once bidirectionality is
@@ -83,13 +93,15 @@ func (l Level) String() string {
 type Adjacency struct {
 	// SystemID is the neighbor's 6-octet System ID (the LAN table key).
 	SystemID types.SystemID
-	// SNPA is the neighbor's source MAC on a LAN (the three-way echo source).
-	// Zero on a P2P circuit.
+	// SNPA is the neighbor's source MAC, also used for LAN three-way echo.
 	SNPA SNPA
 	// Level is the routing level this adjacency is formed at.
 	Level Level
 	// State is the current FSM state.
 	State State
+	// ISHOnly distinguishes ISO 9542 discovery from an accepted IS-IS Hello.
+	// Discovery MUST NOT advance the RFC 5303 three-way state.
+	ISHOnly bool
 	// Areas are the neighbor's advertised area addresses (TLV 1), used for the
 	// L1 area-address match.
 	Areas []types.AreaID
@@ -99,6 +111,8 @@ type Adjacency struct {
 	// IPv6 is the neighbor's IPv6 interface address (first TLV 232 entry),
 	// stored as the SPF next-hop source (isis-12 reads it). Invalid when absent.
 	IPv6 netip.Addr
+	// Protocols is the received TLV 129 set, used to exclude incompatible next hops.
+	Protocols Protocols
 	// HoldTime is the neighbor's advertised holding time in seconds.
 	HoldTime uint16
 	// Priority is the neighbor's advertised DIS election priority (0..127) from

@@ -53,11 +53,9 @@ const lspChecksumRegionCheckOff = types.LSPIDLen + types.SequenceNumberLen
 // for an LSP the checksum field is at the start+offset of the checksummed
 // region. The classic adjustment (ISO 8473 annex C.3.4.2) is reproduced below.
 func Checksum(data []byte, checkOff int) (high, low byte) {
-	// Defensive bound: every production caller passes the compile-time constant
-	// lspChecksumRegionCheckOff over a region long enough to hold the field, so
-	// this never fires in normal use. The guard exists so a fuzz harness or a
-	// garbage region (empty, or a checkOff that would index past the end) returns
-	// a defined (0,0) instead of running the adjustment on out-of-range indices.
+	// Production callers pass a fixed checksum offset over an LSP checksum
+	// region or a complete ISO 9542 ISH. The bounds also protect callers that
+	// supply an invalid offset or an incomplete region.
 	if len(data) == 0 || checkOff < 0 || checkOff+1 >= len(data) {
 		return 0, 0
 	}

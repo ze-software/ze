@@ -62,8 +62,10 @@ func (e *engine) setKeyStore(cfg Config) {
 	// when no auth is configured so the receive path stays allocation-free.
 	if ks.configured() {
 		e.dispatch.setVerify(e.verifyFrame)
+		e.dispatch.setVerifyISH(e.verifyISHFrame)
 	} else {
 		e.dispatch.setVerify(nil)
+		e.dispatch.setVerifyISH(nil)
 	}
 }
 
@@ -83,6 +85,11 @@ func (e *engine) installCircuitSigner(c *circuit.Circuit) {
 	name := c.Name()
 	c.SetSigner(func(level adjacency.Level, pdu []byte) []byte {
 		return e.signHelloPDU(name, level, pdu)
+	}, func(level adjacency.Level) int {
+		return e.helloAuthenticationSize(name, level)
+	})
+	c.SetISHSigner(func(pdu []byte) ([]byte, error) {
+		return e.signISHPDU(name, pdu)
 	})
 }
 
@@ -118,6 +125,44 @@ func (e *engine) signHelloPDU(iface string, level adjacency.Level, pdu []byte) [
 		return pdu
 	}
 	return signOrUnchanged(pdu, key)
+}
+
+// helloAuthenticationSize reserves the active link key's TLV before padding.
+func (e *engine) helloAuthenticationSize(iface string, level adjacency.Level) int {
+	e.ksMu.RLock()
+	chain := e.keystore.helloChain(iface, adjToKSLevel(level))
+	key, has := e.keystore.signKey(chain, time.Now())
+	e.ksMu.RUnlock()
+	if !has {
+		return 0
+	}
+	n, err := packet.AuthenticationTLVLen(key)
+	if err != nil {
+		return 0 // signOrUnchanged cannot append this unsupported encoding.
+	}
+	return n
+}
+
+// lspAuthenticationSize reserves the widest configured level key so a timed key
+// rotation cannot grow a freshly signed LSP beyond the fragmentation budget.
+func (e *engine) lspAuthenticationSize() int {
+	e.ksMu.RLock()
+	defer e.ksMu.RUnlock()
+	if e.keystore == nil {
+		return 0
+	}
+	maxSize := 0
+	for _, chain := range [...]*keyChain{e.keystore.level1, e.keystore.level2} {
+		if chain == nil {
+			continue
+		}
+		for _, key := range chain.keys {
+			if n, err := packet.AuthenticationTLVLen(key.key); err == nil && n > maxSize {
+				maxSize = n
+			}
+		}
+	}
+	return maxSize
 }
 
 // signOrUnchanged signs pdu with key; on any signing error it returns the PDU

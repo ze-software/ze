@@ -74,6 +74,7 @@ func TestISISNeighbourTableSnapshot(t *testing.T) {
 	adj.State = StateUp
 	adj.SNPA = SNPA{0x02, 0, 0, 0, 0, 1}
 	adj.IPv4 = netip.MustParseAddr("192.0.2.1")
+	adj.Protocols = ProtocolIPv4
 	adj.HoldTime = 30
 	now := time.Unix(2_000_000, 0)
 	adj.HoldExpiry = now.Add(30 * time.Second)

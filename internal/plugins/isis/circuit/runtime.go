@@ -25,13 +25,16 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
-// Receive handles one received PDU on this circuit. It is the IIH path: the
-// engine dispatcher routes IIH PDU types (0x0f/0x10/0x11) here with the source
-// SNPA. Non-IIH PDUs and PDUs not for this circuit's ifindex are ignored (the
-// engine routes by ifindex, but Receive re-checks defensively). A malformed PDU
-// is dropped (the codec never panics). Receive returns the resulting Transition
-// for the matched level, or a zero Transition when nothing changed.
+// Receive handles the IS-IS IIH and ISO 9542 ISH paths on this circuit. The engine
+// dispatcher selects the circuit by ifindex and passes the frame's source SNPA.
+// ISHs are accepted only on point-to-point circuits. Malformed PDUs are rejected;
+// other IS-IS PDU types are ignored. The result describes any adjacency transition.
 func (c *Circuit) Receive(srcSNPA adjacency.SNPA, pdu []byte) adjacency.Transition {
+	if len(pdu) > 0 {
+		if pdu[0] == packet.ESISProtocolDiscriminator {
+			return c.receiveISH(srcSNPA, pdu)
+		}
+	}
 	p, err := packet.DecodePDU(pdu)
 	if err != nil {
 		return adjacency.Transition{Rejected: true, RejectReason: "decode"}
@@ -42,7 +45,7 @@ func (c *Circuit) Receive(srcSNPA adjacency.SNPA, pdu []byte) adjacency.Transiti
 		return c.handleLANHello(srcSNPA, p.LANHello)
 	case p.P2PHello != nil:
 		defer packet.ReleaseTLVs(p.P2PHello.TLVs)
-		return c.handleP2PHello(p.P2PHello)
+		return c.handleP2PHello(srcSNPA, p.P2PHello)
 	default:
 		return adjacency.Transition{}
 	}
@@ -74,12 +77,12 @@ func (c *Circuit) handleLANHello(srcSNPA adjacency.SNPA, h *packet.LANHello) adj
 // handleP2PHello drives the FSM from a P2P IIH. The level is taken from the
 // IIH's circuit-type field intersected with the circuit's configured levels;
 // when both support L1 we use L1, else L2 (a P2P adjacency is a single record).
-func (c *Circuit) handleP2PHello(h *packet.P2PHello) adjacency.Transition {
+func (c *Circuit) handleP2PHello(srcSNPA adjacency.SNPA, h *packet.P2PHello) adjacency.Transition {
 	level := c.p2pLevel(h.CircuitType)
 	if level == 0 {
 		return adjacency.Transition{Rejected: true, RejectReason: "level-mismatch"}
 	}
-	in := c.helloInput(h.SystemID, adjacency.SNPA{}, level, h.HoldingTime.Seconds(), h.TLVs, true)
+	in := c.helloInput(h.SystemID, srcSNPA, level, h.HoldingTime.Seconds(), h.TLVs, true)
 	// ISO/IEC 10589 clause 8.4.1: a P2P IIH also carries Maximum Area Addresses in
 	// its common header; carry it so the FSM applies the same TLV-1 area-count cap.
 	in.MaxAreaAddresses = h.MaxAreaAddresses
@@ -112,10 +115,11 @@ func (c *Circuit) formsLevel(level adjacency.Level) bool {
 // whether TLV 240 / TLV 6 are relevant.
 func (c *Circuit) helloInput(sys types.SystemID, srcSNPA adjacency.SNPA, level adjacency.Level, holdTime uint16, tlvs []packet.TLV, isP2P bool) adjacency.HelloInput {
 	in := adjacency.HelloInput{
-		SystemID: sys,
-		SNPA:     srcSNPA,
-		Level:    level,
-		HoldTime: holdTime,
+		SystemID:  sys,
+		SNPA:      srcSNPA,
+		Level:     level,
+		HoldTime:  holdTime,
+		Protocols: receivedProtocols(tlvs),
 	}
 	for _, t := range tlvs {
 		switch t.Type {
@@ -227,6 +231,10 @@ func (c *Circuit) fireEvents(tr adjacency.Transition, snap adjacency.NeighborSna
 			onDown(level)
 		}
 		sink.SessionDown(snap)
+	case tr.ForwardingChanged:
+		if onUp != nil {
+			onUp(level)
+		}
 	}
 }
 
@@ -323,9 +331,21 @@ func padMTU(ifMTU int) int {
 	return ifMTU - transport.LLCHeaderLen
 }
 
+// helloPaddingTarget leaves room for authentication inserted after padding.
+func (c *Circuit) helloPaddingTarget(level adjacency.Level, mtu int) int {
+	c.mu.Lock()
+	size := c.authenticationSize
+	c.mu.Unlock()
+	if size == nil {
+		return mtu
+	}
+	return max(0, mtu-size(level))
+}
+
 // sendLANHello sends one padded LAN IIH for level to that level's multicast
 // group. Each level has its own Hello timer, so one call sends one PDU.
 func (c *Circuit) sendLANHello(level adjacency.Level, mtu int) error {
+	mtu = c.helloPaddingTarget(level, mtu)
 	pdu := c.buildLANHello(level, c.heardSNPAs(), mtu)
 	pdu = padHello(pdu, mtu)
 	// Sign AFTER padding, BEFORE framing (RFC 5304 sec 2 signs padded Hellos;
@@ -342,7 +362,13 @@ func (c *Circuit) sendLANHello(level adjacency.Level, mtu int) error {
 // state, the neighbor echo, and the signing level are derived from the single
 // P2P adjacency (if any).
 func (c *Circuit) sendP2PHello(mtu int) error {
+	// RFC 1195 Section 4.4: "For point-to-point links, IS-IS requires exchange of
+	// ISO 9542 ISHs, as the first step in establishing the link between routers."
+	if err := c.sendISH(); err != nil {
+		return err
+	}
 	state, neighborID, haveNeighbor, adjLevel := c.p2pThreeWayState()
+	mtu = c.helloPaddingTarget(adjLevel, mtu)
 	pdu := c.buildP2PHello(state, neighborID, haveNeighbor, mtu)
 	pdu = padHello(pdu, mtu)
 	// Sign AFTER padding, BEFORE framing (spec-isis-10). A P2P IIH is
@@ -389,6 +415,9 @@ func (c *Circuit) p2pThreeWayState() (packet.AdjThreeWayState, types.SystemID, b
 	)
 	c.table.Each(func(a *adjacency.Adjacency) {
 		if a.State == adjacency.StateDown {
+			return
+		}
+		if a.ISHOnly {
 			return
 		}
 		haveNeighbor = true

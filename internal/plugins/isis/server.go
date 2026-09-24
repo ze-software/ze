@@ -66,6 +66,7 @@ type pduHandler func(rf transport.RawFrame)
 type dispatcher struct {
 	mu         sync.RWMutex
 	handlers   map[packet.PDUType]pduHandler
+	ish        pduHandler
 	droppedCnt uint64
 
 	// verify, when set, authenticates a received frame before it is routed to a
@@ -73,7 +74,8 @@ type dispatcher struct {
 	// and false to reject (drop the frame; the verify hook itself increments
 	// ze_isis_auth_failures_total). nil means no authentication is configured, so
 	// every frame proceeds (unauthenticated operation, the default).
-	verify func(rf transport.RawFrame) bool
+	verify    func(rf transport.RawFrame) bool
+	verifyISH func(rf transport.RawFrame) bool
 }
 
 // newDispatcher constructs an empty dispatcher.
@@ -95,6 +97,27 @@ func (d *dispatcher) register(pt packet.PDUType, h pduHandler) {
 // and never panics on attacker-controlled bytes).
 func (d *dispatcher) dispatch(rf transport.RawFrame) {
 	if len(rf.PDU) <= offPDUType {
+		d.drop()
+		return
+	}
+	// ISO 9542 ISHs share the LLC SAP with IS-IS but not its header or
+	// authentication layout. The circuit validates the complete ISH.
+	if rf.PDU[0] == packet.ESISProtocolDiscriminator {
+		d.mu.RLock()
+		h := d.ish
+		verify := d.verifyISH
+		d.mu.RUnlock()
+		if verify != nil && !verify(rf) {
+			return
+		}
+		if h != nil {
+			h(rf)
+		} else {
+			d.drop()
+		}
+		return
+	}
+	if rf.PDU[0] != packet.ProtocolDiscriminator {
 		d.drop()
 		return
 	}
@@ -125,6 +148,14 @@ func (d *dispatcher) setVerify(verify func(rf transport.RawFrame) bool) {
 	d.mu.Unlock()
 }
 
+// setVerifyISH installs the ISO 9542 per-link password verifier separately from
+// the IS-IS authentication header path.
+func (d *dispatcher) setVerifyISH(verify func(transport.RawFrame) bool) {
+	d.mu.Lock()
+	d.verifyISH = verify
+	d.mu.Unlock()
+}
+
 func (d *dispatcher) drop() {
 	d.mu.Lock()
 	d.droppedCnt++
@@ -144,6 +175,7 @@ type engine struct {
 	transport *transport.Transport
 	dispatch  *dispatcher
 	log       *slog.Logger
+	bgpls     bgplsSource
 
 	mu      sync.Mutex
 	cfg     Config
@@ -162,6 +194,9 @@ type engine struct {
 	// Keyed by name so a reopen of the same interface (a fresh ifindex) reuses the
 	// slot and can never run two goroutines for one circuit.
 	circuitStop map[string]chan struct{}
+	// circuitDone closes after the Hello worker exits. Removal drains it before
+	// a replacement transport can send an old worker's identity on the new link.
+	circuitDone map[string]chan struct{}
 	// circuitReload holds the per-circuit parameter-change wake channel, keyed by
 	// interface name and created beside circuitStop. reconcile signals it when a
 	// commit changes a parameter the running circuit can absorb, so the hello+sweep
@@ -304,9 +339,10 @@ type engine struct {
 	// the body then takes the circuit mutex / e.mu / e.disMu, so no inversion.
 	electMu sync.Mutex
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	ctx         context.Context
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
+	runtimeOnce sync.Once
 }
 
 // newEngine constructs an engine over the given transport. The transport's
@@ -322,6 +358,7 @@ func newEngine(t *transport.Transport) *engine {
 		circuits:      make(map[int]*circuit.Circuit),
 		circuitByName: make(map[string]*circuit.Circuit),
 		circuitStop:   make(map[string]chan struct{}),
+		circuitDone:   make(map[string]chan struct{}),
 		circuitReload: make(map[string]chan struct{}),
 		adjUp:         metrics.NopRegistry{}.GaugeVec("", "", nil),
 		adjTotal:      metrics.NopRegistry{}.GaugeVec("", "", nil),
@@ -423,6 +460,9 @@ func (e *engine) setEventSink(s *eventSink) { e.sink = s }
 // wired end-to-end. The IIH types (0x0f/0x10/0x11) route to the adjacency
 // handler (isis-5); the LSP/CSNP/PSNP types are stubbed until isis-6/isis-7.
 func (e *engine) installStubHandlers() {
+	e.dispatch.mu.Lock()
+	e.dispatch.ish = e.handleIIH
+	e.dispatch.mu.Unlock()
 	for _, pt := range []packet.PDUType{
 		packet.PDUTypeL1LANHello, packet.PDUTypeL2LANHello, packet.PDUTypeP2PHello,
 	} {
@@ -456,6 +496,12 @@ func (e *engine) handleIIH(rf transport.RawFrame) {
 // also records the node's own System ID on the flooder so a received copy of our
 // own LSP is recognized (isis-7 ReceiveLSP own flag).
 func (e *engine) setConfig(cfg Config) {
+	// Keep ordinary and pseudonode fragmentation on the same key store as their
+	// level signer. Elections already acquire electMu before origMu.
+	e.electMu.Lock()
+	defer e.electMu.Unlock()
+	e.origMu.Lock()
+	defer e.origMu.Unlock()
 	e.mu.Lock()
 	e.cfg = cfg
 	e.mu.Unlock()
@@ -486,6 +532,18 @@ func spfLevelsFor(l Level) []spf.Level {
 	}
 }
 
+// startRuntime activates the receive, timer and link-event paths once, whether
+// the first NET arrives at startup or in a later configuration commit.
+func (e *engine) startRuntime() {
+	e.runtimeOnce.Do(func() {
+		e.subscribeIfaceEvents(getEventBus())
+		e.startReceiveLoop()
+		e.startAgingLoop()
+		e.startFloodLoops()
+		e.startDISLoop()
+	})
+}
+
 // openCircuits opens a circuit per enabled, non-passive interface via the
 // transport, marking each interface enabled so a later link-up event reopens it.
 // It launches the receive-fan goroutine that feeds the dispatcher.
@@ -494,18 +552,7 @@ func (e *engine) openCircuits() error {
 	circuits := e.cfg.EnabledCircuits()
 	e.mu.Unlock()
 
-	// Start the single delivery-fan goroutine once: it reads the transport's
-	// merged receive channel and dispatches each PDU by type.
-	e.startReceiveLoop()
-	// Start the per-second LSP aging loop (isis-6): decrement Remaining Lifetime,
-	// purge at 0, garbage-collect after the grace period.
-	e.startAgingLoop()
-	// Start the flooding loops (isis-7): the periodic SRM-draining flood timer,
-	// the PSNP ack/request timer, and the P2P periodic CSNP timer.
-	e.startFloodLoops()
-	// Start the DIS loop (isis-8): the periodic LAN CSNP cadence the DIS sources
-	// and the periodic re-election that catches a DIS lost via the hold-timer sweep.
-	e.startDISLoop()
+	e.startRuntime()
 
 	for _, ic := range circuits {
 		if err := e.openCircuit(ic); err != nil {
@@ -594,6 +641,11 @@ type reconcileResult struct {
 // took which of those four paths.
 func (e *engine) reconcile(newCfg Config) reconcileResult {
 	res := reconcileResult{changed: make(map[string]bool)}
+	e.mu.Lock()
+	oldCfg := e.cfg
+	e.mu.Unlock()
+	identityChanged := oldCfg.SystemID != newCfg.SystemID ||
+		oldCfg.Level != newCfg.Level || !slices.EqualFunc(oldCfg.NETs, newCfg.NETs, types.NET.Equal)
 
 	// setConfig, not a bare store of e.cfg: it also rebuilds the authentication
 	// key store, re-roots SPF and records the node's own System ID on the flooder.
@@ -601,6 +653,10 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 	// and setKeyStore names this call as the reload path that makes a key-chain
 	// change hitless (isis-10, AC-4).
 	e.setConfig(newCfg)
+	if newCfg.Present() {
+		e.startRuntime()
+	}
+	e.refreshCircuitProtocols()
 
 	desired := make(map[string]InterfaceConfig)
 	for _, ic := range newCfg.EnabledCircuits() {
@@ -630,7 +686,7 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 				continue
 			}
 			res.opened = append(res.opened, name)
-		case circuitNeedsRebuild(have, want):
+		case identityChanged || circuitNeedsRebuild(have, want):
 			// The change cannot be written into the running circuit, so the circuit
 			// is closed and opened again. This flaps every adjacency on the link,
 			// which is why circuitNeedsRebuild keeps the set as small as it is.
@@ -654,13 +710,15 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 		}
 	}
 
-	// Re-originate when anything moved. The own LSP carries each circuit's metric
-	// and each adjacency, both read from e.running at origination time, so without
-	// this the operator's new metric waits for the next adjacency transition or the
-	// periodic refresh.
-	if len(res.opened) > 0 || len(res.closed) > 0 || len(res.changed) > 0 {
-		e.originate()
-	}
+	e.refreshConnectedPrefixes()
+	// Node-wide capabilities and passive-interface prefixes also affect the LSP
+	// when no running circuit changes. Originate compares its complete input and
+	// skips an unchanged advertisement.
+	e.originate()
+	// A removed level may leave the remaining LSP unchanged, but its installed
+	// routes still need to be withdrawn.
+	e.triggerSPF()
+	e.publishBGPLS()
 	return res
 }
 
@@ -676,8 +734,13 @@ func (e *engine) closeCircuit(name string) {
 		close(stop)
 		delete(e.circuitStop, name)
 	}
+	done := e.circuitDone[name]
+	delete(e.circuitDone, name)
 	delete(e.circuitReload, name)
 	e.circuitsMu.Unlock()
+	if done != nil {
+		<-done
+	}
 	e.mu.Lock()
 	delete(e.running, name)
 	e.mu.Unlock()
@@ -729,6 +792,7 @@ func circuitNeedsRebuild(have, want InterfaceConfig) bool {
 // shutdown stops all circuit goroutines, the receive loop, and the transport,
 // then waits for the goroutines to exit (no leak on reload or stop).
 func (e *engine) shutdown() {
+	e.stopBGPLS()
 	e.cancel()
 	// Forward-remove every IS-IS route from the Loc-RIB so a stopped engine
 	// leaves no stale FIB entries (isis-9; mirrors withdrawing on neighbor loss).

@@ -138,6 +138,7 @@ func TestISISAdjacencyNextHopStored(t *testing.T) {
 		SystemID: peerSys, SNPA: peerMAC, Level: Level1, HoldTime: 30,
 		Areas: []types.AreaID{mustArea(t, 0x49, 0x00, 0x01)},
 		IPv4:  v4, IPv6: v6, NeighborSNPAs: []SNPA{localMAC},
+		Protocols: ProtocolIPv4 | ProtocolIPv6,
 	}
 	ReceiveHello(adj, lanLocal(t), in, t0)
 	if adj.IPv4 != v4 {

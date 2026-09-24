@@ -58,7 +58,7 @@ func TestISISHelloSignedOverPaddedPDU(t *testing.T) {
 	s := &fakeSender{mtu: mtu}
 	c := lanCircuit(t, s)
 	cs := &captureSigner{}
-	c.SetSigner(cs.sign)
+	c.SetSigner(cs.sign, nil)
 
 	if err := c.SendHello(adjacency.Level1); err != nil {
 		t.Fatal(err)
@@ -138,7 +138,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 	t.Run("L2-only neighbor signs with L2 chain", func(t *testing.T) {
 		c := l1l2P2PCircuit(t)
 		sg := &recordSigner{}
-		c.SetSigner(sg.sign)
+		c.SetSigner(sg.sign, nil)
 
 		// Drive an L2-only P2P Hello to Up: p2pLevel(CircuitL2) -> Level2.
 		pdu := buildPeerP2PHello(t, packet.CircuitL2, c.systemID)
@@ -163,7 +163,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 	t.Run("L1L2 neighbor signs with L1 chain", func(t *testing.T) {
 		c := l1l2P2PCircuit(t)
 		sg := &recordSigner{}
-		c.SetSigner(sg.sign)
+		c.SetSigner(sg.sign, nil)
 
 		// p2pLevel(CircuitL1L2) -> Level1 (L1 preferred when both support it).
 		pdu := buildPeerP2PHello(t, packet.CircuitL1L2, c.systemID)
@@ -182,7 +182,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 	t.Run("no neighbor signs with preferred level", func(t *testing.T) {
 		c := l1l2P2PCircuit(t)
 		sg := &recordSigner{}
-		c.SetSigner(sg.sign)
+		c.SetSigner(sg.sign, nil)
 
 		// No adjacency yet: fall back to the circuit's preferred P2P level (L1 for
 		// an L1L2 circuit). This must NOT panic and must pick a deterministic level.
@@ -198,7 +198,7 @@ func TestISISP2PHelloSignedAtNegotiatedLevel(t *testing.T) {
 		c := p2pCircuit(t, &fakeSender{mtu: 1500})
 		c.levels = []adjacency.Level{adjacency.Level2}
 		sg := &recordSigner{}
-		c.SetSigner(sg.sign)
+		c.SetSigner(sg.sign, nil)
 
 		if err := c.SendHello(adjacency.Level2); err != nil {
 			t.Fatal(err)

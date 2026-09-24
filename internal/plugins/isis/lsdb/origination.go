@@ -102,8 +102,8 @@ type AdjacencyInfo struct {
 	Metric types.Metric
 }
 
-// PrefixInfo is one IPv4 prefix the node advertises in TLV 135 (Extended IP
-// Reachability). Connected and redistributed prefixes (isis-11) become these.
+// PrefixInfo is one IPv4 prefix advertised by the router. New local prefixes use
+// TLV 135; leaked narrow prefixes retain their TLV 128/130 route and metric type.
 type PrefixInfo struct {
 	// Prefix is the IPv4 prefix.
 	Prefix netip.Prefix
@@ -111,7 +111,10 @@ type PrefixInfo struct {
 	Metric types.PrefixMetric
 	// UpDown is the up/down bit (RFC 2966): set when an L1L2 node leaks an
 	// L2-derived prefix into L1 (applied in isis-9; the originator carries it).
-	UpDown bool
+	UpDown         bool
+	Narrow         bool
+	External       bool
+	ExternalMetric bool
 }
 
 // PrefixInfoV6 is one IPv6 prefix the node advertises in TLV 236 (IPv6
@@ -572,8 +575,17 @@ func (o *Originator) fragmentTLVs(maxSize int, fixed []packet.TLV, state LevelSt
 	for _, n := range state.Neighbors {
 		frags.addEntry(packet.TLVExtendedISReach, extISReachEntryBytes(n))
 	}
-	// TLV 135 prefix entries (RFC 5305 sec 4).
+	// Keep the wire metric type when leaking narrow reachability. Converting an
+	// external metric to TLV 135 would change its route preference.
 	for _, p := range state.Prefixes {
+		if p.Narrow {
+			typ := packet.TLVIPInternalReachability
+			if p.External {
+				typ = packet.TLVIPExternalReachability
+			}
+			frags.addEntry(typ, narrowIPReachEntryBytes(p))
+			continue
+		}
 		frags.addEntry(packet.TLVExtendedIPReach, extIPReachEntryBytes(p))
 	}
 	// TLV 236 IPv6 prefix entries (RFC 5308 sec 2): packed exactly like TLV 135

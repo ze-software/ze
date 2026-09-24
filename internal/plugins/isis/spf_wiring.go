@@ -20,12 +20,14 @@ package isis
 import (
 	"context"
 	"net/netip"
+	"sort"
 
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routeinstall"
 	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/circuit"
 	"github.com/ze-software/ze/internal/plugins/isis/lsdb"
+	"github.com/ze-software/ze/internal/plugins/isis/packet"
 	"github.com/ze-software/ze/internal/plugins/isis/spf"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
@@ -73,6 +75,9 @@ func (e *engine) initSPF() {
 	// prefixes, the re-origination's SPF run recomputes the same set and the loop
 	// terminates. On a single-level node the leak is always empty (no-op).
 	e.spf.SetOnLeak(e.applyLeak)
+	// RFC 9552 section 5.9: a native SPF reachability change must update the
+	// link-state feed even if the disconnected originator's LSP is unchanged.
+	e.spf.SetOnComplete(e.publishBGPLS)
 }
 
 // triggerSPF arms a debounced SPF run (spec AC-9: a burst of LSDB changes
@@ -146,20 +151,32 @@ func (s *lsdbSPFSource) Records(level spf.Level) []spf.LSPRecord {
 		return nil
 	}
 	ll := spfToLSDBLevel(level)
-	ids := e.lsdb.LSPIDs(ll)
-	out := make([]spf.LSPRecord, 0, len(ids))
-	for _, id := range ids {
-		entry := e.lsdb.Lookup(ll, id)
-		if entry == nil || entry.IsPurged() {
-			continue
-		}
-		lsp, err := entry.Decode()
+	raws := e.lsdb.RawSnapshot(ll)
+	out := make([]spf.LSPRecord, 0, len(raws))
+	var source types.SourceID
+	liveZero := false
+	for _, raw := range raws {
+		pdu, err := packet.DecodePDU(raw)
 		if err != nil {
 			continue
 		}
+		lsp := *pdu.LSP
+		// RawSnapshot is sorted by LSP ID, so fragment zero precedes every
+		// other fragment of this source. An orphan fragment cannot establish
+		// a router or retain its prefixes after fragment zero expires.
+		if current := lsp.LSPID.SourceID(); current != source {
+			source, liveZero = current, false
+		}
+		if lsp.LSPID.LSPNumber() == 0 {
+			liveZero = true
+		}
+		if !liveZero {
+			packet.ReleaseTLVs(lsp.TLVs)
+			continue
+		}
 		out = append(out, spf.LSPRecord{
-			Source:   id.SourceID(),
-			Overload: entry.IsOverloaded(),
+			Source:   lsp.LSPID.SourceID(),
+			Overload: lsp.TypeBlock&packet.LSPFlagOverload != 0,
 			LSP:      lsp,
 		})
 	}
@@ -201,21 +218,33 @@ func (r *engineNextHopResolver) ResolveNextHop(level spf.Level, neighbor types.S
 		circuits = append(circuits, c)
 	}
 	e.circuitsMu.RUnlock()
+	sort.Slice(circuits, func(i, j int) bool { return circuits[i].Name() < circuits[j].Name() })
+	unsupported := false
 
 	for _, c := range circuits {
 		for _, row := range c.Table().Snapshot() {
 			if row.SystemID != neighborTok || row.Level != adjLevelTok {
 				continue
 			}
-			if row.State != adjacency.StateUp.String() || row.IPv4 == "" {
+			if row.State != adjacency.StateUp.String() {
+				continue
+			}
+			if row.Protocols&adjacency.ProtocolIPv4 == 0 {
+				unsupported = true
+				continue
+			}
+			if row.IPv4 == "" {
 				continue
 			}
 			addr, err := netip.ParseAddr(row.IPv4)
 			if err != nil || !addr.IsValid() {
 				continue
 			}
-			return spf.NextHop{Addr: addr, Interface: c.Name()}, true
+			return spf.NextHop{Addr: addr, Interface: c.Name(), OnLink: true}, true
 		}
+	}
+	if unsupported {
+		return spf.NextHop{Unsupported: true}, true
 	}
 	return spf.NextHop{}, false
 }
@@ -251,13 +280,22 @@ func (r *engineNextHopResolverV6) ResolveNextHopV6(level spf.Level, neighbor typ
 		circuits = append(circuits, c)
 	}
 	e.circuitsMu.RUnlock()
+	sort.Slice(circuits, func(i, j int) bool { return circuits[i].Name() < circuits[j].Name() })
+	unsupported := false
 
 	for _, c := range circuits {
 		for _, row := range c.Table().Snapshot() {
 			if row.SystemID != neighborTok || row.Level != adjLevelTok {
 				continue
 			}
-			if row.State != adjacency.StateUp.String() || row.IPv6 == "" {
+			if row.State != adjacency.StateUp.String() {
+				continue
+			}
+			if row.Protocols&adjacency.ProtocolIPv6 == 0 {
+				unsupported = true
+				continue
+			}
+			if row.IPv6 == "" {
 				continue
 			}
 			addr, err := netip.ParseAddr(row.IPv6)
@@ -266,8 +304,11 @@ func (r *engineNextHopResolverV6) ResolveNextHopV6(level spf.Level, neighbor typ
 			}
 			// The next-hop is typically link-local; carry the circuit so the kernel
 			// can resolve the egress for the fe80:: address (RFC 5308 sec 3, R-2).
-			return spf.NextHop{Addr: addr.WithZone(""), Interface: c.Name()}, true
+			return spf.NextHop{Addr: addr.WithZone(""), Interface: c.Name(), OnLink: true}, true
 		}
+	}
+	if unsupported {
+		return spf.NextHop{Unsupported: true}, true
 	}
 	return spf.NextHop{}, false
 }

@@ -27,10 +27,15 @@ import (
 // timers l1 and l2. Nothing else varies across the tests below.
 func levelTimerCircuit(t *testing.T, s Sender, kind adjacency.CircuitKind, levels []adjacency.Level, l1, l2 LevelTimers) *Circuit {
 	t.Helper()
+	net, err := types.ParseNET("49.0001.0000.0000.0001.00")
+	if err != nil {
+		t.Fatal(err)
+	}
 	return New(Config{
 		Name:     "eth0",
 		IfIndex:  3,
 		SystemID: types.SystemID{0, 0, 0, 0, 0, 1},
+		NET:      net,
 		SNPA:     adjacency.SNPA{0x02, 0, 0, 0, 0, 1},
 		Areas:    []types.AreaID{testArea(t)},
 		IPv4:     netip.MustParseAddr("192.0.2.1"),

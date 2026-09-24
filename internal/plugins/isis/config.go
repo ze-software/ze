@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/plugins/isis/adjacency"
 	"github.com/ze-software/ze/internal/plugins/isis/transport"
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
@@ -181,6 +182,23 @@ type Config struct {
 // Present reports whether a meaningful IS-IS config was delivered (at least one
 // NET). A config with no NET leaves the engine idle (like LDP with no lsr-id).
 func (c Config) Present() bool { return len(c.NETs) > 0 }
+
+// Protocols returns the capabilities of this IP router, not one interface.
+// RFC 1195 Section 1.4: "In a pure IP routing domain, all routers must be IP-capable."
+// IPv4 is always supported; enabling IPv6 on any enabled interface adds IPv6
+// to every Hello and LSP without changing the per-interface prefix policy.
+func (c Config) Protocols() adjacency.Protocols {
+	protocols := adjacency.ProtocolIPv4
+	for _, ic := range c.Interfaces {
+		if !ic.Enabled {
+			continue
+		}
+		if advertisesIPv6(ic) {
+			protocols |= adjacency.ProtocolIPv6
+		}
+	}
+	return protocols
+}
 
 // EnabledCircuits returns the interfaces that should have a circuit opened: those
 // enabled and non-passive. Passive interfaces are advertised but form no

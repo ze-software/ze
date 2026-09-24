@@ -4,8 +4,7 @@
 // prefixes into this level's own LSP, marking them with the RFC 2966 up/down bit
 // so they never loop back up. This file computes WHICH prefixes leak and with
 // which up/down state; the engine (lsdb_wiring.go) feeds the result back into
-// origination (levelState merges them into TLV 135 / 236), and the receiving-side
-// preference (route.go preferenceRank) ranks them L1-up > L2-up > L2-down > L1-down.
+// origination (levelState merges them into TLV 128 / 130 / 135 / 236).
 //
 // RFC: rfc/short/rfc2966.md -- "When an L2 router ... advertises ... an L1
 //   router's reachability into L1, it MUST set the up/down bit. ... a router
@@ -41,6 +40,10 @@ type LeakedPrefix struct {
 	// UpDown is the RFC 2966 up/down bit to stamp on the re-originated entry: set
 	// for an L2->L1 (down) leak, clear for an L1->L2 (up) leak.
 	UpDown bool
+	// Narrow and External preserve the source advertisement's route type.
+	Narrow         bool
+	External       bool
+	ExternalMetric bool
 }
 
 // LeakResult is the per-target-level set of prefixes to re-originate. A nil/empty
@@ -121,7 +124,7 @@ func leakInto(src *Result, g *Graph, setDownBit, v6 bool) []LeakedPrefix {
 		return nil
 	}
 	rootID := types.NewSourceID(src.Root, 0)
-	best := make(map[netip.Prefix]uint32)
+	best := make(map[netip.Prefix]candidate)
 	for id, nr := range src.Nodes {
 		// The root's own prefixes are its connected/redistributed advertisement,
 		// already present at both levels; they are not "leaked" from another level.
@@ -149,16 +152,27 @@ func leakInto(src *Result, g *Graph, setDownBit, v6 bool) []LeakedPrefix {
 			// (down) bit MUST NOT be re-leaked back up, and re-leaking it down is
 			// pointless churn -- skip it in both directions so the leak is a
 			// one-pass fixpoint.
-			if p.UpDown {
+			if p.UpDown && !(p.Narrow && src.Level == Level2) {
 				continue
 			}
 			total := clampMetric(nr.Metric, uint64(p.Metric))
+			if p.ExternalMetric {
+				total = uint64(p.Metric)
+			}
 			if total >= MaxPathMetric {
 				continue // RFC 5305 sec 4 / RFC 5308 sec 2: unreachable, do not leak
 			}
-			m := uint32(total) // total < MaxPathMetric (0xFE000000) < 2^32
-			if cur, ok := best[p.Prefix.Masked()]; !ok || m < cur {
-				best[p.Prefix.Masked()] = m
+			cand := candidate{
+				metric: total, level: src.Level, upDown: p.UpDown,
+				narrow:   p.Narrow,
+				external: p.External, externalMetric: p.ExternalMetric,
+				internalMetric: nr.Metric,
+			}
+			if p.Narrow && src.Level == Level2 {
+				cand.upDown = false
+			}
+			if cur, ok := best[p.Prefix.Masked()]; !ok || cand.better(cur) {
+				best[p.Prefix.Masked()] = cand
 			}
 		}
 	}
@@ -166,8 +180,17 @@ func leakInto(src *Result, g *Graph, setDownBit, v6 bool) []LeakedPrefix {
 		return nil
 	}
 	out := make([]LeakedPrefix, 0, len(best))
-	for pfx, m := range best {
-		out = append(out, LeakedPrefix{Prefix: pfx, Metric: m, UpDown: setDownBit})
+	for pfx, cand := range best {
+		metric := uint32(cand.metric)
+		// RFC 1195 section 3.2: "If this sum results in a metric value
+		// greater than 63 ... then the value 63 must be used."
+		if cand.narrow && metric > 63 {
+			metric = 63
+		}
+		out = append(out, LeakedPrefix{
+			Prefix: pfx, Metric: metric, UpDown: setDownBit,
+			Narrow: cand.narrow, External: cand.external, ExternalMetric: cand.externalMetric,
+		})
 	}
 	// Deterministic order so the re-originated LSP bytes are stable across runs
 	// (an unstable order would re-flood an identical LSP). netip.Prefix.Compare is

@@ -2,10 +2,10 @@
 
 The shortest-path computation and the route install that let an IS-IS-learned
 prefix reach the kernel FIB. A per-level directed graph is built from the synced
-database with system IDs and pseudo-nodes as vertices and Extended IS
-Reachability (TLV 22) adjacencies as wide-metric edges; Dijkstra runs rooted at
-self per level with ECMP; the overload bit is honored; RFC 2966 leaking runs
-between levels.
+database with system IDs and pseudo-nodes as vertices. Narrow IS reachability
+(TLV 2) and wide IS reachability (TLV 22) supply edges; IPv4 TLVs 128, 130 and
+135 supply prefix leaves. Dijkstra runs per level with ECMP and the overload
+bit, followed by RFC 2966 inter-level leaking.
 
 | Concern | File |
 |---------|------|
@@ -47,13 +47,18 @@ added.
 Per-level admin distance against **other** protocols would need a level field on
 the path and per-level YANG leaves. It is not implemented.
 
-## Decision: RFC 5308 section 5 preference, not a flat level rule
+## Decision: metric type precedes cost
 
-`preferenceRank` orders level-1 up (0), level-2 up (1), level-2 down (2), level-1
-down (3), with ties broken by metric. A leaked level-1 down prefix is the **least**
-preferred and loses to any level-2 prefix.
+IPv4 selection follows RFC 2966 section 3.2: L1 internal-metric routes, L2
+internal-metric routes, L1 down-leaked internal-metric routes, then the same
+three classes with external metrics. TLV 130 identifies external reachability;
+its default metric can still be internal. Such a route competes with TLV 128
+on total cost. An external metric competes on its own value first and uses
+distance to the advertising router only to break an external-metric tie.
 
-A flat "level 1 beats level 2" rule is the classic trap here.
+The narrow L2 up/down bit is ignored as recommended by RFC 2966 section 3.3.
+Wide IPv4 and IPv6 retain RFC 5302 / RFC 5308's L1-up, L2-up, L2-down,
+L1-down order. IPv6 has no narrow external-metric class.
 
 <!-- source: internal/plugins/isis/spf/route.go -- preferenceRank, candidate.better, BuildRoutes, DiffRoutes -->
 
@@ -64,6 +69,10 @@ metric is the full 32-bit field, read in full and never capped at 24 bits. Path
 cost accumulates in 64 bits and clamps at the maximum path metric, so a sum of
 32-bit prefix and 24-bit edge metrics cannot wrap. A prefix at or above the
 maximum is unreachable and skipped.
+
+Narrow IPv4 leaks retain TLV 128 or TLV 130 and their metric type. Internal
+metrics add the distance to the advertising router and saturate at 63 on
+re-origination. External metrics retain their advertised value.
 
 ## Decision: the maximum LINK metric excludes the link, not the path
 
@@ -114,10 +123,9 @@ impose different labels.
 
 ## Decision: leaking is a one-pass fixpoint
 
-Leaking skips any source prefix that already carries the down bit in both
-directions, so the re-origination a leak triggers does not re-leak and the next
-SPF run recomputes the same set. The loop terminates with no explicit iteration
-cap.
+Leaking excludes an L1 prefix whose down bit is set, which prevents it returning
+to L2. Wide L2 prefixes with the bit set are also excluded from another down
+leak; narrow L2 entries ignore that bit under RFC 2966 section 3.3.
 
 <!-- source: internal/plugins/isis/spf/leak.go -- LeakPrefixes -->
 
@@ -136,11 +144,28 @@ They sit at distance 0 with an empty first-hop set and belong to the connected
 route source. If IS-IS installed them it would claim a directly connected prefix
 with itself as the next hop.
 
-## Trap: an unresolved next hop is dropped, never installed
+## Next-hop capability and terminal rejection
 
-A path whose next hop does not resolve is not installed pointing nowhere. A
-malformed stored LSP is skipped as one bad node rather than failing the whole
-run.
+A missing adjacency cannot supply a next hop. An Up adjacency whose advertised
+protocol set excludes the packet's address family instead supplies a terminal
+unreachable route when no capable ECMP member remains. Dropping that route
+would let a less-specific default forward traffic to an unsupported router.
+Equal-cost originators in the winning preference class contribute one merged,
+deduplicated next-hop set. A capable member excludes terminal-rejection members
+from that set; a higher-cost or less-preferred route cannot bypass rejection.
+
+The adjacency's logical interface and on-link flag travel with the gateway
+through the Loc-RIB, route-install RPC, sysrib and kernel FIB. The gateway need
+not share the interface's IP subnet: physical IS-IS adjacency establishes that
+it is on the outgoing link.
+
+SPF reads one locked raw LSDB snapshot per level. A source's fragment zero must
+be live before its other standard fragments contribute routes. Every run
+rebuilds the graph; periodic own-LSP refresh triggers a full run even without
+a received topology change.
+Runs are serialized through installation and completion callbacks. If the
+configured root or level set changes during computation, that run is discarded
+and rescheduled; it cannot install old-root routes or publish old reachability.
 
 ## File split
 

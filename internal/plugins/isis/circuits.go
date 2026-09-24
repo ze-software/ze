@@ -49,6 +49,7 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	// run two hello+sweep goroutines for a single circuit. Defensive: a clean
 	// down already closed and cleared the channel via onCircuitDown.
 	stop := make(chan struct{})
+	done := make(chan struct{})
 	// reload carries a committed parameter change into the running Hello sender.
 	// applyCircuitParams writes the new values into the circuit and then signals
 	// here, so the tickers restart at the new period instead of the circuit being
@@ -60,11 +61,16 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	if prev, ok := e.circuitStop[name]; ok {
 		close(prev)
 	}
+	prevDone := e.circuitDone[name]
 	e.circuits[c.IfIndex()] = c
 	e.circuitByName[name] = c
 	e.circuitStop[name] = stop
+	e.circuitDone[name] = done
 	e.circuitReload[name] = reload
 	e.circuitsMu.Unlock()
+	if prevDone != nil {
+		<-prevDone
+	}
 
 	// One Hello timer for each schedule the circuit publishes: a broadcast circuit
 	// runs one for each level it forms, so a per-level `hello-interval` sends the
@@ -78,6 +84,7 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	}
 
 	e.wg.Go(func() {
+		defer close(done)
 		// A circuit forms at most two levels, so two tickers cover every schedule
 		// set. The second channel stays nil for a one-schedule circuit, and a nil
 		// channel never fires in a select.
@@ -175,6 +182,26 @@ func (e *engine) applyCircuitParams(ic InterfaceConfig) {
 	e.runElection(c)
 }
 
+// refreshCircuitProtocols applies node-wide capabilities to every live circuit.
+// RFC 1195 Section 4.4: "Thus, the value of the \"protocols supported\" field must
+// be identical on every link (i.e., for any one router running IS-IS, all of the
+// Hellos and LSPs transmitted by it must contain the same \"protocols supported\" values)."
+// The caller MUST invoke this after replacing the configuration on reload.
+func (e *engine) refreshCircuitProtocols() {
+	e.mu.Lock()
+	protocols := e.cfg.Protocols()
+	e.mu.Unlock()
+	e.circuitsMu.RLock()
+	defer e.circuitsMu.RUnlock()
+	for name, c := range e.circuitByName {
+		c.SetProtocols(protocols)
+		select {
+		case e.circuitReload[name] <- struct{}{}:
+		default:
+		}
+	}
+}
+
 // buildCircuit constructs an adjacency circuit for an opened interface, pulling
 // the resolved ifindex / source MAC / MTU from the transport and the System ID /
 // area addresses from the active config. Returns nil when the transport has no
@@ -188,6 +215,11 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 	e.mu.Lock()
 	sysID := e.cfg.SystemID
 	areas := areaAddresses(e.cfg.NETs)
+	protocols := e.cfg.Protocols()
+	var net types.NET
+	if len(e.cfg.NETs) > 0 {
+		net = e.cfg.NETs[0]
+	}
 	e.mu.Unlock()
 
 	kind := adjacency.KindBroadcast
@@ -199,10 +231,11 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 		Name:           ic.Name,
 		IfIndex:        ifindex,
 		SystemID:       sysID,
+		NET:            net,
 		SNPA:           adjacency.SNPA(hwaddr),
 		Areas:          areas,
 		IPv4:           interfaceIPv4(ic),
-		AdvertiseIPv6:  advertisesIPv6(ic),
+		Protocols:      protocols,
 		IPv6LinkLocal:  interfaceIPv6LinkLocal(ic),
 		Kind:           kind,
 		Levels:         circuitLevels(ic.Level),
@@ -233,6 +266,8 @@ func (e *engine) buildCircuit(ic InterfaceConfig) *circuit.Circuit {
 			// rebuilt (isis-8). On a P2P circuit runElection is a no-op.
 			e.runElection(c)
 			e.originate()
+			// A neighbor can change its protocol set without changing our LSP.
+			e.triggerSPF()
 			e.onAdjacencyUpFlood(name, level)
 		},
 		func(adjacency.Level) {
@@ -258,10 +293,15 @@ func (e *engine) onCircuitDown(ifindex int, name string) {
 		close(stop)
 		delete(e.circuitStop, name)
 	}
+	done := e.circuitDone[name]
+	delete(e.circuitDone, name)
 	delete(e.circuitReload, name)
 	delete(e.circuits, ifindex)
 	delete(e.circuitByName, name)
 	e.circuitsMu.Unlock()
+	if done != nil {
+		<-done
+	}
 	if c != nil {
 		c.Teardown()
 		e.publishAdjMetrics()
@@ -418,9 +458,9 @@ func levelHelloTimers(ic InterfaceConfig, level adjacency.Level) circuit.LevelTi
 	return t
 }
 
-// advertisesIPv6 reports whether the interface enables the IPv6 address family
-// (so TLV 129 advertises NLPID 0x8E, the IIH carries TLV 232, and TLV 236 /
-// IPv6 SPF run for the circuit). It gates all IPv6 origination + SPF (isis-12).
+// advertisesIPv6 reports whether an interface contributes IPv6 addresses and
+// prefixes. Config.Protocols combines enabled interfaces into the identical
+// node-wide Protocols Supported option sent on every circuit and LSP.
 func advertisesIPv6(ic InterfaceConfig) bool {
 	return slices.Contains(ic.AddressFamily, "ipv6-unicast")
 }

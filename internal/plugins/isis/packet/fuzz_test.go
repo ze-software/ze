@@ -113,13 +113,17 @@ func FuzzISISTLVIterator(f *testing.F) {
 			case TLVISNeighbors:
 				ignoreDecode(DecodeISNeighborsTLV(value))
 			case TLVISReachabilityNarrow:
-				ignoreDecode(decodeNarrowISReachTLV(value))
+				ignoreDecode(DecodeNarrowISReachTLV(value))
 			case TLVLSPEntries:
 				ignoreDecode(DecodeLSPEntriesTLV(value))
 			case TLVAuthentication:
 				ignoreDecode(decodeAuthTLV(value))
 			case TLVExtendedISReach:
 				ignoreDecode(DecodeExtendedISReachTLV(value))
+			case TLVIPInternalReachability:
+				ignoreDecode(DecodeNarrowIPReachTLV(value, false))
+			case TLVIPExternalReachability:
+				ignoreDecode(DecodeNarrowIPReachTLV(value, true))
 			case TLVProtocolsSupported:
 				_ = DecodeProtocolsSupportedTLV(value)
 			case TLVIPInterfaceAddress:

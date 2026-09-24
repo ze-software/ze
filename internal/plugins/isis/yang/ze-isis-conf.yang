@@ -310,13 +310,11 @@ module ze-isis-conf {
                 list address-family {
                     key "af";
                     description
-                        "Ze reads this list for one decision: does the circuit carry
-                         IPv6. An ipv6-unicast entry adds the IPv6 NLPID to TLV 129 and
-                         makes the hello carry TLV 232. TLV 129 carries the IPv4 NLPID
-                         on every circuit. Both families ride one SPF tree, because this
-                         IS-IS is single-topology.";
-                    ze:help "Per-interface address families on this circuit (single-topology;
-                             both ride the shared SPF tree).";
+                        "An ipv6-unicast entry enables the interface's IPv6 addresses
+                         and prefixes. On any enabled interface it also adds IPv6 to
+                         the node-wide Protocols Supported set in every Hello and LSP.
+                         IPv4 is always supported. Both families use one SPF tree.";
+                    ze:help "Enable address families on this interface.";
                     leaf af {
                         type enumeration {
                             enum ipv4-unicast { ze:help "IPv4 unicast."; }

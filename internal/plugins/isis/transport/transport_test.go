@@ -248,21 +248,21 @@ func TestISISTransportSendRejectOversize(t *testing.T) {
 }
 
 func TestISISTransportSendMTUBoundary(t *testing.T) {
-	// VALIDATES: AC-3 / R-5 boundary -- a PDU exactly at the MTU sends; one byte
-	// over the MTU is rejected. The fake circuit reports MTU 1500.
+	// VALIDATES: AC-3 / R-5 boundary -- LLC plus PDU exactly fills the MTU;
+	// one byte more is rejected. The fake circuit reports MTU 1500.
 	be := newFakeBackend()
 	tr := New(be)
 	tr.EnableInterface("eth0", Level2)
 	_ = tr.HandleLinkUp("eth0")
 	const mtu = 1500
 
-	// Last valid: PDU length == MTU.
-	if err := tr.SendPDU("eth0", Level2, make([]byte, mtu)); err != nil {
-		t.Errorf("PDU at MTU (%d) rejected: %v", mtu, err)
+	// Last valid: LLC + PDU length == MTU.
+	if err := tr.SendPDU("eth0", Level2, make([]byte, mtu-LLCHeaderLen)); err != nil {
+		t.Errorf("LLC + PDU at MTU (%d) rejected: %v", mtu, err)
 	}
-	// Invalid above: MTU+1.
-	if err := tr.SendPDU("eth0", Level2, make([]byte, mtu+1)); err == nil {
-		t.Errorf("PDU at MTU+1 (%d) accepted, want rejection", mtu+1)
+	// Invalid above: LLC + PDU == MTU+1.
+	if err := tr.SendPDU("eth0", Level2, make([]byte, mtu-LLCHeaderLen+1)); err == nil {
+		t.Errorf("LLC + PDU at MTU+1 (%d) accepted, want rejection", mtu+1)
 	}
 }
 

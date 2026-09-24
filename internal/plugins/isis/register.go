@@ -315,6 +315,7 @@ func runISISEngine(conn net.Conn) int {
 	// transport and launch the per-circuit goroutine stubs (AC-1). A config with
 	// no NET leaves the engine idle (like LDP with no lsr-id).
 	p.OnStarted(func(_ context.Context) error {
+		eng.startBGPLS()
 		// Redistribution consumer + producer wiring (isis-11), done BEFORE the idle
 		// check so the `redistribute { destination isis { import ... } }` config has
 		// a consumer to dispatch to even when the engine is idle. The SINGLE config
@@ -345,9 +346,6 @@ func runISISEngine(conn net.Conn) int {
 			return nil
 		}
 		eng.setConfig(cfg)
-		// Wire link up/down so a configured interface that comes up after start
-		// opens its circuit (and a down link closes it).
-		eng.subscribeIfaceEvents(getEventBus())
 		if err := eng.openCircuits(); err != nil {
 			return fmt.Errorf("isis: opening circuits: %w", err)
 		}

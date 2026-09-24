@@ -341,3 +341,28 @@ func TestISISRedistMetricBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestISISUnsupportedRouteWithdrawsRedistribution(t *testing.T) {
+	prefix := netip.MustParsePrefix("198.51.100.0/24")
+	usable := spf.RouteEntry{Prefix: prefix, Metric: 10, Level: spf.Level2,
+		NextHops: []spf.NextHop{{Addr: netip.MustParseAddr("192.0.2.2")}}}
+	rejected := usable
+	rejected.NextHops = []spf.NextHop{{Unsupported: true}}
+	// A consumer must receive a withdrawal on loss of protocol support, not
+	// an addition whose absent next hop it would interpret as next-hop self.
+	var actions []redistevents.RouteAction
+	capture := func(batch *redistevents.RouteChangeBatch) {
+		for _, entry := range batch.Entries {
+			if entry.Prefix == prefix {
+				actions = append(actions, entry.Action)
+			}
+		}
+	}
+	emitDelta(spf.RouteDelta{Added: []spf.RouteEntry{usable}}, testProtocolID(), capture)
+	emitDelta(spf.RouteDelta{Changed: []spf.RouteEntry{rejected}}, testProtocolID(), capture)
+	emitDelta(spf.RouteDelta{Changed: []spf.RouteEntry{usable}}, testProtocolID(), capture)
+	if len(actions) != 3 || actions[0] != redistevents.ActionAdd ||
+		actions[1] != redistevents.ActionRemove || actions[2] != redistevents.ActionAdd {
+		t.Fatalf("consumer actions on capability transition = %v", actions)
+	}
+}

@@ -2,7 +2,10 @@
 
 package types
 
-import "bytes"
+import (
+	"bytes"
+	"errors"
+)
 
 // AreaID / NET length bounds.
 //
@@ -24,6 +27,9 @@ const (
 	// ISISSEL is the NSEL value for an IS (router): always 0x00.
 	ISISSEL = 0x00
 )
+
+// ErrNETReserved reports nonzero reserved octets in a GOSIP-format NET.
+var ErrNETReserved = errors.New("isis types: GOSIP NET reserved octets must be zero")
 
 // AreaID identifies a level-1 area. It is a variable-length value of 1..13
 // octets (ISO/IEC 10589 section 6.2). Two routers with different area addresses
@@ -120,14 +126,36 @@ func ParseNET(s string) (NET, error) {
 	if err != nil {
 		return NET{}, err
 	}
-	return nETFromBytes(raw[:n])
+	return NETFromBytes(raw[:n])
 }
 
-// nETFromBytes copies an 8..20 octet NET from b, validating the bound before
+// NETFromBytes copies an 8..20 octet NET from b, validating the bound before
 // indexing so an attacker-controlled length cannot cause an out-of-range slice.
-func nETFromBytes(b []byte) (NET, error) {
-	if len(b) < MinNETLen || len(b) > MaxNETLen {
+// GOSIP NETs (RFC 1195 section 3.3) have this 20-octet layout:
+//
+//	0     1..2  3    4..6  7..8      9..10  11..12  13..18  19
+//	AFI | ICD | DFI | AA | reserved | RD | area | SystemID | SEL
+//
+// The reserved octets are part of the area identity sent in Hellos. Rejecting
+// them at construction prevents a configured invalid NET from reaching the wire.
+func NETFromBytes(b []byte) (NET, error) {
+	if len(b) < MinNETLen {
 		return NET{}, ErrWrongLength
+	}
+	if len(b) > MaxNETLen {
+		return NET{}, ErrWrongLength
+	}
+	if len(b) == MaxNETLen {
+		if bytes.Equal(b[:3], []byte{0x47, 0x00, 0x05}) {
+			// RFC 1195 section 3.3: "The reserved field must contain
+			// \"00 00\", as specified in GOSIP version 2.0."
+			if b[7] != 0 {
+				return NET{}, ErrNETReserved
+			}
+			if b[8] != 0 {
+				return NET{}, ErrNETReserved
+			}
+		}
 	}
 	cp := make([]byte, len(b))
 	copy(cp, b)
