@@ -10,7 +10,14 @@ PPPoE uses the same transport-agnostic PPP Driver as L2TP. The PPPoE
 component handles discovery (PADI/PADO/PADR/PADS/PADT) and creates
 kernel PPPoE sessions via AF_PPPOX. The resulting /dev/ppp file
 descriptors feed into the PPP Driver, which runs LCP, authentication,
-and IPCP/IPv6CP identically to L2TP sessions.
+and IPCP/IPv6CP through the shared state machines.
+
+PPPoE applies RFC 2516's transport restrictions to LCP: neither role requests
+ACCM, ACFC or FCS Alternatives, and both reject peer requests for them.
+These restrictions do not change L2TP negotiation. A PADT matching the
+session ID and both MAC addresses ends the PPPoE transport immediately;
+PPP termination packets are not sent afterwards. Local teardown also
+stops PPP before sending PADT.
 
 ```
 Subscriber CPE
@@ -158,7 +165,7 @@ Ze's runtime kernel. The stock Alpine kernel has no `CONFIG_PPPOE`.
 | `service-name-mismatch` | The requested service does not match any configured `service-name` |
 | `service-name-missing` | A PADR carried no Service-Name tag (RFC 2516 Section 5.3) |
 | `cookie-invalid` | A PADR's AC-Cookie was missing, malformed, or expired |
-| `session-id-exhausted` | The interface's session ID space (1 to 65535) is full |
+| `session-id-exhausted` | The interface's usable session ID space (1 to 65534) is full; 0 and 65535 are reserved |
 | `per-mac-cap-reached` | The PADR's source MAC already holds `max-sessions-per-mac` sessions |
 
 - `ze_ppp_ipv6cp_identifier_refusals_total` -- IPv6CP negotiations refused for

@@ -354,9 +354,7 @@ func TestDriverRejectsInvalidFDs(t *testing.T) {
 
 	// Sanity: the driver still accepts a valid session after the
 	// rejections.
-	reg := newPipeRegistry()
-	installPipeRegistry(t, reg)
-	pair := newPipePair(reg, 8001)
+	pair = newPipePair(reg, 8001)
 	defer closeConn(pair.peerEnd)
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xDEADBEEF)})
 	d.SessionsIn() <- StartSession{

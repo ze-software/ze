@@ -24,6 +24,17 @@
       "break": "body of evalIPv6CPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5072-4.1-12",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal",
+      "unit-sha": "e3f873732433618b",
+      "claim-sha": "ef409efeb01c9df7",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::validNCPReply",
+      "producer-sha": "1a6e65b28ade9954",
+      "break": "body of validNCPReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5072-4.1-19",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce",

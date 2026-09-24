@@ -294,28 +294,14 @@ func ipv6cpInterfaceIDOption(id [ipv6cpInterfaceIDLen]byte) []byte {
 	return append(out, id[:]...)
 }
 
-// TestIPCPDNSRejectAbsorbed drives absorbIPCPReject's non-fatal branch.
+// TestIPCPDNSIsOptional negotiates IPv4 with and without requested DNS options.
+// An invalid rejection of DNS options that Ze did not send cannot clear them.
 //
-// ze never OFFERS DNS in its own Configure-Request: writeNCPOptions (ncp.go)
-// carries only IP-Address, because RFC 1877 DNS is communicated via Nak to the
-// peer's Configure-Request (buildNakOrReject, ncp.go, fills PrimaryDNS from
-// s.dnsPrimary). So the absorb branch defends against a peer that rejects
-// options ze never sent, and its observable effect is on the NAK ze sends next.
-//
-// VALIDATES: after a peer Configure-Rejects the DNS options, the session
-// survives (non-fatal) and ze's subsequent Nak offers NO DNS addresses, while
-// still Nak-ing the peer's IP-Address.
-// PREVENTS: the HasPrimary/HasSecondary clearing in absorbIPCPReject going
-// unexercised. Without it ze would keep pushing DNS a peer explicitly refused.
-// The control subtest proves the reject is what causes the difference, so the
-// assertion cannot pass vacuously.
-//
-// RFC requirement: RFC1877-x-1 positive -- the link stays usable for IPv4 whether or
-// not DNS is assigned (RFC 1877 Scope): when the peer Configure-Rejects the DNS
-// options, absorbIPCPReject clears them and the session survives, still negotiating
-// the IPv4 address, so IPv4 connectivity does not depend on DNS assignment.
-func TestIPCPDNSRejectAbsorbed(t *testing.T) {
-	t.Run("control: nak carries dns when nothing was rejected", func(t *testing.T) {
+// RFC requirement: RFC1877-x-1 positive -- IPv4 negotiation completes when the
+// peer requests the configured DNS addresses and when it requests only an
+// IP address. RFC 1877 Section 1.1: "By default, no primary DNS address is provided."
+func TestIPCPDNSIsOptional(t *testing.T) {
+	t.Run("requested DNS addresses", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 		defer td.cleanup()
 
@@ -340,9 +326,28 @@ func TestIPCPDNSRejectAbsorbed(t *testing.T) {
 		if !opts.HasSecondary || opts.SecondaryDNS != ipcpTestDNS2 {
 			t.Errorf("control nak secondary DNS = %v (has=%v), want %v", opts.SecondaryDNS, opts.HasSecondary, ipcpTestDNS2)
 		}
+
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0x22, nak.Data)
+		ack := readIPCPUntil(t, td, LCPConfigureAck)
+		if ack.Identifier != 0x22 || !bytes.Equal(ack.Data, nak.Data) {
+			t.Fatalf("DNS negotiation Ack = %+v, want the requested options", ack)
+		}
+		if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+			t.Fatal("no EventSessionUp after IPv4 and DNS negotiation")
+		}
 	})
 
-	t.Run("dns cleared after configure-reject", func(t *testing.T) {
+	t.Run("no DNS requested", func(t *testing.T) {
+		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+		defer td.cleanup()
+
+		td.completeIPCP(t)
+		if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+			t.Fatal("no EventSessionUp after IPv4 negotiation without DNS")
+		}
+	})
+
+	t.Run("unrequested DNS rejection is ignored", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 		defer td.cleanup()
 
@@ -351,7 +356,7 @@ func TestIPCPDNSRejectAbsorbed(t *testing.T) {
 			t.Fatalf("got code %d, want Configure-Request", cr.Code)
 		}
 
-		// Reject the DNS options, echoed verbatim per RFC 1661 5.4.
+		// RFC 1661 Section 5.4 requires a subset of the request's options.
 		reject := []byte{IPCPOptPrimaryDNS, 6, 0, 0, 0, 0, IPCPOptSecondaryDNS, 6, 0, 0, 0, 0}
 		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, cr.Identifier, reject)
 
@@ -364,14 +369,12 @@ func TestIPCPDNSRejectAbsorbed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse nak: %v", err)
 		}
-		if opts.HasPrimary {
-			t.Errorf("nak still offers primary DNS %v after the peer rejected it", opts.PrimaryDNS)
+		if !opts.HasPrimary || opts.PrimaryDNS != ipcpTestDNS1 {
+			t.Errorf("primary DNS changed after an invalid Reject: %v (has=%v)", opts.PrimaryDNS, opts.HasPrimary)
 		}
-		if opts.HasSecondary {
-			t.Errorf("nak still offers secondary DNS %v after the peer rejected it", opts.SecondaryDNS)
+		if !opts.HasSecondary || opts.SecondaryDNS != ipcpTestDNS2 {
+			t.Errorf("secondary DNS changed after an invalid Reject: %v (has=%v)", opts.SecondaryDNS, opts.HasSecondary)
 		}
-		// The address is NOT part of what was rejected: it must still be Nak-ed,
-		// proving the session was absorbed rather than torn down.
 		if !opts.HasIPAddress || opts.IPAddress != ipcpTestPeer {
 			t.Errorf("nak IP-Address = %v (has=%v), want %v", opts.IPAddress, opts.HasIPAddress, ipcpTestPeer)
 		}
@@ -396,8 +399,7 @@ func TestIPCPIPAddressRejectIsFatal(t *testing.T) {
 	if cr.Code != LCPConfigureRequest {
 		t.Fatalf("got code %d, want Configure-Request", cr.Code)
 	}
-	reject := []byte{IPCPOptIPAddress, 6, 0, 0, 0, 0}
-	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, cr.Identifier, reject)
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, cr.Identifier, cr.Data)
 
 	if _, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 2*time.Second); !ok {
 		t.Fatal("no EventSessionDown after the peer rejected the mandatory IP-Address option")
@@ -957,22 +959,12 @@ func TestIPv6CPInterfaceIDRejectIsFatal(t *testing.T) {
 	}
 }
 
-// TestIPv6CPUnknownOptionRejectNotFatal contrasts with the mandatory-option reject: a
-// Configure-Reject naming a NON-Interface-Identifier option (type 2) leaves
-// absorbIPv6CPReject (internal/component/l2tp/ppp/ncp.go) returning non-fatal, so the
-// session survives and the ReqSent+RCN transition (ppp_fsm.go) resends the
-// Configure-Request -- which still legitimately carries the Interface-Identifier, because
-// that option was NOT the one rejected.
+// TestIPv6CPUnknownOptionRejectNotFatal rejects an option absent from Ze's request.
+// The invalid reply must not replace the outstanding request or stop negotiation.
 //
-// VALIDATES: a Configure-Reject of a non-Interface-Identifier option does NOT tear the
-// session down; ze keeps negotiating and its resent Configure-Request still carries the
-// Interface-Identifier.
-// PREVENTS: a regression that treated every Configure-Reject as fatal.
-//
-// RFC requirement: RFC5072-4.1-12 negative -- the "MUST NOT re-include the option" rule
-// (§4.1) is scoped to a reject OF the Interface-Identifier option; a reject of some other
-// option is not fatal and does not strip the Interface-Identifier from the next
-// Configure-Request.
+// RFC requirement: RFC5072-4.1-12 negative -- the option-removal rule requires a
+// valid Interface-Identifier rejection. A rejection of an unrequested option
+// leaves the original Interface-Identifier negotiation usable.
 func TestIPv6CPUnknownOptionRejectNotFatal(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPCP: true})
 	defer td.cleanup()
@@ -985,16 +977,15 @@ func TestIPv6CPUnknownOptionRejectNotFatal(t *testing.T) {
 	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureReject, cr.Identifier,
 		[]byte{2, 4, 0x00, 0x11})
 
-	if _, ok := waitForEventOfType[EventSessionDown](t, td.driver.EventsOut(), 300*time.Millisecond); ok {
-		t.Fatal("Configure-Reject of a non-Interface-Identifier option must not tear the session down")
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureAck, cr.Identifier, cr.Data)
+	peerCR := ipv6cpInterfaceIDOption(ipv6cpTestPeerID)
+	td.writePeerNCPPacket(t, ProtoIPv6CP, LCPConfigureRequest, 0x2a, peerCR)
+	ack := td.readPeerNCPPacket(t, ProtoIPv6CP)
+	if ack.Code != LCPConfigureAck || ack.Identifier != 0x2a || !bytes.Equal(ack.Data, peerCR) {
+		t.Fatalf("response after invalid Reject = %+v, want peer Configure-Ack", ack)
 	}
-
-	// ze continues negotiating: the resent Configure-Request still carries the
-	// Interface-Identifier (that option was not rejected).
-	resent := readIPv6CPUntil(t, td, LCPConfigureRequest)
-	opts, err := parseIPv6CPOptions(resent.Data)
-	if err != nil || !opts.HasInterfaceID {
-		t.Fatalf("resent CR missing Interface-Identifier after a non-fatal reject: %v", err)
+	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("invalid Reject prevented the original IPv6CP negotiation from completing")
 	}
 }
 
@@ -1363,7 +1354,8 @@ func TestIPv6CPNakSuggestionFailureRejectsAndKeepsIPv4Session(t *testing.T) {
 		}
 		n, err := td.peer.Read(buf)
 		if err != nil {
-			t.Fatalf("peer read: %v (ipcpDone=%v ipv6cpDone=%v)", err, ipcpDone, ipv6cpDone)
+			t.Fatalf("peer read: %v (ipcpDone=%v ipv6cpDone=%v acked=%v collided=%v reject=%v missing1=%v nak=%v missing2=%v)",
+				err, ipcpDone, ipv6cpDone, ipv6cpAcked, ipv6cpCollided, rejectSeen, ipv6cpMissing1, nakSeen, ipv6cpMissing2)
 		}
 		proto, payload, _, perr := ParseFrame(buf[:n])
 		if perr != nil {
@@ -1386,6 +1378,10 @@ func TestIPv6CPNakSuggestionFailureRejectsAndKeepsIPv4Session(t *testing.T) {
 					ipcpSentCR = true
 				}
 			case LCPConfigureAck:
+				assigned, ok := waitForEventOfType[EventSessionIPAssigned](t, td.driver.EventsOut(), 2*time.Second)
+				if !ok || assigned.Family != AddressFamilyIPv4 {
+					t.Fatalf("IPv4 assignment before further IPv6CP traffic = %+v (received=%v)", assigned, ok)
+				}
 				ipcpDone = true
 			}
 		case ProtoIPv6CP:

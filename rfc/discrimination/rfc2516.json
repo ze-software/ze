@@ -46,6 +46,28 @@
       "break": "body of handlePADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2516-5.1-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit-sha": "0bea9845f8bf192c",
+      "claim-sha": "8e8a226aff7669dc",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADI",
+      "producer-sha": "80f208d1a6b70715",
+      "break": "body of BuildPADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-5.1-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit-sha": "0bea9845f8bf192c",
+      "claim-sha": "c3ec8139ffacf5ca",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADI",
+      "producer-sha": "80f208d1a6b70715",
+      "break": "body of BuildPADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2516-5.2-2",
       "polarity": "positive",
       "unit": "internal/component/l2tp/pppoe/discovery_test.go::TestPADOAlwaysCarriesServiceName",
@@ -231,6 +253,28 @@
       "producer": "internal/component/iface/pppoe_client.go::runSession",
       "producer-sha": "a6a93a31d88ab918",
       "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-10",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit-sha": "0bea9845f8bf192c",
+      "claim-sha": "b626bd6570bac7eb",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADI",
+      "producer-sha": "80f208d1a6b70715",
+      "break": "body of BuildPADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2516-x-10",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/pppoe/padi_length_rfc2516_test.go::TestPADINeverExceeds1484Octets",
+      "unit-sha": "0bea9845f8bf192c",
+      "claim-sha": "c142bd53e6e770ad",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADI",
+      "producer-sha": "80f208d1a6b70715",
+      "break": "body of BuildPADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2516-x-12",

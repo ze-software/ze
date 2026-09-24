@@ -3,10 +3,12 @@
 
 package ppp
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
-// ipcpRejectFrame builds one IPCP packet carrying data, ready for
-// handleIPCPPacket.
+// ipcpPacket builds one IPCP packet for handleIPCPPacket.
 func ipcpPacket(code, id uint8, data []byte) LCPPacket {
 	return LCPPacket{Code: code, Identifier: id, Data: data}
 }
@@ -15,11 +17,19 @@ func ipcpPacket(code, id uint8, data []byte) LCPPacket {
 // state RFC 1661 Section 4.3 answers an RCN event in with "irc,scr/6": a fresh
 // Configure-Request onto the wire. A packet the RFC discards therefore leaves
 // both the state and the recorder untouched, and a packet it accepts does not.
-func newIPCPSession(t *testing.T) (*pppSession, *frameRecorder) {
+func newIPCPSession(t *testing.T) (*pppSession, *frameRecorder, LCPPacket) {
 	t.Helper()
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
+	s.localIPv4 = ipcpTestLocal
 	s.setNCPState(AddressFamilyIPv4, LCPStateReqSent)
-	return s, rec
+	if !s.sendNCPConfigureRequest(AddressFamilyIPv4) {
+		t.Fatal("send initial IPCP Configure-Request")
+	}
+	frames := decodeFrames(t, rec)
+	if len(frames) != 1 || frames[0].Proto != ProtoIPCP || frames[0].Pkt.Code != LCPConfigureRequest {
+		t.Fatalf("initial IPCP request = %+v", frames)
+	}
+	return s, rec, frames[0].Pkt
 }
 
 // VALIDATES: an IPCP Configure-Reject whose option list does not parse is
@@ -40,12 +50,11 @@ func newIPCPSession(t *testing.T) (*pppSession, *frameRecorder) {
 // or otherwise invalid packet is silently discarded."
 // So the session stays up and the negotiation keeps the state it already had.
 func TestNCPInvalidConfigureRejectIsSilentlyDiscarded(t *testing.T) {
-	s, rec := newIPCPSession(t)
+	s, rec, request := newIPCPSession(t)
 
-	// IP-Address at Length 1 counts fewer octets than its own header holds,
-	// so the option list does not parse. The packet is not truncated, so it
-	// reaches absorbIPCPReject rather than the framing guard above it.
-	term := s.handleIPCPPacket(ipcpPacket(LCPConfigureReject, 0x41, []byte{IPCPOptIPAddress, 1}))
+	// The reply names the current request, but its option length cannot
+	// contain the option header.
+	term := s.handleIPCPPacket(ipcpPacket(LCPConfigureReject, request.Identifier, []byte{IPCPOptIPAddress, 1}))
 
 	if term {
 		t.Fatal("an unreadable IPCP Configure-Reject ended the session; RFC 1661 Section 5.4 silently discards it")
@@ -53,8 +62,8 @@ func TestNCPInvalidConfigureRejectIsSilentlyDiscarded(t *testing.T) {
 	if got := s.ncpState(AddressFamilyIPv4); got != LCPStateReqSent {
 		t.Fatalf("IPCP state = %s, want Req-Sent unchanged: RFC 1661 Section 4.3 discards the packet 'without affecting the automaton'", got)
 	}
-	if c := rec.count(); c != 0 {
-		t.Fatalf("ze answered an unreadable Configure-Reject with %d frames, want silence", c)
+	if c := rec.count(); c != 1 {
+		t.Fatalf("frame count after unreadable Configure-Reject = %d, want only the initial request", c)
 	}
 }
 
@@ -68,10 +77,9 @@ func TestNCPInvalidConfigureRejectIsSilentlyDiscarded(t *testing.T) {
 // Configuration Options listed in the Configure-Reject." Ze cannot bring IPCP
 // up without the IP-Address option, so a valid Reject of it ends the session.
 func TestNCPValidConfigureRejectOfIPAddressStillFails(t *testing.T) {
-	s, _ := newIPCPSession(t)
+	s, _, request := newIPCPSession(t)
 
-	data := []byte{IPCPOptIPAddress, 6, 10, 0, 0, 1}
-	if term := s.handleIPCPPacket(ipcpPacket(LCPConfigureReject, 0x42, data)); !term {
+	if term := s.handleIPCPPacket(ipcpPacket(LCPConfigureReject, request.Identifier, request.Data)); !term {
 		t.Fatal("a valid IPCP Configure-Reject of IP-Address did not end the session")
 	}
 }
@@ -89,9 +97,9 @@ func TestNCPValidConfigureRejectOfIPAddressStillFails(t *testing.T) {
 // Configure-Request. Invalid packets are silently discarded."
 // So the RCN event never runs and the negotiation is not restarted.
 func TestNCPInvalidConfigureNakIsSilentlyDiscarded(t *testing.T) {
-	s, rec := newIPCPSession(t)
+	s, rec, request := newIPCPSession(t)
 
-	term := s.handleIPCPPacket(ipcpPacket(LCPConfigureNak, 0x43, []byte{IPCPOptIPAddress, 1}))
+	term := s.handleIPCPPacket(ipcpPacket(LCPConfigureNak, request.Identifier, []byte{IPCPOptIPAddress, 1}))
 
 	if term {
 		t.Fatal("an unreadable IPCP Configure-Nak ended the session")
@@ -99,8 +107,8 @@ func TestNCPInvalidConfigureNakIsSilentlyDiscarded(t *testing.T) {
 	if got := s.ncpState(AddressFamilyIPv4); got != LCPStateReqSent {
 		t.Fatalf("IPCP state = %s, want Req-Sent unchanged", got)
 	}
-	if c := rec.count(); c != 0 {
-		t.Fatalf("ze answered an unreadable Configure-Nak with %d frames, want silence", c)
+	if c := rec.count(); c != 1 {
+		t.Fatalf("frame count after unreadable Configure-Nak = %d, want only the initial request", c)
 	}
 }
 
@@ -112,13 +120,19 @@ func TestNCPInvalidConfigureNakIsSilentlyDiscarded(t *testing.T) {
 // RFC 1661 Section 4.3 gives Req-Sent the RCN action "irc,scr/6", so a valid
 // Nak draws a fresh Configure-Request.
 func TestNCPValidConfigureNakDrivesTheAutomaton(t *testing.T) {
-	s, rec := newIPCPSession(t)
+	s, rec, request := newIPCPSession(t)
 
-	data := []byte{IPCPOptIPAddress, 6, 10, 0, 0, 1}
-	if term := s.handleIPCPPacket(ipcpPacket(LCPConfigureNak, 0x44, data)); term {
+	data := []byte{IPCPOptIPAddress, 6, 10, 0, 0, 254}
+	if term := s.handleIPCPPacket(ipcpPacket(LCPConfigureNak, request.Identifier, data)); term {
 		t.Fatal("a valid IPCP Configure-Nak ended the session")
 	}
-	if c := rec.count(); c == 0 {
-		t.Fatal("a valid IPCP Configure-Nak drew no Configure-Request; RFC 1661 Section 4.3 gives Req-Sent the RCN action irc,scr")
+	frames := decodeFrames(t, rec)
+	if len(frames) != 2 {
+		t.Fatalf("frame count after valid Configure-Nak = %d, want initial and replacement requests", len(frames))
+	}
+	reply := frames[1]
+	if reply.Proto != ProtoIPCP || reply.Pkt.Code != LCPConfigureRequest ||
+		reply.Pkt.Identifier == request.Identifier || !bytes.Equal(reply.Pkt.Data, data) {
+		t.Fatalf("replacement request = %+v, want a new identifier and the suggested address", reply)
 	}
 }

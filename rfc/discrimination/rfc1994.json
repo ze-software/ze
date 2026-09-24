@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc1994",
+  "records": [
+    {
+      "rid": "RFC1994-4.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome",
+      "unit-sha": "12a351dc5b705582",
+      "claim-sha": "6348b00b9847689e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+      "producer-sha": "c83d1658af0a4fc7",
+      "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

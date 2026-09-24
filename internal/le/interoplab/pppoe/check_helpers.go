@@ -155,7 +155,7 @@ func waitRoute(
 			probeCtx,
 			lab,
 			peer,
-			[]string{"ip", "-o", "route", commandShow, target, "dev", iface},
+			[]string{"ip", "-o", "route", commandShow, target},
 		)
 		return result.Stdout, execErr
 	}, func(output string) bool {

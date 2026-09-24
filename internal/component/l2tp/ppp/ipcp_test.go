@@ -174,8 +174,7 @@ func TestIPCPRejectTearsDown(t *testing.T) {
 	initial := td.readPeerNCPPacket(t, ProtoIPCP)
 	// Reply with Configure-Reject of the IP-Address option so ze's
 	// FSM sees a fatal outcome.
-	reject := []byte{3, 6, 0, 0, 0, 0}
-	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, initial.Identifier, reject)
+	td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, initial.Identifier, initial.Data)
 
 	ev := td.waitForEvent(t, 2*time.Second)
 	if _, ok := ev.(EventSessionDown); !ok {

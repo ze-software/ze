@@ -297,11 +297,20 @@ func (b *Builder) Finish() []byte {
 	return b.buf[:b.tagOff]
 }
 
+// PADIMaxLen caps the PPPoE header and tags, excluding the Ethernet header.
+// RFC 2516 Section 5.1: "An entire PADI packet (including the PPPoE header)
+// MUST NOT exceed 1484 octets so as to leave sufficient room for a relay
+// agent to add a Relay-Session-Id TAG." Appendix A restates the room as a
+// TAG_VALUE of 12 octets, so the cap holds whatever tags the PADI carries.
+const PADIMaxLen = 1484
+
 // BuildPADI constructs a PADI frame for PPPoE client discovery
 // (RFC 2516 Section 5.1). Sent to the broadcast address to solicit
 // PADO responses from access concentrators. The hostUniq tag is
-// included so the client can correlate responses.
+// included so the client can correlate responses. Returns nil when the
+// tags do not fit under PADIMaxLen, so no over-long PADI reaches the wire.
 func BuildPADI(buf []byte, srcMAC [EthALen]byte, serviceName string, hostUniq []byte) []byte {
+	buf = buf[:min(len(buf), EthHdrLen+PADIMaxLen)]
 	b := NewBuilder(buf, srcMAC, [EthALen]byte(BroadcastMAC), CodePADI, 0)
 
 	b.AddTagString(TagServiceName, serviceName)

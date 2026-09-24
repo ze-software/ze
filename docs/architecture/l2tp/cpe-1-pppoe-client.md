@@ -36,6 +36,28 @@ Two negotiators meant ze Nak'd that peer as an LNS and Acked it as a client.
 Section 5.4 decides which answer wins when both apply: a reply is a
 Configure-Reject or a Configure-Nak, never both.
 
+The client retains its last transmitted Configure-Request and validates
+Configure-Ack, Configure-Nak and Configure-Reject against it through
+`ppp.ValidateLCPReply`. A stale Identifier or changed Ack/Reject options cannot
+advance LCP. A valid reply changes the next request's Identifier, while an
+unanswered timeout retransmits the same packet. The client adopts MRU Naks within
+the receive bounds and redraws a nonzero Magic-Number after a Magic Nak. Rejected
+options remain absent even if a later Nak suggests them again. The final
+negotiated Magic-Number is passed to the authentication and keepalive phases.
+Duplicate Acks and matching Naks or Rejects received in Ack-Rcvd trigger a fresh
+request. A replacement peer request that draws a refusal cancels the peer's
+earlier acceptance, so both directions must agree before LCP opens. Echo requests
+receive no reply during negotiation.
+
+IPCP retains and correlates its request in the same way. Its Nak values use the
+IPCP option parser rather than LCP's option widths. A timeout retransmits the
+outstanding request unchanged; a valid Nak changes its Identifier and proposed
+address. Unsupported peer options receive a verbatim Configure-Reject, and a
+replacement proposal must be accepted before the client publishes its addresses.
+Failed or short request and Ack writes abort negotiation. The client requires
+usable local and peer IPv4 addresses before connecting the PPP unit.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP, sendLCPAck, writeClientPacket -->
+
 **Client-mode PPP drives the FSM directly, it does not extend the PPP driver.**
 The existing driver is server oriented: it sends the authentication challenge,
 assigns addresses from a pool, and uses external authentication and address
@@ -43,10 +65,40 @@ event channels. Client mode reverses all of that. Adding client branches to
 every server-side handler would put the L2TP and BNG path at risk, so the client
 calls the ppp package's exported pure functions instead.
 
-**One reader goroutine for the whole session lifetime.** The negotiation phase
-creates a reader that feeds a frame channel, and the same channel is handed to
-the keepalive loop after negotiation. There is no second reader and no
-descriptor race.
+**One reader goroutine for the whole session lifetime.** `Dial` creates a reader
+and passes its frame channel through negotiation to keepalive. Cleanup cancels
+blocked data and error delivery even when the four-frame queue is full, closes
+the transport to release a blocked read, and joins the reader by draining its
+channel until it closes.
+The reader and negotiation buffers allow a 1500-octet Information field
+plus its two-octet Protocol field. The kernel receive MRU remains 1500;
+the outgoing IP MTU is bounded by both the peer's MRU and the configured
+PPPoE MTU, including when the peer omits its MRU option.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- startReader, negotiateSession -->
+
+**Session loss stops transport, not unit ownership.** A PADT or keepalive failure
+stops PPP and closes `Done` immediately. The unit descriptor remains open until
+the caller invokes `Cleanup`, because interface setup may still be using the
+returned `UnitNum`. Releasing that descriptor from the asynchronous watcher
+would let another subscriber reuse `pppN` before the old caller finishes its MTU,
+address, or route changes. Cleanup joins the readers and then releases the unit.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, sessionLink.Close -->
+<!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession -->
+
+**PAP starts with the client's Authenticate-Request.** The client retries on
+the same PPP session every three seconds, for at most five requests, and changes
+the Identifier on each attempt. Only a well-formed Ack or Nak matching the latest
+request completes authentication; stale replies and malformed Message lengths
+are discarded. A failed or short write aborts immediately, including on a retry.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- runClientAuth -->
+
+The client accepts PAP or CHAP-MD5 during LCP and Naks another authentication
+method with a CHAP-MD5 proposal. For CHAP, a malformed or empty Challenge
+produces no Response. Only a result whose Identifier matches a successfully
+written Response completes authentication; an unsolicited Success or an old
+result is discarded. The result's Message remains advisory.
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP, runClientAuth, buildCHAPResponse -->
 
 **Reconciliation follows the DHCP shape.** Desired against active map diffing, a
 config-change check that restarts affected clients, and a shutdown loop that
@@ -64,6 +116,22 @@ attempts, because a call that already blocks has nothing to yield from.
 `pppoe.ReadDiscoveryFrame` precisely so a test can swap in a fake without a
 real AF_PACKET socket and prove the loop returns promptly on stop and does not
 retry far more often than the blocking read allows.
+
+Discovery stays active after PADS. `watchPADT` owns that socket's reads
+through negotiation and keepalive, and accepts termination only for the
+established interface, peer MAC, local MAC and session ID. A matching PADT
+closes the PPP channel and kernel transport before publishing session Done.
+`sessionLink` serializes writes against closure, so a queued Echo-Reply or
+Terminate-Ack cannot use a released channel descriptor. Cleanup waits for
+the discovery reader before closing its descriptor, and outbound PADT is
+sent only after PPP has stopped.
+<!-- source: internal/component/l2tp/pppoeclient/dialer.go -- watchPADT, sessionLink, sendPADT -->
+
+RFC 2516 Section 7 prohibits ACCM, ACFC and FCS Alternatives. The client
+sets `LCPNegPolicy.PPPoE`, so the shared negotiator rejects those options
+even when their lengths and values are well formed. PFC is only
+NOT RECOMMENDED and retains its existing negotiation behaviour.
+<!-- source: internal/component/l2tp/ppp/lcp_options.go -- LCPNegPolicy, negotiatePeerOption -->
 
 ## Traps this code exists to avoid
 

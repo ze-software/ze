@@ -17,6 +17,30 @@ RFC 2516 defines the PPPoE discovery stage. The five packet types are PADI,
 PADO, PADR, PADS and PADT, and the tag set is the standard one. The reference
 summary is `rfc/short/rfc2516.md`.
 
+`BuildPADI` limits the PPPoE header and discovery payload to 1484 octets,
+not counting the Ethernet header. The complete frame can therefore reach
+1498 octets. A larger request returns nil rather than emitting a truncated
+tag. The remaining 16 octets under the Ethernet payload limit hold a
+Relay-Session-Id tag with a 12-octet value.
+<!-- source: internal/component/l2tp/pppoe/discovery.go -- BuildPADI, PADIMaxLen -->
+
+RFC 2516 Section 5.5 forbids further PPP traffic after either direction of
+PADT. A received PADT must match the session ID and both MAC addresses.
+`handlePADT` detaches and closes the AC-owned PPPoX transport before waiting
+for the PPP driver to stop. `handleSessionDown` closes that transport before
+sending PADT, because the session-down notification can precede the PPP
+goroutine's final cleanup. Both paths claim teardown exclusively; the SID
+stays reserved until teardown completes, including the outbound PADT write.
+The driver retains ownership of its separate channel and unit descriptors.
+<!-- source: internal/component/l2tp/pppoe/server.go -- handlePADT, handleSessionDown -->
+
+The AC sets `StartSession.PPPoE` so its shared LCP negotiator rejects ACCM,
+ACFC and FCS Alternatives under Section 7. FCS Alternatives is option Type 9.
+PFC is NOT RECOMMENDED rather than prohibited and keeps its existing
+behaviour. L2TP leaves this transport policy unset and continues to
+negotiate ACCM and ACFC.
+<!-- source: internal/component/l2tp/ppp/lcp_options.go -- LCPNegPolicy, negotiatePeerOption -->
+
 ## Decisions
 
 **The interface index is the tunnel id and the PPPoE session id is the session
@@ -187,10 +211,16 @@ access interface ("One AF_PACKET raw socket per namespace" above), a
 delay here delays discovery on all of them, which is why the ceiling
 stays at 250ms rather than growing further: an operator has no
 information with which to pick a longer value correctly. The pacer's
-wait observes a `chan struct{}` that `Stop` closes
-alongside the socket, a second exit signal added beside `errSocketClosed`
-because closing the socket alone only unblocks a read already in flight,
-not a goroutine asleep in the pacer's wait.
+wait observes the stop channel. The discovery socket has a 100ms receive
+timeout, matching the existing client cancellation mechanism. An idle timeout
+checks cancellation without incrementing the error counter or invoking the
+error pacer.
+
+`Stop` signals and joins discovery before stopping PPP. It does not hold the
+server-map mutex while joining either worker. The discovery descriptor stays
+open until PPP events finish, so local session teardown can still send PADT.
+A separate lifecycle mutex serializes `Start` and `Stop`. Closing a raw Linux
+descriptor alone does not interrupt a `recvfrom` already in progress.
 
 <!-- source: internal/component/l2tp/pppoe/metrics.go -- registerDiscoveryMetrics, bindPPPoEMetrics, countRefusal, countDiscoveryReadError -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- the eight call sites that count a refusal -->
@@ -223,9 +253,9 @@ request union at known offsets.
   separate YANG modules. The config and API modules are embedded in the
   component's schema package; the command module lives under the CLI handler's
   yang directory. Blank imports in the CLI handler wire all three.
-- **Transport-agnostic PPP integration.** A new transport feeds the PPP session
-  start call with its own transport-specific fields, and the PPP driver stays
-  unaware of the transport. The shared kernel setup lives in one place.
+- **Shared PPP integration.** Each transport supplies its session fields,
+  including the explicit PPPoE LCP policy. Discovery and kernel transport
+  lifetime remain outside the PPP driver; kernel setup is shared.
 
 <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
 <!-- source: internal/component/l2tp/ppp/devppp_other.go -- non-Linux stub -->

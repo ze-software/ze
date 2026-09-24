@@ -168,6 +168,12 @@ type RecvEntry struct {
 	MessageType uint16
 	Payload     []byte
 
+	// MessageTypeMandatory is the M bit of the Message Type AVP. RFC 2661
+	// Section 4.4.1: "if the M-bit is set within the Message Type AVP and
+	// the Message Type is unknown to the implementation, the tunnel MUST be
+	// cleared", so the dispatcher reads it before it drops an unknown type.
+	MessageTypeMandatory bool
+
 	// Malformed reports a body that does not open with a well-formed Message
 	// Type AVP, which RFC 2661 Section 7.1 calls "a message that is missing a
 	// required AVP" and answers by clearing the control connection. It is a
@@ -574,12 +580,18 @@ func (e *ReliableEngine) processNr(nr uint16) int {
 func (e *ReliableEngine) makeRecvEntry(ns, sessionID uint16, payload []byte) RecvEntry {
 	entry := RecvEntry{Ns: ns, SessionID: sessionID, Payload: payload}
 	iter := NewAVPIterator(payload)
-	vendorID, attrType, _, value, ok := iter.Next()
+	vendorID, attrType, flags, value, ok := iter.Next()
 	if !ok {
 		entry.Malformed = true
 		return entry
 	}
 	if vendorID != 0 || attrType != AVPMessageType {
+		entry.Malformed = true
+		return entry
+	}
+	// RFC 2661 Section 4.4.1: "This AVP may not be hidden (the H-bit
+	// MUST be 0)." Ciphertext must never select a message handler.
+	if flags&FlagHidden != 0 {
 		entry.Malformed = true
 		return entry
 	}
@@ -590,6 +602,7 @@ func (e *ReliableEngine) makeRecvEntry(ns, sessionID uint16, payload []byte) Rec
 		return entry
 	}
 	entry.MessageType = binary.BigEndian.Uint16(value)
+	entry.MessageTypeMandatory = flags&FlagMandatory != 0
 	return entry
 }
 

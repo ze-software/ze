@@ -156,6 +156,25 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		msgType == MsgCDN || msgType == MsgWEN || msgType == MsgSLI {
 		return t.dispatchToSession(msgType, entry.SessionID, entry.Payload, now, t.logger)
 	}
+	// RFC 2661 Section 4.4.1: "Thus, if the M-bit is set within the Message
+	// Type AVP and the Message Type is unknown to the implementation, the
+	// tunnel MUST be cleared." The Message Type AVP is the unknown
+	// mandatory AVP, so the StopCCN carries Error Code 8, whose sentence in
+	// Section 4.4.2 is "Session or tunnel was shutdown due to receipt of an
+	// unknown AVP with the M-bit set".
+	if entry.MessageTypeMandatory {
+		t.logger.Warn("l2tp: unknown mandatory message type; clearing the control connection",
+			"type", uint16(msgType), "ns", entry.Ns, "session-id", entry.SessionID)
+		return t.teardownStopCCN(now, ResultCodeValue{
+			Result:         resultProtocolError,
+			ErrorPresent:   true,
+			Error:          errorUnknownMandatoryAVP,
+			Message:        detailUnknownMessageType,
+			MessagePresent: true,
+		}, l2tpevents.TerminateCauseNASError)
+	}
+	// With the M-bit clear the same section leaves the message to be
+	// ignored, as Section 4.1 does for any unrecognized optional AVP.
 	t.logger.Debug("l2tp: unsupported message type ignored", "type", uint16(msgType))
 	return nil
 }

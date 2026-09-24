@@ -36,8 +36,8 @@ computation, and hidden-AVP encryption. All code lives in
 | n | 2 | Offset Size | Present when O=1 |
 | n+2 | Offset Size | Offset Pad | Uninitialized on send; skipped on receive |
 
-Control messages are fixed 12 octets. Data messages vary from 6 to 14+N
-octets depending on flags.
+Control headers are 12 octets. Data headers vary from 6 to 14+N octets,
+depending on flags.
 
 `ParseMessageHeader` returns a `MessageHeader` value carrying the decoded
 flag bits and numeric fields, plus a `PayloadOff` offset into the input
@@ -56,6 +56,14 @@ slice where AVPs (or a PPP frame, for data messages) begin.
 `(vendorID, attrType, flags, value, ok)` where `value` is a subslice of the
 iterator's input. On the first malformed AVP the iterator returns
 `ok=false` and `Err()` reports the cause.
+
+The reliable engine requires the first AVP to be the unhidden, eight-octet
+Message Type AVP before dispatching a control message. An unknown Message
+Type with M=1 clears the tunnel with StopCCN, Result Code 2 and Error Code 8.
+With M=0, an unknown type is acknowledged but ignored. Malformed Message
+Type AVPs clear the tunnel through the malformed-control path.
+<!-- source: internal/component/l2tp/reliable.go -- makeRecvEntry -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- handleMessage -->
 
 ## Buffer discipline
 

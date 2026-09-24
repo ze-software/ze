@@ -69,6 +69,12 @@ accel-ppp's implementation. The kernel splits PPP into control and data planes:
 - Interface configuration (address, routes, MTU via netlink)
 - Session lifecycle decisions (accept/reject, teardown)
 
+The shared PPP authenticator caches the PAP reply Code after a successful
+reply write. During NCP negotiation and the established network phase, repeated
+Authenticate-Requests receive that decision with their own Identifier, without
+another authentication lookup. An LCP restart clears the cached decision.
+<!-- source: internal/component/l2tp/ppp/pap.go -- runPAPAuthPhase, reanswerPAP -->
+
 ### Kernel intercept behavior
 
 After `L2TP_CMD_TUNNEL_CREATE`, the kernel installs `encap_recv` on the
@@ -1031,11 +1037,11 @@ context satisfies `<-chan struct{}` without an adapter. A goroutine pacing
 a retry still returns at once when it is told to stop rather than sitting
 out the delay.
 
-The discovery reader's `chan struct{}` is a second exit signal alongside
-`errSocketClosed`, added for the pacer: closing the discovery socket only
-unblocks a read already in flight, so a goroutine asleep in a paced wait
-would otherwise sit out the delay before it next read the socket and saw
-it was closed.
+The discovery reader also observes the stop channel through its socket's
+100ms receive timeout. `Stop` closes that channel and joins the reader before
+closing the descriptor; closing a raw Linux descriptor alone does not interrupt
+an in-flight `recvfrom`. The descriptor remains open until PPP session events
+have sent their final PADTs.
 
 The ceiling is a fixed constant in the pacer package, not a YANG leaf. An
 operator has no information with which to pick a value, and a wrong choice

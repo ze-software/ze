@@ -153,6 +153,10 @@ var errZeroAssignedTunnelID = &sccrqRejection{Result: resultProtocolError, Error
 // and a body too short to hold the AVP at all.
 const detailNoMessageType = "control message does not begin with a well-formed Message Type AVP"
 
+// detailUnknownMessageType is the Error Message of the StopCCN that clears a
+// tunnel on a Message Type ze does not implement, sent with the M-bit set.
+const detailUnknownMessageType = "control message carries an unknown Message Type with the M-bit set"
+
 // The two rejections an AVP earns for its HEADER rather than for its value,
 // and the only two that carry a General Error Code other than 3.
 //

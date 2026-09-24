@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc1877",
+  "records": [
+    {
+      "rid": "RFC1877-x-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPCPDNSIsOptional",
+      "unit-sha": "0c0cd391a070fcfb",
+      "claim-sha": "833589b3890c6285",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::evalIPCPRequest",
+      "producer-sha": "747da0042eb89b8e",
+      "break": "body of evalIPCPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1877-x-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPCPIPAddressRejectIsFatal",
+      "unit-sha": "0dc524c18359c873",
+      "claim-sha": "48c8d2a266194d4a",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::absorbIPCPReject",
+      "producer-sha": "b22c0b657a319b21",
+      "break": "body of absorbIPCPReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

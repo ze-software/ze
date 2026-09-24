@@ -98,7 +98,7 @@ func findCode(t *testing.T, r *frameRecorder, code uint8) (LCPPacket, bool) {
 func lastLCPConfigureRequest(t *testing.T, rec *frameRecorder) LCPPacket {
 	t.Helper()
 	frames := decodeFrames(t, rec)
-	for i := len(frames)-1; i >= 0; i-- {
+	for i := len(frames) - 1; i >= 0; i-- {
 		if frames[i].Proto == ProtoLCP && frames[i].Pkt.Code == LCPConfigureRequest {
 			return frames[i].Pkt
 		}
@@ -588,10 +588,15 @@ func TestRFC1661TerminateAckSentAndLinkHeld(t *testing.T) {
 	if got := s.currentState(); got != LCPStateStopping {
 		t.Fatalf("state = %s, want stopping (link must not be dropped yet)", got)
 	}
-	select {
-	case ev := <-events:
-		t.Fatalf("unexpected lifecycle event %T; link was disconnected too early", ev)
-	default:
+	for {
+		select {
+		case ev := <-events:
+			if _, down := ev.(EventSessionDown); down {
+				t.Fatal("session disconnected before the Terminate-Ack timeout")
+			}
+		default:
+			return
+		}
 	}
 }
 

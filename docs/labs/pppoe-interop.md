@@ -86,12 +86,18 @@ scenario bound, and `ZE_PPPOE_INTEROP_SUFFIX` provides parallel-run isolation.
 The QEMU proof for Ze as a client against accel-ppp is:
 
 ```
-./le qemu pppoe-accel-test
+./le qemu run kernel tmp/kernel/build/vmlinuz \
+  packages "iproute2 iputils accel-ppp ppp kmod" \
+  command "./le qemu pppoe-accel-test"
 ```
 
-It boots the runtime kernel in QEMU and runs Ze and accel-ppp in two network
-namespaces joined by a veth. That proof covers the client role only. The Docker
+The host `qemu run` action boots the runtime kernel and installs the guest
+packages. The guest `pppoe-accel-test` action then runs Ze and accel-ppp in
+two network namespaces joined by a veth. Invoking the guest action on the
+host does not boot a VM. This proof covers the client role only. The Docker
 suite carries both roles.
+
+<!-- source: internal/le/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
 
 ## Scenarios
 
