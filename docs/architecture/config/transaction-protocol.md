@@ -152,7 +152,7 @@ finalization events:
 
 | Outcome | Action | Event |
 |---------|--------|-------|
-| All plugins applied | Engine emits `(config, committed)`. The hub promotes the staged candidate to active after the full subsystem reload succeeds. | Runtime is authoritative. |
+| All plugins applied | Engine emits `(config, committed)` to discard transaction journals. The hub promotes the staged candidate after the full subsystem reload succeeds, then emits `(config, accepted)`. | Acceptance permits irreversible retirement. |
 | Runtime applied, pointer promotion fails | The hub attempts to restore the previous runtime and returns the publication error. | A durable explicit-file intent preserves unfinished publication for recovery. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
@@ -162,6 +162,30 @@ CLI, web, API, SIGHUP, and managed pushes write an immutable version and set
 `meta/config/<name>/candidate`. The hub reads that candidate and promotes it only
 after the full runtime reload succeeds. If publication fails, the hub attempts
 to restore the previous runtime and returns the error.
+
+The server scopes `(config, accepted)` to the whole reload through
+`DeferReloadAcceptance`. `runReloadContext` accepts only after listener migration
+and candidate publication succeed. An error discards that acceptance, including
+the inner transaction used by `rollbackReload` to restore the previous tree.
+A standalone `Server.ReloadConfig` or `ReloadFromDisk` accepts at its successful
+return. The server records the latest applied transaction for each participant.
+An unrelated root change therefore still accepts unchanged participants' pending
+configuration. A successful retry without a diff does the same. Ownership maps
+are snapshots of the running process set; departed participants are removed when
+the next reload starts.
+
+Acceptance emits one event per distinct committed transaction ID in that
+snapshot. Consumers MUST avoid retiring newer tentative state when an older
+completion arrives. If the newer apply rolls back, they MUST honour any
+acceptance already received for the state that rollback restores.
+
+RADIUS accounting uses this boundary because detaching its sessions cannot be
+undone by replaying configuration. `(config, committed)` releases its rollback
+journal but keeps the accounting lifetime intact until matching acceptance.
+Its plugin shutdown separately retires that lifetime and joins cleanup before
+restart. `MarkReloadProcessed` remains an observation fence and emits no event.
+<!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance, recordReloadTransaction -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
 
 `(config, applied)` and `(config, rolled-back)` are informational events for
 observers (monitoring, web UI refresh, logging). `applied` includes a `saved`
@@ -269,6 +293,17 @@ between transactions, not within one.
 All events live in the `config` namespace. Payloads are JSON. The transaction ID
 ties all events in a transaction together.
 
+Plugins that reuse a tree-based parser reconstruct their delivered section with
+`config.TreeFromPluginMap`. It accepts the native `ToPluginMap` result and its
+JSON-decoded form, retaining leaf-list token boundaries and the `@list` entry
+order. An absent order stays absent, and malformed order is refused rather than
+substituted with Go map iteration order. The wire format does not distinguish a
+container containing only objects from a keyed list, so those objects expose
+both tree views to the schema-specific parser.
+The wire shape also cannot distinguish a scalar string from a singleton
+leaf-list. Both views retain the complete token.
+<!-- source: internal/component/config/plugin_map.go -- TreeFromPluginMap -->
+
 ### Event Types in the `config` Namespace
 
 | Event type | Direction | Purpose |
@@ -283,6 +318,7 @@ ties all events in a transaction together.
 | `rollback` | Engine -> plugins | Undo applied changes. |
 | `rollback-ok` | Plugin -> engine | Rollback complete with status code. |
 | `committed` | Engine -> plugins | Transaction finalized, discard journals. |
+| `accepted` | Engine -> plugins | Whole reload accepted. Carries the committed transaction ID and permits irreversible cleanup. |
 | `applied` | Engine -> observers | Transaction committed (emitted after `committed`). Includes `saved` flag. |
 | `rolled-back` | Engine -> observers | Transaction rolled back. |
 
@@ -399,6 +435,15 @@ The Go types for these payloads live in
 When a config change adds or removes config roots, plugins must be loaded or
 stopped. This happens outside the transaction, not inside it.
 
+Optional plugin schemas retain the CLI selection used at startup. The loaded
+configuration owns that selector list, and the reactor's file-backed verifier
+passes it to the same loader for each candidate. Removing and restoring a config
+root therefore does not make its selected schema disappear. Unselected optional
+schemas remain unavailable.
+<!-- source: internal/component/config/loader.go -- LoadConfigResult, LoadConfig -->
+<!-- source: internal/component/bgp/config/loader.go -- CreateReactor -->
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+
 | Change | When | Why |
 |--------|------|-----|
 | New config root added (e.g., `rib {}`) | Plugin loaded via 5-stage protocol **before** transaction starts | Plugin must be running to participate in verify |
@@ -434,6 +479,33 @@ SIGHUP is queued rather than rejected because the user expects reload to happen.
 If the current transaction completes, the queued SIGHUP fires. If a second SIGHUP
 arrives while one is already queued, it replaces the queued one (only the latest
 config matters).
+
+Live plugin removal is also provisional until the outer reload accepts it.
+`OnBye` must return successful cleanup before a dependency can stop. A callback
+refusal or the 500 ms acknowledgement deadline rejects the reload without closing
+a live pending callback or its dependencies. If other participants already
+committed, the server runs an inverse transaction and restores reactor state under
+the existing exclusion before returning the removal error. An outer rejection
+also compensates its applied tree; it does not replay a candidate the hub already
+undid or replace a newer successful reload. A rejected child restores its
+predecessor's ownership; an already-rejected predecessor then unwinds too.
+Failed compensation remains actionable. A subsequent reload retries it before
+checking for a diff, and completed participant or reactor phases are not
+replayed. The prior tree is published only after compensation succeeds.
+
+A late callback completion waits for the outer scope to finish, then uses the same
+transaction exclusion to reconcile against the current committed tree. A removed,
+disconnected or panicked source is joined and replaced with its required
+dependencies. A live source whose cleanup failed receives its committed
+configuration again. The first recovery attempt does not depend on another
+reload. Failed restoration keeps its ownership record, and the next explicit
+reload retries it before applying new configuration. Replacement startup receives
+the recovery target's sections even if failed compensation left the candidate
+published. Failed recovery startup is reported to its owner, not treated as an
+ordinary fatal startup; unrelated startup and runtime failures keep their policy.
+<!-- source: internal/component/plugin/server/startup_removal.go -- notifyPluginRemoval, recoverPluginRemoval, restoreRemovedPlugin -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- reloadAcceptance -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- recordReloadCompensation, compensateReload -->
 
 ### Shutdown while a transaction runs
 

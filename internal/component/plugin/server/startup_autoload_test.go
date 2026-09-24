@@ -349,7 +349,7 @@ func TestAutoStopForRemovedConfigPathsRollsBackRuntimeClaims(t *testing.T) {
 	s, pm := newAutoloadTeardownTestServer()
 	installAutoloadTeardownClaims(t, s, pm, pluginName, commandName)
 
-	s.autoStopForRemovedConfigPaths([]string{configRoot})
+	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}))
 
 	assert.Nil(t, pm.GetProcess(pluginName))
 	assert.Empty(t, s.registry.LookupCommand(commandName))
@@ -403,7 +403,7 @@ func TestStopOrphanedDependenciesRollsBackRuntimeClaims(t *testing.T) {
 	installAutoloadTeardownClaims(t, s, pm, transitiveName, transitiveCommand)
 	stopped := map[string]bool{parentName: true}
 
-	s.stopOrphanedDependencies(pm, stopped)
+	require.NoError(t, s.stopOrphanedDependencies(pm, stopped))
 
 	assert.True(t, stopped[orphanName])
 	assert.True(t, stopped[transitiveName])
@@ -434,7 +434,7 @@ func TestRollbackStartupProcessCleansRuntimeStateOnce(t *testing.T) {
 	installAutoloadTeardownClaims(t, s, pm, pluginName, commandName)
 	oldProc := pm.GetProcess(pluginName)
 
-	s.rollbackStartupProcess(oldProc)
+	require.NoError(t, s.rollbackStartupProcess(oldProc))
 
 	replacementRoute := routeKey{
 		fam:    v4u(),
@@ -488,7 +488,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	t.Cleanup(s.cancel)
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewMuxPluginConn(rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))))
 	proc.SetStage(plugin.StageRunning)
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
 	pm.AddProcess(pluginName, proc)
@@ -501,7 +501,16 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 		s.handleSingleProcessCommandsRPC(proc)
 	}()
 
-	pluginConn := rpc.NewConn(pluginSide, pluginSide)
+	pluginConn := rpc.NewMuxConn(rpc.NewConn(pluginSide, pluginSide))
+	byeDone := make(chan error, 1)
+	go func() {
+		req, ok := <-pluginConn.Requests()
+		if !ok {
+			byeDone <- errors.New("callback connection closed before removal")
+			return
+		}
+		byeDone <- pluginConn.SendOK(t.Context(), req.ID)
+	}()
 	callReturned := make(chan error, 1)
 	go func() {
 		_, err := pluginConn.CallRPC(context.Background(), "ze-plugin-engine:dispatch-command", &rpc.DispatchCommandInput{
@@ -520,7 +529,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 
 	rollbackDone := make(chan struct{})
 	go func() {
-		s.rollbackStartupProcess(proc)
+		assert.NoError(t, s.rollbackStartupProcess(proc))
 		close(rollbackDone)
 	}()
 
@@ -544,6 +553,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	require.Error(t, s.registry.Register(replacement.Registration()))
 
 	close(release)
+	require.NoError(t, <-byeDone)
 	select {
 	case <-rollbackDone:
 	case <-waitCtx.Done():
@@ -656,9 +666,9 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 		Name:        pluginName,
 		Description: "bridge drain test plugin",
 		RunEngine: func(conn net.Conn) int {
-			var buf [1]byte
-			if _, err := conn.Read(buf[:]); err != nil {
-				return 0
+			bridge := conn.(rpc.Bridger).Bridge()
+			if cb, ok := <-bridge.CallbackCh(); ok {
+				cb.Result <- rpc.BridgeCallbackResult{}
 			}
 			return 0
 		},
@@ -693,7 +703,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	// (plan/journal/grace-bound-hides-a-missing-signal.md, three rows).
 	var finished atomic.Int32
 	var handlerOrder, rollbackOrder int32
-	bridge.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(context.Context, string, json.RawMessage) (json.RawMessage, error) {
 		close(entered)
 		<-release
 		handlerOrder = finished.Add(1)
@@ -708,7 +718,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	}()
 	callDone := make(chan error, 1)
 	go func() {
-		_, err := bridge.DispatchRPC("test", nil)
+		_, err := bridge.DispatchRPC(t.Context(), "test", nil)
 		callDone <- err
 	}()
 
@@ -722,7 +732,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 
 	rollbackDone := make(chan struct{})
 	go func() {
-		s.rollbackStartupProcess(proc)
+		assert.NoError(t, s.rollbackStartupProcess(proc))
 		rollbackOrder = finished.Add(1)
 		close(rollbackDone)
 	}()
@@ -742,7 +752,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	// except the refusal itself. The safety property, that rollback drains
 	// before it returns, stays on the counters, which cannot pass by luck.
 	require.Eventually(t, func() bool {
-		_, err := bridge.DispatchRPC("rejected", nil)
+		_, err := bridge.DispatchRPC(t.Context(), "rejected", nil)
 		return errors.Is(err, rpc.ErrBridgeClosed)
 	}, 2*time.Second, time.Millisecond, "the bridge must refuse a new call once rollback has stopped it")
 
@@ -843,7 +853,7 @@ func TestBridgeReloadRefusesToStopCallingProcess(t *testing.T) {
 	}()
 	callDone := make(chan error, 1)
 	go func() {
-		_, err := bridge.DispatchCommand("request reload")
+		_, err := bridge.DispatchCommand(t.Context(), "request reload")
 		callDone <- err
 	}()
 
@@ -985,7 +995,7 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 	s.procManager.Store(pm)
 	s.markPluginLoaded(pluginName)
 
-	s.autoStopForRemovedConfigPaths([]string{configRoot})
+	require.NoError(t, s.autoStopForRemovedConfigPaths([]string{configRoot}))
 
 	assert.Nil(t, pm.GetProcess(pluginName))
 	assert.False(t, s.isPluginLoaded(pluginName))
@@ -1128,7 +1138,7 @@ func TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	bridge.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(context.Context, string, json.RawMessage) (json.RawMessage, error) {
 		close(entered)
 		<-release
 		return json.RawMessage(`{"status":"done"}`), nil
@@ -1137,7 +1147,7 @@ func TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed(t *testing.T) {
 
 	callDone := make(chan error, 1)
 	go func() {
-		_, err := bridge.DispatchRPC("test", nil)
+		_, err := bridge.DispatchRPC(t.Context(), "test", nil)
 		callDone <- err
 	}()
 

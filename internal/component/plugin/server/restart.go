@@ -7,6 +7,8 @@
 package server
 
 import (
+	"errors"
+
 	"github.com/ze-software/ze/internal/component/command"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -97,8 +99,7 @@ func (s *Server) restartHandshake(proc *process.Process) error {
 		err := startupFailureError(proc)
 		logger().Error("plugin restart failed during handshake",
 			"plugin", proc.Name(), "stage", proc.Stage(), "error", err)
-		s.rollbackStartupProcess(proc)
-		return err
+		return errors.Join(err, s.rollbackStartupProcess(proc))
 	}
 
 	s.wg.Go(func() {

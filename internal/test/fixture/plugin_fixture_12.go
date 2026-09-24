@@ -113,7 +113,7 @@ func p12WaitForDaemonDriver(name string, scenario p12Scenario) Driver {
 
 		bye := make(chan struct{})
 		var once sync.Once
-		plugin.OnBye(func(string) { once.Do(func() { close(bye) }) })
+		plugin.OnBye(func(string) error { once.Do(func() { close(bye) }); return nil })
 		result := make(chan error, 1)
 		plugin.OnAllPluginsReady(func() error {
 			go func() {

@@ -125,6 +125,12 @@ type Server struct {
 	// reload sequence completes, applied or rejected. See reload_generation.go.
 	reloadGen reloadGeneration
 
+	// Removal retains the callback and dependency lifetime across a refused
+	// reload, until cleanup and committed-configuration recovery both finish.
+	removalMu       sync.Mutex
+	removals        map[*process.Process]*pluginRemoval
+	recoveryConfigs map[string]map[string]any
+
 	// Forked route-installing plugins (OSPF, IS-IS) insert into the engine Loc-RIB
 	// via the route-install RPC. installedByPlugin tracks each plugin's live routes
 	// (keyed by plugin name) so a disconnect withdraws them (AC-8: no stale routes

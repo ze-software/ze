@@ -283,8 +283,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 	require.Equal(t, fourth.FindAttr(radius.AttrAcctSessionID), stop.FindAttr(radius.AttrAcctSessionID))
 	require.Equal(t, []byte{0, 0, 0, byte(l2tpevents.TerminateCauseAdminReboot)}, stop.FindAttr(radius.AttrAcctTerminateCause))
 
-	// An abandoned outer scope can leave the candidate already applied. A
-	// later accepted retry has no diff, but must still finalize that candidate.
+	// Rejecting an outer scope restores accounting before a later removal
+	// retry. Sessions must still end normally between rejection and retry.
 	require.NoError(t, server.ReloadConfig(ctx, running))
 	retryFirst, retryRemaining := up(t, 5), up(t, 6)
 	pendingCtx, finishPending := server.DeferReloadAcceptance(ctx)
@@ -311,8 +311,8 @@ func TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting(t *testing.T) {
 		require.NoError(t, server.ReloadConfig(abandonedCtx, removed))
 		abandon(false)
 
-		// Only the probe root changes. RADIUS receives no new apply, but its
-		// pending removed configuration belongs to this accepted tree too.
+		// Retry the removal alongside an unrelated root change. Rejection
+		// restored RADIUS, so this accepted tree must retire its live records.
 		unrelated := cloneStringAnyMap(removed)
 		unrelated[radiusReloadProbeRoot] = map[string]any{"revision": "1"}
 		require.NoError(t, server.ReloadConfig(ctx, unrelated))

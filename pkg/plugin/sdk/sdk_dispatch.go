@@ -18,6 +18,7 @@ import (
 // Engine->plugin callback method names.
 const (
 	callbackBye              = "ze-plugin-callback:bye"
+	callbackConfigure        = "ze-plugin-callback:configure"
 	callbackDeliverEvent     = "ze-plugin-callback:deliver-event"
 	callbackDeliverBatch     = "ze-plugin-callback:deliver-batch"
 	callbackExecuteCommand   = "ze-plugin-callback:execute-command"
@@ -162,7 +163,7 @@ func (p *Plugin) handleBridgeCallback(cb rpc.BridgeCallback) (stop bool, err err
 	}
 	result, callErr := handler(cb.Params)
 	cb.Result <- rpc.BridgeCallbackResult{Data: result, Err: callErr}
-	return cb.Method == callbackBye, nil
+	return cb.Method == callbackBye && callErr == nil, nil
 }
 
 func (p *Plugin) handleBridgeExecuteCommand(req rpc.ExecuteCommandRequest) (err error) {
@@ -233,15 +234,6 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 			continue
 		}
 
-		// Bye: respond first (pipe protocol requires it), then invoke handler.
-		if req.Method == callbackBye {
-			if sendErr := p.sendCallbackOK(ctx, req.ID); sendErr != nil {
-				return sendErr
-			}
-			handler(req.Params) //nolint:errcheck // bye handler is best-effort
-			return nil
-		}
-
 		// Execute-command: the one callback whose answer can be a walk. A walk
 		// is written as the answer sequence and nothing may follow it on the
 		// wire, so this callback is answered where the connection is rather
@@ -270,6 +262,11 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 			if sendErr := p.sendCallbackOK(ctx, req.ID); sendErr != nil {
 				return sendErr
 			}
+		}
+		// Removal is acknowledged only after cleanup succeeds. A failed callback
+		// leaves this loop live for configuration compensation or another Bye.
+		if req.Method == callbackBye {
+			return nil
 		}
 	}
 }

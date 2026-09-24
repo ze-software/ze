@@ -515,7 +515,7 @@ func TestPluginPipesRemovedOnPluginStop(t *testing.T) {
 	require.NotNil(t, spawner.pm)
 	proc := spawner.pm.GetProcess(pluginName)
 	require.NotNil(t, proc)
-	s.rollbackStartupProcess(proc)
+	require.NoError(t, s.rollbackStartupProcess(proc))
 
 	assert.False(t, carriesAlias(t), "the alias outlived the plugin that declared it")
 	assert.Empty(t, command.AliasesForCommand(commandName),
@@ -876,7 +876,7 @@ func TestUnregisterPluginShapes(t *testing.T) {
 	require.NotNil(t, spawner.pm)
 	proc := spawner.pm.GetProcess(pluginName)
 	require.NotNil(t, proc)
-	s.rollbackStartupProcess(proc)
+	require.NoError(t, s.rollbackStartupProcess(proc))
 
 	shape, declared = command.ShapeForCommand(commandName)
 	assert.False(t, declared, "the shape outlived the plugin that declared it")

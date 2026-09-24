@@ -282,8 +282,9 @@ func TestSDKByeCallback(t *testing.T) {
 	p, engine := newTestPair(t)
 
 	byeReason := make(chan string, 1)
-	p.OnBye(func(reason string) {
+	p.OnBye(func(reason string) error {
 		byeReason <- reason
+		return nil
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1264,7 +1265,7 @@ func TestSDKDispatchCommandArgsDirectError(t *testing.T) {
 	var gotArgs []string
 	var gotPeer string
 	completed := false
-	bridge.SetDispatchCommandArgs(func(command string, got []string, peer string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, got []string, peer string) (*rpc.DispatchCommandOutput, error) {
 		gotCommand = command
 		gotArgs = append(gotArgs, got...)
 		gotPeer = peer
@@ -2101,7 +2102,7 @@ func TestCallEngineRawDirect(t *testing.T) {
 	// Register engine-side RPC handler on bridge.
 	// In production, the engine sets this after startup completes.
 	var dispatchCalled bool
-	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		dispatchCalled = true
 		assert.Equal(t, "ze-plugin-engine:update-route", method)
 		// Return a valid UpdateRouteOutput response wrapped in result envelope
@@ -2224,7 +2225,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 
 	p, engine, bridge := newBridgedTestPair(t)
 
-	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		return nil, fmt.Errorf("dispatch failed")
 	})
 

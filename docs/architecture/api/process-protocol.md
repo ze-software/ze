@@ -587,7 +587,7 @@ serializes across tiers, not within them.
 
 ### Shutdown
 
-Engine sends `ze-plugin-callback:bye` with an optional reason:
+Explicit subsystem shutdown sends `ze-plugin-callback:bye` with an optional reason:
 <!-- source: pkg/plugin/rpc/types.go -- ByeInput -->
 
 ```
@@ -595,8 +595,64 @@ Engine sends `ze-plugin-callback:bye` with an optional reason:
 #99 ok
 ```
 
-For internal plugins, the engine then closes the connection (EOF signals exit).
-For external plugins, the process is expected to exit cleanly after receiving bye.
+After a successful `bye`, the SDK exits its callback loop and the engine closes
+the connection. `OnBye` has signature `func(reason string) error` on both socket
+and bridge transports. The SDK sends an error response and keeps the plugin
+running when cleanup fails.
+
+A live configuration removal sends reason `removed` while the plugin's engine
+connection and dependencies are still available. The callback can withdraw
+installed state through engine RPCs. The server waits up to 500 ms for its
+acknowledgement. A callback refusal or timeout rejects removal and retains the
+dependencies; it does not close a live callback transport or report a successful
+reload. A pending callback keeps its original acknowledgement waiter until it
+completes or the daemon shuts down. Startup failures before the running stage
+receive no callback. A disconnect or callback panic instead requires replacement
+of the failed generation; the removal owner performs that recovery rather than
+leaving it to the ordinary crash policy.
+<!-- source: internal/component/plugin/server/startup_removal.go -- pluginRemoval, notifyPluginRemoval -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- ByeHandler, OnBye -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleBridgeCallback, eventLoop -->
+
+Removal remains provisional until the whole reload is accepted. On rejection,
+including a callback that succeeds after timeout, recovery waits for the outer
+reload's completion and then acquires the existing transaction lock.
+It reads the current committed configuration, joins an exited or removed
+generation and restarts its source and needed dependencies, or redelivers
+configuration to a live source whose cleanup failed. The first recovery attempt
+runs without another reload. If restoration fails, its ownership record remains;
+the next explicit reload retries restoration before applying new configuration.
+Failed cleanup can be retried after recovery; an in-flight callback is never
+duplicated.
+Replacement startup receives the committed configuration, not the still-published
+candidate. Its failure remains a retryable recovery error; ordinary startup and
+runtime failures keep their declared failure policy.
+<!-- source: internal/component/plugin/server/startup_removal.go -- finishRemovalScope, recoverPluginRemoval, restoreRemovedPlugin -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- reloadAcceptance -->
+
+A failed removal also compensates participants that already committed another
+change in the same reload, and restores reactor state, before returning the
+error. Rejecting an outer publication performs the same compensation under the
+transaction lock. An older scope cannot undo a newer successful reload, including
+one that accepted the same tree without a diff. Rejected nested scopes restore
+their predecessor's ownership, so both rejections return to the original tree.
+If compensation itself fails, the server retains the inverse transaction and
+blocks new reloads, including no-diff requests, until an explicit retry succeeds.
+It does not publish a restored tree or repeat completed inverse phases on failure.
+<!-- source: internal/component/plugin/server/reload_compensation.go -- compensateReload -->
+<!-- source: internal/component/plugin/server/reload.go -- txLock.configOwner, reloadConfig -->
+
+When one removal also takes out dependencies, the server reverses the same
+hard- and optional-dependency tiers used at startup. Each producer must acknowledge
+successful cleanup before the server stops the next dependency tier. Failed
+auto-load rollback and orphan cleanup use this order too; a callback or ordering
+error stops the sequence and is returned to the caller.
+<!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
+
+Whole-daemon shutdown instead closes plugin connections without `bye`.
+Plugins must distinguish live removal from connection closure: subsystem owners
+retain their daemon-shutdown policy, including firewall rule retention.
+<!-- source: internal/component/plugin/process/manager.go -- Stop -->
 
 #### Who stops the plugin server
 
@@ -652,7 +708,7 @@ site.
 | `encode-nlri` | `EncodeNLRIInput` | `{"hex":"..."}` | Encode NLRI |
 | `decode-nlri` | `DecodeNLRIInput` | `{"json":<raw JSON>}` | Decode NLRI |
 | `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode a capability |
-| `bye` | `ByeInput` | `ok` | Shutdown signal |
+| `bye` | `ByeInput` | `ok` or error | Acknowledged cleanup; an error leaves the plugin running |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
 | `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
@@ -721,6 +777,7 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `relay-stored-route` | `RelayStoredRouteInput` | - | Relay stored wire routes to one established peer |
 | `route-install` | `RouteInstallInput` | `RouteInstallOutput` | Insert a batch of computed routes into the engine Loc-RIB (forked route-installing plugin) |
 | `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
+| `route-metrics` | `RouteMetricsInput` | `RouteMetricsOutput` | Read recursive next-hop costs and the engine Loc-RIB revision |
 | `inject-wire-route` | `InjectWireRouteInput` | - | Inject a raw BGP UPDATE body into the RIB |
 | `batch-validate` | `BatchValidateInput` | `BatchValidateResult` | Apply a batch of RPKI validation decisions |
 | `resolve-dns` | `ResolveDNSInput` | `ResolveDNSOutput` | Resolve a name through the engine's single DNS resolver, so a plugin never builds a second one |
@@ -805,10 +862,44 @@ lives in the engine's address space), so those installers instead hold a
 `routeinstall.Sink` and ship each operation over `route-install` / `route-remove`.
 The engine applies the batch to its real Loc-RIB, where `sysrib`'s `OnChange`
 programs the kernel exactly as for an in-process installer. Each entry carries the
-redistribute protocol **name** (not the numeric `ProtocolID`, which is per-process):
-the engine re-resolves it to its own id via `redistevents.RegisterProtocol`.
+redistribute protocol **name** (not the numeric `ProtocolID`, which is per-process).
+The engine resolves it against its registered protocols and refuses an unknown name.
 <!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 <!-- source: internal/core/rib/routeinstall/sink.go -- Sink -->
+
+The engine stamps the configured administrative distance before Loc-RIB
+arbitration. For a BGP path, `is-bgp` and `is-ebgp` select the `ibgp` or `ebgp`
+configuration leaf without changing the canonical `bgp` route owner. Other
+protocols use their registered name. The producer's wire distance is the fallback
+only when the engine has no declaration for that class.
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
+
+The process boundary preserves the primary next-hop device and `on-link` marker,
+each ECMP member's device and marker, the selected SRv6 service SID, and the BGP
+metric fields (`is-bgp`, `aigp`, `aigp-present`, `metric-recursive`). Invalid
+addresses reject the batch before any route is installed. These fields let
+recursive resolution and the FIB use the same path properties for a forked
+producer as for an in-process producer.
+
+`route-metrics` returns one distance per requested address, in request order.
+Each distance distinguishes unresolved reachability from a resolved zero cost
+and reports whether a recursive BGP hop lacked AIGP. The revision is sampled
+before resolution, so a routing change during the batch invalidates the snapshot
+on the next poll. An empty address list requests the revision alone. Requests
+are limited to 4096 addresses; an invalid address rejects the whole batch. The
+SDK refuses a missing result or a short distance vector rather than treating
+either as a usable snapshot.
+<!-- source: internal/component/plugin/server/dispatch_route_metrics.go -- opRouteMetrics -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- RouteMetrics -->
+
+`batch-validate` carries `ValidationDecision.MsgID` as the received UPDATE
+generation. A zero explicitly selects the current route, or the next route when
+none is stored. A rejected route marked `Ineligible` remains stored for later
+validation; `Accept` and `Ineligible` cannot both be true. A successful call
+returns `BatchValidateResult`, including for an empty batch; an empty or null
+result is an error at the SDK boundary.
+<!-- source: pkg/plugin/rpc/bridge.go -- ValidationDecision -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- BatchValidate -->
 
 ---
 
@@ -1278,8 +1369,8 @@ flow through `bridge.CallbackCh()`.
 **Engine-side dispatch registry:** all three transports for a plugin-to-engine RPC
 (the socket JSON path, the in-process Direct path, and the typed `DirectBridge`
 fast-path slot) derive from a single method registry -- one `engineOp` entry per
-operation carrying the `rpc.Method*` wire string, a `proc`-passed handler shared by
-the JSON and Direct paths, and an optional typed-slot descriptor. `wireBridgeDispatch`
+operation carrying the `rpc.Method*` wire string, a handler receiving the request
+context and process, and an optional typed-slot descriptor. `wireBridgeDispatch`
 installs the typed slots by iterating the entries that declare a descriptor (not a
 hand-written `Set*` list), and `dispatchPluginRPC` / `dispatchPluginRPCDirect` resolve
 the method through the same table, so adding an operation touches one place and the
@@ -1288,15 +1379,24 @@ the SDK caller so the sent and dispatched method strings stay in lockstep.
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- engineOps, engineOp, lookupEngineOp -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchPluginRPC, dispatchPluginRPCDirect, wireBridgeDispatch -->
 
+Generic direct calls use `DispatchRPC(ctx, method, params)`. The typed route and
+command slots also carry the SDK caller's context into `CommandContext`.
+For batch route announce and withdrawal, that context reaches write admission
+and the peer socket write and flush. Cancellation ends the operation itself,
+not just a goroutine waiting for an uncancelled writer.
+<!-- source: pkg/plugin/sdk/sdk.go -- callEngineRaw -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DispatchRPC, UpdateRouteSel, DispatchCommand -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- AnnounceNLRIBatch, WithdrawNLRIBatch -->
+
 **Runtime hot path (after bridge activates):**
 
 | Direction | Socket path (before) | Direct path (after) |
 |-----------|---------------------|---------------------|
 | Engine to Plugin events (text) | RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
 | Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
-| Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
-| Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (struct passthrough, no serialization) |
-| Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
+| Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(ctx, method, params)` -> `dispatcher.Dispatch` directly |
+| Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(ctx, command)` -> `dispatchCommand()` directly (struct passthrough, no serialization) |
+| Plugin to Engine dispatch-command-args | JSON marshal `DispatchCommandArgsInput` -> RPC -> unmarshal -> exact command route | `bridge.DispatchCommandArgs(ctx, command, args, peer)` -> `dispatchCommandArgs()` directly (Go args slice, no tokenizer) |
 | Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | MuxConn RPC + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
 

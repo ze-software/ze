@@ -30,6 +30,12 @@ type reloadAcceptance struct {
 	server       *Server
 	transactions map[string]string
 	finished     bool
+	done         chan struct{}
+	compensation *reloadCompensation
+	previous     *reloadAcceptance
+	claimed      bool
+	accepted     bool
+	completeOnce sync.Once
 }
 
 // DeferReloadAcceptance keeps irreversible plugin cleanup pending across the
@@ -41,8 +47,15 @@ func (s *Server) DeferReloadAcceptance(ctx context.Context) (context.Context, fu
 	if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil && pending.server == s {
 		return ctx, func(bool) {}
 	}
-	pending := &reloadAcceptance{server: s}
+	pending := &reloadAcceptance{server: s, done: make(chan struct{})}
 	return context.WithValue(ctx, reloadAcceptanceKey{}, pending), pending.finish
+}
+
+func (a *reloadAcceptance) complete(accepted bool) {
+	a.completeOnce.Do(func() {
+		a.server.finishRemovalScope(a, accepted)
+		close(a.done)
+	})
 }
 
 func (a *reloadAcceptance) finish(accepted bool) {
@@ -52,10 +65,46 @@ func (a *reloadAcceptance) finish(accepted bool) {
 		return
 	}
 	a.finished = true
+	a.accepted = accepted
 	transactions := a.transactions
+	claimed, previous := a.claimed, a.previous
+	if accepted {
+		a.previous = nil
+		a.compensation = nil
+		a.transactions = nil
+	}
 	a.mu.Unlock()
 	if !accepted {
+		pendingBehind := false
+		if claimed {
+			ctx := context.WithValue(a.server.Context(), reloadAcceptanceKey{}, a)
+			if err := a.server.txLock.acquire(ctx); err != nil {
+				logger().Error("acquire rejected reload compensation", "error", err)
+			} else {
+				if err := a.server.compensateReload(ctx); err != nil {
+					logger().Error("compensate rejected reload", "error", err)
+				}
+				pendingBehind = a.server.reloadScopePendingBehind(a)
+				a.server.txLock.release()
+			}
+		}
+		if !pendingBehind {
+			a.complete(false)
+		}
 		return
+	}
+	a.complete(true)
+	// Acceptance of this whole tree settles older rejected scopes without
+	// undoing the configuration this caller just accepted.
+	for previous != nil {
+		previous.mu.Lock()
+		rejected := previous.finished && !previous.accepted
+		next := previous.previous
+		previous.mu.Unlock()
+		if rejected {
+			previous.complete(false)
+		}
+		previous = next
 	}
 	// One transaction can own several participants. Publish it once, bounded
 	// by the running process set captured by seedReloadTransactions.

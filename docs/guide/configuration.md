@@ -21,6 +21,22 @@ Ze uses a JUNOS-like hierarchical configuration format.
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
+Select optional plugin schemas at startup with `--plugin`, for example
+`ze --plugin ze.bgp-ls-export ...`. Reload verification retains that selection,
+including when a configuration removes and later restores the plugin's root.
+It does not enable schemas for other optional plugins.
+<!-- source: internal/component/config/loader.go -- LoadConfig -->
+<!-- source: internal/component/bgp/config/loader_create.go -- createReloadFunc -->
+
+Commands that assign a schema-marked secret are masked before they enter a CLI
+transcript, command accounting, or the dispatcher's refusal and audit output.
+The mask covers the entire value, including quoted words, while execution and
+authorization receive the original arguments. A configuration path the schema
+cannot resolve is redacted in full after `set`.
+<!-- source: internal/component/config/mask.go -- DisplayCommand -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
+<!-- source: internal/component/plugin/server/command.go -- BeginAccounting, unauthorizedError, recordCommandAudit -->
+
 ## File Format
 
 ```
@@ -1277,7 +1293,7 @@ peer transit-a {
         receive [ update-received state ];
     }
     attach process rpki {
-        receive [ update-received ];
+        receive [ update-received state ];
     }
 }
 ```
@@ -2399,6 +2415,11 @@ naming the replacement. It is also the administrative distance a Cisco IOS DHCP 
 gives the default route it learns, which is the same ranking decision on another
 vendor. That distance is not a Linux metric, and ze does not read it: 254 is the
 metric ze writes to the kernel.
+
+These distances also apply to routes installed through plugin RPCs. The engine
+selects `ebgp` or `ibgp` from the BGP path's session flags before choosing the
+Loc-RIB winner; both retain `bgp` as their route owner.
+<!-- source: internal/component/plugin/server/dispatch_route.go -- applyRouteInstall -->
 
 Beside `distance`, the `rib` block takes a `fib-withhold` leaf-list. It names
 the protocols ze withholds from the FIB, which is a later stage. See
@@ -3875,7 +3896,7 @@ local interface or the connection fails with `cannot assign requested address`.
 | Service | Config location | Leaf | Transport |
 |---------|-----------------|------|-----------|
 | BMP | `bgp bmp sender collector <name>` | `source-address` | TCP |
-| RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | TCP |
+| RPKI/RTR | `bgp rpki cache-server <addr>` | `source-address` | Mutual TLS, or explicitly trusted TCP |
 | Flow Export | `flow-export collector <name>` | `source-address` | UDP |
 | IRR (filter) | `bgp policy irr` | `source-address` | TCP |
 | Managed hub | `plugin hub client <name>` | `source-address` | TLS |

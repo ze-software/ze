@@ -105,7 +105,7 @@ func declaredPolicyName(declared rpc.FailurePolicy) string {
 // from inside it: releasePluginRegistrations waits on the runtime cleanup that
 // function defers, so calling it earlier waits for a cleanup that cannot run.
 //
-// Three states are not a failure, and each one returns:
+// Deliberate removal and these states are not failures:
 //
 //   - The daemon is stopping. Every plugin exits then, and none of them failed.
 //   - The manager no longer holds this process under this name. A config reload
@@ -114,7 +114,7 @@ func declaredPolicyName(declared rpc.FailurePolicy) string {
 //   - Another path already replaced it. The name then holds a different process,
 //     which is the live one.
 func (s *Server) applyFailurePolicy(proc *process.Process) {
-	if s.ctx.Err() != nil {
+	if s.ctx.Err() != nil || s.pluginRemovalPending(proc) {
 		return
 	}
 	pm := s.procManager.Load()
@@ -158,6 +158,9 @@ func (s *Server) applyFailurePolicy(proc *process.Process) {
 func (s *Server) stopDaemonOnStartupFailure(proc *process.Process, cause error) {
 	if errors.Is(cause, errRespawnDisagreement) {
 		s.stopDaemonForPlugin(proc.Name(), errRespawnDisagreement.Error())
+		return
+	}
+	if _, recovering := s.pluginRecoveryConfig(proc.Name()); recovering {
 		return
 	}
 	if pluginFailurePolicy(proc) == rpc.FailureFatal {

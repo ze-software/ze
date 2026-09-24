@@ -6,6 +6,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -213,7 +214,7 @@ func (s *Server) fibPluginChosen(needed []string) bool {
 // Returns the names of successfully started plugins so the caller can roll them
 // back if the subsequent transaction fails. Startup failures are returned so
 // reload fails closed instead of accepting config without its owner plugin.
-func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) ([]string, error) {
+func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[string]any, addedRoots []string) ([]string, error) {
 	// Build the set of all new paths by navigating into the nested tree.
 	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
@@ -286,8 +287,14 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		s.reactor.AddAPIProcessCount(len(plugins))
 	}
 
-	if err := s.runPluginPhase(plugins); err != nil {
-		logger().Error("config reload: auto-load plugin startup failed", "error", err)
+	var startErr error
+	if recovery, _ := ctx.Value(removalRecoveryContextKey{}).(bool); recovery {
+		startErr = s.runPluginRecoveryPhase(plugins, newTree)
+	} else {
+		startErr = s.runPluginPhase(plugins)
+	}
+	if startErr != nil {
+		logger().Error("config reload: auto-load plugin startup failed", "error", startErr)
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
@@ -295,8 +302,8 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		for i, p := range plugins {
 			started[i] = p.Name
 		}
-		s.autoStopPluginNames(started)
-		return nil, fmt.Errorf("config-path auto-load startup: %w", err)
+		stopErr := s.autoStopPluginNames(started)
+		return nil, errors.Join(fmt.Errorf("config-path auto-load startup: %w", startErr), stopErr)
 	}
 
 	// Tell the reactor that a plugin phase has settled. This is a sync.Once
@@ -386,48 +393,61 @@ func (s *Server) collectProcessesForRemovedConfigPaths(removedRoots []string) ma
 	return s.collectOrphanedDependencies(pm, stopped)
 }
 
-// stopCollectedProcesses tears down a stop set produced before the reload
-// transaction starts.
-func (s *Server) stopCollectedProcesses(stopped map[string]bool) {
+// stopCollectedProcesses reverses the startup dependency tiers so each running
+// producer can finish its removal callback while its dependencies remain live.
+func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	pm := s.procManager.Load()
 	if pm == nil {
-		return
+		return nil
 	}
+	names := make([]string, 0, len(stopped))
+	external := make(map[string]bool)
 	for name := range stopped {
 		proc := pm.GetProcess(name)
 		if proc == nil {
 			continue
 		}
-		logger().Info("config reload: stopping plugin for removed config", "plugin", name)
-		s.rollbackStartupProcess(proc)
+		names = append(names, name)
+		cfg := proc.Config()
+		if !cfg.Internal && cfg.Run != "" {
+			external[name] = true
+		}
 	}
+	tiers, err := registry.TopologicalTiers(names, external)
+	if err != nil {
+		return fmt.Errorf("config reload: order plugin removal: %w", err)
+	}
+	for _, tier := range slices.Backward(tiers) {
+		for _, name := range tier {
+			proc := pm.GetProcess(name)
+			if proc == nil {
+				continue
+			}
+			logger().Info("config reload: stopping plugin", "plugin", name)
+			if err := s.rollbackStartupProcess(proc); err != nil {
+				return fmt.Errorf("config reload: remove plugin %q: %w", name, err)
+			}
+		}
+	}
+	return nil
 }
 
 // autoStopForRemovedConfigPaths stops plugins whose config sections were removed.
-func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) {
-	s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots))
+func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) error {
+	return s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedRoots))
 }
 
 // autoStopPluginNames stops the exact plugin processes that a failed reload
 // auto-loaded. Unlike autoStopForRemovedConfigPaths, the input is already a
 // plugin name list, not config roots such as "fib/kernel".
-func (s *Server) autoStopPluginNames(pluginNames []string) {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return
-	}
-
+func (s *Server) autoStopPluginNames(pluginNames []string) error {
+	stopped := make(map[string]bool, len(pluginNames))
 	for _, name := range pluginNames {
-		if s.hasConfiguredPlugin(name) {
-			continue
+		if !s.hasConfiguredPlugin(name) {
+			stopped[name] = true
 		}
-		proc := pm.GetProcess(name)
-		if proc == nil {
-			continue
-		}
-		logger().Info("config reload: stopping auto-loaded plugin", "plugin", name)
-		s.rollbackStartupProcess(proc)
 	}
+	return s.stopCollectedProcesses(stopped)
 }
 
 // collectOrphanCandidates returns the set of plugin names that the stopped
@@ -502,19 +522,18 @@ func (s *Server) collectOrphanedDependencies(pm *process.ProcessManager, stopped
 }
 
 // stopOrphanedDependencies stops dependency-only plugins that have no remaining dependents.
-func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) {
-	for name := range s.collectOrphanedDependencies(pm, stopped) {
-		if stopped[name] {
-			continue
-		}
-		proc := pm.GetProcess(name)
-		if proc == nil {
-			continue
-		}
-		logger().Info("config reload: stopping orphaned dependency", "plugin", name)
-		s.rollbackStartupProcess(proc)
+func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) error {
+	orphaned := s.collectOrphanedDependencies(pm, stopped)
+	for name := range stopped {
+		delete(orphaned, name)
+	}
+	if err := s.stopCollectedProcesses(orphaned); err != nil {
+		return err
+	}
+	for name := range orphaned {
 		stopped[name] = true
 	}
+	return nil
 }
 
 // parentRemoved checks if any parent path of a config path was removed.

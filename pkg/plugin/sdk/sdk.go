@@ -417,7 +417,7 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	}
 
 	// Stage 2: wait for configure from engine
-	if err := p.serveOne(ctx, "ze-plugin-callback:configure", p.handleConfigure); err != nil {
+	if err := p.serveOne(ctx, callbackConfigure, p.handleConfigure); err != nil {
 		return fmt.Errorf("stage 2 (configure): %w", err)
 	}
 
@@ -551,7 +551,7 @@ func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (
 				return nil, fmt.Errorf("marshal params: %w", err)
 			}
 		}
-		return p.bridge.DispatchRPC(method, paramsRaw)
+		return p.bridge.DispatchRPC(ctx, method, paramsRaw)
 	}
 	return p.engineMux.CallRPC(ctx, method, params)
 }

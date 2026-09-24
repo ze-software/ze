@@ -365,7 +365,9 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 			err := startupFailureError(proc)
 			phaseErr = preferDiagnosedError(phaseErr, err)
 			logger().Error("plugin startup failed", "plugin", proc.Name(), "stage", proc.Stage(), "error", err)
-			s.rollbackStartupProcess(proc)
+			if rollbackErr := s.rollbackStartupProcess(proc); rollbackErr != nil {
+				phaseErr = errors.Join(phaseErr, rollbackErr)
+			}
 			// A phase that fails leaves the daemon running without those
 			// plugins, which is right for a plugin that said nothing about its
 			// own failure and wrong for one that did (failure_policy.go).
@@ -425,19 +427,6 @@ func (s *Server) removePluginFamilies(name string) {
 	family.UnregisterFamilyBatch(regs)
 }
 
-// rollbackStartupProcess stops proc, removes every engine-side registration it
-// made (releasePluginRegistrations, restart.go), and then gives up the plugin's
-// ProcessManager slot and its loaded marker. A RESTART keeps those two, which is
-// why the removal half is its own function.
-func (s *Server) rollbackStartupProcess(proc *process.Process) {
-	proc.Stop()
-	s.releasePluginRegistrations(proc)
-	if pm := s.procManager.Load(); pm != nil {
-		pm.RemoveProcess(proc.Name())
-	}
-	s.unmarkPluginLoaded(proc.Name())
-}
-
 func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, plugins []plugin.PluginConfig) {
 	for _, cfg := range plugins {
 		proc := pm.GetProcess(cfg.Name)
@@ -450,7 +439,9 @@ func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, 
 		}
 		logger().Error("plugin startup failed before tier handshake completed",
 			"plugin", proc.Name(), "stage", proc.Stage())
-		s.rollbackStartupProcess(proc)
+		if err := s.rollbackStartupProcess(proc); err != nil {
+			logger().Error("plugin startup rollback failed", "plugin", proc.Name(), "error", err)
+		}
 	}
 }
 
@@ -764,8 +755,12 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 
 	var sections []rpc.ConfigSection
 
-	if len(reg.WantsConfigRoots) > 0 && s.reactor != nil {
-		configTree := s.reactor.GetConfigTree()
+	recoveryTree, recovering := s.pluginRecoveryConfig(proc.Name())
+	if len(reg.WantsConfigRoots) > 0 && (s.reactor != nil || recovering) {
+		configTree := recoveryTree
+		if !recovering {
+			configTree = s.reactor.GetConfigTree()
+		}
 		if configTree != nil {
 			var err error
 			sections, err = config.BuildPluginConfigSections(configTree, reg.WantsConfigRoots)
@@ -794,7 +789,7 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 			coord.PluginFailed(proc.Index(), tb.Str("configure failed: ").Err(err).String())
 		}
 		proc.Stop()
-		if configRefusalIsFatal(proc.Name(), err) {
+		if configRefusalIsFatal(proc.Name(), err) && !recovering {
 			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
 		}
 		return err

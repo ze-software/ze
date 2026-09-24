@@ -93,7 +93,7 @@ func TestStopCancelsTransactionWithShutdownCause(t *testing.T) {
 	require.True(t, s.txLock.tryAcquire(), "transaction lock must be free")
 
 	causeCh := make(chan error, 1)
-	s.txLock.setCancel(func(cause error) { causeCh <- cause })
+	s.txLock.setCancel(func(cause error) { causeCh <- cause }, nil)
 
 	stopReturned := make(chan struct{})
 	go func() {
@@ -128,7 +128,7 @@ func TestStopTransactionGivesUpAfterGrace(t *testing.T) {
 	s, err := NewServer(&ServerConfig{}, &mockReactor{})
 	require.NoError(t, err)
 	require.True(t, s.txLock.tryAcquire(), "transaction lock must be free")
-	s.txLock.setCancel(func(error) {}) // a transaction that ignores cancellation
+	s.txLock.setCancel(func(error) {}, nil) // a transaction that ignores cancellation
 
 	start := time.Now()
 	s.stopTransaction(50 * time.Millisecond)

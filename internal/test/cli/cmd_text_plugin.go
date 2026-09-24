@@ -24,8 +24,9 @@ func cmdTextPlugin(_ []string) int {
 		return nil
 	})
 
-	p.OnBye(func(reason string) {
+	p.OnBye(func(reason string) error {
 		fmt.Fprintf(os.Stderr, "text-plugin: bye: %s\n", reason)
+		return nil
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())

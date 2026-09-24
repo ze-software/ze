@@ -56,14 +56,17 @@ func reloadCallerFromContext(ctx context.Context) *process.Process {
 // bridge reads every connection as a crashed plugin (config_tx_bridge.go,
 // the conn == nil arm of subscribePhase).
 type txLock struct {
-	mu     sync.Mutex
-	locked bool
-	sighup bool
-	cancel context.CancelCauseFunc
-	done   chan struct{}
+	mu         sync.Mutex
+	locked     bool
+	sighup     bool
+	cancel     context.CancelCauseFunc
+	done       chan struct{}
+	acceptance *reloadAcceptance
 	// configTransactions follows each participant's current configuration.
 	// Only the holder of this transaction lock reads or changes it.
-	configTransactions map[string]string
+	configTransactions  map[string]string
+	configOwner         *reloadAcceptance
+	pendingCompensation *reloadAcceptance
 }
 
 // tryAcquire attempts to acquire the transaction lock. Returns false if already held.
@@ -78,12 +81,35 @@ func (l *txLock) tryAcquire() bool {
 	return true
 }
 
+// acquire waits for the existing reload exclusion during lifecycle compensation.
+// New operator reloads still use tryAcquire and report contention immediately.
+func (l *txLock) acquire(ctx context.Context) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if l.tryAcquire() {
+			return nil
+		}
+		_, done := l.inFlight()
+		if done == nil {
+			continue
+		}
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 // setCancel records the cancel function of the transaction now holding the
 // lock. The holder calls it right after tryAcquire.
-func (l *txLock) setCancel(cancel context.CancelCauseFunc) {
+func (l *txLock) setCancel(cancel context.CancelCauseFunc, acceptance *reloadAcceptance) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.cancel = cancel
+	l.acceptance = acceptance
 }
 
 // inFlight returns the running transaction's cancel function and its done
@@ -105,6 +131,7 @@ func (l *txLock) release() {
 		l.done = nil
 	}
 	l.cancel = nil
+	l.acceptance = nil
 	l.locked = false
 }
 
@@ -244,24 +271,32 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// A direct server reload accepts at return. The hub supplies an outer
 	// scope that keeps this transaction pending through its later steps.
 	ctx, acceptReload := s.DeferReloadAcceptance(ctx)
-	// Retries and changes to unrelated roots also accept unchanged participants.
-	s.seedReloadTransactions(ctx)
 	// Publish the cancel handle so Stop can stand this transaction down
 	// instead of pulling the plugin connections out from under it.
 	ctx, cancelTx := context.WithCancelCause(ctx)
-	s.txLock.setCancel(cancelTx)
+	acceptance, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	s.txLock.setCancel(cancelTx, acceptance)
 	defer func() {
 		if result == nil {
 			s.txLock.configTransactions = reloadTransactionIDs(ctx)
+			s.claimReloadOwnership(acceptance)
 		}
-		acceptReload(result == nil)
 		cancelTx(nil)
 		s.txLock.release()
+		acceptReload(result == nil)
 	}()
 
 	if s.reactor == nil {
 		return errNoReactorConfigured
 	}
+	if err := s.retryReloadCompensation(); err != nil {
+		return err
+	}
+	if err := s.retryRemovalRecovery(s.Context()); err != nil {
+		return fmt.Errorf("pending plugin removal recovery: %w", err)
+	}
+	// Retries and unrelated changes accept the participants restored above too.
+	s.seedReloadTransactions(ctx)
 
 	logger().Info("config reload started")
 
@@ -326,25 +361,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 				continue
 			}
 
-			// Build sections only for roots that have changes.
-			var sections []rpc.ConfigSection
-			for _, root := range reg.WantsConfigRoots {
-				if !rootHasChanges(diff, root) {
-					continue
-				}
-				subtree := ExtractConfigSubtree(newTree, root)
-				if subtree == nil {
-					// Root was removed from new config — send empty object
-					// so the plugin can verify/handle the removal.
-					sections = append(sections, rpc.ConfigSection{Root: root, Data: "{}"})
-					continue
-				}
-				jsonBytes, err := json.Marshal(subtree)
-				if err != nil {
-					logger().Error("config reload: marshal config subtree", "root", root, "error", err)
-					continue
-				}
-				sections = append(sections, rpc.ConfigSection{Root: root, Data: string(jsonBytes)})
+			sections, err := reloadConfigSections(newTree, diff, reg.WantsConfigRoots)
+			if err != nil {
+				return err
 			}
 
 			if len(sections) > 0 {
@@ -358,13 +377,16 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	}
 
 	if len(affected) == 0 {
+		recordReloadCompensation(ctx, running, newTree, nil)
 		if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
-			return fmt.Errorf("reactor config apply: %w", err)
+			return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 		}
 		// No plugins care about these changes. Recompute orphan ownership after
 		// auto-load, stop removed config owners, then update the running config.
 		logger().Info("config reload: no affected plugins, updating config")
-		s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys))
+		if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys)); err != nil {
+			return errors.Join(err, s.compensateReload(ctx))
+		}
 		s.reactor.SetConfigTree(newTree)
 		return nil
 	}
@@ -393,17 +415,20 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		logger().Warn("config reload: transaction failed", "error", err)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
-			s.autoStopPluginNames(autoLoaded)
+			err = errors.Join(err, s.autoStopPluginNames(autoLoaded))
 		}
 		return err
 	}
+	recordReloadCompensation(ctx, running, newTree, affected)
 
 	// Transaction committed. Recompute against the post-auto-load process set
 	// so new dependents keep shared dependencies alive.
-	s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys))
+	if err := s.stopCollectedProcesses(s.collectProcessesForRemovedConfigPaths(removedKeys)); err != nil {
+		return errors.Join(err, s.compensateReload(ctx))
+	}
 
 	if err := s.reactor.ApplyConfigDiff(newTree); err != nil {
-		return fmt.Errorf("reactor config apply: %w", err)
+		return errors.Join(fmt.Errorf("reactor config apply: %w", err), s.compensateReload(ctx))
 	}
 	// Update running config tree after the orchestrator commits. Plugins
 	// have already persisted their per-root state via apply; reconciling

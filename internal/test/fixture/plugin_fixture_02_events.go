@@ -60,7 +60,7 @@ func eventObserver02(name string, events []string, scenario eventScenario02) Dri
 				return runCtx.Err()
 			}
 		})
-		plugin.OnBye(func(string) { shutdownOnce.Do(func() { close(shutdown) }) })
+		plugin.OnBye(func(string) error { shutdownOnce.Do(func() { close(shutdown) }); return nil })
 		result := make(chan error, 1)
 		plugin.OnAllPluginsReady(func() error {
 			go func() {

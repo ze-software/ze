@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -21,11 +22,12 @@ import (
 var errPluginAutoNotYetImplemented = errors.New("plugin 'auto' not yet implemented")
 
 // LoadConfigResult holds the output of LoadConfig: a parsed config tree,
-// resolved plugin list, and derived config directory.
+// resolved plugin list, startup schema selectors, and derived config directory.
 type LoadConfigResult struct {
-	Tree      *Tree
-	Plugins   []plugin.PluginConfig
-	ConfigDir string
+	Tree       *Tree
+	Plugins    []plugin.PluginConfig
+	ConfigDir  string
+	CLIPlugins []string
 }
 
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
@@ -115,9 +117,10 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	}
 
 	return &LoadConfigResult{
-		Tree:      tree,
-		Plugins:   plugins,
-		ConfigDir: configDir,
+		Tree:       tree,
+		Plugins:    plugins,
+		ConfigDir:  configDir,
+		CLIPlugins: slices.Clone(cliPlugins),
 	}, nil
 }
 

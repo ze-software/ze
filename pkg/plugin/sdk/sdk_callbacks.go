@@ -26,8 +26,9 @@ type EventHandler func(event string) error
 // Each element is a *rpc.StructuredEvent.
 type StructuredEventHandler func(events []any) error
 
-// ByeHandler handles shutdown notification with the shutdown reason.
-type ByeHandler func(reason string)
+// ByeHandler completes removal before acknowledging it. An error keeps the
+// plugin running so the engine can retain its dependencies and retry removal.
+type ByeHandler func(reason string) error
 
 // EncodeNLRIHandler handles NLRI encoding requests. Returns hex-encoded NLRI.
 type EncodeNLRIHandler func(family string, args []string) (string, error)
@@ -107,6 +108,11 @@ func (p *Plugin) initCallbackDefaults() {
 		// Events: no-op when no handler registered.
 		callbackDeliverEvent: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 		callbackDeliverBatch: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		// A refused removal can redeliver the committed configuration without
+		// killing the live plugin or losing its retryable cleanup state.
+		callbackConfigure: func(params json.RawMessage) (json.RawMessage, error) {
+			return nil, p.handleConfigure(params)
+		},
 		// Config: accept when no handler registered.
 		callbackConfigVerify:   marshalStatusOK,
 		callbackConfigApply:    marshalStatusOK,
@@ -202,10 +208,11 @@ func (p *Plugin) OnBye(fn ByeHandler) {
 			Reason string `json:"reason,omitempty"`
 		}
 		if params != nil {
-			_ = json.Unmarshal(params, &input) //nolint:errcheck // best-effort
+			if err := json.Unmarshal(params, &input); err != nil {
+				return nil, fmt.Errorf("unmarshal bye: %w", err)
+			}
 		}
-		fn(input.Reason)
-		return nil, nil
+		return nil, fn(input.Reason)
 	}
 }
 
