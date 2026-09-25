@@ -166,14 +166,22 @@ func dynamicRefusal02(who, kind, direction string) string {
 	return ""
 }
 
+// dynamicGroupMarker02 is the file the observer writes once it is subscribed,
+// and the file dynamicGroupWait02 holds the dynamic member's dial behind. It is
+// relative on purpose. The observer inherits the daemon's working directory, the
+// wait step runs in the same directory, and the runner creates that directory
+// fresh for each run (Record.WorkDir). The shared absolute path this replaced
+// outlived the run that wrote it and was visible to every other run on the host.
+// The wait could then pass on a marker no observer of THIS run had written, and
+// the member dialed before anything was subscribed to its session-up event.
+const dynamicGroupMarker02 = "dynamic-group.ready"
+
 func dynamicGroupDriver02(ctx context.Context, args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("dynamic group observer requires an absolute marker path")
+	if len(args) != 0 {
+		return fmt.Errorf("unexpected arguments: %v", args)
 	}
-	marker := args[0]
-	_ = os.Remove(marker)
 	scenario := func(ctx context.Context, plugin *sdk.Plugin, events <-chan string, shutdown <-chan struct{}) error {
-		return dynamicGroup02(ctx, plugin, events, shutdown, marker)
+		return dynamicGroup02(ctx, plugin, events, shutdown, dynamicGroupMarker02)
 	}
 	return eventObserver02("dyn-group-observer", []string{eventUpdate, eventState}, scenario)(ctx, nil)
 }
@@ -550,10 +558,10 @@ func regularFileExists02(path string) bool {
 }
 
 func dynamicGroupWait02(ctx context.Context, args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("wait-file fixture requires an absolute marker path")
+	if len(args) != 0 {
+		return fmt.Errorf("unexpected arguments: %v", args)
 	}
-	path := args[0]
+	path := dynamicGroupMarker02
 	for range 201 {
 		if regularFileExists02(path) {
 			return nil
