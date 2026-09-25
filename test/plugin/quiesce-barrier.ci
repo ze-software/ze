@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external quiesce-barrier {
-		run "ze-test fixture plugin/quiesce-barrier"
+		run "le-test fixture plugin/quiesce-barrier"
 		encoder json
 	}
 }

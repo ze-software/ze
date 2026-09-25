@@ -1,6 +1,6 @@
 # One session's loop over a derived artifact: render it, edit an input, read it.
 #
-# The fixture drives the REAL `le hook-check` binary against a scratch checkout
+# The fixture drives the REAL `le ai hooks` binary against a scratch checkout
 # and judges the file the hooks leave behind. Three facts are owed, and each has
 # its own marker: a session start renders an artifact the tree does not hold, a
 # write to one of its inputs REMOVES it, and a command naming it rebuilds it
@@ -18,7 +18,7 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/le-derived-artifact-lifecycle
+cmd=foreground:seq=1:exec=le-test fixture runner/le-derived-artifact-lifecycle
 expect=exit:code=0
 expect=stdout:contains=derived-fixture-ready
 expect=stdout:contains=session-start-rendered-the-artifact

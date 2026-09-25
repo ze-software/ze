@@ -37,7 +37,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flap-notif-test {
-		run "ze-test fixture plugin/metrics-flap-notification-duration"
+		run "le-test fixture plugin/metrics-flap-notification-duration"
 		encoder json
 	}
 }

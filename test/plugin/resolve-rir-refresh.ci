@@ -43,7 +43,7 @@
 # share it.
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/resolve-rir-refresh
+cmd=foreground:seq=1:exec=le-test fixture plugin/resolve-rir-refresh
 expect=exit:code=0
 expect=stderr:contains=OK: the daemon answers from the stored copy, which is newer than the shipped seed
 expect=stderr:contains=OK: the host reads the same stored copy while the daemon holds the file open

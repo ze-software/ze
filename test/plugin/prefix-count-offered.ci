@@ -65,7 +65,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-offered {
-		run "ze-test fixture plugin/prefix-count-offered"
+		run "le-test fixture plugin/prefix-count-offered"
 		encoder json
 	}
 	internal bgp-rib {

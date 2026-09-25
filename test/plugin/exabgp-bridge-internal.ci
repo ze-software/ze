@@ -20,7 +20,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 exabgp {
 	bridge {
 		process helper {
-			run "ze-test fixture plugin/exabgp-bridge-helper"
+			run "le-test fixture plugin/exabgp-bridge-helper"
 		}
 		family ipv4/unicast
 	}

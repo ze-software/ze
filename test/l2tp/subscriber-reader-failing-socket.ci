@@ -4,7 +4,7 @@
 # reason, and this scenario is what proves the pacing is real rather than
 # asserted.
 #
-# THE STIMULUS. `ze-test fail-syscall` installs a classic seccomp filter that
+# THE STIMULUS. `le-test fail-syscall` installs a classic seccomp filter that
 # answers ENETDOWN for recvfrom, but only for a read of 1500 bytes, which is
 # rxBufLen and so selects the listener's own socket and no other. It then
 # execs the daemon. The kernel refuses the call at its entry, so the failing
@@ -38,7 +38,7 @@
 # two stdout lines already assert, and it is not: the fixture reads /metrics
 # and nothing else, so a daemon that serves metrics while writing no log at
 # all passes both stdout assertions. That daemon is exactly what this scenario
-# produced on 2026-09-11. `ze-test fail-syscall` execs the daemon, and every
+# produced on 2026-09-11. `le-test fail-syscall` execs the daemon, and every
 # cmd/ze binary starts by dup2-ing a crashlog pipe over fd 2 whose draining
 # goroutine the exec destroys, so the launched daemon wrote into a pipe nobody
 # read and blocked once 64 KiB filled it. The launcher now calls
@@ -76,8 +76,8 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 # Wrapped stdin remains piped; the runner isolates this daemon's config directory.
 
-cmd=background:seq=1:exec=ze-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
-cmd=foreground:seq=2:exec=ze-test fixture l2tp/failing-socket $PORT2:timeout=30s
+cmd=background:seq=1:exec=le-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
+cmd=foreground:seq=2:exec=le-test fixture l2tp/failing-socket $PORT2:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=OK: CPU use stayed at
 expect=stdout:contains=OK: ze_l2tp_listener_read_errors_total rose by

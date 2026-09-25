@@ -527,7 +527,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external burst-test {
-		run "ze-test fixture plugin/bgp-redistribute-burst"
+		run "le-test fixture plugin/bgp-redistribute-burst"
 		encoder json
 	}
 	internal redistribute-orchestrator {

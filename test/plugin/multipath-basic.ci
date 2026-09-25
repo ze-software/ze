@@ -32,7 +32,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external multipath-test {
-		run "ze-test fixture plugin/multipath-basic"
+		run "le-test fixture plugin/multipath-basic"
 		encoder json
 	}
 	internal bgp-rib {

@@ -11,6 +11,6 @@ option=timeout:value=60s
 
 # Native process, PTY, TLS, and file driver exercises every remote contract.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/pipe-review-remote-contracts
+cmd=foreground:seq=1:exec=le-test fixture plugin/pipe-review-remote-contracts
 expect=exit:code=0
 expect=stdout:contains=OK: reviewed remote pipe contracts

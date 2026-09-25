@@ -54,6 +54,6 @@ EOF_CONF
 option=env:var=ze.log.traffic:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture traffic/traffic-boot-apply:timeout=10s
+cmd=foreground:seq=2:exec=le-test fixture traffic/traffic-boot-apply:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config applied

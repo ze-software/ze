@@ -23,6 +23,6 @@
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-job-admits
+cmd=foreground:seq=1:exec=le-test fixture ui/le-job-admits
 expect=exit:code=0
 expect=stdout:contains=OK

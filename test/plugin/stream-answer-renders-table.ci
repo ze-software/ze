@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. The native process fixture writes the config, starts the daemon, and opens SSH
-# 2. The daemon spawns `ze-test record-plugin`
+# 2. The daemon spawns `le-test record-plugin`
 # 3. `ze init` creates operator credentials
 # 4. `ze cli -c "show test records table | first 100 | raw"` reads the declaring
 #    command, and the same chain over `show test records object` reads its
@@ -51,7 +51,7 @@
 # Native process fixture: plugin/stream-answer-renders-table.
 
 # Process orchestration
-cmd=foreground:seq=1:exec=ze-test fixture plugin/stream-answer-renders-table:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture plugin/stream-answer-renders-table:timeout=60s
 expect=exit:code=0
 expect=stderr:pattern=OK: [0-9]+ positional rows reached the operator under the names the head declared
 expect=stderr:pattern=OK: the streamed answer rendered as a table under its declared columns

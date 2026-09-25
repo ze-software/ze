@@ -113,7 +113,7 @@ option=env:var=ze.log.interface:value=info
 option=env:var=ze.log.static:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture reload/config-apply-ordering-mixed-root-driver:timeout=40s
+cmd=foreground:seq=2:exec=le-test fixture reload/config-apply-ordering-mixed-root-driver:timeout=40s
 
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete

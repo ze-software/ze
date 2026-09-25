@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-events-test {
-		run "ze-test fixture plugin/monitor-events"
+		run "le-test fixture plugin/monitor-events"
 		encoder json
 	}
 }

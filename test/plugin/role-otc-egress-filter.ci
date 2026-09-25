@@ -54,7 +54,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-egress {
-		run "ze-test fixture plugin/role-otc-egress-filter"
+		run "le-test fixture plugin/role-otc-egress-filter"
 		encoder json
 	}
 }

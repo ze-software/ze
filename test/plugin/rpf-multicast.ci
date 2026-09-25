@@ -40,7 +40,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rpf-multicast-test {
-		run "ze-test fixture plugin/rpf-multicast"
+		run "le-test fixture plugin/rpf-multicast"
 		encoder json
 	}
 	internal bgp-rib {

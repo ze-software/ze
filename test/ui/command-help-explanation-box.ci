@@ -10,12 +10,12 @@
 #
 # accept-only: the value assertions are the expect=explanation:contains= and
 # expect=hint:contains= lines of the embedded command-help-explanation-box.et
-# below. `ze-test editor --dir . --all` runs that file and exits non-zero when
+# below. `le-test editor --dir . --all` runs that file and exits non-zero when
 # either text is missing, so the exit code carries them.
 
 option=timeout:value=30s
 
-# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# go.mod marker: le-test editor roots its base dir at the first go.mod above
 # the working directory, so --dir . resolves to this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-command-help-explanation-box-fixture
@@ -46,5 +46,5 @@ expect=explanation:contains=An unknown type is reported inside the answer rather
 expect=hint:contains=Evict DNS cache entries for one record name, or one name and type when a type is provided.
 EOF_ET
 
-cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+cmd=foreground:seq=1:exec=le-test editor --dir . --all
 expect=exit:code=0

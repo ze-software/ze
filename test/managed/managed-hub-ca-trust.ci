@@ -24,6 +24,6 @@
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture managed/hub-ca-trust -hub-plugin-port $PORT -hub-managed-port $PORT2 -scenario both:timeout=180s
+cmd=foreground:seq=1:exec=le-test fixture managed/hub-ca-trust -hub-plugin-port $PORT -hub-managed-port $PORT2 -scenario both:timeout=180s
 expect=exit:code=0
 expect=stderr:contains=OK: the managed client fetched its config over a chain validated against the exported hub root

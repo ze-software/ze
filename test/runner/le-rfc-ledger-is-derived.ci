@@ -14,7 +14,7 @@
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/le-rfc-ledger-is-derived
+cmd=foreground:seq=1:exec=le-test fixture runner/le-rfc-ledger-is-derived
 expect=exit:code=0
 expect=stdout:contains=rfc-fixture-ready
 expect=stdout:contains=gate-judged-the-tree-not-the-pages

@@ -39,7 +39,7 @@ EOF_PEER2
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external nhself-test {
-		run "ze-test fixture plugin/bgp-redistribute-nexthop-self"
+		run "le-test fixture plugin/bgp-redistribute-nexthop-self"
 		encoder json
 	}
 	internal redistribute-orchestrator {

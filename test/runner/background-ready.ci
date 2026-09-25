@@ -9,7 +9,7 @@
 
 option=timeout:value=20s
 
-cmd=background:seq=1:exec=ze-test fixture runner/background-ready-server $PORT:ready=BACKGROUND-READY: listening
-cmd=foreground:seq=2:exec=ze-test fixture runner/background-ready-dial $PORT
+cmd=background:seq=1:exec=le-test fixture runner/background-ready-server $PORT:ready=BACKGROUND-READY: listening
+cmd=foreground:seq=2:exec=le-test fixture runner/background-ready-dial $PORT
 expect=exit:code=0
 expect=stdout:contains=ready-barrier-held

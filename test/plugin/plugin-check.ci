@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external check-and-announce {
-		run "ze-test fixture plugin/plugin-check"
+		run "le-test fixture plugin/plugin-check"
 		encoder json
 	}
 }

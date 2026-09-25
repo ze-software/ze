@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-profile-show-test {
-		run "ze-test fixture plugin/bfd-profile-show"
+		run "le-test fixture plugin/bfd-profile-show"
 		encoder json
 	}
 }

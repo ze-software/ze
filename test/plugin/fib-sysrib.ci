@@ -21,7 +21,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-sysrib-test {
-		run "ze-test fixture plugin/fib-sysrib"
+		run "le-test fixture plugin/fib-sysrib"
 		encoder json
 	}
 	internal bgp-rib {

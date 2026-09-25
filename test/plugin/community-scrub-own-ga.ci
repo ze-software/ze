@@ -54,7 +54,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-scrub {
-		run "ze-test fixture plugin/community-scrub-own-ga"
+		run "le-test fixture plugin/community-scrub-own-ga"
 		encoder json
 	}
 	internal bgp-rib {

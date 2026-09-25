@@ -54,7 +54,7 @@ cmd=background:seq=1:exec=ze -:stdin=ze-conf
 # Asserted under the command that WRITES it. It used to sit under a later
 # command, where the runner checked it against the whole test's output.
 expect=stderr:contains=AAA backend build failed
-cmd=foreground:seq=2:exec=ze-test fixture plugin/aaa-local-failover $PORT2:timeout=30s
+cmd=foreground:seq=2:exec=le-test fixture plugin/aaa-local-failover $PORT2:timeout=30s
 expect=exit:code=0
 # The chain really did fail to build. Without this the test would also pass
 # against a daemon whose TACACS+ config was simply ignored.

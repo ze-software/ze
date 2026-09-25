@@ -12,7 +12,7 @@
 #           fail this check.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/tacacs-show:timeout=15s
+cmd=foreground:seq=1:exec=le-test fixture plugin/tacacs-show:timeout=15s
 expect=exit:code=0
 # Headline headers present (proves the rows rendered against their fields).
 expect=stderr:pattern=address\s+error\s+port\s+reachable\s+rtt

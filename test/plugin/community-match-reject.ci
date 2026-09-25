@@ -27,7 +27,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-cm-reject {
-		run "ze-test fixture plugin/community-match-reject"
+		run "le-test fixture plugin/community-match-reject"
 		encoder json
 	}
 }

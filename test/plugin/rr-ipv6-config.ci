@@ -48,7 +48,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rr-ipv6-test {
-		run "ze-test fixture plugin/rr-ipv6-config"
+		run "le-test fixture plugin/rr-ipv6-config"
 		encoder json
 	}
 }

@@ -27,7 +27,7 @@ pki {
 
 plugin {
     external pki-export-show-test {
-        run "ze-test fixture plugin/pki-certificate-export-show"
+        run "le-test fixture plugin/pki-certificate-export-show"
         encoder json
     }
 }

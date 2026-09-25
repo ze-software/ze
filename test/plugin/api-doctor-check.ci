@@ -15,11 +15,11 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external doctor-provider {
-        run "ze-test fixture plugin/api-doctor-check-provider"
+        run "le-test fixture plugin/api-doctor-check-provider"
         encoder json
     }
     external doctor-checker {
-        run "ze-test fixture plugin/api-doctor-check-checker"
+        run "le-test fixture plugin/api-doctor-check-checker"
         encoder json
     }
 }

@@ -6,7 +6,7 @@
 
 option=timeout:value=90s
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-wiring-attribution
+cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-wiring-attribution
 expect=exit:code=0
 expect=stdout:contains=scratch-repo-ready
 expect=stdout:contains=wiring-red-of-another-session-not-charged

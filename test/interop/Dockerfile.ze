@@ -11,7 +11,7 @@
 # linker inside this image was killed by the kernel three times on an idle
 # 31 GiB workstation on 2026-09-06, and took 40m39s on a small VM on 2026-09-04.
 #
-# ze and ze-test are both cmd/ze selected by build tag: the daemon personality
+# ze and le-test are both cmd/ze selected by build tag: the daemon personality
 # takes ze_core ze_distro and the test personality takes ze_test. Both also
 # carry every gate feature-gates.txt declares, because a personality tag alone
 # leaves every compile-out-able feature off and BGP itself is one of them

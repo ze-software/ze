@@ -40,9 +40,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=ze-test fixture static/static-reload-empty-section-withdraws-setup
+cmd=foreground:seq=1:exec=le-test fixture static/static-reload-empty-section-withdraws-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture static/static-reload-empty-section-withdraws:timeout=15s
+cmd=foreground:seq=3:exec=le-test fixture static/static-reload-empty-section-withdraws:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes reloaded
 expect=stdout:contains=withdrawn

@@ -46,7 +46,7 @@ option=timeout:value=30s
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-table-term-test {
-		run "ze-test fixture plugin/firewall-irr-table-term-commit"
+		run "le-test fixture plugin/firewall-irr-table-term-commit"
 		encoder json
 	}
 }
@@ -99,7 +99,7 @@ EOF_CONF2
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-table-term-test {
-		run "ze-test fixture plugin/firewall-irr-table-term-commit"
+		run "le-test fixture plugin/firewall-irr-table-term-commit"
 		encoder json
 	}
 }
@@ -124,8 +124,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-test irr --port $PORT2
-cmd=background:seq=2:exec=ze-test fixture plugin/firewall-irr-table-term-commit/reload
+cmd=background:seq=1:exec=le-test irr --port $PORT2
+cmd=background:seq=2:exec=le-test fixture plugin/firewall-irr-table-term-commit/reload
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=both table terms and their IPv6 twins are in the kernel ruleset

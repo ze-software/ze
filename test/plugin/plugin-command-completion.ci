@@ -16,7 +16,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external completion-test {
-        run "ze-test fixture plugin/plugin-command-completion"
+        run "le-test fixture plugin/plugin-command-completion"
         encoder json
     }
 }

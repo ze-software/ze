@@ -47,7 +47,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external origin-policy {
-		run "ze-test fixture plugin/filter-match-on-origin"
+		run "le-test fixture plugin/filter-match-on-origin"
 		encoder json
 	}
 }

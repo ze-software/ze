@@ -6,7 +6,7 @@
 #           container instead of its own overlay node.
 #
 # Spec: plan/spec-web-2-operator-workbench.md (D13, AC-25).
-# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-tool-overlay-multi
+# Run with: ZE_WEB_UI=workbench bin/le-test web -p workbench-tool-overlay-multi
 
 option=skip:reason=requires ZE_WEB_UI=workbench
 option=timeout:value=30s

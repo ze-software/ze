@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-remove-private-as {
-		run "ze-test fixture plugin/remove-private-as-import"
+		run "le-test fixture plugin/remove-private-as-import"
 		encoder json
 	}
 }

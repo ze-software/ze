@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external addpath-test {
-		run "ze-test fixture plugin/config-addpath-mode"
+		run "le-test fixture plugin/config-addpath-mode"
 		encoder json
 	}
 }

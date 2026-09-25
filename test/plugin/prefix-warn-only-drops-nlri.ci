@@ -45,7 +45,7 @@
 # `warn-only-installs-excess`: applyPrefixCheck's warn-only branch returns
 # `nil, false` instead of `nil, true`, built into a real binary with the runner's
 # own tags (runner.TestBuildTags) and run through
-# `ZE_TEST_NO_BUILD=1 ZE_BIN=<mutant>`. The mutant FAILS this test in 20.0s with
+# `LE_TEST_NO_BUILD=1 ZE_BIN=<mutant>`. The mutant FAILS this test in 20.0s with
 # `show bgp rib received count=4, maximum is 2`; the clean binary passes in
 # 5.7 to 6.1 seconds over three consecutive runs.
 #
@@ -89,7 +89,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-drop-test {
-		run "ze-test fixture plugin/prefix-warn-only-drops-nlri"
+		run "le-test fixture plugin/prefix-warn-only-drops-nlri"
 		encoder json
 	}
 	internal bgp-rib {

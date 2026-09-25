@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external decode-test {
-        run "ze-test fixture plugin/decode-update"
+        run "le-test fixture plugin/decode-update"
         encoder json
     }
 }

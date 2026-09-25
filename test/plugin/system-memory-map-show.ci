@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external system-memory-map-show-test {
-		run "ze-test fixture plugin/system-memory-map-show"
+		run "le-test fixture plugin/system-memory-map-show"
 		encoder json
 	}
 }

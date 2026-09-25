@@ -114,7 +114,7 @@ plugin {
 		use bgp-rs
 	}
 	external replay-relay {
-		run "ze-test fixture plugin/adj-rib-in-replay-on-peerup"
+		run "le-test fixture plugin/adj-rib-in-replay-on-peerup"
 		encoder json
 	}
 	internal adj-rib-in {

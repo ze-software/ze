@@ -64,7 +64,7 @@ ddos {
 
 plugin {
 	external ddos-timing-leaves-probe {
-		run "ze-test fixture plugin/ddos-timing-leaves"
+		run "le-test fixture plugin/ddos-timing-leaves"
 		encoder json
 	}
 }

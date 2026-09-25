@@ -57,7 +57,7 @@ plugin {
 }
 EOF_UNKNOWN_INTERNAL
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/config-validate-agrees-with-boot:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture plugin/config-validate-agrees-with-boot:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK[plugin_internal]: validate=valid boot=yes
 expect=stderr:contains=OK[plugin_two]: validate=valid boot=yes

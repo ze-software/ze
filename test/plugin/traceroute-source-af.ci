@@ -14,7 +14,7 @@
 # caps=net-raw, not skip-os: doTracerouteCtx builds ICMP itself through
 # net.ListenPacket("ip4:icmp"/"ip6:ipv6-icmp"), which the kernel refuses without
 # CAP_NET_RAW. Declaring the capability relocates the test to
-# `./le qemu all-tests`, which has it, instead of failing where it cannot pass.
+# `./le test qemu all-tests`, which has it, instead of failing where it cannot pass.
 option=needs-linux:caps=net-raw
 
 stdin=peer:terminator=EOF_PEER
@@ -27,7 +27,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external traceroute-source-af-test {
-		run "ze-test fixture plugin/traceroute-source-af"
+		run "le-test fixture plugin/traceroute-source-af"
 		encoder json
 	}
 }

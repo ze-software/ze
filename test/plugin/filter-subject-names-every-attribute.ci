@@ -43,7 +43,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external filter-subject-test {
-        run "ze-test fixture plugin/filter-subject-names-every-attribute";
+        run "le-test fixture plugin/filter-subject-names-every-attribute";
         encoder json;
     }
 }

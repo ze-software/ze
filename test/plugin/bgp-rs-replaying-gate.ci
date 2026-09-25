@@ -34,7 +34,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run "ze-test fixture plugin/bgp-rs-replaying-gate"
+		run "le-test fixture plugin/bgp-rs-replaying-gate"
 		encoder json
 	}
 }

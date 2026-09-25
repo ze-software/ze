@@ -74,7 +74,7 @@ option=env:var=ze.log.bgp.reactor:value=info
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dyn-group-observer {
-		run "ze-test fixture plugin/attach-process-dynamic-group /tmp/ze-dynamic-group-$PORT.ready"
+		run "le-test fixture plugin/attach-process-dynamic-group /tmp/ze-dynamic-group-$PORT.ready"
 		encoder json
 	}
 }
@@ -180,6 +180,6 @@ cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
 # above every cmd=, where the runner checked them against the whole
 # test's output and they could have been satisfied by any command.
 expect=stderr:contains=dynamic peer created
-cmd=foreground:seq=4:exec=ze-test fixture plugin/attach-process-dynamic-group-wait /tmp/ze-dynamic-group-$PORT.ready:timeout=25s
+cmd=foreground:seq=4:exec=le-test fixture plugin/attach-process-dynamic-group-wait /tmp/ze-dynamic-group-$PORT.ready:timeout=25s
 cmd=background:seq=5:exec=ze-peer --dial 127.0.0.2:$PORT:stdin=dynamic
 expect=exit:code=0

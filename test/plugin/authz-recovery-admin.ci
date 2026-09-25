@@ -51,7 +51,7 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/authz-recovery-admin:timeout=30s
+cmd=foreground:seq=1:exec=le-test fixture plugin/authz-recovery-admin:timeout=30s
 expect=exit:code=0
 # The recovery account reached the box.
 expect=stderr:pattern=OK: recovery admin allowed 'show version'

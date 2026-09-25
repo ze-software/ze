@@ -37,7 +37,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-aspath-accept {
-		run "ze-test fixture plugin/aspath-filter-accept"
+		run "le-test fixture plugin/aspath-filter-accept"
 		encoder json
 	}
 }

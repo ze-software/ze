@@ -28,7 +28,7 @@
 # 006 reaches 0 too: its wait_rules() now delegates to the shared helper while
 # keeping its own 12s deadline, derived per call from the budget still remaining.
 #
-# Verified on Linux via `./le qemu netns-test suites policy` (not the
+# Verified on Linux via `./le test qemu netns-test suites policy` (not the
 # darwin host this spec was previously stalled on): 3x 6/6, and two source
 # mutations prove the waits are not vacuous -- skipping firewall.ApplyAll fails
 # all 6, while skipping rm.applyAll (ip rules only) fails exactly 002 and 005,
@@ -51,7 +51,7 @@
 # source mutation proves non-vacuity: dropping set elements in
 # nft/lower_linux.go:191-192 fails exactly test 9 and nothing else.
 #
-# NOTE for whoever runs these next: `./le qemu netns-test` reports
+# NOTE for whoever runs these next: `./le test qemu netns-test` reports
 # ddos-local-withdraw as FAILING, and that is the action's own defect rather
 # than the test's. `internal/le/test/qemu/netns_linux.go` selects the production
 # binary, which carries neither zetest nor ze_test, so the ddos/fake config node

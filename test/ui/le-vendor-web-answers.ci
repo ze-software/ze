@@ -2,7 +2,7 @@
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 #       checkout, reports their native contract, and answers as data.
 #
-# The three gates are three ACTIONS of one command. `le vendor-web` with no
+# The three gates are three ACTIONS of one command. `le web vendor` with no
 # action lists them with the writes marker carried by the writing action.
 #
 # VALIDATES: spec-le-is-a-ze-binary AC-11 over the REAL TREE, and AC-7 for the
@@ -18,10 +18,10 @@
 # The checkout's relevant subtrees are also verified byte for byte afterward.
 #
 # The fixture compiles le directly because the runner builds only ze and
-# ze-test. The timeout covers a cold build, two tree copies, and all gate runs.
+# le-test. The timeout covers a cold build, two tree copies, and all gate runs.
 
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-vendor-web-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-vendor-web-answers
 expect=exit:code=0
 expect=stdout:contains=OK

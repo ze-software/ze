@@ -35,7 +35,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external commit-report-test {
-		run "ze-test fixture plugin/commit-end-per-peer-report"
+		run "le-test fixture plugin/commit-end-per-peer-report"
 		encoder json
 	}
 }

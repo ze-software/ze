@@ -53,7 +53,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/nexthop"
+		run "le-test fixture plugin/nexthop"
 		encoder json
 	}
 }

@@ -88,7 +88,7 @@ traffic {
 # event's SuppressMitigation flag -- i.e. only when the policy actually worked.
 plugin {
 	external ddos-policy-probe {
-		run "ze-test fixture plugin/ddos-policy"
+		run "le-test fixture plugin/ddos-policy"
 		encoder json
 	}
 }

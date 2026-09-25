@@ -57,7 +57,7 @@ EOF_BAD_BODY
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-ui-pages {
-		run "ze-test fixture plugin/lg-ui-pages"
+		run "le-test fixture plugin/lg-ui-pages"
 		encoder json
 	}
 	internal bgp-rib {

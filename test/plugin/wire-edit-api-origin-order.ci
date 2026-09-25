@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external wire-edit-api-origin-order {
-		run "ze-test fixture plugin/wire-edit-api-origin-order"
+		run "le-test fixture plugin/wire-edit-api-origin-order"
 		encoder json
 	}
 }

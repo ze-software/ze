@@ -41,7 +41,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external runtime-subscribe {
-		run "ze-test fixture plugin/attach-process-runtime-subscribe"
+		run "le-test fixture plugin/attach-process-runtime-subscribe"
 		encoder json
 	}
 }
@@ -90,7 +90,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external runtime-subscribe {
-		run "ze-test fixture plugin/attach-process-runtime-subscribe"
+		run "le-test fixture plugin/attach-process-runtime-subscribe"
 		encoder json
 	}
 }
@@ -139,6 +139,6 @@ expect=stderr:pattern=RUNTIME-SUB: the config index is unchanged by the override
 expect=stderr:pattern=RUNTIME-SUB: the config apply discards the override
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/attach-process-runtime-subscribe-trigger
+cmd=background:seq=2:exec=le-test fixture plugin/attach-process-runtime-subscribe-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=50s
 expect=exit:code=0

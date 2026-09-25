@@ -60,7 +60,7 @@ plugin {
 		use bgp-rib
 	}
 	external gr-sender-facts {
-		run "ze-test fixture plugin/gr-peer-restart-time-drives-timer"
+		run "le-test fixture plugin/gr-peer-restart-time-drives-timer"
 		encoder json
 	}
 }

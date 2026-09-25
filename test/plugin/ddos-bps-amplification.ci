@@ -87,7 +87,7 @@ ddos {
 
 plugin {
 	external ddos-bps-probe {
-		run "ze-test fixture plugin/ddos-bps-amplification"
+		run "le-test fixture plugin/ddos-bps-amplification"
 		encoder json
 	}
 }

@@ -24,7 +24,7 @@
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rsvpte-reload {
-		run "ze-test fixture reload/rsvpte-reload"
+		run "le-test fixture reload/rsvpte-reload"
 		encoder json
 	}
 }
@@ -79,7 +79,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external rsvpte-reload {
-		run "ze-test fixture reload/rsvpte-reload"
+		run "le-test fixture reload/rsvpte-reload"
 		encoder json
 	}
 }
@@ -127,7 +127,7 @@ EOF_CONF2
 
 option=env:var=ze.log.rsvp.te:value=info
 
-cmd=background:seq=1:exec=ze-test fixture reload/rsvpte-reload-trigger
+cmd=background:seq=1:exec=le-test fixture reload/rsvpte-reload-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 expect=stderr:contains=interface removed from config, admission state dropped

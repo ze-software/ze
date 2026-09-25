@@ -17,7 +17,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-kernel-read-test {
-		run "ze-test fixture plugin/iface-kernel-read-dispatch"
+		run "le-test fixture plugin/iface-kernel-read-dispatch"
 		encoder json
 	}
 }

@@ -23,7 +23,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external fib-withhold-test {
-		run "ze-test fixture plugin/fib-withhold-one-protocol-keeps-the-other"
+		run "le-test fixture plugin/fib-withhold-one-protocol-keeps-the-other"
 		encoder json
 	}
 	internal rib {

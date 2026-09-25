@@ -13,7 +13,7 @@ EOF_PEER
 tmpfs=api-config-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external api-commit-reject {
-        run "ze-test fixture plugin/api-config-commit-reject"
+        run "le-test fixture plugin/api-config-commit-reject"
         encoder json
     }
 }

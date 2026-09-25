@@ -15,7 +15,7 @@ option=needs-linux:caps=net-admin
 # The ZE_QEMU exclusion that used to sit here is GONE, and removing it is
 # the point. It was added in d419a059e for tests that "need a real Linux
 # host (… nftables genl)" when QEMU could not do nft; QEMU can now --
-# `./le qemu all-tests` passes ZE_QEMU_SKIP_SUITES="web" so the firewall
+# `./le test qemu all-tests` passes ZE_QEMU_SKIP_SUITES="web" so the firewall
 # suite runs there, and test/firewall/firewall-boot-apply.ci is nft-based and
 # carries the same caps marker. Kept together, the two options meant this
 # test ran in NO environment at all: the caps gate skips it everywhere
@@ -90,7 +90,7 @@ option=env:var=ze.ssh.insecure:value=true
 option=env:var=ze.ssh.port:value=$PORT2
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture plugin/policy-routes-show:timeout=15s
+cmd=foreground:seq=2:exec=le-test fixture plugin/policy-routes-show:timeout=15s
 expect=exit:code=0
 expect=stdout:contains=test-pbr
 expect=stdout:contains=allow-http

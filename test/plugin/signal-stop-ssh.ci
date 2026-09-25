@@ -23,7 +23,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external signal-stop-test {
-		run "ze-test fixture plugin/signal-stop-ssh"
+		run "le-test fixture plugin/signal-stop-ssh"
 		encoder json
 	}
 }

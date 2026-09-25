@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external filter-accept-test {
-        run "ze-test fixture plugin/redistribute-import-accept";
+        run "le-test fixture plugin/redistribute-import-accept";
         encoder json;
     }
 }

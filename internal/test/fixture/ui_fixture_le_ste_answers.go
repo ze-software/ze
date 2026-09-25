@@ -90,7 +90,7 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 
 	// The whole-tree page must be successful, stable, ordered, and quiet on stderr.
-	page := le("ste", "review")
+	page := le("doc", "ste", "review")
 	if page.code != 0 || page.err != nil {
 		return leSTEFailf("the review command failed with %d: %s%s%v", page.code, page.stdout, page.stderr, page.err)
 	}
@@ -100,12 +100,12 @@ func leSTEAnswers(ctx context.Context) error {
 	if len(page.stdout) == 0 || page.stdout[len(page.stdout)-1] != '\n' {
 		return leSTEFailf("the review page is empty or lacks its final newline")
 	}
-	pageAgain := le("ste", "review")
+	pageAgain := le("doc", "ste", "review")
 	if pageAgain.code != 0 || pageAgain.err != nil || len(pageAgain.stderr) != 0 || !bytes.Equal(page.stdout, pageAgain.stdout) {
 		return leSTEFailf("the ordered review page is not stable across identical reads\nfirst tail:\n%s\nsecond tail:\n%s", leSTETail(page.stdout), leSTETail(pageAgain.stdout))
 	}
 
-	payloadResult := le("ste", "review", "|", "json")
+	payloadResult := le("doc", "ste", "review", "|", "json")
 	if payloadResult.code != 0 || payloadResult.err != nil {
 		return leSTEFailf("the review payload failed with %d: %s%s%v", payloadResult.code, payloadResult.stdout, payloadResult.stderr, payloadResult.err)
 	}
@@ -138,13 +138,13 @@ func leSTEAnswers(ctx context.Context) error {
 			return leSTEFailf("the %s surface contributed no finding", surface)
 		}
 	}
-	payloadAgain := le("ste", "review", "|", "json")
+	payloadAgain := le("doc", "ste", "review", "|", "json")
 	if payloadAgain.code != 0 || payloadAgain.err != nil || len(payloadAgain.stderr) != 0 || !bytes.Equal(payloadResult.stdout, payloadAgain.stdout) {
 		return leSTEFailf("the ordered review payload is not stable across identical reads")
 	}
 
 	// The ratchet over the committed export examines no documents and passes.
-	clean := le("ste", "check")
+	clean := le("doc", "ste", "check")
 	if clean.code != 0 || clean.err != nil {
 		return leSTEFailf("the clean gate failed with %d: %s%s%v", clean.code, clean.stdout, clean.stderr, clean.err)
 	}
@@ -154,7 +154,7 @@ func leSTEAnswers(ctx context.Context) error {
 	if !bytes.Contains(clean.stdout, []byte("in 0 changed document(s)")) {
 		return leSTEFailf("the clean gate did not report its zero-document boundary: %s", clean.stdout)
 	}
-	cleanAgain := le("ste", "check")
+	cleanAgain := le("doc", "ste", "check")
 	if cleanAgain.code != 0 || cleanAgain.err != nil || len(cleanAgain.stderr) != 0 || !bytes.Equal(clean.stdout, cleanAgain.stdout) {
 		return leSTEFailf("the clean gate verdict is not stable across identical reads")
 	}
@@ -183,7 +183,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the export does not contain exactly the intended changed document: %q", status.stdout)
 	}
 
-	grew := le("ste", "check")
+	grew := le("doc", "ste", "check")
 	if grew.code != 3 || grew.err == nil {
 		return leSTEFailf("the growth gate answered %d, want 3: %s%s", grew.code, grew.stdout, grew.stderr)
 	}
@@ -193,12 +193,12 @@ func leSTEAnswers(ctx context.Context) error {
 	if len(grew.stdout) == 0 || !bytes.Contains(grew.stdout, []byte("docs/guide/quickstart.md")) {
 		return leSTEFailf("the growth verdict does not identify the changed document: %s", grew.stdout)
 	}
-	grewAgain := le("ste", "check")
+	grewAgain := le("doc", "ste", "check")
 	if grewAgain.code != 3 || grewAgain.err == nil || len(grewAgain.stderr) != 0 || !bytes.Equal(grew.stdout, grewAgain.stdout) {
 		return leSTEFailf("the growth verdict is not stable across identical reads")
 	}
 
-	changed := le("ste", "review-changed")
+	changed := le("doc", "ste", "review-changed")
 	if changed.code != 0 || changed.err != nil {
 		return leSTEFailf("review-changed failed with %d: %s%s%v", changed.code, changed.stdout, changed.stderr, changed.err)
 	}
@@ -208,12 +208,12 @@ func leSTEAnswers(ctx context.Context) error {
 	if len(changed.stdout) == 0 || !bytes.Contains(changed.stdout, []byte("docs/guide/quickstart.md")) {
 		return leSTEFailf("review-changed omitted the changed document: %s", changed.stdout)
 	}
-	changedAgain := le("ste", "review-changed")
+	changedAgain := le("doc", "ste", "review-changed")
 	if changedAgain.code != 0 || changedAgain.err != nil || len(changedAgain.stderr) != 0 || !bytes.Equal(changed.stdout, changedAgain.stdout) {
 		return leSTEFailf("the ordered changed-file report is not stable across identical reads")
 	}
 
-	scoped := le("ste", "check", "file", "docs/guide/quickstart.md")
+	scoped := le("doc", "ste", "check", "file", "docs/guide/quickstart.md")
 	if scoped.code != 3 || scoped.err == nil {
 		return leSTEFailf("the scoped growth gate answered %d, want 3: %s%s", scoped.code, scoped.stdout, scoped.stderr)
 	}
@@ -224,7 +224,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the scoped growth verdict omitted its document: %s", scoped.stdout)
 	}
 
-	other := le("ste", "check", "file", "README.md")
+	other := le("doc", "ste", "check", "file", "README.md")
 	if other.code != 0 || other.err != nil {
 		return leSTEFailf("an unchanged file failed the gate with %d: %s%s%v", other.code, other.stdout, other.stderr, other.err)
 	}
@@ -247,26 +247,26 @@ func leSTEAnswers(ctx context.Context) error {
 	// Every verdict remains reachable through every generic rendering operator.
 	for _, verb := range []string{actionCheck, "review", "review-changed"} {
 		for _, operator := range []string{renderJSON, renderYAML, renderTable} {
-			piped := le("ste", verb, "|", operator)
+			piped := le("doc", "ste", verb, "|", operator)
 			if piped.code != 0 && piped.code != 3 {
-				return leSTEFailf("`le ste %s | %s` was refused with %d: %s", verb, operator, piped.code, piped.stderr)
+				return leSTEFailf("`le doc ste %s | %s` was refused with %d: %s", verb, operator, piped.code, piped.stderr)
 			}
 			if piped.err != nil && piped.code != 3 {
-				return leSTEFailf("`le ste %s | %s` failed: %v", verb, operator, piped.err)
+				return leSTEFailf("`le doc ste %s | %s` failed: %v", verb, operator, piped.err)
 			}
 			if len(piped.stderr) != 0 {
-				return leSTEFailf("`le ste %s | %s` wrote to stderr: %s", verb, operator, piped.stderr)
+				return leSTEFailf("`le doc ste %s | %s` wrote to stderr: %s", verb, operator, piped.stderr)
 			}
 			if len(bytes.TrimSpace(piped.stdout)) == 0 {
-				return leSTEFailf("`le ste %s | %s` rendered nothing", verb, operator)
+				return leSTEFailf("`le doc ste %s | %s` rendered nothing", verb, operator)
 			}
 			if operator == renderJSON && !json.Valid(piped.stdout) {
-				return leSTEFailf("`le ste %s | json` did not render valid JSON: %s", verb, leSTETail(piped.stdout))
+				return leSTEFailf("`le doc ste %s | json` did not render valid JSON: %s", verb, leSTETail(piped.stdout))
 			}
 		}
 	}
 
-	listing := le("ste")
+	listing := le("doc", "ste")
 	if listing.code != 0 || listing.err != nil {
 		return leSTEFailf("listing the ste area failed with %d: %s%s%v", listing.code, listing.stdout, listing.stderr, listing.err)
 	}
@@ -278,12 +278,12 @@ func leSTEAnswers(ctx context.Context) error {
 			return leSTEFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
 	}
-	listingAgain := le("ste")
+	listingAgain := le("doc", "ste")
 	if listingAgain.code != 0 || listingAgain.err != nil || len(listingAgain.stderr) != 0 || !bytes.Equal(listing.stdout, listingAgain.stdout) {
 		return leSTEFailf("the ordered ste listing is not stable across identical reads")
 	}
 
-	actionsResult := le("ste", "|", "json")
+	actionsResult := le("doc", "ste", "|", "json")
 	if actionsResult.code != 0 || actionsResult.err != nil {
 		return leSTEFailf("the ste action payload failed with %d: %s%s%v", actionsResult.code, actionsResult.stdout, actionsResult.stderr, actionsResult.err)
 	}
@@ -307,7 +307,7 @@ func leSTEAnswers(ctx context.Context) error {
 		}
 	}
 
-	refused := le("ste", "review", "docs")
+	refused := le("doc", "ste", "review", "docs")
 	if refused.code != 2 || refused.err == nil {
 		return leSTEFailf("a path argument answered %d, want 2", refused.code)
 	}
@@ -320,7 +320,7 @@ func leSTEAnswers(ctx context.Context) error {
 	// and returns 2, which its own test pins for {"run", "unknown"}
 	// (internal/le/leaction/leaction_test.go). 1 is reserved for a gate that ran
 	// and failed, which is the distinction the refusal above rests on too.
-	unknown := le("ste", "check", "docs/guide/quickstart.md")
+	unknown := le("doc", "ste", "check", "docs/guide/quickstart.md")
 	if unknown.code != 2 || unknown.err == nil {
 		return leSTEFailf("a bare path answered %d, want 2", unknown.code)
 	}
@@ -328,7 +328,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the unknown-keyword refusal is silent: %q", unknown.stderr)
 	}
 
-	missing := le("ste", "nonesuch")
+	missing := le("doc", "ste", "nonesuch")
 	if missing.code != 2 || missing.err == nil {
 		return leSTEFailf("an action the area does not hold answered %d, want 2", missing.code)
 	}

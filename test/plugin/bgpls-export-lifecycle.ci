@@ -28,7 +28,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     internal native-export { use bgp-ls-export; }
     external lifecycle {
-        run "ze-test fixture plugin/bgpls-export-lifecycle"
+        run "le-test fixture plugin/bgpls-export-lifecycle"
         encoder json
     }
 }

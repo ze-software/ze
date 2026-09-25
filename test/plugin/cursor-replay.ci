@@ -16,7 +16,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external cursor-test {
-		run "ze-test fixture plugin/cursor-replay"
+		run "le-test fixture plugin/cursor-replay"
 		encoder json
 	}
 }

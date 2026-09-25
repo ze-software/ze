@@ -56,7 +56,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+cmd=foreground:seq=2:exec=le-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
 expect=exit:code=0
 # 400 with -32602: a params-level malformation, in the same class as a missing
 # required _meta field, not a header mismatch and not a transport refusal.

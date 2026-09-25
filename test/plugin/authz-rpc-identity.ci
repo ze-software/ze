@@ -58,7 +58,7 @@ system {
 
 plugin {
 	external rpc-dispatcher {
-		run "ze-test fixture plugin/authz-rpc-identity"
+		run "le-test fixture plugin/authz-rpc-identity"
 		encoder json
 	}
 }

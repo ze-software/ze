@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external interface-errors-show-test {
-		run "ze-test fixture plugin/interface-errors-show"
+		run "le-test fixture plugin/interface-errors-show"
 		encoder json
 	}
 }

@@ -31,7 +31,7 @@ expect=html:not-contains=hx-ext=
 # so it cannot match the container's own class="toast-container".
 expect=html:not-contains=class="toast toast
 
-# ze-chaos broadcasts a toast about once a second under this seed. One in the
+# The chaos run broadcasts a toast about once a second under this seed. One in the
 # container is a swapped message and can be nothing else.
 action=wait:ms=4000
 expect=html:contains=class="toast toast

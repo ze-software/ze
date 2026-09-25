@@ -20,7 +20,7 @@
 # plugin starts and does not prevent fib-vpp from starting too.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/fib-vpp-coexist-with-fib-kernel:timeout=15s
+cmd=foreground:seq=1:exec=le-test fixture plugin/fib-vpp-coexist-with-fib-kernel:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=VPP connector not available, using noop backend
 expect=stderr:pattern=fib-vpp: running

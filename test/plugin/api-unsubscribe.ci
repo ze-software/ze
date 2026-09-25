@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external unsubscribe-test {
-		run "ze-test fixture plugin/api-unsubscribe"
+		run "le-test fixture plugin/api-unsubscribe"
 		encoder json
 	}
 }

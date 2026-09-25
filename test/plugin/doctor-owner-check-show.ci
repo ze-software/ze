@@ -25,7 +25,7 @@ EOF_DOCTOR_CONF
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external doctor-owner-check-show {
-        run "ze-test fixture plugin/doctor-owner-check-show"
+        run "le-test fixture plugin/doctor-owner-check-show"
         encoder json
     }
 }

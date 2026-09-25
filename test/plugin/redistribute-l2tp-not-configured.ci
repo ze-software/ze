@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external l2tp-nocfg-test {
-		run "ze-test fixture plugin/redistribute-l2tp-not-configured"
+		run "le-test fixture plugin/redistribute-l2tp-not-configured"
 		encoder json
 	}
 	internal fakel2tp {

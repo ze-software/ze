@@ -68,66 +68,74 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersRunCommand(ctx, here, overrides, binary, args...)
 	}
 
-	// Exercise each generator in an immutable export of HEAD. The tracked copy
-	// may legitimately be stale while another change is in flight, so the
-	// contract is that update repairs it, touches only its output, and is
-	// byte-stable on the next update.
+	// Exercise each generator in an immutable export of HEAD. The generated
+	// files are gitignored, so the export holds none of them, and the contract
+	// is that the write creates every file the generator owns, touches no other
+	// file, and is byte-stable on the next write. `doc index write` owns two
+	// files: it replaced the separate docs-to-code and code-to-docs writers
+	// (internal/le/doc/index/actions.go), so both are its outputs.
 	for _, tc := range []struct {
 		command string
-		output  string
+		verb    string
+		outputs []string
 		unit    string
 	}{
-		{command: "discovery-index", output: "ai/PACKAGE-MAP.md", unit: fieldPackages},
-		{command: "docs-to-code", output: "ai/DOCS-TO-CODE.md", unit: "design docs"},
+		{command: "repo package-map", verb: actionUpdate, outputs: []string{"ai/PACKAGE-MAP.md"}, unit: fieldPackages},
+		{command: "doc index", verb: "write", outputs: []string{"ai/DOCS-TO-CODE.md", "ai/CODE-TO-DOCS.md"}, unit: "design docs"},
 	} {
-		tree := filepath.Join(here, tc.command+"-command")
+		exportName := strings.ReplaceAll(tc.command, " ", "-") + "-command"
+		tree := filepath.Join(here, exportName)
 		if err := exportHEAD(ctx, root, tree); err != nil {
-			return uiLeDiscoveryAnswersFailf("exporting HEAD into %s-command: %v", tc.command, err)
+			return uiLeDiscoveryAnswersFailf("exporting HEAD into %s: %v", exportName, err)
 		}
 
-		before, err := treeManifest(tree, tc.output)
+		before, err := treeManifest(tree, tc.outputs...)
 		if err != nil {
 			return uiLeDiscoveryAnswersFailf("recording %s export before generation: %v", tc.command, err)
 		}
-		wrote := runLE(tree, tc.command, "update")
+		wrote := runLE(tree, tc.command, tc.verb)
 		if wrote.code != 0 || wrote.err != nil {
-			return uiLeDiscoveryAnswersFailf("le %s update exited %d: %s%s", tc.command, wrote.code, wrote.stdout, wrote.stderr)
+			return uiLeDiscoveryAnswersFailf("le %s %s exited %d: %s%s", tc.command, tc.verb, wrote.code, wrote.stdout, wrote.stderr)
 		}
-		outputPath := filepath.Join(tree, filepath.FromSlash(tc.output))
-		generated, err := os.ReadFile(outputPath) //nolint:gosec // the path is the fixture's own scratch file
-		if err != nil {
-			return uiLeDiscoveryAnswersFailf("reading generated %s: %v", tc.output, err)
+		if !bytes.Contains(wrote.stdout, []byte(tc.unit)) {
+			return uiLeDiscoveryAnswersFailf("le %s %s did not say what it wrote: %s", tc.command, tc.verb, wrote.stdout)
 		}
-		if len(generated) <= 10000 {
-			return uiLeDiscoveryAnswersFailf("%s is %d bytes, so the generation is vacuous", tc.output, len(generated))
+		generated := make([][]byte, len(tc.outputs))
+		for i, output := range tc.outputs {
+			generated[i], err = os.ReadFile(filepath.Join(tree, filepath.FromSlash(output))) //nolint:gosec // the path is the fixture's own scratch file
+			if err != nil {
+				return uiLeDiscoveryAnswersFailf("reading generated %s: %v", output, err)
+			}
+			if len(generated[i]) <= 10000 {
+				return uiLeDiscoveryAnswersFailf("%s is %d bytes, so the generation is vacuous", output, len(generated[i]))
+			}
 		}
-		if !bytes.Contains(wrote.stdout, []byte("("+tc.unit)) && !bytes.Contains(wrote.stdout, []byte(tc.unit)) {
-			return uiLeDiscoveryAnswersFailf("le %s update did not say what it wrote: %s", tc.command, wrote.stdout)
-		}
-		after, err := treeManifest(tree, tc.output)
+		after, err := treeManifest(tree, tc.outputs...)
 		if err != nil {
 			return uiLeDiscoveryAnswersFailf("recording %s export after generation: %v", tc.command, err)
 		}
 		if before != after {
-			return uiLeDiscoveryAnswersFailf("le %s update changed files other than %s", tc.command, tc.output)
+			return uiLeDiscoveryAnswersFailf("le %s %s changed files other than %s", tc.command, tc.verb, strings.Join(tc.outputs, ", "))
 		}
 
-		// Neither area has a `check` verb. The map is derived and untracked, so
-		// no stored copy exists for a verdict to disagree with: the walk that
-		// would decide it is the walk that writes the answer (7629e90135,
-		// 2026-09-11, internal/le/repo/packagemap/actions.go). What that call
-		// asserted -- that the bytes update wrote are the accepted bytes -- is
-		// the byte-for-byte comparison of the second update below.
-		wroteAgain := runLE(tree, tc.command, "update")
+		// The package map has no `check` verb: it is derived and untracked, so
+		// no stored copy exists for a verdict to disagree with (7629e90135,
+		// 2026-09-11, internal/le/repo/packagemap/actions.go). What such a call
+		// would assert -- that the bytes the write produced are the accepted
+		// bytes -- is the byte-for-byte comparison of the second write below,
+		// and it holds for both generators.
+		wroteAgain := runLE(tree, tc.command, tc.verb)
 		if wroteAgain.code != 0 || wroteAgain.err != nil {
-			return uiLeDiscoveryAnswersFailf("second le %s update exited %d: %s%s", tc.command, wroteAgain.code, wroteAgain.stdout, wroteAgain.stderr)
+			return uiLeDiscoveryAnswersFailf("second le %s %s exited %d: %s%s", tc.command, tc.verb, wroteAgain.code, wroteAgain.stdout, wroteAgain.stderr)
 		}
-		repeated, err := os.ReadFile(outputPath) //nolint:gosec // the path is the fixture's own scratch file
-		if err != nil {
-			return uiLeDiscoveryAnswersFailf("reading repeated %s generation: %v", tc.output, err)
-		}
-		if !bytes.Equal(generated, repeated) {
-			return uiLeDiscoveryAnswersFailf("two le %s updates over one tree wrote different bytes", tc.command)
+		for i, output := range tc.outputs {
+			repeated, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(output))) //nolint:gosec // the path is the fixture's own scratch file
+			if err != nil {
+				return uiLeDiscoveryAnswersFailf("reading repeated %s generation: %v", output, err)
+			}
+			if !bytes.Equal(generated[i], repeated) {
+				return uiLeDiscoveryAnswersFailf("two le %s %s runs over one tree wrote different bytes to %s", tc.command, tc.verb, output)
+			}
 		}
 	}
 
@@ -195,32 +203,32 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	// `update` is the whole command surface and it is exercised over an export
 	// of HEAD rather than over the shared working tree that other sessions are
 	// editing.
-	answerTree := filepath.Join(here, "discovery-index-answers")
+	answerTree := filepath.Join(here, "package-map-answers")
 	if err := exportHEAD(ctx, root, answerTree); err != nil {
-		return uiLeDiscoveryAnswersFailf("exporting HEAD into discovery-index-answers: %v", err)
+		return uiLeDiscoveryAnswersFailf("exporting HEAD into package-map-answers: %v", err)
 	}
-	verdict := runLE(answerTree, "discovery-index", actionUpdate)
+	verdict := runLE(answerTree, "repo package-map", actionUpdate)
 	if verdict.code != 0 || verdict.err != nil {
-		return uiLeDiscoveryAnswersFailf("discovery-index update exited %d: %s%s", verdict.code, verdict.stdout, verdict.stderr)
+		return uiLeDiscoveryAnswersFailf("repo package-map update exited %d: %s%s", verdict.code, verdict.stdout, verdict.stderr)
 	}
 	if len(verdict.stderr) != 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index update wrote its verdict to stderr: %s", verdict.stderr)
+		return uiLeDiscoveryAnswersFailf("repo package-map update wrote its verdict to stderr: %s", verdict.stderr)
 	}
 	if len(verdict.stdout) == 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index update returned an empty verdict")
+		return uiLeDiscoveryAnswersFailf("repo package-map update returned an empty verdict")
 	}
 
 	// One discovery payload supports all three row renderings.
-	report := runLE(answerTree, "discovery-index", actionUpdate, "|", "json")
+	report := runLE(answerTree, "repo package-map", actionUpdate, "|", "json")
 	if report.code != 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index JSON update exited %d: %s%s", report.code, report.stdout, report.stderr)
+		return uiLeDiscoveryAnswersFailf("repo package-map JSON update exited %d: %s%s", report.code, report.stdout, report.stderr)
 	}
 	if len(report.stderr) != 0 {
-		return uiLeDiscoveryAnswersFailf("discovery-index JSON update wrote to stderr: %s", report.stderr)
+		return uiLeDiscoveryAnswersFailf("repo package-map JSON update wrote to stderr: %s", report.stderr)
 	}
 	var pageFields map[string]json.RawMessage
 	if err := json.Unmarshal(report.stdout, &pageFields); err != nil {
-		return uiLeDiscoveryAnswersFailf("discovery-index JSON is invalid: %v\n%s", err, report.stdout)
+		return uiLeDiscoveryAnswersFailf("repo package-map JSON is invalid: %v\n%s", err, report.stdout)
 	}
 	for _, key := range []string{fieldFile, fieldPackages, "todo", fieldWritten} {
 		if _, ok := pageFields[key]; !ok {
@@ -253,38 +261,38 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("update reported no write")
 	}
 
-	counted := runLE(answerTree, "discovery-index", actionUpdate, "|", "count")
+	counted := runLE(answerTree, "repo package-map", actionUpdate, "|", "count")
 	if strings.TrimSpace(string(counted.stdout)) != fmt.Sprint(len(packages)) {
-		return uiLeDiscoveryAnswersFailf("le discovery-index update | count answered %q for %d packages", counted.stdout, len(packages))
+		return uiLeDiscoveryAnswersFailf("le repo package-map update | count answered %q for %d packages", counted.stdout, len(packages))
 	}
 	for _, operator := range []string{renderYAML, renderTable} {
-		rendered := runLE(answerTree, "discovery-index", actionUpdate, "|", operator)
+		rendered := runLE(answerTree, "repo package-map", actionUpdate, "|", operator)
 		if len(rendered.stderr) != 0 {
-			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s was refused: %s", operator, rendered.stderr)
+			return uiLeDiscoveryAnswersFailf("le repo package-map update | %s was refused: %s", operator, rendered.stderr)
 		}
 		if len(rendered.stdout) <= 1000 {
-			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s rendered %d bytes", operator, len(rendered.stdout))
+			return uiLeDiscoveryAnswersFailf("le repo package-map update | %s rendered %d bytes", operator, len(rendered.stdout))
 		}
 	}
 
 	// Area listing and parser refusals retain their distinct exit boundaries.
-	listing := runLE("", "discovery-index")
+	listing := runLE("", "repo package-map")
 	if listing.code != 0 || listing.err != nil {
-		return uiLeDiscoveryAnswersFailf("le discovery-index exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
+		return uiLeDiscoveryAnswersFailf("le repo package-map exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
 	for _, word := range []string{actionUpdate, wordWrites} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
 			return uiLeDiscoveryAnswersFailf("the listing does not carry %q:\n%s", word, listing.stdout)
 		}
 	}
-	if bytes.Contains(listing.stdout, []byte("discovery-index "+actionCheck)) {
+	if bytes.Contains(listing.stdout, []byte("package-map "+actionCheck)) {
 		return uiLeDiscoveryAnswersFailf("the listing still offers a check verb:\n%s", listing.stdout)
 	}
-	if got := runLE("", "discovery-index", "nonesuch").code; got != 2 {
-		return uiLeDiscoveryAnswersFailf("an unknown discovery-index action answered %d, want 2", got)
+	if got := runLE("", "repo package-map", "nonesuch").code; got != 2 {
+		return uiLeDiscoveryAnswersFailf("an unknown repo package-map action answered %d, want 2", got)
 	}
-	if got := runLE("", "docs-to-code", "nonesuch").code; got != 2 {
-		return uiLeDiscoveryAnswersFailf("an unknown docs-to-code action answered %d, want 2", got)
+	if got := runLE("", "doc index", "nonesuch").code; got != 2 {
+		return uiLeDiscoveryAnswersFailf("an unknown doc index action answered %d, want 2", got)
 	}
 	// Both are GRAMMAR refusals, and leaction answers 2 for every one of them:
 	// the parse failure is reported and returned as 2 by Area.Answer, pinned by
@@ -322,7 +330,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		}
 	}
 
-	updated := runLE(staleTree, "discovery-index", actionUpdate)
+	updated := runLE(staleTree, "repo package-map", actionUpdate)
 	if updated.code != 0 || updated.err != nil {
 		return uiLeDiscoveryAnswersFailf("update did not repair the drifted index: %s%s", updated.stdout, updated.stderr)
 	}
@@ -334,9 +342,9 @@ func leDiscoveryAnswers(ctx context.Context) error {
 		return uiLeDiscoveryAnswersFailf("the repaired index does not describe the tree it was built from:\n%s", repaired)
 	}
 	for _, operator := range []string{renderJSON, renderYAML, renderTable, pipeCount} {
-		rendered := runLE(staleTree, "discovery-index", actionUpdate, "|", operator)
+		rendered := runLE(staleTree, "repo package-map", actionUpdate, "|", operator)
 		if rendered.code != 0 || rendered.err != nil {
-			return uiLeDiscoveryAnswersFailf("le discovery-index update | %s over a current tree exited %d: %s%s", operator, rendered.code, rendered.stdout, rendered.stderr)
+			return uiLeDiscoveryAnswersFailf("le repo package-map update | %s over a current tree exited %d: %s%s", operator, rendered.code, rendered.stdout, rendered.stderr)
 		}
 	}
 
@@ -485,9 +493,12 @@ func containedPath(root, name string) (string, error) {
 	return full, nil
 }
 
-func treeManifest(root, excluded string) ([32]byte, error) {
+func treeManifest(root string, excluded ...string) ([32]byte, error) {
 	h := sha256.New()
-	excluded = filepath.ToSlash(filepath.Clean(filepath.FromSlash(excluded)))
+	skipped := make(map[string]bool, len(excluded))
+	for _, name := range excluded {
+		skipped[filepath.ToSlash(filepath.Clean(filepath.FromSlash(name)))] = true
+	}
 	err := filepath.WalkDir(root, func(name string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -497,7 +508,7 @@ func treeManifest(root, excluded string) ([32]byte, error) {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		if rel == "." || rel == excluded {
+		if rel == "." || skipped[rel] {
 			return nil
 		}
 		info, err := entry.Info()

@@ -103,7 +103,7 @@ traffic {
 
 plugin {
 	external ddos-local-config-removed-probe {
-		run "ze-test fixture plugin/ddos-local-config-removed-driver"
+		run "le-test fixture plugin/ddos-local-config-removed-driver"
 		encoder json
 	}
 }

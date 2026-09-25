@@ -191,7 +191,7 @@ const (
 	suiteMapSSHPackage = "./internal/component/ssh"
 )
 
-// suiteMapScenario is one question put to `le functional select`: the change
+// suiteMapScenario is one question put to `le test functional select`: the change
 // set a verify run published, and what the answer must say about it.
 type suiteMapScenario struct {
 	// name is the progress word the .ci asserts on.
@@ -209,7 +209,7 @@ type suiteMapScenario struct {
 	says     string
 }
 
-// verifyScopeSuiteMapDriver drives the REAL `le functional select` over a
+// verifyScopeSuiteMapDriver drives the REAL `le test functional select` over a
 // scratch checkout holding a suite map this fixture wrote.
 //
 // What it proves is the SELECTION: a recorded map plus a change set, in, and
@@ -320,7 +320,7 @@ func verifyScopeSuiteMapDriver(ctx context.Context, args []string) error {
 // internal/le/test/functional/suitemap.go).
 const suiteMapArtifact = "tmp/ze-suite-map.json"
 
-// checkSuiteMapScenario publishes one change set, asks the real `le functional
+// checkSuiteMapScenario publishes one change set, asks the real `le test functional
 // select` what a gating run would start, and judges the answer.
 func checkSuiteMapScenario(ctx context.Context, le, repo string, scenario suiteMapScenario) error {
 	scopeFile := filepath.Join(repo, "tmp", "scope-packages.txt")
@@ -331,7 +331,7 @@ func checkSuiteMapScenario(ctx context.Context, le, repo string, scenario suiteM
 
 	out, _, code, err := rawCommandStreams(ctx, repo, environment, le, "test", "functional", "select", "|", "json")
 	if err != nil || code != 0 {
-		return fmt.Errorf("%s: le functional select exit=%d: %w %s", scenario.name, code, err, out)
+		return fmt.Errorf("%s: le test functional select exit=%d: %w %s", scenario.name, code, err, out)
 	}
 
 	var answer struct {

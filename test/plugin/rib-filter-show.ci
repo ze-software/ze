@@ -29,7 +29,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external filter-test {
-		run "ze-test fixture plugin/rib-filter-show"
+		run "le-test fixture plugin/rib-filter-show"
 		encoder json
 	}
 	internal bgp-rib {

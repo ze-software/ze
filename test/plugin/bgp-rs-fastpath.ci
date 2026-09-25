@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external bgp-rs-fastpath {
-		run "ze-test fixture plugin/bgp-rs-fastpath"
+		run "le-test fixture plugin/bgp-rs-fastpath"
 		encoder json
 	}
 	internal bgp-rib {

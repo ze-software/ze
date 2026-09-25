@@ -101,7 +101,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run "ze-test fixture plugin/bgp-rs-reactor-fastpath"
+		run "le-test fixture plugin/bgp-rs-reactor-fastpath"
 		encoder json
 	}
 }

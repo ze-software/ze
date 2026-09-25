@@ -28,11 +28,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external unattached-served {
-		run "ze-test fixture plugin/attach-process-unattached-served"
+		run "le-test fixture plugin/attach-process-unattached-served"
 		encoder json
 	}
 	external unattached-silent {
-		run "ze-test fixture plugin/attach-process-unattached-silent"
+		run "le-test fixture plugin/attach-process-unattached-silent"
 		encoder json
 	}
 }

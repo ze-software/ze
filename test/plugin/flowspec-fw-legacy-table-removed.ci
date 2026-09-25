@@ -27,7 +27,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal flowspec-firewall { use flowspec-firewall; }
 	external flowspec-observer {
-		run "ze-test fixture plugin/flowspec-fw-legacy-table-removed";
+		run "le-test fixture plugin/flowspec-fw-legacy-table-removed";
 		encoder json;
 	}
 }
@@ -50,7 +50,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/flowspec-fw-legacy-table-removed/seed
+cmd=foreground:seq=1:exec=le-test fixture plugin/flowspec-fw-legacy-table-removed/seed
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
 expect=exit:code=0

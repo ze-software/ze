@@ -32,7 +32,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external connected-distance-test {
-		run "ze-test fixture plugin/connected-distance-raised-loses"
+		run "le-test fixture plugin/connected-distance-raised-loses"
 		encoder json
 	}
 	internal bgp-rib {

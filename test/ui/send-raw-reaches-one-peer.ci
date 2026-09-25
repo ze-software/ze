@@ -5,7 +5,7 @@
 # The .ci cannot drive this alone. The daemon publishes its ephemeral SSH
 # address into the file ZE_SSH_EPHEMERAL names, and only a compiled fixture can
 # read that file and put ZE_SSH_HOST and ZE_SSH_PORT on the client. So the
-# fixture starts both halves, a daemon over ephemeral SSH and the ze-test peer
+# fixture starts both halves, a daemon over ephemeral SSH and the le-test peer
 # this file scripts, and drives `ze send` as argv against them.
 #
 # The peer holds the assertion. It exits zero only when both expectations below
@@ -34,6 +34,6 @@ EOF_PEER
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/send-raw-reaches-one-peer $PORT:timeout=170s
+cmd=foreground:seq=1:exec=le-test fixture ui/send-raw-reaches-one-peer $PORT:timeout=170s
 expect=exit:code=0
 expect=stdout:contains=OK

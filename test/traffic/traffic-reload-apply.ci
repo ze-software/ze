@@ -90,7 +90,7 @@ EOF_CONF2
 
 option=env:var=ze.log.traffic:value=debug
 
-cmd=background:seq=1:exec=ze-test fixture traffic/traffic-reload-apply
+cmd=background:seq=1:exec=le-test fixture traffic/traffic-reload-apply
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config reloaded

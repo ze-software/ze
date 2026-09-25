@@ -45,12 +45,12 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if command.exitCode != 0 {
-		return uiLeFunctionalAnswersFailf("`le functional list | json` exited %d", command.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test functional list | json` exited %d", command.exitCode)
 	}
 
 	var suites []map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(command.stdout), &suites); err != nil {
-		return uiLeFunctionalAnswersFailf("`le functional list | json` returned invalid JSON: %v", err)
+		return uiLeFunctionalAnswersFailf("`le test functional list | json` returned invalid JSON: %v", err)
 	}
 	if len(suites) <= 20 {
 		return uiLeFunctionalAnswersFailf("the command published %d suites, which is too few to mean anything", len(suites))
@@ -62,11 +62,11 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if repeated.exitCode != 0 {
-		return uiLeFunctionalAnswersFailf("the repeated `le functional list | json` exited %d", repeated.exitCode)
+		return uiLeFunctionalAnswersFailf("the repeated `le test functional list | json` exited %d", repeated.exitCode)
 	}
 	var repeatedSuites []map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(repeated.stdout), &repeatedSuites); err != nil {
-		return uiLeFunctionalAnswersFailf("the repeated `le functional list | json` returned invalid JSON: %v", err)
+		return uiLeFunctionalAnswersFailf("the repeated `le test functional list | json` returned invalid JSON: %v", err)
 	}
 	if !reflect.DeepEqual(suites, repeatedSuites) {
 		return uiLeFunctionalAnswersFailf("the functional suite table or its ordering changed between answers")
@@ -146,7 +146,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	// The gating set is DERIVED, never counted here. A literal beside a registry
 	// is the drift this repository records (ai/rules/principles.md): three suites
 	// earned their own names (bfd, dhcp, vrrp) and a hand-written 24 went red for
-	// the tree being right. `le functional select` publishes the run list a
+	// the tree being right. `le test functional select` publishes the run list a
 	// gating run would start, so the two surfaces are cross-checked against each
 	// other, which catches a name moving between them and not only a count.
 	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "select", "|", "json")
@@ -154,7 +154,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if plan.exitCode != 0 {
-		return uiLeFunctionalAnswersFailf("`le functional select | json` exited %d", plan.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test functional select | json` exited %d", plan.exitCode)
 	}
 	var selection struct {
 		Running  []string `json:"running"`
@@ -162,7 +162,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		Skipped  []string `json:"skipped"`
 	}
 	if err := json.Unmarshal([]byte(plan.stdout), &selection); err != nil {
-		return uiLeFunctionalAnswersFailf("`le functional select | json` returned invalid JSON: %v", err)
+		return uiLeFunctionalAnswersFailf("`le test functional select | json` returned invalid JSON: %v", err)
 	}
 	planned := slices.Concat(selection.Running, selection.RuledOut, selection.Skipped)
 	slices.Sort(planned)
@@ -184,10 +184,10 @@ func leFunctionalAnswers(ctx context.Context) error {
 			return err
 		}
 		if rendered.exitCode != 0 {
-			return uiLeFunctionalAnswersFailf("`le functional list | %s` exited %d", operator, rendered.exitCode)
+			return uiLeFunctionalAnswersFailf("`le test functional list | %s` exited %d", operator, rendered.exitCode)
 		}
 		if !strings.Contains(rendered.stdout, "encode") {
-			return uiLeFunctionalAnswersFailf("`le functional list | %s` dropped the first suite", operator)
+			return uiLeFunctionalAnswersFailf("`le test functional list | %s` dropped the first suite", operator)
 		}
 	}
 
@@ -198,7 +198,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if missing.exitCode != 2 {
-		return uiLeFunctionalAnswersFailf("`le functional no-such-suite` exited %d, want 2", missing.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test functional no-such-suite` exited %d, want 2", missing.exitCode)
 	}
 	if missing.stdout != "" {
 		return uiLeFunctionalAnswersFailf("a refused command wrote to stdout: %q", missing.stdout)
@@ -211,7 +211,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if bare.exitCode != 2 {
-		return uiLeFunctionalAnswersFailf("`le integration` exited %d, want the refusal 2", bare.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test integration` exited %d, want the refusal 2", bare.exitCode)
 	}
 	if !strings.Contains(bare.stderr, "no aggregate run") {
 		return uiLeFunctionalAnswersFailf("the refusal said nothing: %q", bare.stderr)
@@ -222,15 +222,15 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return err
 	}
 	if listing.exitCode != 2 {
-		return uiLeFunctionalAnswersFailf("`le integration | json` exited %d, want 2", listing.exitCode)
+		return uiLeFunctionalAnswersFailf("`le test integration | json` exited %d, want 2", listing.exitCode)
 	}
 	var integration map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(listing.stdout), &integration); err != nil {
-		return uiLeFunctionalAnswersFailf("`le integration | json` returned invalid JSON: %v", err)
+		return uiLeFunctionalAnswersFailf("`le test integration | json` returned invalid JSON: %v", err)
 	}
 	actionsRaw, ok := integration["actions"]
 	if !ok {
-		return uiLeFunctionalAnswersFailf("`le integration | json` omitted actions")
+		return uiLeFunctionalAnswersFailf("`le test integration | json` omitted actions")
 	}
 	var actions []map[string]json.RawMessage
 	if err := json.Unmarshal(actionsRaw, &actions); err != nil {
@@ -273,7 +273,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 }
 
 // uiLeFunctionalAnswersOfferedGates reads the gate names out of the refusal
-// `le integration` writes with no action. The names are one comma-separated
+// `le test integration` writes with no action. The names are one comma-separated
 // line under the sentence, which is the only indented line the refusal writes.
 func uiLeFunctionalAnswersOfferedGates(refusal string) []string {
 	var names []string

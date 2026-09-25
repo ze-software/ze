@@ -44,11 +44,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external receive-filter-state {
-		run "ze-test fixture plugin/attach-process-receive-filter-state"
+		run "le-test fixture plugin/attach-process-receive-filter-state"
 		encoder json
 	}
 	external receive-filter-update {
-		run "ze-test fixture plugin/attach-process-receive-filter-update"
+		run "le-test fixture plugin/attach-process-receive-filter-update"
 		encoder json
 	}
 }

@@ -24,7 +24,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external deadline-test {
-		run "ze-test fixture plugin/forward-write-deadline"
+		run "le-test fixture plugin/forward-write-deadline"
 		encoder json
 	}
 }

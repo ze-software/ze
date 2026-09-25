@@ -24,7 +24,7 @@ option=netns-link:name=nbma0
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospfv3-nbma {
-		run "ze-test fixture ospfv3/ospfv3-nbma"
+		run "le-test fixture ospfv3/ospfv3-nbma"
 		encoder json
 	}
 }

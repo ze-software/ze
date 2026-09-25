@@ -19,7 +19,7 @@
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
-# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw
@@ -27,13 +27,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=probe.conf:terminator=EOF_CONF
 plugin {
 	external ping-df-test {
-		run "ze-test fixture plugin/ping-do-not-fragment"
+		run "le-test fixture plugin/ping-do-not-fragment"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zedf$PORT run ze start probe.conf:timeout=40s
+cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zedf$PORT run ze start probe.conf:timeout=40s
 expect=exit:code=0
 expect=stderr:contains=OK: a DF probe over the clamp reported next-hop-mtu 1400 in both modes, and one under it was answered
 reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -9,7 +9,7 @@
 # would never receive a rate signal either way. Warns rather than refuses,
 # consistent with ddos-detect's existing trafficstat-unavailable graceful
 # degradation framing.
-# Uses `ze-test plugin-external ddos-detect`
+# Uses `le-test plugin-external ddos-detect`
 # (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
 # RunEngine via a real TLS connect-back, exercising the warning through the
 # actual external-plugin transport, not a mocked conn.
@@ -22,7 +22,7 @@
 # available") -- the daemon fails before the external ddos-detect subprocess
 # ever gets a chance to run. option=needs-linux below; not executable on the
 # darwin dev host, but confirmed PASSING under
-# `./le qemu all-tests` (real QEMU Linux VM).
+# `./le test qemu all-tests` (real QEMU Linux VM).
 #
 # // replaced the blind 4.0s sleep + wait.py hold with the
 # await=stderr fence below. Coverage is REPLACED, not weakened: the
@@ -49,7 +49,7 @@ ddos {
 
 plugin {
 	external ddos-detect {
-		run "ze-test plugin-external ddos-detect"
+		run "le-test plugin-external ddos-detect"
 	}
 }
 

@@ -49,12 +49,12 @@ option=env:var=TEST_SECRET:value=s3cr3t
 option=env:var=RADIUS_PORT:value=$PORT2
 option=env:var=RADIUS_KEY:value=testing123
 
-cmd=background:seq=1:exec=ze-test fixture l2tp/radius-filter-rate/radius
+cmd=background:seq=1:exec=le-test fixture l2tp/radius-filter-rate/radius
 cmd=background:seq=2:exec=ze -:stdin=config
 # The DAEMON writes these lines, so they are asserted under it. They used
 # to sit under the fixture command below, where the runner checked them
 # against the whole test's output and the fixture got the credit.
 expect=stderr:contains=l2tp-pool: configured
-cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-filter-rate $PORT:timeout=10s
+cmd=foreground:seq=3:exec=le-test fixture l2tp/radius-filter-rate $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with RADIUS filter-rate config

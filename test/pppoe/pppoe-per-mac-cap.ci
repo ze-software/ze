@@ -46,7 +46,7 @@ option=env:var=ze.log.pppoe:value=debug
 option=env:var=TEST_IFACE:value=veth-sub
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=ze-test fixture pppoe/per-mac-cap:timeout=45s
+cmd=foreground:seq=2:exec=le-test fixture pppoe/per-mac-cap:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=OK: first session admitted, session-id=
 expect=stdout:contains=OK: second session from the same MAC refused at the per-MAC cap

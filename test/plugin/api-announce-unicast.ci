@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-unicast-test {
-		run "ze-test fixture plugin/api-announce-unicast"
+		run "le-test fixture plugin/api-announce-unicast"
 		encoder json
 	}
 }

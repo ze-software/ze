@@ -139,7 +139,7 @@ func pipeAnswer(kind, rowsKey string) map[string]any {
 // was written by hand.
 //
 // It was a bare 450, and before that 300 (30 seconds), which is generous on an
-// idle machine and not enough on a loaded one: `./le stress-repro run suite
+// idle machine and not enough on a loaded one: `./le test stress-repro run suite
 // "bgp plugin --draft" test command-catalog-plugin-shape any-failure iterations
 // 80` reproduced "daemon did not become ready" on invocation 49 at 64 burners
 // and 16 parallel, with an empty daemon stderr, so the daemon was still starting

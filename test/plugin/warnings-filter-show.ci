@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external warnings-filter-show-test {
-		run "ze-test fixture plugin/warnings-filter-show"
+		run "le-test fixture plugin/warnings-filter-show"
 		encoder json
 	}
 }

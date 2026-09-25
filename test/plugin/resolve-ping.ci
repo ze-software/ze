@@ -14,7 +14,7 @@
 # the kernel refuses without CAP_NET_RAW. skip-os hid the test from macOS and
 # therefore ran it, unprivileged, on the Linux CI runner -- where it failed every
 # time with `resolve ping status=error`. Declaring the capability relocates it to
-# `./le qemu all-tests`, which has it, instead of failing where it
+# `./le test qemu all-tests`, which has it, instead of failing where it
 # cannot pass.
 option=needs-linux:caps=net-raw
 
@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ping-test {
-		run "ze-test fixture plugin/resolve-ping"
+		run "le-test fixture plugin/resolve-ping"
 		encoder json
 	}
 }

@@ -30,7 +30,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external metrics-test {
-		run "ze-test fixture plugin/bgp-redistribute-metrics"
+		run "le-test fixture plugin/bgp-redistribute-metrics"
 		encoder json
 	}
 	internal redistribute-orchestrator {

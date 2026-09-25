@@ -16,7 +16,7 @@ connection is **established on both sides**. Verbatim evidence:
 ## Run it
 
 ```
-ZE_L2TP_INTEROP_SCENARIO=03-ze-lac-xl2tpd-lns le deployment docker-l2tp-ppp-test
+ZE_L2TP_INTEROP_SCENARIO=03-ze-lac-xl2tpd-lns le test deployment docker-l2tp-ppp-test
 ```
 
 The native scenario plan starts both `xl2tpd` and `ze` in privileged Docker
@@ -58,7 +58,7 @@ modules. That data-plane leg is exercised by the authored, `//go:build
 integration && linux` bridge test and is run under QEMU:
 
 ```
-le deployment gokrazy-l2tp-ppp-test
+le test deployment gokrazy-l2tp-ppp-test
 ```
 
 This scenario deliberately does not attempt it. Its control-plane initiator

@@ -57,7 +57,7 @@ telemetry {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture plugin/firewall-metrics-registered $PORT:timeout=30s
+cmd=foreground:seq=2:exec=le-test fixture plugin/firewall-metrics-registered $PORT:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=firewall metrics exposed
 expect=stderr:contains=firewall config applied

@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-sysctl:terminator=EOF_CONF
 plugin {
 	external sysctl-list-test {
-		run "ze-test fixture plugin/sysctl-list"
+		run "le-test fixture plugin/sysctl-list"
 		encoder json
 	}
 }

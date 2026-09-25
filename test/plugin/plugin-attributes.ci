@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external add-remove {
-		run "ze-test fixture plugin/plugin-attributes"
+		run "le-test fixture plugin/plugin-attributes"
 		encoder json
 	}
 }

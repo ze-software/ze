@@ -52,7 +52,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external route-driver {
-		run "ze-test fixture plugin/mpls-withdraw"
+		run "le-test fixture plugin/mpls-withdraw"
 		encoder json
 	}
 }

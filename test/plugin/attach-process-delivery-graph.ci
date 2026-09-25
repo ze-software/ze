@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external delivery-graph-test {
-		run "ze-test fixture plugin/attach-process-delivery-graph"
+		run "le-test fixture plugin/attach-process-delivery-graph"
 		encoder json
 	}
 }

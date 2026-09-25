@@ -65,7 +65,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external redist-blast-radius-test {
-		run "ze-test fixture plugin/redistribute-block-does-not-gate-peer-routes"
+		run "le-test fixture plugin/redistribute-block-does-not-gate-peer-routes"
 		encoder json
 	}
 	internal bgp-rib {

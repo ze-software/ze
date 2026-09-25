@@ -18,10 +18,10 @@
 # (internal/component/firewall/plugins/domain/enrich.go) answering nothingToAdd,
 # the pattern at the end of this file fails and the two needles above it still
 # pass, which is what says the pattern is the assertion that reads the
-# enrichment. The command that runs it is `./le functional firewall`; on a host
+# enrichment. The command that runs it is `./le test functional firewall`; on a host
 # without CAP_NET_ADMIN and CAP_NET_BIND_SERVICE it is skipped by the option
 # below, and the runner that executes it in the gate is
-# `./le qemu netns-test suites firewall`.
+# `./le test qemu netns-test suites firewall`.
 #
 # The fixture is domainGroupShow
 # (internal/test/fixture/netfilter_fixture_domain_group.go). In order it:
@@ -148,7 +148,7 @@ environment {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-fw
-cmd=foreground:seq=2:exec=ze-test fixture firewall/firewall-cli-domain-group-show $PORT2:timeout=25s
+cmd=foreground:seq=2:exec=le-test fixture firewall/firewall-cli-domain-group-show $PORT2:timeout=25s
 expect=exit:code=0
 
 # The set and its address are in the answer at all.

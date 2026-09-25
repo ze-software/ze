@@ -36,7 +36,7 @@ action=sighup:conn=1:seq=2
 # rejection was actually logged". The old form raced: SIGHUP and SIGTERM went
 # back-to-back, so under load the daemon died mid-reload and never emitted the
 # asserted line. Reproduced 2026-07-23 on invocation 1 of
-# `./le stress-repro run suite "bgp reload" any-failure` (64 burners / 32 cores).
+# `./le test stress-repro run suite "bgp reload" any-failure` (64 burners / 32 cores).
 EOF_PEER
 
 # Initial config: the peer authenticates with a pre-shared secret, which needs

@@ -14,7 +14,7 @@
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
-# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw
@@ -22,13 +22,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=mtu-exhaustive.conf:terminator=EOF_CONF
 plugin {
 	external show-mtu-test {
-		run "ze-test fixture plugin/show-mtu-exhaustive"
+		run "le-test fixture plugin/show-mtu-exhaustive"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtuexhaustive$PORT route-mtu 1300 run ze start mtu-exhaustive.conf:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtuexhaustive$PORT route-mtu 1300 run ze start mtu-exhaustive.conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: the poisoned 1300 held the honor-cache answer and exhaustive measured 1400 on the wire
 reject=stderr:pattern=ZE-OBSERVER-FAIL

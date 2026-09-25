@@ -28,7 +28,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-setup {
-		run "ze-test fixture rsvpte/rsvpte-lsp-setup"
+		run "le-test fixture rsvpte/rsvpte-lsp-setup"
 		encoder json
 	}
 }

@@ -18,7 +18,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external lifecycle-driver {
-        run "ze-test fixture plugin/rest-peer-set-delete-lifecycle $PORT2 $PORT"
+        run "le-test fixture plugin/rest-peer-set-delete-lifecycle $PORT2 $PORT"
         encoder json
     }
 }

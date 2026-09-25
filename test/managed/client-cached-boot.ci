@@ -4,5 +4,5 @@
 # PREVENTS: Managed client refusing to start when hub is down but cache exists.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture managed/client-cached-boot:timeout=10s
+cmd=foreground:seq=1:exec=le-test fixture managed/client-cached-boot:timeout=10s
 expect=exit:code=0

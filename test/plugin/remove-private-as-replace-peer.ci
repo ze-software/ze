@@ -73,7 +73,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external remove-private-as-replace-peer {
-		run "ze-test fixture plugin/remove-private-as-replace-peer"
+		run "le-test fixture plugin/remove-private-as-replace-peer"
 		encoder json
 	}
 }

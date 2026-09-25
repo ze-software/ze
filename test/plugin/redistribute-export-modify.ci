@@ -48,7 +48,7 @@ plugin {
         use bgp-rs;
     }
     external filter-export-modify-test {
-        run "ze-test fixture plugin/redistribute-export-modify /tmp/ze-export-modify-$PORT.ready";
+        run "le-test fixture plugin/redistribute-export-modify /tmp/ze-export-modify-$PORT.ready";
         encoder json;
     }
 }
@@ -135,6 +135,6 @@ EOF_CONF
 # its initial End-of-RIB, then peer1 connects and supplies the route.
 cmd=background:seq=1:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-cmd=foreground:seq=3:exec=ze-test fixture plugin/wait-file /tmp/ze-export-modify-$PORT.ready:timeout=10s
+cmd=foreground:seq=3:exec=le-test fixture plugin/wait-file /tmp/ze-export-modify-$PORT.ready:timeout=10s
 cmd=background:seq=4:exec=ze-peer --dial 127.0.0.4:$PORT:stdin=peer
 expect=exit:code=0

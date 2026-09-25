@@ -3,9 +3,9 @@
 # PREVENTS: a working generic state RPC hiding a consumer that never restores.
 # The fixture launches ze start <selected>/router.conf without a config-dir pin.
 # It creates its own dummy interface, so it needs CAP_NET_ADMIN and runs where
-# the process holds it: the QEMU guest through ./le qemu all-tests.
+# the process holds it: the QEMU guest through ./le test qemu all-tests.
 option=needs-linux:caps=net-admin
 option=timeout:value=70s
-cmd=foreground:seq=1:exec=ze-test fixture storage/consumer-restart-tc:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture storage/consumer-restart-tc:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: tc consumer restored operational state from selected tree without config-dir pin

@@ -59,11 +59,11 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// The command registry has the same checkout-wide, working-directory
 	// independent contract, including row ordering.
-	commandsAtRoot, err := executeClean(ctx, root, binary, "command list")
+	commandsAtRoot, err := executeClean(ctx, root, binary, "cli list")
 	if err != nil {
 		return err
 	}
-	commandsAtFixture, err := executeClean(ctx, here, binary, "command list")
+	commandsAtFixture, err := executeClean(ctx, here, binary, "cli list")
 	if err != nil {
 		return err
 	}
@@ -78,16 +78,16 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	}
 
 	// One inventory payload must expose every documented top-level data set.
-	answer, err := executeClean(ctx, here, binary, "inventory", "|", "json")
+	answer, err := executeClean(ctx, here, binary, "repo", "inventory", "|", "json")
 	if err != nil {
 		return err
 	}
 	if answer.code != 0 {
-		return fmt.Errorf("FAIL: `le inventory | json` exited %d", answer.code)
+		return fmt.Errorf("FAIL: `le repo inventory | json` exited %d", answer.code)
 	}
 	var inventory map[string]any
 	if err := json.Unmarshal([]byte(answer.stdout), &inventory); err != nil {
-		return fmt.Errorf("FAIL: `le inventory | json` did not answer JSON: %w\n%s", err, uiLeInventoryAnswersPrefix(answer.stdout, 400))
+		return fmt.Errorf("FAIL: `le repo inventory | json` did not answer JSON: %w\n%s", err, uiLeInventoryAnswersPrefix(answer.stdout, 400))
 	}
 	for _, key := range []string{
 		sectionPlugins,
@@ -111,16 +111,16 @@ func runLEInventoryAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: inventory answered %d plugins, which is too few to be the product", len(plugins))
 	}
 
-	listing, err := executeClean(ctx, here, binary, "command list", "|", "json")
+	listing, err := executeClean(ctx, here, binary, "cli list", "|", "json")
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
-		return fmt.Errorf("FAIL: `le command list | json` exited %d", listing.code)
+		return fmt.Errorf("FAIL: `le cli list | json` exited %d", listing.code)
 	}
 	var commands []map[string]any
 	if err := json.Unmarshal([]byte(listing.stdout), &commands); err != nil {
-		return fmt.Errorf("FAIL: `le command list | json` did not answer a JSON array: %w\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
+		return fmt.Errorf("FAIL: `le cli list | json` did not answer a JSON array: %w\n%s", err, uiLeInventoryAnswersPrefix(listing.stdout, 400))
 	}
 	if len(commands) == 0 {
 		return errors.New("FAIL: the command list answered an empty array")
@@ -133,26 +133,26 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// A row operator acts on command rows and answers a number rather than the
 	// rendered page.
-	counted, err := executeClean(ctx, here, binary, "command list", "|", "count")
+	counted, err := executeClean(ctx, here, binary, "cli list", "|", "count")
 	if err != nil {
 		return err
 	}
 	if counted.code != 0 {
-		return fmt.Errorf("FAIL: `le command list | count` exited %d", counted.code)
+		return fmt.Errorf("FAIL: `le cli list | count` exited %d", counted.code)
 	}
 	wantCount := strconv.Itoa(len(commands))
 	if !strings.Contains(counted.stdout, wantCount) {
-		return fmt.Errorf("FAIL: `le command list | count` answered %q, want %d", counted.stdout, len(commands))
+		return fmt.Errorf("FAIL: `le cli list | count` answered %q, want %d", counted.stdout, len(commands))
 	}
 
 	// Inventory is one document containing several row sets. There is no
 	// unambiguous row set for count to consume, so the chain must be refused.
-	refused, err := uiLeInventoryAnswersExecute(ctx, here, binary, "inventory", "|", "count")
+	refused, err := uiLeInventoryAnswersExecute(ctx, here, binary, "repo", "inventory", "|", "count")
 	if err != nil {
 		return fmt.Errorf("FAIL: start refused inventory chain: %w", err)
 	}
 	if refused.code == 0 {
-		return errors.New("FAIL: `le inventory | count` was accepted")
+		return errors.New("FAIL: `le repo inventory | count` was accepted")
 	}
 	if refused.stdout != "" {
 		return fmt.Errorf("FAIL: a refused chain wrote to stdout: %q", refused.stdout)
@@ -220,7 +220,7 @@ func maxInt(a, b int) int {
 // retaken when the checkout moved between them.
 const inventoryTreeSettleAttempts = 3
 
-// inventoryOverAStillTree answers the page `le inventory` writes from the
+// inventoryOverAStillTree answers the page `le repo inventory` writes from the
 // checkout root and from a directory outside it, taken over a tree that did not
 // change between the two.
 //
@@ -240,15 +240,15 @@ const inventoryTreeSettleAttempts = 3
 func inventoryOverAStillTree(ctx context.Context, root, here, binary string) (string, string, error) {
 	var lastBefore, lastAfter string
 	for attempt := range inventoryTreeSettleAttempts {
-		before, err := executeClean(ctx, root, binary, "inventory")
+		before, err := executeClean(ctx, root, binary, "repo", "inventory")
 		if err != nil {
 			return "", "", err
 		}
-		fixture, err := executeClean(ctx, here, binary, "inventory")
+		fixture, err := executeClean(ctx, here, binary, "repo", "inventory")
 		if err != nil {
 			return "", "", err
 		}
-		after, err := executeClean(ctx, root, binary, "inventory")
+		after, err := executeClean(ctx, root, binary, "repo", "inventory")
 		if err != nil {
 			return "", "", err
 		}

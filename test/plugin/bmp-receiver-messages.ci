@@ -24,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-client {
-        run "ze-test fixture plugin/bmp-receiver-messages $PORT2;"
+        run "le-test fixture plugin/bmp-receiver-messages $PORT2;"
         encoder json;
     }
 }

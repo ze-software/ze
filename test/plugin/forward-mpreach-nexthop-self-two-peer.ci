@@ -50,7 +50,7 @@ EOF_PEER2
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mpreach-nexthop-test {
-		run "ze-test fixture plugin/forward-mpreach-nexthop-self-two-peer"
+		run "le-test fixture plugin/forward-mpreach-nexthop-self-two-peer"
 		encoder json
 	}
 	internal redistribute-orchestrator {

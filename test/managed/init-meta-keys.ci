@@ -4,5 +4,5 @@
 # PREVENTS: flat ssh/* keys colliding with future meta/ namespace.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture managed/init-meta-keys:timeout=10s
+cmd=foreground:seq=1:exec=le-test fixture managed/init-meta-keys:timeout=10s
 expect=exit:code=0

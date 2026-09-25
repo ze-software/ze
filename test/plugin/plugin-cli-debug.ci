@@ -41,7 +41,7 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start cli-debug.conf:timeout=20s
-cmd=foreground:seq=2:exec=ze-test fixture plugin/plugin-cli-debug $PORT2:timeout=20s
+cmd=foreground:seq=2:exec=le-test fixture plugin/plugin-cli-debug $PORT2:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=OK: handshake completed
 expect=stderr:contains=OK: dispatch-command returned command data

@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rib-inject-rfc5549 {
-		run "ze-test fixture plugin/rib-inject-rfc5549"
+		run "le-test fixture plugin/rib-inject-rfc5549"
 		encoder json
 	}
 	internal bgp-rib {

@@ -24,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-sessions-test {
-        run "ze-test fixture plugin/bmp-sessions-show $PORT2;"
+        run "le-test fixture plugin/bmp-sessions-show $PORT2;"
         encoder json;
     }
 }

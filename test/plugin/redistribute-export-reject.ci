@@ -58,7 +58,7 @@ plugin {
         use bgp-rs;
     }
     external filter-export-reject-test {
-        run "ze-test fixture plugin/redistribute-export-reject";
+        run "le-test fixture plugin/redistribute-export-reject";
         encoder json;
     }
 }

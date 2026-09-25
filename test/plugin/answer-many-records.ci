@@ -43,7 +43,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external answer-records {
-		run "ze-test fixture plugin/answer-many-records"
+		run "le-test fixture plugin/answer-many-records"
 		encoder json
 	}
 }

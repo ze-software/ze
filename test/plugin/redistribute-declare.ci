@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external filter-declare-test {
-        run "ze-test fixture plugin/redistribute-declare";
+        run "le-test fixture plugin/redistribute-declare";
         encoder json;
     }
 }

@@ -29,7 +29,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external static-distance-test {
-		run "ze-test fixture static/static-distance-beats-ebgp"
+		run "le-test fixture static/static-distance-beats-ebgp"
 		encoder json
 	}
 	internal bgp-rib {

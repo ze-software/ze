@@ -25,7 +25,7 @@ EOF_PEER
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-hello-retries-test {
-		run "ze-test fixture plugin/reload-hello-retries"
+		run "le-test fixture plugin/reload-hello-retries"
 		encoder json
 	}
 }
@@ -82,7 +82,7 @@ EOF_CONF2
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external reload-hello-retries-test {
-		run "ze-test fixture plugin/reload-hello-retries"
+		run "le-test fixture plugin/reload-hello-retries"
 		encoder json
 	}
 }
@@ -136,7 +136,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/reload-hello-retries-trigger
+cmd=background:seq=2:exec=le-test fixture plugin/reload-hello-retries-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=l2tp reload: hello-retries updated

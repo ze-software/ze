@@ -37,7 +37,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external remove-private-as-replace-originated {
-		run "ze-test fixture plugin/remove-private-as-replace-originated"
+		run "le-test fixture plugin/remove-private-as-replace-originated"
 		encoder json
 	}
 }

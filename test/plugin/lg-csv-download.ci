@@ -34,7 +34,7 @@ option=env:var=ZE_LG_PORT:value=$PORT2
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-csv {
-		run "ze-test fixture plugin/lg-csv-download"
+		run "le-test fixture plugin/lg-csv-download"
 		encoder json
 	}
 	internal bgp-rib {

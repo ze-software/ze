@@ -40,7 +40,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-relation {
-		run "ze-test fixture plugin/community-relation-tag"
+		run "le-test fixture plugin/community-relation-tag"
 		encoder json
 	}
 	internal bgp-rib {

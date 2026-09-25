@@ -81,7 +81,7 @@ EOF_CONF
 # above is sent.
 
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT2:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/peer-local-port-listener-trigger
+cmd=background:seq=2:exec=le-test fixture plugin/peer-local-port-listener-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The session reached Established on the operator's port, and the connection was

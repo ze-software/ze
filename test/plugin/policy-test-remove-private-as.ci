@@ -16,7 +16,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-rpa {
-		run "ze-test fixture plugin/policy-test-remove-private-as"
+		run "le-test fixture plugin/policy-test-remove-private-as"
 		encoder json
 	}
 }

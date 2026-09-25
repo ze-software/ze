@@ -111,7 +111,7 @@
 #
 # needs-linux:caps=net-admin: creating a veth pair, moving a carrier and
 # installing routes all need CAP_NET_ADMIN, which the verify runner does not
-# have. Runs as root under `./le qemu all-tests`.
+# have. Runs as root under `./le test qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the veth pair zeflapv0/zeflapv1 and the dummy
 # zeflapd0, all created from the config and deleted by the daemon at shutdown;
@@ -127,7 +127,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-link-flap-during-commit {
-		run "ze-test fixture plugin/iface-link-flap-during-commit $PORT2"
+		run "le-test fixture plugin/iface-link-flap-during-commit $PORT2"
 		encoder json
 	}
 }

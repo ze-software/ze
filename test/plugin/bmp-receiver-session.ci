@@ -22,7 +22,7 @@ environment {
 }
 plugin {
     external bmp-observer {
-        run "ze-test fixture plugin/bmp-receiver-session $PORT2;"
+        run "le-test fixture plugin/bmp-receiver-session $PORT2;"
         encoder json;
     }
 }

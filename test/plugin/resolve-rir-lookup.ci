@@ -30,7 +30,7 @@
 # share it.
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/resolve-rir-lookup
+cmd=foreground:seq=1:exec=le-test fixture plugin/resolve-rir-lookup
 expect=exit:code=0
 expect=stderr:contains=OK: the host answers from the embedded seed, with no daemon and no stored copy
 expect=stderr:contains=OK: an AS number in no delegated range exits non-zero and says which answer it is

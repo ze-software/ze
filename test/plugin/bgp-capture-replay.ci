@@ -11,7 +11,7 @@
 # 2. ze runs with capture enabled, writing ./capture/bgp-127.0.0.1.jsonl.
 # 3. A barrier waits for the UPDATE to reach the capture file.
 # 4. cmd=stop terminates the daemon, which closes the capture cleanly.
-# 5. ze-test replay reads the file back and reports the FSM states and the
+# 5. le-test replay reads the file back and reports the FSM states and the
 #    prefix the peer announced.
 #
 # 6. The same file is piped in as "-", which is how a capture arriving from
@@ -104,10 +104,10 @@ expect=stdout:contains=capture-closed
 # command, where the runner checked it against the whole test's output.
 expect=stdout:contains=capture-has-messages
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp:name=daemon
-cmd=foreground:seq=3:exec=ze-test fixture plugin/bgp-capture-replay-wait-update:timeout=40s
+cmd=foreground:seq=3:exec=le-test fixture plugin/bgp-capture-replay-wait-update:timeout=40s
 cmd=stop:seq=4:name=daemon:signal=term
-cmd=foreground:seq=5:exec=ze-test fixture plugin/bgp-capture-replay-wait-closed:timeout=40s
-cmd=foreground:seq=6:exec=ze-test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
-cmd=foreground:seq=7:exec=ze-test fixture plugin/bgp-capture-replay-stdin:timeout=20s
+cmd=foreground:seq=5:exec=le-test fixture plugin/bgp-capture-replay-wait-closed:timeout=40s
+cmd=foreground:seq=6:exec=le-test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
+cmd=foreground:seq=7:exec=le-test fixture plugin/bgp-capture-replay-stdin:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=stdin-replay-ok

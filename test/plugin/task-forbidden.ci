@@ -117,7 +117,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=25s
+cmd=foreground:seq=3:exec=le-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=25s
 expect=exit:code=0
 # The forbidden call was DISPATCHED and answered inline: a JSON-RPC success, not
 # an error envelope.

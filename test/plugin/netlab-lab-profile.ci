@@ -12,7 +12,7 @@
 # PREVENTS:  two failures that look nothing alike and have the same cause, a
 #            contributed artifact nothing executes.
 #            1. The templates emit config the parser accepts and the daemon
-#               refuses, or refuses to run with. `./le netlab render-check`
+#               refuses, or refuses to run with. `./le test netlab render-check`
 #               catches a drifted RENDER; only a daemon catches a drifted
 #               RUNTIME, and that check needs netlab installed while this test
 #               needs nothing.
@@ -50,5 +50,5 @@
 # Native process driver validates the golden, starts the daemon, authenticates
 # over SSH, and parses the exact netlab JSON command.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/netlab-lab-profile:timeout=30s
+cmd=foreground:seq=1:exec=le-test fixture plugin/netlab-lab-profile:timeout=30s
 expect=exit:code=0

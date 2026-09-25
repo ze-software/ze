@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external log-set-test {
-		run "ze-test fixture plugin/cli-log-set"
+		run "le-test fixture plugin/cli-log-set"
 		encoder json
 	}
 }

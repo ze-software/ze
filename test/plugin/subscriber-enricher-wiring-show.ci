@@ -30,7 +30,7 @@ class-of-service {
 
 plugin {
 	external subscriber-enricher-wiring-show-test {
-		run "ze-test fixture plugin/subscriber-enricher-wiring-show"
+		run "le-test fixture plugin/subscriber-enricher-wiring-show"
 		encoder json
 	}
 }

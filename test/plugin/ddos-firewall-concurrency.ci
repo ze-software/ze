@@ -112,7 +112,7 @@ traffic {
 
 plugin {
 	external ddos-firewall-concurrency-probe {
-		run "ze-test fixture plugin/ddos-firewall-concurrency"
+		run "le-test fixture plugin/ddos-firewall-concurrency"
 		encoder json
 	}
 }

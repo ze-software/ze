@@ -26,7 +26,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-family-remove {
-		run "ze-test fixture plugin/filter-family-import-remove"
+		run "le-test fixture plugin/filter-family-import-remove"
 		encoder json
 	}
 }

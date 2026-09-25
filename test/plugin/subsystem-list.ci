@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external subsystem-list-test {
-		run "ze-test fixture plugin/subsystem-list"
+		run "le-test fixture plugin/subsystem-list"
 		encoder json
 	}
 }

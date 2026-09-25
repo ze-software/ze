@@ -27,7 +27,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external best-selection-test {
-		run "ze-test fixture plugin/rib-best-selection"
+		run "le-test fixture plugin/rib-best-selection"
 		encoder json
 	}
 	internal bgp-rib {

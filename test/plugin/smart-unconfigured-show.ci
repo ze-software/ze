@@ -10,7 +10,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external smart-show-error {
-        run "ze-test fixture plugin/smart-unconfigured-show"
+        run "le-test fixture plugin/smart-unconfigured-show"
         encoder json
     }
 }

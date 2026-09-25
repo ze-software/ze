@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mpls-forwarding-show-test {
-		run "ze-test fixture plugin/mpls-forwarding-show"
+		run "le-test fixture plugin/mpls-forwarding-show"
 		encoder json
 	}
 }

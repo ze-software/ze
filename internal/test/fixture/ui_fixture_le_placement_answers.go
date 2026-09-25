@@ -75,25 +75,25 @@ func lePlacementAnswers(ctx context.Context) error {
 	if _, err := leExpectSuccessfulPage(command, "./le ai digest", areaDigest); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "./le repository tree-check", "repository", "tree-check"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le repo tree-check", "repo", "tree-check"); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "./le repository check", "repository", "check"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le repo check", "repo", "check"); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "./le tier check", "tier", "check"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le arch tier check", areaTier, "check"); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "./le tier selftest", "tier", "selftest"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "./le arch tier selftest", areaTier, "selftest"); err != nil {
 		return err
 	}
-	if _, err := leExpectSuccessfulPage(command, "tier report", "tier", "report"); err != nil {
+	if _, err := leExpectSuccessfulPage(command, "arch tier report", areaTier, "report"); err != nil {
 		return err
 	}
 
 	// Run the report again for its coverage assertions. This also verifies that
 	// a read-only gate is stable across consecutive invocations.
-	audit, err := leExpectSuccessfulPage(command, "tier report coverage", "tier", "report")
+	audit, err := leExpectSuccessfulPage(command, "arch tier report coverage", areaTier, "report")
 	if err != nil {
 		return err
 	}

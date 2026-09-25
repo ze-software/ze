@@ -57,7 +57,7 @@ plugin {
 		use bgp-rib
 	}
 	external gr-sender-facts {
-		run "ze-test fixture plugin/gr-peer-families-drive-mark-stale"
+		run "le-test fixture plugin/gr-peer-families-drive-mark-stale"
 		encoder json
 	}
 }

@@ -8,7 +8,7 @@
 #           returns a deterministic error naming CAP_NET_RAW (probe_round.go:71);
 #           both branches are asserted, so the test is green unprivileged and green
 #           under a privileged/QEMU-root run.
-# NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default bin/ze-test runner is
+# NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default bin/le-test runner is
 #       unprivileged, so the error branch is what executes here.
 
 # ze-peer: accepts connection
@@ -24,7 +24,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external monitor-traceroute-test {
-		run "ze-test fixture plugin/monitor-traceroute"
+		run "le-test fixture plugin/monitor-traceroute"
 		encoder json
 	}
 }

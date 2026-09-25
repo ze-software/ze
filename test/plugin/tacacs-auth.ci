@@ -23,7 +23,7 @@ system {
 environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 plugin {
 	external tacacs-auth-test {
-		run "ze-test fixture plugin/tacacs-auth $PORT $PORT2"
+		run "le-test fixture plugin/tacacs-auth $PORT $PORT2"
 		encoder json
 	}
 }

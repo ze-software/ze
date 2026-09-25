@@ -15,7 +15,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-bad-hex {
-		run "ze-test fixture plugin/policy-test-reject-bad-hex"
+		run "le-test fixture plugin/policy-test-reject-bad-hex"
 		encoder json
 	}
 }

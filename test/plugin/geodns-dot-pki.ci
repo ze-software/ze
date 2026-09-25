@@ -49,7 +49,7 @@ service {
 
 plugin {
 	external geodns-dot-pki-test {
-		run "ze-test fixture plugin/geodns-dot-pki"
+		run "le-test fixture plugin/geodns-dot-pki"
 		encoder json
 	}
 }

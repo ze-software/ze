@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external system-fd-show-test {
-		run "ze-test fixture plugin/system-fd-show"
+		run "le-test fixture plugin/system-fd-show"
 		encoder json
 	}
 }

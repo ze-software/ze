@@ -2,7 +2,7 @@
 # VALIDATES: configured authorization never falls through to the built-in admin profile.
 # PREVENTS: privilege escalation for authenticated identities without a resolved profile.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/authz-no-applicable-profile:timeout=30s
+cmd=foreground:seq=1:exec=le-test fixture plugin/authz-no-applicable-profile:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=OK: refusal names access control
 expect=stderr:pattern=OK: nobody authenticated, then was denied by authorization

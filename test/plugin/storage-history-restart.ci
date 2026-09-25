@@ -5,6 +5,6 @@
 # The daemon is the runner's own unstamped build, so the fixture hands it
 # ze.test.update.running.version: the release the manifest's minimum exceeds.
 option=timeout:value=70s
-cmd=foreground:seq=1:exec=ze-test fixture storage/consumer-restart history:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture storage/consumer-restart history:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: history consumer restored operational state from selected tree without config-dir pin

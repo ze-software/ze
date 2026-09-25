@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A native Go fixture writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `ze-test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le-test record-plugin`, and opens SSH
 # 3. `ze init` creates operator credentials
 # 4. `show test records fault | raw` reads the COLLAPSED wire shape
 # 5. `show test records walk | raw` reads the STREAMED wire shape
@@ -56,7 +56,7 @@
 # Native fixture: two wire shapes, one producer, byte for byte
 
 # Process orchestration
-cmd=foreground:seq=1:exec=ze-test fixture plugin/answer-payload-unchanged:timeout=90s
+cmd=foreground:seq=1:exec=le-test fixture plugin/answer-payload-unchanged:timeout=90s
 expect=exit:code=0
 expect=stderr:pattern=OK: [0-9]+ collapsed rows are the bytes the producer wrote
 expect=stderr:pattern=OK: [0-9]+ streamed rows are the bytes the producer wrote

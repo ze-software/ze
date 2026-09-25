@@ -30,7 +30,7 @@ EOF_PEER
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-metrics-test {
-		run "ze-test fixture plugin/bfd-metrics"
+		run "le-test fixture plugin/bfd-metrics"
 		encoder json
 	}
 }

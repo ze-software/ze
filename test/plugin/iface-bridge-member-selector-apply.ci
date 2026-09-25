@@ -22,7 +22,7 @@
 #
 # needs-linux:caps=net-admin: creating a netdev and a bridge, and enslaving one
 # to the other, need CAP_NET_ADMIN, which the verify runner does not have. Runs
-# as root under `./le qemu all-tests`.
+# as root under `./le test qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the devices zebmsel0 and zebmbr0, and the address
 # block 198.51.100.144/28. No other file under test/ puts any of them in a
@@ -35,7 +35,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-bridge-member-selector-apply {
-		run "ze-test fixture plugin/iface-bridge-member-selector-apply"
+		run "le-test fixture plugin/iface-bridge-member-selector-apply"
 		encoder json
 	}
 }

@@ -15,7 +15,7 @@ plugin {
         use fakeenrich
     }
     external fakeenrich-checker {
-        run "ze-test fixture plugin/enricher-fakeenrich-show"
+        run "le-test fixture plugin/enricher-fakeenrich-show"
         encoder json
     }
 }

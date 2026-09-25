@@ -45,7 +45,7 @@ environment {
 
 plugin {
 	external shutdown-after-update {
-		run "ze-test fixture plugin/rib-forward-handle-observed"
+		run "le-test fixture plugin/rib-forward-handle-observed"
 		encoder json
 	}
 	internal bgp-rib {

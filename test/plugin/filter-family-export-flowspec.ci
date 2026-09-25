@@ -106,7 +106,7 @@ EOF_UNFILTERED
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external export-flowspec {
-		run "ze-test fixture plugin/filter-family-export-flowspec"
+		run "le-test fixture plugin/filter-family-export-flowspec"
 		encoder json
 	}
 }

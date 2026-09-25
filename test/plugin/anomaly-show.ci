@@ -25,7 +25,7 @@ anomaly {
 
 plugin {
 	external anomaly-show-test {
-		run "ze-test fixture plugin/anomaly-show"
+		run "le-test fixture plugin/anomaly-show"
 		encoder json
 	}
 }

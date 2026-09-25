@@ -9,6 +9,6 @@
 
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-qemu-install-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-qemu-install-answers
 expect=exit:code=0
 expect=stdout:contains=LE_QEMU_INSTALL_ANSWERS_OK

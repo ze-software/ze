@@ -27,7 +27,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/refresh"
+		run "le-test fixture plugin/refresh"
 		encoder json
 	}
 	internal bgp-rib {

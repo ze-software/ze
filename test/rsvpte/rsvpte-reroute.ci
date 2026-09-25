@@ -23,7 +23,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-reroute {
-		run "ze-test fixture rsvpte/rsvpte-reroute"
+		run "le-test fixture rsvpte/rsvpte-reroute"
 		encoder json
 	}
 }

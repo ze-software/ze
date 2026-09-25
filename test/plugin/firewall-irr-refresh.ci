@@ -36,7 +36,7 @@ option=timeout:value=20s
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-refresh-test {
-		run "ze-test fixture plugin/firewall-irr-refresh"
+		run "le-test fixture plugin/firewall-irr-refresh"
 		encoder json
 	}
 }
@@ -62,6 +62,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-test irr --port $PORT2
+cmd=background:seq=1:exec=le-test irr --port $PORT2
 cmd=foreground:seq=2:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=20s
 expect=exit:code=0

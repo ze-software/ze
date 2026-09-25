@@ -39,7 +39,7 @@ service {
 
 plugin {
 	external geodns-show-test {
-		run "ze-test fixture plugin/geodns-show"
+		run "le-test fixture plugin/geodns-show"
 		encoder json
 	}
 }

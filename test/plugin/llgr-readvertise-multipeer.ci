@@ -65,7 +65,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external observer {
-		run "ze-test fixture plugin/llgr-readvertise-multipeer"
+		run "le-test fixture plugin/llgr-readvertise-multipeer"
 		encoder json
 	}
 	internal gr {

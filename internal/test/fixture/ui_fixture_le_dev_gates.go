@@ -54,8 +54,8 @@ func runLEDevAnswers(ctx context.Context) error {
 	}{
 		{name: gateGokrazyGosum, args: []string{gateGokrazyGosum}},
 		{name: "repo arch-map check", args: []string{"repo", "arch-map", actionCheck}},
-		{name: "protocol-skeleton report", args: []string{gateProtocolSkeleton, actionReport}},
-		{name: "protocol-skeleton selftest", args: []string{gateProtocolSkeleton, actionSelftest}},
+		{name: "rfc skeletons report", args: []string{gateProtocolSkeleton, actionReport}},
+		{name: "rfc skeletons selftest", args: []string{gateProtocolSkeleton, actionSelftest}},
 	}
 	for _, page := range pages {
 		answer, err := le(page.args...)
@@ -71,7 +71,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		if len(answer.stderr) != 0 {
 			return uiLeDevGatesAnswersFailf("%s: the command wrote to stderr: %s", page.name, answer.stderr)
 		}
-		if page.name == "protocol-skeleton report" {
+		if page.name == "rfc skeletons report" {
 			if !bytes.Contains(answer.stdout, []byte("| json for detail")) {
 				return uiLeDevGatesAnswersFailf("%s: the page does not advertise its data rendering:\n%s", page.name, answer.stdout)
 			}
@@ -84,7 +84,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	// The answer is intentionally checked by shape: concurrent users may alter
 	// the shared tree between observations, but they cannot change this prefix
 	// contract.
-	working, err := le("working-tree")
+	working, err := le("repo working-tree")
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	}
 
 	// Generated blocks carry their own counts and check mode must not write.
-	answer, err := le("arch-map", "check", "|", "json")
+	answer, err := le("repo arch-map", "check", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		Written bool `json:"written"`
 	}
 	if err := json.Unmarshal(answer.stdout, &blocks); err != nil {
-		return uiLeDevGatesAnswersFailf("`le arch-map check | json` did not answer JSON: %v\n%s", err, uiLeDevGatesAnswersPrefix(answer.stdout, 400))
+		return uiLeDevGatesAnswersFailf("`le repo arch-map check | json` did not answer JSON: %v\n%s", err, uiLeDevGatesAnswersPrefix(answer.stdout, 400))
 	}
 	if len(blocks.Blocks) != 3 {
 		return uiLeDevGatesAnswersFailf("arch-map answered %d blocks, want three", len(blocks.Blocks))
@@ -157,7 +157,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	}
 
 	// The selftest exposes a row per case, and count acts on those rows.
-	answer, err = le("protocol-skeleton", "selftest", "|", "json")
+	answer, err = le(gateProtocolSkeleton, "selftest", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func runLEDevAnswers(ctx context.Context) error {
 			return uiLeDevGatesAnswersFailf("a selftest case failed: %v", cases)
 		}
 	}
-	counted, err := le("protocol-skeleton", "selftest", "|", "count")
+	counted, err := le(gateProtocolSkeleton, "selftest", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -184,12 +184,12 @@ func runLEDevAnswers(ctx context.Context) error {
 	}
 
 	// Areas list their actions and whether those actions write.
-	listing, err := le("arch-map")
+	listing, err := le("repo arch-map")
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
-		return uiLeDevGatesAnswersFailf("`le arch-map` exited %d", listing.code)
+		return uiLeDevGatesAnswersFailf("`le repo arch-map` exited %d", listing.code)
 	}
 	for _, word := range []string{actionCheck, actionUpdate, wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(word)) {
@@ -197,7 +197,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		}
 	}
 
-	unknown, err := le("arch-map", "nonesuch")
+	unknown, err := le("repo arch-map", "nonesuch")
 	if err != nil {
 		return err
 	}
@@ -215,21 +215,21 @@ func runLEDevAnswers(ctx context.Context) error {
 	if !bytes.Contains(refused.stderr, []byte("takes no arguments")) {
 		return uiLeDevGatesAnswersFailf("the refusal is silent: %q", refused.stderr)
 	}
-	bare, err := le("working-tree", "3")
+	bare, err := le("repo working-tree", "3")
 	if err != nil {
 		return err
 	}
 	if bare.code != 1 {
 		return uiLeDevGatesAnswersFailf("a bare number was accepted as a ceiling")
 	}
-	nonnumeric, err := le("working-tree", "max-areas", "many")
+	nonnumeric, err := le("repo working-tree", "max-areas", "many")
 	if err != nil {
 		return err
 	}
 	if nonnumeric.code != 1 {
 		return uiLeDevGatesAnswersFailf("a ceiling that is not a number was accepted")
 	}
-	high, err := le("working-tree", "max-areas", "99")
+	high, err := le("repo working-tree", "max-areas", "99")
 	if err != nil {
 		return err
 	}
@@ -242,7 +242,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		return err
 	}
 	helpText := append(append([]byte(nil), help.stdout...), help.stderr...)
-	for _, command := range []string{gateGokrazyGosum, "working-tree", "arch-map", gateProtocolSkeleton} {
+	for _, command := range []string{gateGokrazyGosum, "repo working-tree", "repo arch-map", gateProtocolSkeleton} {
 		if !bytes.Contains(helpText, []byte(command)) {
 			return uiLeDevGatesAnswersFailf("`le` does not list %q in its help", command)
 		}

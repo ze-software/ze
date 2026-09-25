@@ -42,7 +42,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mrt-observer {
-		run "ze-test fixture plugin/mrt-dump-updates"
+		run "le-test fixture plugin/mrt-dump-updates"
 		encoder json
 	}
 }

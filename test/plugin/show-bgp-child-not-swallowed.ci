@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external child-not-swallowed {
-		run "ze-test fixture plugin/show-bgp-child-not-swallowed"
+		run "le-test fixture plugin/show-bgp-child-not-swallowed"
 		encoder json
 	}
 	internal bgp-rib {

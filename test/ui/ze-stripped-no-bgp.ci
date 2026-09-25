@@ -45,6 +45,6 @@ bgp {
 }
 EOF_BGP
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/ze-stripped-no-bgp
+cmd=foreground:seq=1:exec=le-test fixture ui/ze-stripped-no-bgp
 expect=exit:code=0
 expect=stdout:contains=non-BGP surface valid, bgp rejected

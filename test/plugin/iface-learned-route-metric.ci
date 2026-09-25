@@ -35,7 +35,7 @@
 #
 # needs-linux:caps=net-admin: creating a dummy device and installing routes needs
 # CAP_NET_ADMIN, which the verify runner does not have. Runs as root under
-# `./le qemu all-tests`.
+# `./le test qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zermetric0, the address block
 # 198.51.100.192/28, and the destination 203.0.113.192/28. Nothing else under
@@ -51,7 +51,7 @@
 # Per-test /28s were the fix rather than option=netns-link, which
 # applyNetnsLinkGate (internal/test/runner/caps.go) SKIPS unless the per-test
 # netns launch mode is on -- that would take this test out of
-# `./le qemu all-tests` entirely. option=exclusive:group= is the other
+# `./le test qemu all-tests` entirely. option=exclusive:group= is the other
 # route, and it serializes; it is for state that cannot be made unique, such as
 # the cos tests' real eth0.
 #
@@ -64,7 +64,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-learned-route-metric {
-		run "ze-test fixture plugin/iface-learned-route-metric"
+		run "le-test fixture plugin/iface-learned-route-metric"
 		encoder json
 	}
 }

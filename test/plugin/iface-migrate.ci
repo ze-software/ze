@@ -28,7 +28,7 @@
 # address through netlink, and the migration under test creates a second dummy.
 # All of that needs CAP_NET_ADMIN, so the marker names the capability rather
 # than only the kernel: on an unprivileged host `create interface dummy name
-# zemig0` comes back `operation not permitted`. Run via `./le qemu all-tests`,
+# zemig0` comes back `operation not permitted`. Run via `./le test qemu all-tests`,
 # which boots a root QEMU VM on ze's runtime kernel. zemig0 and zemig1 are
 # uniquely named throwaway dummies in the VM's default namespace, deleted at the
 # end and on every failure path (idempotent on rerun).
@@ -38,7 +38,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-migrate {
-		run "ze-test fixture plugin/iface-migrate"
+		run "le-test fixture plugin/iface-migrate"
 		encoder json
 	}
 }

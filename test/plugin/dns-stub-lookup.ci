@@ -2,7 +2,7 @@
 #       zone through `show dns lookup`, for A, for AAAA, for a name that holds
 #       one family only, and for a name that does not exist.
 # Spec: spec-ze-test-dns-stub -- Wiring Test rows 1 and 3, user story 1 (closed 2026-09-06)
-# VALIDATES: AC-8. The stub is the separate `ze-test dns --port 53` process
+# VALIDATES: AC-8. The stub is the separate `le-test dns --port 53` process
 #            started below, so this file is the subcommand's consumer: the query
 #            leaves the daemon's own resolver (Resolver.query,
 #            internal/component/resolve/dns/resolver.go) and the answer is
@@ -37,7 +37,7 @@ system {
 
 plugin {
 	external dns-stub-lookup-test {
-		run "ze-test fixture plugin/dns-stub-lookup"
+		run "le-test fixture plugin/dns-stub-lookup"
 		encoder json
 	}
 }
@@ -71,7 +71,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-test dns --port 53
+cmd=background:seq=1:exec=le-test dns --port 53
 cmd=foreground:seq=2:exec=ze -:stdin=ze-dns:timeout=25s
 expect=exit:code=0
 

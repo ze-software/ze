@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/rib-withdrawal"
+		run "le-test fixture plugin/rib-withdrawal"
 		encoder json
 	}
 	internal bgp-rib {

@@ -65,7 +65,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-scope {
-		run "ze-test fixture plugin/role-otc-unicast-scope"
+		run "le-test fixture plugin/role-otc-unicast-scope"
 		encoder json
 	}
 }

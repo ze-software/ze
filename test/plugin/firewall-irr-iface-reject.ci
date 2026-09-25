@@ -33,7 +33,7 @@ option=timeout:value=20s
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-iface-reject-test {
-		run "ze-test fixture plugin/firewall-irr-iface-reject"
+		run "le-test fixture plugin/firewall-irr-iface-reject"
 		encoder json
 	}
 }

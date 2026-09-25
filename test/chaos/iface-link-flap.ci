@@ -9,5 +9,5 @@
 # internal/chaos/peer/simulator_actions_iface_integration_linux_test.go, which
 # runs under QEMU / CAP_NET_ADMIN.
 
-cmd=foreground:seq=1:exec=ze-chaos --seed 7777 --peers 2 --duration 15s --chaos-actions iface-link-flap --chaos-rate 0.5 --quiet --port $PORT:timeout=30s
+cmd=foreground:seq=1:exec=le chaos run --seed 7777 --peers 2 --duration 15s --chaos-actions iface-link-flap --chaos-rate 0.5 --quiet --port $PORT:timeout=30s
 expect=exit:code=0

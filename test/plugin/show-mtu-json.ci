@@ -13,7 +13,7 @@
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
-# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw
@@ -21,13 +21,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=mtu-json.conf:terminator=EOF_CONF
 plugin {
 	external show-mtu-test {
-		run "ze-test fixture plugin/show-mtu-json"
+		run "le-test fixture plugin/show-mtu-json"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtujson$PORT run ze start mtu-json.conf:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtujson$PORT run ze start mtu-json.conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: show mtu answers one kebab-case document with its lists as lists
 reject=stderr:pattern=ZE-OBSERVER-FAIL

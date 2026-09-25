@@ -5,6 +5,6 @@
 
 option=timeout:value=900s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-functional-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-functional-answers
 expect=exit:code=0
 expect=stdout:contains=OK

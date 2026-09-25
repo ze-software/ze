@@ -38,7 +38,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ssh-session-test {
-		run "ze-test fixture plugin/config-edit-ssh-session $PORT2"
+		run "le-test fixture plugin/config-edit-ssh-session $PORT2"
 		encoder json
 	}
 }

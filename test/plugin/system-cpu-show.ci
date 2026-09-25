@@ -19,7 +19,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external system-cpu-show-test {
-		run "ze-test fixture plugin/system-cpu-show"
+		run "le-test fixture plugin/system-cpu-show"
 		encoder json
 	}
 }

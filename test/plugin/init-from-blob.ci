@@ -2,6 +2,6 @@
 # VALIDATES: `ze init --from <blob>` publishes database/ byte-equal to the blob, retires the blob, and refuses a live store, a running owner and --seed.
 # PREVENTS: a blob silently opened as the live store, or an import that loses or alters a seeded value.
 option=timeout:value=90s
-cmd=foreground:seq=1:exec=ze-test fixture storage/tree init-from-blob:timeout=90s:exit=0
+cmd=foreground:seq=1:exec=le-test fixture storage/tree init-from-blob:timeout=90s:exit=0
 expect=exit:code=0
 expect=stdout:contains=OK: init-from-blob

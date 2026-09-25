@@ -24,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-disconnect {
-        run "ze-test fixture plugin/bmp-lg-disconnect $PORT2;"
+        run "le-test fixture plugin/bmp-lg-disconnect $PORT2;"
         encoder json;
     }
 }

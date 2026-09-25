@@ -20,7 +20,7 @@ option=timeout:value=60s
 
 
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-freshness-scoped
+cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-freshness-scoped
 expect=exit:code=0
 expect=stdout:contains=scratch-repo-ready
 expect=stdout:contains=scoped-fresh-for-my-path

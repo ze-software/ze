@@ -25,7 +25,7 @@
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external config-apply-ordering-coarse-root {
-		run "ze-test fixture reload/config-apply-ordering-coarse-root"
+		run "le-test fixture reload/config-apply-ordering-coarse-root"
 		encoder json
 	}
 }
@@ -77,7 +77,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external config-apply-ordering-coarse-root {
-		run "ze-test fixture reload/config-apply-ordering-coarse-root"
+		run "le-test fixture reload/config-apply-ordering-coarse-root"
 		encoder json
 	}
 }
@@ -123,7 +123,7 @@ bgp {
 }
 EOF_CONF2
 
-cmd=background:seq=1:exec=ze-test fixture reload/config-apply-ordering-coarse-root-trigger
+cmd=background:seq=1:exec=le-test fixture reload/config-apply-ordering-coarse-root-trigger
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 # Stop once the reload completed and the observer saw the coarse root applied.
 await=stderr:contains=sighup reload complete:then=stop

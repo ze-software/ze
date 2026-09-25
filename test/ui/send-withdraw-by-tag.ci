@@ -1,7 +1,7 @@
 # Test: an announcement carrying a tag is listed while it is live, withdrawing
 # the tag reports one removal, and the peer reads the withdrawal.
 #
-# The fixture starts the daemon over ephemeral SSH and the ze-test peer this
+# The fixture starts the daemon over ephemeral SSH and the le-test peer this
 # file scripts, because only a compiled fixture can read the address the daemon
 # publishes into the file ZE_SSH_EPHEMERAL names.
 #
@@ -25,6 +25,6 @@ EOF_PEER
 
 option=timeout:value=180s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/send-withdraw-by-tag $PORT:timeout=170s
+cmd=foreground:seq=1:exec=le-test fixture ui/send-withdraw-by-tag $PORT:timeout=170s
 expect=exit:code=0
 expect=stdout:contains=OK

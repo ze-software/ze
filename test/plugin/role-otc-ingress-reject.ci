@@ -37,7 +37,7 @@ EOF_DEST
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-otc {
-		run "ze-test fixture plugin/role-otc-ingress-reject"
+		run "le-test fixture plugin/role-otc-ingress-reject"
 		encoder json
 	}
 }

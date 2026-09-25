@@ -1,4 +1,4 @@
-# One SSH file, and the two answers `le changed scope` gives back.
+# One SSH file, and the two answers `le repo changed scope` gives back.
 #
 # A developer edits `internal/component/ssh/ssh.go` and asks which packages must
 # be retested and which features the change can reach. The selector
@@ -28,7 +28,7 @@ option=timeout:value=180s
 
 
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-selector
+cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-selector
 expect=exit:code=0
 expect=stdout:contains=ssh-selects-its-gated-importer
 expect=stdout:contains=ssh-reaches-one-feature

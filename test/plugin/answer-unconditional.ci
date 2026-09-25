@@ -39,11 +39,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external answer-silent {
-		run "ze-test fixture plugin/answer-unconditional-first"
+		run "le-test fixture plugin/answer-unconditional-first"
 		encoder json
 	}
 	external answer-second {
-		run "ze-test fixture plugin/answer-unconditional-second"
+		run "le-test fixture plugin/answer-unconditional-second"
 		encoder json
 	}
 }

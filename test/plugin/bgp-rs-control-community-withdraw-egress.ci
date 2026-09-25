@@ -99,7 +99,7 @@ plugin {
 		use bgp-rs
 	}
 	external rs-community-withdraw {
-		run "ze-test fixture plugin/bgp-rs-control-community-withdraw-egress"
+		run "le-test fixture plugin/bgp-rs-control-community-withdraw-egress"
 		encoder json
 	}
 }

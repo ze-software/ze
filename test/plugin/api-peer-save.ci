@@ -16,7 +16,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external peer-save-test {
-		run "ze-test fixture plugin/api-peer-save"
+		run "le-test fixture plugin/api-peer-save"
 		encoder json
 	}
 }

@@ -169,7 +169,7 @@ plugin {
 		use bgp-rs
 	}
 	external overflow-test {
-		run "ze-test fixture plugin/forward-overflow-two-tier"
+		run "le-test fixture plugin/forward-overflow-two-tier"
 		encoder json
 	}
 }

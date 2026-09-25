@@ -36,7 +36,7 @@
 #
 # needs-linux:caps=net-admin: creating a veth pair, writing per-device sysctls
 # and opening a raw ICMPv6 socket need CAP_NET_ADMIN and CAP_NET_RAW, which the
-# verify runner does not have. Runs as root under `./le qemu all-tests`.
+# verify runner does not have. Runs as root under `./le test qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the veth pair zeraslc0/zeraslc1, created from the
 # configuration and deleted by the daemon at shutdown, and the address block
@@ -49,7 +49,7 @@ option=timeout:value=90s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-ra-slaac {
-		run "ze-test fixture plugin/iface-ra-slaac"
+		run "le-test fixture plugin/iface-ra-slaac"
 		encoder json
 	}
 }

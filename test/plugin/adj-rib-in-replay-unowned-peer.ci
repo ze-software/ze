@@ -107,7 +107,7 @@ plugin {
 		use bgp-rs
 	}
 	external unowned-peer {
-		run "ze-test fixture plugin/adj-rib-in-replay-unowned-peer"
+		run "le-test fixture plugin/adj-rib-in-replay-unowned-peer"
 		encoder json
 	}
 	internal adj-rib-in {

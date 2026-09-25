@@ -27,7 +27,7 @@ plugin {
 	# The engine should auto-load bgp-rpki-decorator (and its dependency bgp-rpki)
 	# because rpki-auto-test has receive [ update-rpki ].
 	external rpki-auto-test {
-		run "ze-test fixture plugin/rpki-decorator-autoload"
+		run "le-test fixture plugin/rpki-decorator-autoload"
 		encoder json
 	}
 }

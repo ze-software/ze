@@ -34,7 +34,7 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external sink-json {
-		run "ze-test fixture runner/json-assertion-survives-sink-peer"
+		run "le-test fixture runner/json-assertion-survives-sink-peer"
 		encoder json
 	}
 }

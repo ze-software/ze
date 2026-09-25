@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external dial-no-anchor-test {
-        run "ze-test fixture plugin/dial-no-anchor"
+        run "le-test fixture plugin/dial-no-anchor"
         encoder json
     }
 }

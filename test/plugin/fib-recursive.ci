@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-recursive-test {
-		run "ze-test fixture plugin/fib-recursive"
+		run "le-test fixture plugin/fib-recursive"
 		encoder json
 	}
 	internal bgp-rib {

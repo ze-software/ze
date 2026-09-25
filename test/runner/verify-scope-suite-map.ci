@@ -1,4 +1,4 @@
-# One recorded suite map, and the run list `le functional select` answers from it.
+# One recorded suite map, and the run list `le test functional select` answers from it.
 #
 # The functional stage asks two questions before it builds anything: which
 # packages this change set reaches, and which packages each suite reached when
@@ -29,7 +29,7 @@ option=timeout:value=180s
 
 
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-suite-map
+cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-suite-map
 expect=exit:code=0
 expect=stdout:contains=map-narrows-to-the-suites-that-reached-the-package
 expect=stdout:contains=unknown-package-runs-every-suite-and-is-named

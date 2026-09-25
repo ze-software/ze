@@ -38,7 +38,7 @@ stdin=mcp:terminator=EOF_MCP
 wait-established
 # No readiness signal: wait-established polls until ze reports the peer up, but
 # nothing this client can query says the peer's UPDATE has been installed in the
-# Adj-RIB-In. ze-test mcp has no "poll a command until its output contains X"
+# Adj-RIB-In. le-test mcp has no "poll a command until its output contains X"
 # directive, so this remains a fixed hold rather than a condition wait.
 wait 1s
 # An ORDINARY tools/call. ze_show_bgp carries `ze:task-support required`, so the
@@ -100,7 +100,7 @@ EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=20s
+cmd=foreground:seq=3:exec=le-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=20s
 # Declaring an exit code is what makes the runner wait on -- and judge -- the
 # MCP client at all; without it the peer's EOR would be the only thing checked.
 expect=exit:code=0

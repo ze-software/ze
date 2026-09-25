@@ -27,7 +27,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-ebgp-test {
-		run "ze-test fixture plugin/redistribute-as112-origin-ebgp"
+		run "le-test fixture plugin/redistribute-as112-origin-ebgp"
 		encoder json
 	}
 	internal redistribute-orchestrator {

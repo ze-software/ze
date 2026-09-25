@@ -75,9 +75,9 @@ EOF_CONF
 
 option=env:var=ze.log.vrrp:value=info
 
-cmd=foreground:seq=1:exec=ze-test fixture vrrp/vrrp-track-setup
+cmd=foreground:seq=1:exec=le-test fixture vrrp/vrrp-track-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture vrrp/vrrp-track-driver:timeout=180s
+cmd=foreground:seq=3:exec=le-test fixture vrrp/vrrp-track-driver:timeout=180s
 expect=exit:code=0
 expect=stdout:contains=ADVERT-PRIORITY 200 tracked-interface-up
 expect=stdout:contains=ADVERT-PRIORITY 50 tracked-interface-down

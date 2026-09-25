@@ -23,7 +23,7 @@
 # daemon runs in the sender namespace, the router forwards with its far link at
 # 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
 # the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
-# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# root (`./le test qemu all-tests`) and skips in the unprivileged merge gate. The
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw
@@ -35,7 +35,7 @@ option=timeout:value=240s
 tmpfs=mtu-ike-probe.conf:terminator=EOF_A
 plugin {
 	external show-mtu-test {
-		run "ze-test fixture plugin/show-mtu-ike-probe"
+		run "le-test fixture plugin/show-mtu-ike-probe"
 		encoder json
 	}
 }
@@ -206,7 +206,7 @@ vpn {
 }
 EOF_C
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtuike$PORT far-daemon mtu-ike-probe-b.conf far-daemon mtu-ike-probe-c.conf run ze start mtu-ike-probe.conf:timeout=230s
+cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtuike$PORT far-daemon mtu-ike-probe-b.conf far-daemon mtu-ike-probe-c.conf run ze start mtu-ike-probe.conf:timeout=230s
 expect=exit:code=0
 expect=stderr:contains=OK: both tunnels keep the 1400 clamp, confirmed by the padded IKE exchange down to the 1388 grid point, and both SAs are still established
 reject=stderr:pattern=ZE-OBSERVER-FAIL

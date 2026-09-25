@@ -109,7 +109,7 @@ func redsScratchRun(repo string) error {
 		"tmp/verify/full-inflight/01-go-lint-run.log": redsStageLog("go lint/run", 1,
 			`VERIFY FAILURE GROUP: {"group-id":"lint:theirs","kind":"lint",`+
 				`"related":["internal/theirs/b.go"],"summary":"golangci-lint reported findings",`+
-				`"rerun":"./le verify lint run"}`,
+				`"rerun":"./le go lint run"}`,
 			"VERIFY FAILURE GROUPS COMPLETE: 1"),
 		"tmp/verify/full-inflight/02-tier-check.log": redsStageLog("tier/check", 0, "OK"),
 		"tmp/verify/full-inflight/03-rfc-check.log": redsStageLog("rfc/check", 2,

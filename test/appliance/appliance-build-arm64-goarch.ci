@@ -18,6 +18,6 @@ tmpfs=build-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-build-arm64-goarch "$ZE_REPO_ROOT"
+cmd=foreground:seq=1:exec=le-test fixture appliance/appliance-build-arm64-goarch "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

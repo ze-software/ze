@@ -34,7 +34,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external reason-test {
-		run "ze-test fixture plugin/bestpath-reason"
+		run "le-test fixture plugin/bestpath-reason"
 		encoder json
 	}
 	internal bgp-rib {

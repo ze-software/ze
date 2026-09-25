@@ -41,7 +41,7 @@
 #
 # needs-linux: every step programs real netlink links (dummy interface + 802.1Q VLAN) and
 # requires CAP_NET_ADMIN, so the SKIPPED-on-darwin runner cannot exercise it. Run via
-# `./le qemu all-tests` (boots a root QEMU VM). zeens0, zeensrollback01 and
+# `./le test qemu all-tests` (boots a root QEMU VM). zeens0, zeensrollback01 and
 # zeensrollback02 are uniquely named throwaways in the VM's default namespace, deleted in
 # the finally block (idempotent on rerun).
 option=needs-linux:caps=net-admin
@@ -50,7 +50,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-ensure-rollback {
-		run "ze-test fixture plugin/iface-ensure-rollback"
+		run "le-test fixture plugin/iface-ensure-rollback"
 		encoder json
 	}
 }

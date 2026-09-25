@@ -54,7 +54,7 @@ EOF_PEER6
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-announce-test {
-		run "ze-test fixture plugin/redistribute-as112-announce"
+		run "le-test fixture plugin/redistribute-as112-announce"
 		encoder json
 	}
 	internal redistribute-orchestrator {

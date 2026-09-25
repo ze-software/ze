@@ -38,7 +38,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     internal rs { use bgp-rs; }
     external claim-permission {
-        run "ze-test fixture plugin/peer-up-replay-claim-permission";
+        run "le-test fixture plugin/peer-up-replay-claim-permission";
         encoder json;
     }
 }

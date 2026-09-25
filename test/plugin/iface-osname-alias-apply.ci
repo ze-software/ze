@@ -22,7 +22,7 @@
 #
 # needs-linux:caps=net-admin: creating a netdev and assigning an address needs
 # CAP_NET_ADMIN, which the verify runner does not have. Runs as root under
-# `./le qemu all-tests`.
+# `./le test qemu all-tests`.
 #
 # KERNEL STATE THIS TEST OWNS: the device zeosnsel0 and the address block
 # 198.51.100.112/28. No other file under test/ puts either in a kernel. The
@@ -35,7 +35,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-osname-alias-apply {
-		run "ze-test fixture plugin/iface-osname-alias-apply"
+		run "le-test fixture plugin/iface-osname-alias-apply"
 		encoder json
 	}
 }

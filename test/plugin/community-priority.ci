@@ -35,7 +35,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-priority {
-		run "ze-test fixture plugin/community-priority"
+		run "le-test fixture plugin/community-priority"
 		encoder json
 	}
 	internal bgp-rib {

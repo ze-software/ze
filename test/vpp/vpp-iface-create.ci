@@ -15,7 +15,7 @@
 #            populateNameMap blocking the iface component startup path.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture vpp/vpp-iface-create:timeout=25s
+cmd=foreground:seq=1:exec=le-test fixture vpp/vpp-iface-create:timeout=25s
 expect=exit:code=0
 expect=stderr:pattern=OK: ifacevpp loaded
 # spec-iface-vpp-ready-gate: reconciliation must defer silently, not

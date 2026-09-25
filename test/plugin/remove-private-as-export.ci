@@ -98,7 +98,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external remove-private-as-export {
-		run "ze-test fixture plugin/remove-private-as-export"
+		run "le-test fixture plugin/remove-private-as-export"
 		encoder json
 	}
 }

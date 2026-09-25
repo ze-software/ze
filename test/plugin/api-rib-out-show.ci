@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rib-out-show-test {
-		run "ze-test fixture plugin/api-rib-out-show"
+		run "le-test fixture plugin/api-rib-out-show"
 		encoder json
 	}
 	internal bgp-rib {

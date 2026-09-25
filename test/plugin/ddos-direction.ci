@@ -106,7 +106,7 @@ traffic {
 
 plugin {
 	external ddos-direction-probe {
-		run "ze-test fixture plugin/ddos-direction"
+		run "le-test fixture plugin/ddos-direction"
 		encoder json
 	}
 }

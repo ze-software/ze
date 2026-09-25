@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-lab {
-		run "ze-test interop-bgp process lg-graph-lab lg-lab"
+		run "le-test interop-bgp process lg-graph-lab lg-lab"
 		encoder json
 	}
 	internal bgp-rib {

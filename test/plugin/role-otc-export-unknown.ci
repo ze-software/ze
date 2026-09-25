@@ -63,7 +63,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-unknown {
-		run "ze-test fixture plugin/role-otc-export-unknown"
+		run "le-test fixture plugin/role-otc-export-unknown"
 		encoder json
 	}
 }

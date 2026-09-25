@@ -30,7 +30,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/mup-ipv6-announce"
+		run "le-test fixture plugin/mup-ipv6-announce"
 		encoder json
 	}
 }

@@ -2,5 +2,5 @@
 # VALIDATES: admin default allow and restricted entry matches both authorize commands.
 # PREVENTS: missing authorization wiring on the SSH dispatcher.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/authz-allow:timeout=15s
+cmd=foreground:seq=1:exec=le-test fixture plugin/authz-allow:timeout=15s
 expect=exit:code=0

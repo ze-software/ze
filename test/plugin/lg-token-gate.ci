@@ -12,6 +12,6 @@
 option=timeout:value=60s
 
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/lg-token-gate:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture plugin/lg-token-gate:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: the configured token gates every looking glass route

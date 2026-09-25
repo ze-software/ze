@@ -30,7 +30,7 @@ EOF_PEER
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-auth-sha1-test {
-		run "ze-test fixture plugin/bfd-auth-sha1"
+		run "le-test fixture plugin/bfd-auth-sha1"
 		encoder json
 	}
 }

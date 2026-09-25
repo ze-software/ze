@@ -12,7 +12,7 @@
 # ("a server MUST NOT rely on capabilities the client has not declared") governs
 # capabilities the CLIENT provides, and still gates the Tasks extension.
 #
-# WHY THIS RUNS AGAINST ze-chaos: Provider mode is where the old code modeled
+# WHY THIS RUNS AGAINST le chaos run: Provider mode is where the old code modeled
 # "no session" as a nil *session pointer and handed it to every handler, and
 # resourcesList/resourcesRead dereferenced it. Provider mode is now the same
 # branch as every other caller (internal/component/mcp/resources.go), so this is
@@ -23,7 +23,7 @@
 # The final check is the liveness half: after three resource calls the listener
 # still answers tools/list, so serving is a per-request verdict and not a crash.
 
-cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+cmd=background:seq=1:exec=le chaos run --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
 
 # Readiness: GET the POST-only endpoint until it answers 405.
 http=wait:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=405:contains=method not allowed:timeout=20s

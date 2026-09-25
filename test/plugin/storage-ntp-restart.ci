@@ -3,13 +3,13 @@
 # PREVENTS: a working generic state RPC hiding a consumer that never restores.
 # The fixture launches ze start <selected>/router.conf without a config-dir pin.
 # It SETS THE SYSTEM CLOCK, so it runs only where the process holds
-# CAP_SYS_TIME: the disposable QEMU guest through ./le qemu all-tests. An
+# CAP_SYS_TIME: the disposable QEMU guest through ./le test qemu all-tests. An
 # unprivileged developer host skips it. The env opt-in is what the fixture
 # demands before it touches the clock; the caps gate is what keeps it off a host
 # that must keep its time.
 option=needs-linux:caps=sys-time
 option=env:var=ZE_STORAGE_CLOCK_TEST:value=1
 option=timeout:value=70s
-cmd=foreground:seq=1:exec=ze-test fixture storage/consumer-restart ntp:timeout=60s
+cmd=foreground:seq=1:exec=le-test fixture storage/consumer-restart ntp:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: ntp consumer restored operational state from selected tree without config-dir pin

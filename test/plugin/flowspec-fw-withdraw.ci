@@ -43,7 +43,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flowspec-fw-process {
-		run "ze-test fixture plugin/flowspec-fw-withdraw"
+		run "le-test fixture plugin/flowspec-fw-withdraw"
 		encoder json
 	}
 }

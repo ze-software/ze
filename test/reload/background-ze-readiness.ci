@@ -48,6 +48,6 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze start ze-bgp.conf
-cmd=foreground:seq=2:exec=ze-test fixture reload/background-ze-readiness:timeout=20s
+cmd=foreground:seq=2:exec=le-test fixture reload/background-ze-readiness:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=background ze readiness files present

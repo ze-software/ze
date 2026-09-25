@@ -29,7 +29,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external errors-config-abort-show-test {
-		run "ze-test fixture plugin/errors-config-abort-show"
+		run "le-test fixture plugin/errors-config-abort-show"
 		encoder json
 	}
 }
@@ -75,7 +75,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external errors-config-abort-show-test {
-		run "ze-test fixture plugin/errors-config-abort-show"
+		run "le-test fixture plugin/errors-config-abort-show"
 		encoder json
 	}
 }

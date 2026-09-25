@@ -56,8 +56,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
-# ze-test mcp prints the tool error to stderr and exits non-zero.
+cmd=foreground:seq=2:exec=le-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+# le-test mcp prints the tool error to stderr and exits non-zero.
 expect=exit:code=1
 expect=stderr:contains=declined
 expect=stderr:contains=command error

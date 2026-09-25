@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-chain {
-		run "ze-test fixture plugin/prefix-filter-chain-order"
+		run "le-test fixture plugin/prefix-filter-chain-order"
 		encoder json
 	}
 }

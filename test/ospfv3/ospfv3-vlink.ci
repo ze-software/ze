@@ -20,7 +20,7 @@ option=netns-link:name=eth0
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospfv3-vlink {
-		run "ze-test fixture ospfv3/ospfv3-vlink"
+		run "le-test fixture ospfv3/ospfv3-vlink"
 		encoder json
 	}
 }

@@ -201,7 +201,7 @@ EOF_CONF2
 # It binds no listener, so it retries the dial until ze binds (dialTarget,
 # internal/test/peer/peer.go).
 cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture reload/reload-dynamic-peer-survives-trigger
+cmd=background:seq=2:exec=le-test fixture reload/reload-dynamic-peer-survives-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 # The runner stops the daemon once the reload reports completion. The peer is
 # not lingering, so then=stop does not wait for it: its expectation is the

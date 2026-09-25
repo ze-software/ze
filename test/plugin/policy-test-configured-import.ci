@@ -12,7 +12,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external policy-test-import {
-		run "ze-test fixture plugin/policy-test-configured-import"
+		run "le-test fixture plugin/policy-test-configured-import"
 		encoder json
 	}
 }

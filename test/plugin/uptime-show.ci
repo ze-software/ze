@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external uptime-show-test {
-		run "ze-test fixture plugin/uptime-show"
+		run "le-test fixture plugin/uptime-show"
 		encoder json
 	}
 }

@@ -6,7 +6,7 @@
 # computed over the wrong octets (the server discards it and the login times
 # out), a dropped State, and a password credential sent under an EAP method.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/aaa-radius-eap:timeout=30s
+cmd=foreground:seq=1:exec=le-test fixture plugin/aaa-radius-eap:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=auth success.*source=radius
 expect=stderr:pattern=method=eap

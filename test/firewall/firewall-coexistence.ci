@@ -39,9 +39,9 @@ EOF_CONF
 
 option=env:var=ze.log.firewall:value=info
 
-cmd=foreground:seq=1:exec=ze-test fixture firewall/firewall-coexistence-setup
+cmd=foreground:seq=1:exec=le-test fixture firewall/firewall-coexistence-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture firewall/firewall-coexistence
+cmd=foreground:seq=3:exec=le-test fixture firewall/firewall-coexistence
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw10_003

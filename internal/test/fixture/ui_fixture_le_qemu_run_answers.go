@@ -185,7 +185,7 @@ func leQEMURunAnswers(ctx context.Context) error {
 	if len(calls) != 3 {
 		return fmt.Errorf("FAIL: qemu run made %d commands, want 3: %#v", len(calls), calls)
 	}
-	wantPrograms := []string{areaQEMU, programSSH, programSSH}
+	wantPrograms := []string{programQEMU, programSSH, programSSH}
 	for i, call := range calls {
 		if call.Program != wantPrograms[i] {
 			return fmt.Errorf("FAIL: command order changed: %#v", calls)

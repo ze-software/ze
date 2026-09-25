@@ -87,7 +87,7 @@ plugin {
 		use bgp-rs
 	}
 	external relay-nhself {
-		run "ze-test fixture plugin/relay-withdraw-nexthop-self"
+		run "le-test fixture plugin/relay-withdraw-nexthop-self"
 		encoder json
 	}
 }

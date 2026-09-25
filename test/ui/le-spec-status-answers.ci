@@ -3,6 +3,6 @@
 # inventory over the real checkout in page, record, and row-operator forms.
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-spec-status-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-spec-status-answers
 expect=exit:code=0
 expect=stdout:contains=OK

@@ -63,7 +63,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=30s
+cmd=foreground:seq=2:exec=le-test mcp --port $PORT:stdin=mcp:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=tools-order stable=true calls=8
 # The digest is a SHA-256 prefix over the raw tools array. Asserting its shape

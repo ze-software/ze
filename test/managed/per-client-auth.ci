@@ -4,5 +4,5 @@
 # PREVENTS: Hub unable to authenticate managed clients from config.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture managed/per-client-auth:timeout=10s
+cmd=foreground:seq=1:exec=le-test fixture managed/per-client-auth:timeout=10s
 expect=exit:code=0

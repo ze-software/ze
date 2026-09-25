@@ -21,7 +21,7 @@
 # Steps 3 and 4 are the original tools/list and chaos_status checks, unchanged
 # except for the headers and _meta every request now carries.
 
-cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+cmd=background:seq=1:exec=le chaos run --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
 
 # Readiness: GET the MCP endpoint until it answers 405 Method Not Allowed.
 http=wait:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=405:contains=method not allowed:timeout=20s

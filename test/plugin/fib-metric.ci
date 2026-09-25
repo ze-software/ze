@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-metric-test {
-		run "ze-test fixture plugin/fib-metric"
+		run "le-test fixture plugin/fib-metric"
 		encoder json
 	}
 	internal bgp-rib {

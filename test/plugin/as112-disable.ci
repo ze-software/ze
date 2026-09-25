@@ -28,7 +28,7 @@ service {
 
 plugin {
 	external as112-disable-test {
-		run "ze-test fixture plugin/as112-disable"
+		run "le-test fixture plugin/as112-disable"
 		encoder json
 	}
 }

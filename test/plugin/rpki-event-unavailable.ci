@@ -24,7 +24,7 @@ plugin {
 		}
 	}
 	external rpki-unavail-test {
-		run "ze-test fixture plugin/rpki-event-unavailable"
+		run "le-test fixture plugin/rpki-event-unavailable"
 		encoder json
 	}
 	internal rpki {

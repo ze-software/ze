@@ -28,7 +28,7 @@
 # WHY THIS IS A SEPARATE FILE from policy-interface-list.ci, which proves the
 # same policy installs two rules. `ze cli` is a foreground `ze`, and the runner
 # waits for a foreground ze only when it is the LAST command. Placed before the
-# ze-test fixture step, the client is left running, the fixture stops the daemon,
+# le-test fixture step, the client is left running, the fixture stops the daemon,
 # and the answer never reaches the assertion buffer. So this test ends on the
 # client, and the daemon is stopped by teardown.
 #

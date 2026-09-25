@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gnmi-show-test {
-		run "ze-test fixture plugin/gnmi-show"
+		run "le-test fixture plugin/gnmi-show"
 		encoder json
 	}
 }

@@ -32,7 +32,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external forked-route {
-		run "ze-test fixture plugin/forked-route-install-kernel"
+		run "le-test fixture plugin/forked-route-install-kernel"
 		encoder json
 	}
 	internal rib {

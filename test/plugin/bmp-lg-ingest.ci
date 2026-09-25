@@ -24,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-ingest {
-        run "ze-test fixture plugin/bmp-lg-ingest $PORT2;"
+        run "le-test fixture plugin/bmp-lg-ingest $PORT2;"
         encoder json;
     }
 }

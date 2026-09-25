@@ -23,6 +23,6 @@ tmpfs=push-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-push-image-escape
+cmd=foreground:seq=1:exec=le-test fixture appliance/appliance-push-image-escape
 expect=exit:code=0
 expect=stderr:contains=error: image path ze-20260101-000000.img escapes appliance directory

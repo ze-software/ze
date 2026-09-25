@@ -25,7 +25,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ldp-reload {
-		run "ze-test fixture ldp/ldp-reload"
+		run "le-test fixture ldp/ldp-reload"
 		encoder json
 	}
 }

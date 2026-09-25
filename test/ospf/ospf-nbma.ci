@@ -19,7 +19,7 @@ option=netns-link:name=nbma0:address=10.0.0.1/24
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-nbma {
-		run "ze-test fixture ospf/ospf-nbma"
+		run "le-test fixture ospf/ospf-nbma"
 		encoder json
 	}
 }

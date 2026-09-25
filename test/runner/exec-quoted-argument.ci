@@ -9,6 +9,6 @@
 
 option=timeout:value=20s
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/exec-quoted-argument "one | two three"
+cmd=foreground:seq=1:exec=le-test fixture runner/exec-quoted-argument "one | two three"
 expect=exit:code=0
 expect=stdout:contains=quoted-argument-intact

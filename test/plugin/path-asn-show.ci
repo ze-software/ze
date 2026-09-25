@@ -31,7 +31,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-path-asn-show {
-		run "ze-test fixture plugin/path-asn-show"
+		run "le-test fixture plugin/path-asn-show"
 		encoder json
 	}
 }

@@ -83,13 +83,13 @@ func leGoExtractAnswers(ctx context.Context) error {
 	fromCommand, err := runGoExtractCommand(ctx, commandDir, le,
 		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta")
 	if err != nil {
-		return fmt.Errorf("FAIL: run le go-extract: %w", err)
+		return fmt.Errorf("FAIL: run le go extract: %w", err)
 	}
 	if fromCommand.code != 0 {
-		return fmt.Errorf("FAIL: le go-extract exited %d: %s", fromCommand.code, fromCommand.stderr)
+		return fmt.Errorf("FAIL: le go extract exited %d: %s", fromCommand.code, fromCommand.stderr)
 	}
 	if fromCommand.stdout != goExtractSummary {
-		return fmt.Errorf("FAIL: le go-extract answered %q, want %q", fromCommand.stdout, goExtractSummary)
+		return fmt.Errorf("FAIL: le go extract answered %q, want %q", fromCommand.stdout, goExtractSummary)
 	}
 
 	byCommand, err := readGoExtractFiles(commandDir)
@@ -101,7 +101,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		fileSampleGo: goExtractSourceAfterBeta,
 	}
 	if !reflect.DeepEqual(byCommand, wantCommand) {
-		return fmt.Errorf("FAIL: le go-extract wrote different files:\n got: %#v\nwant: %#v", byCommand, wantCommand)
+		return fmt.Errorf("FAIL: le go extract wrote different files:\n got: %#v\nwant: %#v", byCommand, wantCommand)
 	}
 	if !strings.Contains(byCommand["beta.go"], "func Beta") {
 		return fmt.Errorf("FAIL: the declaration did not move: %#v", byCommand)
@@ -117,10 +117,10 @@ func leGoExtractAnswers(ctx context.Context) error {
 	answer, err := runGoExtractCommand(ctx, jsonDir, le,
 		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "json")
 	if err != nil {
-		return fmt.Errorf("FAIL: run `le go-extract | json`: %w", err)
+		return fmt.Errorf("FAIL: run `le go extract | json`: %w", err)
 	}
 	if answer.code != 0 {
-		return fmt.Errorf("FAIL: `le go-extract | json` exited %d: %s", answer.code, answer.stderr)
+		return fmt.Errorf("FAIL: `le go extract | json` exited %d: %s", answer.code, answer.stderr)
 	}
 
 	var report map[string]any
@@ -129,7 +129,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		if len(preview) > 400 {
 			preview = preview[:400]
 		}
-		return fmt.Errorf("FAIL: `le go-extract | json` did not answer JSON: %w\n%s", err, preview)
+		return fmt.Errorf("FAIL: `le go extract | json` did not answer JSON: %w\n%s", err, preview)
 	}
 	if report["source"] != fileSampleGo {
 		return fmt.Errorf("FAIL: source = %#v", report["source"])
@@ -173,13 +173,13 @@ func leGoExtractAnswers(ctx context.Context) error {
 		"go-extract", "source", "sample.go", "dest", "both.go",
 		"symbol", "Alpha", "symbol", "Beta", "|", "count")
 	if err != nil {
-		return fmt.Errorf("FAIL: run `le go-extract | count`: %w", err)
+		return fmt.Errorf("FAIL: run `le go extract | count`: %w", err)
 	}
 	if counted.code != 0 {
-		return fmt.Errorf("FAIL: `le go-extract | count` exited %d: %s", counted.code, counted.stderr)
+		return fmt.Errorf("FAIL: `le go extract | count` exited %d: %s", counted.code, counted.stderr)
 	}
 	if !strings.Contains(counted.stdout, "2") {
-		return fmt.Errorf("FAIL: `le go-extract | count` answered %q, want 2", counted.stdout)
+		return fmt.Errorf("FAIL: `le go extract | count` answered %q, want 2", counted.stdout)
 	}
 
 	yamlDir, err := makeGoExtractTree(here, "by-yaml")
@@ -189,13 +189,13 @@ func leGoExtractAnswers(ctx context.Context) error {
 	asYAML, err := runGoExtractCommand(ctx, yamlDir, le,
 		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "yaml")
 	if err != nil {
-		return fmt.Errorf("FAIL: run `le go-extract | yaml`: %w", err)
+		return fmt.Errorf("FAIL: run `le go extract | yaml`: %w", err)
 	}
 	if asYAML.code != 0 {
-		return fmt.Errorf("FAIL: `le go-extract | yaml` exited %d", asYAML.code)
+		return fmt.Errorf("FAIL: `le go extract | yaml` exited %d", asYAML.code)
 	}
 	if !strings.Contains(asYAML.stdout, "Beta") {
-		return fmt.Errorf("FAIL: `le go-extract | yaml` answered nothing usable:\n%s", asYAML.stdout)
+		return fmt.Errorf("FAIL: `le go extract | yaml` answered nothing usable:\n%s", asYAML.stdout)
 	}
 
 	bareDir, err := makeGoExtractTree(here, "by-bare")

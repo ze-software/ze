@@ -74,6 +74,6 @@ EOF_CONF
 option=env:var=ze.log.traffic:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture traffic/traffic-vpp-accept-multiclass:timeout=15s
+cmd=foreground:seq=2:exec=le-test fixture traffic/traffic-vpp-accept-multiclass:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=vpp not connected

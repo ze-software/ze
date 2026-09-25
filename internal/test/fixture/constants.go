@@ -244,7 +244,8 @@ const (
 	nftVerdictDrop               = "drop"
 	programQEMUAArch64           = "qemu-system-aarch64"
 	programSSH                   = "ssh"
-	xfrmWordSource               = "src" // The ip xfrm output column.
+	programQEMU                  = "qemu" // The emulator program a fake records.
+	xfrmWordSource               = "src"  // The ip xfrm output column.
 )
 
 // le areas, actions, checks and gates.
@@ -290,7 +291,7 @@ const (
 	checkIfaceResolution          = "arch iface-resolution"
 	checkPluginBoundary           = "plugin boundary"
 	checkPortDefaults             = "config ports"
-	checkRepositoryTrackedBuild   = "repo tracked-build"
+	checkRepoCompiles             = "repo compiles"
 	checkStaticcheckFeatureMatrix = "go staticcheck"
 	checkTestSensitivity          = "test sensitivity"
 	checkYANGLeafMentions         = "config unread-leaves"

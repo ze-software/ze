@@ -76,9 +76,9 @@ EOF_CONF
 
 option=env:var=ze.log.vrrp:value=info
 
-cmd=foreground:seq=1:exec=ze-test fixture vrrp/vrrp-accept-mode-setup
+cmd=foreground:seq=1:exec=le-test fixture vrrp/vrrp-accept-mode-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture vrrp/vrrp-accept-mode-driver:timeout=120s
+cmd=foreground:seq=3:exec=le-test fixture vrrp/vrrp-accept-mode-driver:timeout=120s
 expect=exit:code=0
 expect=stdout:contains=ACTIVE-WITH-VIP
 expect=stdout:contains=ND-CARVE-OUT-BEFORE-DROP

@@ -85,7 +85,7 @@ traffic {
 
 plugin {
 	external ddos-local-max-duration-probe {
-		run "ze-test fixture plugin/ddos-local-max-duration-driver"
+		run "le-test fixture plugin/ddos-local-max-duration-driver"
 		encoder json
 	}
 }

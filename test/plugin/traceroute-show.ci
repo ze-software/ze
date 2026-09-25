@@ -14,7 +14,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external traceroute-show-test {
-		run "ze-test fixture plugin/traceroute-show"
+		run "le-test fixture plugin/traceroute-show"
 		encoder json
 	}
 }

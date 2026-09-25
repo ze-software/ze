@@ -11,7 +11,7 @@
 
 option=timeout:value=45s
 
-cmd=foreground:seq=1:exec=ze-test local-data-coverage
+cmd=foreground:seq=1:exec=le-test local-data-coverage
 expect=exit:code=0
 expect=stdout:contains=COVERED: show config diff [done]
 expect=stdout:contains=COVERED: show config dump [done]

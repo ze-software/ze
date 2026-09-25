@@ -104,7 +104,7 @@ option=env:var=ze.log.traffic:value=debug
 # the store is private to this test.
 option=env:var=ze.config.dir:value=.
 
-cmd=background:seq=1:exec=ze-test fixture traffic/traffic-reload-qdisc-tc
+cmd=background:seq=1:exec=le-test fixture traffic/traffic-reload-qdisc-tc
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=traffic-control config reloaded

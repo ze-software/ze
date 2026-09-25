@@ -28,7 +28,7 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture reload/lg-pki-reference-reload-broken:timeout=90s
+cmd=foreground:seq=1:exec=le-test fixture reload/lg-pki-reference-reload-broken:timeout=90s
 expect=exit:code=0
 expect=stderr:contains=OK: the reload is refused, naming environment.looking-glass.certificate and the missing name
 expect=stderr:contains=OK: the looking glass keeps serving its previous chain and answering requests

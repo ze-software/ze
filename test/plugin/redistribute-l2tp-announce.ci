@@ -24,7 +24,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external l2tp-announce-test {
-		run "ze-test fixture plugin/redistribute-l2tp-announce"
+		run "le-test fixture plugin/redistribute-l2tp-announce"
 		encoder json
 	}
 	internal redistribute-orchestrator {

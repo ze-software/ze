@@ -29,7 +29,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run "ze-test fixture plugin/bgp-rs-mod-copy"
+		run "le-test fixture plugin/bgp-rs-mod-copy"
 		encoder json
 	}
 }

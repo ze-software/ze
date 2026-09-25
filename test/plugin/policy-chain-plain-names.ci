@@ -16,7 +16,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-chain-names {
-		run "ze-test fixture plugin/policy-chain-plain-names"
+		run "le-test fixture plugin/policy-chain-plain-names"
 		encoder json
 	}
 }

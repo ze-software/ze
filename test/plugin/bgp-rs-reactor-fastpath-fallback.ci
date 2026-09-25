@@ -80,7 +80,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run "ze-test fixture plugin/bgp-rs-reactor-fastpath-fallback"
+		run "le-test fixture plugin/bgp-rs-reactor-fastpath-fallback"
 		encoder json
 	}
 }

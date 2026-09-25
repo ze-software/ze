@@ -29,7 +29,7 @@ bgp {
 EOF_FILE
 
 
-cmd=foreground:seq=1:exec=ze-test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=1:exec=le-test fixture storage/empty-tree:exit=0
 cmd=foreground:seq=2:exec=ze config rollback 5 test.conf
 expect=exit:code=2
 expect=stderr:contains=revision 5 not found

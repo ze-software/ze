@@ -20,7 +20,7 @@ EOF_PEER
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external quit-test {
-		run "ze-test fixture reload/signal-quit"
+		run "le-test fixture reload/signal-quit"
 		encoder json
 	}
 }

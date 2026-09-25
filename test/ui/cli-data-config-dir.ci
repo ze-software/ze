@@ -13,7 +13,7 @@
 # Asymmetry is the point: ze init resolves through the env-aware path, so a test where
 # both commands shared one resolver would pass even with the bug present.
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/cli-data-config-dir:timeout=10s
+cmd=foreground:seq=1:exec=le-test fixture ui/cli-data-config-dir:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=ok:
 expect=stdout:contains=magic ok

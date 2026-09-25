@@ -37,7 +37,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external two-texts-test {
-        run "ze-test fixture plugin/plugin-command-two-texts"
+        run "le-test fixture plugin/plugin-command-two-texts"
         encoder json
     }
 }

@@ -61,7 +61,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external redist-no-plumbing-test {
-		run "ze-test fixture plugin/redistribute-bgp-to-ospf-no-plumbing"
+		run "le-test fixture plugin/redistribute-bgp-to-ospf-no-plumbing"
 		encoder json
 	}
 	# The synthetic consumer's host. It registers nothing at startup: the

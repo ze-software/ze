@@ -25,7 +25,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external shutdown-is-prompt {
-		run "ze-test fixture plugin/shutdown-is-prompt"
+		run "le-test fixture plugin/shutdown-is-prompt"
 		encoder json
 	}
 }

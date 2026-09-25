@@ -61,7 +61,7 @@ expect=stderr:pattern=send refused.*peer=127\.0\.0\.2 process=send-permission-in
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external send-permission-injector {
-		run "ze-test fixture plugin/attach-process-send-permission"
+		run "le-test fixture plugin/attach-process-send-permission"
 		encoder json
 	}
 }

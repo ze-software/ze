@@ -15,7 +15,7 @@
 
 option=timeout:value=60s
 
-cmd=foreground:seq=1:exec=ze-test fixture runner/verify-scope-debt-clear
+cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-debt-clear
 expect=exit:code=0
 expect=stdout:contains=debt-fixtures-ready
 expect=stdout:contains=native-debt-clear-runs-registered-gates

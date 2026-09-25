@@ -29,6 +29,6 @@
 # dozen times, and lets one chain make a PTR lookup that has no answer.
 option=timeout:value=90s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/show-bgp-declared-shapes
+cmd=foreground:seq=1:exec=le-test fixture ui/show-bgp-declared-shapes
 expect=exit:code=0
 expect=stdout:contains=OK

@@ -44,6 +44,6 @@ cmd=background:seq=1:exec=ze -:stdin=config
 # against the whole test's output and the fixture got the credit.
 expect=stderr:contains=l2tp-shaper: configured
 expect=stderr:contains=upload-rate=2000000
-cmd=foreground:seq=2:exec=ze-test fixture l2tp/shaper-upload-rate $PORT:timeout=10s
+cmd=foreground:seq=2:exec=le-test fixture l2tp/shaper-upload-rate $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with shaper upload-rate config

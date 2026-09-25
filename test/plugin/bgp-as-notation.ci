@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as-notation-test {
-		run "ze-test fixture plugin/bgp-as-notation"
+		run "le-test fixture plugin/bgp-as-notation"
 		encoder json
 	}
 	internal bgp-rib {

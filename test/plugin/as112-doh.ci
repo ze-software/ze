@@ -28,7 +28,7 @@ service {
 
 plugin {
 	external as112-doh-test {
-		run "ze-test fixture plugin/as112-doh"
+		run "le-test fixture plugin/as112-doh"
 		encoder json
 	}
 }

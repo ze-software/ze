@@ -41,7 +41,7 @@ plugin {
 		}
 	}
 	external startup-unreachable-test {
-		run "ze-test fixture plugin/startup-unreachable-services unreachable.conf"
+		run "le-test fixture plugin/startup-unreachable-services unreachable.conf"
 		encoder json
 	}
 }

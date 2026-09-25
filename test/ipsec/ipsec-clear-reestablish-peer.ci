@@ -82,7 +82,7 @@ EOF_RESPONDER
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
-		run "ze-test engine-steps ./engine-steps.json"
+		run "le-test engine-steps ./engine-steps.json"
 		encoder json
 	}
 }

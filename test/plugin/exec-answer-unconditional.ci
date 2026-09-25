@@ -63,7 +63,7 @@
 
 
 # Process orchestration
-cmd=foreground:seq=1:exec=ze-test fixture plugin/exec-answer-unconditional:timeout=45s
+cmd=foreground:seq=1:exec=le-test fixture plugin/exec-answer-unconditional:timeout=45s
 expect=exit:code=0
 expect=stderr:contains=OK: document -- a built payload is framed `top doc 0: 0:` and `end 1 0 0:`
 expect=stderr:pattern=OK: streamed -- a walk of [0-9]+ records is framed

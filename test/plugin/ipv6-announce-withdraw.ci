@@ -34,7 +34,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/ipv6-announce-withdraw"
+		run "le-test fixture plugin/ipv6-announce-withdraw"
 		encoder json
 	}
 }

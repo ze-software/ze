@@ -20,7 +20,7 @@ plugin {
         use bgp-rs
     }
     external pprof-probe {
-        run "ze-test fixture plugin/bgp-rs-perf-pprof $PORT2"
+        run "le-test fixture plugin/bgp-rs-perf-pprof $PORT2"
         encoder json
     }
 }

@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external peer-pause-test {
-		run "ze-test fixture plugin/api-peer-pause-resume"
+		run "le-test fixture plugin/api-peer-pause-resume"
 		encoder json
 	}
 }

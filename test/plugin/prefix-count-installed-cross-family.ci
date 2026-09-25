@@ -63,7 +63,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-cross-family {
-		run "ze-test fixture plugin/prefix-count-installed-cross-family"
+		run "le-test fixture plugin/prefix-count-installed-cross-family"
 		encoder json
 	}
 	internal bgp-rib {

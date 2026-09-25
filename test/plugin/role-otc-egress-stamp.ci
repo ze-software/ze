@@ -56,7 +56,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-stamp {
-		run "ze-test fixture plugin/role-otc-egress-stamp"
+		run "le-test fixture plugin/role-otc-egress-stamp"
 		encoder json
 	}
 }

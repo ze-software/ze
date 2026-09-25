@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rest-test {
-		run "ze-test fixture plugin/rest-api-commands"
+		run "le-test fixture plugin/rest-api-commands"
 		encoder json
 	}
 }

@@ -25,7 +25,7 @@ plugin {
 		}
 	}
 	external rpki-to-test {
-		run "ze-test fixture plugin/rpki-decorator-timeout"
+		run "le-test fixture plugin/rpki-decorator-timeout"
 		encoder json
 	}
 	internal rpki-decorator {

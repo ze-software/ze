@@ -17,7 +17,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-as4 {
-		run "ze-test fixture plugin/policy-test-as4path-suppress"
+		run "le-test fixture plugin/policy-test-as4path-suppress"
 		encoder json
 	}
 }

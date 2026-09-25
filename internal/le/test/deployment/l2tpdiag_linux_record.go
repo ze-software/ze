@@ -4,7 +4,7 @@
 // Related: l2tpdiag_linux_ops.go -- the real Linux boundary
 //
 // This file compiles only with the narrow zetest seam tag. The le personality
-// stays distinct from the ze-test command personality.
+// stays distinct from the le-test command personality.
 
 package testdeployment
 

@@ -29,7 +29,7 @@ EOF_PEER
 stdin=ze-sysctl:terminator=EOF_CONF
 plugin {
 	external sysctl-describe-show-test {
-		run "ze-test fixture plugin/sysctl-describe-show"
+		run "le-test fixture plugin/sysctl-describe-show"
 		encoder json
 	}
 }

@@ -20,6 +20,6 @@
 # runner's derived bound while every assertion still holds.
 option=timeout:value=60s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/display-fill-select
+cmd=foreground:seq=1:exec=le-test fixture ui/display-fill-select
 expect=exit:code=0
 expect=stdout:contains=OK

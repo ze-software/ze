@@ -17,7 +17,7 @@ option=skip-os:value=darwin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-broadcast {
-		run "ze-test fixture ospf/ospf-ldp-sync-broadcast"
+		run "le-test fixture ospf/ospf-ldp-sync-broadcast"
 		encoder json
 	}
 }

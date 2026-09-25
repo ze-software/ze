@@ -29,7 +29,7 @@
 stdin=hub-conf:terminator=EOF_CONF
 plugin {
 	external hub-acceptor-probe {
-		run "ze-test fixture plugin/hub-external-plugin-acceptor"
+		run "le-test fixture plugin/hub-external-plugin-acceptor"
 	}
 }
 EOF_CONF

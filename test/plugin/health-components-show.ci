@@ -15,7 +15,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external health-show-test {
-		run "ze-test fixture plugin/health-components-show"
+		run "le-test fixture plugin/health-components-show"
 		encoder json
 	}
 }

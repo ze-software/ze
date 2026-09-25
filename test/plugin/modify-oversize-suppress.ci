@@ -78,7 +78,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-oversize {
-		run "ze-test fixture plugin/modify-oversize-suppress"
+		run "le-test fixture plugin/modify-oversize-suppress"
 		encoder json
 	}
 }

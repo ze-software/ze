@@ -24,7 +24,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external fib-withhold-controller {
-		run "ze-test fixture plugin/fib-withhold-controller-programs-no-route"
+		run "le-test fixture plugin/fib-withhold-controller-programs-no-route"
 		encoder json
 	}
 	internal rib {

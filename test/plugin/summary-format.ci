@@ -19,7 +19,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external summary-check {
-		run "ze-test fixture plugin/summary-format"
+		run "le-test fixture plugin/summary-format"
 		encoder text
 	}
 }

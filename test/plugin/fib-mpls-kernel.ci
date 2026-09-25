@@ -19,7 +19,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external fib-mpls-kernel-test {
-		run "ze-test fixture plugin/fib-mpls-kernel"
+		run "le-test fixture plugin/fib-mpls-kernel"
 		encoder json
 	}
 	internal bgp-rib {

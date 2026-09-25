@@ -274,7 +274,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	}
 	defer stopVPPProcess(peer, peerSeen)
 	if !await(peerSeen, vppPeerReadyLine, peer, vppPeerWait) {
-		return VPPScenarioReport{}, errors.New("ze-test peer did not start")
+		return VPPScenarioReport{}, errors.New("le-test peer did not start")
 	}
 
 	daemon, daemonSeen, err := v.startEvidenceDaemon(container, configFile, port)
@@ -316,7 +316,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	checks = append(checks, passVPPCheck("installed", installDetail.String()))
 
 	if _, ok := v.containerText(container, "pkill", "-TERM", "-f", filepath.Base(vppTestRel(v.Goarch))); !ok {
-		return VPPScenarioReport{}, errors.New("failed to stop the ze-test peer")
+		return VPPScenarioReport{}, errors.New("failed to stop the le-test peer")
 	}
 	waitForExit(peer, vppPeerWait)
 

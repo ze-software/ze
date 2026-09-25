@@ -18,7 +18,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external errors-sent-show-test {
-		run "ze-test fixture plugin/errors-sent-show"
+		run "le-test fixture plugin/errors-sent-show"
 		encoder json
 	}
 }

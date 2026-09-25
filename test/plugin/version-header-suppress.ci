@@ -12,7 +12,7 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/version-header-suppress:timeout=120s
+cmd=foreground:seq=1:exec=le-test fixture plugin/version-header-suppress:timeout=120s
 expect=exit:code=0
 expect=stderr:contains=OK: both servers send the version banner by default
 expect=stderr:contains=OK: hide-version takes the banner off both servers

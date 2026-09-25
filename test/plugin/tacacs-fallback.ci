@@ -27,7 +27,7 @@ system {
 environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 plugin {
 	external tacacs-fallback-test {
-		run "ze-test fixture plugin/tacacs-fallback $PORT2"
+		run "le-test fixture plugin/tacacs-fallback $PORT2"
 		encoder json
 	}
 }

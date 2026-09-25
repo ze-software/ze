@@ -20,6 +20,6 @@ tmpfs=iso-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=ze-test fixture appliance/appliance-iso-default-paths
+cmd=foreground:seq=1:exec=le-test fixture appliance/appliance-iso-default-paths
 expect=exit:code=0
 expect=stdout:contains=OK

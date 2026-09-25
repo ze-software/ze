@@ -35,7 +35,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external service-watchdog {
-		run "ze-test fixture encode/watchdog-encode"
+		run "le-test fixture encode/watchdog-encode"
 		encoder json
 	}
 }

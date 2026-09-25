@@ -106,7 +106,7 @@ flow-export {
 
 plugin {
 	external ddos-conf-probe {
-		run "ze-test fixture plugin/ddos-incident-confidence"
+		run "le-test fixture plugin/ddos-incident-confidence"
 		encoder json
 	}
 }

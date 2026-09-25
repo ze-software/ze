@@ -2,7 +2,7 @@
 # Privileged container shares the host kernel for PPPoE (pppox) and /dev/ppp.
 #
 # It expects a pre-built linux binary at test/interop-pppoe/ze-linux, which
-# `./le integration interop-pppoe` cross-compiles before it builds this image
+# `./le test integration interop-pppoe` cross-compiles before it builds this image
 # (internal/le/interoplab/zebuild.go, StageBinaries, declared by
 # internal/le/interoplab/pppoe/pppoe.go, LabBinaries). A bare
 # `docker build -f test/interop-pppoe/Dockerfile.ze .` on a clean checkout fails

@@ -1,6 +1,6 @@
 # htmx 4 upgrade issues that do not apply to Ze.
 #
-# Read by the native Go `le htmx-upgrade check` action, which scans every
+# Read by the native Go `le web htmx check` action, which scans every
 # package that embeds htmx.
 #
 # One row per (file, category):

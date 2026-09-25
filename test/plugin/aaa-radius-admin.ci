@@ -2,6 +2,6 @@
 # VALIDATES: Access-Accept authenticates through RADIUS and Filter-Id maps admin authorization.
 # PREVENTS: the RADIUS admin backend being registered but never reached by the chain.
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/aaa-radius-admin:timeout=20s
+cmd=foreground:seq=1:exec=le-test fixture plugin/aaa-radius-admin:timeout=20s
 expect=exit:code=0
 expect=stderr:pattern=auth success.*source=radius

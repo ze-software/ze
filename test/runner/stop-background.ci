@@ -23,9 +23,9 @@ option=timeout:value=20s
 # Assertion: after cmd=stop reaped the holder, its PID must be gone. kill -0
 # succeeding here means the stop primitive failed to terminate the process.
 
-cmd=background:seq=1:exec=ze-test fixture runner/stop-background-holder:name=holder
-cmd=foreground:seq=2:exec=ze-test fixture runner/stop-background-wait
+cmd=background:seq=1:exec=le-test fixture runner/stop-background-holder:name=holder
+cmd=foreground:seq=2:exec=le-test fixture runner/stop-background-wait
 cmd=stop:seq=3:name=holder:signal=kill
-cmd=foreground:seq=4:exec=ze-test fixture runner/stop-background-assert
+cmd=foreground:seq=4:exec=le-test fixture runner/stop-background-assert
 expect=exit:code=0
 expect=stdout:contains=holder-stopped

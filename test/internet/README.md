@@ -71,9 +71,9 @@ Use the native analyzer command. It writes gzip-compatible files under
 `test/internet` by default:
 
 ```bash
-bin/ze-analyze download
-bin/ze-analyze download 20251220
-bin/ze-analyze download 20251220 1200
+./le mrt download
+./le mrt download 20251220
+./le mrt download 20251220 1200
 ```
 
 Manual download examples:

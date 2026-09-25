@@ -250,7 +250,7 @@ func leBinaryDispatches(ctx context.Context) error {
 		return err
 	}
 	if economy.exitCode != 0 {
-		return uiLeBinaryDispatchesFailf("`le token-economy` exited %d; it is a report and never blocks", economy.exitCode)
+		return uiLeBinaryDispatchesFailf("`le ai tokens` exited %d; it is a report and never blocks", economy.exitCode)
 	}
 	if !strings.Contains(economy.stdout, "API calls: 1") {
 		return uiLeBinaryDispatchesFailf("two records of one call were not deduped:\n%s", economy.stdout)
@@ -265,11 +265,11 @@ func leBinaryDispatches(ctx context.Context) error {
 		return err
 	}
 	if economyJSON.exitCode != 0 {
-		return uiLeBinaryDispatchesFailf("`le token-economy | json` exited %d", economyJSON.exitCode)
+		return uiLeBinaryDispatchesFailf("`le ai tokens | json` exited %d", economyJSON.exitCode)
 	}
 	payload, err := decodeObject(economyJSON.stdout)
 	if err != nil {
-		return uiLeBinaryDispatchesFailf("decode `le token-economy | json`: %v", err)
+		return uiLeBinaryDispatchesFailf("decode `le ai tokens | json`: %v", err)
 	}
 	for _, key := range []string{fieldState, "store", "project", fieldTotals, "histogram", "capped", "cap", fieldTop} {
 		if _, ok := payload[key]; !ok {

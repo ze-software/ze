@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external teardown-tunnel-test {
-		run "ze-test fixture plugin/teardown-tunnel"
+		run "le-test fixture plugin/teardown-tunnel"
 		encoder json
 	}
 }
@@ -76,7 +76,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/teardown-tunnel-peer $PORT2 0x0123
+cmd=background:seq=2:exec=le-test fixture plugin/teardown-tunnel-peer $PORT2 0x0123
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=tunnel now established

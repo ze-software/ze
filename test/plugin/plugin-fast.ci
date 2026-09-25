@@ -20,7 +20,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run "ze-test fixture plugin/fast"
+		run "le-test fixture plugin/fast"
 		encoder json
 	}
 }

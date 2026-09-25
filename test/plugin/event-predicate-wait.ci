@@ -18,7 +18,7 @@
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external event-predicate-test {
-		run "ze-test fixture plugin/event-predicate-wait"
+		run "le-test fixture plugin/event-predicate-wait"
 		encoder json
 	}
 }

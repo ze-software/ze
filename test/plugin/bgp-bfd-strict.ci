@@ -35,7 +35,7 @@ option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/bgp-bfd-strict:timeout=30s
+cmd=foreground:seq=1:exec=le-test fixture plugin/bgp-bfd-strict:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=bfd plugin running
 expect=stderr:pattern=bfd session opened for peer

@@ -23,7 +23,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external l2tp-sessions-show-test {
-		run "ze-test fixture plugin/l2tp-sessions-show"
+		run "le-test fixture plugin/l2tp-sessions-show"
 		encoder json
 	}
 }
@@ -77,7 +77,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/l2tp-sessions-show-peer $PORT2 0x0123 500
+cmd=background:seq=2:exec=le-test fixture plugin/l2tp-sessions-show-peer $PORT2 0x0123 500
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=tunnel now established

@@ -53,7 +53,7 @@ ddos {
 
 plugin {
 	external ddos-show-test {
-		run "ze-test fixture plugin/ddos-show"
+		run "le-test fixture plugin/ddos-show"
 		encoder json
 	}
 }

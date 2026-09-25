@@ -19,7 +19,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external adj-rib-query-test {
-		run "ze-test fixture plugin/adj-rib-in-query"
+		run "le-test fixture plugin/adj-rib-in-query"
 		encoder json
 	}
 }

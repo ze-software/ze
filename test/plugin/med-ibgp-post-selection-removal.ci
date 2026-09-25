@@ -55,7 +55,7 @@ plugin {
         use bgp-rs;
     }
     external raw-med-drop {
-        run "ze-test fixture plugin/med-ibgp-post-selection-removal;"
+        run "le-test fixture plugin/med-ibgp-post-selection-removal;"
         encoder json;
     }
 }

@@ -22,7 +22,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external summary-counts-test {
-		run "ze-test fixture plugin/bgp-summary-route-counts"
+		run "le-test fixture plugin/bgp-summary-route-counts"
 		encoder json
 	}
 	internal bgp-rib {

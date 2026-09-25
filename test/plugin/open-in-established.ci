@@ -53,7 +53,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external watch-down {
-		run "ze-test fixture plugin/open-in-established"
+		run "le-test fixture plugin/open-in-established"
 		encoder json
 	}
 }

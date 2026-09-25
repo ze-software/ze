@@ -35,7 +35,7 @@ plugin {
 		use bgp-gr
 	}
 	external gr-cli-test {
-		run "ze-test fixture plugin/gr-cli-restart"
+		run "le-test fixture plugin/gr-cli-restart"
 		encoder json
 	}
 }

@@ -34,7 +34,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flow-recent-test {
-		run "ze-test fixture plugin/ddos-flow-recent"
+		run "le-test fixture plugin/ddos-flow-recent"
 		encoder json
 	}
 }

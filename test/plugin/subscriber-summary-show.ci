@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external subscriber-summary-show-test {
-		run "ze-test fixture plugin/subscriber-summary-show"
+		run "le-test fixture plugin/subscriber-summary-show"
 		encoder json
 	}
 }

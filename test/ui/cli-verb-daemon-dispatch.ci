@@ -32,6 +32,6 @@
 # the suite by 3.5x without invalidating any assertion.
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/cli-verb-daemon-dispatch
+cmd=foreground:seq=1:exec=le-test fixture ui/cli-verb-daemon-dispatch
 expect=exit:code=0
 expect=stdout:contains=OK

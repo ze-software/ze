@@ -24,7 +24,7 @@ environment {
 }
 plugin {
     external bmp-bestpath {
-        run "ze-test fixture plugin/bmp-lg-bestpath-isolation $PORT2;"
+        run "le-test fixture plugin/bmp-lg-bestpath-isolation $PORT2;"
         encoder json;
     }
 }

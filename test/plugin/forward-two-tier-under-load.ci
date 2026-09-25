@@ -224,7 +224,7 @@ plugin {
 		use bgp-rs
 	}
     external two-tier-load-test {
-        run "ze-test fixture plugin/forward-two-tier-under-load"
+        run "le-test fixture plugin/forward-two-tier-under-load"
         encoder json
     }
 }

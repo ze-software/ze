@@ -15,6 +15,6 @@ option=timeout:value=300s
 # it needs is the Linux build of the diagnostic.
 option=needs-linux
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-l2tp-diagnostics-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-l2tp-diagnostics-answers
 expect=exit:code=0
 expect=stdout:contains=LE_L2TP_DIAGNOSTICS_ANSWERS_OK

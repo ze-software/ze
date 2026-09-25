@@ -16,7 +16,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-export {
-		run "ze-test fixture plugin/policy-test-configured-export"
+		run "le-test fixture plugin/policy-test-configured-export"
 		encoder json
 	}
 }

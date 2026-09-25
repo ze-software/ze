@@ -18,7 +18,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external l2tp-health-show-test {
-		run "ze-test fixture plugin/l2tp-health-show"
+		run "le-test fixture plugin/l2tp-health-show"
 		encoder json
 	}
 }

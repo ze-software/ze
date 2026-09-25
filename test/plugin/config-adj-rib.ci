@@ -13,7 +13,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external adj-rib-test {
-		run "ze-test fixture plugin/config-adj-rib"
+		run "le-test fixture plugin/config-adj-rib"
 		encoder json
 	}
 	internal bgp-rib {

@@ -28,7 +28,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external nh-test {
-		run "ze-test fixture plugin/nexthop-unchanged"
+		run "le-test fixture plugin/nexthop-unchanged"
 		encoder json
 	}
 	internal bgp-rib {

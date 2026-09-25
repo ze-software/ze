@@ -24,7 +24,7 @@ anomaly {
 
 plugin {
 	external anomaly-shape-test {
-		run "ze-test fixture plugin/anomaly-shape-shadow"
+		run "le-test fixture plugin/anomaly-shape-shadow"
 		encoder json
 	}
 }

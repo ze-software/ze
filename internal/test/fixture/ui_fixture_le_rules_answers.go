@@ -497,20 +497,20 @@ func jsonAnswer(le func(string, ...string) (uiLeRulesAnswersCommandResult, error
 		return nil, err
 	}
 	if answer.code != 0 {
-		return nil, uiLeRulesAnswersFailf("`le rules %s | json` exited %d: %s%s", verb, answer.code, answer.stdout, answer.stderr)
+		return nil, uiLeRulesAnswersFailf("`le ai rules %s | json` exited %d: %s%s", verb, answer.code, answer.stdout, answer.stderr)
 	}
 	if answer.stderr != "" {
-		return nil, uiLeRulesAnswersFailf("`le rules %s | json` wrote to stderr: %s", verb, answer.stderr)
+		return nil, uiLeRulesAnswersFailf("`le ai rules %s | json` wrote to stderr: %s", verb, answer.stderr)
 	}
 	decoder := json.NewDecoder(strings.NewReader(answer.stdout))
 	decoder.UseNumber()
 	var decoded map[string]any
 	if err := decoder.Decode(&decoded); err != nil {
-		return nil, uiLeRulesAnswersFailf("`le rules %s | json` did not answer JSON: %v; %.400s", verb, err, answer.stdout)
+		return nil, uiLeRulesAnswersFailf("`le ai rules %s | json` did not answer JSON: %v; %.400s", verb, err, answer.stdout)
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
-		return nil, uiLeRulesAnswersFailf("`le rules %s | json` answered trailing data: %.400s", verb, answer.stdout)
+		return nil, uiLeRulesAnswersFailf("`le ai rules %s | json` answered trailing data: %.400s", verb, answer.stdout)
 	}
 	return decoded, nil
 }
@@ -522,7 +522,7 @@ func requireRenderings(le func(string, ...string) (uiLeRulesAnswersCommandResult
 			return err
 		}
 		if answer.code != 0 {
-			return uiLeRulesAnswersFailf("`le rules %s | %s` was refused with exit %d: %s%s", verb, operator, answer.code, answer.stdout, answer.stderr)
+			return uiLeRulesAnswersFailf("`le ai rules %s | %s` was refused with exit %d: %s%s", verb, operator, answer.code, answer.stdout, answer.stderr)
 		}
 	}
 	return nil

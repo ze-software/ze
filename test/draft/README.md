@@ -19,13 +19,13 @@ gate reads it, and it states its own reason in its own header.
 |------|-----------|--------------------|--------------------|
 | `plugin/gr-vacuity-*.ci` | three DEMONSTRATIONS: two pass with Graceful Restart unreachable, and the third MUST fail | a demonstration that MUST fail reddens every sweep of the directory that holds it (`plan/journal/unwired-feature.md`, 2026-09-08) | nothing. A demonstration is never a regression test |
 
-Run it with `ze-test bgp plugin --draft --pattern gr-vacuity`.
+Run it with `le-test bgp plugin --draft --pattern gr-vacuity`.
 
 `l2tp/subscriber-reader-failing-socket.ci` was the second exception until
 2026-09-11. It was KNOWN VACUOUS because `strace` was the only mechanism that
 sustained a read error, and ptrace's own signal-trap overhead throttled the
 traced daemon into the same range the fix produces, so the pre-fix build passed
-every assertion in it. `ze-test fail-syscall` (`internal/test/failsyscall`)
+every assertion in it. `le-test fail-syscall` (`internal/test/failsyscall`)
 replaced that stimulus with a seccomp filter, which has no tracer in the path,
 and the scenario moved to `test/l2tp/` and is now gated. Its header carries the
 whole finding, including the ptrace numbers.
@@ -69,17 +69,17 @@ $EDITOR test/draft/plugin/my-new-test.ci
 #    The verb is the suite's own: `bgp plugin`, but bare `ui`, `editor`, `web`.
 #    internal/le/test/functional/suites.go carries the argv for each suite, and a
 #    runner given a verb it does not know prints usage and EXITS 0.
-ze-test bgp plugin --draft -a
-ze-test bgp plugin --draft --pattern my-new-test
+le-test bgp plugin --draft -a
+le-test bgp plugin --draft --pattern my-new-test
 
 # 3. prove it under load, still as a draft
-./le stress-repro run suite "bgp plugin --draft" test 1 any-failure
+./le test stress-repro run suite "bgp plugin --draft" test 1 any-failure
 
 # 4. promote when green: a plain move, no git plumbing needed
 mv test/draft/plugin/my-new-test.ci test/plugin/my-new-test.ci
 
 # 5. now it is a real test -- run the whole suite once before committing
-ze-test bgp plugin -a
+le-test bgp plugin -a
 ```
 
 Replacing an existing test is the same move: draft alongside it under
@@ -101,7 +101,7 @@ Each recursive `.ci` reader explicitly skips `draft`. Add each new reader to
 ## Two ways a draft run passes without running
 
 **A wrong verb exits 0.** A runner given a suite verb it does not know prints its
-usage and answers 0, and through `./le stress-repro` that reads as "not
+usage and answers 0, and through `./le test stress-repro` that reads as "not
 reproduced", which is the word for green. Read the log for a `--- PASS` or
 `VERIFY STEP` line naming your test before you believe a run. The defect is
 recorded in `plan/journal/silent-fall-through.md` and the rule is
@@ -110,7 +110,7 @@ recorded in `plan/journal/silent-fall-through.md` and the rule is
 **A new compiled fixture needs the test runner rebuilt.** `fixture <name>`
 resolves the name in the runner binary's own registry
 (`internal/test/fixture`, `Register`), so a fixture added this session is absent
-from a stale runner while the daemon under test is current. `./le functional
+from a stale runner while the daemon under test is current. `./le test functional
 <suite>` rebuilds both.
 
 ## What a draft does NOT get

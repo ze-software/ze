@@ -78,7 +78,7 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ssh-cli-status-error.conf:timeout=60s
-cmd=foreground:seq=2:exec=ze-test fixture plugin/ssh-cli-status-error-exit-code $PORT2:timeout=60s
+cmd=foreground:seq=2:exec=le-test fixture plugin/ssh-cli-status-error-exit-code $PORT2:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: 'request as112 healthcheck' exited non-zero
 expect=stderr:contains=OK: 'show version' exited 0

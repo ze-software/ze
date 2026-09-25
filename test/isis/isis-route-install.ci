@@ -33,7 +33,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external isis-route {
-		run "ze-test fixture isis/isis-route-install"
+		run "le-test fixture isis/isis-route-install"
 		encoder json
 	}
 }

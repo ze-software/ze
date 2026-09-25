@@ -29,7 +29,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	internal flowspec-firewall { use flowspec-firewall; }
 	external flowspec-observer {
-		run "ze-test fixture plugin/flowspec-fw-withdraw-removes-table";
+		run "le-test fixture plugin/flowspec-fw-withdraw-removes-table";
 		encoder json;
 	}
 }

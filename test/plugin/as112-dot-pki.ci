@@ -45,7 +45,7 @@ service {
 
 plugin {
 	external as112-dot-pki-test {
-		run "ze-test fixture plugin/as112-dot-pki"
+		run "le-test fixture plugin/as112-dot-pki"
 		encoder json
 	}
 }

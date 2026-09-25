@@ -116,7 +116,7 @@ plugin {
 		use bgp-rs
 	}
 	external control-community-withdraw {
-		run "ze-test fixture plugin/control-community-withdraw-egress"
+		run "le-test fixture plugin/control-community-withdraw-egress"
 		encoder json
 	}
 }

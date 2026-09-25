@@ -1,6 +1,6 @@
 option=timeout:value=600s
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-discovery-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-discovery-answers
 expect=exit:code=0
 expect=stdout:contains=PASS: le generates the discovery indexes

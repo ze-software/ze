@@ -87,7 +87,7 @@ flow-export {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test fixture plugin/ddos-detect-characterize:timeout=45s
+cmd=foreground:seq=2:exec=le-test fixture plugin/ddos-detect-characterize:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=ddos-local
 expect=stdout:contains=127.0.0.2

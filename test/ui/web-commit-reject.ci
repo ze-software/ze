@@ -24,7 +24,7 @@ EOF_PEER
 tmpfs=web-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external web-commit-reject {
-        run "ze-test fixture ui/web-commit-reject"
+        run "le-test fixture ui/web-commit-reject"
         encoder json
     }
 }

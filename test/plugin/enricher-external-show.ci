@@ -15,11 +15,11 @@ plugin {
         use fakeenrich
     }
     external enricher-provider {
-        run "ze-test fixture plugin/enricher-external-show-provider"
+        run "le-test fixture plugin/enricher-external-show-provider"
         encoder json
     }
     external enricher-checker {
-        run "ze-test fixture plugin/enricher-external-show-checker"
+        run "le-test fixture plugin/enricher-external-show-checker"
         encoder json
     }
 }

@@ -22,7 +22,7 @@
 #
 # needs-linux: create-dummy/mtu/mac/up/addr-add program a real interface via netlink and
 # require CAP_NET_ADMIN; the SKIPPED-on-darwin runner cannot exercise them. Run via
-# `./le qemu all-tests` (boots a root QEMU VM). zetest0 is a uniquely named
+# `./le test qemu all-tests` (boots a root QEMU VM). zetest0 is a uniquely named
 # throwaway dummy in the VM's default namespace, deleted at the end (idempotent on rerun).
 # This test creates interfaces, so it needs CAP_NET_ADMIN, not merely Linux. On
 # the unprivileged GitHub runner 'create interface dummy name zetest0' came back
@@ -35,7 +35,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-verbs {
-		run "ze-test fixture plugin/iface-verbs"
+		run "le-test fixture plugin/iface-verbs"
 		encoder json
 	}
 }

@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external self-observer {
-        run "ze-test fixture plugin/evpn-config-self"
+        run "le-test fixture plugin/evpn-config-self"
         encoder json
     }
 }

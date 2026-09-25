@@ -94,7 +94,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		{"dash-stdio selftest", []string{checkDashStdio, actionSelftest}},
 		{checkCIDispatch, []string{checkCIDispatch, actionCheck}},
 		{"ci-dispatch selftest", []string{checkCIDispatch, actionSelftest}},
-		{"repository-tracked-build selftest", []string{checkRepositoryTrackedBuild, actionSelftest}},
+		{"repo-compiles selftest", []string{checkRepoCompiles, actionSelftest}},
 		{"test-sensitivity report", []string{checkTestSensitivity, actionReport}},
 		{"test-sensitivity selftest", []string{checkTestSensitivity, actionSelftest}},
 	}
@@ -196,7 +196,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if portCases.code != 0 {
-		return leChecksFailf("`le port-defaults selftest | json` exited %d", portCases.code)
+		return leChecksFailf("`le config ports selftest | json` exited %d", portCases.code)
 	}
 	if err := leChecksPassedRows(portCases.stdout, "port-defaults", 8); err != nil {
 		return err
@@ -206,7 +206,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if strings.TrimSpace(portCount.stdout) != "8" {
-		return leChecksFailf("`le port-defaults selftest | count` answered %q, want 8", portCount.stdout)
+		return leChecksFailf("`le config ports selftest | count` answered %q, want 8", portCount.stdout)
 	}
 
 	listing, err := runLE(nil, "config coercion")
@@ -276,7 +276,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if grammarCount.code != 1 {
-		return leChecksFailf("`le cli-grammar | count` exited %d, want a refusal", grammarCount.code)
+		return leChecksFailf("`le cli grammar | count` exited %d, want a refusal", grammarCount.code)
 	}
 	if !strings.Contains(grammarCount.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", grammarCount.stderr)
@@ -286,11 +286,11 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if grammarResult.code != 0 {
-		return leChecksFailf("`le cli-grammar | json` exited %d", grammarResult.code)
+		return leChecksFailf("`le cli grammar | json` exited %d", grammarResult.code)
 	}
 	grammarValue, err := leChecksJSON(grammarResult.stdout)
 	if err != nil {
-		return leChecksFailf("`le cli-grammar | json` answered invalid JSON: %v", err)
+		return leChecksFailf("`le cli grammar | json` answered invalid JSON: %v", err)
 	}
 	grammar, err := leChecksObject(grammarValue, "the grammar report")
 	if err != nil {
@@ -347,7 +347,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if dispatchResult.code != 0 {
-		return leChecksFailf("`le ci-dispatch check | json` exited %d", dispatchResult.code)
+		return leChecksFailf("`le cli dispatch check | json` exited %d", dispatchResult.code)
 	}
 	dispatchValue, err := leChecksJSON(dispatchResult.stdout)
 	if err != nil {
@@ -377,7 +377,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if leafResult.code != 0 {
-		return leChecksFailf("`le yang leaf-mentions report | json` exited %d", leafResult.code)
+		return leChecksFailf("`le config unread-leaves report | json` exited %d", leafResult.code)
 	}
 	leafValue, err := leChecksJSON(leafResult.stdout)
 	if err != nil {
@@ -442,50 +442,50 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the tracked scan read %d files and %d tests", filesScanned, testsScanned)
 	}
 
-	trackedBuild, err := runLE(nil, "repository tracked-build", "check")
+	compilesResult, err := runLE(nil, checkRepoCompiles, "check")
 	if err != nil {
 		return err
 	}
-	if trackedBuild.code != 0 {
-		return leChecksFailf("the commit does not compile: %s%s", trackedBuild.stdout, trackedBuild.stderr)
+	if compilesResult.code != 0 {
+		return leChecksFailf("the commit does not compile: %s%s", compilesResult.stdout, compilesResult.stderr)
 	}
-	if strings.TrimSpace(trackedBuild.stdout) == "" {
-		return leChecksFailf("the tracked-build check wrote no report")
+	if strings.TrimSpace(compilesResult.stdout) == "" {
+		return leChecksFailf("the compiles check wrote no report")
 	}
-	if !leChecksHasElapsedColumn(trackedBuild.stdout) {
-		return leChecksFailf("the tracked-build report has no elapsed-time column:\n%s", trackedBuild.stdout)
+	if !leChecksHasElapsedColumn(compilesResult.stdout) {
+		return leChecksFailf("the compiles report has no elapsed-time column:\n%s", compilesResult.stdout)
 	}
 
-	matrixResult, err := runLE(nil, "repository tracked-build", "matrix", "|", "json")
+	matrixResult, err := runLE(nil, checkRepoCompiles, "matrix", "|", "json")
 	if err != nil {
 		return err
 	}
 	if matrixResult.code != 0 {
-		return leChecksFailf("the tracked-build matrix exited %d: %s", matrixResult.code, matrixResult.stderr)
+		return leChecksFailf("the compiles matrix exited %d: %s", matrixResult.code, matrixResult.stderr)
 	}
 	matrixValue, err := leChecksJSON(matrixResult.stdout)
 	if err != nil {
-		return leChecksFailf("the tracked-build matrix did not answer JSON: %v", err)
+		return leChecksFailf("the compiles matrix did not answer JSON: %v", err)
 	}
 	flavors, ok := matrixValue.([]any)
 	if !ok || len(flavors) == 0 {
-		return leChecksFailf("the tracked-build matrix answered %#v, want flavor rows", matrixValue)
+		return leChecksFailf("the compiles matrix answered %#v, want flavor rows", matrixValue)
 	}
 	seenFlavors := make(map[string]struct{}, len(flavors))
 	for i, value := range flavors {
-		flavor, err := leChecksObject(value, fmt.Sprintf("tracked-build flavor %d", i))
+		flavor, err := leChecksObject(value, fmt.Sprintf("compiles flavor %d", i))
 		if err != nil {
 			return err
 		}
-		if err := leChecksRequireKeys(flavor, fmt.Sprintf("tracked-build flavor %d", i), "name", "tags", "anchor-files"); err != nil {
+		if err := leChecksRequireKeys(flavor, fmt.Sprintf("compiles flavor %d", i), "name", "tags", "anchor-files"); err != nil {
 			return err
 		}
 		name, ok := flavor["name"].(string)
 		if !ok || name == "" {
-			return leChecksFailf("tracked-build flavor %d has invalid name %#v", i, flavor["name"])
+			return leChecksFailf("compiles flavor %d has invalid name %#v", i, flavor["name"])
 		}
 		if _, duplicate := seenFlavors[name]; duplicate {
-			return leChecksFailf("the tracked-build matrix repeats flavor %q", name)
+			return leChecksFailf("the compiles matrix repeats flavor %q", name)
 		}
 		seenFlavors[name] = struct{}{}
 		if _, ok := flavor["tags"].([]any); !ok {
@@ -494,8 +494,8 @@ func runLEChecksAnswers(ctx context.Context) error {
 		if _, ok := flavor["anchor-files"].([]any); !ok {
 			return leChecksFailf("flavor %q has invalid anchor-files %#v", name, flavor["anchor-files"])
 		}
-		if !strings.Contains(trackedBuild.stdout, name) {
-			return leChecksFailf("the tracked-build page does not name matrix flavor %q", name)
+		if !strings.Contains(compilesResult.stdout, name) {
+			return leChecksFailf("the compiles page does not name matrix flavor %q", name)
 		}
 	}
 
@@ -504,7 +504,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if staticMatrixResult.code != 0 {
-		return leChecksFailf("`le staticcheck-feature-matrix rows | json` exited %d", staticMatrixResult.code)
+		return leChecksFailf("`le go staticcheck rows | json` exited %d", staticMatrixResult.code)
 	}
 	staticMatrixValue, err := leChecksJSON(staticMatrixResult.stdout)
 	if err != nil {
@@ -536,7 +536,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		{checkPortDefaults, 8},
 		{checkDashStdio, 14},
 		{checkCIDispatch, 10},
-		{checkRepositoryTrackedBuild, 7},
+		{checkRepoCompiles, 7},
 		{checkTestSensitivity, 45},
 	} {
 		answered, err := runLE(nil, tc.command, "selftest", "|", "json")
@@ -556,7 +556,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return err
 	}
 	if refused.code != 1 {
-		return leChecksFailf("`le cli-grammar internal` exited %d, want a refusal", refused.code)
+		return leChecksFailf("`le cli grammar internal` exited %d, want a refusal", refused.code)
 	}
 	if !strings.Contains(refused.stderr, "takes no arguments") {
 		return leChecksFailf("the refusal does not say why: %q", refused.stderr)
@@ -570,7 +570,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		checkStaticcheckFeatureMatrix,
 		checkDashStdio,
 		checkCIDispatch,
-		checkRepositoryTrackedBuild,
+		checkRepoCompiles,
 		checkTestSensitivity,
 	} {
 		unknown, err := runLE(nil, command, "nonesuch")
@@ -600,7 +600,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		checkStaticcheckFeatureMatrix,
 		checkDashStdio,
 		checkCIDispatch,
-		checkRepositoryTrackedBuild,
+		checkRepoCompiles,
 		checkTestSensitivity,
 	} {
 		if !strings.Contains(helpText, command) {

@@ -30,7 +30,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external isis-show {
-		run "ze-test fixture isis/isis-show"
+		run "le-test fixture isis/isis-show"
 		encoder json
 	}
 }

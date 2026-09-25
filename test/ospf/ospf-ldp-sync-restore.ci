@@ -16,7 +16,7 @@ option=skip-os:value=darwin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-ldp-sync-restore {
-		run "ze-test fixture ospf/ospf-ldp-sync-restore"
+		run "le-test fixture ospf/ospf-ldp-sync-restore"
 		encoder json
 	}
 }

@@ -23,7 +23,7 @@ EOF_PEER
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-listener-rejected-test {
-		run "ze-test fixture plugin/reload-listener-rejected"
+		run "le-test fixture plugin/reload-listener-rejected"
 		encoder json
 	}
 }
@@ -79,7 +79,7 @@ EOF_CONF2
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external reload-listener-rejected-test {
-		run "ze-test fixture plugin/reload-listener-rejected"
+		run "le-test fixture plugin/reload-listener-rejected"
 		encoder json
 	}
 }
@@ -132,7 +132,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-test fixture plugin/reload-listener-rejected-trigger
+cmd=background:seq=2:exec=le-test fixture plugin/reload-listener-rejected-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=l2tp reload: listener endpoint change ignored

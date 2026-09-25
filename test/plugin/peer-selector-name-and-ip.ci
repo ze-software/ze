@@ -16,7 +16,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external peer-selector {
-		run "ze-test fixture plugin/peer-selector-name-and-ip"
+		run "le-test fixture plugin/peer-selector-name-and-ip"
 		encoder json
 	}
 }

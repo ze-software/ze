@@ -2,13 +2,13 @@
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 #       stand-ins and renders its structured report through every global pipe.
 #
-# VALIDATES: `le qemu run` keyword grammar, built-binary dispatch, dotted
+# VALIDATES: `le test qemu run` keyword grammar, built-binary dispatch, dotted
 #            environment preservation, structured output, and guest exit codes.
 # PREVENTS: a function-only proof, an interpreter fork, or a report that bypasses
 #           the shared pipe registry.
 
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=ze-test fixture ui/le-qemu-run-answers
+cmd=foreground:seq=1:exec=le-test fixture ui/le-qemu-run-answers
 expect=exit:code=0
 expect=stdout:contains=LE_QEMU_RUN_ANSWERS_OK

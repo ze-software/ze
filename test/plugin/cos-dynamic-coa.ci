@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external cos-dynamic-coa-test {
-        run "ze-test fixture plugin/cos-dynamic-coa"
+        run "le-test fixture plugin/cos-dynamic-coa"
     }
 }
 

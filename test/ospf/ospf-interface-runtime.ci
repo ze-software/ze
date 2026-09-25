@@ -32,7 +32,7 @@ EOF_RUNTIME
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-runtime {
-		run "ze-test fixture ospf/ospf-interface-runtime"
+		run "le-test fixture ospf/ospf-interface-runtime"
 		encoder json
 	}
 }

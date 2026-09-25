@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dispatch-decode-test {
-		run "ze-test fixture plugin/dispatch-command-single-decode"
+		run "le-test fixture plugin/dispatch-command-single-decode"
 		encoder json
 	}
 	internal bgp-rib {

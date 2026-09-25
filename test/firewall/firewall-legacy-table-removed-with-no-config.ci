@@ -55,9 +55,9 @@ plugin {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze-test fixture firewall/firewall-legacy-table-removed-with-no-config-seed
+cmd=foreground:seq=1:exec=le-test fixture firewall/firewall-legacy-table-removed-with-no-config-seed
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=ze-test fixture firewall/firewall-legacy-table-removed-with-no-config:timeout=35s
+cmd=foreground:seq=3:exec=le-test fixture firewall/firewall-legacy-table-removed-with-no-config:timeout=35s
 expect=exit:code=0
 # The survivor, printed from the settled ruleset.
 expect=stdout:contains=table ip anomaly-shape

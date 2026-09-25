@@ -24,6 +24,6 @@ option=timeout:value=60s
 # and answers the command with structured data.
 
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/pipe-alias-help
+cmd=foreground:seq=1:exec=le-test fixture plugin/pipe-alias-help
 expect=exit:code=0
 expect=stdout:contains=OK

@@ -1,6 +1,6 @@
 # Test: first-class .ci engine-step payload predicates (matches=/absent=/json=).
 # Spec: spec-payload-predicate-waits. The command=/expect=output directives below
-# are executed by the daemon-spawned `ze-test engine-steps` external plugin (the
+# are executed by the daemon-spawned `le-test engine-steps` external plugin (the
 # runner writes ./engine-steps.json into the test dir; execution model in
 # internal/test/runner/engine_steps.go).
 #
@@ -18,7 +18,7 @@
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
-		run "ze-test engine-steps ./engine-steps.json"
+		run "le-test engine-steps ./engine-steps.json"
 		encoder json
 	}
 	internal bgp-rib {
