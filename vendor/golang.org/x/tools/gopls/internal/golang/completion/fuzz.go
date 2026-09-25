@@ -106,19 +106,18 @@ Loop:
 			return false
 		}
 
-		var lbl strings.Builder
-		lbl.WriteString("Fuzz(func(t *testing.T")
+		lbl := "Fuzz(func(t *testing.T"
 		for i, a := range add.Args {
 			info := c.pkg.TypesInfo().TypeOf(a)
 			if info == nil {
 				return false // How could this happen, but better safe than panic.
 			}
-			fmt.Fprintf(&lbl, ", %c %s", 'a'+i, info)
+			lbl += fmt.Sprintf(", %c %s", 'a'+i, info)
 		}
-		lbl.WriteString(")")
+		lbl += ")"
 		xx := CompletionItem{
-			Label:         lbl.String(),
-			InsertText:    lbl.String(),
+			Label:         lbl,
+			InsertText:    lbl,
 			Kind:          protocol.FunctionCompletion,
 			Depth:         0,
 			Score:         10, // pretty confident the user should see this

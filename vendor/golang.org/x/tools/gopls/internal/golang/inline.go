@@ -23,9 +23,7 @@ import (
 	"golang.org/x/tools/gopls/internal/util/safetoken"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/refactor/inline"
-	"golang.org/x/tools/internal/typesinternal"
 )
 
 // enclosingStaticCall returns the innermost function call enclosing
@@ -142,55 +140,75 @@ func logger(ctx context.Context, name string, verbose bool) func(format string, 
 
 // canInlineVariable reports whether the selection is within an
 // identifier that is a use of a variable that has an initializer
-// expression and is not reassigned or address-taken. If so, it returns
-// cursors for the identifier and the initializer expression.
-func canInlineVariable(info *types.Info, curFile inspector.Cursor, start, end token.Pos) (curUse, curRHS inspector.Cursor, ok bool) {
-	curUse, found := curFile.FindByPos(start, end)
-	if !found {
-		return inspector.Cursor{}, inspector.Cursor{}, false
+// expression. If so, it returns cursors for the identifier and the
+// initializer expression.
+func canInlineVariable(info *types.Info, curFile inspector.Cursor, start, end token.Pos) (_, _ inspector.Cursor, ok bool) {
+	if curUse, ok := curFile.FindByPos(start, end); ok {
+		if id, ok := curUse.Node().(*ast.Ident); ok && !isLvalueUse(curUse, info) {
+			if v, ok := info.Uses[id].(*types.Var); ok && v.Kind() == types.LocalVar {
+				if curIdent, ok := curFile.FindByPos(v.Pos(), v.Pos()); ok {
+					curParent := curIdent.Parent()
+					kind, index := curIdent.ParentEdge()
+					switch kind {
+					case edge.ValueSpec_Names:
+						// var v = expr
+						spec := curParent.Node().(*ast.ValueSpec)
+						if len(spec.Names) == len(spec.Values) {
+							return curUse, curParent.ChildAt(edge.ValueSpec_Values, index), true
+						}
+					case edge.AssignStmt_Lhs:
+						// v := expr
+						stmt := curParent.Node().(*ast.AssignStmt)
+						if len(stmt.Lhs) == len(stmt.Rhs) {
+							return curUse, curParent.ChildAt(edge.AssignStmt_Rhs, index), true
+						}
+					}
+				}
+			}
+		}
 	}
-	id, ok := curUse.Node().(*ast.Ident)
-	if !ok || typesinternal.IsAssignedOrAddressTaken(info, curUse) {
-		return inspector.Cursor{}, inspector.Cursor{}, false
-	}
-	v, ok := info.Uses[id].(*types.Var)
-	if !ok || v.Kind() != types.LocalVar {
-		return inspector.Cursor{}, inspector.Cursor{}, false
-	}
-	curIdent, found := curFile.FindByPos(v.Pos(), v.Pos())
-	if !found {
-		return inspector.Cursor{}, inspector.Cursor{}, false
-	}
-	// Reject modified or address-taken variables; inlining would require
-	// dataflow analysis to prove the initial definition reaches this use.
-	root, found := moreiters.First(curIdent.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)))
-	if !found {
-		root = curFile
-	}
-	for cur := range root.Preorder((*ast.Ident)(nil)) {
-		id := cur.Node().(*ast.Ident)
-		if info.Uses[id] == v && typesinternal.IsAssignedOrAddressTaken(info, cur) {
-			return inspector.Cursor{}, inspector.Cursor{}, false
+	return
+}
+
+// isLvalueUse reports whether the "use" identifier represented by cur
+// appears in an l-value context such as:
+//
+//   - v=...
+//   - v++
+//   - &v
+//   - v.f(), when this implicitly takes the address of v.
+func isLvalueUse(cur inspector.Cursor, info *types.Info) bool {
+	cur = unparenEnclosing(cur)
+
+	switch cur.ParentEdgeKind() {
+	case edge.AssignStmt_Lhs, edge.IncDecStmt_X:
+		return true // v=..., v++
+
+	case edge.UnaryExpr_X:
+		return cur.Parent().Node().(*ast.UnaryExpr).Op == token.AND // &v
+
+	case edge.SelectorExpr_X:
+		sel := cur.Parent().Node().(*ast.SelectorExpr)
+		isPointer := func(t types.Type) bool {
+			return is[*types.Pointer](t)
+		}
+		if seln, ok := info.Selections[sel]; ok && seln.Kind() == types.MethodVal {
+			// Have: recv.f() method call
+			methodRecv := seln.Obj().(*types.Func).Signature().Recv().Type()
+			return !seln.Indirect() && isPointer(methodRecv) && !isPointer(info.TypeOf(sel.X))
 		}
 	}
 
-	curParent := curIdent.Parent()
-	kind, index := curIdent.ParentEdge()
-	switch kind {
-	case edge.ValueSpec_Names:
-		// var v = expr
-		spec := curParent.Node().(*ast.ValueSpec)
-		if len(spec.Names) == len(spec.Values) {
-			return curUse, curParent.ChildAt(edge.ValueSpec_Values, index), true
-		}
-	case edge.AssignStmt_Lhs:
-		// v := expr
-		stmt := curParent.Node().(*ast.AssignStmt)
-		if len(stmt.Lhs) == len(stmt.Rhs) {
-			return curUse, curParent.ChildAt(edge.AssignStmt_Rhs, index), true
-		}
+	return false
+}
+
+// unparenEnclosing removes enclosing parens from cur in
+// preparation for a call to [Cursor.ParentEdge].
+func unparenEnclosing(cur inspector.Cursor) inspector.Cursor {
+	for cur.ParentEdgeKind() == edge.ParenExpr_X {
+		cur = cur.Parent()
 	}
-	return inspector.Cursor{}, inspector.Cursor{}, false
+	return cur
 }
 
 // inlineVariableOne computes a fix to replace the selected variable by
@@ -231,6 +249,8 @@ func inlineVariableOne(pkg *cache.Package, pgf *parsego.File, start, end token.P
 			return nil, nil, fmt.Errorf("cannot inline variable: its initializer expression refers to %q, which is shadowed by the declaration at line %d", id.Name, safetoken.Position(pgf.Tok, obj2.Pos()).Line)
 		}
 	}
+
+	// TODO(adonovan): also reject variables that are updated by assignments?
 
 	// Add parens to 'new' as needed by the 'use' context.
 	rhs = astutil.MaybeParenthesize(curUse.Parent().Node(), use, rhs)

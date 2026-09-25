@@ -274,10 +274,6 @@ type UIOptions struct {
 	// MoveType enables producing Move Type codeactions. The implementation
 	// is unfinished so we use this setting to gate its use.
 	MoveType bool `status:"experimental"`
-
-	// MoveDeclaration enables producing Move Declaration codeactions. The implementation
-	// is unfinished so we use this setting to gate its use.
-	MoveDeclaration bool `status:"experimental"`
 }
 
 // A CodeLensSource identifies an (algorithmic) source of code lenses.
@@ -640,18 +636,10 @@ const (
 	// implicitly ignored.
 	//
 	// To suppress the hint, write an actual comment containing
-	// one of the following strings:
-	// ```
-	// ignore error
-	// discard error
-	// can't fail
-	// cannot fail
-	// ```
-	// following the call statement, or explicitly assign the
-	// result to a blank variable.
-	//
-	// A handful of common functions such as `fmt.Println` are
-	// excluded from the check.
+	// "ignore error" following the call statement, or explicitly
+	// assign the result to a blank variable. A handful of common
+	// functions such as `fmt.Println` are excluded from the
+	// check.
 	IgnoredError InlayHint = "ignoredError"
 )
 
@@ -710,25 +698,6 @@ type UserOptions struct {
 	// Also, this parameter limits file contents; disk block usage
 	// as measured by du(1) may be significantly higher.
 	MaxFileCacheBytes int64 `status:"experimental"`
-
-	// MemoryLimit sets a soft memory limit (in bytes) for the gopls process, via
-	// runtime/debug.SetMemoryLimit. If non-positive (the default), no limit is set.
-	//
-	// On large workspaces, a single edit that invalidates many
-	// packages (for example a syntax error in a widely-imported
-	// package) can make the heap briefly grow well above the
-	// steady-state working set before the garbage collector
-	// catches up, spiking memory and, on memory-constrained
-	// machines, causing swapping. A soft limit makes the GC work
-	// harder to stay near the limit, trading some CPU for a lower
-	// memory peak.
-	//
-	// The limit is soft and may be exceeded. Set it comfortably above the
-	// steady-state working set, as too low a value causes excessive GC.
-	//
-	// Unlike the GOMEMLIMIT environment variable, this setting is
-	// strictly numeric; SI suffixes are not permitted.
-	MemoryLimit int64 `status:"experimental"`
 
 	// VerboseOutput enables additional debug logging.
 	VerboseOutput bool `status:"debug"`
@@ -1367,9 +1336,6 @@ func (o *Options) setOne(name string, value any) (applied []CounterPath, _ error
 	case "maxFileCacheBytes":
 		return setInt64(&o.MaxFileCacheBytes, value)
 
-	case "memoryLimit":
-		return setInt64(&o.MemoryLimit, value)
-
 	case "verboseOutput":
 		return setBool(&o.VerboseOutput, value)
 
@@ -1482,9 +1448,6 @@ func (o *Options) setOne(name string, value any) (applied []CounterPath, _ error
 	case "moveType":
 		return setBool(&o.MoveType, value)
 
-	case "moveDeclaration":
-		return setBool(&o.MoveDeclaration, value)
-
 	// deprecated and renamed settings
 	//
 	// These should never be deleted: there is essentially no cost
@@ -1576,30 +1539,18 @@ func (o *Options) setOne(name string, value any) (applied []CounterPath, _ error
 
 // EnabledSemanticTokenModifiers returns a map of modifiers to boolean.
 func (o *Options) EnabledSemanticTokenModifiers() map[semtok.Modifier]bool {
-	copy := make(map[semtok.Modifier]bool, len(o.SemanticMods))
-	// Enable the modifiers defined in client capabilities
-	for _, m := range o.SemanticMods {
-		if enabled, found := o.SemanticTokenModifiers[m]; found && !enabled {
-			// If the client capabilities enables a semantic mod, but the
-			// user's UI settings disables it, keep it disabled.
-			continue
-		}
-		copy[semtok.Modifier(m)] = true
+	copy := make(map[semtok.Modifier]bool, len(o.SemanticTokenModifiers))
+	for k, v := range o.SemanticTokenModifiers {
+		copy[semtok.Modifier(k)] = v
 	}
 	return copy
 }
 
 // EnabledSemanticTokenTypes returns a map of types to boolean.
 func (o *Options) EnabledSemanticTokenTypes() map[semtok.Type]bool {
-	copy := make(map[semtok.Type]bool, len(o.SemanticTypes))
-	// Enable the tokens defined in client capabilities
-	for _, t := range o.SemanticTypes {
-		if enabled, found := o.SemanticTokenTypes[t]; found && !enabled {
-			// If the client capabilities enables a semantic type, but the
-			// user's UI settings disables it, keep it disabled.
-			continue
-		}
-		copy[semtok.Type(t)] = true
+	copy := make(map[semtok.Type]bool, len(o.SemanticTokenTypes))
+	for k, v := range o.SemanticTokenTypes {
+		copy[semtok.Type(k)] = v
 	}
 	if o.NoSemanticString {
 		copy[semtok.TokString] = false

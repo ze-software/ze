@@ -208,10 +208,12 @@ func (req *codeActionsRequest) resolveEdits() bool {
 
 // lazyInit[*T](ctx, req) returns a pointer to an instance of T,
 // calling new(T).init(ctx.req) on the first request.
-func (req *codeActionsRequest) lazyInit[P interface {
+//
+// It is conceptually a (generic) method of req.
+func lazyInit[P interface {
 	init(ctx context.Context, req *codeActionsRequest)
 	*T
-}, T any](ctx context.Context) P {
+}, T any](ctx context.Context, req *codeActionsRequest) P {
 	t := reflect.TypeFor[T]()
 	v, ok := req.lazy[t].(P)
 	if !ok {
@@ -255,7 +257,6 @@ var codeActionProducers = [...]codeActionProducer{
 	{kind: settings.RefactorInlineCall, fn: refactorInlineCall, needPkg: true},
 	{kind: settings.RefactorInlineVariable, fn: refactorInlineVariable, needPkg: true},
 	{kind: settings.RefactorMoveType, fn: refactorMoveType, needPkg: true},
-	{kind: settings.RefactorMoveDeclaration, fn: refactorMoveDeclaration, needPkg: true},
 	{kind: settings.RefactorRewriteChangeQuote, fn: refactorRewriteChangeQuote},
 	{kind: settings.RefactorRewriteFillStruct, fn: refactorRewriteFillStruct, needPkg: true},
 	{kind: settings.RefactorRewriteFillSwitch, fn: refactorRewriteFillSwitch, needPkg: true},
@@ -278,7 +279,7 @@ var codeActionProducers = [...]codeActionProducer{
 
 // sourceOrganizeImports produces "Organize Imports" code actions.
 func sourceOrganizeImports(ctx context.Context, req *codeActionsRequest) error {
-	res := req.lazyInit[*allImportsFixesResult](ctx)
+	res := lazyInit[*allImportsFixesResult](ctx, req)
 
 	// Send all of the import edits as one code action
 	// if the file is being organized.
@@ -299,7 +300,7 @@ func quickFix(ctx context.Context, req *codeActionsRequest) error {
 	}
 
 	// Process any missing imports and pair them with the diagnostics they fix.
-	res := req.lazyInit[*allImportsFixesResult](ctx)
+	res := lazyInit[*allImportsFixesResult](ctx, req)
 	if res.err != nil {
 		return nil
 	}
@@ -402,30 +403,30 @@ func importFixTitle(fix *imports.ImportFix) string {
 func fixedByImportFix(fix *imports.ImportFix, diagnostics []protocol.Diagnostic) []protocol.Diagnostic {
 	var results []protocol.Diagnostic
 	for _, diagnostic := range diagnostics {
-		msg := diagnostic.MessageString()
 		switch {
 		// "undeclared name: X" may be an unresolved import.
-		case strings.HasPrefix(msg, "undeclared name: "):
-			ident := strings.TrimPrefix(msg, "undeclared name: ")
+		case strings.HasPrefix(diagnostic.Message, "undeclared name: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "undeclared name: ")
 			if ident == fix.IdentName {
 				results = append(results, diagnostic)
 			}
 		// "undefined: X" may be an unresolved import at Go 1.20+.
-		case strings.HasPrefix(msg, "undefined: "):
-			ident := strings.TrimPrefix(msg, "undefined: ")
+		case strings.HasPrefix(diagnostic.Message, "undefined: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "undefined: ")
 			if ident == fix.IdentName {
 				results = append(results, diagnostic)
 			}
 		// "could not import: X" may be an invalid import.
-		case strings.HasPrefix(msg, "could not import: "):
-			ident := strings.TrimPrefix(msg, "could not import: ")
+		case strings.HasPrefix(diagnostic.Message, "could not import: "):
+			ident := strings.TrimPrefix(diagnostic.Message, "could not import: ")
 			if ident == fix.IdentName {
 				results = append(results, diagnostic)
 			}
 		// "X imported but not used" is an unused import.
 		// "X imported but not used as Y" is an unused import.
-		case strings.Contains(msg, " imported but not used"):
-			importPath, _, _ := strings.Cut(msg, " imported but not used")
+		case strings.Contains(diagnostic.Message, " imported but not used"):
+			idx := strings.Index(diagnostic.Message, " imported but not used")
+			importPath := diagnostic.Message[:idx]
 			if importPath == fmt.Sprintf("%q", fix.StmtInfo.ImportPath) {
 				results = append(results, diagnostic)
 			}
@@ -1253,21 +1254,6 @@ func refactorMoveType(_ context.Context, req *codeActionsRequest) error {
 	if specCur, ok := selectionContainsTypeSpec(curSel); ok {
 		spec := specCur.Node().(*ast.TypeSpec)
 		cmd := command.NewMoveTypeCommand(fmt.Sprintf("Move type %s", spec.Name.Name), command.MoveTypeArgs{Location: req.loc})
-		req.addCommandAction(cmd, false)
-	}
-	return nil
-}
-
-func refactorMoveDeclaration(_ context.Context, req *codeActionsRequest) error {
-	if !req.snapshot.Options().MoveDeclaration {
-		return nil
-	}
-	if !supportsDialog(req.snapshot.Options().ClientOptions, moveDeclarationFormFile, moveDeclarationFormString) {
-		return nil
-	}
-	curSel, _ := req.pgf.Cursor().FindByPos(req.start, req.end)
-	if cur, name := moveDeclTarget(curSel); cur.Valid() {
-		cmd := command.NewMoveDeclarationCommand(fmt.Sprintf("Move declaration %s", name), command.MoveDeclarationArgs{Location: req.loc})
 		req.addCommandAction(cmd, false)
 	}
 	return nil
