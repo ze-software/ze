@@ -85,7 +85,7 @@ MUST NOT edit those tests.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component isolation, the seam pattern, sysrib's place
   → Constraint: a component never imports another component; a fact that has to cross registers into a leaf package both sides import
-  → Decision: the resolvability oracle is published OUT of sysrib rather than imported IN by BGP, because BGP MUST NOT depend on `internal/component/sysrib` (`./le tier check`)
+  → Decision: the resolvability oracle is published OUT of sysrib rather than imported IN by BGP, because BGP MUST NOT depend on `internal/component/sysrib` (`./le arch tier check`)
 - [ ] `docs/architecture/plugin/rib-storage-design.md` - declared by `rib_commands.go`, `rib_bestchange.go` and `rib.go`
   → Constraint: candidate gathering runs under `RIBManager.peerMu.RLock`, so anything the filter calls MUST NOT take a BGP lock or re-enter the RIB
 - [ ] `docs/architecture/rib/unified-locrib.md` - the shared Loc-RIB, its change notifications
@@ -377,7 +377,7 @@ MUST NOT edit those tests.
 | `RFC9252-5-2` is no longer a gap | `grep -n "RFC9252-5-2" rfc/short/rfc9252.md rfc/requirements/rfc9252.md` shows both polarities and no `{gap}` |
 | Both polarities are tagged | `grep -rn "RFC requirement: RFC9252-5-2" internal/` returns a positive and a negative |
 | The discrimination record exists and is honest | `./le rfc check` passes with `rfc/discrimination/rfc9252.json` present |
-| The interop scenario is discovered by name | `./le integration` lists `bgp-srv6-resolvability-frr` |
+| The interop scenario is discovered by name | `./le test integration` lists `bgp-srv6-resolvability-frr` |
 | No test of `RFC9252-5-1` was edited | `git diff --stat internal/component/bgp/plugins/rib/srv6_ineligible_test.go` is empty |
 
 ### Security Review Checklist
@@ -396,7 +396,7 @@ MUST NOT edit those tests.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| `./le tier check` refuses the new package | The seam is in the wrong tier: it MUST be a leaf under `internal/core/`, imported by both sides and importing neither |
+| `./le arch tier check` refuses the new package | The seam is in the wrong tier: it MUST be a leaf under `internal/core/`, imported by both sides and importing neither |
 | Deadlock in the re-evaluation path | R-1 or R-2: the handler is doing work it must hand to the worker |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 

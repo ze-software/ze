@@ -265,8 +265,8 @@ metadata and no daemon comparison claim.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The refusal in `tlsMethod.Process` | `go test -race ./internal/core/eap` |
-| The functional test | `./le functional ipsec` |
-| The interop regression | `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` |
+| The functional test | `./le test functional ipsec` |
+| The interop regression | `./le test integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` |
 
 ### Security Review Checklist
 

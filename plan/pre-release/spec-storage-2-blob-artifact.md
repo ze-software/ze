@@ -276,7 +276,7 @@ An unrelated canonical seed is never mistaken for the source, and an init source
 | AC-23 | a full restore interrupted after durable intent publication: before moving the old tree, between old-tree and unrelated-seed moves, while `database` is absent, after new-tree publication, or during completion | `Open`, `OpenReadOnly`, `Create` and `CreatePopulated` report pending even beside an existing tree, with `ze data restore <source> full`; that command alone completes each recognized state, leaves the source and its sidecar unrenamed, preserves each previous destination at its recorded retirement name, and removes the intent. Replay never invents another stage or retirement name. Missing/unknown policy, malformed descriptors, changed source, missing recorded nodes or an unrelated replacement refuse before mutation. Init retains its prepared, published, retired, retired-locked and retired-then-changed replay boundaries, with retirement progress independent of policy. |
 | AC-21 | `WriteGuard.ReadKey` and `ListKeys` on the tree and on the blob, inside a held guard | each answers what the same-named `Storage` method answers outside a guard, and neither deadlocks; the test fails by TIMING OUT, which is what the `Storage` call it replaces would do. `ListKeys` is LITERAL-PREFIX, RECURSIVE and SORTED, so `ListKeys("file/")` and `ListKeys("fil")` both answer every key that string-starts with the argument, in the same order on both encodings, and `ListKeys("")` answers the whole store |
 | AC-20 | `ze data restore <file> config` on a source holding two config names, no `name` keyword, and no config matching the device's name | refused before any write, listing both source names and the device's name; with `name <one-of-them>` that config is committed under the device's name and the rename is printed |
-| AC-19 | `ze data backup`, `restore`, `request data backup|restore`, `ze init --from` documented | `command-reference.md`, `operations.md` carry them; `./le site build` regenerates the website pages; `./le wiki-catalog update file ../wiki/command-catalog.md` separately regenerates the wiki catalog, which is committed in the wiki checkout |
+| AC-19 | `ze data backup`, `restore`, `request data backup|restore`, `ze init --from` documented | `command-reference.md`, `operations.md` carry them; `./le site build` regenerates the website pages; `./le cli catalog update file ../wiki/command-catalog.md` separately regenerates the wiki catalog, which is committed in the wiki checkout |
 
 ## End-to-End User Stories
 
@@ -386,7 +386,7 @@ An unrelated canonical seed is never mistaken for the source, and an init source
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` if it lists `ze data` verbs or `request` RPCs |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation: `./le spec citation anchors spec plan/pre-release/spec-storage-2-blob-artifact.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze data` and `ze init` examples in `command-reference.md`, `operations.md`, `ze-install.md` and the website guides; `./le site build` run, `./le wiki-catalog update file ../wiki/command-catalog.md` run separately, and the wiki catalog committed (AC-19) |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze data` and `ze init` examples in `command-reference.md`, `operations.md`, `ze-install.md` and the website guides; `./le site build` run, `./le cli catalog update file ../wiki/command-catalog.md` run separately, and the wiki catalog committed (AC-19) |
 
 Design documents declared by the `// Design:` headers of files in scope:
 
@@ -422,7 +422,7 @@ Design documents declared by the `// Design:` headers of files in scope:
    - Tests: `TestOpenBlobConformance`, `TestOpenBlobLock`, `TestEditBackupFlagConflicts`, `TestEditBackupNoDaemon`, `edit-backup.et`
    - Files: `open.go` and existing artifact openers reusing `lockStoreFile` and its sidecar, `cmd_edit.go`, `cmd_show.go`, `cmd_diff.go`, `cmd_set.go`, `cmd_list.go`, `docs/guide/config-editor.md`, `docs/guide/command-reference.md`, `docs/features.md`; no new lock pair
    - Verify: AC-12 to AC-14
-6. **Phase: Published surfaces** -- update website pages, run `./le site build`, then separately run `./le wiki-catalog update file ../wiki/command-catalog.md` and commit the catalog in the wiki checkout
+6. **Phase: Published surfaces** -- update website pages, run `./le site build`, then separately run `./le cli catalog update file ../wiki/command-catalog.md` and commit the catalog in the wiki checkout
    - Verify: AC-19
 
 ### Critical Review Checklist
@@ -447,7 +447,7 @@ Design documents declared by the `// Design:` headers of files in scope:
 | Live backup consistent | `TestBackupUnderLock` through the RPC |
 | Offline blob equals tree behavior | `TestOpenBlobConformance` passes every row |
 | Full-restore recovery without source loss | AC-23 crash-state tests and `data-restore-full-resume.ci` on Linux, including previous seed retirement and unrelated replacement refusal; runtime evidence exercises Linux native publication rather than a mocked rename or cross-compile-only check |
-| Pages, site and wiki updated | `./le doc wiring` green; `./le site build` run; `./le wiki-catalog update file ../wiki/command-catalog.md` run separately; wiki commit SHA recorded |
+| Pages, site and wiki updated | `./le doc wiring` green; `./le site build` run; `./le cli catalog update file ../wiki/command-catalog.md` run separately; wiki commit SHA recorded |
 
 ### Security Review Checklist
 

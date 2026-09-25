@@ -49,7 +49,7 @@ children 6 and 5 respectively and are consumed, not modified, here.
 ### Architecture Docs
 - [ ] `docs/architecture/traffic/traffic-analysis-layers.md` - traffic analysis split into facts, judgment and response
 - [ ] `plan/spec-anomaly-0-umbrella.md` - shared framing and the verified constraints for AS work
-  → Constraint: no `detect -> flowexport/enrich` import (fails `./le tier check`, umbrella A-3);
+  → Constraint: no `detect -> flowexport/enrich` import (fails `./le arch tier check`, umbrella A-3);
     origin-AS must ride the facts surface, stamped by the producer (child 6). This child reads
     `fe.SrcAS` off the already-imported `trafficfeature.FeatureEntry` -- zero new imports.
   → Constraint: R-3 -- AS enrichment is OPTIONAL; the detector must keep scoring (prefix cohorts,
@@ -334,7 +334,7 @@ evidence. The `.ci` remains responsible for operator config/show reachability.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 7-13 | Critical / Deliverables / Security review, re-verify |
 | 14. Present summary | Executive Summary + learned summary |
 

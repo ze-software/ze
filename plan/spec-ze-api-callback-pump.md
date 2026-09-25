@@ -64,7 +64,7 @@ producing function before designing a repair within this goal.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-A `.ci` invokes a registered `ze-test fixture` driver.
+A `.ci` invokes a registered `le-test fixture` driver.
 
 ### Transformation Path
 1. The driver creates an SDK plugin and registers its filter callback.

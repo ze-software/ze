@@ -98,7 +98,7 @@ Out of scope: the negative-path fuzzing per RFC error-handling clause, which is
 |----------|--------|
 | What breaks if this is wrong? | test infrastructure only; defects it finds are product work |
 | How is it reverted? | a commit revert |
-| Who else touches this path? | `plan/spec-improve-4-conformance-fixtures.md`, `./le fuzz`, the interop lab |
+| Who else touches this path? | `plan/spec-improve-4-conformance-fixtures.md`, `./le test fuzz`, the interop lab |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

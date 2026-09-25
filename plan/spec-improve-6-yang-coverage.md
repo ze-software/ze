@@ -82,7 +82,7 @@ the report itself is a developer/agent tool.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `ze yang coverage` CLI command (developer/agent tool) and/or `./le yang leaf-mentions report`;
+- `ze yang coverage` CLI command (developer/agent tool) and/or `./le config unread-leaves report`;
   mechanical subset runs as a check inside the existing verify stage family.
 
 ### Transformation Path
@@ -124,7 +124,7 @@ the report itself is a developer/agent tool.
 |----|------|--------------|----------------------|
 | R-1 | Report becomes a stale second source of truth if it caches anything | drift between report and loader behavior | always compute live from the loader; no stored inventories |
 | R-2 | "Coverage" naming misleads (suggests IETF-standards coverage) | user/docs confusion | name and docs say schema-consistency report; comparison docs handle standards claims separately |
-| R-3 | Check mode blocks unrelated PRs on legacy violations (A-3) | verify failures on untouched modules | advisory first; blocking only for CHANGED modules (matches ./le changed scope philosophy) |
+| R-3 | Check mode blocks unrelated PRs on legacy violations (A-3) | verify failures on untouched modules | advisory first; blocking only for CHANGED modules (matches ./le repo changed scope philosophy) |
 
 ## Wiring Test (MANDATORY)
 
@@ -132,7 +132,7 @@ the report itself is a developer/agent tool.
 |-------------|---|--------------|------|
 | ze yang coverage | → | loader walk + registry join + report | TestYANGCoverageReport |
 | check mode on a module with an unconstrained leaf (fixture) | → | violation detection, non-zero exit | TestYANGCoverageCheckFailsOnBareLeaf |
-| ./le yang leaf-mentions report | → | make target runs the tool | test/plugin/yang-coverage.ci |
+| ./le config unread-leaves report | → | make target runs the tool | test/plugin/yang-coverage.ci |
 
 ## Acceptance Criteria
 
@@ -345,8 +345,8 @@ Decisions with the module that motivated it.
 
 ### Post-wave corrections (2026-07-10)
 
-- A mechanical YANG-default check subset of this spec ALREADY LANDED in the followup wave: `internal/le/portdefaults/portdefaults.go` compares each service's YANG `refine port { default N }` (regex `refinePortRe` at `port_defaults.go`, extraction `yangPortDefault` at `:143`) against the hand-maintained Go listener-defaults table, wired as `./le port-defaults check` (the retired `Makefile:327-329` (current producers: `internal/le/` native action tables)) and run by the live verify stage list in both branches (`internal/le/verify/engine/run.go`, `:140`).
-- The proposed `ze yang coverage` check mode must NOT duplicate that coverage: port-default consistency is owned by `./le port-defaults check`. Design the coverage tool as a sibling in the existing `internal/le/` family (now `command_ownership.go`, `iface_resolution.go`, `plugin_process_boundary.go`, `port_defaults.go`, `cli_grammar.go`) and scope its constraint grading to what the port gate does not already check.
+- A mechanical YANG-default check subset of this spec ALREADY LANDED in the followup wave: `internal/le/portdefaults/portdefaults.go` compares each service's YANG `refine port { default N }` (regex `refinePortRe` at `port_defaults.go`, extraction `yangPortDefault` at `:143`) against the hand-maintained Go listener-defaults table, wired as `./le config ports check` (the retired `Makefile:327-329` (current producers: `internal/le/` native action tables)) and run by the live verify stage list in both branches (`internal/le/verify/engine/run.go`, `:140`).
+- The proposed `ze yang coverage` check mode must NOT duplicate that coverage: port-default consistency is owned by `./le config ports check`. Design the coverage tool as a sibling in the existing `internal/le/` family (now `command_ownership.go`, `iface_resolution.go`, `plugin_process_boundary.go`, `port_defaults.go`, `cli_grammar.go`) and scope its constraint grading to what the port gate does not already check.
 - Loader evidence re-verified, not stale: `DefaultLoader` (`internal/component/config/yang/loader.go`, best-effort `LoadRegistered`/`Resolve` at `:25-26`) and the `LoadEmbedded` bootstrap set covering ze-extensions/ze-types still match the Current Behavior citations.
 
 ### Design-phase corrections (2026-07-10)

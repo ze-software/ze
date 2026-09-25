@@ -82,7 +82,7 @@ them out of step.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le functional parse`, or `bin/ze-test parse <selector>`, over a `.ci` whose
+- `./le test functional parse`, or `bin/le-test parse <selector>`, over a `.ci` whose
   `tmpfs=` helper script calls `ze`.
 
 ### Transformation Path
@@ -145,7 +145,7 @@ no wire behavior.
 | AC-1 | A parse-suite helper script invokes `ze` | It resolves and runs |
 | AC-2 | The same, on a host with a different `ze` on PATH | The binary under test wins, matching the orchestrated runner's stated guarantee |
 | AC-3 | Every existing `test/parse/` fixture | Passes unchanged, proven by the FULL suite and never a sample |
-| AC-4 | The orchestrated suite | Unchanged, proven by `./le functional plugin` |
+| AC-4 | The orchestrated suite | Unchanged, proven by `./le test functional plugin` |
 | AC-5 | the retired deferral shard "finish-ci-coverage" | Half two moves from `live` to a terminal state, and the shard is removed if that was its last live row |
 
 ## End-to-End User Stories
@@ -190,7 +190,7 @@ no wire behavior.
    - Verify: AC-1 is RED
 3. **Phase: Fix** -- at the producer the first phase named
    - Verify: AC-1, AC-2
-4. **Phase: Full suites** -- `./le functional parse` and `./le functional plugin`, both
+4. **Phase: Full suites** -- `./le test functional parse` and `./le test functional plugin`, both
    entire
    - Verify: AC-3, AC-4
 5. **Phase: Close the deferral row and the doc**

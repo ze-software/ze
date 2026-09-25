@@ -330,7 +330,7 @@ the planning reconciliation.
 | RFC-tagged positive and negative tests | `./le rfc check` plus mutation run for the common egress guard; future normal producer needs its own proof |
 | No MED syntax overlap | Scoped changed-file review excludes syntax, parser, formatter, help, and public syntax docs |
 | Reactor package behavior | `go test -race ./internal/component/bgp/reactor` |
-| Changed Go quality | `./le changed scope` |
+| Changed Go quality | `./le repo changed scope` |
 | Functional wire behavior | Focused plugin suite target for the new `.ci` on the route-server rail |
 | Foreign-peer behavior | Focused GoBGP interop scenario on the route-server rail |
 

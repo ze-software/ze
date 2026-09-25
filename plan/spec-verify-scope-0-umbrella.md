@@ -51,8 +51,8 @@ Measured stage costs, derived from stage-log timestamps under `tmp/verify/`:
 
 | Stage | Full run | Changed run |
 |-------|----------|-------------|
-| `./le functional` | 1472s | 1998s |
-| `./le staticcheck-feature-matrix check` | 874s | 1138s |
+| `./le test functional` | 1472s | 1998s |
+| `./le go staticcheck check` | 874s | 1138s |
 | `ze-unit-test-race-changed` | 638s | - |
 | `ze-unit-test-cached` | 439s | - |
 | `ze-unit-test-changed` | - | 1163s |
@@ -114,14 +114,14 @@ The initial conclusion was that raw execution coverage could not attribute
 suites usefully. The later reached-package experiment discounted registration
 and superseded that conclusion.
 Two further findings, either of which would have blocked it alone. Four suites
-record NOTHING: `editor` runs inside the `ze-test` harness, `web` writes a meta
+record NOTHING: `editor` runs inside the `le-test` harness, `web` writes a meta
 file and no counters, `runner` tests the harness, and `policy` skips
 unprivileged. And the instrumented binary is not behaviourally equivalent under
 load: back to back on one tree, `plugin` gave 628/628 clean against 626/628
 instrumented, and `ui` 184/184 against 181/184 and 177/184, every failure
 `daemon did not become ready`. Instrumentation costs +45% suite time, +52% wall.
 
-At that point `./le functional` remained unscoped, and the investigation had
+At that point `./le test functional` remained unscoped, and the investigation had
 found no route to AC-U1's under-15-minute target. That was the August conclusion;
 the later implementation still owes a measured result against AC-U1.
 
@@ -234,7 +234,7 @@ above. They are not a fresh inventory of work still to implement.
 |-------------|---|--------------|------|
 | `./le verify current mode full-list` | → | `stagesForMode` | `TestStagesForModeMatchesGolden` |
 | `internal/le/commit/prepare.go create` | → | `verify_status` with the commit's file list | `test_verify_status_scopes_to_commit_paths` |
-| `./le changed scope` | → | the sub-spec 2 selector | `TestSelectorFailsOpenOnUnknownPath` |
+| `./le repo changed scope` | → | the sub-spec 2 selector | `TestSelectorFailsOpenOnUnknownPath` |
 | `./le commit debt-clear` | → | the sub-spec 1 clearing target | `test_debt_clear_reruns_the_owed_gate` |
 
 ## Acceptance Criteria

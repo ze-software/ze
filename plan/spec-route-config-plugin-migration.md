@@ -365,7 +365,7 @@ code for any of these four families.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8-14. Standard | Per template |
 

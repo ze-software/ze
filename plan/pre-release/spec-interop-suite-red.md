@@ -161,7 +161,7 @@ reach green (`ai/rules/completion.md`).
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-`INTEROP_SCENARIO=<name> ./le integration interop`, or the nightly workflow.
+`INTEROP_SCENARIO=<name> ./le test integration interop`, or the nightly workflow.
 
 ### Transformation Path
 (fill during design)
@@ -219,7 +219,7 @@ reach green (`ai/rules/completion.md`).
      .ci and this row is revisited. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Native runner over Current obligation set, then the full suite | `test/interop/` via `./le integration interop` | the recorded failures are repaired and all required scenario assertions pass | |
+| Native runner over Current obligation set, then the full suite | `test/interop/` via `./le test integration interop` | the recorded failures are repaired and all required scenario assertions pass | |
 
 ## Files to Modify
 - `internal/le/interoplab/bgp/` and affected scenario configs - only current surviving defects identified at their producers; keep fail-closed helper behaviour

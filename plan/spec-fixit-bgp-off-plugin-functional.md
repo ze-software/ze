@@ -208,7 +208,7 @@ IGP-sourced installation in this non-default build.
 ### Goal Gates (MUST pass)
 - [ ] AC-1 through AC-5 demonstrated against the recorded BGP-absent composition.
 - [ ] Existing evidence and newly executed evidence distinguished.
-- [ ] AC-4 exercised under `./le qemu run command "./le qemu all-tests"`.
+- [ ] AC-4 exercised under `./le test qemu run command "./le test qemu all-tests"`.
 - [ ] Every assumption resolved; no weakened assertion hides a product defect.
 - [ ] `./le verify worktree` passes.
 

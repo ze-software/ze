@@ -67,4 +67,4 @@ baseline learns. That interaction is the main design risk here and the spec
 must state what it does about it.
 
 **Owning gate.** `go test -race ./internal/plugins/ddos/detect`, then
-`./le functional plugin` for the thirteen `ddos-*.ci` fixtures.
+`./le test functional plugin` for the thirteen `ddos-*.ci` fixtures.

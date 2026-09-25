@@ -153,7 +153,7 @@ road-warrior access usable.
   address must be allocated before the traffic selectors are built or the lease never
   appears in the negotiated selectors and the client cannot route
 - [ ] `docs/architecture/testing/interop.md` - the IPsec interop suite
-  → Constraint: the suite is `test/interop-ipsec/`, driven by `./le integration
+  → Constraint: the suite is `test/interop-ipsec/`, driven by `./le test integration
   interop-ipsec`, and a scenario directory is NAMED with no numeric prefix
 - [ ] `docs/architecture/wire/buffer-writer.md` - the encoding contract `payload_cp.go`
   declares
@@ -588,8 +588,8 @@ discriminate-record`.
 |-------------|---------------------|
 | `_ = ipPool` is gone | `grep -n "_ = ipPool" internal/component/ike/engine/register.go` returns nothing |
 | `Pool.Allocate` has a non-test caller | `grep -rn "Allocate()" --include=*.go internal/component/ike \| grep -v _test.go` |
-| The CFG_REPLY reaches the wire | `./le integration interop-ipsec` with scenario `virtual-ip-assignment` |
-| Two peers never share an inner address | `./le integration interop-ipsec` with scenario `virtual-ip-uniqueness` |
+| The CFG_REPLY reaches the wire | `./le test integration interop-ipsec` with scenario `virtual-ip-assignment` |
+| Two peers never share an inner address | `./le test integration interop-ipsec` with scenario `virtual-ip-uniqueness` |
 | The gap is closed in the ledger | `./le rfc index-update` then `./le rfc check` shows no `RFC3948-5.1-1` gap |
 | The reversal is disclosed | `grep -n "builds no Configuration payload" docs/features/rfc-status.md` returns nothing |
 

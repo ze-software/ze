@@ -1,6 +1,6 @@
-### `./le functional reload` config-apply-ordering-rotation: one recorded timeout, later attempts passed
+### `./le test functional reload` config-apply-ordering-rotation: one recorded timeout, later attempts passed
 
-Observed ONCE, in five `./le functional reload` runs over the phase-1 tree of
+Observed ONCE, in five `./le test functional reload` runs over the phase-1 tree of
 `spec-config-apply-ordering-covers-every-root`. The test took 30.0s against a
 2.2s average for that run and the runner reported:
 
@@ -21,7 +21,7 @@ attempt and the next step on the record. Both are below.
 
 | Setting | Value |
 |---------|-------|
-| Tool | `./le functional reload`, the action that owns the suite |
+| Tool | `./le test functional reload`, the action that owns the suite |
 | Runs started | 6, on 2026-09-08 |
 | Runs that reached a test | 2. The other four never built, because another session's uncommitted work left the checkout unable to build the isolated binaries |
 | Later run | 1, after the phase-4 comment edit |

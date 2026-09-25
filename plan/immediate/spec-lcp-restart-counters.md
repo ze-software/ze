@@ -175,7 +175,7 @@ a no-op: nothing in this spec reaches the Starting state.
 |----|------|--------------|----------------------|
 | R-1 | A Restart timer driven by actions rather than a ticker re-arms on every `scr`, so a peer that floods Configure-Requests keeps the timer alive | The interop scenario's teardown never happens | The counter, not the timer, bounds the exchange: each `scr` decrements it, so a flood exhausts Max-Configure faster rather than slower |
 | R-2 | Making `tld` emit a notification changes upper-layer behavior for a renegotiating subscriber that today keeps its IP state | An existing NCP or IPCP test goes red | That red is the defect surfacing. Read the producer, fix the product, never the assertion (`ai/rules/pre-release.md`) |
-| R-3 | A sub-second Restart timer on a busy LNS multiplies wakeups per session | `ze-perf` or a lab run shows CPU growth with session count | The schema `range` floor is 100 ms and the `ze:help` states the cost; the timer is per-session and already exists, so the change is its period rather than its count |
+| R-3 | A sub-second Restart timer on a busy LNS multiplies wakeups per session | `le perf` or a lab run shows CPU growth with session count | The schema `range` floor is 100 ms and the `ze:help` states the cost; the timer is per-session and already exists, so the change is its period rather than its count |
 | R-4 | Max-Failure converting Nak to Reject can end a negotiation the peer would otherwise have converged | pppd logs a rejected option it needs | This is the RFC's prescribed behavior, the default of 5 is the RFC's, and the leaf lets an operator raise it |
 
 ## Blast Radius
@@ -446,7 +446,7 @@ written by `./le rfc discriminate-record` and stored under `rfc/discrimination/`
 | `defaultNegoTimeout` gone | `grep -rn defaultNegoTimeout internal/` returns nothing |
 | Five requirements proven in both polarities | `./le rfc check`, and `rfc/requirements/rfc1661.md` shows a test in both columns for each id |
 | Discrimination records written | `./le rfc discriminate-record`, then five entries under `rfc/discrimination/` |
-| Interop scenario discovered and run | `./le integration` with the scenario selector `lcp-restart-timer-pppd` |
+| Interop scenario discovered and run | `./le test integration` with the scenario selector `lcp-restart-timer-pppd` |
 | Documentation carries the container | grep `docs/guide/l2tp.md` and `docs/guide/pppoe.md` for the `lcp` block |
 
 ### Security Review Checklist

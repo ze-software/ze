@@ -166,7 +166,7 @@ identifiers in any importer.
 - `ai/rules/protocol.md` - IKE probe row exceptions -> none; exceptions table row removed
 - `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS ("ike","wire") removed; selftest fixtures updated
 - docs with the 2 source anchors into `ike/wire` (locate by grep at implementation time) - anchor + prose sweep
-- `ai/PACKAGE-MAP.md` - regenerated (`./le discovery-index update`)
+- `ai/PACKAGE-MAP.md` - regenerated (`./le repo package-map update`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -209,7 +209,7 @@ identifiers in any importer.
 | 2. Audit | Files to Modify; rerun A-1..A-4 greps |
 | 3. Wiring phase | Wiring Test table (existing chains; no new entry points to register) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -227,7 +227,7 @@ identifiers in any importer.
    - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: AC-1, AC-2 (code), AC-3
 3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
-   - Tests: `./le doc check verify`, `./le rules index-update` if rule headers changed
+   - Tests: `./le doc check verify`, `./le ai rules index-update` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 4. **Full verification** — `./le verify current mode full`; AC-6.

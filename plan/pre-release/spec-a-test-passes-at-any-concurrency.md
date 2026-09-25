@@ -120,7 +120,7 @@ hangs those instead of failing them.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le functional plugin`, and the same suite inside `functional/gating` where 27 suites share the box.
+- `./le test functional plugin`, and the same suite inside `functional/gating` where 27 suites share the box.
 
 ### Transformation Path
 1. [fill during research] The runner's concurrency, each `.ci`'s own budget, the fixture's internal waits, and the daemon's own timers are four clocks over one run; name which of them each failing case actually depends on.
@@ -165,7 +165,7 @@ hangs those instead of failing them.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le functional plugin` at the default concurrency, three consecutive runs on an idle box | → | the repaired synchronisation | [fill during design: the measurement itself is the test, and it needs a home that runs it] |
+| `./le test functional plugin` at the default concurrency, three consecutive runs on an idle box | → | the repaired synchronisation | [fill during design: the measurement itself is the test, and it needs a home that runs it] |
 
 ## Acceptance Criteria
 

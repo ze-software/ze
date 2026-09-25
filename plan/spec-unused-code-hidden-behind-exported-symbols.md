@@ -94,7 +94,7 @@ flagged symbols.
 - `plan/spec-fixit-unexport-package-private-symbols.md` is the producer of
   every finding this spec fixes; this spec cannot start its findings sweep
   until that spec's 8 buckets all close.
-- `./le changed scope` / `./le verify current mode full` re-run the same linter and are
+- `./le repo changed scope` / `./le verify current mode full` re-run the same linter and are
   the mechanical proof a deletion introduced no new finding.
 
 ## Findings collected so far
@@ -161,7 +161,7 @@ buckets close, rather than trust this partial list.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le changed scope` on a package this spec touches | → | the deleted/trimmed declaration | the finding is gone from `golangci-lint` output, and `go test -race <pkg>` still passes |
+| `./le repo changed scope` on a package this spec touches | → | the deleted/trimmed declaration | the finding is gone from `golangci-lint` output, and `go test -race <pkg>` still passes |
 
 ## Acceptance Criteria
 
@@ -185,8 +185,8 @@ buckets close, rather than trust this partial list.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le functional encode` | `test/encode/*.ci` | wire encoding stays byte-identical after `internal/core/bgp/attribute` findings are resolved | |
-| `./le functional plugin` | `test/plugin/*.ci` | a plugin still loads and answers its commands after `internal/plugins/debug` and `internal/component/l2tp` findings are resolved | |
+| `./le test functional encode` | `test/encode/*.ci` | wire encoding stays byte-identical after `internal/core/bgp/attribute` findings are resolved | |
+| `./le test functional plugin` | `test/plugin/*.ci` | a plugin still loads and answers its commands after `internal/plugins/debug` and `internal/component/l2tp` findings are resolved | |
 
 ## Files to Modify
 
@@ -228,8 +228,8 @@ lint-invisible dead code; only symbols the parent spec touches are covered.
 - [ ] `./le verify worktree` passes
 
 ### TDD
-- [ ] Tests written: none new; existing package tests and `./le functional encode` /
-  `./le functional plugin` are the regression net
+- [ ] Tests written: none new; existing package tests and `./le test functional encode` /
+  `./le test functional plugin` are the regression net
 - [ ] Tests FAIL: not applicable in the usual direction; the failure this spec
   guards against is a deletion that removes a live path, and the full-tag-set
   `go vet` plus the existing suite produce it deliberately

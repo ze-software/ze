@@ -252,7 +252,7 @@ Three, all reading one enrolment: `ze doctor` (`internal/component/doctor/doctor
 
 ### Architectural Verification
 - **Registration over hardcoding.** Each subsystem registers its own capability from its owning package through `RegisterDoctorCheck`. No core or shared package spells a subsystem name, and `runChecks` loses a direct append rather than gaining one (`ai/rules/plugins.md`, `ai/rules/repo-maintenance.md`).
-- **Tier.** The enrolment lives under `internal/component/doctor`, so it may take the typed tree. Nothing new is added to `internal/core` and `./le tier check` sees no new core-to-component pair.
+- **Tier.** The enrolment lives under `internal/component/doctor`, so it may take the typed tree. Nothing new is added to `internal/core` and `./le arch tier check` sees no new core-to-component pair.
 - **One mechanism.** Three XFRM probes collapse to one. Two are deleted, not wrapped (`ai/rules/no-layering.md`).
 
 ## Risks & Assumptions
@@ -263,8 +263,8 @@ Three, all reading one enrolment: `ze doctor` (`internal/component/doctor/doctor
 | A-1 | `mplsInUse` is the right shape for a general `inUse(tree)` predicate | `checks_linux.go`, shipping for F15 | the registry needs a richer signature | read every subsystem's config shape | confirmed, with one correction: the `fib { kernel { } }` backend condition sits OUTSIDE `mplsInUse` and is load-bearing (AC-7). It folds into the predicate or the registry loses it |
 | A-2 | A native XFRM probe is reachable without a privileged syscall | `openXFRMNetlink` (`internal/component/doctor/checks_linux.go`) opens `NETLINK_XFRM` through `netlink.NewHandle`, groups 0, no `CAP_NET_ADMIN` | the probe cannot separate absence from denial | run it unprivileged in QEMU | confirmed. `EPROTONOSUPPORT` is absence; the open also autoloads a modular `xfrm_user`. `probeXFRM` and `xfrmAvailable` dump the SPD instead and DO conflate, so neither may be the gate |
 | A-3 | No existing caller refuses to start on a diagnostic | no reference to the doctor package in `cmd/` or `internal/component/engine/`; the only consumers are `doctor/cmd/show.go` and `support/support.go` | the gate extends an existing caller instead of adding one | trace the startup path | confirmed. The startup gate is new wiring |
-| A-4 | The kernel autoloads `mpls_iptunnel` on first use, so it must not be gated | `lwtunnel_build_state` issues `request_module("rtnl-lwt-MPLS")`; ze's first use is `buildMPLSEncap` (`internal/plugins/fib/kernel/nexthop_linux.go`) | gating it causes a false refusal on every modular kernel | the QEMU run: configure MPLS with the module unloaded and confirm a labeled route installs | UNVALIDATED. The owner deferred guest runs for the implementation session, so no QEMU boot was made. Nothing was built ON this assumption: `mpls_iptunnel` is not gated, exactly as the row requires. `./le qemu run command "./le qemu all-tests"` settles it |
-| A-5 | `/proc/sys/net/mpls/platform_labels` exists exactly when MPLS routing is in the running kernel | `loadMPLSModules` (`internal/plugins/fib/kernel/mplsentry_integration_linux_test.go`) states the `net.mpls` sysctl tree appears only once MPLS is available, and skips on `os.Stat` of that path | the MPLS probe is wrong in the same direction as `/proc/modules` | QEMU, on a built-in and a modular kernel | UNVALIDATED by a guest boot (deferred). Confirmed on this host from the producing code: `af_mpls_init` registers the `net.mpls` sysctl table when MPLS routing is in the kernel, and `loadMPLSModules` (`internal/plugins/fib/kernel/mplsentry_integration_linux_test.go`) already skips on `os.Stat` of that path. `./le qemu run command "./le qemu all-tests"` settles the modular half |
+| A-4 | The kernel autoloads `mpls_iptunnel` on first use, so it must not be gated | `lwtunnel_build_state` issues `request_module("rtnl-lwt-MPLS")`; ze's first use is `buildMPLSEncap` (`internal/plugins/fib/kernel/nexthop_linux.go`) | gating it causes a false refusal on every modular kernel | the QEMU run: configure MPLS with the module unloaded and confirm a labeled route installs | UNVALIDATED. The owner deferred guest runs for the implementation session, so no QEMU boot was made. Nothing was built ON this assumption: `mpls_iptunnel` is not gated, exactly as the row requires. `./le test qemu run command "./le test qemu all-tests"` settles it |
+| A-5 | `/proc/sys/net/mpls/platform_labels` exists exactly when MPLS routing is in the running kernel | `loadMPLSModules` (`internal/plugins/fib/kernel/mplsentry_integration_linux_test.go`) states the `net.mpls` sysctl tree appears only once MPLS is available, and skips on `os.Stat` of that path | the MPLS probe is wrong in the same direction as `/proc/modules` | QEMU, on a built-in and a modular kernel | UNVALIDATED by a guest boot (deferred). Confirmed on this host from the producing code: `af_mpls_init` registers the `net.mpls` sysctl table when MPLS routing is in the kernel, and `loadMPLSModules` (`internal/plugins/fib/kernel/mplsentry_integration_linux_test.go`) already skips on `os.Stat` of that path. `./le test qemu run command "./le test qemu all-tests"` settles the modular half |
 | A-6 | An empty `vpn { ipsec { } }` installs no SA | `ParseIPsecConfig` (`internal/component/ike/ipsec/config.go`) fills `Peers` only from `site-to-site/peer` and remote access from `remote-access` | AC-11 is wrong and the loose predicate was right | a unit test over `ParseIPsecConfig` with an empty block | CONFIRMED by reading the producer: `ParseIPsecConfig` (`internal/component/ike/ipsec/config.go`) fills `Peers` only from `site-to-site/peer` and `RemoteAccess` only from `remote-access`, so a block carrying neither describes no tunnel. `TestIPsecNotInUseForEmptyBlock` pins it |
 
 ### Risks
@@ -379,7 +379,7 @@ when the predicate is stubbed to return false.
 ### QEMU Tests (BLOCKING, `ai/rules/platform-linux.md`)
 | Test | Validates |
 |------|-----------|
-| `./le qemu run command "./le qemu all-tests"` over the five `.ci` | AC-1 through AC-6 against a real kernel |
+| `./le test qemu run command "./le test qemu all-tests"` over the five `.ci` | AC-1 through AC-6 against a real kernel |
 | MPLS built-in versus modular | A-5, and AC-8's whole point |
 | MPLS configured with `mpls_iptunnel` unloaded | A-4: the kernel autoloads it, so it must not be gated |
 | Unprivileged `ze doctor` on a kernel with XFRM | AC-13 |
@@ -498,7 +498,7 @@ Each names its path and the test that proves it.
 | Exactly ONE XFRM probe in the tree | `grep -rn "func probeXFRM\|func xfrmAvailable\|func openXFRMNetlink" internal/` returns one Linux implementation and its non-Linux twin |
 | One shared `ipsecInUse`, three callers | `gopls references` on the predicate names the gate, `checkKernelModules`, and `extractIPsecListeners` |
 | Appliance kernel carries MPLS | `grep -n "CONFIG_MPLS" gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require` returns both symbols |
-| The five functional tests exist and pass | `./le functional plugin` names each `kernel-capability-*` test |
+| The five functional tests exist and pass | `./le test functional plugin` names each `kernel-capability-*` test |
 | Every probe's three states are reachable in test | each `.ci` or unit test drives present, absent, and cannot-determine |
 | Diagnostic codes registered | `go test ./internal/component/doctor -run TestDoctorCoverageCodesRegistered` |
 
@@ -556,7 +556,7 @@ now registers the capability instead, which is the same ownership in one call.
 **QEMU is not run.** The owner deferred guest runs for this session. A-4 and A-5
 are therefore not settled by a boot, AC-15 is not re-proven by an image boot, and
 the five `test/plugin/kernel-capability-*.ci` are written and unexecuted. The
-command that runs them is `./le qemu run command "./le qemu all-tests"`.
+command that runs them is `./le test qemu run command "./le test qemu all-tests"`.
 
 ## Design Insights
 

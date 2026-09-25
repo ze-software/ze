@@ -23,7 +23,7 @@ and freshness rules, and `planRun`/`selectSuites` for local and gating selection
 CI consumption against this provider; it must not create a second map or
 selection implementation. The umbrella owns aggregate verification-cost proof.
 
-At the August 19 baseline, `./le functional` cost 1472s of a 4418s full run and
+At the August 19 baseline, `./le test functional` cost 1472s of a 4418s full run and
 was the largest remaining cost after child 3's measured Staticcheck reduction
 and child 2's lint/unit scoping. The functional selection implementation now
 exists; narrowing still depends on a usable recorded map.
@@ -67,7 +67,7 @@ package at all.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/test/runner/runner.go` - `(*Runner).Build` compiles `./cmd/ze` with `go build -tags TestBuildTags() -ldflags ...`, and returns `r.verifyPrebuilt()` early when `ze.test.no.build` is enabled
+- [ ] `internal/test/runner/runner.go` - `(*Runner).Build` compiles `./cmd/ze` with `go build -tags TestBuildTags() -ldflags ...`, and returns `r.verifyPrebuilt()` early when `le.test.no.build` is enabled
 - [ ] `internal/test/runner/runner_exec_util.go` - `childEnv` returns `os.Environ()` plus `GOTRACEBACK=all` and `CGO_ENABLED=0`, so an exported variable reaches every spawned process with no per-test plumbing
 - [ ] `internal/le/functional/suites.go` - `Gating`, the ordered gating suite list, and `GatingSuites`, which resolves it against the catalog
 - [ ] `internal/le/functional/binaries.go` - `Prepare` builds the isolated set; `ZE_SUFFIX` names its directory, `ZE_TEST_CANONICAL` runs the session's own binaries in place, `ZE_COVER` turns on `-cover` and `coverRoot`
@@ -77,7 +77,7 @@ package at all.
 
 **→ Constraint: the instrumentation goes where the binary is BUILT, and in the
 default mode that is not the runner.** `Prepare` (`internal/le/functional/binaries.go`)
-compiles the isolated set and the suite runs with `ze.test.no.build` enabled, so
+compiles the isolated set and the suite runs with `le.test.no.build` enabled, so
 `(*Runner).Build` takes its `verifyPrebuilt` branch and never compiles. Adding
 `-cover` to `(*Runner).Build` alone instruments only `ZE_TEST_CANONICAL=1` runs,
 which is not how the gate runs. Both producers need it, or the spec must name
@@ -153,7 +153,7 @@ only inside `register.go`. Three unrelated commands recorded 426, 426 and 424,
 with a union of 428.
 
 **A-2 is broken.** `editor` (166 tests, all passing) records nothing, because
-the `.et` editor runs inside `ze-test`, which is the harness rather than the
+the `.et` editor runs inside `le-test`, which is the harness rather than the
 subject. `web` records a meta file and zero counters over 97 tests. `runner`
 tests the harness. `policy` skips all 6 tests unprivileged. `childEnv`
 (`internal/test/runner/runner_exec_util.go`) does carry the variable, but a
@@ -179,7 +179,7 @@ in-progress because the recording and acceptance evidence is incomplete.
 
 At 22:20 on September 7, `tmp/ze-suite-map.json` had not been written. The first
 attempt was killed by the OOM killer at suite 2 of 27; a second had just started
-under `ZE_COVER=1 ZE_SUFFIX=recordmap ./le functional gating`, logging to
+under `ZE_COVER=1 ZE_SUFFIX=recordmap ./le test functional gating`, logging to
 `tmp/session/2026-09-07-871bd039-337f-4814-a6a3-c4a31407fbaf/scratch/record-map.log`.
 That is a historical launch record, not a current running job or completed run.
 
@@ -252,7 +252,7 @@ Method: `go tool covdata textfmt` over each suite's `GOCOVERDIR`, then `go/ast`
 over each covered file for the line range of every `func init(` it declares. A
 file that declares several init functions yields several ranges, and a block
 inside any of them is discarded. No file failed to parse. Each suite ran through
-`./le functional <suite>` with `ZE_COVER=1` and an absolute `GOCOVERDIR`, so the
+`./le test functional <suite>` with `ZE_COVER=1` and an absolute `GOCOVERDIR`, so the
 raw directories survived for a textfmt reduction, which is not what
 `reduceCoverage` (`internal/le/functional/run.go`) performs.
 
@@ -348,7 +348,7 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le functional` | → | the per-suite `GOCOVERDIR` export in `runGating` | `TestEverySuiteRecordsACoverageProfile` |
+| `./le test functional` | → | the per-suite `GOCOVERDIR` export in `runGating` | `TestEverySuiteRecordsACoverageProfile` |
 | a recorded map plus a package answer | → | the run list `gatingRunList` computes | `TestSuiteSelectionSkipsOnlyUnreachedSuites` |
 | an absent or stale map | → | the fail-open branch | `TestAbsentMapRunsEverySuite` |
 | `./le rfc check` | → | `functionalSuitesFromGo` reading `Gating` | `test_functional_tier_is_unchanged_by_selection` |
@@ -479,7 +479,7 @@ with no reached package for one suite omits that suite rather than storing it.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The map exists and is derived | `./le functional` produces it; no hand-written rows |
+| The map exists and is derived | `./le test functional` produces it; no hand-written rows |
 | Selection works | The stage prints which suites it skipped and why |
 | The instrumented cost is known | Phase 1's measurement, recorded in this spec |
 | The ledger is unchanged in tier | `git diff ai/RFC-REQUIREMENTS.md rfc/requirements/` |
@@ -512,7 +512,7 @@ with no reached package for one suite omits that suite rather than storing it.
 | Observe the mapping at run time | Derive it from `.ci` text, filenames, suite names, or the import graph | All four measured and rejected: 4.1% coverage, one-suite granularity, a false name match, and 87% of the module |
 | The map is a DERIVED artifact under `tmp/`, not committed | Commit it and gate its freshness | A committed map needs a staleness gate, and staleness here is detectable only by re-running the suites. An absent map costs today's behavior, so absence is safe and needs no gate |
 | A package is answerable only if the map records it AND no commit since the map's HEAD touched it | Trust the map until it is regenerated | The stale-map risk is a suite that newly reaches a package. Treating touched packages as unknown bounds it cheaply, with `git diff --name-only <map-sha> HEAD` |
-| **The tier derivation stays on `Gating`; it does NOT read the map** | Point `functionalSuitesFromGo` at the recorded map | `functionalSuitesFromGo` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `./le changed scope` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
+| **The tier derivation stays on `Gating`; it does NOT read the map** | Point `functionalSuitesFromGo` at the recorded map | `functionalSuitesFromGo` fails CLOSED by design, and the map can legitimately be absent. Making a fail-closed derivation depend on an optional artifact inverts it. The tier's meaning becomes "this suite runs when its subject changes", which is the standard `./le repo changed scope` and `ze-unit-test-changed` already meet. `ai/rules/testing.md` must SAY that rather than leave the older reading standing |
 | Select suites; do not parallelize them | Run the suites concurrently | Only `bgp` and `vpp` reserve ports; the rest take deterministic ones, and the collisions are already journalled |
 
 ## Known Limitations

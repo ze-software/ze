@@ -12,7 +12,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Correction 2026-09-05: this spec is NOT closeable, and a green check does not say it is
 
-A closure pass opened this spec on the reading that `./le repository check`
+A closure pass opened this spec on the reading that `./le repo check`
 passes with no `has no cross-package non-test caller` finding, so the backlog
 had drained. **That reading is wrong, and the check cannot support it.**
 
@@ -21,7 +21,7 @@ population from `declaredSymbols(tree, changed)`, and `changed` is whatever
 `ChangedFiles` (`internal/le/repository/repository.go`) answers: `git diff
 --name-only HEAD` plus `git ls-files --others --exclude-standard`. A symbol
 declared in a file nobody is editing is therefore never examined, in either
-mode. `./le repository tree-check` passes an explicitly empty changed set, so it
+mode. `./le repo tree-check` passes an explicitly empty changed set, so it
 examines none of them. A green run says the CHANGED files are clean. It says
 nothing about the tree. `plan/journal/gate-excludes-part-of-its-population.md`
 carries this as a 2026-08-18 row and a 2026-09-05 row.
@@ -40,7 +40,7 @@ One member, verified by hand rather than by the sweep: `ExtractValues`
 (`cmd/ze/internal/cmdutil/cmdutil.go`) is exported, and its only non-test caller
 is `cmdutil.go` itself at the `res.Relative, res.Values, res.InlineAt =
 ExtractValues(...)` line in the same package. It is a genuine finding that
-`./le repository check` will not report until somebody edits that file.
+`./le repo check` will not report until somebody edits that file.
 
 **The spec stays OPEN.** Two things it needs before anybody can work it again:
 
@@ -63,7 +63,7 @@ effect. Every change is a rename, so no behaviour moves.
 
 ## Task
 
-`./le repository check` reported 467 findings of the form `exported symbol X has
+`./le repo check` reported 467 findings of the form `exported symbol X has
 no cross-package non-test caller` on one large working tree in 2026-08. They are
 true: each names a symbol that is exported but reached only from inside its own
 package. **467 is not the tree's total and never was**: the check reads only the
@@ -123,7 +123,7 @@ That symbol is skipped. No edit, no decision.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- A whole-tree declaration inventory, with the current wiring check's suppressions, supplies the worklist. `./le repository check` supplies changed-file feedback only.
+- A whole-tree declaration inventory, with the current wiring check's suppressions, supplies the worklist. `./le repo check` supplies changed-file feedback only.
 
 ### Transformation Path
 1. Record the whole-tree inventory as rows of `file`, `line`, `symbol`, with each exclusion or refusal and its reason.
@@ -174,7 +174,7 @@ That symbol is skipped. No edit, no decision.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Whole-tree worklist plus `./le repository check` | → | `declaredSymbols` and `checkCrossPackageWiring` in `internal/le/repository/wiring.go` | every accepted rename disappears from both the refreshed inventory and the changed-file findings |
+| Whole-tree worklist plus `./le repo check` | → | `declaredSymbols` and `checkCrossPackageWiring` in `internal/le/repository/wiring.go` | every accepted rename disappears from both the refreshed inventory and the changed-file findings |
 
 ## Acceptance Criteria
 
@@ -182,7 +182,7 @@ That symbol is skipped. No edit, no decision.
 |-------|-------------------|-------------------|
 | AC-1 | A symbol on the worklist that `gopls rename` accepts | it is unexported, and its package compiles under every tag set for darwin and linux |
 | AC-2 | A symbol `gopls rename` refuses | it is left exactly as it was, and the refusal is recorded with its reason |
-| AC-3 | After every package is processed | The refreshed whole-tree inventory has no `has no cross-package non-test caller` finding except recorded AC-2 refusals, and `./le repository check` also reports none in its changed-file population |
+| AC-3 | After every package is processed | The refreshed whole-tree inventory has no `has no cross-package non-test caller` finding except recorded AC-2 refusals, and `./le repo check` also reports none in its changed-file population |
 | AC-4 | Any package touched | `go test -race <pkg>` passes |
 
 ## 🧪 TDD Test Plan
@@ -200,11 +200,11 @@ touch, and paste its result in the per-package commit.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le functional plugin` | `test/plugin/*.ci` | a plugin still loads, registers and answers its commands after its package is renamed | |
-| `./le functional parse` | `test/parse/*.ci` | config still parses when `internal/component/config` symbols are unexported | |
-| `./le functional encode` | `test/encode/*.ci` | wire encoding is byte-identical after a BGP package rename | |
-| `./le functional ui` | `test/ui/*.ci` | CLI commands still dispatch after a `cmd/` or `internal/component/cli` rename | |
-| `./le functional web` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
+| `./le test functional plugin` | `test/plugin/*.ci` | a plugin still loads, registers and answers its commands after its package is renamed | |
+| `./le test functional parse` | `test/parse/*.ci` | config still parses when `internal/component/config` symbols are unexported | |
+| `./le test functional encode` | `test/encode/*.ci` | wire encoding is byte-identical after a BGP package rename | |
+| `./le test functional ui` | `test/ui/*.ci` | CLI commands still dispatch after a `cmd/` or `internal/component/cli` rename | |
+| `./le test functional web` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
 
 ## Files to Modify
 - files named by the refreshed whole-tree worklist, one symbol per eligible finding; the earlier roughly 300-file estimate is historical
@@ -328,7 +328,7 @@ Never run a bare `go build`: a hook refuses it unless it writes to `bin/`.
 ### Step 5: confirm the findings are gone
 
 ```
-./le verify lint rundocwiring/checks.go --root . --changed-file <each file you renamed in>
+./le go lint rundocwiring/checks.go --root . --changed-file <each file you renamed in>
 ```
 
 ### Step 6: commit that package
@@ -348,7 +348,7 @@ file with `--file`. Read `ai/rules/git-safety.md` first. Never run `git add`,
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The backlog is cleared | `./le repository check` shows no wiring finding outside the recorded skips |
+| The backlog is cleared | `./le repo check` shows no wiring finding outside the recorded skips |
 | Nothing broke | `go test -race ./...` green for every touched package |
 | The skips are recorded | one row per skipped symbol, with the gopls reason |
 
@@ -460,13 +460,13 @@ This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
 |-------|-------|----------------|
 | AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_test $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
 | AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
-| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT true tree-wide, and a green `./le repository check` cannot show that it is: the check reads the CHANGED file set only (`checkCrossPackageWiring`, `internal/le/repository/wiring.go`). A whole-tree sweep on 2026-09-05 put the upper bound at 1993 |
+| AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT true tree-wide, and a green `./le repo check` cannot show that it is: the check reads the CHANGED file set only (`checkCrossPackageWiring`, `internal/le/repository/wiring.go`). A whole-tree sweep on 2026-09-05 put the upper bound at 1993 |
 | AC-4 | Every touched package passes its tests | `go test -race ./<pkg>` green for all 161 processed packages, per phase |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `./le repository check` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
+| `./le repo check` -> `check_cross_package_wiring()` | none: the check IS the test | Yes. `validate.py --changed-file` re-run per package, and the finding for each renamed symbol is gone |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
@@ -491,4 +491,4 @@ This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
 
 Deferred by `plan/spec-problem-journal.md`.
 
-467 `exported symbol X has no cross-package non-test caller` findings from `./le repository check`
+467 `exported symbol X has no cross-package non-test caller` findings from `./le repo check`

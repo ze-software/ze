@@ -868,12 +868,12 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 | The stem is enrolled | `grep '^rfc1035' rfc/enrolled.txt` returns a row, and the same grep on `rfc/not-enrolled.txt` returns nothing |
 | The extraction sign-off is still valid | `./le rfc check` exits 0, confirming `source-sha` still matches `rfc/full/rfc1035.txt` |
 | The requirement ledger is fresh | `./le rfc index-update` produces no diff |
-| Truncation is reachable from a user entry point | `./le functional plugin` runs `dns-udp-truncation` green, and mutation-verify flips it red |
+| Truncation is reachable from a user entry point | `./le test functional plugin` runs `dns-udp-truncation` green, and mutation-verify flips it red |
 | Zone transfer interoperates | the BIND interop scenario loads the transferred zone |
 | No obligation is left unproven | `./le rfc check` exits 0 with `rfc1035` in scope |
 | Documentation matches the code | `./le doc check verify` exits 0 |
 | The pre-commit gate is green | `./le verify current mode full` exits 0 |
-| Prose passes the style gate | `./le ste review-changed` reports nothing on the files this spec adds |
+| Prose passes the style gate | `./le doc ste review-changed` reports nothing on the files this spec adds |
 
 ### Security Review Checklist
 
@@ -983,9 +983,9 @@ the enforcing test, not on the production code.
 - [ ] Security Review Checklist answered, including the amplification and zone-disclosure rows
 - [ ] Every `.ci` mutation-verified: disabling the producing function flips it red
 - [ ] Every absence-asserting AC paired with a presence assertion
-- [ ] `./le changed scope` clean
+- [ ] `./le repo changed scope` clean
 - [ ] `./le doc check verify` exits 0
-- [ ] `./le ste review-changed` reports nothing on new prose
+- [ ] `./le doc ste review-changed` reports nothing on new prose
 - [ ] No `.ci` sleep added without a justifying comment
 
 ### TDD

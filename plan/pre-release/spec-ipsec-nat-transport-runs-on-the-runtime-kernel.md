@@ -70,7 +70,7 @@ identity.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The three Docker scenarios and their checkers. This spec adds a second proof, never a replacement.
-- Every existing `./le qemu` action and its caller.
+- Every existing `./le test qemu` action and its caller.
 
 **Behavior to change:** (only what the user asked for)
 - A QEMU action exists, is listed, is documented in the lab table, and is called by a workflow job.
@@ -80,7 +80,7 @@ identity.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters - to be written at design time. The action is `./le qemu <name>`, and the operator entry point of the `.ci` is `show vpn ipsec sa`.]
+- [Where data enters - to be written at design time. The action is `./le test qemu <name>`, and the operator entry point of the `.ci` is `show vpn ipsec sa`.]
 
 ### Transformation Path
 1. [To be written at design time.]
@@ -100,7 +100,7 @@ identity.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le qemu ipsec-nat-transport-test` | → | the three-namespace runner | the action's own assertions |
+| `./le test qemu ipsec-nat-transport-test` | → | the three-namespace runner | the action's own assertions |
 | a workflow job | → | the same action | the job named in the same commit |
 | `mode transport` peer behind a translation, `show vpn ipsec sa` | → | `saToMap` and the substitution | `test/ipsec/ipsec-transport-nat-selectors.ci` |
 
@@ -108,8 +108,8 @@ identity.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le qemu ipsec-nat-transport-test` on Ze's runtime kernel | Ze and strongSwan establish transport mode across a masquerading namespace, traffic crosses it, and a tunnel-mode control over the same topology stays green |
-| AC-2 | `./le qemu` with no arguments, and the lab table in `docs/architecture/testing/qemu-integration.md` | The action is listed in both, a workflow job names it, and `gokrazy/kernel/runtime.require` names `CONFIG_IP_NF_NAT` and `CONFIG_IP_NF_TARGET_MASQUERADE` so a demotion to `=m` fails the build |
+| AC-1 | `./le test qemu ipsec-nat-transport-test` on Ze's runtime kernel | Ze and strongSwan establish transport mode across a masquerading namespace, traffic crosses it, and a tunnel-mode control over the same topology stays green |
+| AC-2 | `./le test qemu` with no arguments, and the lab table in `docs/architecture/testing/qemu-integration.md` | The action is listed in both, a workflow job names it, and `gokrazy/kernel/runtime.require` names `CONFIG_IP_NF_NAT` and `CONFIG_IP_NF_TARGET_MASQUERADE` so a demotion to `=m` fails the build |
 | AC-3 | `test/ipsec/ipsec-transport-nat-selectors.ci` | An operator brings up a transport-mode peer across a translation and reads the substituted `ts-local` and `ts-remote` plus the pre-substitution `original-tsi` and `original-tsr` from `show vpn ipsec sa` |
 
 ## End-to-End User Stories
@@ -147,7 +147,7 @@ identity.
 - `internal/le/qemu/alltests.go` - the integration package, if the runner adds one
 - `gokrazy/kernel/runtime.require` - require the two netfilter NAT symbols
 - `docs/architecture/testing/qemu-integration.md` - the IPsec row in the lab table
-- `docs/guide/status.md` - the `./le qemu` action inventory
+- `docs/guide/status.md` - the `./le test qemu` action inventory
 - the workflow file that gains the job
 
 ## Files to Create
@@ -168,7 +168,7 @@ identity.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | The feature shipped with the substitution spec |
 | 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/qemu-integration.md`, `docs/functional-tests.md` |
-| 15 | Registered inventory changed? | Yes | `docs/guide/status.md`, the `./le qemu` action inventory |
+| 15 | Registered inventory changed? | Yes | `docs/guide/status.md`, the `./le test qemu` action inventory |
 
 ## Implementation Steps
 
@@ -196,9 +196,9 @@ identity.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The QEMU action | `./le qemu` lists `ipsec-nat-transport-test`, and a workflow job names it |
+| The QEMU action | `./le test qemu` lists `ipsec-nat-transport-test`, and a workflow job names it |
 | The kernel floor | a demotion fails the build |
-| The functional test | `./le functional ipsec` |
+| The functional test | `./le test functional ipsec` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -277,6 +277,6 @@ requirement the engine already carries.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `./le spec session review record`
+- [ ] `/ze-review` gate clean, recorded via `./le spec review record`
 - [ ] **Commit A:** code + tests + docs + spec
 - [ ] **Commit B:** remove the spec

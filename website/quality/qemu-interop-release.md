@@ -18,10 +18,10 @@ QEMU is required for code that depends on Linux behavior rather than Go behavior
 <table>
 <thead><tr><th>Need</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>Run curated Linux-only functional files</td><td><code>./le qemu netns-test</code></td></tr>
-<tr><td>Run the full suite inside a prepared guest</td><td><code>./le qemu run command '&lt;guest-le&gt; le qemu all-tests'</code></td></tr>
-<tr><td>Rerun one failing command inside the VM</td><td><code>./le qemu run command '...'</code></td></tr>
-<tr><td>Keep a VM alive for manual inspection</td><td><code>./le qemu run command '...' keep-alive</code></td></tr>
+<tr><td>Run curated Linux-only functional files</td><td><code>./le test qemu netns-test</code></td></tr>
+<tr><td>Run the full suite inside a prepared guest</td><td><code>./le test qemu run command '&lt;guest-le&gt; le test qemu all-tests'</code></td></tr>
+<tr><td>Rerun one failing command inside the VM</td><td><code>./le test qemu run command '...'</code></td></tr>
+<tr><td>Keep a VM alive for manual inspection</td><td><code>./le test qemu run command '...' keep-alive</code></td></tr>
 </tbody>
 </table>
 
@@ -54,10 +54,10 @@ Docker interop proves protocol behavior against real implementations. Ze runs BG
 <table>
 <thead><tr><th>Evidence</th><th>Command</th><th>What it proves</th></tr></thead>
 <tbody>
-<tr><td>BGP interop</td><td><code>./le integration interop</code></td><td>Ze exchanges real protocol messages with third-party BGP daemons.</td></tr>
-<tr><td>IPsec interop</td><td><code>./le integration interop-ipsec</code></td><td>strongSwan and Ze agree on the deployed behavior.</td></tr>
-<tr><td>L2TP and PPPoE</td><td><code>./le deployment docker-l2tp-ppp-test</code>, <code>./le deployment docker-pppoe-accel-test</code></td><td>Access protocol behavior works against real peers.</td></tr>
-<tr><td>Deployment evidence</td><td><code>./le deployment l2tp-test</code>, <code>./le deployment vpp-test</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
+<tr><td>BGP interop</td><td><code>./le test integration interop</code></td><td>Ze exchanges real protocol messages with third-party BGP daemons.</td></tr>
+<tr><td>IPsec interop</td><td><code>./le test integration interop-ipsec</code></td><td>strongSwan and Ze agree on the deployed behavior.</td></tr>
+<tr><td>L2TP and PPPoE</td><td><code>./le test deployment docker-l2tp-ppp-test</code>, <code>./le test deployment docker-pppoe-accel-test</code></td><td>Access protocol behavior works against real peers.</td></tr>
+<tr><td>Deployment evidence</td><td><code>./le test deployment l2tp-test</code>, <code>./le test deployment vpp-test</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
 </tbody>
 </table>
 
@@ -68,8 +68,8 @@ Interop tests are not a replacement for functional transcripts. A `.ci` test exp
 Performance gates are used when a change can regress throughput, convergence, or data-plane behavior. Live evidence is used when the contract includes external data, such as RPKI cache behavior. These checks are not default verify steps because they depend on time, host capacity, Docker, root privileges, or the internet.
 
 ```bash
-./le perf-bench record
-./le integration live-rpki
+./le perf record
+./le test integration live-rpki
 ```
 
 ## Release evidence
@@ -78,7 +78,7 @@ Release evidence runs verification over a clean checkout in a container. The
 native action checks its prerequisites before it starts the matrix.
 
 ```bash
-./le evidence release-candidate
+./le verify evidence release-candidate
 ```
 
 Use release evidence when claiming broad coverage, not when debugging a single change. For a single failure, start from the narrow target that reproduces it and move outward only when the contract requires a wider environment.

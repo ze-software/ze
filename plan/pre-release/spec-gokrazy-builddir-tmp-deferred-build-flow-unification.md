@@ -115,7 +115,7 @@ Two further items came from `spec-gokrazy-builddir-tmp` through its retired
 deferral shard:
 
 - ~~**Gate the tracked builddir `go.sum` files against the root module.**~~
-  **DONE 2026-08-05.** The recorded fix added `./le gokrazy-gosum` and made it
+  **DONE 2026-08-05.** The recorded fix added `./le build gosum` and made it
   a prerequisite of the former make build. The command remains in
   `internal/le/gokrazygosum`; that historical prerequisite is not evidence that
   the current `buildOne` invokes it.
@@ -400,7 +400,7 @@ deferral shard:
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
 | 3. Wiring phase | Wiring Test table — register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |

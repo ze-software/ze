@@ -103,7 +103,7 @@ A later WITHDRAW for a path Ze never kept is accepted and frees no slot. The sen
 - [ ] `internal/component/bgp/plugins/cmd/peer/fields.go` - `addPathsLimitFields` emits `paths-limit` with `send` and `receive` sub-maps, from the two negotiated maps. The words already exist in the CLI and JSON; only their meaning shifts
 - [ ] `internal/le/interoplab/bgp/check_paths_limit.go` - the FRR scenario. Ze advertises 10, FRR advertises 2, and seven phases assert exact (path id, MED) sets at FRR. FRR 10.3.1's `addpath-rx-paths-limit 2` is what FRR SENDS, not a local inbound filter
 - [ ] `rfc/short/draft-abraitis-idr-addpath-paths-limit.md` - the seven requirements and the `Support` metadata block
-- [ ] `test/plugin/paths-limit-live.ci` - the live operator admission test. Ze's receive limit is 9 and the synthetic peer independently advertises IPv4 1 and IPv6 2. It drives a controllable peer through `ze-test fixture`, the only over-sender Ze can command today
+- [ ] `test/plugin/paths-limit-live.ci` - the live operator admission test. Ze's receive limit is 9 and the synthetic peer independently advertises IPv4 1 and IPv6 2. It drives a controllable peer through `le-test fixture`, the only over-sender Ze can command today
 - [ ] `test/interop/scenarios/bgp-paths-limit-frr/ze.conf` - uses `family { ipv4/unicast { limit 10; } }`
 - [ ] `test/encode/paths-limit.ci` - asserts OPEN carries code 76 for ipv4/unicast limit 10, configured with the scalar
 - [ ] `test/decode/bgp-paths-limit.ci` - asserts the decoded JSON for a received capability 76

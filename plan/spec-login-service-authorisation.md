@@ -357,8 +357,8 @@ daemon, and no RFC obligation is touched.
 | All four surfaces gated | The four `.ci` files pass, and each fails with the gate reverted |
 | The recovery path survives | `TestPowerUserIgnoresLoginSets`, driven from a running daemon |
 | An untouched config still works | A `.ci` on a config with no login section at all |
-| Lint | `./le changed scope` |
-| Schema | `./le doc check verify`, `./le cli-grammar` |
+| Lint | `./le repo changed scope` |
+| Schema | `./le doc check verify`, `./le cli grammar` |
 
 ### Security Review Checklist
 | Check | What to look for |

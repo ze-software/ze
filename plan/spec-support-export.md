@@ -385,13 +385,13 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | `save` pipe syntax documented by parser tests | `go test -race ./internal/component/command` |
-| Local file save works through user entry point | `./le functional ui` with `pipe-save-file` pattern |
-| Support archive save writes archive bytes | `./le functional ui` with `support-save-file` pattern |
-| Named destinations parse and validate | `./le functional parse` with `support-export-destination` pattern |
+| Local file save works through user entry point | `./le test functional ui` with `pipe-save-file` pattern |
+| Support archive save writes archive bytes | `./le test functional ui` with `support-save-file` pattern |
+| Named destinations parse and validate | `./le test functional parse` with `support-export-destination` pattern |
 | SSH credential reference is checked | owning unit test and doctor test |
 | Syslog behavior is bounded and tested | owning unit test and functional or fixture-backed test |
 | Documentation reflects shipped command shape | `./le doc check verify` and `./le doc wiring` |
-| Changed Go code is linted | `./le changed scope` |
+| Changed Go code is linted | `./le repo changed scope` |
 
 ### Security Review Checklist
 

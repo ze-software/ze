@@ -438,7 +438,7 @@ one stops the daemon rather than being read or replaced.
 | The two file names have one spelling | `grep -rln 'ca-key.pem' internal/ | grep -v _test` returns exactly `internal/appliance/ca.go` and `internal/component/pki/rootstore.go`, and no third file |
 | The default arm is unchanged for an existing store | `test/managed/managed-hub-ca-trust.ci` passes with no edit, and no config file under `test/` gains a `local-ca` block to keep working |
 | A root in the working directory stops the daemon | `test/plugin/pki-stray-root-in-working-directory-refused.ci`, and the planted files compare byte-identical after the run |
-| Every new node carries both texts | `./le docvalid help-shape` |
+| Every new node carries both texts | `./le doc yang-contract help-shape` |
 | The pages match the code | `./le spec citation anchors spec plan/immediate/spec-fixit-ca-root-location.md` reports no unnamed owner |
 
 ### Security Review Checklist

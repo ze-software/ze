@@ -25,7 +25,7 @@ To build the functional test runner a developer writes this, and gets no help
 from anything:
 
 ```
-./le job run label build command go build -tags "ze_test ze_bgp" -o bin/ze-test ./cmd/ze
+./le job run label build command go build -tags "ze_test ze_bgp" -o bin/le-test ./cmd/ze
 ```
 
 Four facts have to be right and nothing checks any of them: the tag set, the
@@ -77,7 +77,7 @@ inode is not corrupted. None of that is reachable as an `le` action. Deriving
 the tag set from `feature-gates.txt` also exists in Go already, in
 `internal/le/repository/trackedbuild` and `internal/le/staticcheckfeaturematrix`.
 
-**A guard stands where the command should be.** `./le hook-check pretool-bash`
+**A guard stands where the command should be.** `./le ai hooks pretool-bash`
 refuses `go build` without `-o bin/` and offers `go build -o bin/<name>
 ./cmd/<name>`, which is the wrong answer for every tagged personality. A guard
 that refuses the raw form without providing the right one teaches the caller to
@@ -222,7 +222,7 @@ actions today: `host`, `installer-amd64`, `installer-arm64`.
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | CLI commands/flags | Yes | new actions on `build-artifacts` |
-| CLI grammar (keyword before value) | Yes | `./le cli-grammar` is the gate |
+| CLI grammar (keyword before value) | Yes | `./le cli grammar` is the gate |
 | Pipe completeness | Yes | the action answers structured data |
 
 ### Documentation Update Checklist (BLOCKING)

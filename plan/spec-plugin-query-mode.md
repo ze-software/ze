@@ -366,11 +366,11 @@ own, and query mode emits an existing message on an existing framing.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | N-A | An offline local-data command, registered exactly as `show plugin list` is; `./le docvalid command-contract` governs the pairing |
+| YANG schema (new RPCs/config) | N-A | An offline local-data command, registered exactly as `show plugin list` is; `./le doc yang-contract command-contract` governs the pairing |
 | YANG validation constraints | N-A | no YANG node added |
 | YANG custom validators | N-A | no YANG node added |
 | CLI commands/flags | Yes | `show plugin declarations`, `internal/component/plugin/declarations.go` |
-| CLI grammar (keyword before value) | Yes | the only value is `config <path>`, typed by its keyword; `./le cli-grammar` is the check |
+| CLI grammar (keyword before value) | Yes | the only value is `config <path>`, typed by its keyword; `./le cli grammar` is the check |
 | Editor autocomplete | Yes | derived from the command declaration, as `show plugin list` is |
 | Functional test for new RPC/API | Yes | the three `.ci` tests above |
 | Pipe completeness | Yes | `MustRegisterLocalData` plus `RegisterShape` and `RegisterColumns`, as `show plugin list` does; AC-8 |
@@ -493,12 +493,12 @@ N-A. No RFC governs the plugin RPC.
 | 1 (implementation, independent diff pass) | 2 | 4 | The merge answered Ze's declaration for an external block; the queried child outlived its budget. Both fixed at the producer with the red observed first |
 | 2 (implementation, independent diff pass) | 0 | 1 | The live start carried the process-group attributes and not the group stop. Fixed with `KillGroupOnCancel`, plus four nits |
 | 3 (closure, this context, every lens) | 0 | 2 | Discovery: `ai/INDEX.md` carried no keyword row for the command its own Discovery table names. Documentation: `docs/guide/command-reference.md` documents `show plugin list` by hand and carried no sibling section |
-| 4 (closure, re-read after the round 3 edits) | 0 | 0 | Clean. The round 3 edits are prose and a YANG revision date; `./le docvalid command-contract` and `./le cli-grammar` re-run green after them |
+| 4 (closure, re-read after the round 3 edits) | 0 | 0 | Clean. The round 3 edits are prose and a YANG revision date; `./le doc yang-contract command-contract` and `./le cli grammar` re-run green after them |
 
 | Field | Value |
 |-------|-------|
 | Artifact | `tmp/review/plugin-query-mode-8e533ac8-8f4a-4ba7-ac45-ed497b31f2a8.md` (78 files) |
-| `./le spec session review check` | `review_gate: OK (56 code files, clean, hashes match ...)` |
+| `./le spec review check` | `review_gate: OK (56 code files, clean, hashes match ...)` |
 | Rounds | 4 |
 | Reviewer lenses used | wiring, functional-test coverage, documentation drift, removed-behavior audit, data flow, edge cases, security, allocation bounds, logic correctness, altitude and simplicity, project rules, the six-question Go style pass |
 
@@ -519,8 +519,8 @@ N-A. No RFC governs the plugin RPC.
 ### Notes (not blocking)
 | Note | Disposition |
 |------|-------------|
-| The new YANG revision repeated the date of the revision below it, so the module had two revisions dated 2026-09-08 | Fixed: the new one reads 2026-09-09. `./le docvalid command-contract` exit 0, both wire methods paired |
-| The published website catalog under `../gh-pages/` carries no page for either new command | Pre-existing and tree-wide: the same `./le doc check verify` run reports the identical failure for `request bgp rib mark-stale`, `show bgp rib` filters and others. The catalog is generated into another branch by `./le wiki-catalog update` and no commit on `main` can carry it |
+| The new YANG revision repeated the date of the revision below it, so the module had two revisions dated 2026-09-08 | Fixed: the new one reads 2026-09-09. `./le doc yang-contract command-contract` exit 0, both wire methods paired |
+| The published website catalog under `../gh-pages/` carries no page for either new command | Pre-existing and tree-wide: the same `./le doc check verify` run reports the identical failure for `request bgp rib mark-stale`, `show bgp rib` filters and others. The catalog is generated into another branch by `./le cli catalog update` and no commit on `main` can carry it |
 | `ai/allowed-system-commands.md` carries an uncommitted row for the plugin fork, attributed "Thomas, 2026-09-08" | LEFT OUT of the commit. No phase handoff claims that edit, and that file's own rule says a row is added by Thomas and only by Thomas. It is the owner's to confirm |
 | `sdk.RunOrDeclare` has no non-test caller in this repository | By construction: its audience is a binary ze does not compile. Stated in D-4 and in `docs/plugin-development/protocol.md` |
 
@@ -732,9 +732,9 @@ follow-up owners above do not establish that closure.
 | AC-8 | One payload, every rendering | `--- PASS: TestEvidenceAndMarkersAreTheCurrentPopulation`, and `ok github.com/ze-software/ze/internal/test/localdatacoverage 0.323s` |
 | Budget boundary | Zero or less is refused | `--- PASS: TestDeclarationBudgetRefusesNonPositive (0.00s)` |
 | The stop | Reaches the plugin, not the shell | `--- PASS: TestDeclarationQueryStopsThePluginTheShellStarted (1.00s)` |
-| Lint | No finding in any file this spec wrote | `./le verify lint run scope "<the ten packages>"`: 2 issues, both the pre-existing `nilnil` in `internal/component/plugin/leaf_test.go` already recorded in `plan/journal/nil-nil-return.md` |
-| Command contract | Both new wire methods are paired with a handler | `./le docvalid command-contract` exit 0: `ze-show:plugin-declarations` and `ze-show:plugin-declarations-config` both listed against `ze-plugin-show-cmd` |
-| CLI grammar | Keyword before value | `./le cli-grammar`: 0 grammar findings; the 2 `flag-in-yang` are committed prose in `ze-hub-conf.yang`, already journaled |
+| Lint | No finding in any file this spec wrote | `./le go lint run scope "<the ten packages>"`: 2 issues, both the pre-existing `nilnil` in `internal/component/plugin/leaf_test.go` already recorded in `plan/journal/nil-nil-return.md` |
+| Command contract | Both new wire methods are paired with a handler | `./le doc yang-contract command-contract` exit 0: `ze-show:plugin-declarations` and `ze-show:plugin-declarations-config` both listed against `ze-plugin-show-cmd` |
+| CLI grammar | Keyword before value | `./le cli grammar`: 0 grammar findings; the 2 `flag-in-yang` are committed prose in `ze-hub-conf.yang`, already journaled |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
@@ -759,7 +759,7 @@ follow-up owners above do not establish that closure.
 | 1, 3, 6 user-facing feature and CLI command | `docs/architecture/cli/plugin-modes.md`, `docs/features/introspection.md` | Recorded verification: the state table, budget and config-block rule matched their producers. The hand-written command-reference section is present in the current tree; Review Gate finding 10 retains its earlier commit obstacle |
 | 4, 8 API/RPC and plugin SDK | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `ai/rules/plugins.md` | Yes: both pages name `rpc.WriteDeclaration` as the one writer, and the SDK page's `main` shape matches `RunOrDeclare`'s signature |
 | 12 internal architecture | `docs/architecture/plugin/plugin-system.md` | Yes: the population sentence matches `registry.SetupResults`, and the stop sentence matches `KillGroupOnCancel` |
-| 15 registered command inventory | `./le docvalid command-contract` | Yes: both wire methods listed and paired |
+| 15 registered command inventory | `./le doc yang-contract command-contract` | Yes: both wire methods listed and paired |
 | 16 changed files under existing anchors | `./le doc check verify`, source-anchor stage | Yes: every anchor this spec wrote resolves. Four pre-existing stale anchors remain, none in a file this spec touched |
 | Runtime dependency owes a doctor check | `internal/component/plugin/doctor/check_shell.go`, `internal/core/diagnostic/codes.go` | Yes: `plugin-shell` registered at order 702, `doctor-plugin-shell-missing` declared with title, description and repairs; `TestDoctorDependencyInventory` carries the `binary/plugin-shell` row |
 | 2, 5, 7, 9, 10, 11, 13, 14 | N-A | No config node, no plugin added, no wire format, no RFC, no test infrastructure change, no daemon behavior comparison, no route metadata, no metric. `grep -rn "show plugin declarations" docs/` names only the pages listed above |

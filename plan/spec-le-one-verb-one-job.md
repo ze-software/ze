@@ -145,7 +145,7 @@ against a grep.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le web-assets update` | → | the renamed action answering where `write` did | `TestTheRegenerationVerbIsUpdateEverywhere` |
+| `./le web assets update` | → | the renamed action answering where `write` did | `TestTheRegenerationVerbIsUpdateEverywhere` |
 | Every cited `./le <area> <verb>` in the corpus | → | the manifest resolver | `TestNoCitationNamesAVerbTheRegistryDoesNotHold` |
 | A `Why` string past the terminal width | → | `helpfmt` wrapping at render time | `TestALongWhyWrapsIntoTheDescriptionColumn` |
 | A usage error against an execution failure | → | the two distinct exit codes | `TestAUsageErrorAndAnExecutionFailureAnswerDifferentCodes` |
@@ -155,7 +155,7 @@ against a grep.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Any action that regenerates a committed artifact from its source | The verb is `update`, and no area registers `write` for that job |
-| AC-2 | `./le feature-tags write` and the other four old spellings | Refused as an unknown action, with no alias accepted |
+| AC-2 | `./le repo feature-tags write` and the other four old spellings | Refused as an unknown action, with no alias accepted |
 | AC-3 | Every `./le` invocation cited in the instruction corpus and in Go string literals | Resolves against the manifest, verb included |
 | AC-4 | A usage error in any area | Answers one code, distinct from the code a gate answers when it ran and found a defect |
 | AC-5 | An environment failure in any area | Answers a code distinct from both of the above |
@@ -201,7 +201,7 @@ against a grep.
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | CLI commands/flags | Yes | five verbs renamed |
-| CLI grammar (keyword before value) | Yes | `./le cli-grammar` is the gate |
+| CLI grammar (keyword before value) | Yes | `./le cli grammar` is the gate |
 | Pipe completeness | Yes | unchanged: every area already answers structured data |
 
 ### Documentation Update Checklist (BLOCKING)

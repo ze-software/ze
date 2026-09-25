@@ -509,7 +509,7 @@ choice. Phase 2 is the wiring phase the template asks for.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Every assumption answered | Read the Assumptions table. No row is `unvalidated` |
-| The dual-form QEMU test exists and passes | `./le qemu run command "./le qemu all-tests"`, output pasted |
+| The dual-form QEMU test exists and passes | `./le test qemu run command "./le test qemu all-tests"`, output pasted |
 | The route decision is recorded | Key Design Decisions names the chosen route and each rejected route |
 | The `.ci` tests exist | `ls test/ipsec/ipsec-esp-form-change.ci` |
 | The disclosure is updated | `grep -n "form change" docs/features/rfc-status.md` |
@@ -584,7 +584,7 @@ The QEMU package supports exactly ONE namespace probe per test BINARY. Run alone
 three probes pass. Run together, the first passes and every later one reports that no
 counter moved. It is not caused by the new probes: the PRE-EXISTING
 `TestEncapKernelBindsOneESPFormPerState` under `-count=2` passes its first iteration and
-fails its second, with no new code involved. `./le qemu run command "./le qemu all-tests"` runs the whole
+fails its second, with no new code involved. `./le test qemu run command "./le test qemu all-tests"` runs the whole
 package, so this must be fixed or the target reads red for a product reason that does not
 exist.
 
@@ -749,7 +749,7 @@ reaches it. That is why the interop scenario is a deliverable and not a nicety.
 
 ### One flaky QEMU reading, tried and not reproduced
 
-the retired `ze-qemu-integration-test` (current: `./le qemu run command "./le qemu all-tests"`) over this package failed ONCE on
+the retired `ze-qemu-integration-test` (current: `./le test qemu run command "./le test qemu all-tests"`) over this package failed ONCE on
 `TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated` with "expected exactly one
 counter to move, got []", meaning the injected datagram reached no counter at all. It
 is recorded rather than fixed because the mechanism was tried and did not reproduce,
@@ -939,7 +939,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
   the interface a VPP SPD binds to.
 - The interop scenarios cannot carry an RFC tag, because `test/interop-ipsec/` is
   `TIER_UNRUN`. Compliance evidence stays at unit tier or functional tier.
-- `./le qemu run command "./le qemu all-tests"` is not automated anywhere. Every QEMU result in this spec
+- `./le test qemu run command "./le test qemu all-tests"` is not automated anywhere. Every QEMU result in this spec
   is produced by hand and pasted.
 
 ## RFC Documentation (Scope: protocol)
@@ -965,7 +965,7 @@ on its header rules.
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
-- [ ] `./le qemu run command "./le qemu all-tests"` RUN by hand, output pasted
+- [ ] `./le test qemu run command "./le test qemu all-tests"` RUN by hand, output pasted
 - [ ] The owner authorized every edit to a tagged RFC test, in writing
 
 ### TDD

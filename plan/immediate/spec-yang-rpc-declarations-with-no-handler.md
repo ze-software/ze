@@ -102,7 +102,7 @@ the command node goes: the `update bgp peer` subtree in `ze-peer-cmd.yang`
 declares a mandatory `selector` leaf that every node under it inherits, so a
 selector-free save cannot live there. The implemented command is
 `update bgp config`, which must continue to pass the grammar feeders
-(`./le cli-grammar`, `ai/rules/cli.md`).
+(`./le cli grammar`, `ai/rules/cli.md`).
 
 **One verb, and the sites that carry the other two spellings.** The tree
 declares `peer-remove`, the owner says `peer-delete`, and the served handler is
@@ -167,7 +167,7 @@ and `commit` over the configuration tree. None of the three reads a RIB.
 `test/exabgp-compat/native/api-peer-lifecycle.conf` drives ze through the
 ExaBGP bridge, and its `.ci` asserts the UPDATE bytes a route announced through
 the created peer puts on the wire. Whether that case is red at HEAD is
-UNVERIFIED here, and `./le functional exabgp-test` settles it. The owner's bar
+UNVERIFIED here, and `./le test functional exabgp-test` settles it. The owner's bar
 is that both routes work with the RIBs, so create means routes reach the
 Adj-RIB-In and the RIB, and delete means they leave and the withdrawals reach
 consumers. That investigation recorded no test meeting the whole bar; the
@@ -334,8 +334,8 @@ deleting duplicate declarations.
 | AC-12 | `ze-bgp:peer-save` runs at all | The running configuration and the file agree afterwards, so a later commit of an unrelated leaf removes no peer |
 | AC-13 | An operator types a word after `peer-save` | The command is refused, and the refusal says the command takes no selector and acts on the whole running set |
 | AC-14 | `ze schema methods` and `ze help ai --json` are read on a built daemon | Every method they publish has a registered handler |
-| AC-15 | A YANG `-api` module declares an rpc whose published wire method no handler serves | `./le docvalid command-contract` fails and names the module, the rpc and the wire method |
-| AC-16 | A registered handler has no YANG command node and no rpc declaration | `./le docvalid command-contract` fails, rather than printing the row under a passing verdict |
+| AC-15 | A YANG `-api` module declares an rpc whose published wire method no handler serves | `./le doc yang-contract command-contract` fails and names the module, the rpc and the wire method |
+| AC-16 | A registered handler has no YANG command node and no rpc declaration | `./le doc yang-contract command-contract` fails, rather than printing the row under a passing verdict |
 | AC-17 | The six removed declarations (`ze-bgp-cmd-peer-api:peer-add`, `ze-bgp-cmd-update-api:peer-update-hex`, `ze-cli-set-api:bgp-peer-with`, `ze-cli-set-api:bgp-peer-save`, `ze-rib-api:command-help`, `ze-rib-api:command-complete`) remain absent; `ze-bgp-cmd-peer-api:peer-save` and its module remain subject to the retention ruling | The removed methods are no longer published, the retained save capability has a served declaration consistent with AC-14/AC-15, and `TestEveryCommandNodeHasASummary` reports no refusal for an RPC declaration. Module deletion alone cannot satisfy this criterion |
 
 ## End-to-End User Stories

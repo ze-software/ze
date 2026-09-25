@@ -170,14 +170,14 @@ codegen and (still-open) a hook-inventory artifact; the YANG collapse must not m
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The external seam registries (filterapi, OPEN validation, attr-mod, observers, EventBus) each expose, or can cheaply expose, an enumeration keyed by plugin/owner name | `Registration` has most seams; external ones are separate registries | The manifest cannot list some seams without adding an enumerator to that registry | read each seam registry; add an `Enumerate()` where missing | unvalidated |
 | A-2 | The plugin-owned duplicate is exactly the ~84 plugins that set BOTH `Registration.YANG` and a `yang/register.go` `RegisterModule` for the same content | 84 `Registration.YANG` vs 210 `RegisterModule` | Some overlap is subtly different (module name vs content); collapse must map name<->content | grep the 84 plugins; confirm the content matches | unvalidated |
-| A-3 | A registered YANG sink keeps `registry` a leaf (no `config/yang` import) | existing `ConfigureEventBus`/`ConfigureMetrics` sink pattern (`registry.go`) | If a sink cannot carry the module name cleanly, `Registration` needs a `YANGModule` field | prototype the sink; `./le tier check` | unvalidated |
+| A-3 | A registered YANG sink keeps `registry` a leaf (no `config/yang` import) | existing `ConfigureEventBus`/`ConfigureMetrics` sink pattern (`registry.go`) | If a sink cannot carry the module name cleanly, `Registration` needs a `YANGModule` field | prototype the sink; `./le arch tier check` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Manifest silently omits a seam kind, giving false "fully wired" confidence | a known hook missing from a plugin's manifest | Completeness gate: a test enumerates seam-registry kinds and fails if one is not represented in the manifest |
 | R-2 | Collapsing YANG breaks load order or duplicate-module handling | `duplicate module` errors, missing schema at startup | Sink forwards at `registry.Register` time; `RegisterModule` is order-independent (`yang/register.go`); full config `.ci` gate |
-| R-3 | `registry` accidentally imports `config/yang`, creating a cycle/tier break | `./le tier check` fails | Use the registered-sink pattern; the sink is installed by config, not imported by registry |
+| R-3 | `registry` accidentally imports `config/yang`, creating a cycle/tier break | `./le arch tier check` fails | Use the registered-sink pattern; the sink is installed by config, not imported by registry |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -194,7 +194,7 @@ codegen and (still-open) a hook-inventory artifact; the YANG collapse must not m
 | AC-2 | A new seam-registry kind is added without wiring it into the manifest set | A completeness gate test fails, naming the un-enumerated seam registry |
 | AC-3 | A plugin declares its YANG once via `Registration` and omits the separate `RegisterModule` call | The config YANG loader still resolves and validates that module (derived via the registered sink) |
 | AC-4 | Grep the ~84 plugins that set `Registration.YANG` | Their duplicate `yang/register.go` `RegisterModule` calls are removed; a single declaration remains |
-| AC-5 | `./le tier check` after the collapse | Passes: `registry` still does not import `config/yang` |
+| AC-5 | `./le arch tier check` after the collapse | Passes: `registry` still does not import `config/yang` |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -290,7 +290,7 @@ config and plugin `.ci` suites are the regression gate.
 3. **Phase: Collapse YANG double-declaration** — add the registered YANG sink; make `Registration`
    the single declaration; delete the duplicate `RegisterModule` calls; preserve leaf tier.
    - Tests: `TestRegistrationYANGForwardedToLoader`, `TestRegistryDoesNotImportConfigYANG`,
-     `plugin-yang-single-declare.ci`, `./le tier check`.
+     `plugin-yang-single-declare.ci`, `./le arch tier check`.
 4. **Full verification** → `./le verify current mode full` (config + plugin `.ci` suites are the regression gate).
 5. **Complete spec** → learned summary `plan/learned/NNN-plugin-registration-manifest.md`; two commits.
 
@@ -302,7 +302,7 @@ config and plugin `.ci` suites are the regression gate.
 | Correctness | Collapsed YANG still loads/validates identically; no plugin loses a hook |
 | Data flow | Manifest reads registries (not source scans); YANG via sink not direct import |
 | Registration over hardcoding | Seam registries self-enumerate into the manifest; not a hardcoded list |
-| Rule: module-tiers | `registry` still leaf; `./le tier check` passes |
+| Rule: module-tiers | `registry` still leaf; `./le arch tier check` passes |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -310,7 +310,7 @@ config and plugin `.ci` suites are the regression gate.
 | Hook manifest | `ze plugin manifest bgp-hostname` lists its seams; `.ci` passes |
 | Completeness gate | Adding a stub seam registry without wiring fails `TestManifestCoversAllSeamRegistries` |
 | Single YANG declaration | grep: the 84 plugins no longer have a duplicate `RegisterModule`; `plugin-yang-single-declare.ci` passes |
-| Leaf tier preserved | `./le tier check` green |
+| Leaf tier preserved | `./le arch tier check` green |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |

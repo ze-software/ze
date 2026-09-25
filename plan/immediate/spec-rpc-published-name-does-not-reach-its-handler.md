@@ -341,7 +341,7 @@ spec edits the other's files.
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le docvalid command-contract` | → | `Validate` in `internal/le/docvalid/contract.go` | `TestPublishedMethodHasAHandler` |
+| `./le doc yang-contract command-contract` | → | `Validate` in `internal/le/docvalid/contract.go` | `TestPublishedMethodHasAHandler` |
 | `ze schema methods <module>` | → | `cmdMethods` in `internal/component/config/schema/cli/main.go` | `test/parse/cli-schema-methods.ci` |
 | `ze yang doc "<command>"` | → | `AllRPCDocs` in `internal/component/config/yang/cli/tree.go` | `TestRPCDocsCarryParameters` |
 | Daemon startup with every component linked | → | the collision check over the registered set | `TestNoOwnerHoldsAnotherOwnersName` |
@@ -354,7 +354,7 @@ spec edits the other's files.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A published wire method that no registered handler answers | `./le docvalid command-contract` names it and the verdict is FAIL |
+| AC-1 | A published wire method that no registered handler answers | `./le doc yang-contract command-contract` names it and the verdict is FAIL |
 | AC-2 | A registered handler whose method no declaration publishes | The same run names it and the verdict is FAIL |
 | AC-3 | A local handler path that no YANG command node declares | The same run names it and the verdict is FAIL, which 15 rows do not do today |
 | AC-4 | The gate reads its two sets | Both come from the live process, one from the command tree and one from `AllBuiltinRPCs`, and neither from a text scan |
@@ -497,7 +497,7 @@ spec edits the other's files.
 2. **Phase: Find every programmatic sender** -- before any rename
    - Tests: none; this phase produces the sender list the next phase works from
    - Files: `pkg/plugin/rpc/message.go` (`AppendRequest` puts the method word on the line), `pkg/plugin/sdk/sdk_dispatch.go`, `internal/component/plugin/server/startup_driver.go`, `test/parse/cli-schema-methods.ci`
-   - Verify: `./le ci-dispatch check` does NOT cover this. `newSurface` (`internal/le/cidispatch/resolver.go`) builds its surface from `WireMethodToPaths` and registers the PATHS, so the gate resolves command strings and never a wire method. The sender list is produced by hand and recorded here
+   - Verify: `./le cli dispatch check` does NOT cover this. `newSurface` (`internal/le/cidispatch/resolver.go`) builds its surface from `WireMethodToPaths` and registers the PATHS, so the gate resolves command strings and never a wire method. The sender list is produced by hand and recorded here
 3. **Phase: Declare the plugin IPC methods explicitly** -- the 22 rpcs with no node
    - Tests: `TestPluginIPCMethodsKeepTheirSpelling`
    - Files: `internal/core/ipc/yang/ze-plugin-engine.yang`, `internal/core/ipc/yang/ze-plugin-callback.yang`
@@ -542,7 +542,7 @@ spec edits the other's files.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The gate reports and fails | `./le docvalid command-contract` |
+| The gate reports and fails | `./le doc yang-contract command-contract` |
 | `WireModule` is gone | `gopls references` on the symbol returns nothing, and a grep finds no caller |
 | One method name for each command | `ze help ai --json` piped through a check that finds no duplicate command |
 | The IPC spelling is unchanged | `git diff` over `pkg/plugin/` shows no method literal changed |

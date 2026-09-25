@@ -8,9 +8,9 @@ Website sources live in `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `./le site build` replaces that worktree with the publishable artifact and keeps `.git`.
 It reuses the existing demo artifacts unless the checked-in tape definitions changed.
-Use `./le terminal-demo render-all` to force new demo artifacts.
+Use `./le site terminal-demo render-all` to force new demo artifacts.
 A recording runs in a container this repository builds, so run
-`./le terminal-demo image-build` once per checkout first. A render refuses to
+`./le site terminal-demo image-build` once per checkout first. A render refuses to
 start without it and names the action.
 Commit `../gh-pages` without source code.
 
@@ -75,7 +75,7 @@ presentation decks with `./le site bundle input <deck.html>` and renders the
 repository activity page with `./le site activity`.
 
 The site build writes the live CLI catalog to its output directory.
-The separate `./le wiki-catalog update file ../wiki/command-catalog.md` action
+The separate `./le cli catalog update file ../wiki/command-catalog.md` action
 updates the wiki catalog. Both use the typed command registrations.
 
 Hand-authored pages (`zeledon/`, `labs/*/`, `style-guide/`, `performance/`)

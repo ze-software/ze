@@ -162,7 +162,7 @@ answer gets decided by the migration rather than by the rule.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A developer or CI typing `le cli-grammar`. The command is registered by
+- A developer or CI typing `le cli grammar`. The command is registered by
   `init()` in `internal/le/cligrammar/register.go` as a `leroot.GroupGate`
   command in `registry.SectionTest`, mode `offline`, answered by `Answer`
   (`internal/le/cligrammar/actions.go`). It takes no argument, so the checkout

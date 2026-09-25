@@ -37,7 +37,7 @@ Verified with `grep -rl <key> test/`, which returns nothing for each:
 | `ze.bgp.openwait` | `internal/component/config/environment.go` (`ze.bgp.openwait`, default 120) | `internal/component/bgp/reactor/session_connection.go`, `env.GetDuration("ze.bgp.openwait", 120*time.Second)` |
 | `ze.bgp.announce.delay` | `internal/component/config/environment.go` (default `0s`) | `internal/component/bgp/reactor/reactor.go`, `env.GetDuration("ze.bgp.announce.delay", 0)` |
 | `ze.pid.file` | `internal/component/config/environment.go` | `writePIDFile` (`cmd/ze/hub/pidfile.go`), and `apply_env.go` maps it from the `daemon pid` YANG option |
-| `ze.chaos.pprof` | `internal/chaos/orchestrator/cli.go` | the ze-chaos orchestrator, not the daemon |
+| `ze.chaos.pprof` | `internal/chaos/orchestrator/cli.go` | the `le chaos run` orchestrator, not the daemon |
 | `ze.log.l2tp` | `internal/component/l2tp/config.go` | the L2TP subsystem logger |
 | ExaBGP `env` migration | `internal/exabgp/migration/env.go` | `bgp.openwait` and `tcp.delay` are translated to `environment { bgp { ... } }` config lines there. This is a MIGRATION surface, not a Ze env knob, so it wants a `test/parse/` case over `ze exabgp migrate` rather than an `option=env` case |
 | `bridge-ack` | **nothing.** No `env.MustRegister` and no `env.Get*` call in the tree names a `ze.*ack*` or `ze.*bridge*` key, and `internal/component/iface/` registers no env key at all | - |
@@ -50,7 +50,7 @@ missing exists. The taker writes cases, one knob at a time.
 **What the taker must decide first.** `bridge-ack` names nothing, so it is either
 a knob that was renamed or removed, or a name the triage row got wrong. Re-derive
 it or drop the item's seventh row. Do not spend a session hunting it.
-`ze.chaos.pprof` belongs to `ze-chaos`, not to the daemon, so its case is a chaos
+`ze.chaos.pprof` belongs to `le chaos run`, not to the daemon, so its case is a chaos
 scenario and not a `test/parse/` or `test/plugin/` `.ci`.
 
 ### Item 2: cli-dispatch `.ci` (2 of 3 exist)

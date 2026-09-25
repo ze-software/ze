@@ -128,7 +128,7 @@ Not applicable. This spec changes no protocol behavior and no wire format.
 ### Entry Point
 - `./le verify worktree [commit <revision>]` -- an agent or a person runs the pre-commit gate. `runHere` (`internal/le/verify/actions.go`) resolves the commit, adds a detached worktree, and calls `verifyengine.Run` at that path.
 - `./le verify current mode full|changed` -- the same engine over the shared checkout.
-- `./le qemu run command "./le qemu all-tests"` -- the in-VM run that produces `AllTestsReport`.
+- `./le test qemu run command "./le test qemu all-tests"` -- the in-VM run that produces `AllTestsReport`.
 - Format at entry: a keyword-value argument list resolved by `leaction`; no file or wire input.
 
 ### Transformation Path
@@ -171,7 +171,7 @@ Not applicable. This spec changes no protocol behavior and no wire format.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The three git queries in `Selector.ChangedFiles` all answer empty inside a `git worktree add --detach` checkout, so the race stage's population is empty on every `./le verify worktree` run | Read at `ChangedFiles` (`internal/le/changed/changed.go`) and at the worktree add in `internal/le/verify/lifecycle.go`; chain read, not executed | The stage is not permanently vacuous and AC-3 is unnecessary; AC-1 and AC-2 stand unchanged | `TestRaceChangedInADetachedWorktreeJudgesTheCommitsOwnDiff`, which fails against today's derivation | unvalidated |
 | A-2 | A verified commit always has a parent to diff against on this repository | `git log` on main | The no-parent case must fall back to the whole tree | `TestRaceChangedFallsBackToTheWholeTreeForARootCommit` | unvalidated |
-| A-3 | `ze-test` reports a count a phase can read from its own output or exit protocol | the suite runner in `internal/le/functional`; the 2026-09-05 QEMU log quoted counts such as `plugin 712/741` | The count must come from a machine-readable channel the runner adds, which enlarges AC-4 | `TestPhaseResultCarriesTheTestsItExecuted` | unvalidated |
+| A-3 | `le-test` reports a count a phase can read from its own output or exit protocol | the suite runner in `internal/le/functional`; the 2026-09-05 QEMU log quoted counts such as `plugin 712/741` | The count must come from a machine-readable channel the runner adds, which enlarges AC-4 | `TestPhaseResultCarriesTheTestsItExecuted` | unvalidated |
 | A-4 | No reader outside this repository parses `tmp/ze-verify.status` positionally, so a new key can be appended | `ReadCertificate` (`internal/le/verify/engine/status.go`) parses `key=value` into a map | The new key must go into a sidecar artifact instead | `TestCertificateNamesTheStagesThatExaminedNothing` plus a grep for readers of `ze-verify.status` | unvalidated |
 
 ### Risks
@@ -197,7 +197,7 @@ Not applicable. This spec changes no protocol behavior and no wire format.
 | `./le verify worktree` at a commit | → | `planUnitRaceChanged` deriving the commit's own diff, `runUnitRaceChanged` reporting its judged count | `TestRaceChangedInADetachedWorktreeJudgesTheCommitsOwnDiff` |
 | `./le verify current mode full` over a tree with no changed Go file | → | `runUnitRaceChanged` answering `examined nothing` | `TestRaceChangedEmptyPopulationAnswersExaminedNothing` |
 | `./le verify status check` reading `tmp/ze-verify.status` | → | `WriteCertificate` and `CheckCertificate` carrying the examined-nothing stage names | `TestCertificateNamesTheStagesThatExaminedNothing` |
-| `./le qemu all-tests` inside the VM | → | `PhaseResult` carrying the executed test count, `AllTestsReport.Text` refusing `ALL PHASES PASSED` | `TestAPhaseThatExecutedNoTestIsNotAPass` |
+| `./le test qemu all-tests` inside the VM | → | `PhaseResult` carrying the executed test count, `AllTestsReport.Text` refusing `ALL PHASES PASSED` | `TestAPhaseThatExecutedNoTestIsNotAPass` |
 | A new stage added to `verifyengine` stages | → | the stage table's empty-population declaration | `TestEveryVerifyStageDeclaresWhatAnEmptyPopulationMeans` |
 | An operator running `./le verify current mode changed` | → | the whole chain, from the command to the rendered verdict | `test/ui/le-verify-names-what-it-judged.ci` |
 
@@ -284,7 +284,7 @@ Not applicable. This spec changes build-host tooling only, and no wire-visible b
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | Nothing an operator of the shipped binary reaches |
 | 2 | Config syntax changed? | No | No config surface touched |
-| 3 | CLI command added/changed? | Yes | `./le verify` and `./le qemu all-tests` output changes; the pages in row 12 carry those, and `docs/guide/command-reference.md` documents the shipped `ze` CLI rather than the build-host tool |
+| 3 | CLI command added/changed? | Yes | `./le verify` and `./le test qemu all-tests` output changes; the pages in row 12 carry those, and `docs/guide/command-reference.md` documents the shipped `ze` CLI rather than the build-host tool |
 | 4 | API/RPC added/changed? | No | No RPC touched |
 | 5 | Plugin added/changed? | No | No plugin touched |
 | 6 | Has a user guide page? | No | Build-host tooling |
@@ -325,7 +325,7 @@ Not applicable. This spec changes build-host tooling only, and no wire-visible b
 6. **Phase: pages and functional coverage** -- the three pages and the `.ci`
    - Tests: `le-verify-names-what-it-judged`
    - Files: `test/ui/le-verify-names-what-it-judged.ci`, the three documentation pages
-   - Verify: `./le docvalid` clean, and the `.ci` fails when the counts are removed from the rendering
+   - Verify: `./le doc yang-contract` clean, and the `.ci` fails when the counts are removed from the rendering
 
 ### Critical Review Checklist
 
@@ -349,7 +349,7 @@ Not applicable. This spec changes build-host tooling only, and no wire-visible b
 | The certificate carries the examined-nothing names | `cat tmp/ze-verify.status` after a run in which one stage judged nothing |
 | A zero-test QEMU phase is a failure | `go test ./internal/le/qemu/ -run TestAPhaseThatExecutedNoTest` |
 | No published run artifact lacks a reader | `go test ./internal/le/verify/engine/ -run TestEveryPublishedRunArtifactHasAReader` |
-| The three pages agree with the code | `./le docvalid` and `./le spec citation anchors spec plan/pre-release/spec-a-gate-reports-the-population-it-judged.md` |
+| The three pages agree with the code | `./le doc yang-contract` and `./le spec citation anchors spec plan/pre-release/spec-a-gate-reports-the-population-it-judged.md` |
 
 ### Security Review Checklist
 

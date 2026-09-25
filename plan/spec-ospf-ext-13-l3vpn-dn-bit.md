@@ -453,7 +453,7 @@ cannot close this spec.
 | 3. Wiring phase | Wiring Test table -- config flag + failing wiring tests |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 7. Critical review | Critical Review Checklist |
 | 8. Fix issues | from critical review |
 | 9. Re-verify | re-run stage 6 |

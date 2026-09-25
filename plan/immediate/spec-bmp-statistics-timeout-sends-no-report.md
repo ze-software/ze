@@ -359,7 +359,7 @@ Ze's own collector and cannot supply independent-decoder evidence.
 |-------------|---------------------|
 | The encoder has a non-test caller | `gopls references internal/component/bgp/plugins/bmp/sender.go:718:26` names `statistics.go` |
 | The unit and tagged tests pass under the race detector | `./le job run label unit-bmp command go test -race ./internal/component/bgp/plugins/bmp/` |
-| Another implementation decodes the reports | `INTEROP_SCENARIO=bmp-statistics-pmacct ./le integration interop` |
+| Another implementation decodes the reports | `INTEROP_SCENARIO=bmp-statistics-pmacct ./le test integration interop` |
 | The tags carry recorded reds | `./le rfc discriminate stem rfc7854` and `./le rfc discriminate stem rfc8671` |
 | No RFC finding names 7854 or 8671 | `./le rfc check` |
 

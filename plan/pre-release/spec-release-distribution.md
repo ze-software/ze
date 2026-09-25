@@ -37,7 +37,7 @@ Included:
 - Signed GitHub tag verification, protected-main reachability, and exact candidate identity through trusted release dispatch.
 
 Excluded:
-- `ze-setup`, `ze-appliance`, `ze-stripped`, `ze-test`, `ze-chaos`, `ze-perf`, `ze-analyze`, standalone installer binaries, appliance images, installer kernels/initrds, ISOs, and containers.
+- `ze-setup`, `ze-appliance`, `ze-stripped`, `le-test`, `le chaos run`, `le perf`, `le mrt`, standalone installer binaries, appliance images, installer kernels/initrds, ISOs, and containers.
 - Homebrew, Snap, Flatpak, APK, Windows, macOS, FreeBSD, and source packages.
 - Replacing the existing `ze update-serve` command or publishing a project-operated self-update feed.
 - A general-purpose package hosting application or always-running web service.
@@ -474,7 +474,7 @@ Upgrade and downgrade run the newly installed binary's read-only state/config va
 
 Unexpected symlinks, devices, set-id bits, world-writable paths, undeclared files, or wrong owner/mode fail package tests.
 
-The production entry point `packaging/repository/install-ze-repository.sh` supports only `install [deb|rpm|auto]` and `remove [deb|rpm|auto]`, requires root, working OS CA trust, a verified HTTPS-capable `curl`, `gpg`, and the native APT or RPM key/query tools, and has no package dependency on Ze. `auto` succeeds only when exactly one supported native family is detected and rejects absent or ambiguous managers. The checked-in script is published under its digest as an immutable bootstrap object with a signed checksum and the exact immutable URL/digest in GitHub release/docs; documentation downloads it without piping to a shell, verifies the signed checksum and out-of-band direct-release fingerprint, then executes the local file. Install downloads the fingerprinted current/next key bundle and matching reviewed source template from `bootstrap.packages.ze-software.net` into root-only temporary files, verifies exact out-of-band primary fingerprints and closed URI/`Signed-By`/`gpgkey` fields, installs the key file/imports first, and renames the source/repo file last. Any failure before the last rename leaves no active Ze source; cleanup removes temporary files but may retain a harmless verified key. Remove renames/removes the source first, proves APT/DNF no longer selects Ze, then removes only the exact expected key file/import fingerprints. It refuses unknown arguments, paths, roots, pre-existing conflicting files, tool failures, fingerprint drift, and partial trust state. the retired `ze-release-repository-bootstrap-test` (current: `./le evidence release-candidate`) and all six package profiles invoke this same script with local signed fixtures and failure injection at every operation; they prove there is never an active source with missing trust, package lifecycle never mutates the pair, and refresh plus reinstall works after package removal.
+The production entry point `packaging/repository/install-ze-repository.sh` supports only `install [deb|rpm|auto]` and `remove [deb|rpm|auto]`, requires root, working OS CA trust, a verified HTTPS-capable `curl`, `gpg`, and the native APT or RPM key/query tools, and has no package dependency on Ze. `auto` succeeds only when exactly one supported native family is detected and rejects absent or ambiguous managers. The checked-in script is published under its digest as an immutable bootstrap object with a signed checksum and the exact immutable URL/digest in GitHub release/docs; documentation downloads it without piping to a shell, verifies the signed checksum and out-of-band direct-release fingerprint, then executes the local file. Install downloads the fingerprinted current/next key bundle and matching reviewed source template from `bootstrap.packages.ze-software.net` into root-only temporary files, verifies exact out-of-band primary fingerprints and closed URI/`Signed-By`/`gpgkey` fields, installs the key file/imports first, and renames the source/repo file last. Any failure before the last rename leaves no active Ze source; cleanup removes temporary files but may retain a harmless verified key. Remove renames/removes the source first, proves APT/DNF no longer selects Ze, then removes only the exact expected key file/import fingerprints. It refuses unknown arguments, paths, roots, pre-existing conflicting files, tool failures, fingerprint drift, and partial trust state. the retired `ze-release-repository-bootstrap-test` (current: `./le verify evidence release-candidate`) and all six package profiles invoke this same script with local signed fixtures and failure injection at every operation; they prove there is never an active source with missing trust, package lifecycle never mutates the pair, and refresh plus reinstall works after package removal.
 
 ### Repository Layout and Versioning
 
@@ -806,7 +806,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `MonitorPolicyTest.test_thresholds_dedup_freeze_recovery` | `internal/le/evidence/` | Every cadence/threshold/webhook/dedup/recovery/freeze transition | |
 | `MonitorPolicyTest.test_trusted_clock_freezes_authorization` | `internal/le/evidence/` | chrony normal/offset/stale/leap/stratum/malformed/command-failure thresholds | |
 
-The test symbols above describe required release-policy behaviour, not existing commands. Wire them, actionlint, manifest/schema validation, GitHub permission policy, package shell lint and generated-file drift checks into discoverable native test actions during implementation. Record exact invocation syntax here and in workflow callers before claiming wiring complete. `./le evidence release-candidate` is the existing clean-clone Docker verify action (`Runner.Run` and `ContainerScript`); it neither implements these release tests nor substitutes for the full matrix required by `spec-release-evidence-gate.md`.
+The test symbols above describe required release-policy behaviour, not existing commands. Wire them, actionlint, manifest/schema validation, GitHub permission policy, package shell lint and generated-file drift checks into discoverable native test actions during implementation. Record exact invocation syntax here and in workflow callers before claiming wiring complete. `./le verify evidence release-candidate` is the existing clean-clone Docker verify action (`Runner.Run` and `ContainerScript`); it neither implements these release tests nor substitutes for the full matrix required by `spec-release-evidence-gate.md`.
 
 ### Boundary Tests
 
@@ -840,10 +840,10 @@ The test symbols above describe required release-policy behaviour, not existing 
 
 | Exact command/test | Location | End-user/operator scenario | Status |
 |--------------------|----------|----------------------------|--------|
-| Install-suite action invoking `bin/ze-test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
+| Install-suite action invoking `bin/le-test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
 | same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
-| `./le functional ui` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
+| `./le test functional ui` (`bin/le-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
 | Planned repository-bootstrap test action | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
 | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `internal/le/` | Full DEB container/native-manager lifecycle | |
 | `effective-package-install.py --family deb --distro ubuntu-24.04 --arch amd64 --profile full` | same | Ubuntu DEB policy/lifecycle | |
@@ -1406,7 +1406,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] `spec-release-evidence-gate.md` is complete and exact stable evidence passes.
 - [ ] `spec-release-audit-0-umbrella.md` and blocking child findings are complete.
 - [ ] `/ze-review-spec` and final `/ze-review` are clean.
-- [ ] `./le verify current mode full` and `./le changed scope` pass.
+- [ ] `./le verify current mode full` and `./le repo changed scope` pass.
 - [ ] The native release matrix passes with no mandatory skip on the exact stable SHA; nightly satisfies its own exact mandatory set and the same channel-bound dependency-closure barrier.
 - [ ] Package container and booted QEMU VM matrices pass for required distro/architecture/policy cases.
 - [ ] Staging stable/nightly/attestation-race/failure/freshness/storage/key-rotation/retention/monitoring/restore exercises pass.

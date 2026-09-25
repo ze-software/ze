@@ -225,7 +225,7 @@ audit snapshot and implementation.
 | 2. Audit | rerun A-1..A-5 (clash audits are phase 1, BLOCKING) |
 | 3. Wiring phase | Wiring Test table (existing chains) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -243,7 +243,7 @@ audit snapshot and implementation.
    - Files: `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: red proves fixture teeth
 3. **Phase: the fold** — git mv files + testdata; package clause; drop `message.` qualifiers inside moved files; resolve doc.go/errors.go collisions; rewrite the 47 importers; remove the exceptions row.
-   - Tests: `go build ./...`, `./le test-unit`, fuzz seed pass, report `--selftest` green
+   - Tests: `go build ./...`, `./le test unit`, fuzz seed pass, report `--selftest` green
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.

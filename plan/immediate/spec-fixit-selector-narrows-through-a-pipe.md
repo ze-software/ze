@@ -76,7 +76,7 @@ whole, and then left alone.
 ### Architecture Docs
 - [ ] `docs/architecture/cli/root-namespace-grammar.md` - the grammar this rule replaces
   → Decision: the shape in force is `<verb> <noun> <selector-kind> <selector-value> <action> [<args>]`, and the rule deletes the middle two tokens from it. The page carries the shape as a fenced block and a six-row incorrect/correct table, so it is rewritten by this spec, not appended to.
-  → Constraint: seven feeders enforce R1-R9 and `./le cli-grammar` runs them. The new rule is a feeder-level rule, so it lands in `internal/component/command/grammar` where R5 and R6 already live, and the static gate reads the whole YANG tree so the rule is enforced over every module at once.
+  → Constraint: seven feeders enforce R1-R9 and `./le cli grammar` runs them. The new rule is a feeder-level rule, so it lands in `internal/component/command/grammar` where R5 and R6 already live, and the static gate reads the whole YANG tree so the rule is enforced over every module at once.
 - [ ] `docs/architecture/cli/command-namespacing.md` - the Design doc `grammar/checker.go` declares
   → Constraint: `checker.go` names this page in its `// Design:` header, so a rule added to the checker owes an edit here in the same work.
 - [ ] `ai/rules/cli.md` - the CLI grammar directives
@@ -114,7 +114,7 @@ whole, and then left alone.
 - [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs`; `registerAliases` declares `summary` and `peers` on `show bgp` and an empty alias set on every child; six RPC registrations carry `RequiresSelector: true`.
 - [ ] `internal/component/bgp/plugins/cmd/rib/rib.go` - `registerPipeFilters` declares `peer`, `family`, `prefix`, `path`, `community`, `match`, `count`, `first`, `last`, `histogram`, `graph` on `show bgp rib`, with `received` and `advertised` as `Leading`.
 - [ ] `internal/component/config/retired.go` - `retiredKeywords` and `RetiredKeywordHint` are CONFIG parser machinery. The map keys are config field names and the hint is appended to an unknown-field parse error. Nothing in it reaches the command tree.
-- [ ] `test/ui/alias-summary.ci` - the functional-test shape for a pipe alias: a `ze-test fixture ui/<name>` invocation asserting exit 0 and `OK` on stdout.
+- [ ] `test/ui/alias-summary.ci` - the functional-test shape for a pipe alias: a `le-test fixture ui/<name>` invocation asserting exit 0 and `OK` on stdout.
 
 **Behavior to preserve:**
 - The peer selector vocabulary: an address, a peer name, an AS pattern such as `as65001`, a glob, a comma-separated list, or `*`. `peersel.ParseDefault` reads it and this spec does not change it.
@@ -410,16 +410,16 @@ with the action-move scope.
 | A-3 | `limit` collides with no registered alias or filter | `RegisterAliases` and `RegisterPipeFilters` each panic on an overlapping-path name collision; no catalog operator is named `limit` and no alias is | the daemon panics at init | `./le verify current mode full` starting the daemon in the functional suite; a unit test asserting the registration does not panic | unvalidated |
 | A-4 | Removing `container list` changes the field set the bare command answers, not the peer population | `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over `ctx.Reactor().Peers()` | the bare form would silently answer a different peer set, which is a correctness change nobody asked for | `TestBarePeerAnswersEveryPeer` comparing the bare answer's row count to the reactor peer count | unvalidated |
 | A-5 | The selector slot has no value completion today, so the conversion loses none | no `ValueHints` is wired for any peer or interface node; `pipeSubArgs` holds `json` and `fill` alone | the change would remove working peer-name completion, which is a regression | a `.ci` under `test/ui/` asserting what `show bgp peer <TAB>` offers before and after | unvalidated |
-| A-6 | Two components own the eight converted commands; each owns its registration | `cmd/peer` and `cmd/policy` in the display inventory | a central edit would be needed, which `ai/rules/principles.md` forbids | the implementation touches owner packages; `./le tier check` | unvalidated |
+| A-6 | Two components own the eight converted commands; each owns its registration | `cmd/peer` and `cmd/policy` in the display inventory | a central edit would be needed, which `ai/rules/principles.md` forbids | the implementation touches owner packages; `./le arch tier check` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-8 | The collision DERIVER outlives the grammar it was written for, and reserves five more names nobody can collide with | `PeerSubcommandKeywords` (`internal/component/plugin/server/rpc_register.go`) marks a verb Colliding when no mandatory `ArgDef` anchored to `peer` sits between the keyword and the verb, and config validation then refuses a peer carrying that word as its name. Today `list` alone collides under `show bgp peer`. Deleting the `show bgp peer` selector makes all six collide, so `capabilities`, `detail`, `history`, `rib` and `statistics` become unusable peer names | the derivation reads the merged tree, so it follows the change with no edit, and that is the problem rather than the reassurance. Its rule encodes an assumption the conversion removes: that a peer NAME can be typed immediately after `peer`. On a converted `show` path no name is ever typed there, because narrowing moved into the pipe, so a verb sitting next to `peer` is not a collision and refusing it costs an operator five ordinary words for nothing. The deriver was already wrong once this way, in `759246cb1`, where it read adjacency in a path string and ignored the mandatory selector between; this is the same mistake arriving from the other direction, as the selector is taken away rather than overlooked. So the conversion phase owes the deriver an edit: it asks whether a name can reach that position AT ALL for the path's class, display or action, and reports Colliding only where one can. The phase asserts the Colliding set before and after, and the expected answer for a converted `show` node is EMPTY |
 | R-2 | `limit` registered on `show bgp` shadows the RIB plugin's own filter set, or the reverse | `RegisterPipeFilters` panics at init, or `show bgp rib \| limit` reports an unknown filter | lookup is longest-prefix, so `show bgp rib` needs its own `limit` entry rather than inheriting one; Q4 settles the rename in the same edit |
-| R-3 | The grammar gate cannot express the new rule, so it is enforced by review alone | the checker has no rule id for it and `./le cli-grammar` stays green over an unconverted node | the rule lands as a new rule id in `grammar.CheckNode` with the population count printed, before the first conversion |
+| R-3 | The grammar gate cannot express the new rule, so it is enforced by review alone | the checker has no rule id for it and `./le cli grammar` stays green over an unconverted node | the rule lands as a new rule id in `grammar.CheckNode` with the population count printed, before the first conversion |
 | R-4 | Completion offers `limit` but cannot complete its argument, so the operator gets less help than the positional form gave | `pipeSubArgs` is a hand-written map with two entries | A-5 says the positional form offers nothing either; if it turns out to, the spec gains a value-hint route for filter arguments |
-| R-5 | Documentation and demos carry the old forms in prose and in recorded terminal sessions | `./le cli-grammar` reads `demos/terminal/` sources and refuses a non-verb position-1 token; the doc pages carry the six-row incorrect/correct table verbatim | the doc and demo edits land in the same phase as the YANG edit, never in a closing pass (`ai/rules/documentation.md`) |
+| R-5 | Documentation and demos carry the old forms in prose and in recorded terminal sessions | `./le cli grammar` reads `demos/terminal/` sources and refuses a non-verb position-1 token; the doc pages carry the six-row incorrect/correct table verbatim | the doc and demo edits land in the same phase as the YANG edit, never in a closing pass (`ai/rules/documentation.md`) |
 | R-6 | The package grows beyond its display-conversion scope | the phase list adds action-path work | Keep the eight display conversions separate from the superseded action move; class K adds 21 display nodes only if Q3 says yes |
 
 ## Blast Radius
@@ -451,7 +451,7 @@ with the action-move scope.
 | AC-5 | Superseded action-move criterion | No action migration is owed by this spec. The current action paths and selector guards are preserved under AC-9 |
 | AC-6 | `show bgp rib \| limit <sel>` | Narrows by peer, and `\| peer <sel>` is no longer a spelling of it. |
 | AC-7 | Tab pressed after `\|` on any converted command | `limit` is offered, with its description. |
-| AC-8 | `./le cli-grammar` over the real checkout | Passes, and prints the size of the population it read for the new rule. A YANG node reintroducing a positional selector makes it fail, naming the node. |
+| AC-8 | `./le cli grammar` over the real checkout | Passes, and prints the size of the population it read for the new rule. A YANG node reintroducing a positional selector makes it fail, naming the node. |
 | AC-9 | Every action command in the inventory | Keeps a mandatory positional selector, gains no `limit` filter, and refuses a selector-less invocation exactly as it does today. No action command is reachable through a pipe. |
 | AC-10 | Every documentation page, rule file and terminal demo that showed a converted display command | Shows the new display form. `docs/architecture/cli/root-namespace-grammar.md`, `ai/rules/cli.md` and `ai/patterns/cli-command.md` state the display grammar while preserving the current action grammar |
 
@@ -588,7 +588,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 7. **Phase: the documentation** -- complete the doc edits each phase started
    - Tests: `TestInheritExtensionHasOneUser`, `./le doc check verify`
    - Files: the pages in the Documentation checklist, `demos/terminal/`
-   - Verify: `./le cli-grammar` green, `./le doc check verify` green. `extension inherit` is NOT deleted: `request interface migrate` still declares it
+   - Verify: `./le cli grammar` green, `./le doc check verify` green. `extension inherit` is NOT deleted: `request interface migrate` still declares it
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -606,7 +606,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| No DISPLAY command declares a mandatory positional selector | `./le cli-grammar` prints zero findings for the new rule and a non-zero population |
+| No DISPLAY command declares a mandatory positional selector | `./le cli grammar` prints zero findings for the new rule and a non-zero population |
 | `ze:inherit` has exactly one user | `grep -rn 'ze:inherit' internal --include='*.yang'` names `request interface migrate` and nothing else |
 | `limit` is registered for every converted command | a unit test walking the converted command paths and asserting `PipeFiltersForCommand` names `limit` |
 | The bare form answers for all | `test/ui/limit-bare-peer-answers-all.ci` |
@@ -631,7 +631,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
 | Audit finds a missing AC | Back to the relevant phase and implement |
-| The gate's population count is zero | The rule reads no node. STOP: a green gate that read nothing is the failure `./le cli-grammar` prints population sizes to prevent |
+| The gate's population count is zero | The rule reads no node. STOP: a green gate that read nothing is the failure `./le cli grammar` prints population sizes to prevent |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights

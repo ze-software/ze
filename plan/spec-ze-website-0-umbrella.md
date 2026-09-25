@@ -496,7 +496,7 @@ integration with two real Ze protocol engines.
 | YANG validation constraints | Yes | Existing constraints remain. Child 3 import validation must run the registered schema before replacement |
 | YANG custom validators | Yes | Existing dynamic completion and validators must remain linked when their owner is selected; no browser duplicate |
 | CLI commands/flags | No | No new user CLI command is required. `./le site build` is a build target and the browser UI is the entry point |
-| CLI grammar (keyword before value) | Yes | Child 1 preserves the existing grammar through `cli.Session`; `./le cli-grammar` remains authoritative |
+| CLI grammar (keyword before value) | Yes | Child 1 preserves the existing grammar through `cli.Session`; `./le cli grammar` remains authoritative |
 | Editor autocomplete | Yes | Child 1 and child 4 derive completion from YANG and command registries |
 | Functional test for new RPC/API | Yes | Child 4 JavaScript bridge contract and child 6 browser entry-point tests |
 | Pipe completeness | Yes | `cli.Session` owns existing text and JSON pipe handling for every frontend |

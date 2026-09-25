@@ -383,7 +383,7 @@ Two, one per phase.
 | the marker parses and clears the error | `./le rfc check` exits 0 with the three rows marked |
 | the marker dies with its spec | delete the spec file, re-run the check, expect exit 2 naming all three rows |
 | the debt is published | `grep -c 'scheduled' ai/RFC-REQUIREMENTS.md` is 3 and each names this spec |
-| ze originates BGP-LS | `./le integration interop` with `bgp-ls-originate-gobgp` PASS |
+| ze originates BGP-LS | `./le test integration interop` with `bgp-ls-originate-gobgp` PASS |
 
 ### Security Review Checklist
 | Check | What to look for |

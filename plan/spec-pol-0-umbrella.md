@@ -706,7 +706,7 @@ Original planned additions follow. Existing action plugins must not be recreated
 | 3. Wiring phase | Current approved wiring plan, completed before implementation |
 | 4. Implement (TDD) | Approved design for unmet ACs only |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |

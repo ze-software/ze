@@ -23,7 +23,7 @@ a command-surface change can leave those checks red until publication catches up
 | Artifact | Generator | What is stale on 2026-09-08 |
 |----------|-----------|------------------------------|
 | `../gh-pages/data/cli-commands.json` and the `reference/cli` and `reference/command-equivalents` pages under it | `./le site build` | 411 commands published, 463 live. Every plugin-declared command is absent: `clear bgp healthcheck`, the seven `request bgp adj-rib-in *`, `request bgp rib fastpath`, `mark-stale`, `purge-stale`, and the rest of the 52. The `column-orders` key is carried by no published entry |
-| `../wiki/command-catalog.md` | `./le wiki-catalog update file <catalog.md>` | the same 52 commands, and `show bgp rpki` is missing the `summary` pipe alias it now declares |
+| `../wiki/command-catalog.md` | `./le cli catalog update file <catalog.md>` | the same 52 commands, and `show bgp rpki` is missing the `summary` pipe alias it now declares |
 
 `compareWebsiteCommandCatalog` and `compareWikiCommandCatalog`
 (`internal/le/docvalid/command_surfaces.go`) are the two checks that report it.

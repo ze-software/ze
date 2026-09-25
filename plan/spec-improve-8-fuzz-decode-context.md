@@ -101,8 +101,8 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le fuzz run` (all targets, enumerated in `internal/le/fuzz/actions.go`);
-  `FUZZ=<target> PKG=<pkg> ./le fuzz run` for one.
+- `./le test fuzz run` (all targets, enumerated in `internal/le/fuzz/actions.go`);
+  `FUZZ=<target> PKG=<pkg> ./le test fuzz run` for one.
 
 ### Transformation Path
 1. Fuzz engine mutates raw bytes and the arguments the producer accepts: `asn4` for attributes and `addpath` for EVPN. Capability and MP attribute targets take raw bytes alone.
@@ -137,7 +137,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | New target added but not enumerated in internal/le/fuzz/actions.go -- never runs | target absent from `./le fuzz run` output | AC-4 asserts the enumeration; grep-based check in the same commit |
+| R-1 | New target added but not enumerated in internal/le/fuzz/actions.go -- never runs | target absent from `./le test fuzz run` output | AC-4 asserts the enumeration; grep-based check in the same commit |
 | R-2 | Renaming/widening an existing target orphans its accumulated corpus | corpus counters reset | prefer adding sibling targets over renaming; per-target decision recorded at implementation |
 | R-3 | Fuzz-found decode crashes arrive as a flood once new surfaces open | multiple failures in first runs | each finding becomes a seed + fix per `ai/rules/completion.md`; findings are the point, not a risk to avoid -- budget review time |
 
@@ -145,8 +145,8 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| ./le fuzz run | → | new/widened targets in the enumeration | enumeration includes every Fuzz* (AC-4 grep check) |
-| ./le fuzz run FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
+| ./le test fuzz run | → | new/widened targets in the enumeration | enumeration includes every Fuzz* (AC-4 grep check) |
+| ./le test fuzz run FUZZ=FuzzParseCapabilities | → | capability.Parse under fuzz | FuzzParseCapabilities seed run |
 
 ## Acceptance Criteria
 
@@ -188,7 +188,7 @@ work in this spec.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Developer runs `./le fuzz run` | enumeration -> all targets incl. new surfaces at 10s each | AC-4 grep + target run |
+| 1 | Developer runs `./le test fuzz run` | enumeration -> all targets incl. new surfaces at 10s each | AC-4 grep + target run |
 | 2 | Fuzzer finds a decode crash under asn4=false | failing input minimized -> seed + fix | regression seed committed with the fix |
 
 ## 🧪 TDD Test Plan
@@ -208,7 +208,7 @@ work in this spec.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N/A -- fuzz targets are unit-level by nature; `./le fuzz run` is the executable gate (functional-test-gate: no user-facing behavior changes) | - | - | |
+| N/A -- fuzz targets are unit-level by nature; `./le test fuzz run` is the executable gate (functional-test-gate: no user-facing behavior changes) | - | - | |
 
 ### Interop Tests (MANDATORY for protocol features)
 - N/A: no wire behavior change; fuzzing exercises existing decode paths.

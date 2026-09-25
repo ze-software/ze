@@ -93,24 +93,24 @@ Ze's quality work has one rule: when something fails, the output should show wha
     <h3>Edit loop</h3>
     <p>Use one focused command while changing code.</p>
     <pre><code>go test -race -run TestName ./internal/component/config/...
-FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz run
 go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
-bin/ze-test bgp plugin 42 -v</code></pre>
+bin/le-test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
     <h3>Handoff gate</h3>
     <p>Use the shared gate before handing over normal work.</p>
     <pre><code>./le verify current mode full
 ./le verify current mode changed
-./le repository check</code></pre>
+./le repo check</code></pre>
   </article>
   <article class="quality-command">
     <h3>Linux and release</h3>
     <p>Use the wider gates only when the behavior needs Linux, real peers, or release evidence.</p>
-    <pre><code>./le qemu netns-test
-./le qemu run command '...' keep-alive
-./le integration interop
-./le evidence release-candidate</code></pre>
+    <pre><code>./le test qemu netns-test
+./le test qemu run command '...' keep-alive
+./le test integration interop
+./le verify evidence release-candidate</code></pre>
   </article>
 </div>
 

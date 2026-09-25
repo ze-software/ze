@@ -351,4 +351,4 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 Deferred by spec-rfcgate-2-deferred-nonunit-evidence-backfill.
 
-Decide what to do about 242 gated MUSTs whose subsystem no `./le functional` suite boots (BFD 98, VRRP 80, dhcpserver 28, geodns 18, dnsserver 18)
+Decide what to do about 242 gated MUSTs whose subsystem no `./le test functional` suite boots (BFD 98, VRRP 80, dhcpserver 28, geodns 18, dnsserver 18)

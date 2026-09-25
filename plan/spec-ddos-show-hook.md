@@ -342,7 +342,7 @@ None deferred yet. Scope is set at DESIGN.
 | 2. Audit | Files to Modify, TDD Test Plan |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 13. /ze-review gate | Review Gate section |
 

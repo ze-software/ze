@@ -88,7 +88,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 - A row whose text git already holds at HEAD no longer refuses anything: the gate
   proves it landed and drops it from the shard the commit carries. That retires
   the delete-the-last-commit's-rows chore three sessions performed by hand.
-- `./le test-weakened check` prints every shard and its rows, so an author sees
+- `./le test weakened check` prints every shard and its rows, so an author sees
   the population without preparing a commit.
 
 ## Data Flow (MANDATORY)
@@ -109,7 +109,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | session ↔ session | one shard per session; no path is reachable by two writers | Yes, by construction |
-| author ↔ gate | `./le test-weakened check` prints the weakened-test population | command exists; functional proof remains |
+| author ↔ gate | `./le test weakened check` prints the weakened-test population | command exists; functional proof remains |
 | working tree ↔ HEAD | `LandedRows` asks git what already landed | regression test exists; current execution remains owed |
 
 ### Integration Points
@@ -152,7 +152,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le test-weakened check` | → | `ReadShards` (`internal/le/testweakened/shard.go`) | `internal/le/testweakened/audit_test.go` |
+| `./le test weakened check` | → | `ReadShards` (`internal/le/testweakened/shard.go`) | `internal/le/testweakened/audit_test.go` |
 | `./le commit create` naming a foreign shard | → | `ForeignShardProblems` (`shard.go`) | `internal/le/commit/ledger_test.go` |
 
 ## Acceptance Criteria
@@ -162,7 +162,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 | AC-1 | two sessions each write a weakened row | each writes its own shard; neither can reach the other's path |
 | AC-2 | a commit names another session's shard | `create` REFUSES, naming the shard and its session |
 | AC-3 | a shard holds a row whose text git already has at HEAD | the gate proves it landed and drops it; the commit is not refused over it |
-| AC-4 | an author runs `./le test-weakened check` | every shard and its rows are printed, with this session's marked, and no commit is prepared |
+| AC-4 | an author runs `./le test weakened check` | every shard and its rows are printed, with this session's marked, and no commit is prepared |
 | AC-5 | a commit weakens a test and its own shard holds the row | the commit is admitted, exactly as with the flat file |
 | AC-6 | a commit weakens a test and NO shard holds the row | the commit is refused, exactly as with the flat file |
 
@@ -185,7 +185,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le test-weakened check` over a populated directory | not written | an author asks whose rows are in the ledger | MISSING. See "What Remains" |
+| `./le test weakened check` over a populated directory | not written | an author asks whose rows are in the ledger | MISSING. See "What Remains" |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -207,7 +207,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema | N-A | development tooling, no operator config |
-| CLI commands/flags | Yes | `./le test-weakened check`, registered through `leaction.Action` in `internal/le/testweakened/actions.go` |
+| CLI commands/flags | Yes | `./le test weakened check`, registered through `leaction.Action` in `internal/le/testweakened/actions.go` |
 | Functional test for new RPC/API | N-A | no RPC |
 | Doctor check for runtime dependencies | N-A | no new runtime dependency |
 | Env var registration | N-A | none added |
@@ -245,7 +245,7 @@ must not recreate `test/rfc-changed/` to match its original design.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | the flat files are gone | `ls test/weakened.md test/rfc-changed.md` reports absence |
-| the population is visible without committing | `./le test-weakened check` |
+| the population is visible without committing | `./le test weakened check` |
 
 ### Security Review Checklist
 | Check | What to look for |

@@ -17,9 +17,9 @@ Start with a normal Go test. It names the behavior and fixes the expected result
 <thead><tr><th>Mode</th><th>Question</th><th>Command</th></tr></thead>
 <tbody>
 <tr><td>Example test</td><td>Does this named input produce the exact expected behavior?</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
-<tr><td>Fuzz target</td><td>Does the same rule hold for generated inputs and saved corpus entries?</td><td><code>FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run</code></td></tr>
+<tr><td>Fuzz target</td><td>Does the same rule hold for generated inputs and saved corpus entries?</td><td><code>FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz run</code></td></tr>
 <tr><td>gomu mutation run</td><td>Would the tests fail if the implementation made a small wrong decision?</td><td><code>go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false</code></td></tr>
-<tr><td>Race run</td><td>Does the behavior still hold when goroutines are scheduled differently?</td><td><code>./le test-unit</code></td></tr>
+<tr><td>Race run</td><td>Does the behavior still hold when goroutines are scheduled differently?</td><td><code>./le test unit</code></td></tr>
 <tr><td>Coverage report</td><td>Which branches ran without a strong assertion attached?</td><td><code>go test -coverprofile coverage.out ./path/...</code></td></tr>
 </tbody>
 </table>
@@ -34,12 +34,12 @@ A normal unit test is the right tool when the behavior sits inside one package o
 <thead><tr><th>Scope</th><th>Command</th><th>When to use it</th></tr></thead>
 <tbody>
 <tr><td>One test</td><td><code>go test -race -run TestName ./path/...</code></td><td>Fast edit loop for one named behavior.</td></tr>
-<tr><td>BGP group</td><td><code>./le test-unit bgp</code></td><td>Wire, FSM, peer, and BGP component changes.</td></tr>
-<tr><td>Core group</td><td><code>./le test-unit core</code></td><td>Core libraries and shared infrastructure.</td></tr>
-<tr><td>Plugin group</td><td><code>./le test-unit plugins</code></td><td>Runtime plugin logic and plugin boundaries.</td></tr>
-<tr><td>Config group</td><td><code>./le test-unit config</code></td><td>YANG, config parsing, validation, and rendering.</td></tr>
-<tr><td>CLI group</td><td><code>./le test-unit cli</code></td><td>Command parsing and user-visible formatting.</td></tr>
-<tr><td>All unit groups</td><td><code>./le test-unit</code></td><td>Local unit gate.</td></tr>
+<tr><td>BGP group</td><td><code>./le test unit bgp</code></td><td>Wire, FSM, peer, and BGP component changes.</td></tr>
+<tr><td>Core group</td><td><code>./le test unit core</code></td><td>Core libraries and shared infrastructure.</td></tr>
+<tr><td>Plugin group</td><td><code>./le test unit plugins</code></td><td>Runtime plugin logic and plugin boundaries.</td></tr>
+<tr><td>Config group</td><td><code>./le test unit config</code></td><td>YANG, config parsing, validation, and rendering.</td></tr>
+<tr><td>CLI group</td><td><code>./le test unit cli</code></td><td>Command parsing and user-visible formatting.</td></tr>
+<tr><td>All unit groups</td><td><code>./le test unit</code></td><td>Local unit gate.</td></tr>
 </tbody>
 </table>
 
@@ -48,8 +48,8 @@ A normal unit test is the right tool when the behavior sits inside one package o
 A Go fuzz target is a test function with generated inputs. It should start from useful seed cases, call the same parser or decoder a normal unit test would call, and assert a stable rule. For Ze, good fuzz targets are BGP attributes, communities, capabilities, AS paths, L2TP control packets, TACACS packets, and other parsers that must survive malformed external input.
 
 ```bash
-./le fuzz run
-FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+./le test fuzz run
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz run
 ```
 
 Keep the target deterministic and small. Be strict about accepted errors and round trips. When fuzzing finds a crash or semantic bug, keep the corpus entry. That saved input becomes the named regression case that explains the failure.
@@ -62,7 +62,7 @@ gomu is the mutation-testing tool Ze uses to test the tests. It changes Go code 
 go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false ./internal/core/textbuf/
 go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false
-./le mutation record-history report mutation-report.json
+./le test mutation record-history report mutation-report.json
 ```
 
 This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.

@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 for BGP UPDATE errors, and the malformed-message sections of IKEv2, OSPF, BFD, LDP and
 the others Ze enrolls) obliges a behavior for EVERY malformed input in a class, not for
 the handful a unit test constructs. Ze holds 88 Go fuzz targets in 51 files, 47 of them
-under the BGP trees and 8 under IKE and OSPF, run by `./le fuzz`. A fuzz target today
+under the BGP trees and 8 under IKE and OSPF, run by `./le test fuzz`. A fuzz target today
 proves "does not crash". It does not check the RFC's prescribed outcome: treat-as-withdraw,
 attribute discard, session reset, or the NOTIFICATION code.
 
@@ -38,7 +38,7 @@ Out of scope: external black-box suites, which are
 ### Architecture Docs
 - [ ] `rfc/short/rfc7606.md`, `rfc/audit/rfc7606.json` - the pilot RFC and its audit
   → Constraint: an outcome is judged against the RFC text quoted with its section (`ai/rules/rfc-compliance.md`)
-- [ ] `docs/contributing/testing.md` - `./le fuzz` and how fuzz targets are discovered
+- [ ] `docs/contributing/testing.md` - `./le test fuzz` and how fuzz targets are discovered
   → Constraint: every `func Fuzz` under `internal/` is discovered at run time; no list to edit
 
 **Key insights:**
@@ -98,7 +98,7 @@ Out of scope: external black-box suites, which are
 |----------|--------|
 | What breaks if this is wrong? | test infrastructure only; defects it finds are product work |
 | How is it reverted? | a commit revert |
-| Who else touches this path? | `plan/spec-improve-4-conformance-fixtures.md`, `./le fuzz`, the interop lab |
+| Who else touches this path? | `plan/spec-improve-4-conformance-fixtures.md`, `./le test fuzz`, the interop lab |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

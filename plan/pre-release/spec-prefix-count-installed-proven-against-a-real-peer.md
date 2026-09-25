@@ -104,7 +104,7 @@ way the two existing ones do.
 
 ### Integration Points
 - `interoplab.Discover` - matches the scenario directory by name.
-- `./le integration` - the native action that takes the scenario selector.
+- `./le test integration` - the native action that takes the scenario selector.
 
 ## Risks & Assumptions
 
@@ -130,7 +130,7 @@ way the two existing ones do.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| FRR churns an attribute on an already-advertised prefix | → | `applyInstalledPrefixSections` | the named FRR scenario, run by `./le integration` |
+| FRR churns an attribute on an already-advertised prefix | → | `applyInstalledPrefixSections` | the named FRR scenario, run by `./le test integration` |
 | the family is reverted to `count offered` | → | the offered tally path | the same scenario, observed RED |
 
 ## Acceptance Criteria
@@ -181,7 +181,7 @@ way the two existing ones do.
 1. **Phase: Wiring (MANDATORY FIRST)** -- create the scenario directory and make `interoplab.Discover` find it
    - Tests: the scenario runs and fails for the right reason
    - Files: the two conf files above
-   - Verify: `./le integration` selects the scenario by name
+   - Verify: `./le test integration` selects the scenario by name
 2. **Phase: The churn** -- FRR changes an attribute on an advertised prefix, repeatedly
 3. **Phase: Discrimination** -- revert the family to `count offered`, rebuild, observe and record the RED
 

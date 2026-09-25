@@ -20,7 +20,7 @@ Extend the native VPP binary-API emulator at
 `internal/test/cli/cmd_vpp_stub.go` and its compiled drivers at
 `internal/test/fixture/misc_fixture_vpp.go`, with the `test/vpp/*.ci` coverage
 needed for the full VPP request surface. The Python helper was retired on
-2026-08-28; `ze-test vpp-stub` is the current emulator. No Python helper is to be
+2026-08-28; `le-test vpp-stub` is the current emulator. No Python helper is to be
 restored.
 
 The approved 2026-07-10 goal was complete, correct VPP support. This spec keeps
@@ -60,7 +60,7 @@ obligations.
 
 ## Current Behavior (MANDATORY)
 
-Source read on 2026-09-19: `startVPPStub` launches `ze-test vpp-stub` with a
+Source read on 2026-09-19: `startVPPStub` launches `le-test vpp-stub` with a
 socket, JSONL log and deadline. `newVPPStubState` derives negotiated message
 names and CRCs from the registered govpp API and assigns sorted IDs.
 `handle` explicitly handles session setup, route add, MPLS, route lookup,
@@ -189,8 +189,8 @@ A vanished file name alone cannot discharge its behaviour.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-`./le functional vpp` runs `test/vpp/*.ci`; compiled fixtures start Ze, peers
-where needed, and `ze-test vpp-stub`. A parity check compares production request
+`./le test functional vpp` runs `test/vpp/*.ci`; compiled fixtures start Ze, peers
+where needed, and `le-test vpp-stub`. A parity check compares production request
 construction against explicit emulator handling.
 
 ### Transformation Path
@@ -245,7 +245,7 @@ and then observes another apply after the timeout.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le repository check` | Scans non-test `internal/` Go for binapi RequestMessage constructions, maps type -> wire name via vendored binapi, asserts each has an explicit native stub handler; RED while any request in the refreshed inventory is missing, GREEN at completion; wired into the `./le verify current mode full` check family; has `--selftest` + Go test like the sibling checks |
+| AC-1 | `./le repo check` | Scans non-test `internal/` Go for binapi RequestMessage constructions, maps type -> wire name via vendored binapi, asserts each has an explicit native stub handler; RED while any request in the refreshed inventory is missing, GREEN at completion; wired into the `./le verify current mode full` check family; has `--selftest` + Go test like the sibling checks |
 | AC-2 | ze applies `interface { backend vpp; loopback { unit ... address ... } }` against the stub (008) | Stub interface table allocates sw_if_index; create_loopback / sw_interface_set_flags / sw_interface_add_del_address / sw_interface_set_mtu handled with decoded fields in JSONL; `sw_interface_dump` streams the live table; 006 stays green (empty table at boot) |
 | AC-3 | peer announces then withdraws 10.20.0.0/24 (003) | JSONL shows ip_route_add_del is_add=true then is_add=false for the prefix; driver exit 0; uses an explicit peer withdraw directive; reuse the current producer if already available |
 | AC-4 | stub SIGKILLed and a new instance bound on the same socket within the reconnect window (004) | govpp reconnects (A-2); a route announced after restart appears in the NEW instance's JSONL; ze does not crash or exit |

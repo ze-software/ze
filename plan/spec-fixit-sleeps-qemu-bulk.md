@@ -73,7 +73,7 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 ## Current Behavior (MANDATORY)
 
 `test/traffic/traffic-boot-qdisc-tc.ci` starts a background daemon, runs
-`ze-test fixture traffic/traffic-boot-qdisc-tc`, then reads `tc qdisc show`.
+`le-test fixture traffic/traffic-boot-qdisc-tc`, then reads `tc qdisc show`.
 Its fixture is a 2.5s timer. `trafficReloadQdisc` reads the qdisc before and after
 SIGHUP, but reaches each read after a fixed hold. Both remain in the original
 Linux-gated population.
@@ -113,7 +113,7 @@ Gate taxonomy across ALL files containing sleeps (blind = raw minus bounded poll
 
 | Group | Gate | Reachable by | Raw | Blind |
 |-------|------|--------------|-----|-------|
-| A | `option=needs-linux` | `./le qemu run command "./le qemu all-tests"` | 14 | **9** |
+| A | `option=needs-linux` | `./le test qemu run command "./le test qemu all-tests"` | 14 | **9** |
 | B | `option=skip-os:value=darwin` only | NOT that target (filtered at `record_parse.go`); needs `ze-qemu-test-all` | 31 | **12** |
 | C | no OS gate | the darwin host directly | 81 | **54** |
 
@@ -138,12 +138,12 @@ Per-directory raw vs blind (the brief's numbers are the raw column):
 | ui | 1 | **0** | its single sleep is a bounded poll: nothing to convert |
 
 **The three corrections that matter for scope:**
-1. Only 9 blind sleeps are actually reachable by `./le qemu run command "./le qemu all-tests"`. The brief's implied scope (~56 raw across those dirs) is roughly 6x the target-reachable blind population.
-2. The policy/firewall/ospf/pppoe bulk (group B, 12 blind) is linux-only but NOT run by the needs-linux target. Verifying it needs `./le qemu run command "./le qemu all-tests"`, or those tests need `option=needs-linux` added. Unresolved fork, see Open Questions.
+1. Only 9 blind sleeps are actually reachable by `./le test qemu run command "./le test qemu all-tests"`. The brief's implied scope (~56 raw across those dirs) is roughly 6x the target-reachable blind population.
+2. The policy/firewall/ospf/pppoe bulk (group B, 12 blind) is linux-only but NOT run by the needs-linux target. Verifying it needs `./le test qemu run command "./le test qemu all-tests"`, or those tests need `option=needs-linux` added. Unresolved fork, see Open Questions.
 3. flow-export (4 blind), reload (1 blind), `install/image-resolve-failure.ci` (1 blind) and the 12 ungated traffic vpp-stub sleeps have NO OS gate, so they are host-runnable on darwin and do not belong in a QEMU-gated spec by its own criterion. Either they are misfiled here, or they are missing a gate they should have.
 
-→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: This spec is scoped to **groups A + B** — the needs-linux + skip-os:darwin linux-only blind sleeps (A = 9 blind, reachable by the retired `ze-qemu-needs-linux-test` (current: `./le qemu run command "./le qemu all-tests"`); B = 12 blind, reachable only by the retired `ze-qemu-test-all` (current: `./le qemu run command "./le qemu all-tests"`); measured taxonomy verified 2026-07-17: group A raw 14, group B raw 31, tree total 132 -- baseline now 125, 2026-07-22; re-derive the taxonomy at Phase 2). **Group C** (54 blind, ungated, host-runnable on darwin) is OUT OF SCOPE and recorded as a noted follow-up (see Future + Open Questions → Resolutions). Rationale: smaller, self-contained scope per the readiness decision protocol — a QEMU-gated spec should own only the sleeps its QEMU criterion can verify; the ungated group C is host-verifiable and belongs to a host-runnable (or gate-audit) spec that decides per file whether each C test is misfiled or missing a gate. Thomas: override if wrong.
-→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: Group B verification fork (correction 2) resolves in favour of the retired `ze-qemu-test-all` (current: `./le qemu run command "./le qemu all-tests"`) as the DEFAULT branch (it already runs the skip-os:darwin group; zero committed change). Adding `option=needs-linux` to the 15 group B files — which would pull the 12 blind into the fast `ze-qemu-needs-linux-test` loop — is the more-reversible alternative, recorded as an OPTIONAL follow-up (a test-metadata change with its own review), adopted only if full-suite turnaround proves impractical during implement. Rationale: the smaller self-contained default mutates zero committed metadata; both branches remain valid "done" states under AC-8. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: This spec is scoped to **groups A + B** — the needs-linux + skip-os:darwin linux-only blind sleeps (A = 9 blind, reachable by the retired `ze-qemu-needs-linux-test` (current: `./le test qemu run command "./le test qemu all-tests"`); B = 12 blind, reachable only by the retired `ze-qemu-test-all` (current: `./le test qemu run command "./le test qemu all-tests"`); measured taxonomy verified 2026-07-17: group A raw 14, group B raw 31, tree total 132 -- baseline now 125, 2026-07-22; re-derive the taxonomy at Phase 2). **Group C** (54 blind, ungated, host-runnable on darwin) is OUT OF SCOPE and recorded as a noted follow-up (see Future + Open Questions → Resolutions). Rationale: smaller, self-contained scope per the readiness decision protocol — a QEMU-gated spec should own only the sleeps its QEMU criterion can verify; the ungated group C is host-verifiable and belongs to a host-runnable (or gate-audit) spec that decides per file whether each C test is misfiled or missing a gate. Thomas: override if wrong.
+→ AUTONOMOUS DEFAULT (2026-07-17) [scope]: Group B verification fork (correction 2) resolves in favour of the retired `ze-qemu-test-all` (current: `./le test qemu run command "./le test qemu all-tests"`) as the DEFAULT branch (it already runs the skip-os:darwin group; zero committed change). Adding `option=needs-linux` to the 15 group B files — which would pull the 12 blind into the fast `ze-qemu-needs-linux-test` loop — is the more-reversible alternative, recorded as an OPTIONAL follow-up (a test-metadata change with its own review), adopted only if full-suite turnaround proves impractical during implement. Rationale: the smaller self-contained default mutates zero committed metadata; both branches remain valid "done" states under AC-8. Thomas: override if wrong.
 
 **UNVERIFIED:**
 - That the ORIGINAL (unconverted) tests currently pass under QEMU. Not run: this host does not run QEMU, and this skeleton ran no tests. The confirm-original step is AC-1 precisely because it is unverified.
@@ -167,7 +167,7 @@ or asserting a reload result.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `.ci` runner to native fixture | `ze-test fixture` | source read only |
+| `.ci` runner to native fixture | `le-test fixture` | source read only |
 | fixture to daemon | readiness and reload completion | current inventory and runtime proof owed |
 | fixture to Linux kernel | tc/nft readback | current inventory and runtime proof owed |
 | host to Linux/QEMU | a route that includes each consumer without skipping it | runtime proof owed |
@@ -206,14 +206,14 @@ or asserting a reload result.
 | AC-6 | A deliberate timer (traffic/012, traffic/026: the 5s vpp `WaitConnected` timeout IS the behavior under test) | Kept, justifying comment intact, `check_ci_sleep_justification` green |
 | AC-7 | A conversion removes sleeps counted by the embedded `.ci` ratchet | Lower `test/.ci-sleep-baseline` by exactly the number removed in the same change. Native fixture timers are outside that count and cannot justify a delta |
 | AC-8 | A current Linux-gated test in scope, including a former group-B member | Verify through a current Linux/QEMU route that actually runs it, recording any gate change. A skipped case is never evidence |
-| AC-9 | Full suite after all conversions | `./le qemu run command "./le qemu all-tests"` green, no test converted-but-unverified, no regression in the affected suites |
+| AC-9 | Full suite after all conversions | `./le test qemu run command "./le test qemu all-tests"` green, no test converted-but-unverified, no regression in the affected suites |
 
 ## Historical Risks & Assumptions (July 2026; re-derive during current inventory)
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | The originals currently pass under QEMU | they are committed and gated, not quarantined (no skip/xfail marker found) | AC-1 fails first and this becomes a test-repair spec, not a conversion spec | run `./le qemu run command "./le qemu all-tests"` before touching anything | unvalidated |
+| A-1 | The originals currently pass under QEMU | they are committed and gated, not quarantined (no skip/xfail marker found) | AC-1 fails first and this becomes a test-repair spec, not a conversion spec | run `./le test qemu run command "./le test qemu all-tests"` before touching anything | unvalidated |
 | A-2 | A backgrounded ze can be given a pollable readiness signal | the annotation says the ZE_READY_FILE marker is absent for backgrounded ze, not that readiness is unobservable; the asserted OnConfigure log line already exists as a signal | AC-2 collapses to "wait on the log line" only, or needs a production readiness surface (scope grows) | read the ZE_READY_FILE producer and the runner's background-spawn path | unvalidated |
 | A-3 | SIGHUP reload completion is observable without new production code | the tests already assert a post-reload log line | AC-3 needs a new reload-processed signal, overlapping `plan/spec-fixit-reject-fence-observability.md` | read the SIGHUP handler and its emitted events | unvalidated | <!-- doc-links: ignore (spec closed and removed) -->
 | A-4 | Group B tests are correctly gated with `skip-os` rather than `needs-linux` | they are linux-only in substance (nft/tc/kernel) | adding `option=needs-linux` is a cheap fix bringing 12 blind sleeps into the fast QEMU loop | compare a group A and a group B test's requirements | unvalidated |
@@ -228,7 +228,7 @@ or asserting a reload result.
 | R-4 | Converting a bounded poll or a deliberate timer for baseline credit | the diff touches sleeps whose comments say "bounded wait" or "IS the behavior under test" | AC-5/AC-6; the ratchet rewards removal, so guard against gaming it |
 | R-5 | Overlap with `plan/spec-fixit-reject-fence-observability.md` | two specs edit the same external-warn tests | 3 group A files (`ddos-detect-external-warns`, `flowexport-external-refuses`, `trafficusage-external-refuses`) are named by the umbrella as infra-gated reject-fence cases; confirm ownership before touching them | <!-- doc-links: ignore (spec closed and removed) -->
 | R-8 | Overlap with `plan/spec-fixit-ddos-test-infra.md` (sibling skeleton, created 2026-07-15) | both specs edit `test/plugin/ddos-detect-mitigate.ci` | that spec's Problem A REWRITES that file onto the `ze_api` observer pattern, changing its sleep count. It has blind=0 today, so this spec has nothing to convert in it: leave it alone and let the ddos spec own it. Re-measure the baseline after that spec lands | <!-- doc-links: ignore (spec closed and removed) -->
-| R-6 | QEMU turnaround makes per-test iteration slow | the loop drags | use `./le qemu run command "..."` for single-test iteration; batch the final verification |
+| R-6 | QEMU turnaround makes per-test iteration slow | the loop drags | use `./le test qemu run command "..."` for single-test iteration; batch the final verification |
 | R-7 | Touching a `.ci` file makes the session own every sleep in it (justification gate is changed-file scoped) | the gate fails on sleeps the session did not add | expect it; justify or convert the neighbours in the same file |
 
 ## Historical Test Design (July 2026; current cases must be rebound to native producers)
@@ -284,7 +284,7 @@ default-peer-hold features.
 |-------------------|---------|------|
 | Test infra docs | only if a new wait surface lands | `docs/architecture/testing/ci-format.md` |
 | Discovery updates | only if a new primitive/gate lands | `ai/INDEX.md` per `ai/rules/repo-maintenance.md` |
-| QEMU verification | yes (the spec's whole point) | `./le qemu run command "./le qemu all-tests"` |
+| QEMU verification | yes (the spec's whole point) | `./le test qemu run command "./le test qemu all-tests"` |
 | Ratchet | only for removal of counted embedded sleeps | `test/.ci-sleep-baseline` |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -319,7 +319,7 @@ default-peer-hold features.
 |-------------|--------------|
 | Each converted test | its producer completes on the asserted effect; QEMU green before and after, with a discriminating failure case |
 | Ratchet accounting | a delta only for counted embedded sleeps removed; no credit for moving or removing a Go timer |
-| No regressions | `./le qemu run command "./le qemu all-tests"` + affected suites |
+| No regressions | `./le test qemu run command "./le test qemu all-tests"` + affected suites |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | Notes |
@@ -339,7 +339,7 @@ default-peer-hold features.
 ## Historical Open Questions (July 2026)
 
 - Did the originals pass under QEMU at the time (A-1)? Current implementation still owes its own baseline after inventory.
-- Group B fork: run them via `./le qemu run command "./le qemu all-tests"`, or add `option=needs-linux` to bring them into the fast loop? The second is a test-metadata change with its own review, but it makes 12 blind sleeps verifiable in the tight target. Which is intended?
+- Group B fork: run them via `./le test qemu run command "./le test qemu all-tests"`, or add `option=needs-linux` to bring them into the fast loop? The second is a test-metadata change with its own review, but it makes 12 blind sleeps verifiable in the tight target. Which is intended?
 - Group C (flow-export 4, reload 1, `install/image-resolve-failure` 1, traffic vpp-stub 12): misfiled into a QEMU spec, or missing an OS gate they should have? If genuinely host-runnable, do they belong here at all, given the umbrella says no clean host-verifiable blind sleeps remain?
 - Why does a backgrounded ze get no ZE_READY_FILE marker (A-2)? Is that a runner limitation fixable once, converting the whole ZE_READY_FILE shape (5+ traffic tests) in one move rather than per test?
 - Is there a reload-completion signal for the SIGHUP shape (A-3), or does it need the same production observability as `spec-fixit-reject-fence-observability`? If the latter, should the reload shape move to that spec?
@@ -356,7 +356,7 @@ implementation steps above govern the remaining work.
 | # | Question | Resolution | Stakes |
 |---|----------|-----------|--------|
 | 1 | Originals pass under QEMU today (A-1)? | Cannot run on this host; settled as AC-1, the first implement action. Failure routing already routes an AC-1 red to "fix/quarantine first, do not convert a red test". Not a readiness blocker — it is the first implement step, not a design gap. | low |
-| 2 | Group B fork: `ze-qemu-test-all` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `./le qemu run command "./le qemu all-tests"` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
+| 2 | Group B fork: `ze-qemu-test-all` vs add `option=needs-linux`? | Group B is IN SCOPE. Default branch = `./le test qemu run command "./le test qemu all-tests"` (zero committed change). Regating to `option=needs-linux` is an optional follow-up with its own review. Both are valid AC-8 "done" states. | scope |
 | 3 | Group C: misfiled or missing a gate? | OUT OF SCOPE for this spec (host-runnable, not QEMU-gated). The misfiled-vs-missing-gate call is handed to a follow-up host-runnable/gate-audit spec. | scope |
 | 4 | Why no ZE_READY_FILE marker for backgrounded ze (A-2)? Runner-level one-move fix? | Implement-time research (Phase 3). Design-settled: if not fixable once at the runner, AC-2 falls back to a wait on the already-asserted OnConfigure log line (A-5 requires asserting the kernel readback too where possible). Fallback stated → not design-open. | arch |
 | 5 | Reload-completion signal for SIGHUP (A-3)? | Implement-time research (Phase 5). Design-settled: if no signal exists, the reload shape hands to `plan/spec-fixit-reject-fence-observability.md` (Failure Routing) or is recorded infra-gated (AC-3). Fallback stated → not design-open. | arch | <!-- doc-links: ignore (spec closed and removed) -->
@@ -370,12 +370,12 @@ implementation steps above govern the remaining work.
 - [ ] Tests written -- each converted `.ci` IS its own functional test and keeps its exact assertions; infra changes (if any) get red-first unit tests.
 - [ ] Tests FAIL -- infra unit tests are red-first (TDD); a converted `.ci` that fails surfaces a real race, fixed at the source, never with a re-added sleep.
 - [ ] Tests PASS -- each converted test green under QEMU, both before (AC-1) and after (AC-4) conversion.
-- [ ] `./le verify worktree` and `./le qemu run command "./le qemu all-tests"` -- affected suites green before each batch's commit; skip counts read, not just exit codes. `worktree` runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`).
+- [ ] `./le verify worktree` and `./le test qemu run command "./le test qemu all-tests"` -- affected suites green before each batch's commit; skip counts read, not just exit codes. `worktree` runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`).
 
 ### Quality Gates
 - [ ] `test/.ci-sleep-baseline` lowered by exactly the counted embedded sleeps removed, if any, in the same change; native timers never earn a delta.
 - [ ] `./le verify current mode changed` green (ratchet + justification gates).
-- [ ] `./le changed scope` green.
+- [ ] `./le repo changed scope` green.
 - [ ] Every kept sleep still carries a justifying comment.
 - [ ] No bounded poll and no deliberate timer converted for baseline credit.
 

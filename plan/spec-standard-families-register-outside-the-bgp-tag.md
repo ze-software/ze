@@ -28,7 +28,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Seven rows of `./le enumeration report` (corpus `restates family names`)
+Seven rows of `./le arch enumeration report` (corpus `restates family names`)
 cannot derive from the family registry. Only four families register
 unconditionally (`internal/core/family/registry.go`, the `MustRegister` calls
 near its end). Every other family registers from an NLRI plugin package under
@@ -122,7 +122,7 @@ follow whatever the kernelcap answer is.
 - The seven symbols keep their callers' observable output: the family names they render today (flow, mpls-vpn, mpls-label, evpn, flow-vpn) render the same after the change, never `afi-1/safi-128`.
 
 **Behavior to change:** (only what the user asked for)
-- The seven rows derive from the registry instead of restating family names, and leave `./le enumeration report` with no marker.
+- The seven rows derive from the registry instead of restating family names, and leave `./le arch enumeration report` with no marker.
 - `labeledFamilies` reads the registry and REFUSES when a labeled family is not registered, instead of answering "no MPLS".
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -197,7 +197,7 @@ follow whatever the kernelcap answer is.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le enumeration report` runs over the corpus `restates family names` | The seven rows (`RunSimulator`, `afiSafiFamily`, `allFamilies`, `labeledFamilies`, `fixture06Registration`, `isSupportedFamily`, `nlriFamilyKeys`) leave the report with no marker |
+| AC-1 | `./le arch enumeration report` runs over the corpus `restates family names` | The seven rows (`RunSimulator`, `afiSafiFamily`, `allFamilies`, `labeledFamilies`, `fixture06Registration`, `isSupportedFamily`, `nlriFamilyKeys`) leave the report with no marker |
 | AC-2 | A package that links no NLRI plugin names a standard family (flow, mpls-vpn, mpls-label, evpn, flow-vpn) through the registry | The family renders by its name, never as `afi-N/safi-N`, and the registry holds one declaration per family: the NLRI plugins' registrations are not copied |
 | AC-3 | `labeledFamilies` is asked about a labeled family that is not registered | It REFUSES: the caller receives a refusal it must handle, never the answer "no MPLS needed" |
 | AC-4 | A test removes a labeled family from the registry and calls `labeledFamilies` | The test proves the refusal of AC-3, and goes RED when the refusal is replaced by the answer "no MPLS needed" |

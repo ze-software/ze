@@ -236,7 +236,7 @@ Not applicable. No protocol code.
 
 ## Scope Note (2026-08-18, owner question: one agent per stage of work)
 
-**Where the eager payload actually is.** `./le rules payload-report`:
+**Where the eager payload actually is.** `./le ai rules payload-report`:
 21,561 tokens always loaded. `ai/INSTRUCTIONS.md` 6,901, `CORE.md` 13,491,
 `TRIGGERS.md` 1,169.
 
@@ -305,7 +305,7 @@ read points, couples two generators to save one walk.
 
 → Constraint: the authored unit is the manifest SECTION line, so
 `MANIFEST_SECTION`, `parse_manifest`, `format_manifest` and `ManifestSection`
-change together, and `./le rules points-roundtrip-check` is what proves the
+change together, and `./le ai rules points-roundtrip-check` is what proves the
 new line shape survives split and render. A line shape it does not know raises
 `RulePointsError`, so render-check, roundtrip-check and gate-map-report fail
 hard rather than silently.

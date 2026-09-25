@@ -81,7 +81,7 @@ operator. The three instruction sites are corrected to the new contract.
 - [ ] `ai/skills/ze-progress.md` - the closure row telling the reader to stage `git rm plan/spec-<name>.md`
   → Constraint: `git rm` is a banned direct call (`ai/rules/git-safety.md`), and it is a second wrong answer to the same question. It is the sibling instruction of the one that caused the leak, so it is repaired in the same work (`ai/rules/principles.md`, the work a change owes is measured by what it can reach).
 - [ ] `ai/INSTRUCTIONS.md` - "To delete a tracked file use plain `rm` and pass the path to `remove`"
-  → Constraint: the `rm` half of that sentence stops being required. `CLAUDE.md` and `AGENTS.md` are generated from this file, and `ai/skills/*.md` mirror into `.claude/skills/*/SKILL.md`; both regenerate with `./le ai skills-sync` (`ai/rules/repo-maintenance.md`).
+  → Constraint: the `rm` half of that sentence stops being required. `CLAUDE.md` and `AGENTS.md` are generated from this file, and `ai/skills/*.md` mirror into `.claude/skills/*/SKILL.md`; both regenerate with `./le ai sync write` (`ai/rules/repo-maintenance.md`).
 
 ### Rules
 - [ ] `ai/rules/never-destroy-work.md` - always-on, governs every deletion of a user-visible file
@@ -153,7 +153,7 @@ operator. The three instruction sites are corrected to the new contract.
 | Go (`renderBlock`) ↔ generated shell | Rendered text only. Nothing in `internal/le/commit` runs git or deletes a file for a removal | No |
 | Generated shell ↔ Git object database | The captured entry lines name the blob Git holds after the commit | No |
 | Generated shell ↔ working tree | One deletion per proven-identical path, and nothing else | No |
-| `ai/skills/*.md` ↔ `.claude/skills/*/SKILL.md` | `./le ai skills-sync` regenerates the mirrors, and `ai/INSTRUCTIONS.md` regenerates `CLAUDE.md` and `AGENTS.md` | No |
+| `ai/skills/*.md` ↔ `.claude/skills/*/SKILL.md` | `./le ai sync write` regenerates the mirrors, and `ai/INSTRUCTIONS.md` regenerates `CLAUDE.md` and `AGENTS.md` | No |
 
 ### Integration Points
 - `renderBlock` - gains one rendered section, emitted only when `block.Removed` is non-empty.
@@ -192,7 +192,7 @@ operator. The three instruction sites are corrected to the new contract.
 | R-4 | A second block in an appended script reuses the first block's captured entries | A two-block script deletes the wrong file | Each block emits its own capture immediately before its own `force-remove`, and its own deletion section immediately after its own commit |
 | R-5 | The throwaway index collides with the private index or with another script's | A run fails with a Git index error, or two concurrent scripts interfere | The throwaway index is named from the script path, which already carries a random suffix (`indexFileFor`), and it is deleted by the section that created it |
 | R-6 | A large `remove-list`, as a site republish uses, overruns the shell argument limit | A run fails with "argument list too long" | The section reuses the same quoted list the existing `force-remove` line already carries, so it adds no path to any command line that did not already hold them all |
-| R-7 | The three instruction edits land and the mirrors do not, so agents read the old text | `./le ai skills-sync` leaves a diff, or `.claude/skills/ze-close/SKILL.md` still carries the old sentence | Run `./le ai skills-sync` in the same work and name the regenerated files in the commit |
+| R-7 | The three instruction edits land and the mirrors do not, so agents read the old text | `./le ai sync write` leaves a diff, or `.claude/skills/ze-close/SKILL.md` still carries the old sentence | Run `./le ai sync write` in the same work and name the regenerated files in the commit |
 | R-8 | `plan/spec-commit-stages-in-a-private-index.md` is in-progress with uncommitted work in the same file | A lost hunk or a conflicting edit in `script.go` | Read the working-tree state of `script.go` before editing, and land this change on top of what is there rather than beside it |
 
 ## Blast Radius
@@ -260,7 +260,7 @@ operator. The three instruction sites are corrected to the new contract.
 |-------|----------|-----------|--------|
 | `grep -n "git rm" ai/skills/ze-progress.md` returns nothing | repository | The banned staging verb is gone from the closure instruction (AC-12) | |
 | `grep -rn "destroys the working copy" ai/skills/ .claude/skills/` matches only the corrected sentence | repository | The rationale states what commit B does under the new contract, in the source and in the mirror (AC-12) | |
-| `./le ai skills-sync` leaves no diff | repository | `CLAUDE.md`, `AGENTS.md` and the `.claude/skills/` mirrors carry the edited text (AC-12, R-7) | |
+| `./le ai sync write` leaves no diff | repository | `CLAUDE.md`, `AGENTS.md` and the `.claude/skills/` mirrors carry the edited text (AC-12, R-7) | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -285,7 +285,7 @@ removed path, and each must go RED there. All four red results are recorded.
 | A removal removes the file for every caller, not only for closures | `TestARemovalDeletesTheWorkingTreeCopyItCommitted` on a plain single-block removal, RED then GREEN |
 | No operator edit is destroyed | `TestADivergentWorkingTreeCopySurvivesTheRemoval` and `TestAModeOnlyDifferenceLeavesTheFile` observed RED against an unguarded rendering and GREEN against the guarded one |
 | The guard fails closed | `TestARemovalOfAPathHeadDoesNotHoldDeletesNothing`, `TestARemovalOfAnAbsentPathReportsNothing` and `TestAFailedBlockDeletesNothing`: three ways to have no proof, three files left alone |
-| The instructions no longer contradict the command | The three Instruction Checks above, run after `./le ai skills-sync` |
+| The instructions no longer contradict the command | The three Instruction Checks above, run after `./le ai sync write` |
 | Every session's commits still work | `./le verify worktree` green, and the commit that lands this change is itself prepared and run through the changed `renderBlock` |
 
 ## Files to Modify
@@ -297,7 +297,7 @@ removed path, and each must go RED there. All four red results are recorded.
 - `ai/INSTRUCTIONS.md` - the sentence requiring a manual `rm` before `remove`.
 - `docs/contributing/committing.md` - step 5, the new step in the numbered list, and the `remove` keyword row, all stating the new contract.
 - `plan/journal/removal-leaves-the-file-on-disk.md` - the closing row naming this spec (`plan/journal/README.md`).
-- Regenerated by `./le ai skills-sync`, never edited by hand: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/ze-close/SKILL.md`, `.claude/skills/ze-progress/SKILL.md`.
+- Regenerated by `./le ai sync write`, never edited by hand: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/ze-close/SKILL.md`, `.claude/skills/ze-progress/SKILL.md`.
 
 ## Files to Create
 - None. The change is rendered lines, tests, and instruction edits in files that already exist.
@@ -354,7 +354,7 @@ removed path, and each must go RED there. All four red results are recorded.
    - Files: `internal/le/commit/snapshot_test.go`
    - Verify: the Red-Phase Proof above. Record the RED output of the two discriminating tests on the unchanged tree, and the RED output of the two guard tests against an unguarded rendering
 4. **Phase: The three instruction sites and the page**
-   - Files: `ai/skills/ze-close.md`, `ai/skills/ze-progress.md`, `ai/INSTRUCTIONS.md`, `docs/contributing/committing.md`, then `./le ai skills-sync`
+   - Files: `ai/skills/ze-close.md`, `ai/skills/ze-progress.md`, `ai/INSTRUCTIONS.md`, `docs/contributing/committing.md`, then `./le ai sync write`
    - The page must STATE the new contract, not merely drop the old sentence: `remove` deletes the tracked path and its working-tree copy, the deletion happens after the commit succeeds, it happens only when the copy matches what the commit removed, and a copy that differs is left and named on stderr
    - Verify: the three Instruction Checks, and `./le spec citation anchors spec plan/immediate/spec-remove-takes-the-working-tree-copy.md` leaving no page unexplained
 5. **Phase: Confirm no caller wanted the file to survive (A-6)**
@@ -389,7 +389,7 @@ removed path, and each must go RED there. All four red results are recorded.
 | A closure leaves no spec behind | `go test ./internal/le/commit/ -run TestATwoBlockScriptCommitsEachBlockFromItsOwnIndex -v` |
 | A divergent file survives | `go test ./internal/le/commit/ -run TestADivergentWorkingTreeCopySurvivesTheRemoval -v` |
 | The closure instruction is right | `grep -n "git rm" ai/skills/ze-progress.md` returns nothing |
-| The instructions match the code | `grep -n "use plain" ai/INSTRUCTIONS.md` returns nothing, and `./le ai skills-sync` leaves no diff |
+| The instructions match the code | `grep -n "use plain" ai/INSTRUCTIONS.md` returns nothing, and `./le ai sync write` leaves no diff |
 | The page states the new contract | `grep -n "rm the file first" docs/contributing/committing.md` returns nothing, and the numbered list names the deletion step |
 | The whole commit route still works | `./le verify worktree`, and this spec's own closure commit prepared and run through the changed renderer |
 

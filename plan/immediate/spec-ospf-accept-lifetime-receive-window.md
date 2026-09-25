@@ -69,7 +69,7 @@ than send unauthenticated, and the receive side needs a stated rule of its own.
 ## Progress (2026-09-06)
 
 The receive window is BUILT, tested in both polarities, proven against FRR, and
-documented. The package compiles and the OSPF unit suite and `./le functional
+documented. The package compiles and the OSPF unit suite and `./le test functional
 ospf` are green. The earlier "DOES NOT COMPILE" note above was written from
 editor diagnostics and was already stale: `interfaceCost` had been removed from
 `te_originate.go`, so nothing was redeclared.
@@ -376,8 +376,8 @@ resolved in the current tree; see Known Limitations.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The gate is reached from the real config parser | `go test -run TestAcceptLifetimeReachesVerifyFromConfig ./internal/plugins/ospf` |
-| A peer's correctly signed packet is refused on a closed window | `INTEROP_SCENARIO=ospf-accept-lifetime-frr ./le integration interop` |
-| Rotation still works with no accept-lifetime | `INTEROP_SCENARIO=ospf-auth-frr ./le integration interop` |
+| A peer's correctly signed packet is refused on a closed window | `INTEROP_SCENARIO=ospf-accept-lifetime-frr ./le test integration interop` |
+| Rotation still works with no accept-lifetime | `INTEROP_SCENARIO=ospf-auth-frr ./le test integration interop` |
 | The RFC tags carry recorded reds | `./le rfc discriminate id RFC7474-4-1` reports records rather than unproven |
 
 ### Security Review Checklist

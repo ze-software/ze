@@ -26,8 +26,8 @@ Type-3 summary import. Ze implements neither obligation for OSPFv3, and until
 2026-08-02 implemented neither for OSPFv2.
 
 An uncommitted change in the working tree implements the OSPFv2 half. It is
-proven: OSPF unit tests pass, `./le changed scope` reports 0 issues, and
-`./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR
+proven: OSPF unit tests pass, `./le repo changed scope` reports 0 issues, and
+`./le test integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR
 and discriminates against HEAD. It also removed two `{gap}` annotations from
 `rfc/short/rfc3101.md` and rewrote the `docs/features/rfc-status.md` RFC 3101
 row to claim both requirements are implemented and tested.
@@ -100,8 +100,8 @@ conformance row become true as written.
 
 **Key insights:** (minimal context to resume after compaction)
 - The OSPFv2 half of this work is ALREADY WRITTEN and uncommitted in the working tree, and
-  is proven: OSPF unit tests pass, `./le changed scope` reports 0 issues, and
-  `./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR and fails
+  is proven: OSPF unit tests pass, `./le repo changed scope` reports 0 issues, and
+  `./le test integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` passes against FRR and fails
   when the production change is reverted.
 - The receive-side install gates ALREADY cover OSPFv3 with no new code: `ExternalInput` is
   built once in the shared computer and `v6Strategy.ComputeExternal` delegates to the shared
@@ -256,7 +256,7 @@ Two entry points, one per direction.
 | R-3 | The meaning of `nssa { default-originate }` changed: it is now inert on an ABR. An operator upgrading gets a default they did not configure, and a leaf that silently stops doing what its old description said | An operator reports an unexpected `0.0.0.0/0` in an NSSA | Document in `docs/guide/ospf.md` and the YANG description, and call it out at closure as an operator-visible change |
 | R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `./le rfc index-update` would sweep foreign changes into this commit | `./le rfc check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
 | R-5 | The evidence ratchet keys on `kind/tier`, so substituting a verify-tier `.ci` binding for a nightly-tier interop one fires it even at unchanged tag count | `check_evidence_ratchet` fails on a requirement whose evidence kind changed | Every new binding ADDS; no existing tag is moved or retargeted |
-| R-6 | `option=netns-link` tests skip outside `ZE_TEST_NETNS`, so a daemon-driving OSPF `.ci` runs under the retired `ze-netns-test` (current: `./le qemu netns-test`) but not under `ze-qemu-needs-linux-test` | The new `.ci` passes locally but contributes no evidence in the tier that was expected | Confirm in DESIGN which suite the functional evidence must land in, and pick the option set accordingly |
+| R-6 | `option=netns-link` tests skip outside `ZE_TEST_NETNS`, so a daemon-driving OSPF `.ci` runs under the retired `ze-netns-test` (current: `./le test qemu netns-test`) but not under `ze-qemu-needs-linux-test` | The new `.ci` passes locally but contributes no evidence in the tier that was expected | Confirm in DESIGN which suite the functional evidence must land in, and pick the option set accordingly |
 
 ## Blast Radius
 
@@ -302,7 +302,7 @@ An independent read of the producers at `ead2e374eb`. Two commits carry the work
 `e4b6455b84` (2026-08-02) landed the OSPFv2 half and this spec, and `01f8306378`
 (2026-08-29) landed the OSPFv3 half. Four of the five "Behavior to change" bullets are
 implemented; the Section 2.4 mutual-exclusivity bullet is not.
-`INTEROP_SCENARIO=ospf-stub-nssa-frr ./le integration interop` passes at this HEAD.
+`INTEROP_SCENARIO=ospf-stub-nssa-frr ./le test integration interop` passes at this HEAD.
 
 | AC | Verdict | Producer read |
 |----|---------|---------------|
@@ -357,7 +357,7 @@ AC-5..AC-12 and it owes its own commit and its own review.
 
 **Deferred evidence, and the command that produces it.** The three interop scenarios named
 in the Interop Tests table below are not written. When the box is quiet:
-`INTEROP_SCENARIO=<name> ./le integration interop`, then
+`INTEROP_SCENARIO=<name> ./le test integration interop`, then
 `./le rfc discriminate-record ... route revert` on each new checker.
 
 ### Assumption status, 2026-09-05
@@ -518,7 +518,7 @@ along with the three interop scenarios and final closure gates.
 3. **Phase: Policy extraction** -- lift the address-family-neutral default decision out of `applyNSSADefaults`
    - Tests: the whole existing OSPFv2 suite must stay green, unchanged, including the discriminating FRR interop
    - Files: `internal/plugins/ospf/nssa.go`
-   - Verify: `./le integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` still passes. No OSPFv2 assertion is edited in this phase; if one needs editing, the extraction changed behaviour and is wrong. The extracted decision takes ABR status as an INPUT from phase 2's single producer, never recomputing it
+   - Verify: `./le test integration interop INTEROP_SCENARIO=ospf-stub-nssa-frr` still passes. No OSPFv2 assertion is edited in this phase; if one needs editing, the extraction changed behaviour and is wrong. The extracted decision takes ABR status as an INPUT from phase 2's single producer, never recomputing it
 4. **Phase: OSPFv3 origination** -- the v6 default, its LSID and its keep-set
    - Tests: `TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal`, `TestOSPFv3NSSADefaultLSIDDoesNotCollide`, `TestOSPFv3NSSADefaultForwardingAddressDeterministic`
    - Files: `origination_v6_nssa.go`, `origination_v6_external.go`
@@ -540,7 +540,7 @@ along with the three interop scenarios and final closure gates.
    - Files: `test/interop/scenarios/`
    - Verify: each scenario FAILS when the corresponding production change is reverted. Record which revert was used for each, per `ai/rules/interop-and-goal-validation.md`
 9. **Phase: RFC ledger and docs**
-   - Tests: `./le rfc check`, `./le doc check verify`, `./le repository check`
+   - Tests: `./le rfc check`, `./le doc check verify`, `./le repo check`
    - Files: `rfc/short/rfc3101.md`, `docs/features/rfc-status.md`, `docs/guide/ospf.md`, `docs/architecture/wire/ospfv3.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/core-design.md`
    - Verify: every new binding ADDS rather than substitutes, so `check_evidence_ratchet` stays green (R-5)
 
@@ -570,11 +570,11 @@ along with the three interop scenarios and final closure gates.
 | No 0x0007 LSA from a v6 engine | `TestOSPFv3NSSADefaultUsesV6Producer` |
 | OSPFv3 no-summary NSSA gets `::/0` | `TestOSPFv3NSSANoSummaryDefaultInjection` |
 | Default survives unrelated withdrawal | `TestOSPFv3NSSADefaultSurvivesUnrelatedWithdrawal` |
-| Both gate polarities proven against FRR | `./le integration interop INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
-| Functional coverage of the daemon | `./le functional` covering the `ospf` and `ospfv3` suites |
+| Both gate polarities proven against FRR | `./le test integration interop INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
+| Functional coverage of the daemon | `./le test functional` covering the `ospf` and `ospfv3` suites |
 | RFC ledger consistent | `./le rfc check` exits 0 for rfc3101 (the rfc9190 and staleness violations are O-2's, not this spec's) |
-| Docs consistent | `./le doc check verify`, `./le repository check` |
-| No test weakened | `./le test-weakened check` clean for OSPF paths, or O-1 token supplied |
+| Docs consistent | `./le doc check verify`, `./le repo check` |
+| No test weakened | `./le test weakened check` clean for OSPF paths, or O-1 token supplied |
 
 ### Security Review Checklist
 | Check | What to look for |

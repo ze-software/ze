@@ -23,8 +23,8 @@ deferral shard, on 2026-08-09.
 Reproduction, run on 2026-08-09 at commit 1359f3324:
 
 ```
-./le docvalid doc-drift                             # "No documentation drift detected"
-./le docs-to-code index-check   # "all references valid"
+./le doc yang-contract doc-drift                             # "No documentation drift detected"
+./le doc index check   # "all references valid"
 grep -rn 'internal/plugins/explain' docs/     # no output
 ```
 
@@ -219,7 +219,7 @@ target over the real tree.
    - Tests: `TestPluginRegisteringACLIRootIsSeen`
 4. **Phase: Arm** -- the finding fails the gate
    - Tests: `TestPackageWithNoDocumentationHomeIsReported`
-5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `./le rules condensed-update`
+5. **Phase: The rule** -- the obligation in `ai/rules/points/go-standards/`, then `./le ai rules condensed-update`
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

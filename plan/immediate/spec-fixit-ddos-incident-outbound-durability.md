@@ -63,7 +63,7 @@ on the remote API rather than memory on the node.
 
 **Test surface.** `test/plugin/ddos-incident-confidence.ci` and the other twelve
 `ddos-*.ci` fixtures cover the detector and its responders, and
-`./le functional plugin` is the owning gate. No fixture drives the reporting
+`./le test functional plugin` is the owning gate. No fixture drives the reporting
 client against a failing API, so this spec owes a new one asserting that an
 incident survives a failed open, which is the assertion that would fail today.
 

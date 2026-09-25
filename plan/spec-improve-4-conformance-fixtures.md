@@ -47,7 +47,7 @@ explicitly follow-up work, not this spec.
 ### Architecture Docs
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - the certificate and per-path manifest one verification run records
 - [ ] `docs/functional-tests.md` - .ci harness capabilities and conventions
-  → Decision: dedicated fixture runner hosted as a ze-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go,:557`; directives `docs/functional-tests.md`)
+  → Decision: dedicated fixture runner hosted as a le-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go,:557`; directives `docs/functional-tests.md`)
 - [ ] `docs/architecture/bgp/protocol-event-capture.md` and `internal/core/capture` - capture/replay machinery this reuses
   → Constraint: fixture event streams use the shipped versioned schema; no second format. The parent's closure is historical context (`d74f428b47`).
 - [ ] `ai/rules/testing.md` - where fixture tests sit relative to .ci gate
@@ -74,15 +74,15 @@ explicitly follow-up work, not this spec.
 **Design-phase research completed (2026-07-10; producers read by research agent; digest in tmp/session/session-state-improve-4-conformance-fixtures-56997.md):**
 - Survey result: NO fixture format exists. Only ONE golden-file regenerator in the whole tree: `-update` flag in `internal/component/plugin/all/all_test.go` (`snapshot()` :54, write :57-66) with make target `ze-plugin-snapshot-update` (`internal/le/` native action tables). This is the regen-UX precedent to mirror.
 - State probes are ad-hoc `map[string]any`, no schema: peer state producer `internal/component/bgp/plugins/cmd/peer/peer.go`; adj-rib-in `rib_commands.go` show() / `:220` status(); reached via `opDispatchCommand` (`internal/component/plugin/server/dispatch_registry.go`). Canonicalization is therefore MANDATORY for stable diffs (A-1).
-- Outbound-wire assertion machinery already exists in ze-test peer check mode: `LoadExpectFile` (`internal/test/peer/expect.go`), matcher `Checker.ExpectedOrKeepalive` (`checker.go`; marker strip :402-404; `matchRule` :612 prefix:/contains:/exact) -- A-2's expected-wire surface (research agent).
+- Outbound-wire assertion machinery already exists in le-test peer check mode: `LoadExpectFile` (`internal/test/peer/expect.go`), matcher `Checker.ExpectedOrKeepalive` (`checker.go`; marker strip :402-404; `matchRule` :612 prefix:/contains:/exact) -- A-2's expected-wire surface (research agent).
 - Topology constraints: everything is TCP over loopback (no netns); single shared bgp port (`ze.test.bgp.port`, `cmd_peer.go`); single-peer-multi-IP scenarios are known-flaky (`docs/functional-tests.md`) -- v1 single-session scope avoids this.
-- Test-harness env conventions: typed `env.MustRegister` registry; existing vars ZE_TEST_NO_BUILD/ZE_BIN (`runner.go,:265`), ZE_VERIFY_MODE (`parallel.go`), ZE_SKIP_SUITES (`cmd_web.go`).
+- Test-harness env conventions: typed `env.MustRegister` registry; existing vars LE_TEST_NO_BUILD/ZE_BIN (`runner.go,:265`), ZE_VERIFY_MODE (`parallel.go`), ZE_SKIP_SUITES (`cmd_web.go`).
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - Existing .ci, interop, exabgp-compat, and stress suites unchanged; fixtures are a new
   suite, not a migration.
 - `./le verify current mode full` stage list changes only by adding the fixture stage (design decision
-  whether it joins ./le functional or gets its own target).
+  whether it joins ./le test functional or gets its own target).
 
 **Behavior to change:** (only if user explicitly requested)
 - None; additive test infrastructure.
@@ -198,7 +198,7 @@ explicitly follow-up work, not this spec.
 | YANG schema (new RPCs/config) | N/A | test infrastructure, no config surface |
 | YANG validation constraints | N/A | none |
 | YANG custom validators | N/A | none |
-| CLI commands/flags | Yes | ze-test subcommand for the runner (`internal/test/cli/register.go` registerRoot) |
+| CLI commands/flags | Yes | le-test subcommand for the runner (`internal/test/cli/register.go` registerRoot) |
 | CLI grammar (action before identifier) | Yes | verify subcommand name against `ai/rules/cli.md` at implementation |
 | Editor autocomplete | N/A | none |
 | Functional test for new RPC/API | Yes | the basic-session scenario itself + TestFixtureRunnerFailsWithDiff (mutation-verify per functional-test-gate) |
@@ -212,7 +212,7 @@ explicitly follow-up work, not this spec.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | developer test infrastructure |
 | 2 | Config syntax changed? | No | none |
-| 3 | CLI command added/changed? | Yes | ze-test subcommand documented in `docs/functional-tests.md` |
+| 3 | CLI command added/changed? | Yes | le-test subcommand documented in `docs/functional-tests.md` |
 | 4 | API/RPC added/changed? | No | none |
 | 5 | Plugin added/changed? | No | none |
 | 6 | Has a user guide page? | No | none |
@@ -304,7 +304,7 @@ state before diffing:
 | Reuse spec-improve-3 capture schema for event input | separate fixture event dialect | production captures become fixtures with zero translation |
 | Regen via `-update` flag on the runner + `./le rfc index-update` | HOLO_UPDATE-style env var | mirrors the tree's ONLY existing golden regenerator (`all_test.go` + `internal/le/` native action tables); env conventions stay for harness plumbing, flags for regen |
 | Expected-state files are semantic slices diffed after canonicalization | full-dump byte compare | state producers are ad-hoc maps with volatile fields; `compareJSON`/`normalizeNeighborSection` precedent (`internal/test/runner/decoding.go`) makes slice-diffs stable (A-1, R-1) |
-| Runner hosted as ze-test subcommand + make target | extending the .ci dialect with fixture directives | fixtures are data, .ci is a script dialect; mixing them creates the parallel-dialect layering R-3/no-layering forbids |
+| Runner hosted as le-test subcommand + make target | extending the .ci dialect with fixture directives | fixtures are data, .ci is a script dialect; mixing them creates the parallel-dialect layering R-3/no-layering forbids |
 | Verify wiring goes in BOTH `stagesForMode` branches ONLY | the native action tables under `internal/le/` `_ze-verify-impl`/`_ze-verify-changed-impl` | those the native action tables under `internal/le/` targets are documented dead with zero callers (post-wave corrections below; `internal/le/` native action tables) |
 | Fixture surfaces: config-in, events-in, expected-state, expected-wire, expected-diagnostics | state-only fixtures | mirrors the four-surface transducer model verified at primary source in the reviewed daemon (`holo-protocol/src/test/stub/mod.rs:320-429`, collector `stub/collector.rs:83-161`); Ze adds diagnostics as a fifth surface because its event ring + doctor codes are queryable |
 
@@ -358,6 +358,6 @@ state before diffing:
 
 Re-verified against the followup implementation wave (unpushed origin/main..HEAD commits):
 
-- The live producer of the `./le verify current mode full` stage list is `stagesForMode` (`internal/le/verify/engine/run.go`, consumed at `:137` and `:192`). The wave inserted `./le port-defaults check` and `ze-platform-vet` into BOTH branches (`./le verify current mode changed` branch at `:233`/`:235`, default branch at `:255`/`:257`); the function now spans `:214-280` (Files to Modify updated to match).
+- The live producer of the `./le verify current mode full` stage list is `stagesForMode` (`internal/le/verify/engine/run.go`, consumed at `:137` and `:192`). The wave inserted `./le config ports check` and `ze-platform-vet` into BOTH branches (`./le verify current mode changed` branch at `:233`/`:235`, default branch at `:255`/`:257`); the function now spans `:214-280` (Files to Modify updated to match).
 - The planned conformance stage must be added to BOTH branches of `stagesForMode`, and NOT to the the native action tables under `internal/le/` `_ze-verify-impl` / `_ze-verify-changed-impl` targets: those have zero callers and are documented as dead (`internal/le/` native action tables comment); a stage added only there never runs under `./le verify current mode full` or CI.
 - `docs/functional-tests.md` (Required Reading item 1) has grown since this spec was written, e.g. the MCP GET-SSE section (`docs/functional-tests.md`), and new `.ci` suites exist under `test/plugin/` (`as112-dot.ci`, `as112-doh.ci`, `exabgp-bridge-internal.ci`, `exabgp-bridge-sdk.ci`). The Current Behavior test-layout survey must be redone against the current tree at design time.

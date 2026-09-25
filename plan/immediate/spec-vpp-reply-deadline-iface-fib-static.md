@@ -336,7 +336,7 @@ timeout arm deterministically.
 | All three plugins report | The three `.ci` files pass and fail with the bound reverted |
 | Static isolation intact | The static suite passes with one unprogrammable route in the config |
 | One rollback verdict | `TestRollbackVerdictMatchesFirewall` |
-| Lint | `./le changed scope` |
+| Lint | `./le repo changed scope` |
 | Packages | `go test -race ./...` for the three plugin packages and `internal/component/vpp` |
 
 ### Security Review Checklist

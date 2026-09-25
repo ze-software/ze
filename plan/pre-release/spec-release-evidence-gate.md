@@ -9,7 +9,7 @@
 
 The historical Make matrix implementation landed at `d0e9d388c`, but the native
 cutover retired its composite runner (`internal/le/completeness_record_test.go`,
-`retiredProducers`). `./le evidence release-candidate` now runs only clean-clone
+`retiredProducers`). `./le verify evidence release-candidate` now runs only clean-clone
 Docker verification: `Runner.Run` executes `ContainerScript`, whose final command
 is `./le verify current mode full`. It does not run the category matrix below.
 Native matrix composition, its execution evidence, independent review and closure
@@ -47,7 +47,7 @@ the unmet state observed on 2026-07-27, before the current native QEMU runner:
 | `test/static/static-show.ci`, `test/static/static-table-interface.ci` | both carry `option=needs-linux` |
 | `internal/test/runner/record_parse.go` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
 | `internal/le/functional/suites.go` (`all_suites`) | no `static`, so `./le verify current mode full` never runs it |
-| `internal/le/qemu/alltests.go` (`fsuite` lines) | no `static`, so `./le qemu run command "./le qemu all-tests"` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
+| `internal/le/qemu/alltests.go` (`fsuite` lines) | no `static`, so `./le test qemu run command "./le test qemu all-tests"` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
 | `internal/le/functional/suites.go`, `internal/le/evidence/evidence.go` | the suite's only two invocation sites tree-wide, and `ze-evidence-release-verify` is invoked by no workflow |
 
 The inherited requirement was to put `static` on an automated Linux execution path
@@ -55,7 +55,7 @@ and declare `caps=net-admin` for the two tests that create interfaces.
 
 Source reconciliation on 2026-09-19: `vmSuites` in
 `internal/le/qemu/alltests.go` now includes `static`, serially in the guest-root
-namespace. `.github/workflows/qemu-nightly.yml` schedules `le qemu all-tests`
+namespace. `.github/workflows/qemu-nightly.yml` schedules `le test qemu all-tests`
 with the Linux-only selection and skips only `web`. Both named `.ci` files now
 declare `option=needs-linux:caps=net-admin`. Those changes satisfy the missing
 caller and declaration portions of the inherited item. Execution evidence still
@@ -65,7 +65,7 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
 
 ### Architecture Docs
 - [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
-- [x] The deployment-readiness-review record (retired with the learned corpus) - established ./le evidence release-candidate
+- [x] The deployment-readiness-review record (retired with the learned corpus) - established ./le verify evidence release-candidate
   → Decision: Docker-based clean-clone verify is a permanent gate target
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
 
@@ -74,8 +74,8 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
   → Constraint: use same run_suite() pattern for category tracking
 - [x] `internal/le/integration/gates.go` - all heavy test targets and ze-deployment-preflight
   → Constraint: preflight checks tools before starting, exits non-zero on missing
-- [x] `internal/le/perfbench/actions.go` - ze-perf-bench and ze-perf-history-record targets
-  → Decision: ze-perf track --check already exits non-zero on regression
+- [x] `internal/le/perfbench/actions.go` - `le perf run` and `le perf history-record` targets
+  → Decision: le perf track --check already exits non-zero on regression
 - [x] `internal/le/testchaos/actions.go` - chaos test targets
   → Constraint: chaos tests run in-process, no external infra needed
 - [x] `internal/le/fuzz/actions.go` - fuzz targets with all corpora
@@ -84,8 +84,8 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
   → Decision: ./le verify current mode full stays unchanged, new target sits alongside
 
 **Key insights:**
-- Shell runner pattern from ./le functional gives continue-on-failure + summary
-- ze-perf track --check with thresholds already exists, just needs a Make wrapper
+- Shell runner pattern from ./le test functional gives continue-on-failure + summary
+- le perf track --check with thresholds already exists, just needs a Make wrapper
 - ze-deployment-preflight pattern exists for tooling checks
 - Non-gated functional suites need platform-specific tooling (not available on macOS)
 
@@ -100,7 +100,7 @@ belongs in the capable-host rerun; source membership is no claim that it passed.
 **Behavior to preserve:**
 - `./le verify current mode full` retains its current producer-defined population.
 - Existing category actions remain independently runnable.
-- `./le evidence release-candidate` retains clean-clone Docker verification.
+- `./le verify evidence release-candidate` retains clean-clone Docker verification.
 - The native setup probes and perf evidence action retain their existing contracts.
 
 **Behaviour to change:**
@@ -145,7 +145,7 @@ The historical Make dry-runs below remain dated evidence of the retired runner.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | Registered release-matrix action | → | Native composition over existing category actions | A command-level run records every category, continues after an injected category failure and exits nonzero |
-| `./le perf-bench evidence-record` | → | `Bench.EvidenceRecord` | Existing perf evidence tests plus a capable-host regression-check run |
+| `./le perf evidence-record` | → | `Bench.EvidenceRecord` | Existing perf evidence tests plus a capable-host regression-check run |
 
 ## Acceptance Criteria
 
@@ -155,11 +155,11 @@ The historical Make dry-runs below remain dated evidence of the retired runner.
 | AC-2 | Registered release-matrix action on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP and a summary |
 | AC-3 | One category fails | Remaining categories still run, summary shows which failed, exit code non-zero |
 | AC-4 | `ZE_RELEASE_SKIP=interop,perf` on the matrix action | Named categories are skipped and shown as SKIPPED in the summary |
-| AC-5 | `./le perf-bench evidence-record` | Runs the Ze benchmark, appends history and runs `ze-perf track --check`, exiting nonzero on regression |
+| AC-5 | `./le perf evidence-record` | Runs the Ze benchmark, appends history and runs `le perf track --check`, exiting nonzero on regression |
 | AC-6 | Matrix action with no QEMU | QEMU category is skipped explicitly, others still run |
 | AC-7 | Native action help | Shows the matrix entry point, preflight and perf evidence actions with their exact invocation syntax |
 | AC-8 | All categories pass | Summary shows all green, exit code 0 |
-| AC-9 | Scheduled `.github/workflows/qemu-nightly.yml` Linux run | `le qemu all-tests` reaches the `static` suite, including `static-show.ci` and `static-table-interface.ci`, and records executed outcomes rather than silently omitting them |
+| AC-9 | Scheduled `.github/workflows/qemu-nightly.yml` Linux run | `le test qemu all-tests` reaches the `static` suite, including `static-show.ci` and `static-table-interface.ci`, and records executed outcomes rather than silently omitting them |
 | AC-10 | Static fixtures that create interfaces run on Linux without CAP_NET_ADMIN | Their `needs-linux:caps=net-admin` declarations produce an explicit capability skip; the privileged QEMU run executes them |
 
 ## 🧪 TDD Test Plan
@@ -200,22 +200,22 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | # | Category name | Action or historical locator | Infra |
 |---|--------------|-------------|-------|
 | 1 | verify | `./le verify current mode full` | None |
-| 2 | chaos | `ze-chaos-test` | None |
+| 2 | chaos | `./le chaos selftest` | None |
 | 3 | fuzz | `ze-fuzz-test` | None |
-| 4 | interop | `./le integration interop` | Docker |
-| 5 | ipsec-interop | `./le integration interop-ipsec` | Docker+privileged |
-| 6 | l2tp-interop | `./le deployment docker-l2tp-ppp-test` | Docker |
+| 4 | interop | `./le test integration interop` | Docker |
+| 5 | ipsec-interop | `./le test integration interop-ipsec` | Docker+privileged |
+| 6 | l2tp-interop | `./le test deployment docker-l2tp-ppp-test` | Docker |
 | 7 | functional-extra | static + traffic + vpp + l2tp-wire | Platform deps |
 | 8 | perf | `ze-evidence-perf-record` | Docker |
 | 9 | qemu | `ze-qemu-integration-test` | QEMU |
-| 10 | vpp-deployment | `./le deployment vpp-test` | Docker+privileged |
+| 10 | vpp-deployment | `./le test deployment vpp-test` | Docker+privileged |
 | 11 | live | `ze-live-test` | Docker+internet |
 
 ### Phase 1: Native matrix wiring
 
 1. Resolve the exact registered matrix command and the current action for each category above.
 2. Implement preflight, continue-after-failure, `ZE_RELEASE_SKIP` accounting and summary through existing native runners.
-3. Preserve the independent clean-clone action and use `./le perf-bench evidence-record` for the perf chain.
+3. Preserve the independent clean-clone action and use `./le perf evidence-record` for the perf chain.
 4. Prove the matrix through its command, including failure and skip cases, and keep AC-9/AC-10's scheduled Linux evidence.
 
 ### Phase 2: Documentation and capable-host evidence
@@ -231,7 +231,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | Correctness | Each category calls the right existing target |
 | Skip logic | ZE_RELEASE_SKIP comma-separated parsing works |
 | Preflight | Docker check is mandatory, QEMU is advisory |
-| Summary | Matches ./le functional output style (PASS green, FAIL red, SKIP yellow) |
+| Summary | Matches ./le test functional output style (PASS green, FAIL red, SKIP yellow) |
 | Exit code | Non-zero if any category failed (not skipped) |
 
 ### Deliverables Checklist
@@ -240,7 +240,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 |-------------|---------------------|
 | Native release matrix | Command-level output accounts for every required category |
 | Preflight | Docker absence fails, QEMU absence is an explicit skip |
-| Perf evidence | `./le perf-bench evidence-record` runs the benchmark/history/check chain |
+| Perf evidence | `./le perf evidence-record` runs the benchmark/history/check chain |
 | Failure accounting | A failed category does not prevent later categories and makes the final result fail |
 | Help and distribution caller | Both name the same registered matrix action |
 
@@ -300,7 +300,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | AC-6 no QEMU skip | PASS | `make MAKE=true ZE_RELEASE_QEMU_BIN=definitely-not-qemu ZE_RELEASE_SKIP=interop,ipsec-interop,l2tp-interop,perf,vpp-deployment,live ze-evidence-release-verify` skipped qemu and exited 0 |
 | AC-7 help output | PASS | `make help-test` shows `ze-evidence-release-preflight`, `ze-evidence-release-verify`, and `ze-evidence-perf-record` |
 | AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-evidence-release-verify` failed 7 of 10 attempted categories |
-| Required final gate | FAIL | `./le verify current mode full` fails at `./le verify lint run` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
+| Required final gate | FAIL | `./le verify current mode full` fails at `./le go lint run` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
 
 ## Unblock record (2026-07-10)
 
@@ -311,15 +311,15 @@ against current code (followup-wave impact review):
 |--------------------|-----------------------------------|
 | `wireManagedCommit` undefined breaks `go build ./cmd/ze` | resolved: defined `cmd/ze/hub/managed.go` (takes `audit.Recorder`), called `cmd/ze/hub/main.go` |
 | `buildSessionModelFactory` call sites missing `audit.Recorder` | resolved: signature carries `recorder audit.Recorder` at `cmd/ze/hub/session_factory.go` |
-| `./le verify current mode full` blocked at ./le verify lint run (service/web lint reds) | to be proven by the next full `./le verify current mode full` (./le verify lint run is a stage of it); a green run supersedes this row |
+| `./le verify current mode full` blocked at ./le go lint run (service/web lint reds) | to be proven by the next full `./le verify current mode full` (./le go lint run is a stage of it); a green run supersedes this row |
 
 Additional post-wave corrections:
 - Required Reading cites `internal/le/` native action tables for verify composition; `./le verify current mode full` is now
   at `internal/le/` native action tables and `_ze-verify-impl` carries a longer gate list
-  (./le tier check, ze-iface-resolution-check, ./le plugin boundary check,
-  ./le port-defaults check, ze-platform-vet, ./le cli-grammar, ...).
+  (./le arch tier check, ze-iface-resolution-check, ./le plugin boundary check,
+  ./le config ports check, ze-platform-vet, ./le cli grammar, ...).
 - The evidence matrix categories predate wave-added heavy suites; the re-run should
-  fold in `./le deployment vpp-iface-test` (`internal/le/integration/gates.go`) and the new
+  fold in `./le test deployment vpp-iface-test` (`internal/le/integration/gates.go`) and the new
   functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
   test/traffic 020-026) via their existing category targets.
 

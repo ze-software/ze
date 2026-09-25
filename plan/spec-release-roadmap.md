@@ -196,7 +196,7 @@ hold. A drop in required count must retain its added/removed/moved explanation.
 8. Run the existing dry-run command and show its exact messages for approval.
    Later spec changes must not change the approved body or an archived update.
 
-Edit `ai/skills/ze-weekly-update.md`, then run `./le ai skills-sync`. Update
+Edit `ai/skills/ze-weekly-update.md`, then run `./le ai sync write`. Update
 `website/changes/discord/STYLE.md` and `website/AI.md` to explain the short
 release-progress section and pinned evidence. No posting occurs as verification
 of this implementation. Existing `confirm`, channel, and resume rules remain.
@@ -389,7 +389,7 @@ that it cannot honor AC-9.
 | First lookup | Add release roadmap and release progress to `ai/INDEX.md`, beside spec status and weekly updates. |
 | Drift prevention | Native parser owns metadata. Bucket registry owns placement. Generated output declares its source and cannot become input authority. |
 | Verification | Existing spec/site package runs, native entry smoke, site check, and browser inspection. No new project-wide gate. |
-| Skill distribution | Edit `ai/skills/ze-weekly-update.md`, then synchronize generated copies with `./le ai skills-sync`. |
+| Skill distribution | Edit `ai/skills/ze-weekly-update.md`, then synchronize generated copies with `./le ai sync write`. |
 
 ## Implementation Steps
 

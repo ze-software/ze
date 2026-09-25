@@ -355,7 +355,7 @@ logs the result before its deferred `Stop` closes the session
 | No BGP package imports the LDP plugin | `go list -deps ./internal/component/bgp/reactor` names no `internal/plugins/ldp` |
 | The LDP Notification encoder exists and has a non-test caller | `gopls references` on the encoder |
 | The RFC row is proven, not asserted | `./le rfc check`, and the record under `rfc/discrimination/` |
-| The two interop scenarios exist and run | `./le integration` with each scenario name |
+| The two interop scenarios exist and run | `./le test integration` with each scenario name |
 
 ### Security Review Checklist
 | Check | What to look for |

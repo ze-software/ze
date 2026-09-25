@@ -424,7 +424,7 @@ is not a prerequisite for this change.
 | rfc7947 signed off | `./le rfc extraction-status` reports rfc7947 as signed |
 | Level corrections accepted | `./le rfc check` reports no level-ratchet violation |
 | Interop scenario exists and is named, not numbered | list `test/interop/scenarios/bgp-route-server-filtered-adj-rib-in-frr` |
-| Spec valid | `./le hook-check validate-spec` exits 0 |
+| Spec valid | `./le ai hooks validate-spec` exits 0 |
 
 ### Security Review Checklist
 

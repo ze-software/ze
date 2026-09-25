@@ -34,9 +34,9 @@ of a job or a derived tier is not a successful scenario run.
 
 | Native carrier | Runner | Scheduled caller |
 |---|---|---|
-| `internal/le/interoplab/ipsec/` | `./le integration interop-ipsec` | `ipsec-interop` |
-| `internal/le/interoplab/l2tp/` | `./le deployment docker-l2tp-ppp-test` | `l2tp-interop` |
-| `internal/le/interoplab/pppoe/` | `./le deployment docker-pppoe-accel-test` | `pppoe-interop` |
+| `internal/le/interoplab/ipsec/` | `./le test integration interop-ipsec` | `ipsec-interop` |
+| `internal/le/interoplab/l2tp/` | `./le test deployment docker-l2tp-ppp-test` | `l2tp-interop` |
+| `internal/le/interoplab/pppoe/` | `./le test deployment docker-pppoe-accel-test` | `pppoe-interop` |
 
 All callers are in `.github/workflows/evidence-nightly.yml`.
 `scheduledActionsFrom` and `interopCarriers` in `internal/le/rfc/carriers.go`
@@ -177,7 +177,7 @@ execution evidence, but their callers are no longer absent.
 
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for psk-site-to-site only -- see A-9/A-10** |
+| A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `./le test integration interop-ipsec IPSEC_INTEROP_SCENARIO=psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for psk-site-to-site only -- see A-9/A-10** |
 | A-9 | Scenario ipsec-bgp-redistribute-frr passes once its fail-open handler is gone | assumed by A-1 generalising from psk-site-to-site | the tree carries a real, previously-hidden dataplane defect | ran it 2026-08-01 with the handler removed: FAILS at `wait_xfrm_sa(ZE_CONTAINER)`. strongSwan installs its XFRM SA, Ze installs none. This is exactly the failure the `except (AssertionError, Exception)` was converting into a pass | **broken -- real defect, see below** |
 | A-10 | Scenario eap-tls passes once its fail-open handler is gone | same | EAP-TLS is not interoperable today | ran it 2026-08-01: FAILS EARLIER than the removed handler, at step 1 `swan.wait_sa_established("ze")`. strongSwan logs `EAP method EAP_TLS failed for peer ze-test-client`; Ze logs `eap: authenticator sent Failure`. The handler removal did not cause it and could not have hidden it | **broken -- real defect, see below** |
 | A-2 | `test/interop-ipsec/ze-linux` is a build output, not a checked-in input CI would lack | `.gitignore` line for it; absent from `git ls-files`; `run.py` `build_images()` regenerates it | CI could never build the image | `git check-ignore -v` and `git ls-files` | **confirmed** |
@@ -225,7 +225,7 @@ execution evidence, but their callers are no longer absent.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The scheduled IPsec job runs | It invokes `./le integration interop-ipsec` with its required host toolchain; a runner or scenario failure fails the job. No `continue-on-error: true` masks it |
+| AC-1 | The scheduled IPsec job runs | It invokes `./le test integration interop-ipsec` with its required host toolchain; a runner or scenario failure fails the job. No `continue-on-error: true` masks it |
 | AC-2 | A valid requirement tag in an executed native IPsec checker | The tag resolves as `interop/nightly`, the recorded scenario result names the checker that ran, and its discriminating break fails that checker |
 | AC-3 | A positive IPsec scenario cannot obtain the required Ze-side XFRM state | It fails. `ipsec-bgp-redistribute-frr` and the positive EAP/ESP proof must propagate failed assertions. The migrated `eap-tls` TLS 1.2 refusal is recorded separately and cannot discharge a positive ESP proof |
 | AC-4 | The L2TP caller and native checker run on the hosted Linux runner | A dated run demonstrates the required kernel prerequisites and scenario assertions; valid tags resolve as `interop/nightly`. Scheduling alone is insufficient completion evidence |

@@ -514,10 +514,10 @@ indistinguishable, which is the defect this spec exists to remove.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The tag reaches every consumer | `./le test-unit all`, or the four packages through `./le job run label unit-pkg command go test ...` |
+| The tag reaches every consumer | `./le test unit all`, or the four packages through `./le job run label unit-pkg command go test ...` |
 | The tag filter works | the same, over `internal/component/config` and `internal/component/config/redistribute` |
-| An operator can write it | `./le functional parse` |
-| FRR reads what Ze writes | `INTEROP_SCENARIO=ospf-redist-static-tag-frr ./le integration interop` |
+| An operator can write it | `./le test functional parse` |
+| FRR reads what Ze writes | `INTEROP_SCENARIO=ospf-redist-static-tag-frr ./le test integration interop` |
 | No discrimination cut survives | `grep -rn "MUTATION-APPLIED" internal/ test/ cmd/` returns nothing |
 
 ### Security Review Checklist

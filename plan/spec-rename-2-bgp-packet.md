@@ -117,7 +117,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 | A-2 | No local `packet` identifier in any of the 124 importers | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./...` | confirmed (2026-07-08 snapshot; re-grep at start) |
 | A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | quoted-literal grep 2026-07-08 found none; `pkg/` zero refs | user-visible break | post-rename repo grep AC | confirmed (2026-07-08 snapshot) |
-| A-5 | Only the historical hook-parity producer hardcoded paths into this package | 2026-07-08 snapshot | a native hook check breaks post-rename | run `./le hook-check unit` at the start and `./le verify current mode full` after the rename | confirmed (2026-07-08 snapshot) |
+| A-5 | Only the historical hook-parity producer hardcoded paths into this package | 2026-07-08 snapshot | a native hook check breaks post-rename | run `./le ai hooks unit` at the start and `./le verify current mode full` after the rename | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -230,7 +230,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
 | 2. Audit | rerun A-1..A-5 validations; re-measure importer set |
 | 3. Wiring phase | Wiring Test table (existing chains; nothing new to register) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -248,7 +248,7 @@ Check the retired `ze-spec-status` (current: `./le spec status`) before starting
    - Files: `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: red proves fixture teeth
 3. **Phase: the rename** — git mv; package clause; semantic rewrite of import paths + qualifiers across all importers; LEGACY_EXCEPTIONS row removal; hook-parity fixture paths.
-   - Tests: `go build ./...`, `./le test-unit`, report `--selftest` green, hook-parity check green
+   - Tests: `go build ./...`, `./le test unit`, report `--selftest` green, hook-parity check green
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 34 anchors + prose, PACKAGE-MAP regen.

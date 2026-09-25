@@ -478,7 +478,7 @@ can observe it. A-7 records the grep that must confirm this before the claim is 
 | The filter type is discovered, not listed | `ze cli -c "show policy"` names `rpki-state` against `bgp-rpki`, and `grep -rn 'rpki-state' internal/component/plugin/ internal/component/command/` returns nothing |
 | The set half exists | `TestBuildDecisionsPolicySetsState` passes, and `rfc/requirements/rfc6811.md` binds RFC6811-3-1 to it in both polarities |
 | The migration is loud | `test/parse/rpki-action-retired.ci` and `test/ui/doctor-rpki-no-origin-policy.ci` pass |
-| Interop proves the default | `./le integration bgp-rpki-invalid-kept-gobgp` passes, with the recorded RED from the reverted build |
+| Interop proves the default | `./le test integration bgp-rpki-invalid-kept-gobgp` passes, with the recorded RED from the reverted build |
 | No page contradicts the code | `./le verify docs` passes and `grep -rn 'action {' docs/guide/rpki.md` returns only ASPA examples |
 
 ### Security Review Checklist

@@ -24,7 +24,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-A `./le rfc` or `./le repository` action run by a developer or CI.
+A `./le rfc` or `./le repo` action run by a developer or CI.
 
 ### Transformation Path
 Embedded module text -> goyang AST -> namespace and revision statements -> comparison against HEAD -> report.

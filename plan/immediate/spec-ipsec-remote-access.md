@@ -322,7 +322,7 @@ SAME commit. The ledger records each tagged test's `file:line`, and both verify 
 `./le rfc check` fail on a stale ledger.
 
 **Tag carriers.** A tag can live in a `_test.go` or in a `.ci` under `test/ipsec/`, which
-`./le functional` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
+`./le test functional` runs. `test/interop-ipsec/` is REFUSED as a carrier, because nothing
 runs that suite automatically. The strongSwan scenarios in this spec are goal-validation
 evidence, and they earn no row a polarity.
 
@@ -752,7 +752,7 @@ redden the half named.
 5. **Phase: Config validation** - AC-12, AC-13 (inherited deferral)
    - Files: `ipsec/validate.go`, `engine/config.go`, `test/reload/*.ci`
 6. **Phase: Interop** - AC-14
-   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `./le integration interop-ipsec`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
+   - `test/interop-ipsec/scenarios/remote-access-eap-mschapv2`, `remote-access-eap-tls`; `./le test integration interop-ipsec`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `design` and the work is not implemented) -->
 7. **Observability + docs** - counters, `show` views, documentation checklist
 8. **Full verification, review gate, closure**
 
@@ -820,7 +820,7 @@ exist; the sibling records later codec and IPv6-pool changes.
 | pool no longer discarded | `grep -n '_ = ipPool' internal/component/ike/engine/register.go` returns nothing |
 | CP payload emitted | interop capture or `TestRemoteAccessAssignsVirtualIP` |
 | eap-user live | `TestRemoteAccessResolvesEAPUserPassword` |
-| interop green | `./le integration interop-ipsec` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
+| interop green | `./le test integration interop-ipsec` scenarios `remote-access-eap-mschapv2`, `remote-access-eap-tls` |
 
 ### Security Review Checklist
 | Check | What to look for |

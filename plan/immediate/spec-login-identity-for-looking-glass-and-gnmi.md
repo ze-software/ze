@@ -320,8 +320,8 @@ map cannot prove a real client can produce it.
 | Both surfaces resolve an identity | The four `.ci` files pass and fail with the change reverted |
 | The public looking glass survives | `lg-open-mode-stays-public` on a config that selects open |
 | No second user list | `grep -rn 'ExtractAuthUsers' internal/component/lg internal/component/gnmi` shows the shared source and nothing else parses users |
-| Lint | `./le changed scope` |
-| Schema | `./le doc check verify`, `./le cli-grammar` |
+| Lint | `./le repo changed scope` |
+| Schema | `./le doc check verify`, `./le cli grammar` |
 
 ### Security Review Checklist
 | Check | What to look for |

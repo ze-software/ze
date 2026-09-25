@@ -195,7 +195,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le journal report` | → | proposed unrouted-age reporting alongside the existing recurrence answer | functional report test over a fixture with both populations; concrete test location is a design prerequisite |
+| `./le spec journal report` | → | proposed unrouted-age reporting alongside the existing recurrence answer | functional report test over a fixture with both populations; concrete test location is a design prerequisite |
 | `./le doc check verify` | → | proposed age guard registered in the native action surface | refusal test for an over-age unrouted item and admission for an already-routed item |
 | A closure that produced a lesson | → | direct routing under `ai/rules/planning.md` | inspect the governing update and absence of a mandatory intermediate summary |
 
@@ -208,7 +208,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | AC-3 | Five records are routed for real, spanning at least three destinations | Each target carries merged content with a source anchor where `docs/` received it, the pilot deletes nothing, and `./le doc check verify` and `./le doc check links` stay green |
 | AC-4 | `docs/architecture/` is measured before and after the pilot | Growth is under 3 lines per routed item, proving merge rather than append (A-3, R-1) |
 | AC-5 | Two independent agents route the same 5 summaries | Their destinations agree on at least 4 of 5, or the disagreement is reported as a taxonomy defect (A-4) |
-| AC-6 | `./le journal report` runs | It retains its existing recurrence report, adds the count and oldest age of the defined unrouted population, and names the destination taxonomy in its help |
+| AC-6 | `./le spec journal report` runs | It retains its existing recurrence report, adds the count and oldest age of the defined unrouted population, and names the destination taxonomy in its help |
 | AC-7 | A record in the defined residual population sits unrouted past the agreed age | `./le doc check verify` reports it. The gate counts unrouted age, preserves direct routing and never requires a closure summary (R-5) |
 | AC-8 | The pilot's numbers do not justify the full pass | The spec records that plainly and the full pass is not done. A pilot that says no is a successful pilot |
 | AC-9 | Any tool this spec adds | Appears in `ai/INDEX.md` Dev Tools in the same phase that creates it |
@@ -260,7 +260,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | YANG schema (new RPCs/config) | N-A | No config surface; agent tooling only |
 | YANG validation constraints | N-A | No YANG leaf |
 | YANG custom validators | N-A | No YANG leaf |
-| CLI commands/flags | Yes | Proposed extension to `./le journal report` and a native documentation check |
+| CLI commands/flags | Yes | Proposed extension to `./le spec journal report` and a native documentation check |
 | CLI grammar (keyword before value) | Yes | Preserve the native action grammar |
 | Editor autocomplete | N-A | No YANG leaf |
 | Functional test for new RPC/API | N-A | No RPC; covered by `internal/le/` |
@@ -334,7 +334,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | The documentation-gap list | a file, with one row per un-routable item and the document that should hold it |
 | Five routed records | inspect the target edits and both native documentation checks; pilot records remain intact |
 | `docs/architecture/` growth measured | line counts before and after, under 3 per routed item |
-| `./le journal report` | reports the residual population while preserving recurrence output |
+| `./le spec journal report` | reports the residual population while preserving recurrence output |
 
 ### Security Review Checklist
 | Check | What to look for |

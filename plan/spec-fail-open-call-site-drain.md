@@ -50,7 +50,7 @@ or implementation is claimed by this reconciliation.
 On 2026-08-14, `docker_exec_quiet` in `test/interop/interop.py` returned `""`
 on a nonzero exit. The original drain covered 171 unchecked reads across 67
 files, with `# fail-open-ok: <reason>` as the justified exception form.
-The Python helper, baseline and `./le functional docker-exec-check` recipe
+The Python helper, baseline and `./le test functional docker-exec-check` recipe
 are retained here as provenance for that population, not current commands.
 
 ## Provenance

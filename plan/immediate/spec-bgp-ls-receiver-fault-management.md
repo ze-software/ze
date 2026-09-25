@@ -373,7 +373,7 @@ configuration, declaring a peer's BGP-LS role.
 | BGP-LS NLRI is validated | `grep -n 'AFIBGPLS' internal/component/bgp/message/rfc7606.go` names the branch |
 | the four rows are proven | `./le rfc check` exits 0 on rfc9552's 8.2.2 and 8.2.6 rows |
 | the role enforces itself | `test/decode/bgp-ls-consumer-facing.ci` PASS with no `family-filter` in its config | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-| no false positive against a real peer | `./le integration interop` with `bgp-ls-receive-gobgp` PASS |
+| no false positive against a real peer | `./le test integration interop` with `bgp-ls-receive-gobgp` PASS |
 
 ### Security Review Checklist
 | Check | What to look for |

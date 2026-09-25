@@ -70,7 +70,7 @@ Four unrelated per-packet metadata types were reported: `transport.Inbound`
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - component isolation and where a shared transport would belong
-- [ ] `ai/rules/architecture.md` - tier rules. A shared receive path is a candidate `internal/core` leaf, and its placement decides whether `./le tier check` passes
+- [ ] `ai/rules/architecture.md` - tier rules. A shared receive path is a candidate `internal/core` leaf, and its placement decides whether `./le arch tier check` passes
 - [ ] `ai/rules/no-layering.md` - delete X before implementing Y
 - [ ] `ai/rules/goroutine-lifecycle.md` - long-lived workers, never per-packet goroutines
 - [ ] `ai/rules/platform-linux.md` - a packet-socket path is Linux-only and needs QEMU integration tests

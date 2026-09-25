@@ -16,14 +16,14 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 `spec-shared-machine-job-admission` built job admission and rolled it out over
 106 Makefile targets. The Makefile was then retired and every target became a
 native `./le` action, and the rollout did not travel with them. Two actions
-admit today, `./le verify lint run` and `./le verify lock run`. Every other
+admit today, `./le go lint run` and `./le job run`. Every other
 heavy action reaches the machine unadmitted: the unit suites, the functional
 runner, the integration gates, the fuzz corpus, the QEMU suites, and the whole
 of `./le verify current mode full`, which holds no slot while it runs
 twenty-six stages.
 
 The goal is that the admitted population is again a CRITERION rather than a
-list: an action that starts a Go test binary, the `ze-test` runner,
+list: an action that starts a Go test binary, the `le-test` runner,
 `golangci-lint`, `govulncheck`, Docker, or QEMU is admitted, and a check proves
 no action reaches those tools around admission.
 
@@ -44,7 +44,7 @@ no action reaches those tools around admission.
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/le/job/job.go` - `Admit` and `Run`, the two entry points an action uses, and `defaultSlots`, which sizes the machine
 - [ ] `internal/le/verify/lint/actions.go` - `runHere`, the one action that admits in process: it calls `Admit`, writes its output to the ticket log, and calls `Release` with its own verdict
-- [ ] `internal/le/verify/lock/answer.go` - the generic wrapper, `./le verify lock run <label> <argv>`
+- [ ] `internal/le/verify/lock/answer.go` - the generic wrapper, `./le job run <label> <argv>`
 - [ ] `internal/le/verify/current.go` - `runCurrent`, which takes no ticket before it runs the whole stage population
 - [ ] `internal/le/hookruntime/bash.go` - `bashRawHeavy`, the refusal that names `./le job run label <label> command <argv>`
 
@@ -60,7 +60,7 @@ no action reaches those tools around admission.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- An `./le <area> <action>` invocation that starts a Go test binary, `ze-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU.
+- An `./le <area> <action>` invocation that starts a Go test binary, `le-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU.
 
 ### Transformation Path
 1. The action resolves the checkout root and builds an `Admission` (`job.NewIn`).
@@ -122,10 +122,10 @@ no action reaches those tools around admission.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Any registered action that starts a Go test binary, `ze-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU | It takes a ticket before it starts that tool, and releases it with its own verdict |
+| AC-1 | Any registered action that starts a Go test binary, `le-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU | It takes a ticket before it starts that tool, and releases it with its own verdict |
 | AC-2 | A stage of an admitted run | It runs inside the parent's slot and never queues behind it |
 | AC-3 | An action added later that reaches a heavy tool with no ticket | A check names it, by action, and fails |
-| AC-4 | Two sessions asking for the same heavy action on the same tree | One runs and the other attaches, as `./le verify lint run` already does |
+| AC-4 | Two sessions asking for the same heavy action on the same tree | One runs and the other attaches, as `./le go lint run` already does |
 
 ## 🧪 TDD Test Plan
 
@@ -205,12 +205,12 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 ## Design Insights
 
 - The admitted population is the whole value of the mechanism. Two actions out of a hundred is a registry that reports one job and a machine running ten.
-- The hook and the actions have to agree. An agent refused a raw `go test` and pointed at `./le test-unit` is admitted only if that action admits itself.
+- The hook and the actions have to agree. An agent refused a raw `go test` and pointed at `./le test unit` is admitted only if that action admits itself.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Admit inside each action rather than around the dispatcher | one ticket taken by `leroot.Run` for every command | a dispatcher cannot tell a heavy action from `./le spec session current`, and admitting the cheap ones would queue a session behind a lint to read a status |
+| Admit inside each action rather than around the dispatcher | one ticket taken by `leroot.Run` for every command | a dispatcher cannot tell a heavy action from `./le spec current`, and admitting the cheap ones would queue a session behind a lint to read a status |
 
 ## Known Limitations
 - Admission covers what an action does in its own process. A tool a test binary starts is attributed to the job that started it.

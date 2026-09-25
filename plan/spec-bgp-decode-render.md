@@ -90,7 +90,7 @@ the TCP reassembly.
 
 - [ ] `ai/rules/cli.md` - output contracts for anything an operator reads
   → Constraint: a row's state is a field or a column, never a character glued to a value. The tree's box-drawing characters are structure, not state markers on values, so they are legitimate; no value may gain a sigil.
-  → Decision: no new command is added, so no CLI grammar gate applies and `./le cli-grammar` needs no new run.
+  → Decision: no new command is added, so no CLI grammar gate applies and `./le cli grammar` needs no new run.
 
 - [ ] `docs/guide/logging.md` - the operator-facing logging surface this spec extends
   → Constraint: the subsystem table carries a `source:` anchor pointing at `subsystemDescriptions`, consumed by `internal/le/docstocode/codetodocs.go`, so a new subsystem must appear in both.
@@ -185,7 +185,7 @@ Three, all existing:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The 19-byte header is byte-exactly reconstructible at the tap from data already in scope. | RFC 4271 requires the marker to be all ones; length is 19 plus body length; type is the `msgType` argument to the observer. | The tap's hex dump shows bytes that never crossed the wire, and the feature misleads rather than informs. | A test comparing a reconstructed header against the bytes `teeCapture` receives for the same message. | unvalidated |
-| A-2 | No `.ci` other than `test/ui/web-tool-decode.ci` asserts on human decode output. | All 39 files in `test/decode/*.ci` pass `--json` and assert `expect=json:json=`; a grep for files lacking `--json` returned none. | The retarget breaks functional tests not accounted for, and the change grows past its estimate. | Re-run the grep at implementation time, then `./le functional decode` and `./le functional ui`. | unvalidated |
+| A-2 | No `.ci` other than `test/ui/web-tool-decode.ci` asserts on human decode output. | All 39 files in `test/decode/*.ci` pass `--json` and assert `expect=json:json=`; a grep for files lacking `--json` returned none. | The retarget breaks functional tests not accounted for, and the change grows past its estimate. | Re-run the grep at implementation time, then `./le test functional decode` and `./le test functional ui`. | unvalidated |
 | A-3 | An `Enabled()` guard keeps the disabled cost to one interface call plus a level compare, with no allocation. | `filterHandler.Enabled` delegates to the base handler's `*slog.LevelVar` compare; the precedent is `observeForwardHandles` in the rib plugin. | The tap costs allocations on the forwarding path for every operator who never turns it on. | An allocation test asserting zero allocations per message with the subsystem above debug. | unvalidated |
 | A-4 | `map[string]any` from the existing decoders carries every field the tree must show, in recoverable form. | `decode_human.go` renders from it today and reaches capabilities, attributes and NLRI. | Some field is only reachable from the wire bytes, and the node mapping needs decoder changes this spec did not budget. | Build the node tree for one OPEN and one UPDATE fixture and diff the field set against the Python harness output. | unvalidated |
 | A-5 | Field order can be fixed in the mapping layer without touching the decoders. | Ordering is a rendering concern; the mapping code chooses the order it appends nodes. | The decoders must change to preserve order, widening blast radius into the shipped JSON path. | Write the mapping for OPEN and confirm the order is chosen there, not inherited. | unvalidated |
@@ -198,7 +198,7 @@ Three, all existing:
 | R-2 | The subsystem resolves to `disabled` from the environment, so `Logger` returns the discard handler and never registers, and `SetLevel` fails permanently. | The row is missing from `show log levels` even after traffic. | Name the failure in the spec and test the default-environment path. Do not ship a subsystem whose only enablement route can be locked out. |
 | R-3 | Rendering a tree per message on a full-table peer overwhelms the log sink, and syslog worst of all. | Log volume or daemon CPU rises sharply when the level is set on a busy peer. | The level is per subsystem and non-persistent, and the operator opts in. Documented as a diagnostic aid, matching how `capture` is documented. Per-peer narrowing is not part of this spec and is listed under Known Limitations. |
 | R-4 | The observer blocks the session read goroutine while formatting, slowing the read path when enabled. | Session read latency or hold-timer expiry under load with the level at debug. | Keep the render allocation-bounded and behind the `Enabled()` guard. Measure with the level at debug in the functional test. |
-| R-5 | Retargeting changes human output in a way `test/ui/web-tool-decode.ci` catches late, after the mapping is written. | That `.ci` fails at the end of the work rather than the start. | Preserve the `origin` literal by design, and run `./le functional ui` in the same phase as the retarget, not at the end. |
+| R-5 | Retargeting changes human output in a way `test/ui/web-tool-decode.ci` catches late, after the mapping is written. | That `.ci` fails at the end of the work rather than the start. | Preserve the `origin` literal by design, and run `./le test functional ui` in the same phase as the retarget, not at the end. |
 | R-6 | `spec-improve-3-event-replay` is in-progress and touches the same reactor capture area, so the two collide. | A merge conflict in `reactor_notify.go` or `raw_capture.go`. | That spec explicitly calls `BGPRawCaptureRing` "adjacent, not reusable" for its JSONL path, and this spec adds an observer rather than touching the ring. Check its status before starting. |
 
 ## Blast Radius
@@ -333,7 +333,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | YANG validation constraints | N-A | No new leaf |
 | YANG custom validators | N-A | No new leaf |
 | CLI commands/flags | N-A | No new command or flag; `ze bgp decode` keeps its flag set |
-| CLI grammar (keyword before value) | N-A | No new command, so `./le cli-grammar` gains no new surface |
+| CLI grammar (keyword before value) | N-A | No new command, so `./le cli grammar` gains no new surface |
 | Editor autocomplete | N-A | No new leaf or command |
 | Functional test for new RPC/API | Yes | `test/decode/test-decode-open-tree.ci`, `test/decode/test-decode-update-tree.ci`, `test/plugin/test-bgp-wire-decode-log.ci` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | Pipe completeness | N-A | `ze bgp decode` is offline `cmd/ze` tooling and does not route through `ApplyPipes` today. This spec changes rendering only and does not alter that surface |
@@ -373,11 +373,11 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 2. **Phase: the node type and the renderer** -- ordered nodes, tree rendering, hex dump
    - Tests: the `internal/core/describe` and `internal/core/textbuf` unit tests  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
    - Files: `internal/core/describe/describe.go`, `internal/core/textbuf/textbuf.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
-   - Verify: unit tests pass, `./le tier check` accepts the new core package, the hex-dump helper allocates nothing
+   - Verify: unit tests pass, `./le arch tier check` accepts the new core package, the hex-dump helper allocates nothing
 3. **Phase: retarget the offline decoder** -- map `map[string]any` to nodes, delete the flat formatters
-   - Tests: the `decode_test.go` tree, determinism and JSON-unchanged tests, then `./le functional decode` and `./le functional ui`
+   - Tests: the `decode_test.go` tree, determinism and JSON-unchanged tests, then `./le test functional decode` and `./le test functional ui`
    - Files: `internal/component/bgp/cli/decode_human.go`, `internal/component/bgp/cli/decode.go`
-   - Verify: AC-1 to AC-5. Run `./le functional ui` in THIS phase, not at the end, per R-5
+   - Verify: AC-1 to AC-5. Run `./le test functional ui` in THIS phase, not at the end, per R-5
 4. **Phase: the runtime tap** -- header reconstruction, level guard, both directions
    - Tests: the `wire_observer_test.go` tests, then `test-bgp-wire-decode-log.ci`
    - Files: `internal/component/bgp/reactor/wire_observer.go`  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
@@ -407,10 +407,10 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | The ordered node type and renderer | `go test -race ./internal/core/describe` |
 | The hex-dump helper | `go test -race ./internal/core/textbuf` |
 | Flat formatters gone | `grep -n 'formatOpenHuman\|formatAttributesHuman' internal/component/bgp/cli/` returns only the new node-building forms |
-| JSON unchanged | `./le functional decode` |
-| The web tool page still works | `./le functional ui` |
-| The runtime tap | `./le functional plugin` for `test-bgp-wire-decode-log.ci` |
-| Core tier respected | `./le tier check` |
+| JSON unchanged | `./le test functional decode` |
+| The web tool page still works | `./le test functional ui` |
+| The runtime tap | `./le test functional plugin` for `test-bgp-wire-decode-log.ci` |
+| Core tier respected | `./le arch tier check` |
 | Docs and discovery | `./le doc check verify`, `./le doc wiring` |
 
 ### Security Review Checklist
@@ -431,7 +431,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
 | Lint failure | Fix inline. If architectural → DESIGN |
 | Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| `./le tier check` rejects `internal/core/describe` | The node type reached for a component or plugin import. Remove it; mapping belongs in `decode_human.go` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
+| `./le arch tier check` rejects `internal/core/describe` | The node type reached for a component or plugin import. Remove it; mapping belongs in `decode_human.go` |  <!-- doc-links: ignore (file this spec will create; the spec is `ready` and the work is not implemented) -->
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights

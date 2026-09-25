@@ -188,7 +188,7 @@ The static path replaces steps 1 to 6 with the static plugin emitting a batch un
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Auto-wiring the Loc-RIB changes the per-UPDATE cost for every peer of a daemon that configures redistribution | `ze-perf` UPDATE throughput drops on a redistribution config | The binding is added only when a rule names a BGP source; measure with `ze-perf` before and after and record both numbers |
+| R-1 | Auto-wiring the Loc-RIB changes the per-UPDATE cost for every peer of a daemon that configures redistribution | `le perf` UPDATE throughput drops on a redistribution config | The binding is added only when a rule names a BGP source; measure with `le perf` before and after and record both numbers |
 | R-2 | A replay fired on consumer registration storms every producer at startup, once per consumer | Startup log shows one replay request per consumer per producer | Fire once per consumer registration, gate it on the evaluator holding a destination that consumer serves, and reuse the existing eviction and TTL from the replay coordinator |
 | R-3 | The replay path was built for one BGP peer and correlates through `ReplayID`; a consumer-scoped replay is a second target kind on the same mechanism | `handleReplayBatch` needs a branch on the target kind | Give the replay coordinator one target type with two cases rather than a second coordinator, or emit the consumer replay through the ordinary non-replay path and let `handleBatch` fan out normally |
 | R-4 | Making `initRedistribute` fatal refuses a config that starts today | A committed `.conf` or `.ci` fixture fails to load after the change | Grep the fixtures for a `redistribute` block before the change, and run the functional suite in Phase 4 |
@@ -260,7 +260,7 @@ The static path replaces steps 1 to 6 with the static plugin emitting a batch un
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `redistribute-bgp-to-ospf-no-plumbing` | `test/plugin/*.ci` | a config with a `redistribute` block and no plugin or attach block loads, and the Loc-RIB holds the peer's route | PASS, in the `./le functional plugin` run of 2026-09-05, test 555/740 in 1.5s. RED before the ingress-filter fix with `peers 1 routes-in 0`, and RED before the derived binding with `peers 0` |
+| `redistribute-bgp-to-ospf-no-plumbing` | `test/plugin/*.ci` | a config with a `redistribute` block and no plugin or attach block loads, and the Loc-RIB holds the peer's route | PASS, in the `./le test functional plugin` run of 2026-09-05, test 555/740 in 1.5s. RED before the ingress-filter fix with `peers 1 routes-in 0`, and RED before the derived binding with `peers 0` |
 | `redistribute-unknown-source-refused` | `test/plugin/*.ci` | a mistyped source name refuses the load with an error naming the token | PASS, 2026-09-05, test 571/740 in 15.0s |
 | `redistribute-late-consumer` | `test/plugin/*.ci` | a consumer registering after a producer emitted holds the producer's routes | PASS, 2026-09-05, test 568/740 in 1.5s |
 | `redistribute-block-does-not-gate-peer-routes` | `test/plugin/*.ci` | a `redistribute` block naming no BGP source leaves the routes a peer announces untouched | PASS, 2026-09-05, test 556/740 in 1.5s |
@@ -272,7 +272,7 @@ commit could carry them. Two of the five need no driver registration:
 `redistribute-unknown-source-refused` declares no `plugin` block at all, and
 `redistribute-no-block-peer-route-reaches-rib` runs its twin's driver on
 purpose. `fixture.Run` (`internal/test/fixture/fixture.go`) keys the dispatch on
-the name in `ze-test fixture <name>`, never on the scenario file name, so
+the name in `le-test fixture <name>`, never on the scenario file name, so
 `internal/test/fixture/plugin_fixture_12.go` owes exactly the three
 registrations it already carries.
 
@@ -363,15 +363,15 @@ would reasonably write, which the daemon must make work.
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the Loc-RIB is reachable from a plain `redistribute` block
    - Tests: `TestRedistributeBGPSourceWiresLocRIBBinding`, `TestExplicitBindingWins`, `TestNoRedistributeNoBinding`, `TestPeerWithAutoWiredLocRIBReceivesUpdate`
    - Files: `internal/component/bgp/reactor/config.go`
-   - Verify: before the change the first test fails because the peer holds no binding. After it, the delivery graph resolves the Loc-RIB for an update in the received direction. Validate A-1 first by running `INTEROP_SCENARIO=bgp-srv6-frr ./le integration interop` and reading the verdict, and validate A-2 and R-5 by running the wiring test against BOTH config shapes: with the explicit `plugin { internal rib { use bgp-rib; } }` block the two OSPF scenarios carry, and without it
+   - Verify: before the change the first test fails because the peer holds no binding. After it, the delivery graph resolves the Loc-RIB for an update in the received direction. Validate A-1 first by running `INTEROP_SCENARIO=bgp-srv6-frr ./le test integration interop` and reading the verdict, and validate A-2 and R-5 by running the wiring test against BOTH config shapes: with the explicit `plugin { internal rib { use bgp-rib; } }` block the two OSPF scenarios carry, and without it
 2. **Phase: The BGP source reaches the orchestrator** -- close stages 2 and 3 for a BGP-sourced route
    - Tests: `TestBestChangeReachesRedistributeOrchestrator`
    - Files: whatever Phase 1 leaves open between `publishBestChanges` and `handleBatch`
-   - Verify: run `INTEROP_SCENARIO=ospfv3-redist-frr ./le integration interop` and record which assertion it reaches. AC-1 and AC-7 are demonstrated here
+   - Verify: run `INTEROP_SCENARIO=ospfv3-redist-frr ./le test integration interop` and record which assertion it reaches. AC-1 and AC-7 are demonstrated here
 3. **Phase: A late consumer is not an empty consumer** -- replay on consumer registration
    - Tests: `TestLateConsumerReceivesProducerSet`, `TestReplayFiresOncePerConsumer`
    - Files: `internal/component/config/redistribute/consumer.go`, `internal/component/bgp/plugins/redistribute_egress/replay.go`, `internal/component/bgp/plugins/redistribute_egress/register.go`
-   - Verify: run `INTEROP_SCENARIO=isis-redist-frr ./le integration interop`. AC-3 is demonstrated here
+   - Verify: run `INTEROP_SCENARIO=isis-redist-frr ./le test integration interop`. AC-3 is demonstrated here
 4. **Phase: The config refuses what it cannot do** -- close the silent whole-config disable
    - Tests: `TestUnknownRedistributeSourceRefusesLoad`, `TestUnknownRedistributeFamilyRefusesLoad`, `TestEmptyDestinationRefusesLoad`
    - Files: `internal/component/bgp/config/loader_create.go`, `internal/component/config/loader_redistribute.go`
@@ -400,7 +400,7 @@ would reasonably write, which the daemon must make work.
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The three interop scenarios green | `INTEROP_SCENARIO=<name> ./le integration interop` for each, output read from a file under the session scratch |
+| The three interop scenarios green | `INTEROP_SCENARIO=<name> ./le test integration interop` for each, output read from a file under the session scratch |
 | A forced RED recorded for each | the revert-rebuild-run output, pasted into the closure sections |
 | No silent stage left | `grep -n "return" ` over the four producing functions, each checked against the "what does it do when its precondition is unmet" row |
 | The doctor check reachable | `ze doctor` output on a config whose redistribution source has no producer |
@@ -515,12 +515,12 @@ with a named message rather than dropping silently.
 
 | Goal | Evidence | Status |
 |------|----------|--------|
-| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | `INTEROP_SCENARIO=ospfv3-redist-frr ./le integration interop` green, with the forced-RED output recorded | Interop NOT RUN: the host root stood at 99% and every image build died on `input/output error`. Proven instead at the level below it, over the whole daemon chain: `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` PASSES in the gating suite, with the orchestrator logging `dispatching to consumer consumer=fakedest entries=1` for the peer's prefix. The LSA-origination half is what the interop run still owes |
-| The same prefix reaches a neighbor as a Type-7 in an NSSA | `INTEROP_SCENARIO=ospfv3-nssa-redist-frr ./le integration interop` green, with the forced-RED output recorded. Its absence proofs were repaired on 2026-09-03 in commit `666a43dff` and its later assertions have never executed, so this run is their first | NOT RUN. Its image build failed with `input/output error` inside the container while the host disk stood at 99% |
-| A static prefix reaches a neighbor through IS-IS | `INTEROP_SCENARIO=isis-redist-frr ./le integration interop` green, with the forced-RED output recorded | NOT RUN, same image-build failure |
+| A BGP prefix reaches a neighbor as an OSPFv3 AS-External in a normal area | `INTEROP_SCENARIO=ospfv3-redist-frr ./le test integration interop` green, with the forced-RED output recorded | Interop NOT RUN: the host root stood at 99% and every image build died on `input/output error`. Proven instead at the level below it, over the whole daemon chain: `test/plugin/redistribute-bgp-to-ospf-no-plumbing.ci` PASSES in the gating suite, with the orchestrator logging `dispatching to consumer consumer=fakedest entries=1` for the peer's prefix. The LSA-origination half is what the interop run still owes |
+| The same prefix reaches a neighbor as a Type-7 in an NSSA | `INTEROP_SCENARIO=ospfv3-nssa-redist-frr ./le test integration interop` green, with the forced-RED output recorded. Its absence proofs were repaired on 2026-09-03 in commit `666a43dff` and its later assertions have never executed, so this run is their first | NOT RUN. Its image build failed with `input/output error` inside the container while the host disk stood at 99% |
+| A static prefix reaches a neighbor through IS-IS | `INTEROP_SCENARIO=isis-redist-frr ./le test integration interop` green, with the forced-RED output recorded | NOT RUN, same image-build failure |
 | The operator is told when redistribution cannot work | `ze doctor` output on a config whose redistribution source has no producer, and the load failure on an unknown source name | The load failure is proven twice: `TestUnknownRedistributeSourceRefusesLoad` and the functional `test/plugin/redistribute-unknown-source-refused.ci`, which PASSES against a running daemon in the gating suite. The `ze doctor` half has unit coverage (`checks_redistribute_test.go`) and no functional run. It also had no CALLER until 3c71ff73eb: `checkRedistributeRules` landed with its five tests and no line in `runChecks`, so every one of them drove the helper and the check was dead. `TestRunChecksReachesTheRedistributeCheck` now drives the entry point |
-| A consumer that registers after a producer emitted holds that producer's set | `test/plugin/redistribute-late-consumer.ci` against a running daemon | PASSES, 2026-09-05, in the gating `./le functional plugin` run. The scenario proves the dispatcher is live with an early `fakeprobe` consumer, emits two prefixes while no `fakedest` consumer exists, then registers one and reads both back |
-| The per-UPDATE cost of a daemon with no redistribution is unchanged | `ze-perf` UPDATE throughput before and after, both numbers recorded | not run. `TestNoRedistributeNoBinding` and `TestNonBGPRedistributeSourceAddsNoBinding` show no binding is derived without a rule, so no per-UPDATE delivery is added |
+| A consumer that registers after a producer emitted holds that producer's set | `test/plugin/redistribute-late-consumer.ci` against a running daemon | PASSES, 2026-09-05, in the gating `./le test functional plugin` run. The scenario proves the dispatcher is live with an early `fakeprobe` consumer, emits two prefixes while no `fakedest` consumer exists, then registers one and reads both back |
+| The per-UPDATE cost of a daemon with no redistribution is unchanged | `le perf` UPDATE throughput before and after, both numbers recorded | not run. `TestNoRedistributeNoBinding` and `TestNonBGPRedistributeSourceAddsNoBinding` show no binding is derived without a rule, so no per-UPDATE delivery is added |
 
 ### TDD
 - [ ] Tests written

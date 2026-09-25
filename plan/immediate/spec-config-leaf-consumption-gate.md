@@ -28,7 +28,7 @@ its historical rows and the scanner's candidate rows are not a count of current
 operator defects.
 
 **The detector exists and was deliberately disarmed.**
-`./le yang leaf-mentions report` (`internal/le/yang/leafmentions`) reported
+`./le config unread-leaves report` (`internal/le/yang/leafmentions`) reported
 70 config modules, 1131 leaves and 80 findings on 2026-09-06.
 Those are the recorded scan's counts. It answers 0 whatever it finds, sits in no
 verify stage, and says why in its own header: "A key built at run time, a name
@@ -94,7 +94,7 @@ feature, or a finding that fails the build.
 
 **Where this sits beside the two specs that already touch the tool.**
 `plan/spec-improve-6-yang-coverage.md` (ready) builds a YANG coverage report and
-names `./le yang leaf-mentions report` as one of its entry points. Its own
+names `./le config unread-leaves report` as one of its entry points. Its own
 closing note draws the boundary: "This spec's orphan detection (AC-4 unowned
 subtrees, unconsumed nodes) stays REPORT-only; its check mode never gates on
 claim completeness." The gate that turned the SIBLING report into a blocking

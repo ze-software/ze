@@ -491,7 +491,7 @@ accepted a wrong mode silently, and only a read-back caught it.
 
 The package already carries `//go:build integration && linux` files, so these are
 auto-enrolled in `ZE_QEMU_INTEGRATION_PKGS` (`internal/le/integration/gates.go`) and run under
-`./le qemu run command "./le qemu all-tests"`. **No new make target is needed.** The VM installs
+`./le test qemu run command "./le test qemu all-tests"`. **No new make target is needed.** The VM installs
 `iproute2` (`internal/le/integration/gates.go`), so `ip xfrm policy show` is available as an
 independent oracle beside the netlink read-back.
 
@@ -660,7 +660,7 @@ on the existing unit-tier tags.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The kernel holds an exact port-0 mask | `./le qemu run command "./le qemu all-tests"` passes |
+| The kernel holds an exact port-0 mask | `./le test qemu run command "./le test qemu all-tests"` passes |
 | The exact form is distinguishable from any-port | `TestXFRMOpaquePortIsDistinctFromAnyPort` passes |
 | The matching behavior is proven | `TestXFRMOpaquePortMatchesOnlyPortZero` passes |
 | The refusals are gone | `grep -n 'cannot be programmed' internal/component/ike/ipsec/traffic_selector.go` returns nothing |

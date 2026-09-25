@@ -29,7 +29,7 @@ The measurements below are the dated pre-change baseline.
 |------|------|-------------|
 | 2026-09-04 | colima VM, 2 CPUs, 2 GB, host disk full | the same `docker build` run to a private tag with no deadline took 40m39s; two harness runs died at `exit 124` |
 | 2026-09-04 | same VM, healthy | 2m48s |
-| 2026-09-06 | this workstation, `docker info` reports 32 CPUs and 31.34GiB | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` killed by the kernel for low memory during the image build |
+| 2026-09-06 | this workstation, `docker info` reports 32 CPUs and 31.34GiB | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop` killed by the kernel for low memory during the image build |
 | 2026-09-06 | same, retried under contention | second kill, same step |
 | 2026-09-06 | same, retried deliberately: load average 0.61, 23G available of 31G, no other heavy work, no peer session building | third kill, same step |
 
@@ -39,7 +39,7 @@ demonstrated mitigation. These measurements do not establish the current
 prebuilt image's memory use or scenario outcome.
 
 Rows: `plan/journal/gate-verdict-depends-on-the-machine.md`, 2026-09-04
-(`fixit-filter-subject-drops-five-attributes`, the `./le integration interop`
+(`fixit-filter-subject-drops-five-attributes`, the `./le test integration interop`
 row) and 2026-09-06 (the two
 `as-path-prepend-encodes-at-the-negotiated-width` rows).
 
@@ -54,7 +54,7 @@ undone work costs the FIRST RELEASE. No operator meets this: it is a
 development gate on a developer's workstation, and it changes no shipped
 behavior, no wire byte and no CLI answer. It is not `pre-release/` either,
 because the interop evidence the release owes is still produced: the `interop`
-job in `.github/workflows/evidence-nightly.yml` runs `./le integration interop`
+job in `.github/workflows/evidence-nightly.yml` runs `./le test integration interop`
 on `ubuntu-latest` and is unaffected by whether one workstation can run it.
 What is blocked is a person's ability to run a scenario before pushing it,
 which is a development cost rather than a release one.
@@ -90,7 +90,7 @@ prose, and that is covered above.
   libc, which is why `test/interop-radius/ze-linux` runs on `alpine:3.21`
   today.
 - The bgp lab needs TWO binaries in its image, not one: scenarios invoke
-  `ze-test interop-bgp process ...` from inside the container.
+  `le-test interop-bgp process ...` from inside the container.
 
 ## Current Behavior (MANDATORY)
 
@@ -99,7 +99,7 @@ prose, and that is covered above.
   reads `ServerArchitecture`, and calls `stageBinaries`. That function uses the
   pinned toolchain with Linux and the daemon architecture; `stageBinary` derives
   feature tags from the declared base and runs `go build` for each output.
-- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `ze-test`;
+- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `le-test`;
   `suiteFor` installs `StageBinaries` as `Preflight` and declares the image
   without a `ZE_FEATURES` build argument.
 - `internal/le/interoplab/lab.go`: `Suite.Run` runs `Preflight` before image preparation.
@@ -112,7 +112,7 @@ This is source evidence only. No build, scenario, timing, memory measurement,
 discrimination re-recording or validation was run for this reconciliation.
 
 **Behavior to preserve:**
-- The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/ze-test` on an
+- The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/le-test` on an
   `alpine:3.21` base with `tini`, `nftables` and `iproute2`, entrypoint `tini -- ze`.
 - The feature set. Both binaries carry the tags `feature-gates.txt` declares,
   through `featuretags`, so the lab daemon cannot drift from the shipped one.
@@ -132,7 +132,7 @@ discrimination re-recording or validation was run for this reconciliation.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-`./le integration interop` (and `interop-l2tp`, `interop-pppoe`,
+`./le test integration interop` (and `interop-l2tp`, `interop-pppoe`,
 `interop-ipsec`, `interop-radius`), plus the same actions run by the five jobs
 in `.github/workflows/evidence-nightly.yml`.
 
@@ -177,7 +177,7 @@ in `.github/workflows/evidence-nightly.yml`.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `CGO_ENABLED=0` makes the binary independent of the container's libc | `Toolchain.Overrides` sets it by default; `test/interop-radius/Dockerfile.ze` runs such a binary on `alpine:3.21` today | the image execs and fails on musl | the converted lab starts a container and its ready probe passes | unvalidated |
 | A-2 | `docker version --format '{{.Server.Arch}}'` returns a Go `GOARCH` spelling (`amd64`, `arm64`) | Docker reports the daemon architecture in Go's own naming | `go build` refuses an unknown `GOARCH`, loudly, before any image is built | a unit test over the parser plus one real run on this workstation | unvalidated |
-| A-3 | The image needs both `ze` and `ze-test` | the current Dockerfile copies `/ze-test` into the image, and 14 scenario `ze.conf` files `run "ze-test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
+| A-3 | The image needs both `ze` and `le-test` | the current Dockerfile copies `/le-test` into the image, and 14 scenario `ze.conf` files `run "le-test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
 | A-4 | Removing the builder stage leaves the Go-version gate with carriers | `docker/Dockerfile`, `docker/Dockerfile.lab`, `internal/le/interoplab/l2tp/radiusmock/Dockerfile` and `tools/kernel-builder/Dockerfile` still copy the module, and `Result.judgeGoSource` counts Go string literals as carriers too | `goversion` errors with "the walk judged no build carrier" | `./le verify current mode full`, which runs the gate | unvalidated |
 | A-5 | The nightly runners still pass: they already build `bin/le` with Go, so the host toolchain is present | every interop step in `.github/workflows/evidence-nightly.yml` runs a `./le` action | five nightly jobs go red | read the workflow's setup steps; then one nightly cycle | unvalidated |
 
@@ -202,7 +202,7 @@ in `.github/workflows/evidence-nightly.yml`.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le integration interop` | → | `bgp.RunAt` sets `Suite.Preflight` | `TestBGPSuiteDeclaresAPreflightBuild` |
+| `./le test integration interop` | → | `bgp.RunAt` sets `Suite.Preflight` | `TestBGPSuiteDeclaresAPreflightBuild` |
 | `Suite.Preflight` invoked by `Suite.Run` | → | the shared `interoplab` producer | `TestPreflightBuildsEveryDeclaredBinary` |
 | the producer's `go build` environment | → | `gotoolchain.Environment` | `TestLabCrossBuildIsStaticLinuxAtTheDaemonArch` |
 | `docker build` context | → | `.dockerignore` negations | `TestDockerIgnoreAdmitsEveryStagedLabBinary` |
@@ -213,14 +213,14 @@ in `.github/workflows/evidence-nightly.yml`.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `grep -c 'go build' test/interop/Dockerfile.ze test/interop-l2tp/Dockerfile.ze test/interop-pppoe/Dockerfile.ze` | zero in each. No `Dockerfile.ze` in the tree runs a compiler or names a `golang:` base |
-| AC-2 | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` on this 31G workstation, run once | reaches a scenario verdict. Three attempts before this change produced three OOM kills and no verdict |
+| AC-2 | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop` on this 31G workstation, run once | reaches a scenario verdict. Three attempts before this change produced three OOM kills and no verdict |
 | AC-3 | the image build step of AC-2 | its wall time is recorded, beside the 40m39s and 2m48s the page publishes today, and the page's paragraph is rewritten to the new shape |
 | AC-4 | the preflight `go build` of AC-2, measured with `/usr/bin/time -v` | its peak resident set is recorded. This is the number that replaces an unmeasurable in-container compiler |
-| AC-5 | a container from the built image | `ze` and `ze-test` both run inside it, and the scenario's ready probe passes, on an `alpine:3.21` (musl) base |
+| AC-5 | a container from the built image | `ze` and `le-test` both run inside it, and the scenario's ready probe passes, on an `alpine:3.21` (musl) base |
 | AC-6 | a Docker daemon whose architecture the preflight cannot read | the run fails before any image is built, with a message naming what it asked and what it got. It never guesses a `GOARCH` |
 | AC-7 | `./le rfc discriminate-record` re-run for `RFC1997-Well-1` | observes the green, applies the working-tree break, observes a red that names the interop unit, and writes a record `./le rfc check` accepts |
 | AC-8 | All five lab preflights and the shared producer | `StageBinaries` / `stageBinaries` / `stageBinary` in `internal/le/interoplab/zebuild.go` provide the one build path; no lab-local `buildZe` copy remains, and IPsec and RADIUS both call the shared path |
-| AC-9 | `./le integration interop-ipsec` and `./le integration interop-radius` | still pass, unchanged in behavior, on the shared producer |
+| AC-9 | `./le test integration interop-ipsec` and `./le test integration interop-radius` | still pass, unchanged in behavior, on the shared producer |
 | AC-10 | `./le verify current mode full` | passes, `goversion` included: the Go-version gate still judges at least one carrier |
 
 ## End-to-End User Stories
@@ -294,7 +294,7 @@ already exist. The implemented `LabBinary` declaration is:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `Name` | string | what the binary is called in a message, for example `ze` or `ze-test` |
+| `Name` | string | what the binary is called in a message, for example `ze` or `le-test` |
 | `Base` | string | the personality's base tags; `stageBinary` derives the full tags through `featuretags.DaemonBuildTags` |
 | `Output` | string | the repository-relative staging path, inside the build context and admitted by `.dockerignore` |
 
@@ -309,7 +309,7 @@ not recreated merely because their names appeared in the original design.
 | YANG schema (new RPCs/config) | N-A | no operator-facing configuration; the surface is a `./le` development action |
 | YANG validation constraints | N-A | no YANG leaf |
 | YANG custom validators | N-A | no YANG leaf |
-| CLI commands/flags | N-A | `./le integration interop*` already exists and its arguments are unchanged |
+| CLI commands/flags | N-A | `./le test integration interop*` already exists and its arguments are unchanged |
 | CLI grammar (keyword before value) | N-A | no command added |
 | Editor autocomplete | N-A | no YANG leaf |
 | Functional test for new RPC/API | N-A | no RPC or API |
@@ -324,7 +324,7 @@ not recreated merely because their names appeared in the original design.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | nothing an operator sees changes |
 | 2 | Config syntax changed? | No | no config surface touched |
-| 3 | CLI command added/changed? | No | `./le integration interop*` unchanged |
+| 3 | CLI command added/changed? | No | `./le test integration interop*` unchanged |
 | 4 | API/RPC added/changed? | No | none |
 | 5 | Plugin added/changed? | No | none |
 | 6 | Has a user guide page? | No | this is a development gate |
@@ -379,7 +379,7 @@ not recreated merely because their names appeared in the original design.
 |-------------|---------------------|
 | no `Dockerfile.ze` compiles | `grep -l 'go build' $(git ls-files 'test/interop*/Dockerfile.ze')` prints nothing |
 | one producer | `grep -rn 'GOOS: *"linux"' internal/le/interoplab/` names one file |
-| the blocked scenario runs here | pasted output of `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop` with a verdict |
+| the blocked scenario runs here | pasted output of `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop` with a verdict |
 | the measurement | pasted image-build wall time and `/usr/bin/time -v` peak RSS of the preflight build |
 | the discrimination route still works | `rfc/discrimination/rfc1997.json` re-recorded, `./le rfc check` clean |
 | the gates | `./le verify current mode full` |

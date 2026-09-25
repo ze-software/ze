@@ -170,7 +170,7 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 - `modifierNames` and `usageKindNames` (`internal/component/command/usage.go`): the two single declarations a new word joins.
 - `matchChildren` (`internal/component/command/completer.go`) and `listedChildNames` (`internal/component/command/help.go`): both special-case `ModifierChoice` today and both owe a decision for the new value.
 - `errFlowspecActionExtraTokens` (`internal/component/bgp/plugins/cmd/announce/announce.go`): the existing precedent for the error the default arm should answer, so the parser fix reuses a shape rather than inventing one.
-- `startFixtureProcess` and `Poll` (`internal/test/fixture/`): the helpers that start `ze-test peer` and a daemon, already used separately and combined for the first time here.
+- `startFixtureProcess` and `Poll` (`internal/test/fixture/`): the helpers that start `le-test peer` and a daemon, already used separately and combined for the first time here.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -188,7 +188,7 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `one-of` modifier has exactly one user in the repository today | A grep for a second handler enforcing a choose-one rule found none. Everything else found was "keyword requires a value" or "requires a selector" | The vocabulary word is justified by one command, which `ai/rules/simplicity.md` treats as a warning sign. Raised with the owner at the scope gate and confirmed | Re-run the grep at review and record the result | unvalidated |
 | A-2 | Nesting the three action containers does not disturb `component_parity_test.go` | `augmentedContainerNames` parses the FLOWSPEC augment file, and the action containers live in the ANNOUNCE module | The parity guard goes red or, worse, silently reads a smaller set | Run that test before and after the YANG change | unvalidated |
-| A-3 | No stored artifact holds a serialized usage grammar that a new `UsageKind` word would fail to round-trip | Traced every hop. `internal/le/wikicatalog` is typed as `[]command.UsageToken`, so `UsageKind.UnmarshalJSON` runs on the live bytes, but producer and consumer share `usageKindNames`, so one table gains one row. `internal/le/site/catalog.go` and `internal/le/docvalid/command_surfaces.go` both carry `Kind` as a plain string. No golden file and no `testdata/` holds a grammar | Nothing. The rework risk is one table row and two republished sibling artifacts | Re-run `./le docvalid` after the renderer change | confirmed |
+| A-3 | No stored artifact holds a serialized usage grammar that a new `UsageKind` word would fail to round-trip | Traced every hop. `internal/le/wikicatalog` is typed as `[]command.UsageToken`, so `UsageKind.UnmarshalJSON` runs on the live bytes, but producer and consumer share `usageKindNames`, so one table gains one row. `internal/le/site/catalog.go` and `internal/le/docvalid/command_surfaces.go` both carry `Kind` as a plain string. No golden file and no `testdata/` holds a grammar | Nothing. The rework risk is one table row and two republished sibling artifacts | Re-run `./le doc yang-contract` after the renderer change | confirmed |
 | A-4 | A `.ci` can drive `ze announce` as argv against a live daemon | BROKEN, and known so before implementation. The daemon publishes its ephemeral SSH address at start into the file named by `ZE_SSH_EPHEMERAL`, so only a Go fixture can read it and set `ZE_SSH_HOST` and `ZE_SSH_PORT` on the client. `option=env` is static, and no `.ci` in `test/ui/` or `test/plugin/` sets `ZE_SSH_*` | The argv-level coverage needs a Go fixture, which is now in Files to Create rather than discovered mid-implementation | `internal/test/fixture/ui_fixture_cli_verb_daemon_dispatch.go` is the working precedent | broken |
 | A-6 | A single fixture can start a daemon over SSH AND a `ze-peer`, so one test proves argv reaches the wire | No precedent found. `runCLIVerbDaemonDispatch` writes its own config and starts the daemon itself, so a `.ci`-launched `ze-peer --port $PORT` is not in that config | The argv proof and the wire proof split into two tests: argv reaches the handler, and the handler reaches the wire. That is weaker than one end-to-end chain and must be stated as such rather than papered over | Write the fixture as a draft under `test/draft/` first and see whether the peer can be started from it | unvalidated |
 | A-5 | Refusing an unclaimed trailing token breaks no existing caller | This spec refuses more input than before, and no `.ci` exercises any announce form | A caller somewhere passes a trailing token that works by accident today | Grep every `.ci`, `.et` and unit test for announce invocations, then run the unit suite | unvalidated |
@@ -307,7 +307,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 | YANG validation constraints | N-A | The wrapper declares no leaf. The three action containers keep their existing `length` and `pattern` |
 | YANG custom validators | N-A | No `ze:validate` is involved. The one-of is structural |
 | CLI commands/flags | No | No new command word. The wrapper's name is never typed, the same contract `ModifierChoice` already has |
-| CLI grammar (keyword before value) | Yes | `internal/component/command/usage.go`: `Modifier`, `modifierNames`, `UsageKind`, `usageKindNames`, `appendGroupTokens`, `modifierChildren`, `writeUsageToken`. Gate: `./le cli-grammar` |
+| CLI grammar (keyword before value) | Yes | `internal/component/command/usage.go`: `Modifier`, `modifierNames`, `UsageKind`, `usageKindNames`, `appendGroupTokens`, `modifierChildren`, `writeUsageToken`. Gate: `./le cli grammar` |
 | Editor autocomplete | Yes | `internal/component/command/completer.go`, `matchChildren`. It skips `ModifierChoice` today, and the new value must make it recurse into the wrapper's three children rather than offer the wrapper's name (R-4) |
 | Functional test for new RPC/API | Yes | See the Functional Tests table |
 | Pipe completeness | N-A | The seven handlers already register through the command registry and no new answer shape is added |
@@ -360,8 +360,8 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
    - Files: the fixture and its three `.ci` shims
    - Verify: force a RED phase per `ai/rules/interop-and-goal-validation.md` by reverting the handler and rebuilding, then restore and confirm green
 6. **Phase: the pages move with the code**
-   - Files: the six documentation files in Files to Modify, plus `./le site build` and `./le wiki-catalog update` to republish the two generated catalogs
-   - Verify: `./le docvalid` and `./le doc check verify` are clean, including the pre-existing catalog staleness this republishing clears
+   - Files: the six documentation files in Files to Modify, plus `./le site build` and `./le cli catalog update` to republish the two generated catalogs
+   - Verify: `./le doc yang-contract` and `./le doc check verify` are clean, including the pre-existing catalog staleness this republishing clears
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -378,11 +378,11 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The announce flowspec usage line states the action as required | `ze announce flowspec help` and read it |
-| No other command's line changed | `ze help command --json` publishes a `usage` string and a `grammar` token list per command (`commandEntry`, `cmd/ze/help_command.go`). Capture it BEFORE any renderer edit, capture it after, and diff. Only the announce flowspec entry may differ. `./le docvalid usage-contract` walks the same tree and is the second reading |
+| No other command's line changed | `ze help command --json` publishes a `usage` string and a `grammar` token list per command (`commandEntry`, `cmd/ze/help_command.go`). Capture it BEFORE any renderer edit, capture it after, and diff. Only the announce flowspec entry may differ. `./le doc yang-contract usage-contract` walks the same tree and is the second reading |
 | A second action is refused | `ze announce flowspec destination 1.1.1.1/32 discard rate-limit 500` exits nonzero naming `rate-limit` |
 | Seven handlers have functional coverage | `grep -c 'exec=ze announce\|exec=ze withdraw' test/ui/*.ci` is nonzero, and the suite passes |
 | The occurrence set has no stale copy | `grep -n 'four occurrences' internal/component/config/yang/modules/ze-extensions.yang` returns nothing |
-| The published catalogs match the model | `./le docvalid` clean |
+| The published catalogs match the model | `./le doc yang-contract` clean |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -403,7 +403,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 
 ## Design Insights
 
-- The published command catalog is ALREADY stale, before this spec changes anything. `../gh-pages/data/cli-commands.json` holds one `announce` entry whose usage string is `announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]`, the authored sentence the 2026-08-30 split deleted, while the live model now publishes three announce commands. `checkSiblingPublications` is true in the default build and `compareWebsiteCommandCatalog` byte-compares the two, so this is a live disagreement another session left. This spec republishes with `./le site build` and `./le wiki-catalog update`, which clears it as a side effect rather than as its own errand.
+- The published command catalog is ALREADY stale, before this spec changes anything. `../gh-pages/data/cli-commands.json` holds one `announce` entry whose usage string is `announce <unicast|blackhole|flowspec> <args> [tag <key> <value>] [for <duration>]`, the authored sentence the 2026-08-30 split deleted, while the live model now publishes three announce commands. `checkSiblingPublications` is true in the default build and `compareWebsiteCommandCatalog` byte-compares the two, so this is a live disagreement another session left. This spec republishes with `./le site build` and `./le cli catalog update`, which clears it as a side effect rather than as its own errand.
 - Discovery, per `ai/rules/repo-maintenance.md`: the `ai/INDEX.md` command-grammar row covers the modifier work and the announce row covers the handler work, but neither names `ze:modifier` or `one-of`, so those two keywords are added to the grammar row. The rule preventing regression already exists and needs no change: `ai/rules/cli.md` puts the grammar in the model, and `ai/rules/principles.md` forbids a silently wrong value, which is exactly the default arm this spec repairs. The registries preventing drift are `modifierNames` and `usageKindNames`, each read by exactly one parser.
 - The occurrence set is DECLARED TWICE and no check compares the copies: `modifierNames` in Go, and prose in `ze-extensions.yang` that counts "four occurrences" in two separate places. Adding a fifth word makes the prose wrong in two spots. `component_parity_test.go` is the precedent in this repository for a check that compares a Go set against a YANG set, and the same shape would close this.
 - `mergeYANGEntry` reads `ze:modifier` only when the node's `Modifier` is still `ModifierNone`, sets `ArgDefs` from the child's own leaves, and `inheritArgDefs` skips any node carrying a modifier. A wrapper container with no leaves therefore gets empty `ArgDefs` and keeps its container children intact, which is the property the one-level recursion depends on. Verified before the shape was chosen rather than after.

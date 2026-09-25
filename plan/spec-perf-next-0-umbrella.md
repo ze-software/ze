@@ -27,8 +27,8 @@ child 2, with children 1 and 3 complete (`ebgpWireSlot` in
 `internal/core/bgp/attribute/text_append.go`). `ebgpWireSlot` no longer exists.
 
 Two of this umbrella's own criteria need the same answer. AC-1 asks for a fresh
-`ze-perf-bench PPROF=1` profile and AC-3 for a recorded re-run, but
-`ze-perf-bench` exercises none of the three paths this round touched
+`le perf run PPROF=1` profile and AC-3 for a recorded re-run, but
+`le perf run` exercises none of the three paths this round touched
 (`docs/architecture/perf-round-3.md`), and `Dockerfile.ze` was recorded stale
 when the round closed.
 R-1 accepts per-child Go benchmarks as evidence for each optimisation. It does
@@ -64,7 +64,7 @@ and several candidates that turned out NOT to be worth doing. This umbrella:
 2. Lists the three child specs in execution order.
 3. Records the **negative findings** so future sessions do not re-investigate them.
 
-### Baseline (ze-perf, 2026-06-05, 100K IPv4/unicast routes, 4 GB VM, darwin/arm64 + Colima)
+### Baseline (le perf, 2026-06-05, 100K IPv4/unicast routes, 4 GB VM, darwin/arm64 + Colima)
 
 | DUT | Convergence | Throughput | p99 |
 |-----|-------------|------------|-----|
@@ -87,7 +87,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 ### Methodology (BLOCKING for every child)
 
 1. **Profile before coding.** Run
-   `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress` and
+   `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` and
    capture its CPU, heap and goroutine profiles under `tmp/`.
    **Scope gate (not a formality):** the three children were designed from audit
    reasoning + arithmetic (15M lock ops/s; 24 allocs/op x fan-out), NOT from a
@@ -101,7 +101,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 2. **Benchmark gate per child.** Each child defines a Go benchmark asserting the
    before/after allocs/op or ns/op. The benchmark is written FIRST and its
    "before" numbers are pasted into the child spec.
-3. **Re-measure after.** Re-run `./le perf-bench suggestion-report` after each child
+3. **Re-measure after.** Re-run `./le perf suggest` after each child
    lands; record convergence/throughput movement in the child's Implementation
    Summary. Movement within noise is acceptable for child 3 (its path is not the
    convergence path); the Go benchmark is its proof.
@@ -128,7 +128,7 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 - [ ] `docs/architecture/perf-round-3.md` - the third campaign, and the two before it in outline
   → Decision: profile-first; reject proposals that profiling shows are stack-allocated already
   → Decision: value-type struct keys over interned strings; one commit for bisection safety
-- [ ] `internal/le/perfbench/actions.go` - ze-perf-bench / PPROF / report targets
+- [ ] `internal/le/perfbench/actions.go` - le perf run / PPROF / report targets
   → Constraint: results land in `test/perf/results/`, profiles in `tmp/perf-run/pprof`
 
 ### RFC Summaries (MUST for protocol work)
@@ -186,14 +186,14 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 2026-06-05 ze-perf baseline is reproducible on this machine | `test/perf/results/` JSON files | Before/after deltas are noise | re-run `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress` before child 1 | broken (Docker build infra was stale; the existing June 5 baseline was used, and per-child Go benchmarks are the proof per R-1) |
+| A-1 | The 2026-06-05 le perf baseline is reproducible on this machine | `test/perf/results/` JSON files | Before/after deltas are noise | re-run `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` before child 1 | broken (Docker build infra was stale; the existing June 5 baseline was used, and per-child Go benchmarks are the proof per R-1) |
 | A-2 | No other session lands conflicting reactor changes mid-round, and the round starts from a clean committed base | git status at spec time | Rebase/benchmark churn; before/after deltas and `ze-unit-reactor-test-race` muddied by unrelated in-flight edits | Check `tmp/session/selected-spec` + git log before each child. NOTE at spec time the working tree had ~48 uncommitted files (cos/iface/l2tp/plugin-registry, none in reactor) — run this round on a branch off a committed base so benchmark deltas and the race gate are attributable to the child only | unvalidated |
 | A-3 | The negative findings hold (no new callers appeared) | Dossiers dated 2026-06-11 | A "cold" path may have become hot | Fresh grep for callers during each child's audit step | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Micro-wins don't move ze-perf numbers (within noise) | Post-child re-measure shows no delta | Go benchmarks are the per-child proof; ze-perf movement is a bonus for children 1-2 and not expected for child 3 |
+| R-1 | Micro-wins don't move le perf numbers (within noise) | Post-child re-measure shows no delta | Go benchmarks are the per-child proof; le perf movement is a bonus for children 1-2 and not expected for child 3 |
 | R-2 | Optimization introduces a data race | `go test -race ./internal/component/bgp/reactor/...` failure | Race gate is BLOCKING in children touching reactor |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -206,9 +206,9 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Before child 1 starts | Fresh `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress` run captured; baseline numbers pasted into this spec; each child's target frames located in the profile (or their absence noted and the child's scope reconsidered with the user per the Methodology scope gate) |
+| AC-1 | Before child 1 starts | Fresh `STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress` run captured; baseline numbers pasted into this spec; each child's target frames located in the profile (or their absence noted and the child's scope reconsidered with the user per the Methodology scope gate) |
 | AC-2 | Each child completes | Child's Go benchmark shows the asserted improvement; child's Review Gate clean |
-| AC-3 | All children complete | `STRESS_SCENARIO=05-profile-1m ./le integration stress` re-run; final numbers recorded here and in `docs/performance.md` if changed |
+| AC-3 | All children complete | `STRESS_SCENARIO=05-profile-1m ./le test integration stress` re-run; final numbers recorded here and in `docs/performance.md` if changed |
 | AC-4 | Umbrella closure | Negative-findings table copied into the learned summary so future sessions inherit it |
 
 ## 🧪 TDD Test Plan
@@ -240,7 +240,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 - `internal/component/bgp/reactor/received_update.go` - via child 1
 - `internal/component/bgp/reactor/filter_delta.go` - via child 2
 - `internal/component/bgp/plugins/rib/rib_attr_format.go` - via child 3
-- `docs/performance.md` - regenerate if final ze-perf numbers change
+- `docs/performance.md` - regenerate if final le perf numbers change
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -259,7 +259,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 | 2 | Config syntax changed? | [ ] no | - |
 | 3 | CLI command added/changed? | [ ] no | - |
 | 4 | API/RPC added/changed? | [ ] no | - |
-| 11 | Affects daemon comparison? | [ ] yes, if final numbers move | `docs/performance.md` (regenerated via `./le perf-bench suggestion-report`) |
+| 11 | Affects daemon comparison? | [ ] yes, if final numbers move | `docs/performance.md` (regenerated via `./le perf suggest`) |
 | 12 | Internal architecture changed? | [ ] possibly (child 1 cache concurrency note) | `docs/architecture/buffer-architecture.md` per child 1 |
 
 ## Files to Create
@@ -279,7 +279,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 | 5-14 | Per child spec |
 
 ### Implementation Phases
-1. **Phase: Baseline (MANDATORY FIRST)** - run `./le perf-bench suggestion-report`; paste numbers + top pprof frames here
+1. **Phase: Baseline (MANDATORY FIRST)** - run `./le perf suggest`; paste numbers + top pprof frames here
    - Tests: n/a (measurement)
    - Files: this spec (baseline section)
    - Verify: profile files exist under `tmp/perf-run/pprof`
@@ -292,13 +292,13 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every child closed or explicitly deferred with user approval |
-| Correctness | Final ze-perf re-run recorded; no regression vs 62ms baseline |
+| Correctness | Final le perf re-run recorded; no regression vs 62ms baseline |
 | Rule: no-speculative-features | Negative-findings table untouched (nothing from it implemented) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Baseline + final ze-perf numbers in spec | grep this file for the results table |
+| Baseline + final le perf numbers in spec | grep this file for the results table |
 | Three children closed | `ls plan/spec-perf-next-*.md` shows which files remain open |
 
 ### Security Review Checklist (/implement stage 11)
@@ -309,7 +309,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| ze-perf baseline not reproducible | STOP; report environment delta to user before children |
+| le perf baseline not reproducible | STOP; report environment delta to user before children |
 | Child benchmark shows no win | Mark child blocked, present evidence, ask user |
 
 ## Mistake Log
@@ -385,7 +385,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Reduce remaining hot-path overhead with evidence | benchmark + ze-perf run | [filled at completion] |
+| Reduce remaining hot-path overhead with evidence | benchmark + le perf run | [filled at completion] |
 
 ## Review Gate
 

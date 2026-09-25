@@ -48,7 +48,7 @@ and folded kdump artifacts into `show tech-support report`.
   → Constraint: root is read-only SquashFS; the only writable store is the ext4 `/perm` partition, which is the last partition and is grown to fill the disk at build. Artifact capacity is a property of the deployed disk, never of the image.
   → Decision: gokrazy A/B updates replace the root partition and leave `/perm`, so an artifact written there survives the update that follows a crash.
 - [ ] `docs/functional-tests.md` - suite layout and the QEMU runner
-  → Constraint: Linux-only kernel behavior is proven inside `./le qemu`, registered in `internal/le/qemu/actions.go` and run by the nightly runtime-kernel labs. A unit test cannot prove a reserved region survives a reboot.
+  → Constraint: Linux-only kernel behavior is proven inside `./le test qemu`, registered in `internal/le/qemu/actions.go` and run by the nightly runtime-kernel labs. A unit test cannot prove a reserved region survives a reboot.
 
 ### Rules
 - [ ] `ai/rules/cli.md` - grammar and output
@@ -405,10 +405,10 @@ N-A. This feature is not protocol-implementing and changes no wire-visible behav
 | Deliverable | Verification method |
 |-------------|---------------------|
 | Kernel symbols present in the built config | The floor check in `TestRuntimeKernelRequirementsIncludePstore` |
-| Config subtree parses and enforces bounds | `./le functional parse` over the two new `.ci` files |
-| Kernel artifact reaches the crash directory | `./le qemu qemu-crash-capture-panic-harvest` |
-| OTA reboot still works | `./le qemu qemu-crash-capture-ota-unaffected` |
-| Support archive carries the artifact | `./le functional plugin` over `support-crashes-kernel.ci` |
+| Config subtree parses and enforces bounds | `./le test functional parse` over the two new `.ci` files |
+| Kernel artifact reaches the crash directory | `./le test qemu qemu-crash-capture-panic-harvest` |
+| OTA reboot still works | `./le test qemu qemu-crash-capture-ota-unaffected` |
+| Support archive carries the artifact | `./le test functional plugin` over `support-crashes-kernel.ci` |
 | Doctor checks registered with codes | `ze doctor` output plus a grep of `internal/core/diagnostic/codes.go` for the three codes |
 | No second noun added | `grep -rn "show kdump\|show crash\b" internal/` returns nothing |
 

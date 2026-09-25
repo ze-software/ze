@@ -175,7 +175,7 @@ the retired deferral shard "fixit-firewall-concurrency-deadlock".
 |----|------|--------------|----------------------|
 | R-1 | The deadline fires on a legitimately slow apply and turns a working configuration into a failed one | a traffic apply fails with a reply-timeout error on a VPP that later answers | the 60s ceiling is reachable through the env knob without a rebuild; the default matches the firewall backend that has run with it since 2026-08-10 |
 | R-2 | The test binds the deadline on a fake and never proves the production path, because `Apply` needs a live VPP connection that a unit test cannot make | the test passes while `Apply` still builds the inline literal | RETIRED 2026-08-23. The planned mitigation was a one-off audit grep, and review round 1 judged that too weak for what the code's own comments were claiming: an audit step nobody repeats is not an invariant. `TestGovppOpsIsBuiltOnlyByItsConstructor` (`internal/plugins/traffic/vpp/ops_construction_test.go`) now parses the package's own sources and fails on a `govppOps` built outside the constructor, and fails again when it finds none at all. The link the unit test could not make is made by a test rather than by a habit |
-| R-3 | The QEMU line is edited and the package still does not run there, because the recipe's shell command accepts a package pattern that matches nothing | `./le qemu run command "./le qemu all-tests"` passes without naming a traffic test | read the run output for a line naming `internal/plugins/traffic/vpp`, not only for a zero exit |
+| R-3 | The QEMU line is edited and the package still does not run there, because the recipe's shell command accepts a package pattern that matches nothing | `./le test qemu run command "./le test qemu all-tests"` passes without naming a traffic test | read the run output for a line naming `internal/plugins/traffic/vpp`, not only for a zero exit |
 | R-4 | The reviewer reads the missing error tagging as an omission rather than a decision | a review finding proposing a traffic equivalent of `firewall.ErrKernelTimeout` | Key Design Decisions records why the sentinel is firewall-only: it exists to drive a metric and a rollback skip, and traffic has neither |
 
 ## Blast Radius
@@ -206,7 +206,7 @@ dependency.
 | AC-2 | `ze.traffic.vpp.reply-timeout` is unset | The deadline is 10 seconds |
 | AC-3 | `ze.traffic.vpp.reply-timeout` is set to zero, to a negative duration, to a value below 1 second, above 60 seconds, or to text that does not parse as a duration | The deadline clamps into the range 1 second to 60 seconds. Zero is never installed, because zero is govpp's spelling of "no deadline" and is the defect being removed |
 | AC-4 | `ze env list` runs on Linux | `ze.traffic.vpp.reply-timeout` appears, with its type, its default and a description that says what an unbounded call would cost |
-| AC-5 | `./le qemu run command "./le qemu all-tests"` runs from any host | The run output names `internal/plugins/traffic/vpp` and its tests pass inside the VM, so the Linux-only proof of AC-1 is not reachable only from a Linux workstation |
+| AC-5 | `./le test qemu run command "./le test qemu all-tests"` runs from any host | The run output names `internal/plugins/traffic/vpp` and its tests pass inside the VM, so the Linux-only proof of AC-1 is not reachable only from a Linux workstation |
 | AC-6 | The `SetReplyTimeout` call is removed from the constructor and the tests are re-run | `TestNewGovppOpsBindsReplyTimeout` fails and names the missing call. The RED output is pasted into the TDD checklist |
 
 ## End-to-End User Stories
@@ -352,11 +352,11 @@ any wire; it installs a client-side deadline.
 3. **Phase: use the constructor** -- replace the inline literal in `(*backend).Apply`.
    - Tests: every test in `apply_test.go` stays green and unedited
    - Files: `internal/plugins/traffic/vpp/backend_linux.go`
-   - Verify: `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns exactly one hit, inside the constructor. Then `./le changed scope`
+   - Verify: `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns exactly one hit, inside the constructor. Then `./le repo changed scope`
 4. **Phase: QEMU reach** - prove the package runs through the current guest unit phase.
    - Tests: the two unit tests run inside the VM
    - Files: `internal/le/qemu/alltests.go`
-   - Verify: `./le qemu run command "./le qemu all-tests"`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
+   - Verify: `./le test qemu run command "./le test qemu all-tests"`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
    - Verify: `./le doc check verify`
@@ -382,7 +382,7 @@ any wire; it installs a client-side deadline.
 | The constructor binds the deadline | `grep -n 'SetReplyTimeout' internal/plugins/traffic/vpp/timeout_linux.go` |
 | No unbounded construction survives | `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns one hit, inside `newGovppOps` |
 | The env key is registered | `bin/ze env list` on Linux lists `ze.traffic.vpp.reply-timeout` |
-| The package runs in QEMU | `./le qemu run command "./le qemu all-tests"` output names `internal/plugins/traffic/vpp` |
+| The package runs in QEMU | `./le test qemu run command "./le test qemu all-tests"` output names `internal/plugins/traffic/vpp` |
 | The test discriminates | The RED output pasted under TDD, taken with the `SetReplyTimeout` call absent |
 | The seam doc records the binding | `git diff docs/architecture/traffic/fw-7b-backend-hardening.md` is non-empty |
 
@@ -585,7 +585,7 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 | AC-2 | Done | `TestVppReplyTimeoutBounds`, row "unset uses the default" | 10s |
 | AC-3 | Done | `TestVppReplyTimeoutBounds`, nine rows | `0s`, `-1s`, `500ms` clamp to 1s; `61s`, `10m` clamp to 60s; `not-a-duration` and empty fall back to 10s |
 | AC-4 | Done | a host binary compiled with the tag set `ze_core ze_vpp` prints at `env list`: `ze.traffic.vpp.reply-timeout  duration  10s  Bound on each VPP binary-API round-trip; ...` | the key is behind `ze_vpp` (`feature-gates.txt`), so a `ze_core`-only binary lists neither VPP knob |
-| AC-5 | BLOCKED by two QEMU gate defects | `./le qemu run command "./le qemu all-tests"`, run 2026-09-05 from this Linux workstation: exit 1, and `internal/plugins/traffic/vpp` appears NOWHERE in the output. The run printed 29 phase headers and executed no test at all. 28 functional suites returned the BusyBox usage text for `timeout`, and the unit phase died at `go: downloading go1.27.0 (linux/amd64)` followed by `error: command ssh exceeded its deadline` | Two defects, both in `internal/le/qemu/` and neither in this spec's code. `GoVersion` is 1.25.9 (`internal/le/qemu/run.go`, spent by `setupCommand`) against `go 1.27.0` in `go.mod`, which makes every guest `go` command fetch a toolchain and blow `DefaultCommandTimeout` in the same file; and `killAfterFlag` is `--kill-after=15s` (`internal/le/qemu/alltests.go`) against BusyBox 1.37.0 `timeout`, which takes only `-k KILL_SECS`. `./le go-version check` answers OK over 10 carriers and reads neither file. Recorded in `plan/journal/gate-excludes-part-of-its-population.md`, 2026-09-05. The Linux-only tests DO pass on a Linux host: `go test -count=1 -race ./internal/plugins/traffic/vpp/...` returns ok. What is unproven is the reach AC-5 asks for |
+| AC-5 | BLOCKED by two QEMU gate defects | `./le test qemu run command "./le test qemu all-tests"`, run 2026-09-05 from this Linux workstation: exit 1, and `internal/plugins/traffic/vpp` appears NOWHERE in the output. The run printed 29 phase headers and executed no test at all. 28 functional suites returned the BusyBox usage text for `timeout`, and the unit phase died at `go: downloading go1.27.0 (linux/amd64)` followed by `error: command ssh exceeded its deadline` | Two defects, both in `internal/le/qemu/` and neither in this spec's code. `GoVersion` is 1.25.9 (`internal/le/qemu/run.go`, spent by `setupCommand`) against `go 1.27.0` in `go.mod`, which makes every guest `go` command fetch a toolchain and blow `DefaultCommandTimeout` in the same file; and `killAfterFlag` is `--kill-after=15s` (`internal/le/qemu/alltests.go`) against BusyBox 1.37.0 `timeout`, which takes only `-k KILL_SECS`. `./le go version-pin check` answers OK over 10 carriers and reads neither file. Recorded in `plan/journal/gate-excludes-part-of-its-population.md`, 2026-09-05. The Linux-only tests DO pass on a Linux host: `go test -count=1 -race ./internal/plugins/traffic/vpp/...` returns ok. What is unproven is the reach AC-5 asks for |
 | AC-6 | Done | the RED block under TDD Test Plan, taken with `ch.SetReplyTimeout` deleted | the failure names the missing call, not a compile error |
 
 ### Tests from TDD Plan
@@ -626,7 +626,7 @@ and remaining ownership are stated in the closure verdict and Work Not Done.
 | A VPP that accepts a request and never answers no longer blocks the traffic backend for the life of the process | functional (unit, at the seam the package owns) | `TestNewGovppOpsBindsReplyTimeout` asserts the channel `Apply` sends on carries 3s, 10s, 1s and 60s for the four operator inputs, and fails on a value at or below zero. Shown RED with `ch.SetReplyTimeout` deleted (output under TDD). The wait itself is `receiveReplyInternal` inside vendored govpp, which no fake can stand in for, so the proof is bounded to the value installed |
 | No production path can skip the bound | ratchet test | `TestGovppOpsIsBuiltOnlyByItsConstructor` fails on a `govppOps` built outside `newGovppOps`, and fails again on finding none. Shown RED twice at implementation: once with the call site reverted to the inline literal, once with the constructor returning `nil` |
 | An operator can raise the bound without a rebuild | CLI output | A `ze_core ze_vpp` host binary prints the key, its `duration` type and its `10s` default at `env list`; `TestVppReplyTimeoutBounds` proves every operator input lands inside 1s..60s |
-| The Linux-only proof is reachable from any host | QEMU run | NOT ACHIEVED. `./le qemu run command "./le qemu all-tests"` reached no test at all on 2026-09-05 (exit 1). See the AC-5 row |
+| The Linux-only proof is reachable from any host | QEMU run | NOT ACHIEVED. `./le test qemu run command "./le test qemu all-tests"` reached no test at all on 2026-09-05 (exit 1). See the AC-5 row |
 
 ## Work Not Done
 

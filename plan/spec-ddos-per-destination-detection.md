@@ -72,6 +72,6 @@ settle four things:
 says and does it correctly. Nothing is wrong; a capability is missing.
 
 **Owning gate.** `go test -race ./internal/plugins/ddos/detect`, then
-`./le functional plugin`. A new `.ci` fixture is required: aggregate traffic held
+`./le test functional plugin`. A new `.ci` fixture is required: aggregate traffic held
 flat while one destination prefix is flooded, asserting a detection that today
 does not happen.

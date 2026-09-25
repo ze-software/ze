@@ -105,7 +105,7 @@ a verdict or an action is a plugin.
   (Correction block): the seam exists and `ddos/flowspec` originates through it. Only `shape`
   is unwired.** Classic RTBH is the shortcut.
 - Cross-plugin data in ze flows **producer → core feed → component global → consumer**, never
-  plugin→plugin (a direct import fails `./le tier check`). So origin-AS for cohorts must ride the
+  plugin→plugin (a direct import fails `./le arch tier check`). So origin-AS for cohorts must ride the
   `observation`/`trafficfeature` surface, stamped by flowexport — not fetched by the detector.
 
 ## Current Behavior (MANDATORY)
@@ -202,7 +202,7 @@ remaining AS work; it does not independently close any child.
 |----|-----------|------------------|----------|--------------|--------|
 | A-1 | The children are independently schedulable once their consumed contracts exist | subsystem split | umbrella sequencing wrong | per-child evidence and source contracts | children 5/6 supplied the fact and identity prerequisites consumed by 7; their closure gates are separate |
 | A-2 | `ddos/observe` is a faithful template for `anomaly/observe` | `ddos/observe/store.go` | observe child grows unplanned scope | read store.go + show.go (child-3 research) | **corrected (was partially)**: skeleton transfers AND the template NOW has a live query surface (`show.go` registers `ze-show:ddos-status`/`ze-show:ddos-incidents`; `handleShowDdosIncidents` calls `s.list()` at `show.go`), so the earlier "no query surface" note is stale (see Mistake Log). Remaining divergences: dest-tuple incident (`store.go`) vs source-prefix (`event.go`), `ddosevent` vs `anomalyevent`, single-node show, still-dead `sweepStale` ticker (`store_test.go`) |
-| A-3 | The flowexport enricher is reachable from the anomaly domain without a layering violation | `enrich/enricher.go` in a sibling plugin | as-cohorts needs a new shared seam | `architecture.md` + `dep_audit.py` (agent 4) | **broken** — a direct `detect → flowexport/enrich` import fails `./le tier check` (`dep_audit.py`: flowexport is an engine, the import flips `engine_depended`). Sanctioned path: stamp AS onto the core `observation`/`trafficfeature` surface at the flowexport producer → child 6 |
+| A-3 | The flowexport enricher is reachable from the anomaly domain without a layering violation | `enrich/enricher.go` in a sibling plugin | as-cohorts needs a new shared seam | `architecture.md` + `dep_audit.py` (agent 4) | **broken** — a direct `detect → flowexport/enrich` import fails `./le arch tier check` (`dep_audit.py`: flowexport is an engine, the import flips `engine_depended`). Sanctioned path: stamp AS onto the core `observation`/`trafficfeature` surface at the flowexport producer → child 6 |
 | A-4 | Upstream FlowSpec response needs only an origination seam + `shape` action, not new BGP family work | `AnnounceNLRIBatch` (reactor_api_batch.go) | child 7 grows scope | agent 5 (announce path + reachability) | **partially** — "no new BGP family" CONFIRMED (`test/encode/flow-encode.ci` proves the codec + traffic-action communities); ~~but the plugin→reactor seam does NOT exist (`ze.EventBus` is Emit/Subscribe only, `eventbus.go`) and FlowSpec origination is stubbed (`ddos/flowspec/responder.go`). RTBH is the shortcut once the seam lands~~ **re-checked 2026-08-03: A-4 is now CONFIRMED in full. The seam exists (`sdk.Plugin.UpdateRoute`) and FlowSpec origination is live (`ddos/flowspec/responder.go` dispatches announce and withdraw). See the Correction block** |
 | A-5 | Sub-second beaconing genuinely requires a new collector (cannot derive from 1s facts) | three 1s tickers | child 9 could be unblocked cheaply | `observation.Observation` has no sub-second aggregate seam; pipeline is 1s (agent 2/3) | **confirmed** |
 | A-6 | The end-to-end harness can compose the production chain | `docs/architecture/anomaly/anomaly-4-interop-harness.md` | AS evidence would use a disconnected injector | `TestChainFactsToResponse` composition | corrected: the fakeflow plugin was abandoned; use the in-process Go chain and retain `.ci` coverage for operator config/show reachability |
@@ -236,7 +236,7 @@ test passes and the roadmap stays truthful.
 | AC-1 | Phase-A child `observe` complete | `spec-anomaly-3-observe.md` closed: incident **lifecycle** store (open→finalize with EndTime/Active) + a NEW `show anomaly observe` query surface the detect ring lacks — not a bare mirror of `ddos/observe` |
 | AC-2 | Phase-A child `interop-harness` complete | `spec-anomaly-4-interop-harness.md` closed (learned 1054). ~~a test-only `fakeflow` plugin + one `.ci`~~ Delivered as an in-process Go integration test instead of the planned `fakeflow` plugin (see learned 1054); the chain facts→judgment→response is proven end to end. Annotated 2026-07-22 during plan review |
 | AC-3 | Phase-B child `entity-matrix` complete | `spec-anomaly-5-entity-matrix.md` closed: `trafficfeature` emits per-dest and per-port `FeatureEntry` lists and the detector scores them, preserving freeze-learn + warmup (prefix cohort for dest; port cohort-free) |
-| AC-4 | Phase-B child `as-enrichment` complete | `spec-anomaly-6-as-enrichment.md` closed: origin-AS is stamped onto the `observation`/`trafficfeature` surface at the flowexport producer, passing `./le tier check` (no `detect → flowexport/enrich` import) |
+| AC-4 | Phase-B child `as-enrichment` complete | `spec-anomaly-6-as-enrichment.md` closed: origin-AS is stamped onto the `observation`/`trafficfeature` surface at the flowexport producer, passing `./le arch tier check` (no `detect → flowexport/enrich` import) |
 | AC-5 | Phase-B child `as-entities-cohorts` complete | `spec-anomaly-7-as-entities-cohorts.md` closed: per-ASN entities + AS-origin cohort rarity read `fe.SrcAS`, degrading to prefix cohorts when AS is absent |
 | AC-6 | Phase-C child `upstream-response` | ~~`spec-anomaly-8-upstream-response.md` remains blocked and documents its prerequisite (the plugin→reactor announce seam / cp-survival-4); if the seam lands,~~ **superseded 2026-08-03, see the Correction block: the seam exists (`sdk.Plugin.UpdateRoute`) and `ddos/flowspec` uses it, so the prerequisite is to wire `shape` to it.** A classic-RTBH action fires under the responder state machine with auto-revert |
 | AC-7 | Phase-C child `subsecond-beaconing` | `spec-anomaly-9-subsecond-beaconing.md` remains blocked and documents its prerequisite (a sub-second collector spec); NOT implemented against the 1s pipeline |
@@ -312,7 +312,7 @@ Recommended order (harden, then widen, then extend):
   through. Child 8's one prerequisite is that `shape` still registers with `ze.EventBus` alone
   and must be given a dispatcher.**
 - **No plugin→plugin import.** The security domain cannot call `flowexport/enrich` directly — it
-  fails `./le tier check`. Origin-AS must ride the core `observation`/`trafficfeature` surface,
+  fails `./le arch tier check`. Origin-AS must ride the core `observation`/`trafficfeature` surface,
   stamped by the flowexport producer (child 6). AS work degrades to prefix cohorts when absent (R-3).
 - **`observe` is an in-memory ring, not durable storage**, and **no web UI surface exists** for
   ddos or anomaly anywhere in the repo — a web card is greenfield, out of scope unless a child
@@ -331,7 +331,7 @@ Recommended order (harden, then widen, then extend):
 - **Verification overturned my own memory in both directions.** I first called upstream FlowSpec
   "blocked", then "ready" after a shallow grep found `AnnounceNLRIBatch`, then the deep read
   settled it: no new BGP family (ready) BUT no plugin→reactor seam (blocked). And the enricher
-  that looked reachable is a `./le tier check` violation to import. A shallow grep is a hypothesis;
+  that looked reachable is a `./le arch tier check` violation to import. A shallow grep is a hypothesis;
   the producing code + the gate code are the finding.
 
 ## Mistake Log
@@ -339,7 +339,7 @@ Recommended order (harden, then widen, then extend):
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
 | Upstream FlowSpec response is "ready(dep)" because `AnnounceNLRIBatch` exists | The reactor API is real, but `shape` can't reach it (`ze.EventBus` is Emit/Subscribe only, `eventbus.go`) and FlowSpec origination is a stub (`ddos/flowspec/responder.go`) | deep read of the announce path + plugin reachability (agent 5) | child 8 reclassified back to **blocked** on the cp-survival-4 seam; RTBH noted as the shortcut |
-| The flowexport enricher can be imported by `anomaly/detect` for AS cohorts | A direct import fails `./le tier check` — flowexport is an engine and the import flips `engine_depended` (`dep_audit.py`) | read `architecture.md` + the gate code (agent 4) | AS cohorts split into child 6 (stamp AS onto the facts surface, tier-safe) + child 7 (consume it) |
+| The flowexport enricher can be imported by `anomaly/detect` for AS cohorts | A direct import fails `./le arch tier check` — flowexport is an engine and the import flips `engine_depended` (`dep_audit.py`) | read `architecture.md` + the gate code (agent 4) | AS cohorts split into child 6 (stamp AS onto the facts surface, tier-safe) + child 7 (consume it) |
 | Entity-matrix is mostly a detector re-key | Only sources carry a feature vector; dest/port/ASN need new FACTS in `trafficfeature` (`feature.go`), and ASN needs IP→AS that doesn't exist in the feed (`observation.go`) | read the facts layer (agent 3) | child 5 rescoped to FACTS-layer work; ASN moved behind the AS-enrichment prerequisite |
 | `ddos/observe` is a faithful template with a queryable store + web card | It is capture-only: `list()` is test-wired, no show handler, no web card anywhere in the repo | read `ddos/observe` + web grep (agent 1) | child 3 rescoped to add the lifecycle + query surface the template never had |
 | `ddos/observe` has no show handler and `list()` is test-only (`store.go`) — earlier finding, now stale | It NOW registers a live show surface (`show.go`) and calls `s.list()` in production (`show.go`); the template evolved since the umbrella was written | child-3 research (2026-07-02) reading `show.go` | A-2 corrected to "corrected"; child 3 justification shifts to source-prefix key + still-dead `sweepStale` ticker; the store skeleton + a show surface both transfer |

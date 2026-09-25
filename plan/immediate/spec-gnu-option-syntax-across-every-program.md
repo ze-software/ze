@@ -51,7 +51,7 @@ and the day a real short-option cluster is declared, their habit breaks.
 `--output -verbose` takes `-verbose` as the path. Nothing refuses it, because
 nothing knows a value may not begin with a dash. This is the class that cost a
 shared development machine about 943% CPU for twenty minutes on 2026-09-11:
-`./le stress-repro run suite -help` read the cluster as the value of `suite` and
+`./le test stress-repro run suite -help` read the cluster as the value of `suite` and
 started a load generator. `spec-le-publishes-its-command-surface` closes
 that one instance inside `le`. Every other program still carries it.
 
@@ -73,7 +73,7 @@ trailing one asks the question rather than starting work. It does not touch any
   → Constraint: [fill during research]
 
 **Key insights:** (minimal context to resume after compaction)
-- `./le cli-grammar` already reports flag-register violations as F1 to F4 (`FlagRegisterHit`, `internal/le/cligrammar/report.go`), so the gate has a home and a report shape already.
+- `./le cli grammar` already reports flag-register violations as F1 to F4 (`FlagRegisterHit`, `internal/le/cligrammar/report.go`), so the gate has a home and a report shape already.
 
 ## Current Behavior (MANDATORY)
 
@@ -144,7 +144,7 @@ trailing one asks the question rather than starting work. It does not touch any
 |-------------|---|--------------|------|
 | `ze appliance build -verbose` | → | the shared option parser | `TestASingleDashLongNameIsRefused` |
 | a flag value given `-something` | → | the same parser's value check | `TestADashLeadingTokenIsNotAValue` |
-| a new `flag.NewFlagSet` added anywhere | → | the `./le cli-grammar` feeder | `TestEveryFlagSetGoesThroughTheSharedParser` |
+| a new `flag.NewFlagSet` added anywhere | → | the `./le cli grammar` feeder | `TestEveryFlagSetGoesThroughTheSharedParser` |
 
 ## Acceptance Criteria
 
@@ -154,7 +154,7 @@ trailing one asks the question rather than starting work. It does not touch any
 | AC-2 | `--long` | Accepted exactly as today |
 | AC-3 | A dash-leading token where a value is expected | Refused by name, in every program |
 | AC-4 | `-help` at any program | Treated as the malformed cluster it is, and no work starts |
-| AC-5 | A `flag.NewFlagSet` constructed without the shared parser | `./le cli-grammar` names it |
+| AC-5 | A `flag.NewFlagSet` constructed without the shared parser | `./le cli grammar` names it |
 
 ## 🧪 TDD Test Plan
 
@@ -192,7 +192,7 @@ trailing one asks the question rather than starting work. It does not touch any
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | CLI commands/flags | Yes | every shipped program |
-| CLI grammar (keyword before value) | Yes | `./le cli-grammar` is the gate |
+| CLI grammar (keyword before value) | Yes | `./le cli grammar` is the gate |
 | Pipe completeness | N-A | no answer shape changes |
 
 ### Documentation Update Checklist (BLOCKING)

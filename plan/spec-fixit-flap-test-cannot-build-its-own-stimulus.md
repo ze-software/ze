@@ -41,7 +41,7 @@ guest, runtime kernel 7.2:
 ```
 
 The daemon and fixture binaries were both cross-built AFTER the counter landed
-(`bin/ze-linux-arm64` 14:01, `bin/ze-test-linux-arm64` 14:10, counter committed
+(`bin/ze-linux-arm64` 14:01, `bin/le-test-linux-arm64` 14:10, counter committed
 13:06), so this is not a stale binary reporting on old code.
 
 **Why this green is not the third false one.** Both earlier greens came from
@@ -65,10 +65,10 @@ went unfalsifiable. A run that did not overlap would have ended with
   22 stages red on 2026-09-04 morning and has not been re-measured since.
 
 **How to run it**, because reconstructing this cost six guest boots and the
-recipe is now in `docs/architecture/testing/qemu-integration.md`: `le qemu
+recipe is now in `docs/architecture/testing/qemu-integration.md`: `le test qemu
 all-tests` is a GUEST action, the Alpine guest needs `packages "coreutils
 iproute2"` or BusyBox `timeout` and `ip` defeat it, the binaries need canonical
-names, and a single test is `ze-test bgp plugin iface-link-flap-during-commit`.
+names, and a single test is `le-test bgp plugin iface-link-flap-during-commit`.
 
 The following account preserves the retraction and later repair sequence.
 
@@ -250,7 +250,7 @@ was questioned.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `ze-test bgp plugin iface-link-flap-during-commit` inside the supported Linux/QEMU environment.
+- `le-test bgp plugin iface-link-flap-during-commit` inside the supported Linux/QEMU environment.
 
 ### Transformation Path
 1. The fixture sends SIGHUP and observes the apply-start counter.

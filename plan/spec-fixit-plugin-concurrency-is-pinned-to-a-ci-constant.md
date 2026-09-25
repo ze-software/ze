@@ -44,7 +44,7 @@ override is set. `Suite.Command` applies it to the scaled `plugin` and `encode`
 suites. Both implementation phases are present; this spec now owes the repeated
 measurements recorded in the September 5 finding below.
 
-**Measured**, the retired `ze-functional-plugin-test ZE_PLUGIN_PARALLEL=N` (current: `./le functional plugin`), seven runs
+**Measured**, the retired `ze-functional-plugin-test ZE_PLUGIN_PARALLEL=N` (current: `./le test functional plugin`), seven runs
 on a 32-core box, against the suite's 4545s sum of per-test medians:
 
 | N | suite | speedup | parallel efficiency | pass |
@@ -155,7 +155,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le functional plugin`, `./le functional encode`, and the aggregate `./le functional`.
+- `./le test functional plugin`, `./le test functional encode`, and the aggregate `./le test functional`.
 
 ### Transformation Path
 1. `Suite.Command` calls `Parallel` for a scaled suite and passes the derived `-p`.
@@ -166,7 +166,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `le functional` ↔ bgp runner | the `-p` flag | Yes -- `TestParallelIsFlooredAndOverridable` and `TestScaledSuitesCarryTheDerivedConcurrency` drive `Suite.Command`, which is the argv the run executes. The makefile the row named was retired in `eae282592` |
+| `le test functional` ↔ bgp runner | the `-p` flag | Yes -- `TestParallelIsFlooredAndOverridable` and `TestScaledSuitesCarryTheDerivedConcurrency` drive `Suite.Command`, which is the argv the run executes. The makefile the row named was retired in `eae282592` |
 | runner ↔ per-test budget | `parallelFactor` | Yes -- `withParallelHeadroom`, unchanged |
 | runner ↔ an in-test deadline | `ze.test.parallel.factor` in the child environment | Yes -- `mcp-parallel-factor-published.ci` (producer), `TestMCPReadinessScalesWithConcurrency` (consumer) |
 
@@ -213,7 +213,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 |-------------|---|--------------|------|
 | an MCP test under concurrency | → | the scaled readiness deadline | `TestMCPReadinessScalesWithConcurrency`, `mcp-ready-under-load.ci` |
 | the runner exec'ing any `cmd=` child | → | `ze.test.parallel.factor` in its environment | `TestParallelFactorEnvPublishesTheRunnerFactor`, `mcp-parallel-factor-published.ci` |
-| `./le functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `TestParallelIsFlooredAndOverridable`, `TestScaledSuitesCarryTheDerivedConcurrency` |
+| `./le test functional plugin` | → | the derived `ZE_PLUGIN_PARALLEL` | `TestParallelIsFlooredAndOverridable`, `TestScaledSuitesCarryTheDerivedConcurrency` |
 | a 4-vCPU host | → | the floor | `TestParallelIsFlooredAndOverridable` (cores 1, 7 and 8 all answer 8), `TestConcurrencyFloorIsTheRunnersOwn` |
 | `reload`, `managed`, `vpp` | → | their recorded serial setting | `TestSerialSuitesStaySerial` |
 
@@ -222,7 +222,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | The MCP readiness wait runs under concurrency > 1 | Its deadline is widened by the same factor the runner applies to a per-test budget, not replaced by a larger constant |
-| AC-2 | `./le functional plugin` at the derived value, repeated at least three times | `MCP server not ready` appears zero times across every repeat |
+| AC-2 | `./le test functional plugin` at the derived value, repeated at least three times | `MCP server not ready` appears zero times across every repeat |
 | AC-3 | A host with 4 cores | `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` are still 8. CI is unchanged |
 | AC-4 | `plugin` and `encode`, before and after, same host | Each is measured SEPARATELY and neither regresses. `encode` is not assumed to follow `plugin` |
 | AC-5 | The derived value on this 32-core host | It is at most the core count, and the spec says what 32 concurrent daemons cost when four such jobs are admitted at once |

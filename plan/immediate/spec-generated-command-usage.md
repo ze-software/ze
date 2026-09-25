@@ -57,7 +57,7 @@ already integrated into documentation verification.
   → Constraint: `selector` MUST NOT leak into operator syntax. The announce
     module declares a mandatory `selector` leaf, so the generated line for
     `announce` must not render the word `selector` as a keyword.
-  → Decision: the static grammar gate is `./le cli-grammar`, and its R9 check
+  → Decision: the static grammar gate is `./le cli grammar`, and its R9 check
     refuses a sibling collision. Any new sibling container this spec adds passes
     that gate before it is considered modelled.
 - [ ] `docs/architecture/api/commands.md` - the published command contract
@@ -181,7 +181,7 @@ The two are not the same measurement and the difference is not the identifier
 collision.** Seven declarations live in test-only plugin modules under
 `internal/test/plugins/` (`ze-fakeas112-cmd`, `ze-fakel2tp-cmd`,
 `ze-fakeredist-cmd`), which the product binary never registers. The existing
-`./le docvalid command-contract` has always reported 377, so a phase's Verify
+`./le doc yang-contract command-contract` has always reported 377, so a phase's Verify
 line must expect 377 command nodes rather than 384.
 
 **The five failure classes:**
@@ -234,7 +234,7 @@ line must expect 377 command nodes rather than 384.
 4. Three sinks read the result: `writeHelp` in
    `internal/component/command/help.go` for operator help, `renderHelpCommand`
    in `cmd/ze/help_command.go` for the published catalog, and the new
-   `./le docvalid usage-contract` verb for the gate.
+   `./le doc yang-contract usage-contract` verb for the gate.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -242,7 +242,7 @@ line must expect 377 command nodes rather than 384.
 | YANG text → command tree | goyang parse, `mergeYANGEntry` | No |
 | Command tree → operator help | `writeHelp` writes to stderr | No |
 | Command tree → published catalog | `commandEntry` JSON, kebab-case keys | No |
-| Command tree → repository gate | `./le docvalid usage-contract` compares the generated string against the authored sentence and against HEAD | No |
+| Command tree → repository gate | `./le doc yang-contract usage-contract` compares the generated string against the authored sentence and against HEAD | No |
 | Command tree → positional binding | `positionalDef` in `internal/component/plugin/server/command.go` | No |
 
 ### Integration Points
@@ -317,10 +317,10 @@ then its children are listed, which is new output where today there is none.
 |----|------|--------------|----------------------|
 | R-1 | The order trap. Changing the definition order to declaration order changes which leaf a bare positional token BINDS to, and the result is a validation verdict rather than an error the operator can read. `show system sockets 8080` would bind to `state`, a pattern-less string that accepts anything, instead of `port`. Corrected 2026-08-29: the binding is a validation binding, not a rewrite, so on this command it changes no answer. It changes an answer where a MANDATORY typed leaf is filled positionally, which is the `show tcp-check <host> <port>` case `positionalDef`'s own comment records | `TestPositionalBindingIsOrderIndependent` fails when it shuffles the definition slice | Phase 3 lands BEFORE phase 4. Binding ranks by constraint strength (enumeration, then bounded uint, then unbounded uint, then patterned string, then union ranked by its most permissive member, then pattern-less string) and breaks a tie by name, so no slice order can change the answer |
 | R-2 | The gate's cheapest route from red to green is deleting the authored sentence, which hides the gap instead of closing it | the authored-line count falls while no model change lands in the same commit | The gate compares against HEAD, never against a checked-in baseline. Deleting an authored line whose generated usage differed at HEAD is refused unless the generated usage now equals that line |
-| R-4 | Splitting `withdraw` into sibling commands changes the wire methods the announce plugin must serve, and a missed registration makes a documented command unreachable | `./le docvalid command-contract` reports a YANG node with no handler | Phase 7 registers the handler side first and the YANG second, so the contract check is green at every commit |
+| R-4 | Splitting `withdraw` into sibling commands changes the wire methods the announce plugin must serve, and a missed registration makes a documented command unreachable | `./le doc yang-contract command-contract` reports a YANG node with no handler | Phase 7 registers the handler side first and the YANG second, so the contract check is green at every commit |
 | R-5 | Declaring the 18 missing leaves gives typed arguments to commands that previously accepted a free-form tail, so a previously accepted invocation is now rejected | the `.ci` suite for the affected command goes red | Each missing leaf is declared with the widest type that still names the value, and the phase adds a `.ci` asserting the previously accepted invocation still works |
 | R-6 | A large enumeration renders an unreadable line, since an enum leaf renders its whole value set | a generated line exceeds terminal width in `ze help` | Accepted for this spec and recorded under Known Limitations. Truncation is a rendering change with no model consequence |
-| R-7 | New sibling containers under `withdraw` trip the R9 sibling-collision check in the static grammar gate | `./le cli-grammar` reports a collision | Run the static gate in phase 7 before the modelling is called done |
+| R-7 | New sibling containers under `withdraw` trip the R9 sibling-collision check in the static grammar gate | `./le cli grammar` reports a collision | Run the static gate in phase 7 before the modelling is called done |
 
 ## Blast Radius
 
@@ -334,7 +334,7 @@ then its children are listed, which is new output where today there is none.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le docvalid usage-contract` | → | the usage gate answer function in `internal/le/docvalid` | `TestUsageContractVerbRegistered` |
+| `./le doc yang-contract usage-contract` | → | the usage gate answer function in `internal/le/docvalid` | `TestUsageContractVerbRegistered` |
 | `ze help create interface dummy name unit` | → | `writeHelp` in `internal/component/command/help.go` calls the renderer | `test-help-usage-generated.ci` |
 | `ze help command --json` | → | `renderHelpCommand` in `cmd/ze/help_command.go` populates `usage` and `grammar` | `TestHelpCommandJSONPublishesUsage` |
 | `show system sockets port 8080` over the command socket | → | `handleShowSystemSockets` in `internal/component/cmd/show/sockets_linux.go` | `test-show-system-sockets-keyword-filters.ci` |
@@ -349,8 +349,8 @@ then its children are listed, which is new output where today there is none.
 | AC-3 | `ze request l2tp outgoing-call remote called help` | The first line reads `request l2tp outgoing-call remote <remote> called <called>`. The order follows the declaration and the path, not the alphabet |
 | AC-4 | `show system sockets port 8080` and `show system sockets state ESTABLISHED`, run against a Linux daemon | The first filters by port, the second by socket state. A bare `8080` is NOT a filter and never was: `handleShowSystemSockets` (`internal/component/cmd/show/sockets_linux.go`) matches the literal keywords `tcp`, `udp`, `state` and `port` and ignores every other token, so the keyword form is the only filtering form and it is the one `ai/rules/cli.md` requires. The separate order-independence property is about which leaf `validateCommandArgs` BINDS a positional token to, which is `TestPositionalBindingIsOrderIndependent` |
 | AC-5 | `ze create interface dummy name help`, a command node that also has children | The generated usage line is printed, followed by the child listing. Today this node prints no description at all |
-| AC-6 | Any YANG `description` reached by the command tree | No description prescribes a CLI spelling under any of `Usage:`, `Syntax:` or `Filters:`. `./le docvalid usage-contract` exits non-zero when one does. `Example:` is NOT a marker: `ze-fib-p4-conf.yang` writes `Example: 127.0.0.1:9559` to say what a listener address looks like, which prescribes no CLI spelling |
-| AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le docvalid usage-contract` exits non-zero and names the command, the authored line and the generated line. One difference is exempt, by owner ruling of 2026-08-29: placeholder wording alone. `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to `<>` and the two lines are compared folded, so `[count <n>]` against `[count <count>]` is a deletion the gate allows and `request interface <name> down` against `request interface down <name>` is one it still refuses |
+| AC-6 | Any YANG `description` reached by the command tree | No description prescribes a CLI spelling under any of `Usage:`, `Syntax:` or `Filters:`. `./le doc yang-contract usage-contract` exits non-zero when one does. `Example:` is NOT a marker: `ze-fib-p4-conf.yang` writes `Example: 127.0.0.1:9559` to say what a listener address looks like, which prescribes no CLI spelling |
+| AC-7 | A commit that removes an authored `Usage:` sentence whose generated usage differed from it at HEAD, without changing the model | `./le doc yang-contract usage-contract` exits non-zero and names the command, the authored line and the generated line. One difference is exempt, by owner ruling of 2026-08-29: placeholder wording alone. `usageShape` (`internal/le/docvalid/usage.go`) folds every `<...>` group to `<>` and the two lines are compared folded, so `[count <n>]` against `[count <count>]` is a deletion the gate allows and `request interface <name> down` against `request interface down <name>` is one it still refuses |
 | AC-8 | A commit that adds a `ze:command` container whose description contains `Usage:` | The gate exits non-zero and names the container |
 | AC-10 | `ze announce help` | The line ends with `[tag <key> <value>] [for <duration>]`, rendered from a child container carrying `ze:modifier` for the two-value `tag` group and from an optional leaf for `for`, and `ze help command --json` marks those tokens optional |
 | AC-11 | `ze withdraw help`, and `ze help command withdraw` | `withdraw tag`, `withdraw id` and `withdraw all` each appear as their own command with their own usage line, and `withdraw` alone lists them as subcommands |
@@ -457,7 +457,7 @@ then its children are listed, which is new output where today there is none.
   `grammar`.
 - `ai/patterns/cli-command.md` - a command declares its grammar, never describes it.
 - `ai/rules/cli.md` - the `Usage:` prose ban gains its feeder, named.
-- `ai/INDEX.md` - the native command inventory row for `./le docvalid`.
+- `ai/INDEX.md` - the native command inventory row for `./le doc yang-contract`.
 
 ## Files to Create
 - `internal/component/command/usage.go` - the renderer that turns a path and a
@@ -481,7 +481,7 @@ then its children are listed, which is new output where today there is none.
 | YANG validation constraints | Yes | Each newly declared leaf takes the narrowest native type available. The unit vid is a bounded uint16, not a string |
 | YANG custom validators | N-A | No value needs validation the type system cannot state |
 | CLI commands/flags | Yes | `cmd/ze/help_command.go` publishes the new fields. No new flag is added |
-| CLI grammar (keyword before value) | Yes | The optional-leaf rendering rule exists to satisfy `ai/rules/cli.md`, and `./le cli-grammar` gates every new sibling container |
+| CLI grammar (keyword before value) | Yes | The optional-leaf rendering rule exists to satisfy `ai/rules/cli.md`, and `./le cli grammar` gates every new sibling container |
 | Editor autocomplete | Yes | Automatic. New leaves and containers reach completion through the same tree, which is what AC-13 protects |
 | Functional test for new RPC/API | Yes | Six `.ci` files under `test/ui/` |
 | Pipe completeness | N-A | `ze help command` already routes through the pipe layer, and no new command is added |
@@ -508,7 +508,7 @@ then its children are listed, which is new output where today there is none.
 | 13 | Route metadata keys added/changed? | N-A | No route metadata |
 | 14 | Prometheus counters added/changed? | N-A | None added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | three new command paths under `withdraw`; `docs/plugin-overview.md` and `docs/features/plugins.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | RUN 2026-08-29, exit 0. `./le spec citation anchors spec plan/immediate/spec-generated-command-usage.md` names EIGHT further documents that mention this spec's code and that the spec does not list. Three are affected and three of the eight are not yet judged: `docs/features/introspection.md` and `docs/guide/cli.md` (both mention `cmd/ze/help_command.go`) ARE affected, because the catalog gains `usage` and `grammar`; `docs/architecture/cli/command-completion.md` (mentions `internal/component/command/node.go`) needs a read, because argument definitions are now in declared order. The five that mention `internal/component/plugin/server/command.go` (`docs/architecture/aaa-tacacs.md`, `docs/architecture/api/architecture.md`, `docs/features/cli-commands.md`, `docs/guide/authorization.md`, `docs/guide/tacacs.md`) are UNAFFECTED: they describe authorization and dispatch, and the change is confined to which definition a positional token binds to. TWO FURTHER SURFACES appeared once the code was read and neither was in the spec: `internal/le/wikicatalog/catalog.go` is a SECOND producer of the same catalog and `./le docvalid doc-drift` compares the two, and `internal/le/docvalid/command_surfaces.go` parses the live catalog with `DisallowUnknownFields`. Both had to gain the fields in phase 5. The published artifacts they check, `../wiki/command-catalog.md` and `../gh-pages/data/cli-commands.json`, are now stale and need `./le wiki-catalog update` and `./le site build`. Four declared design documents are named here. `docs/architecture/api/commands.md`, declared by `internal/component/command/help.go`, IS affected: help output gains a generated usage line and the catalog gains two fields. `docs/architecture/api/process-protocol.md`, declared by `internal/component/plugin/server/command.go`, is UNAFFECTED: the plugin transport, message shape and dispatch keys do not change, only which argument definition a positional token binds to inside one server-side helper. `docs/architecture/config/yang-config-design.md`, declared by `internal/component/config/yang/command.go`, is UNAFFECTED: the config tree, its resolution and its validation are untouched, and the change is confined to the `config false` command schema. `docs/architecture/core-design.md`, declared by `internal/le/docvalid/actions.go`, is UNAFFECTED: it describes documentation checks as one command, and this spec adds one verb to that command without changing the shape |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | RUN 2026-08-29, exit 0. `./le spec citation anchors spec plan/immediate/spec-generated-command-usage.md` names EIGHT further documents that mention this spec's code and that the spec does not list. Three are affected and three of the eight are not yet judged: `docs/features/introspection.md` and `docs/guide/cli.md` (both mention `cmd/ze/help_command.go`) ARE affected, because the catalog gains `usage` and `grammar`; `docs/architecture/cli/command-completion.md` (mentions `internal/component/command/node.go`) needs a read, because argument definitions are now in declared order. The five that mention `internal/component/plugin/server/command.go` (`docs/architecture/aaa-tacacs.md`, `docs/architecture/api/architecture.md`, `docs/features/cli-commands.md`, `docs/guide/authorization.md`, `docs/guide/tacacs.md`) are UNAFFECTED: they describe authorization and dispatch, and the change is confined to which definition a positional token binds to. TWO FURTHER SURFACES appeared once the code was read and neither was in the spec: `internal/le/wikicatalog/catalog.go` is a SECOND producer of the same catalog and `./le doc yang-contract doc-drift` compares the two, and `internal/le/docvalid/command_surfaces.go` parses the live catalog with `DisallowUnknownFields`. Both had to gain the fields in phase 5. The published artifacts they check, `../wiki/command-catalog.md` and `../gh-pages/data/cli-commands.json`, are now stale and need `./le cli catalog update` and `./le site build`. Four declared design documents are named here. `docs/architecture/api/commands.md`, declared by `internal/component/command/help.go`, IS affected: help output gains a generated usage line and the catalog gains two fields. `docs/architecture/api/process-protocol.md`, declared by `internal/component/plugin/server/command.go`, is UNAFFECTED: the plugin transport, message shape and dispatch keys do not change, only which argument definition a positional token binds to inside one server-side helper. `docs/architecture/config/yang-config-design.md`, declared by `internal/component/config/yang/command.go`, is UNAFFECTED: the config tree, its resolution and its validation are untouched, and the change is confined to the `config false` command schema. `docs/architecture/core-design.md`, declared by `internal/le/docvalid/actions.go`, is UNAFFECTED: it describes documentation checks as one command, and this spec adds one verb to that command without changing the shape |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/command-reference.md` shows invocation forms taken from the prose being deleted. Each one is checked against the generated line |
 
 ## Implementation Steps
@@ -519,7 +519,7 @@ then its children are listed, which is new output where today there is none.
      `internal/le/docvalid/usage_test.go`
    - Also in this phase: count `Usage:` inside `test/` to settle A-7, and run
      `./le spec citation anchors` to settle documentation row 16
-   - Verify: `./le docvalid usage-contract` runs, reports 82 authored lines and
+   - Verify: `./le doc yang-contract usage-contract` runs, reports 82 authored lines and
      377 command nodes, and exits non-zero because the generated side is a stub
 2. **Phase: The renderer** -- the rendering rule table becomes code
    - Tests: `TestUsagePlacesValueAfterDeclaringKeyword`,
@@ -572,7 +572,7 @@ then its children are listed, which is new output where today there is none.
    - Files: `internal/component/config/yang/modules/ze-extensions.yang`, the 14
      modifier-carrying modules, the announce module and its handler registration
    - Verify: every modifier group renders from the model, `withdraw` becomes
-     three commands, `./le docvalid command-contract` and `./le cli-grammar`
+     three commands, `./le doc yang-contract command-contract` and `./le cli grammar`
      stay green
 8. **Phase: Delete the prose and cap the exception** -- the end state
    - Tests: `TestUsageContractRefusesHiddenGap`,
@@ -599,7 +599,7 @@ then its children are listed, which is new output where today there is none.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | No authored usage prose remains | a repository-wide count of `Usage:`, `Syntax:` and `Filters:` in `.yang` returns 0 |
-| Every command node renders a usage line | `./le docvalid usage-contract` exits 0 |
+| Every command node renders a usage line | `./le doc yang-contract usage-contract` exits 0 |
 | The catalog publishes both projections | `ze help command --json` shows `usage` and `grammar` on every entry with a wire method |
 | Operator help shows the form | `ze help create interface dummy name unit` prints the AC-2 line |
 | Binding is order independent | `TestPositionalBindingIsOrderIndependent` passes over every permutation |
@@ -854,7 +854,7 @@ Each row says what the spec claimed, what the code says, and why the change.
   it.** `BuildCommandTree` (`internal/component/config/yang/command.go`) reads
   `-cmd` modules only. The four `Syntax:` and `Filters:` sentences in
   `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` sit on `rpc`
-  statements in an `-api` module, so `./le docvalid usage-contract` never sees
+  statements in an `-api` module, so `./le doc yang-contract usage-contract` never sees
   them and the authored count of 81 excludes them. Widening the population from
   the command tree to every YANG module is a different change and is not this
   spec's.
@@ -932,7 +932,7 @@ Each row says what the spec claimed, what the code says, and why the change.
   count below records the pass that took it to 24; 3b376b4b7 took it to 11 and
   the review commit took it to 9. Each of the 9 is named in Closure status.
 - **The prose deletion stopped at 57 of the 81 sentences, and 24 stand.**
-  `./le docvalid usage-contract` reported 379 command nodes, 81 authored
+  `./le doc yang-contract usage-contract` reported 379 command nodes, 81 authored
   sentences and 32 differences before the deletion phase, then 379, 32 and 32,
   and 379, 25 and 25 after the 7 placeholder-only sentences went. The 57th is
   `show metrics name`, whose grammar changed rather than whose prose was
@@ -1031,7 +1031,7 @@ Independent review of the eight commits 5f5b73261, e53c244ab, bd25f033e,
 2e5e502f1, 5bcb20da2, 0b0c965b9, 3b376b4b7 and eff4c1e38, run by a context that
 wrote none of them. Artifact:
 `tmp/review/generated-command-usage-0d49d3a4-3753-4eb2-86d9-cd63bdb9cafb.md`,
-verdict clean, 9 files pinned, `./le spec session review check` exits 0.
+verdict clean, 9 files pinned, `./le spec review check` exits 0.
 
 ### Run 1
 | Severity | Finding | File | Resolution |
@@ -1044,7 +1044,7 @@ verdict clean, 9 files pinned, `./le spec session review check` exits 0.
 ### Run 2
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
-| - | No BLOCKER and no ISSUE. The dispatcher package, the command, yang, docvalid, cmd/ze, show, iface, wikicatalog and site packages are green, and `ze-test fixture ui/cli-verb-daemon-dispatch` exits 0 | - | - |
+| - | No BLOCKER and no ISSUE. The dispatcher package, the command, yang, docvalid, cmd/ze, show, iface, wikicatalog and site packages are green, and `le-test fixture ui/cli-verb-daemon-dispatch` exits 0 | - | - |
 
 ### What the review verified against source
 
@@ -1059,7 +1059,7 @@ verdict clean, 9 files pinned, `./le spec session review check` exits 0.
 
 ## Closure investigation, 2026-08-30: one command remained
 
-Measured on 2026-08-30 with `./le docvalid usage-contract`, over an overlay of
+Measured on 2026-08-30 with `./le doc yang-contract usage-contract`, over an overlay of
 HEAD carrying the working tree: 384 command nodes, 1 authored usage sentence,
 1 disagreement, 0 deletions hiding a difference.
 

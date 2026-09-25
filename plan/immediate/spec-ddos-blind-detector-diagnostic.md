@@ -64,5 +64,5 @@ one, which is why it is noted here rather than in a fixit shard. If
 accessor is the natural input to this check.
 
 **Owning gate.** `go test -race ./internal/plugins/ddos/detect` for the
-check itself, then `./le functional plugin`. `doctor_test.go` already exists in the
+check itself, then `./le test functional plugin`. `doctor_test.go` already exists in the
 package and is the place the new check's unit coverage belongs.

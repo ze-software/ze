@@ -93,7 +93,7 @@ The name dies with the decomposition, whichever destination that work gets.
 ### Integration Points
 - `internal/le/protocolskeleton/protocolskeleton.go` LEGACY_EXCEPTIONS - one row removed per child
 - `ai/rules/go-standards.md` glossary + `ai/rules/protocol.md` exceptions/probe - rows updated per child
-- `ai/PACKAGE-MAP.md` - regenerated (`./le discovery-index update`) per child
+- `ai/PACKAGE-MAP.md` - regenerated (`./le repo package-map update`) per child
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -174,7 +174,7 @@ The name dies with the decomposition, whichever destination that work gets.
 - `ai/rules/go-standards.md` - glossary rows (`wireu`, `wire` exception)
 - `ai/rules/protocol.md` - probe rows + exceptions table
 - `internal/le/protocolskeleton/protocolskeleton.go` - LEGACY_EXCEPTIONS + selftest fixtures
-- `ai/PACKAGE-MAP.md` - regenerated per child (`./le discovery-index update`)
+- `ai/PACKAGE-MAP.md` - regenerated per child (`./le repo package-map update`)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |

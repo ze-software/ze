@@ -1,4 +1,4 @@
-### `ze-test bgp plugin` forward-overflow-two-tier -- one failure on 2026-08-08, NOT reproduced since
+### `le-test bgp plugin` forward-overflow-two-tier -- one failure on 2026-08-08, NOT reproduced since
 
 Observed ONCE, during the repair of GitHub Actions run 31225029268, and not one
 of that run's own failures. The symptom was an `ordered:` needle against a
@@ -18,7 +18,7 @@ been legitimate, and the spec said so itself.
 |---------|-------|
 | Tool | the retired `scripts/dev/stress-repro.py "bgp plugin" --test forward-overflow-two-tier --any-failure` (current producer: `internal/le/stressrepro/run.go`) |
 | Invocations | 80 |
-| Concurrent `ze-test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
+| Concurrent `le-test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
 | CPU/GC burners | 32 (tool default, `2*NCPU`, NOT chosen) |
 | `ZE_PLUGIN_PARALLEL` | **never set.** See "What the attempt did NOT do" |
 | Run alone (no burners, no concurrency) | **never run** |
@@ -38,12 +38,12 @@ point of the shard, so it is stated before the result is used.
 **`ZE_PLUGIN_PARALLEL` was never raised, and the reason first recorded here was
 wrong.** `--parallel` is a DIFFERENT knob: its own help calls it "concurrent
 invocations per round", and it is the `max_workers` of the `ThreadPoolExecutor`
-that launches whole `ze-test` processes. Plugin-level parallelism inside one
+that launches whole `le-test` processes. Plugin-level parallelism inside one
 runner was never raised, which is what the spec's Task asked for.
 
 An earlier draft of this shard said `run_once` (the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`))
 cannot set it, because that function builds the child environment with
-`ze.bin`, `ze.test.bin`, `ZE_TEST_NO_BUILD` and `GOTRACEBACK`. That reasoning
+`ze.bin`, `le.test.bin`, `LE_TEST_NO_BUILD` and `GOTRACEBACK`. That reasoning
 does not hold: the same function opens with `env = dict(os.environ)`, so the
 variable is INHERITED from the caller. The real reason raising it changes
 nothing here is different and simpler. `ZE_PLUGIN_PARALLEL` is a make variable
@@ -108,7 +108,7 @@ peer: attach`, a config grammar the working tree parses and a day-old binary did
 not. Nothing about the suspected flake was exercised.
 
 The cause is a documented trap the tool still carries: `_bin_from_env`
-(the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`)) honours `ZE_BIN` / `ZE_TEST_BIN` but FALLS BACK
+(the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`)) honours `ZE_BIN` / `LE_TEST_BIN` but FALLS BACK
 to `bin/ze`, and in this repository that path is stale by construction, because
 the retired `mk/helper-session.mk` (current producer: `internal/le/session/actions.go`) builds the canonical binaries into a per-session directory.
 `ensure_binaries` checks only that the files exist. The tool's own docstring
@@ -127,7 +127,7 @@ two entries are not new ideas, they are the spec's own conditions, still unrun.
 
 1. With `ZE_PLUGIN_PARALLEL` well above the core count. This is the setting the
    spec named and the attempt never set. `stress-repro.py` cannot set it, so
-   export it around the runner, or run `ze-test` directly.
+   export it around the runner, or run `le-test` directly.
 2. Alone: one invocation, no burners, no concurrency. The Task asked for the
    isolated case and no run answers it.
 3. Against the COMMITTED variant of the `.ci`, which is the fixture that actually

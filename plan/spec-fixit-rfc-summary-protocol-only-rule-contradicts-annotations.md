@@ -218,7 +218,7 @@ moving, the blast radius includes every annotation in the corpus.
 - `internal/le/rfc/rfc.go` -- the new register check
 - `internal/le/` -- the failing case first
 - `ai/rules/points/rfc-compliance/` -- the point file behind the protocol-only
-  directive, then `./le rules condensed-update` and `./le rules lint`
+  directive, then `./le ai rules condensed-update` and `./le ai rules lint`
 - `rfc/short/rfc1035.md` and whichever others AC-3 finds in prose
 
 ## Files to Create
