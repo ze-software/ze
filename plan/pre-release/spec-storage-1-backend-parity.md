@@ -843,3 +843,167 @@ Preserved binaries and counterfactual inputs remain available for the next phase
 - Next: a third `./le verify worktree` on the commit if the owner wants the number; otherwise `/ze-close` in a
   fresh session (Review Gate artifact exists; QEMU run for the three caps-gated carriers owed; owner items:
   `./le rfc approve unit` x3, `ze init --from etc/ze/database.zefs`).
+
+## Implementation Summary
+
+### What Was Implemented
+- One live store encoding, the `database/` tree (`internal/component/config/storage/tree.go`, `open.go`, `store.go`), behind the `Storage` contract now declared in `internal/core/statestore` and aliased in `storage.go`. The blob is an artifact: `Open` refuses it by name (`TestOpenRefusesBlobStatOnly`), `ImportBlob` (`import.go`) and `ze init --from` are the only way in.
+- Per-name pointers (`pointerPath`, `pointer.go`), store folder resolution (`resolve.StorageFor`), `ze start <file>` auto-create, gate and bypass removal, OSPF state through the daemon, appliance seed import, the re-cut suite, site and wiki (`../wiki` `92aa8cb`).
+- Closure (2026-09-25, session d1bd1f18): `CheckName` compares folder identity (`8216c5ef3d`), the lock create is exclusive-then-open (`53307d62c8`), and the le session seeder imports a tree (`0c2be06943`), all landed by other sessions and reviewed here.
+
+### Bugs Found/Fixed
+- Commit path slowness behind `audit-config-commit`: `YANGSchema()` built once (`e78411042c`, 3.3 s to 1.9 s). The fixture's REST deadline now derives from the test budget (`10bafcf4c4`). The test now passes in 5.3 s end to end while the full verify ran beside it.
+- `api-reload` coin flip: process bindings sorted (`bgp/reactor/config.go`, `e78411042c`).
+
+### Documentation Updates
+- Pages listed in the Documentation Update Checklist were edited by the implementation commits (`ba67a8b89c`, `d319c4ac48`, `381b43c652`). Closure repointed the `// Design:` header of `internal/component/config/storage/storage_test.go` from this spec to `docs/architecture/storage-backends.md`.
+- `./le doc check verify`: red on one group only, the published per-command surface for `request bgp adj-rib-in disable-validation` (commit `e6f9dcbab7`, another session). Journal row in `plan/journal/published-value-drifts-from-the-behavior-it-describes.md`.
+
+### Deviations from Plan
+- Planned unit test names were renamed during implementation. The behavior is covered by: `TestOpenMissingDoesNotCreate`, `TestOpenRefusesBlobStatOnly`, `TestOpenRejectsInsecureNodes`, `TestOpenRejectsSymlinksAndSpecialFiles`, `TestOpenRejectsForeignOwnerEvenForRoot`, `TestTreeCorruptionAndRepairCanBeOpened`, `TestConcurrentCreateRetainsOneOwner`, `TestCreatePrivatePermissionsAndReopen`, `TestImportRefusesCorruptSource`, `TestPointersArePerConfigName`, `TestInitRefusesExistingBlob`, `TestGokrazyAutoInitCreatesDB`, `TestStdinAbsentStoreCreatesNothing`, `TestEditRefusesWithoutStore`.
+- AC-5: O-2's lifetime writer ownership replaces two concurrent writable handles (Implementation Authorization).
+- AC-4: ancestors are not checked (owner, 2026-09-17).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The implementation's evidence index under `tmp/session/2026-09-17-e4a8cc45-*` was relied on as the AC-27 record | `tmp/` was cleaned, so the record of which recut was discriminated was lost | closure could not name the 23rd test | closure re-ran the discrimination for all ten `.ci` recuts and wrote the result here, in the committed spec |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One live tree behind the storage contract | Done | `storage/open.go` `Open`, `tree.go` | |
+| No encoding knowledge outside storage | Done | `./le arch fs-persistence check` detector; `zefs.Open` outside storage only in `plugins/debug/profile.go` (A-4 side store) and the detector itself | |
+| Blob is an artifact | Done | `import.go` `ImportBlob`, `plugins/init` `--from` | |
+| Store in the config's folder, permissions checked | Done | `resolve.StorageFor`, `open.go` `secureNode` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestStorageConformance` tree rows, `TestCreatePrivatePermissionsAndReopen` | |
+| AC-2 | Done | `TestOpenRefusesBlobStatOnly`, `start-refuses-blob.ci` | |
+| AC-3 | Done | `TestOpenMissingDoesNotCreate` | |
+| AC-4 | Done | `TestOpenRejectsInsecureNodes`, `TestOpenRejectsSymlinksAndSpecialFiles`, `TestOpenRejectsForeignOwnerEvenForRoot`, `start-refuses-loose-mode.ci` | ancestors unchecked, owner decision |
+| AC-5 | Changed | `TestConcurrentCreateRetainsOneOwner`, `TestCreatePopulatedDoesNotReplaceEmptyTree` | O-2 |
+| AC-6 | Done | `TestImportEqualsSource`, `TestImportRefusesCorruptSource`, `TestImportResumesCrashBoundaries` | |
+| AC-7 | Done | `TestTreeCorruptionAndRepairCanBeOpened` | |
+| AC-8 | Done | `TestStorageConformance` | |
+| AC-9 | Done | `TestStorageConformance` list rows | |
+| AC-10 | Done | `TestPointersArePerConfigName`; ten `.ci` recuts RED under a nameless-pointer mutant (below) | |
+| AC-11 | Done | `TestStorageForResolution` | |
+| AC-12, AC-13, AC-14 | Done | `init-creates-tree.ci`, `TestInitRefusesExistingBlob`, `TestInitAtomicTree`, `TestPopulatedPublicationAndReplacement` | |
+| AC-15, AC-16 | Done | `start-auto-creates.ci`, `start-refuses-blob.ci` | |
+| AC-17 | Done | `login-on-tree.ci`, `web-on-tree.wb`, `start-on-tree.ci` | |
+| AC-18 | Done | `statestore-on-tree.ci`, `storage-ntp-restart.ci`, `storage-tc-restart.ci` (QEMU PASS 2026-09-25) | |
+| AC-19 | Done | `ospf-state-through-daemon.ci` (QEMU PASS 2026-09-25) | |
+| AC-20 | Done | `TestConnectRefusesWithDaemon`, `TestUsersFromZefsDBIgnoresRemoteDefaultPointer`, `doctor-without-store.ci` | |
+| AC-21 | Done | fs-persistence detector and its negative tests | |
+| AC-22 | Done | `data-check-tree.ci`, `TestCheckPathDirectory`, `TestRepairDirectory` | |
+| AC-23 | Done | `doctor-tree-corrupt-key.ci`, `doctor-without-store.ci` | |
+| AC-24, AC-25 | Done | `TestStdinAbsentStoreCreatesNothing`, `TestOfflineSetWithoutStore`, `TestEditRefusesWithoutStore` | |
+| AC-26 | Done | installed-appliance proof, Implementation Evidence (11 seed values byte-equal, seed retired) | |
+| AC-27 | Done | 13 `.et` recuts discriminated by the implementation; all ten `.ci` recuts discriminated at closure (below) | full-suite green: see Pre-Commit Verification |
+| AC-28 | Done | `grep -rn ze.storage.blob cmd internal test docs website`: only the append-only ledger `test/weakened/1647db84.md` (history); closure removed the name from the `web-on-tree.wb` comment | |
+| AC-29 | Done | site build, wiki `92aa8cb` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Planned unit tests | Changed | names under Deviations | renamed during implementation |
+| Planned `.ci` files | Done | `test/plugin/*-tree*.ci`, `start-*.ci`, `test/ui/doctor-without-store.ci` | each exists |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `storage/open.go`, `tree.go`, `store.go`, `import.go`, `pointer.go` | Done | |
+| `filesystemStorage` | Done | deleted (no-layering) |
+
+### Audit Summary
+- **Total items:** 29 ACs, 4 task requirements
+- **Done:** 28 ACs and 4 requirements
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** AC-5 (O-2, owner-authorized)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One live tree behind the contract | unit | `TestStorageConformance` runs every row over both encodings |
+| No encoding knowledge outside storage | static check | fs-persistence detector; `IsBlobStorage`/`BlobStoreFrom`/`NewFilesystem`/`ResolveSSHStorage`/`openStateOnlyStore` grep over `cmd internal` returns 0 lines |
+| Every feature works on the tree | functional | `login-on-tree.ci`, `web-on-tree.wb`, `statestore-on-tree.ci`; caps carriers PASS in a QEMU Alpine arm64 guest as root, 2026-09-25: `ospf-state-through-daemon`, `storage-ntp-restart`, `storage-tc-restart` |
+| Blob refused, import preserves data | functional | `start-refuses-blob.ci`, `init-from-blob.ci`, `TestImportEqualsSource`, appliance first-boot proof |
+| Re-cut tests detect the defect | discrimination | mutant `name = "shared"` in `pointerPath` (the pre-change nameless pointer), rebuilt binaries, harness unchanged. RED on the `meta/config/<name>/active` key: darwin, `audit-config-commit`, `api-config-commit-reject`, `cli-commit-reject`, `cli-commit-transactional`, `concurrent-config-commit`, `commit-transactional`, `commit-verify-reject`; QEMU guest, `traffic-vpp-reject-hfsc`, `-mark`, `-prio`. GREEN on HEAD for all ten |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| `ze init from <url>`, `--sha256`, backup and restore | agreed companion scope | `plan/pre-release/spec-storage-2-blob-artifact.md` |
+| content-addressed history | agreed companion scope | `plan/pre-release/spec-storage-3-content-addressed-history.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` at closure (path in the closure report) |
+| `./le spec review check` | clean |
+| Rounds | 2 (implementation phase ran five independent rounds, `d319c4ac48`) |
+| Reviewer lenses used | logic and wiring, security (lock race, folder identity, ancestor walk), fail-closed errors, stale comments, Go style, AC coverage |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | AC-28 requires no file under `test/` to name the retired key; a comment still did | `test/web/web-on-tree.wb` | comment reworded; round 2 clean |
+
+NOTEs (journal rows, not blocking): `DefaultConfig` answers `ze.conf` on a failed read (`zero-value-as-valid-answer.md`); `ze init --web-cert`/`--web-cert-name` registered as switches for completion (`published-value-drifts-from-the-behavior-it-describes.md`); seeder errors name the tree for a failure of the `--seed` step.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `docs/architecture/storage-backends.md` | yes | `ls` 14K, 2026-09-19 |
+| `test/plugin/ospf-state-through-daemon.ci`, `storage-ntp-restart.ci`, `test/traffic/storage-tc-restart.ci` | yes | `find test` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-10, AC-27 | recuts detect a nameless pointer | the ten runs above, 2026-09-25 |
+| AC-18, AC-19 | caps carriers pass on Linux | QEMU log `QEMU VM: PASS`, rc-plugin=0, rc-traffic=0 |
+| AC-28 | key gone | grep above |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze start <file>` REST commit | `test/plugin/audit-config-commit.ci` | PASS 5.3 s, 2026-09-25 |
+| `ze start` OSPF state | `test/plugin/ospf-state-through-daemon.ci` | PASS in QEMU |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestStorageForResolution` |
+| A-2 | confirmed | appliance first-boot import proof |
+| A-3 | confirmed | `TestOpenRefusesBlobStatOnly` |
+| A-4 | confirmed | `zefs.Open` outside storage only in `plugins/debug/profile.go` |
+| A-5 | confirmed | `Storage` has no blob accessor and the build passes |
+| A-6 | confirmed | all ten `.ci` recuts discriminate; 13 `.et` by the implementation |
+| A-7 | confirmed | key unregistered, no `.ci` sets it |
+| A-8 | confirmed | `TestTreeReadOnlySeesPublishedWrites`, `TestStorageReadOnlyAndOwnerContention` |
+| A-9 | confirmed | `TestConnectRefusesWithDaemon`, OSPF through the daemon |
+| A-10 | broken | the 43-case cohort was not reproduced; the modern measurement is in Implementation Evidence, and the `api-reload` red was a pre-existing ordering coin flip fixed in `e78411042c` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| storage architecture page | `docs/architecture/storage-backends.md`, now the `// Design:` target of `storage_test.go` | yes |
+| doc check | `./le doc check verify`: one foreign group red (site page for `e6f9dcbab7`) | journal row |
+
+### Full verification (2026-09-25, over `0c2be06943`)
+| Gate | Result | Evidence |
+|------|--------|----------|
+| lint (inside `./le verify worktree`) | green | 18 builds, `0 issues` each |
+| `./le verify worktree` | exit 1, 24 groups, none in storage | groups listed in `plan/journal/gate-verdict-depends-on-the-machine.md` (2026-09-25 row); every storage carrier and all ten `.ci` recuts pass |

@@ -4,7 +4,7 @@
 #            (internal/test/cli/cmd_web.go zeTestSeedWebUsers, storage.CreatePopulated),
 #            so the login reads meta/auth/local/* from the tree, the review modal
 #            renders the pending diff, and Confirm Commit writes the committed
-#            config into the tree. No blob and no ze.storage.blob pin exist.
+#            config into the tree. No blob and no storage-backend pin exist.
 # PREVENTS: a web daemon that starts on a tree but cannot authenticate, diff,
 #           or commit against it.
 

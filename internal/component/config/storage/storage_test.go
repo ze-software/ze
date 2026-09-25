@@ -1,4 +1,4 @@
-// Design: plan/pre-release/spec-storage-1-backend-parity.md -- shared storage contract.
+// Design: docs/architecture/storage-backends.md -- shared storage contract.
 package storage
 
 import (
