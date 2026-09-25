@@ -39,7 +39,7 @@ option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_IFACE:value=veth-sub
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le-test fixture pppoe/concurrent-l2tp $PORT:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture pppoe/concurrent-l2tp $PORT:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=OK: L2TP SCCRP received
 expect=stdout:contains=OK: PPPoE PADO received

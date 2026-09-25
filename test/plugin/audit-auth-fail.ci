@@ -3,5 +3,5 @@
 # PREVENTS: SSH login failures being visible only in logs.
 
 option=timeout:value=25s
-cmd=foreground:seq=1:exec=le-test fixture plugin/audit-auth-fail:timeout=25s
+cmd=foreground:seq=1:exec=le test fixture plugin/audit-auth-fail:timeout=25s
 expect=exit:code=0

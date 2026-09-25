@@ -1,4 +1,4 @@
-// Design: docs/functional-tests.md -- the zone `le-test dns` answers
+// Design: docs/functional-tests.md -- the zone `le test dns` answers
 // Related: server.go -- the server that serves it; dns.go -- the subcommand
 // RFC: rfc/short/rfc1035.md -- the RCODE values; rfc/full/rfc2308.txt -- NODATA
 
@@ -118,20 +118,20 @@ func canonical(name string) string {
 // thing (ai/rules/principles.md).
 func checkAnswer(qtype uint16, answer Answer) {
 	if qtype != mdns.TypeA && qtype != mdns.TypeAAAA {
-		panic("BUG: le-test dns: the stub serves A and AAAA only, not " + mdns.TypeToString[qtype])
+		panic("BUG: le test dns: the stub serves A and AAAA only, not " + mdns.TypeToString[qtype])
 	}
 	if len(answer.Addresses) > maxAddressesPerAnswer {
-		panic(fmt.Sprintf("BUG: le-test dns: %d addresses in one answer, at most %d", len(answer.Addresses), maxAddressesPerAnswer))
+		panic(fmt.Sprintf("BUG: le test dns: %d addresses in one answer, at most %d", len(answer.Addresses), maxAddressesPerAnswer))
 	}
 	for _, address := range answer.Addresses {
 		if !address.IsValid() {
-			panic("BUG: le-test dns: an answer carries the zero address")
+			panic("BUG: le test dns: an answer carries the zero address")
 		}
 		if qtype == mdns.TypeA && !address.Is4() {
-			panic("BUG: le-test dns: " + address.String() + " is not an IPv4 address, so it cannot answer an A query")
+			panic("BUG: le test dns: " + address.String() + " is not an IPv4 address, so it cannot answer an A query")
 		}
 		if qtype == mdns.TypeAAAA && address.Is4() {
-			panic("BUG: le-test dns: " + address.String() + " is not an IPv6 address, so it cannot answer an AAAA query")
+			panic("BUG: le test dns: " + address.String() + " is not an IPv6 address, so it cannot answer an AAAA query")
 		}
 	}
 }

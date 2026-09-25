@@ -15,7 +15,7 @@ plugin {
 		use bgp-rs
 	}
 	external policy-test-bad-hex {
-		run "le-test fixture plugin/policy-test-reject-bad-hex"
+		run "le test fixture plugin/policy-test-reject-bad-hex"
 		encoder json
 	}
 }
@@ -57,7 +57,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-remove-private-as -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=ZE-OBSERVER-FAIL

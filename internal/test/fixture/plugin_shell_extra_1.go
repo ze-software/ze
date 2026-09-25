@@ -267,7 +267,7 @@ func extra1StartRadiusMock(ctx context.Context) (*extra1RadiusMock, string, erro
 		return nil, "", err
 	}
 	mockCtx, cancel := context.WithCancel(ctx)
-	command := exec.CommandContext(mockCtx, executable, "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath) //nolint:gosec // the fixture chooses the program and its arguments
+	command := exec.CommandContext(mockCtx, executable, "test", "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", addrPath) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdout = io.Discard
 	command.Stderr = mockLog
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

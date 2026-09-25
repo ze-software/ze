@@ -128,17 +128,17 @@ func vppWorkPaths(prefix string) (string, string, string, error) {
 }
 
 func startVPPStub(ctx context.Context, socket, log string, deadline int) (*fixtureProcess, error) {
-	return startFixtureProcess(ctx, os.Environ(), "", "ze-test", "vpp-stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
+	return startFixtureProcess(ctx, os.Environ(), "", "le", "test", "vpp-stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
 }
 
 func startVPPPeer(ctx context.Context, port int, script string) (*fixtureProcess, error) {
-	process, err := startFixtureProcess(ctx, os.Environ(), "", "ze-test", "peer", "--port", strconv.Itoa(port), script)
+	process, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer", "--port", strconv.Itoa(port), script)
 	if err != nil {
 		return nil, err
 	}
 	if !Poll(ctx, 100, 50*time.Millisecond, func() bool { return strings.Contains(process.output.String(), "listening on") }) {
 		stopFixtureProcess(process, 2*time.Second)
-		return nil, fmt.Errorf("ze-peer did not report listening: %s", process.output.String())
+		return nil, fmt.Errorf("the peer did not report listening: %s", process.output.String())
 	}
 	return process, nil
 }
@@ -228,7 +228,7 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 	// program and the stub log stays empty.
 	process := "attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }"
 	if observer {
-		plugin = "plugin { external lookup-test { run \"ze-test fixture vpp/vpp-fib-route-lookup-observer\"; encoder json; } }\n"
+		plugin = "plugin { external lookup-test { run \"le test fixture vpp/vpp-fib-route-lookup-observer\"; encoder json; } }\n"
 		process += " attach process lookup-test { }"
 	}
 	fib := "\nfib { vpp { enabled true; } }\n"

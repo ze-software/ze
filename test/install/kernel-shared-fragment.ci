@@ -6,6 +6,6 @@
 option=timeout:value=30s
 
 
-cmd=foreground:seq=1:exec=le-test fixture install/kernel-shared-fragment "$ZE_REPO_ROOT"
+cmd=foreground:seq=1:exec=le test fixture install/kernel-shared-fragment "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

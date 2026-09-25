@@ -87,7 +87,7 @@ func TestAliasConfigsUseNativeProvider(t *testing.T) {
 	t.Parallel()
 	for which := aliasCaseBasic; which <= aliasCaseShape; which++ {
 		config := aliasConfig(which)
-		if !strings.Contains(config, `run "ze-test fixture plugin/`) {
+		if !strings.Contains(config, `run "le test fixture plugin/`) {
 			t.Fatalf("case %d has no native provider: %s", which, config)
 		}
 	}

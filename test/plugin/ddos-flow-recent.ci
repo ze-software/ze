@@ -34,7 +34,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flow-recent-test {
-		run "le-test fixture plugin/ddos-flow-recent"
+		run "le test fixture plugin/ddos-flow-recent"
 		encoder json
 	}
 }
@@ -77,7 +77,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=OK: show flow recent reachable

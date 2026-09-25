@@ -18,7 +18,7 @@ import (
 // PREVENTS: a barrier that returns before the text, or a timeout that reads as a
 // later protocol stall instead of naming the process that never became ready.
 func TestAwaitBackgroundReady(t *testing.T) {
-	cmd := &RunCommand{Mode: modeBackground, Seq: 1, Exec: "le-test fixture x", Ready: "COLLECTOR: listening"}
+	cmd := &RunCommand{Mode: modeBackground, Seq: 1, Exec: "le test fixture x", Ready: "COLLECTOR: listening"}
 
 	t.Run("text_arrives_late", func(t *testing.T) {
 		sw := newSyncWriterPattern(cmd.Ready)
@@ -50,6 +50,6 @@ func TestAwaitBackgroundReady(t *testing.T) {
 		require.Error(t, rec.Error)
 		assert.Contains(t, rec.Error.Error(), `ready="COLLECTOR: listening"`)
 		assert.Contains(t, rec.Error.Error(), "address already in use")
-		assert.Contains(t, rec.Error.Error(), "le-test fixture x")
+		assert.Contains(t, rec.Error.Error(), "le test fixture x")
 	})
 }

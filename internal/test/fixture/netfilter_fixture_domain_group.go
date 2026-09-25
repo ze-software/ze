@@ -36,7 +36,7 @@ const (
 	// namespace `firewall` suite included. runOrchestrated
 	// (internal/test/runner/runner_exec.go) drops only the `ze` binary to an
 	// unprivileged uid, so a fixture the runner launches itself with
-	// cmd=foreground:exec=ze-test keeps the credentials the bind needs. That is
+	// cmd=foreground:exec=le test keeps the credentials the bind needs. That is
 	// the difference from dnsStubAddress (plugin_fixture_dns_stub.go), whose
 	// fixture is FORKED BY ze as an external plugin and so inherits the dropped
 	// uid without cap_net_bind_service.

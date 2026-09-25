@@ -31,7 +31,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gtsm-show-test {
-		run "le-test fixture plugin/bgp-gtsm"
+		run "le test fixture plugin/bgp-gtsm"
 		encoder json
 	}
 }
@@ -71,7 +71,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT --ttl 255:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT --ttl 255:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=GTSM active out=255 min=255

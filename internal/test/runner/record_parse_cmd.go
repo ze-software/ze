@@ -108,8 +108,8 @@ func parseCmdExec(mode, line string) (RunCommand, error) {
 		if ready == "" {
 			return RunCommand{}, fmt.Errorf("%s empty ready=", directive)
 		}
-		if isZePeerExec(execVal) {
-			return RunCommand{}, fmt.Errorf("%s ready= is not valid on ze-peer, which has its own listening barrier", directive)
+		if isPeerExec(execVal) {
+			return RunCommand{}, fmt.Errorf("%s ready= is not valid on le test peer, which has its own listening barrier", directive)
 		}
 		rc.Ready = ready
 	}

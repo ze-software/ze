@@ -26,6 +26,6 @@
 # external plugin to reach Stage 5, and drives an interactive terminal session.
 option=timeout:value=90s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/pipe-alias-completion
+cmd=foreground:seq=1:exec=le test fixture ui/pipe-alias-completion
 expect=exit:code=0
 expect=stdout:contains=OK

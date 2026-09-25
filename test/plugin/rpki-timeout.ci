@@ -25,7 +25,7 @@ plugin {
 		}
 	}
 	external rpki-timeout-test {
-		run "le-test fixture plugin/rpki-timeout"
+		run "le test fixture plugin/rpki-timeout"
 		encoder json
 	}
 	internal rpki {
@@ -81,7 +81,7 @@ bgp {
 }
 EOF_CONF
 
-# NO le-test rtr-mock: RPKI plugin has no cache, validation cannot complete
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+# NO le test rtr-mock: RPKI plugin has no cache, validation cannot complete
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0

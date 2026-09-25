@@ -50,7 +50,7 @@ EOF_PEER2
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mpreach-nexthop-test {
-		run "le-test fixture plugin/forward-mpreach-nexthop-self-two-peer"
+		run "le test fixture plugin/forward-mpreach-nexthop-self-two-peer"
 		encoder json
 	}
 	internal redistribute-orchestrator {
@@ -145,8 +145,8 @@ EOF_CONF
 # (These are check-mode peers, so F1 runs the peer-exchange check and validateJSON
 # regardless of any exit-code assertion, runner_exec.go:1196-1226; the directive is
 # simply omitted per the F4 recipe as noise, not to avoid a mask F1 already removed.)
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

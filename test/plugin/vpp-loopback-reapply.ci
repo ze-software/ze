@@ -13,7 +13,7 @@
 #
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/vpp-loopback-reapply:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/vpp-loopback-reapply:timeout=60s
 expect=exit:code=0
 expect=stderr:pattern=OK: one create_loopback across two applies
 reject=stderr:pattern=the reload leaked a loopback

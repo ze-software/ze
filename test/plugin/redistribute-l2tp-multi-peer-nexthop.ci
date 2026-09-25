@@ -44,7 +44,7 @@ EOF_PEER2
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external l2tp-nexthop-test {
-		run "le-test fixture plugin/redistribute-l2tp-multi-peer-nexthop"
+		run "le test fixture plugin/redistribute-l2tp-multi-peer-nexthop"
 		encoder json
 	}
 	internal redistribute-orchestrator {
@@ -135,8 +135,8 @@ bgp {
 EOF_CONF
 
 # Process orchestration: two ze-peer instances on different loopback addresses
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 # // expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
 # is replaced by the per-peer ze-peer wire expectations above, which now govern the

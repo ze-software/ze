@@ -61,7 +61,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external test-strip {
-		run "le-test fixture plugin/community-strip"
+		run "le test fixture plugin/community-strip"
 		encoder json
 	}
 }
@@ -148,8 +148,8 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

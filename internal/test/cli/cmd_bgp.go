@@ -433,7 +433,7 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // terminal output
 	fmt.Fprintf(os.Stdout, "Waiting for client connection...\n")                                         //nolint:errcheck // terminal output
 	fmt.Fprintf(os.Stdout, "\nRun client in another terminal:\n")                                        //nolint:errcheck // terminal output
-	fmt.Fprintf(os.Stdout, "   le-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port) //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "   le test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port) //nolint:errcheck // terminal output
 
 	p, err := peer.New(config)
 	if err != nil {
@@ -487,7 +487,7 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // output
 	fmt.Fprintf(os.Stdout, "Starting ze bgp client...\n")                                                //nolint:errcheck // output
 	fmt.Fprintf(os.Stdout, "\nServer should be running. If not:\n")                                      //nolint:errcheck // output
-	fmt.Fprintf(os.Stdout, "   le-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port) //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "   le test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port) //nolint:errcheck // output
 
 	zeDir := filepath.Dir(zePath)
 	existingPath := os.Getenv("PATH")
@@ -630,7 +630,7 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 }
 
 func zeTestPrintRunUsage() {
-	_, _ = os.Stderr.WriteString(`Usage: le-test bgp <type> [options] [tests...]
+	_, _ = os.Stderr.WriteString(`Usage: le test bgp <type> [options] [tests...]
 
 Types:
   encode    Run encode tests (static routes)
@@ -661,13 +661,13 @@ Debugging:
   --client ID         Run client only for test
 
 Examples:
-  le-test bgp encode -l
-  le-test bgp encode -a
-  le-test bgp encode 1 2 3
-  le-test bgp encode --start 42
-  le-test bgp plugin -a -q
-  le-test bgp decode -a
-  le-test bgp parse -a
-  le-test bgp encode -c 10 1 2    # stress test: run tests 1,2 ten times
+  le test bgp encode -l
+  le test bgp encode -a
+  le test bgp encode 1 2 3
+  le test bgp encode --start 42
+  le test bgp plugin -a -q
+  le test bgp decode -a
+  le test bgp parse -a
+  le test bgp encode -c 10 1 2    # stress test: run tests 1,2 ten times
 `)
 }

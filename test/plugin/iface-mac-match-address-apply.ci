@@ -41,7 +41,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-mac-match-address-apply {
-		run "le-test fixture plugin/iface-mac-match-address-apply"
+		run "le test fixture plugin/iface-mac-match-address-apply"
 		encoder json
 	}
 }

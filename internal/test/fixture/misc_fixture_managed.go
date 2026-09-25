@@ -197,7 +197,7 @@ func managedConfig(routerID string, hubPort, pluginPort int, reject bool) string
 	}
 	builder.Str("  }\n")
 	if reject {
-		builder.Str("  external managed-reject-plugin { run \"ze-test fixture managed/config-push-transactional-observer\"; encoder json; }\n")
+		builder.Str("  external managed-reject-plugin { run \"le test fixture managed/config-push-transactional-observer\"; encoder json; }\n")
 	}
 	builder.Str("}\n")
 	fmt.Fprintf(&builder, "bgp {\n  router-id %s\n", routerID)

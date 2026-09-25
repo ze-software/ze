@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A shell script writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `le-test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le test record-plugin`, and opens SSH
 # 3. `ze cli -c "show test records document | raw"` runs a walk of two rows
 # 4. Each row fits one wire message and the document they collapse to does not
 # 5. The answer carries the rejection that stands in for that document
@@ -34,7 +34,7 @@
 # Native process driver starts the daemon and validates the rejected document.
 
 # Process orchestration
-cmd=foreground:seq=1:exec=le-test fixture plugin/plugin-command-document-too-wide:timeout=120s
+cmd=foreground:seq=1:exec=le test fixture plugin/plugin-command-document-too-wide:timeout=120s
 expect=exit:code=0
 expect=stderr:pattern=OK: the document of [0-9]+ bytes was refused and the answer still ended
 reject=stderr:pattern=panic recovered

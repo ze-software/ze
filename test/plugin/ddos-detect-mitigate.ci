@@ -78,7 +78,7 @@ traffic {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test fixture plugin/ddos-detect-mitigate:timeout=35s
+cmd=foreground:seq=2:exec=le test fixture plugin/ddos-detect-mitigate:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=ddos-local
 expect=stdout:contains=127.0.0.4

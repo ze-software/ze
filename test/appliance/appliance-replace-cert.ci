@@ -40,7 +40,7 @@ tmpfs=other-config.json:terminator=EOF_OTHER
 }
 EOF_OTHER
 
-cmd=foreground:seq=1:exec=le-test fixture appliance/appliance-replace-cert
+cmd=foreground:seq=1:exec=le test fixture appliance/appliance-replace-cert
 expect=exit:code=0
 expect=stdout:contains=certificate replaced for appliance "lab" (CA-signed)
 expect=stderr:contains=are not a pair

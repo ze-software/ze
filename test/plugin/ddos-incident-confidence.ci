@@ -106,7 +106,7 @@ flow-export {
 
 plugin {
 	external ddos-conf-probe {
-		run "le-test fixture plugin/ddos-incident-confidence"
+		run "le test fixture plugin/ddos-incident-confidence"
 		encoder json
 	}
 }
@@ -146,6 +146,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=70s
 expect=exit:code=0

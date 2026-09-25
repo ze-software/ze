@@ -90,10 +90,10 @@ func stringLit(e ast.Expr) string {
 
 // isZeBinary reports whether name is one of the binaries a suite runs as the
 // device under test. The native functional builder places these in its isolated
-// directory and points ZE_BIN/LE_TEST_BIN at them.
+// directory and points ZE_BIN at them.
 func isZeBinary(name string) bool {
 	switch name {
-	case "ze", "ze-test", "ze-stripped":
+	case "ze", "le", "test", "ze-stripped":
 		return true
 	}
 	return false

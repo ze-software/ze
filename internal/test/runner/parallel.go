@@ -55,12 +55,12 @@ const (
 // on the smallest host this project builds on, not a guess.
 const SuiteConcurrencyFloor = 8
 
-// DefaultSuiteConcurrency is the per-suite default for `le-test <suite>` when the
+// DefaultSuiteConcurrency is the per-suite default for `le test <suite>` when the
 // operator passes no -p.
 //
 // It exists because "unset" and "all at once" were the same value. Every suite in
 // internal/test/cli/register.go declared 0, Runner.Run turns a non-positive
-// Parallel into len(selected), and so `le-test ospf --all` launched all 97 ze
+// Parallel into len(selected), and so `le test ospf --all` launched all 97 ze
 // daemons simultaneously. That is survivable on a development workstation and
 // fatal on a small CI runner: on 2026-07-26 the GitHub job died mid-ospf-suite
 // with the runner agent itself killed (exit 143, "the runner has received a

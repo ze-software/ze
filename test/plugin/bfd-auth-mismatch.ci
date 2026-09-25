@@ -30,6 +30,6 @@ option=exclusive:group=bfd-ports
 
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/bfd-auth-mismatch:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture plugin/bfd-auth-mismatch:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=simple-password secret is 17 bytes

@@ -63,7 +63,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-reannounce {
-		run "le-test fixture plugin/prefix-count-installed-reannounce"
+		run "le test fixture plugin/prefix-count-installed-reannounce"
 		encoder json
 	}
 	internal bgp-rib {
@@ -126,7 +126,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 
 # The plugin read the RIB and found both prefixes.

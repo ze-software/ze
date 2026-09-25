@@ -62,7 +62,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+cmd=foreground:seq=2:exec=le test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
 expect=exit:code=0
 # The interim result, in full. pattern= rather than contains= because every
 # needle carries a colon and a contains= value is split on it (ci.ParseKVPairs).

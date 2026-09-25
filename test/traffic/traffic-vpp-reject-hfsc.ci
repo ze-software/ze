@@ -141,7 +141,7 @@ traffic {
 }
 EOF_BAD_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 # Half one: the commit is REFUSED, and the error names the real reason. The
 # await fence holds the daemon until its relayed stderr carries the rejection,

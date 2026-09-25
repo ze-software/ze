@@ -3,7 +3,7 @@
 # VALIDATES: the runner pipes a named stdin block into a command whose `-` is the
 #   cliio stdin token, rather than writing the block to a file and substituting
 #   the path (routeStdinBlock, internal/test/runner/runner_exec_util.go).
-#   `le-test peer` takes its expect script as a path argument and opens it
+#   `le test peer` takes its expect script as a path argument and opens it
 #   through cliio, so `-` reads standard input there.
 # PREVENTS: the two shapes this branch had. The ze arm took the FIRST `-` in argv
 #   whatever it meant, and the ze-peer arm appended a temporary file whether or
@@ -68,5 +68,5 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT -:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT -:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

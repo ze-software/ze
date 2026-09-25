@@ -110,8 +110,8 @@ EOF_CONF
 # against a daemon that has already written daemon.ready; too short and the file
 # fails on the missing NOTIFICATION rather than passing quietly.
 
-cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture plugin/dynamic-group-static-peer-wins-trigger
+cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture plugin/dynamic-group-static-peer-wins-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The session was the STATIC peer's.

@@ -38,7 +38,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-migrate {
-		run "le-test fixture plugin/iface-migrate"
+		run "le test fixture plugin/iface-migrate"
 		encoder json
 	}
 }

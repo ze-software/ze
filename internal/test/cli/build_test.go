@@ -22,14 +22,12 @@ func setBuildEnv(t *testing.T, key, value string) {
 
 // clearBinOverrides drops the binary-path overrides so a test that asserts on the
 // binary-is-ABSENT branch controls where the lookup points. Same reason as the
-// identical helper in internal/test/runner: the QEMU unit phase exports ZE_BIN /
-// LE_TEST_BIN for the functional phase, and an inherited value points the lookup
-// at a real binary, so the asserted error cannot occur.
+// identical helper in internal/test/runner: the QEMU unit phase exports ZE_BIN
+// for the functional phase, and an inherited value points the lookup at a real
+// binary, so the asserted error cannot occur.
 func clearBinOverrides(t *testing.T) {
 	t.Helper()
 	t.Setenv("ZE_BIN", "")
-	t.Setenv("LE_TEST_BIN", "")
-	t.Setenv("ZE_TEST_BIN", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 }

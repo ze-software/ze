@@ -35,7 +35,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-osname-alias-apply {
-		run "le-test fixture plugin/iface-osname-alias-apply"
+		run "le test fixture plugin/iface-osname-alias-apply"
 		encoder json
 	}
 }

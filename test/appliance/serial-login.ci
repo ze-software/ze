@@ -24,7 +24,7 @@
 # unaffected by the symlink gate.
 
 
-cmd=foreground:seq=1:exec=le-test fixture appliance/serial-login
+cmd=foreground:seq=1:exec=le test fixture appliance/serial-login
 expect=exit:code=0
 expect=stdout:contains=OK
 reject=stderr:pattern=FAIL:

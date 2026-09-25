@@ -5,6 +5,6 @@
 
 option=timeout:value=1800s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/le-checks-answers
+cmd=foreground:seq=1:exec=le test fixture ui/le-checks-answers
 expect=exit:code=0
 expect=stdout:contains=OK

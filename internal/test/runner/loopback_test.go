@@ -239,17 +239,17 @@ func TestExtractBindAddresses(t *testing.T) {
 		exec    string
 		wantErr bool // true = the address was extracted and found absent
 	}{
-		{"peer_with_bind", "ze-peer --bind " + absentIPv6 + " --mode sink --port 1790", true},
-		{"peer_no_bind", "ze-peer --port 1790", false},
+		{"peer_with_bind", "le test peer --bind " + absentIPv6 + " --mode sink --port 1790", true},
+		{"peer_no_bind", "le test peer --port 1790", false},
 		{"non_peer_with_bind", "ze --bind " + absentIPv6, false}, // only ze-peer commands
-		{"bind_truncated", "ze-peer --bind", false},              // --bind without value
-		{"bind_invalid_ip", "ze-peer --bind not-an-ip --port 1790", false},
-		{"bind_default_loopback", "ze-peer --bind 127.0.0.1 --port 1790", false},
+		{"bind_truncated", "le test peer --bind", false},         // --bind without value
+		{"bind_invalid_ip", "le test peer --bind not-an-ip --port 1790", false},
+		{"bind_default_loopback", "le test peer --bind 127.0.0.1 --port 1790", false},
 		// The wildcard binds every address the host has and needs no alias. It
 		// is outside 127.0.0.0/8, so the IPv4 range check would reject it, and
 		// the reject now fails the test rather than logging a warning.
-		{"bind_wildcard_v4", "ze-peer --bind 0.0.0.0 --port 1790", false},
-		{"bind_wildcard_v6", "ze-peer --bind :: --port 1790", false},
+		{"bind_wildcard_v4", "le test peer --bind 0.0.0.0 --port 1790", false},
+		{"bind_wildcard_v6", "le test peer --bind :: --port 1790", false},
 	}
 
 	for _, tt := range tests {

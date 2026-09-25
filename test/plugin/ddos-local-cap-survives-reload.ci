@@ -96,7 +96,7 @@ traffic {
 
 plugin {
 	external ddos-local-cap-survives-reload-probe {
-		run "le-test fixture plugin/ddos-local-cap-survives-reload-driver"
+		run "le test fixture plugin/ddos-local-cap-survives-reload-driver"
 		encoder json
 	}
 }

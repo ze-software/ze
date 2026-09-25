@@ -11,7 +11,7 @@
 #
 # The factor is set HERE rather than inherited from the suite's own -p, because
 # the inherited value is 3 under `./le test functional plugin` and 1 under
-# `le-test bgp plugin mcp-ready-under-load`, and a test whose expected value
+# `le test bgp plugin mcp-ready-under-load`, and a test whose expected value
 # changes with the way it is run cannot assert one. 5 is neither of those, so a
 # pass cannot come from the runner's own value leaking through.
 #
@@ -30,7 +30,7 @@
 # waits for one, not what it does when one answers.
 
 option=env:var=ze.test.parallel.factor:value=5
-cmd=foreground:seq=1:exec=le-test mcp --port 1 --timeout 200ms:timeout=30s
+cmd=foreground:seq=1:exec=le test mcp --port 1 --timeout 200ms:timeout=30s
 expect=exit:code=1
 expect=stderr:contains=MCP server not ready
 expect=stderr:contains=no listener on 127.0.0.1:1 after 1s

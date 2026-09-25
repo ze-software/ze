@@ -67,8 +67,8 @@ EOF_CONF
 # Trigger: let the session establish, then stop the daemon so the NOTIFICATION
 # above is sent.
 
-cmd=background:seq=1:exec=ze-peer --dial 127.0.0.1:$PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture plugin/peer-port-listener-direct-route-trigger
+cmd=background:seq=1:exec=le test peer --dial 127.0.0.1:$PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture plugin/peer-port-listener-direct-route-trigger
 cmd=foreground:seq=3:exec=ze start ze-bgp.conf:timeout=30s
 
 # The connection was attributed to the configured peer, not to its source address.

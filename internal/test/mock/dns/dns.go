@@ -1,4 +1,4 @@
-// Design: docs/functional-tests.md -- `le-test dns`, the deterministic DNS mock server
+// Design: docs/functional-tests.md -- `le test dns`, the deterministic DNS mock server
 // Related: server.go -- the in-process form a fixture drives; zone.go -- the answers
 
 package dns
@@ -17,7 +17,7 @@ import (
 const maxPort = 65535
 
 // Run serves the default zone until the process is killed. It is the form a
-// `.ci` file starts with `cmd=background:exec=le-test dns --port 53`; a fixture
+// `.ci` file starts with `cmd=background:exec=le test dns --port 53`; a fixture
 // that must change an answer while the test runs uses Start instead.
 func Run(args []string) int {
 	// ContinueOnError, not the ExitOnError the sibling mocks use: flag's exit
@@ -26,7 +26,7 @@ func Run(args []string) int {
 	// has replaced os.Stderr with a pipe by then, and only that flush drains it,
 	// so an exit inside flag discards the usage text this command owes its
 	// reader. Returning a code instead of exiting keeps the text.
-	fs := flag.NewFlagSet("le-test dns", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le test dns", flag.ContinueOnError)
 
 	var port int
 
@@ -35,7 +35,7 @@ func Run(args []string) int {
 	fs.IntVar(&port, "port", 0, "UDP listen port (0 = auto; 53 is the port a daemon's system name-server leaf reaches)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le-test dns [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le test dns [flags]
 
 Deterministic fake DNS server for functional tests. It answers A and AAAA
 queries for the names below, on 127.0.0.1 over UDP.
@@ -79,7 +79,7 @@ Flags:
 		return 1
 	}
 
-	fmt.Fprintf(os.Stderr, "le-test dns: listening on port %d\n", server.Addr().Port())
+	fmt.Fprintf(os.Stderr, "le test dns: listening on port %d\n", server.Addr().Port())
 
 	if err := server.Wait(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: serve: %v\n", err)

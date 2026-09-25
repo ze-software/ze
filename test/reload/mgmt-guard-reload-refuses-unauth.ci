@@ -24,7 +24,7 @@ EOF_PEER
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external mgmt-refuses-unauth-test {
-		run "le-test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
+		run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
 		encoder json
 	}
 }
@@ -76,7 +76,7 @@ EOF_CONF2
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external mgmt-refuses-unauth-test {
-		run "le-test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
+		run "le test fixture reload/mgmt-guard-reload-refuses-unauth $PORT2"
 		encoder json
 	}
 }
@@ -125,8 +125,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture reload/mgmt-guard-reload-refuses-unauth-trigger
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture reload/mgmt-guard-reload-refuses-unauth-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=30s
 expect=exit:code=0
 expect=stderr:contains=listener migration: rest listener

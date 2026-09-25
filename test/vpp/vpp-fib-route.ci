@@ -25,6 +25,6 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 
-cmd=foreground:seq=1:exec=le-test fixture vpp/vpp-fib-route $PORT:timeout=30s
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-fib-route $PORT:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=OK: fib-vpp programmed 10.20.0.0/24 into stub

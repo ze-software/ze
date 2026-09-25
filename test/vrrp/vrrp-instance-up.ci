@@ -26,7 +26,7 @@
 #
 # option=needs-linux: macvlan creation, raw sockets and netlink VIP install do
 # not exist on darwin. Runs as root in the QEMU Linux VM.
-# `le-test fixture vrrp/vrrp-instance-up-setup` builds a throwaway veth parent so
+# `le test fixture vrrp/vrrp-instance-up-setup` builds a throwaway veth parent so
 # the macvlan hangs off a real multicast-capable device and the VIP lands there
 # rather than on the VM's eth0.
 # caps=net-admin because the native setup fixture creates network links. Without
@@ -72,9 +72,9 @@ EOF_CONF
 
 option=env:var=ze.log.vrrp:value=info
 
-cmd=foreground:seq=1:exec=le-test fixture vrrp/vrrp-instance-up-setup
+cmd=foreground:seq=1:exec=le test fixture vrrp/vrrp-instance-up-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=le-test fixture vrrp/vrrp-instance-up-driver:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture vrrp/vrrp-instance-up-driver:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=MACVLAN-UP
 expect=stdout:contains=VIPS-INSTALLED 192.0.2.1,192.0.2.2

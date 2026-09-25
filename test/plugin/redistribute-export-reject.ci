@@ -58,7 +58,7 @@ plugin {
         use bgp-rs;
     }
     external filter-export-reject-test {
-        run "le-test fixture plugin/redistribute-export-reject";
+        run "le test fixture plugin/redistribute-export-reject";
         encoder json;
     }
 }
@@ -140,7 +140,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

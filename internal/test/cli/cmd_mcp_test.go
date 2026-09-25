@@ -554,7 +554,7 @@ func captureStderr(t *testing.T, fn func()) string {
 // WIDENED by the factor the runner published for this child, not replaced by a
 // larger constant.
 //
-// VALIDATES: `le-test mcp` racing a listener that never appears reports the
+// VALIDATES: `le test mcp` racing a listener that never appears reports the
 // scaled deadline in its own message, so the value it actually waited is the
 // value under test rather than an elapsed time a loaded box can perturb. Under
 // a serial run (no factor published) the authored value is kept untouched, which

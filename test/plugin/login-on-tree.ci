@@ -3,6 +3,6 @@
 # and refusal when a loose source changes behind an open editor session.
 # PREVENTS: local clients bypassing the daemon owner or overwriting external edits.
 option=timeout:value=120s
-cmd=foreground:seq=1:exec=le-test fixture storage/explicit-editor-authority:timeout=120s:exit=0
+cmd=foreground:seq=1:exec=le test fixture storage/explicit-editor-authority:timeout=120s:exit=0
 expect=exit:code=0
 expect=stdout:contains=OK: tree login, editor commit, restart and external conflict

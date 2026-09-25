@@ -3,5 +3,5 @@
 # PREVENTS: audit entries being visible only in the process that created them.
 
 option=timeout:value=30s
-cmd=foreground:seq=1:exec=le-test fixture plugin/audit-persistence:timeout=30s
+cmd=foreground:seq=1:exec=le test fixture plugin/audit-persistence:timeout=30s
 expect=exit:code=0

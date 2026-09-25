@@ -22,7 +22,7 @@ option=timeout:value=25s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external multi-receiver {
-		run "le-test fixture flow-export/multi-collector-export $PORT2 $PORT"
+		run "le test fixture flow-export/multi-collector-export $PORT2 $PORT"
 		encoder json
 	}
 }

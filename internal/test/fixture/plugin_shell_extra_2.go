@@ -256,7 +256,7 @@ func pluginShellExtra2ReplayStdin(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	command := exec.CommandContext(ctx, executable, "replay", "-") //nolint:gosec // the fixture chooses the program and its arguments
+	command := exec.CommandContext(ctx, executable, "test", "replay", "-") //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdin = bytes.NewReader(capture)
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout

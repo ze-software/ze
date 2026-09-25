@@ -36,7 +36,7 @@ plugin {
 		}
 	}
 	external rpki-late-sync-test {
-		run "le-test fixture plugin/rpki-revalidate-late-sync"
+		run "le test fixture plugin/rpki-revalidate-late-sync"
 		encoder json
 	}
 	internal rpki {
@@ -96,8 +96,8 @@ bgp {
 EOF_CONF
 
 # The observer releases this cache only after checking the pre-sync route.
-cmd=background:seq=1:exec=le-test rtr-mock --port $PORT2 --sync-release rpki-sync.release --vrp 10.0.0.0/8,24,65001:ready=le-test rtr-mock: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT2 --sync-release rpki-sync.release --vrp 10.0.0.0/8,24,65001:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 # The compiled observer checks the retained route's state, eligibility and received bytes.

@@ -36,7 +36,7 @@ environment {
 }
 plugin {
 	external remote-hash-test {
-		run "le-test fixture plugin/ssh-remote-hash-rejected $PORT $PORT2"
+		run "le test fixture plugin/ssh-remote-hash-rejected $PORT $PORT2"
 		encoder json
 	}
 }

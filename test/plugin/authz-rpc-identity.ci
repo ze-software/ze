@@ -58,7 +58,7 @@ system {
 
 plugin {
 	external rpc-dispatcher {
-		run "le-test fixture plugin/authz-rpc-identity"
+		run "le test fixture plugin/authz-rpc-identity"
 		encoder json
 	}
 }
@@ -100,7 +100,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 # The plugin's internal dispatch of "show version" was authorized.

@@ -119,7 +119,7 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
-		# Fast connect-retry: le-test's peer harness accepts connections
+		# Fast connect-retry: the `le test peer` harness accepts connections
 		# sequentially (one Accept() per completed connection), so whichever
 		# peer loses the initial accept race may have its first dial attempt
 		# abandoned while the other's sequence is still in flight (waiting on
@@ -198,5 +198,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s

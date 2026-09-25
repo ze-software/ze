@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/on-demand-origination.md -- the send bgp forms this drives
 // Related: ui_fixture_cli_verb_daemon_dispatch.go -- the daemon-over-ephemeral-SSH half this reuses
-// Related: misc_fixture_vpp.go -- startFixtureProcess and Poll, the ze-test peer half this reuses
+// Related: misc_fixture_vpp.go -- startFixtureProcess and Poll, the le test peer half this reuses
 //
 // The send bgp forms are the only command family in the tree whose whole
 // grammar lives in a handler and whose seven registered handlers no functional
@@ -8,10 +8,10 @@
 // ephemeral SSH address into the file ZE_SSH_EPHEMERAL names, and only a
 // compiled fixture can read that file and put ZE_SSH_HOST and ZE_SSH_PORT on
 // the client. So this fixture starts BOTH halves, a daemon over ephemeral SSH
-// and a ze-test peer, and drives `ze send bgp` as argv against them.
+// and a le test peer, and drives `ze send bgp` as argv against them.
 //
 // The peer is the assertion. Its script states the wire bytes it must receive,
-// and ze-test peer exits zero only when every one of them arrived, so the
+// and le test peer exits zero only when every one of them arrived, so the
 // fixture proves the announcement reached the wire rather than only that the
 // command exited zero.
 
@@ -85,7 +85,7 @@ const (
 const cliWireUnclaimedToken = "bogus"
 
 // cliWireSession is one run's two processes and the environment a client
-// reaches the daemon with: a daemon over ephemeral SSH, and a ze-test peer
+// reaches the daemon with: a daemon over ephemeral SSH, and a le test peer
 // scripted by the .ci that launched the fixture. It carries no announce
 // vocabulary, so every fixture that drives a command at a peer's wire uses it
 // (ui_fixture_send_raw.go is the second).
@@ -258,7 +258,7 @@ func startCLIWireSession(ctx context.Context, args []string) (*cliWireSession, e
 	// expects from it. Without it ze-peer mirrors ZE's OPEN and presents ze's own
 	// AS 65533, which ze answers with NOTIFICATION 2/2 Bad Peer AS: the session
 	// never establishes and the CLI has no wire to reach.
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "ze-test", "peer",
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer",
 		"--port", strconv.Itoa(port), "--asn", strconv.Itoa(cliWirePeerAS), peerScript)
 	if err != nil {
 		return nil, fmt.Errorf("start the peer: %w", err)

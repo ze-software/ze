@@ -65,6 +65,6 @@ EOF_CONF2
 # Trigger script: waits for daemon, then rewrites config and sends SIGHUP
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture reload/reload-add-bgp-trigger
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture reload/reload-add-bgp-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

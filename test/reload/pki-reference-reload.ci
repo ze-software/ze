@@ -79,7 +79,7 @@ environment {
 }
 EOF_ADDREF
 
-cmd=background:seq=1:exec=le-test fixture reload/pki-reference-reload-trigger
+cmd=background:seq=1:exec=le test fixture reload/pki-reference-reload-trigger
 cmd=foreground:seq=2:exec=ze start hub.conf:timeout=40s
 await=stderr:contains=sighup reload complete:then=stop
 expect=exit:code=0

@@ -6,7 +6,7 @@
 # internal/component/iface's package-level subscriber list) that would
 # silently no-op across the process boundary -- it is flow-export's only
 # counter data source, unconditional, no fallback.
-# Uses `le-test plugin-external flow-export`
+# Uses `le test plugin-external flow-export`
 # (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
 # RunEngine via a real TLS connect-back, exercising the guard through the
 # actual external-plugin transport, not a mocked conn.
@@ -46,7 +46,7 @@ flow-export {
 
 plugin {
 	external flow-export {
-		run "le-test plugin-external flow-export"
+		run "le test plugin-external flow-export"
 	}
 }
 

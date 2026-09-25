@@ -28,7 +28,29 @@ const (
 
 	leTestWord     = "test"
 	leTestPeerWord = "peer"
+
+	// binNamePeer is the role name of a step that starts the harness peer,
+	// whichever head spelled it. The peer's stdin route, port and success
+	// barrier read this role.
+	binNamePeer = "le test peer"
 )
+
+// launchesPeer answers whether the words of an exec value start the harness
+// peer: `le test peer ...`, or the retired head `ze-peer ...` until Phase 3.
+// It reads the command words only, so a helper whose arguments mention the
+// peer does not match.
+func launchesPeer(fields []string) bool {
+	if len(fields) == 0 {
+		return false
+	}
+	if fields[0] == binNameZePeer {
+		return true
+	}
+	if len(fields) < 3 {
+		return false
+	}
+	return fields[0] == binNameLE && fields[1] == leTestWord && fields[2] == leTestPeerWord
+}
 
 // retiredHeads maps each retired exec head to the le words it stands for.
 var retiredHeads = map[string][]string{

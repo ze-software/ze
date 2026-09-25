@@ -1,7 +1,7 @@
 # mcp-problems - the chaos MCP listener answers chaos_problems and chaos_peers.
 #
 # Drives the Provider-mode MCP server of `le chaos run` through the runner's own HTTP
-# directive rather than through le-test mcp, so it is the one place that checks
+# directive rather than through le test mcp, so it is the one place that checks
 # the raw 2026-07-28 wire shape a hand-written client has to produce.
 #
 # WHAT CHANGED AND WHY: every POST now carries the three standard request

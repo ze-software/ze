@@ -144,7 +144,7 @@ EOF_CONF
 # reported as a timeout, while the daemon had done its work in under a second.
 # Without it the runner waits for the peer, stops the daemon, and judges the
 # stderr lines over what it collected.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=stderr:contains=credited to this peer's barrier
 reject=stderr:pattern=barrier does not name

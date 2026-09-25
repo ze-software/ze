@@ -41,14 +41,14 @@
 # that the byte equality below would pin instead of the AS_PATH.
 #
 # NOT YET EXECUTED, 2026-09-05. The three frames below are computed from the
-# RFC and from the producers, not read off a run: le-test could not be rebuilt
+# RFC and from the producers, not read off a run: le test could not be rebuilt
 # with this file's fixture, because internal/component/bgp/plugins/cmd/commit
 # did not compile in the working tree at the time. The AS numbers in each frame
 # are the ones TestLocalASNoPrependLeavesEveryOutboundPathAlone
 # (internal/component/bgp/reactor/rfc7705_local_as_test.go) reads off the same
 # rail and asserts green; the framing around them is what a run still has to
 # confirm. Run it with:
-#   ./le job run label functional-plugin command le-test bgp plugin bgp-local-as-inbound-untouched
+#   ./le job run label functional-plugin command le test bgp plugin bgp-local-as-inbound-untouched
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3
@@ -96,7 +96,7 @@ plugin {
 		use bgp-adj-rib-in
 	}
 	external shutdown-after-up {
-		run "le-test fixture plugin/bgp-local-as-inbound-untouched"
+		run "le test fixture plugin/bgp-local-as-inbound-untouched"
 		encoder json
 	}
 }
@@ -225,7 +225,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic

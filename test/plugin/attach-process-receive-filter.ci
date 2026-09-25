@@ -44,11 +44,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external receive-filter-state {
-		run "le-test fixture plugin/attach-process-receive-filter-state"
+		run "le test fixture plugin/attach-process-receive-filter-state"
 		encoder json
 	}
 	external receive-filter-update {
-		run "le-test fixture plugin/attach-process-receive-filter-update"
+		run "le test fixture plugin/attach-process-receive-filter-update"
 		encoder json
 	}
 }
@@ -90,6 +90,6 @@ EOF_CONF
 expect=stderr:pattern=FILTER-STATE: state event delivered
 expect=stderr:pattern=FILTER-UPDATE: received update delivered
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0

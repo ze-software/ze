@@ -31,6 +31,6 @@ option=timeout:value=60s
 # The plugin under test: it asks for a name `show bgp` already answers to.
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/pipe-alias-collision
+cmd=foreground:seq=1:exec=le test fixture plugin/pipe-alias-collision
 expect=exit:code=0
 expect=stdout:contains=OK

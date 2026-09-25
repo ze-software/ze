@@ -38,7 +38,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     internal rs { use bgp-rs; }
     external claim-permission {
-        run "le-test fixture plugin/peer-up-replay-claim-permission";
+        run "le test fixture plugin/peer-up-replay-claim-permission";
         encoder json;
     }
 }
@@ -89,9 +89,9 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=observer
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=raw-only
-cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=writer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=observer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=raw-only
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=writer
 cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0
 expect=stderr:pattern=CLAIM-PERMISSION: checked=3 observer=true raw-only=true writer=false

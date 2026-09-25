@@ -28,7 +28,7 @@
 //
 //	plugin {
 //		external engine-steps {
-//			run "le-test engine-steps ./engine-steps.json"
+//			run "le test engine-steps ./engine-steps.json"
 //			encoder json
 //		}
 //	}
@@ -80,7 +80,7 @@ const (
 
 // EngineStep is one parsed engine-step directive, in file order. JSON tags
 // shape engine-steps.json, the contract between the runner and the spawned
-// `le-test engine-steps` executor.
+// `le test engine-steps` executor.
 type EngineStep struct {
 	Kind      EngineStepKind `json:"kind"`
 	Text      string         `json:"text,omitempty"` // command/stream text, or the predicate operand (contains=/matches= needle, absent= needle, or json= value)
@@ -414,7 +414,7 @@ func (b *EngineEventBuffer) Wait(ctx context.Context, deadline time.Time, pred f
 type EngineDispatch func(ctx context.Context, command string) (string, string, error)
 
 // RunEngineSteps executes the steps in file order against a live engine.
-// Called by the spawned `le-test engine-steps` executor from within
+// Called by the spawned `le test engine-steps` executor from within
 // OnAllPluginsReady; events must be wired to buf before the daemon starts
 // delivering them.
 func RunEngineSteps(ctx context.Context, dispatch EngineDispatch, buf *EngineEventBuffer, steps []EngineStep) error {

@@ -33,7 +33,7 @@ func plugin16TacacsShow(ctx context.Context, _ []string) error {
 		return err
 	}
 	defer mockLog.Close()                                                                                                                                         //nolint:errcheck // fixture teardown
-	mock := exec.CommandContext(ctx, executable, "tacacs-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:15", "--addr-file", "mock.addr") //nolint:gosec // the fixture chooses the program and its arguments
+	mock := exec.CommandContext(ctx, executable, "test", "tacacs-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:15", "--addr-file", "mock.addr") //nolint:gosec // the fixture chooses the program and its arguments
 	mock.Stdout = io.Discard
 	mock.Stderr = mockLog
 	mockDone, err := plugin16StartProcess(mock)

@@ -20,7 +20,7 @@ plugin {
         use bgp-rs
     }
     external pprof-probe {
-        run "le-test fixture plugin/bgp-rs-perf-pprof $PORT2"
+        run "le test fixture plugin/bgp-rs-perf-pprof $PORT2"
         encoder json
     }
 }
@@ -49,7 +49,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --pprof 127.0.0.1:$PORT2 -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=pprof server listening on 127.0.0.1:

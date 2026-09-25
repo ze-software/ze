@@ -29,7 +29,7 @@ type rpkiServer struct {
 }
 
 func Run(args []string) int {
-	fs := flag.NewFlagSet("le-test rpki", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test rpki", flag.ExitOnError)
 
 	var (
 		bind       string
@@ -46,7 +46,7 @@ func Run(args []string) int {
 	fs.UintVar(&serial, "serial", 1, "initial serial number")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le-test rpki [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le test rpki [flags]
 
 Deterministic RTR cache server for RPKI functional tests.
 
@@ -84,7 +84,7 @@ Flags:
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "le-test rpki: listening on %s:%s (valid-asn=%d, invalid-asn=%d)\n",
+	fmt.Fprintf(os.Stderr, "le test rpki: listening on %s:%s (valid-asn=%d, invalid-asn=%d)\n",
 		bind, portStr, srv.validASN, srv.invalidASN)
 
 	for {

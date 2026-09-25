@@ -56,7 +56,7 @@ EOF_PEER
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
-		run "le-test engine-steps ./engine-steps.json"
+		run "le test engine-steps ./engine-steps.json"
 		encoder json
 	}
 	internal bgp-rib {
@@ -106,7 +106,7 @@ bgp {
 }
 EOF_CONFIG
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=25s
 
 # Resolve 1.1.1.1 so both announced prefixes reach the system RIB.

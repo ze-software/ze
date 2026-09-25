@@ -88,7 +88,7 @@ traffic {
 # event's SuppressMitigation flag -- i.e. only when the policy actually worked.
 plugin {
 	external ddos-policy-probe {
-		run "le-test fixture plugin/ddos-policy"
+		run "le test fixture plugin/ddos-policy"
 		encoder json
 	}
 }
@@ -128,7 +128,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=85s
 expect=exit:code=0
 expect=stderr:contains=ddos-local: policy exempts mitigation

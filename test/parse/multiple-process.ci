@@ -2,11 +2,11 @@
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
-		run "le-test interop-bgp exabgp-api syslog"
+		run "le test interop-bgp exabgp-api syslog"
 		encoder json
 	}
 	external my-second-process {
-		run "le-test interop-bgp exabgp-api stderr"
+		run "le test interop-bgp exabgp-api stderr"
 		encoder json
 	}
 }

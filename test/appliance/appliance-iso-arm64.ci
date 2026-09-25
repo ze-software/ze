@@ -20,6 +20,6 @@ tmpfs=iso-config.json:terminator=EOF_JSON
 }
 EOF_JSON
 
-cmd=foreground:seq=1:exec=le-test fixture appliance/appliance-iso-arm64
+cmd=foreground:seq=1:exec=le test fixture appliance/appliance-iso-arm64
 expect=exit:code=0
 expect=stdout:contains=OK

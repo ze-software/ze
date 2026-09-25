@@ -1,4 +1,4 @@
-// Design: docs/functional-tests.md -- the two ze-test dns stub scenarios
+// Design: docs/functional-tests.md -- the two le test dns stub scenarios
 // Related: internal/test/mock/dns/server.go -- the stub these fixtures drive
 
 package fixture
@@ -43,7 +43,7 @@ const dnsStubLookupAttempts = 40
 // dnsStubLookup asserts the daemon reads the stub's zone through the operator
 // command, for both families and for a name that does not exist.
 //
-// The stub is the separate `ze-test dns --port 53` process the `.ci` file
+// The stub is the separate `le test dns --port 53` process the `.ci` file
 // starts, so this scenario proves the subcommand serves a real daemon.
 func dnsStubLookup(ctx context.Context, p *sdk.Plugin) error {
 	// The first lookup waits for the stub, which its own `cmd=background` line

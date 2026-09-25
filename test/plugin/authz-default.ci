@@ -2,5 +2,5 @@
 # VALIDATES: unassigned users fail closed.
 # PREVENTS: unassigned users silently becoming admin-equivalent.
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/authz-default:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture plugin/authz-default:timeout=15s
 expect=exit:code=0

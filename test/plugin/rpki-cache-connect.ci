@@ -23,7 +23,7 @@ plugin {
 		}
 	}
 	external rpki-cache-test {
-		run "le-test fixture plugin/rpki-cache-connect"
+		run "le test fixture plugin/rpki-cache-connect"
 		encoder json
 	}
 	internal rpki {
@@ -79,8 +79,8 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=le-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001:ready=le-test rtr-mock: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 # Prove the observer reached its assertion. Without this the plugin could die

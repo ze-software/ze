@@ -33,7 +33,7 @@ environment {
 }
 plugin {
 	external ssh-user-login-test {
-		run "le-test fixture plugin/ssh-user-login-yang $PORT2"
+		run "le test fixture plugin/ssh-user-login-yang $PORT2"
 		encoder json
 	}
 }

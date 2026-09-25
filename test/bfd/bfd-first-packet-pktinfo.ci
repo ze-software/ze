@@ -36,7 +36,7 @@ option=exclusive:group=bfd-ports
 stdin=ze-bfd:terminator=EOF_CONF
 plugin {
 	external bfd-first-packet-pktinfo-test {
-		run "le-test fixture bfd/bfd-first-packet-pktinfo"
+		run "le test fixture bfd/bfd-first-packet-pktinfo"
 		encoder json
 	}
 }

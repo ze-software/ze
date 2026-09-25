@@ -73,7 +73,7 @@ expect=stderr:contains=environment.web.insecure
 # Asserted under the command that WRITES it. It used to sit under a later
 # command, where the runner checked it against the whole test's output.
 expect=stderr:contains=environment.web insecure not honored
-cmd=foreground:seq=3:exec=le-test fixture plugin/mgmt-guard-web-dormant-insecure-warns-probe 18450:timeout=30s
+cmd=foreground:seq=3:exec=le test fixture plugin/mgmt-guard-web-dormant-insecure-warns-probe 18450:timeout=30s
 expect=exit:code=0
 # The WARN itself: the leaf that was dropped, named.
 # The daemon booted past checkMgmtListeners and served authenticated HTTPS, so

@@ -137,7 +137,7 @@ func sharedBinDir(baseDir string) string {
 // It resolves a DIRECTORY rather than each binary independently, because .ci
 // tests exec `ze` and `ze-stripped` by BARE NAME and the runner puts one
 // directory on their PATH (runner_exec.go). Resolving ze from one directory and
-// le-test from another would satisfy both stat calls and still leave a test
+// ze-stripped from another would satisfy both stat calls and still leave a test
 // exec'ing a sibling binary that is not there.
 func FindPrebuiltDir(baseDir string, names ...string) string {
 	// No names means nothing was asked for, so no directory can satisfy it.

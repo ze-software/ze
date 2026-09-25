@@ -59,7 +59,7 @@ type errStr string
 
 func (e errStr) Error() string { return string(e) }
 
-// Run is the `le-test radius-mock` entry point.
+// Run is the `le test radius-mock` entry point.
 func Run(args []string) int {
 	var (
 		port    int
@@ -69,7 +69,7 @@ func Run(args []string) int {
 		logAll  bool
 	)
 
-	fs := flag.NewFlagSet("le-test radius-mock", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test radius-mock", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "UDP listen port (0 = auto)")
 	fs.StringVar(&key, "key", "", "RADIUS shared secret (required)")
 	fs.Var(&users, "user", "credential: name:pass[:profile1,profile2] (repeatable)")

@@ -68,6 +68,6 @@ EOF_CONF
 option=env:var=ze.log.flow.export:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-conf
-cmd=foreground:seq=2:exec=le-test fixture flow-export/sampling-config:timeout=10s
+cmd=foreground:seq=2:exec=le test fixture flow-export/sampling-config:timeout=10s
 expect=exit:code=0
 expect=stderr:pattern=flow-export: (packet sampling enabled|psample reader unavailable)

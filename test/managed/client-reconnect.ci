@@ -4,5 +4,5 @@
 # PREVENTS: Client unable to find hub connection info for reconnect.
 
 
-cmd=foreground:seq=1:exec=le-test fixture managed/client-reconnect:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture managed/client-reconnect:timeout=10s
 expect=exit:code=0

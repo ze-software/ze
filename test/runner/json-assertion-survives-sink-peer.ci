@@ -34,7 +34,7 @@ expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"mes
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external sink-json {
-		run "le-test fixture runner/json-assertion-survives-sink-peer"
+		run "le test fixture runner/json-assertion-survives-sink-peer"
 		encoder json
 	}
 }
@@ -82,6 +82,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

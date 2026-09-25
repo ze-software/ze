@@ -397,7 +397,7 @@ func (runner *Runner) captureProfile(container, endpoint, path string, timeout t
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	url := "http://127.0.0.1:" + strconv.Itoa(runner.PProfPort) + "/debug/pprof/" + endpoint
-	runErr := runner.Run(ctx, file, runner.Stderr, runner.Root, nil, []string{"docker", "exec", container, "ze-test", "http-get", url})
+	runErr := runner.Run(ctx, file, runner.Stderr, runner.Root, nil, []string{"docker", "exec", container, "le", "test", "http-get", url})
 	closeErr := file.Close()
 	if runErr != nil {
 		return runErr

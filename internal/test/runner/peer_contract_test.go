@@ -141,6 +141,8 @@ func TestZePeerExecMode(t *testing.T) {
 		want peer.Mode
 	}{
 		{"default is check", "ze-peer --port $PORT", peer.ModeCheck},
+		{"le test peer default is check", "le test peer --port $PORT", peer.ModeCheck},
+		{"le test peer sink", "le test peer --mode sink --port $PORT", peer.ModeSink},
 		{"explicit check", "ze-peer --mode check --port $PORT", peer.ModeCheck},
 		{"sink", "ze-peer --bind 127.0.0.2 --mode sink --port $PORT", peer.ModeSink},
 		{"equals form", "ze-peer --mode=sink --port $PORT", peer.ModeSink},
@@ -155,13 +157,37 @@ func TestZePeerExecMode(t *testing.T) {
 	}
 }
 
-// TestIsZePeerExec verifies peer detection matches on the command word, so a
-// helper script whose arguments mention ze-peer is not mistaken for one.
-func TestIsZePeerExec(t *testing.T) {
-	assert.True(t, isZePeerExec("ze-peer --port 1790"))
-	assert.False(t, isZePeerExec("ze bgp server -"))
-	assert.False(t, isZePeerExec("fixture-driver --wait-for ze-peer"))
-	assert.False(t, isZePeerExec(""))
+// TestIsPeerExec verifies peer detection matches on the command words, so a
+// helper script whose arguments mention the peer is not mistaken for one, and
+// that `le test peer` and the retired head `ze-peer` are one role.
+func TestIsPeerExec(t *testing.T) {
+	assert.True(t, isPeerExec("le test peer --port 1790"))
+	assert.True(t, isPeerExec("ze-peer --port 1790"))
+	assert.False(t, isPeerExec("ze bgp server -"))
+	assert.False(t, isPeerExec("fixture-driver --wait-for ze-peer"))
+	assert.False(t, isPeerExec("fixture-driver --wait-for le test peer"))
+	assert.False(t, isPeerExec("le test rpki --port 1790"))
+	assert.False(t, isPeerExec("le test"))
+	assert.False(t, isPeerExec(""))
+}
+
+// TestParseAndAdd_LeTestPeerIsThePeerRole verifies the peer contract binds a
+// step spelled `le test peer`: a check-mode peer with nothing to check is
+// refused at parse time, exactly as under the retired head.
+//
+// PREVENTS: the Phase 2 caller rewrite silently switching the peer contract,
+// the peer's stdin route and its success barrier off for every rewritten line.
+func TestParseAndAdd_LeTestPeerIsThePeerRole(t *testing.T) {
+	ResetNickCounter()
+
+	ciFile := peerContractCI(t, "le test peer --port $PORT",
+		"option=timeout:value=5s\n"+
+			`expect=json:conn=1:seq=1:json={ "type": "update" }`+"\n")
+
+	et := NewEncodingTests(filepath.Dir(ciFile))
+	_, err := et.parseAndAdd(ciFile)
+	require.Error(t, err, "a check-mode `le test peer` with only expect=json must be rejected")
+	assert.Contains(t, err.Error(), "no test data available to test against")
 }
 
 // TestPeerBindFailure_NamesNoTestDataCause verifies F3: when ze-peer exits

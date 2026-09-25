@@ -18,7 +18,7 @@
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external event-predicate-test {
-		run "le-test fixture plugin/event-predicate-wait"
+		run "le test fixture plugin/event-predicate-wait"
 		encoder json
 	}
 }
@@ -59,7 +59,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT --mode echo
+cmd=background:seq=1:exec=le test peer --port $PORT --mode echo
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=matched the echoed update

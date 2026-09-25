@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. A Go fixture writes a config declaring one external Go SDK plugin
-# 2. The daemon starts, spawns `le-test record-plugin`, and opens SSH
+# 2. The daemon starts, spawns `le test record-plugin`, and opens SSH
 # 3. When every plugin is ready, the plugin dispatches `system command list`
 #    through Plugin.DispatchCommandAnswer and walks the rows as they arrive
 # 4. It keeps the count, the first name and the last name, and no row
@@ -31,7 +31,7 @@
 
 
 # Process orchestration
-cmd=foreground:seq=1:exec=le-test fixture plugin/reads-engine-answer:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/reads-engine-answer:timeout=60s
 expect=exit:code=0
 expect=stderr:pattern=OK: the plugin walked [0-9]+ streamed rows and acted on them
 reject=stderr:pattern=panic recovered

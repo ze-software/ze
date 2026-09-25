@@ -230,7 +230,7 @@ func refuseUnofferedDeclarations(owned map[byte]ownedCapability, cfg *Config) er
 		}
 		return fmt.Errorf(
 			"the peer block states option=open:value=%s, and ze's OPEN carries no capability %d, so "+
-				"ze-peer has nothing to state it in: the capability SET ze-peer sends mirrors ze's. "+
+				"the peer has nothing to state it in: the capability SET ze-peer sends mirrors ze's. "+
 				"Configure ze to offer capability %d, or drop the option",
 			fact.option, fact.code, fact.code)
 	}

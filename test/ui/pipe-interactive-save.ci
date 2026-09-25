@@ -8,7 +8,7 @@
 
 option=timeout:value=30s
 
-# le-test editor roots its base dir at the first go.mod above the working
+# le test editor roots its base dir at the first go.mod above the working
 # directory, so --dir . runs the embedded interaction in this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-pipe-interactive-save-fixture
@@ -29,8 +29,8 @@ expect=viewport:contains=timeout
 expect=viewport:contains=192.0.2.1
 EOF_ET
 
-cmd=foreground:seq=1:exec=le-test editor --dir . --all
+cmd=foreground:seq=1:exec=le test editor --dir . --all
 expect=exit:code=0
-cmd=foreground:seq=2:exec=le-test fixture ui/pipe-interactive-save
+cmd=foreground:seq=2:exec=le test fixture ui/pipe-interactive-save
 expect=exit:code=0
 expect=stdout:contains=OK: interactive save bytes and mode

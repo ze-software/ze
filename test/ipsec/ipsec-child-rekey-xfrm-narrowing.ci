@@ -173,7 +173,7 @@ EOF_PEER_A
 # pair of the scope in use.
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze_test_ike_rekey_ts_local=192.0.2.96/27 ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
-cmd=foreground:seq=3:exec=le-test fixture ipsec/child-rekey-xfrm-narrowing:timeout=110s
+cmd=foreground:seq=3:exec=le test fixture ipsec/child-rekey-xfrm-narrowing:timeout=110s
 # Asserted under the fixture that PRINTS these markers. They used to sit
 # below the cmd=stop lines, where the runner checked them against the
 # whole test's output; a cmd=stop runs no program and writes nothing.

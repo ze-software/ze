@@ -67,7 +67,7 @@ plugin {
         use bgp-rs;
     }
     external test-path-asn-export {
-        run "le-test fixture plugin/path-asn-filter-export-reject /tmp/ze-path-asn-export-$PORT.ready";
+        run "le test fixture plugin/path-asn-filter-export-reject /tmp/ze-path-asn-export-$PORT.ready";
         encoder json;
     }
 }
@@ -157,10 +157,10 @@ EOF_CONF
 
 # Establish the forward target first. The observer writes the marker after peer2
 # sends its initial end-of-rib, then peer1 connects and supplies the routes.
-cmd=background:seq=1:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer2
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-path-asn -:stdin=ze-bgp:timeout=20s
-cmd=foreground:seq=3:exec=le-test fixture plugin/wait-file /tmp/ze-path-asn-export-$PORT.ready:timeout=10s
-cmd=background:seq=4:exec=ze-peer --dial 127.0.0.4:$PORT:stdin=peer
+cmd=foreground:seq=3:exec=le test fixture plugin/wait-file /tmp/ze-path-asn-export-$PORT.ready:timeout=10s
+cmd=background:seq=4:exec=le test peer --dial 127.0.0.4:$PORT:stdin=peer
 expect=exit:code=0
 # The export decision, the ASN that produced it, and the path it was read from.
 expect=stderr:pattern=reject-asn reject

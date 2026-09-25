@@ -18,7 +18,7 @@ option=netns-link:name=eth1
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-multiaf-show {
-		run "le-test fixture ospf/ospf-multiaf-show"
+		run "le test fixture ospf/ospf-multiaf-show"
 		encoder json
 	}
 }

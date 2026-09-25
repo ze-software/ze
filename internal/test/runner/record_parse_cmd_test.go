@@ -286,7 +286,7 @@ func TestParseCmdExecReady(t *testing.T) {
 		line string
 		want string
 	}{
-		{"after_exec", "cmd=background:seq=1:exec=le-test fixture plugin/c $PORT2:ready=BMP-COLLECTOR: listening on", "BMP-COLLECTOR: listening on"},
+		{"after_exec", "cmd=background:seq=1:exec=le test fixture plugin/c $PORT2:ready=BMP-COLLECTOR: listening on", "BMP-COLLECTOR: listening on"},
 		{"before_exec", "cmd=background:seq=1:ready=up now:exec=sleep 60", "up now"},
 		{"with_name", "cmd=background:seq=1:exec=sleep 60:ready=up:name=holder", "up"},
 	}
@@ -306,7 +306,7 @@ func TestParseCmdExecReady(t *testing.T) {
 	}{
 		{"foreground", modeForeground, "cmd=foreground:seq=1:exec=sleep 1:ready=up", "only valid on cmd=background"},
 		{"empty", modeBackground, "cmd=background:seq=1:exec=sleep 60:ready=", "empty ready="},
-		{"ze_peer", modeBackground, "cmd=background:seq=1:exec=ze-peer --port $PORT:ready=listening", "not valid on ze-peer"},
+		{"ze_peer", modeBackground, "cmd=background:seq=1:exec=le test peer --port $PORT:ready=listening", "not valid on le test peer"},
 	}
 	for _, tt := range bad {
 		t.Run(tt.name, func(t *testing.T) {

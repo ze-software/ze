@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-aspath-len {
-		run "le-test fixture plugin/aspath-length-reject"
+		run "le test fixture plugin/aspath-length-reject"
 		encoder json
 	}
 }
@@ -68,7 +68,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-aspath-length --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=as-path-length reject

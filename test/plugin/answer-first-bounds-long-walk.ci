@@ -36,7 +36,7 @@
 # Native fixture: the bound holds over a streamed walk
 
 # Process orchestration
-cmd=foreground:seq=1:exec=le-test fixture plugin/answer-first-bounds-long-walk:timeout=25s
+cmd=foreground:seq=1:exec=le test fixture plugin/answer-first-bounds-long-walk:timeout=25s
 expect=exit:code=0
 expect=stderr:pattern=OK: \| first [0-9]+ bounds a walk of [0-9]+ records to [0-9]+
 expect=stderr:pattern=OK: the [0-9]+ bounded records are records of the walk, byte for byte

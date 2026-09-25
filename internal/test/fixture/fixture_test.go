@@ -131,7 +131,7 @@ func TestAwaitObserverResultReturnsTransportErrorBeforeScenarioStarts(t *testing
 }
 
 // TestRunRefusesADriverStartedInTheCheckoutRoot drives the working-directory
-// guard from the entry point a .ci step reaches, `ze-test fixture <name>`.
+// guard from the entry point a .ci step reaches, `le test fixture <name>`.
 //
 // VALIDATES: a driver whose relative file names would land beside tracked
 // source does not run at all, and the report names the directory.

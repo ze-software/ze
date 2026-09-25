@@ -32,7 +32,7 @@ plugin {
 		}
 	}
 	external rpki-batch-test {
-		run "le-test fixture plugin/rpki-validate-batch-mixed"
+		run "le test fixture plugin/rpki-validate-batch-mixed"
 		encoder json
 	}
 	internal rpki {
@@ -90,7 +90,7 @@ EOF_CONF
 # VRP: 10.0.0.0/8 maxlen=24 AS=65001
 # Covers 10.0.x.0/24 from AS 65001 (Valid), 10.0.x.0/24 from AS 65999 (Invalid)
 # Does NOT cover 192.168.x.0/24 (NotFound)
-cmd=background:seq=1:exec=le-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001:ready=le-test rtr-mock: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

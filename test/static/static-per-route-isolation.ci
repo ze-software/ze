@@ -35,9 +35,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=le-test fixture static/static-per-route-isolation-setup
+cmd=foreground:seq=1:exec=le test fixture static/static-per-route-isolation-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=le-test fixture static/static-per-route-isolation:timeout=15s
+cmd=foreground:seq=3:exec=le test fixture static/static-per-route-isolation:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded
 expect=stderr:contains=static: route skipped, kept rest of section

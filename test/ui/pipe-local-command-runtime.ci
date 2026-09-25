@@ -7,7 +7,7 @@
 
 option=timeout:value=45s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/pipe-local-command-runtime:timeout=45s
+cmd=foreground:seq=1:exec=le test fixture ui/pipe-local-command-runtime:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=COVERED: show config dump
 expect=stdout:contains=COVERED: show schema events

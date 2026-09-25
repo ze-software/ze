@@ -106,7 +106,7 @@ traffic {
 
 plugin {
 	external ddos-direction-probe {
-		run "le-test fixture plugin/ddos-direction"
+		run "le test fixture plugin/ddos-direction"
 		encoder json
 	}
 }
@@ -146,7 +146,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=125s
 expect=exit:code=0
 expect=stderr:contains=LOCAL-DROP-INSTALLED 127.0.0.3

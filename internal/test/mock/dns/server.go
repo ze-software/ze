@@ -1,5 +1,5 @@
-// Design: docs/functional-tests.md -- the in-process form of the le-test dns stub
-// Related: zone.go -- the answers it serves; dns.go -- the le-test dns subcommand
+// Design: docs/functional-tests.md -- the in-process form of the le test dns stub
+// Related: zone.go -- the answers it serves; dns.go -- the le test dns subcommand
 // RFC: rfc/short/rfc1035.md -- the RCODE values; rfc/full/rfc2308.txt -- NODATA
 
 package dns

@@ -475,7 +475,7 @@ traffic {
 
 plugin {
 	external ddos-local-cap-survives-reload-probe {
-		run "ze-test fixture plugin/ddos-local-cap-survives-reload-driver"
+		run "le test fixture plugin/ddos-local-cap-survives-reload-driver"
 		encoder json
 	}
 }
@@ -660,7 +660,7 @@ traffic {
 
 plugin {
 	external ddos-local-config-removed-probe {
-		run "ze-test fixture plugin/ddos-local-config-removed-driver"
+		run "le test fixture plugin/ddos-local-config-removed-driver"
 		encoder json
 	}
 }
@@ -786,7 +786,7 @@ traffic {
 
 plugin {
 	external ddos-parent-config-removed-probe {
-		run "ze-test fixture plugin/ddos-parent-config-removed-driver"
+		run "le test fixture plugin/ddos-parent-config-removed-driver"
 		encoder json
 	}
 }

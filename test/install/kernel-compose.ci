@@ -3,6 +3,6 @@
 
 option=timeout:value=20s
 
-cmd=foreground:seq=1:exec=le-test fixture install/kernel-compose "$ZE_REPO_ROOT"
+cmd=foreground:seq=1:exec=le test fixture install/kernel-compose "$ZE_REPO_ROOT"
 expect=exit:code=0
 expect=stdout:contains=OK

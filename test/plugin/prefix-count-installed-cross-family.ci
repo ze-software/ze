@@ -63,7 +63,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefix-count-cross-family {
-		run "le-test fixture plugin/prefix-count-installed-cross-family"
+		run "le test fixture plugin/prefix-count-installed-cross-family"
 		encoder json
 	}
 	internal bgp-rib {
@@ -119,7 +119,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 
 # THE POSITIVE CONTROL. Message 1 arrived and was refused, on ipv6/unicast's own

@@ -67,5 +67,5 @@ tmpfs=config2.conf:terminator=EOF_CONF2
 EOF_CONF2
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

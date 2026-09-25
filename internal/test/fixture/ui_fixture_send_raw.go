@@ -8,7 +8,7 @@
 // firing would send unvalidated bytes to every peer.
 //
 // The peer holds the assertion. Its script states the octets it must receive,
-// and ze-test peer exits zero only when each one arrived, so this proves the
+// and le test peer exits zero only when each one arrived, so this proves the
 // operator's bytes reached the wire rather than only that the command exited
 // zero.
 

@@ -18,6 +18,6 @@
 # derived bound while every assertion still holds.
 option=timeout:value=60s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/show-bgp-peer-list-column-order
+cmd=foreground:seq=1:exec=le test fixture ui/show-bgp-peer-list-column-order
 expect=exit:code=0
 expect=stdout:contains=OK

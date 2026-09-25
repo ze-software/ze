@@ -39,7 +39,7 @@ const (
 	schemeHTTPS = "https://"
 )
 
-const webUsageHeader = `Usage: le-test web [options] [test-ids...]
+const webUsageHeader = `Usage: le test web [options] [test-ids...]
 
 Run web browser functional tests in parallel.
 Requires: agent-browser CLI. The ze binary is resolved like every other suite
@@ -50,12 +50,12 @@ Options:
 
 const webUsageExamples = `
 Examples:
-  le-test web --all          Run all tests in test/web/
-  le-test web -p nav         Run tests matching "nav"
-  le-test web --start 4      Resume at id 4 and run through the end
-  le-test web 1 2            Run specific tests by id
-  le-test web -v             Verbose output
-  le-test web -l             List available tests with N/TOTAL and one-based id
+  le test web --all          Run all tests in test/web/
+  le test web -p nav         Run tests matching "nav"
+  le test web --start 4      Resume at id 4 and run through the end
+  le test web 1 2            Run specific tests by id
+  le test web -v             Verbose output
+  le test web -l             List available tests with N/TOTAL and one-based id
 `
 
 // webBrowserMissing decides what happens when agent-browser is not in PATH:
@@ -483,7 +483,7 @@ func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
 
-	peer := exec.CommandContext(ctx, bins.zeTest, "peer", "--mode", "sink", "--port", bgpPortText) //nolint:gosec // test binary path
+	peer := exec.CommandContext(ctx, bins.zeTest, "test", "peer", "--mode", "sink", "--port", bgpPortText) //nolint:gosec // test binary path
 	peer.Env = zeTestEnv(envVars)
 
 	if err := peer.Start(); err != nil {
@@ -523,11 +523,11 @@ func zeTestStartLGServer(ctx context.Context, bins zeTestWebBinaries, listenAddr
 // zeTestStartLGNoEngineServer starts the looking glass with an engine that
 // always fails, so its pages and its stream take the engine-unavailable path.
 //
-// It runs `le-test lg`, not the daemon: the looking glass dispatches in
+// It runs `le test lg`, not the daemon: the looking glass dispatches in
 // process, so a daemon with no BGP configured still answers an empty peer list,
 // and the engine-error path cannot be reached through configuration.
 func zeTestStartLGNoEngineServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
-	cmd := exec.CommandContext(ctx, bins.zeTest, "lg", "--listen", listenAddr) //nolint:gosec // test binary path
+	cmd := exec.CommandContext(ctx, bins.zeTest, "test", "lg", "--listen", listenAddr) //nolint:gosec // test binary path
 	cmd.Env = zeTestEnv(envVars)
 
 	if err := cmd.Start(); err != nil {
@@ -742,7 +742,7 @@ func (s *zeTestWebServer) stop() {
 }
 
 // zeTestBrowserSession names the agent-browser session one test drives. The
-// agent-browser daemon is per user, not per process, so several le-test web
+// agent-browser daemon is per user, not per process, so several le test web
 // runs on one host (sessions share the machine) see each other's sessions. A
 // name built from the test nick alone made two concurrent runs drive the SAME
 // browser for the same test number, and a run that closed its sessions killed
@@ -753,5 +753,5 @@ func (s *zeTestWebServer) stop() {
 // died, so no run ever closes a session it does not own.
 func zeTestBrowserSession(nick string) string {
 	var tb textbuf.Buffer
-	return tb.Str("le-test-web-").Int(int64(os.Getpid())).Byte('-').Str(nick).String()
+	return tb.Str("le-web-").Int(int64(os.Getpid())).Byte('-').Str(nick).String()
 }

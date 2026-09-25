@@ -44,7 +44,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-filter-irr {
-		run "le-test fixture plugin/filter-irr"
+		run "le test fixture plugin/filter-irr"
 		encoder json
 	}
 }
@@ -92,8 +92,8 @@ bgp {
 EOF_CONF
 
 # Start mock IRR server, peer, and ze
-cmd=background:seq=1:exec=le-test irr --port $PORT2
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test irr --port $PORT2
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 # Filter must emit the modify decision keeping the in-list prefix and dropping

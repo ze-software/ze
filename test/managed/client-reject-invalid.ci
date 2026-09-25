@@ -4,5 +4,5 @@
 # PREVENTS: Broken config being accepted and crashing daemon.
 
 
-cmd=foreground:seq=1:exec=le-test fixture managed/client-reject-invalid:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture managed/client-reject-invalid:timeout=10s
 expect=exit:code=0

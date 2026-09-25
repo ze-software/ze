@@ -13,7 +13,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external traffic-monitor-done {
-        run "le-test fixture plugin/traffic-monitor"
+        run "le test fixture plugin/traffic-monitor"
         encoder json
     }
 }

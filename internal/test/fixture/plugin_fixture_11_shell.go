@@ -19,7 +19,7 @@ import (
 
 const recordDriverConfig = `plugin {
 	external record-plugin {
-		run "ze-test record-plugin"
+		run "le test record-plugin"
 		encoder json
 	}
 }

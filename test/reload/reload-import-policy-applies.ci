@@ -58,7 +58,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external reload-policy-applies {
-		run "le-test fixture reload/reload-import-policy-applies"
+		run "le test fixture reload/reload-import-policy-applies"
 		encoder json
 	}
 }
@@ -167,7 +167,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-policy-applies {
-		run "le-test fixture reload/reload-import-policy-applies"
+		run "le test fixture reload/reload-import-policy-applies"
 		encoder json
 	}
 }
@@ -272,7 +272,7 @@ bgp {
 EOF_CONF2
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=ZE-OBSERVER-FAIL

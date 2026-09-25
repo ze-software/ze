@@ -1,5 +1,5 @@
 # mcp-announce - announce routes via MCP and verify peer receives BGP UPDATE
-# Tests the MCP server integration: ze start --mcp, le-test mcp sends commands,
+# Tests the MCP server integration: ze start --mcp, le test mcp sends commands,
 # ze-peer validates the resulting BGP wire messages.
 
 # ze-peer expectations: EOR then one UPDATE with 10.0.0.0/24
@@ -50,7 +50,7 @@ option=tcp_connections:value=1
 # Process orchestration:
 # 1. ze-peer listens for BGP connections
 # 2. ze daemon starts with MCP server on $PORT2
-# 3. le-test mcp sends commands via MCP HTTP endpoint
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+# 3. le test mcp sends commands via MCP HTTP endpoint
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=le-test mcp --port $PORT2:stdin=mcp:timeout=15s
+cmd=foreground:seq=3:exec=le test mcp --port $PORT2:stdin=mcp:timeout=15s

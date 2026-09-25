@@ -23,7 +23,7 @@ var _ = env.MustRegister(env.EnvEntry{
 	Key:         "ze.test.bgp.port",
 	Type:        "int",
 	Default:     "179",
-	Description: "BGP TCP port used by le-test peer and the le-test runner (test infrastructure)",
+	Description: "BGP TCP port used by le test peer and the le test runner (test infrastructure)",
 	Private:     true,
 })
 
@@ -296,7 +296,7 @@ func zeTestBuildInjectSpec(prefixStr string, count int, nextHopStr string, asn u
 }
 
 func zeTestPrintPeerUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: le-test peer [options] [expect-file]
+	fmt.Fprintf(os.Stderr, `Usage: le test peer [options] [expect-file]
 
 BGP test peer for validating BGP implementations.
 
@@ -329,14 +329,14 @@ Inject options (all required when --mode inject):
                      expect/action script over the dialed connection.
 
 Examples:
-  le-test peer --mode sink --port 1790
-  le-test peer --mode echo --port 1790
-  le-test peer --port 1790 test/encode/basic.msg
-  le-test peer --view test/encode/basic.msg
-  le-test peer --mode inject --port 1790 \
+  le test peer --mode sink --port 1790
+  le test peer --mode echo --port 1790
+  le test peer --port 1790 test/encode/basic.msg
+  le test peer --view test/encode/basic.msg
+  le test peer --mode inject --port 1790 \
       --inject-prefix 10.0.0.0/24 --inject-count 1000000 \
       --inject-nexthop 172.31.0.3 --inject-asn 65100
-  le-test peer --mode inject --dial 172.31.0.2:179 \
+  le test peer --mode inject --dial 172.31.0.2:179 \
       --inject-prefix 10.0.0.0/24 --inject-count 1000000 \
       --inject-nexthop 172.31.0.3 --inject-asn 65100 --inject-dwell 60s
 `)

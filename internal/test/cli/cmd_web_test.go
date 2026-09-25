@@ -31,14 +31,14 @@ func TestWebBrowserMissingSkipsOutsideVerifyMode(t *testing.T) {
 
 // TestZeTestBrowserSessionIsPerRun proves a test's browser session is owned by
 // its run. Method: the name carries this process id and the test nick, so two
-// concurrent le-test web runs never drive one browser for the same test number.
+// concurrent le test web runs never drive one browser for the same test number.
 //
 // VALIDATES: zeTestBrowserSession embeds the pid and the nick.
 // PREVENTS: sessions keyed by nick alone, where one run's test N navigated and
 // closed the browser another run's test N was reading.
 func TestZeTestBrowserSessionIsPerRun(t *testing.T) {
 	got := zeTestBrowserSession("12")
-	want := "le-test-web-" + strconv.Itoa(os.Getpid()) + "-12"
+	want := "le-web-" + strconv.Itoa(os.Getpid()) + "-12"
 	if got != want {
 		t.Fatalf("zeTestBrowserSession(12) = %q, want %q", got, want)
 	}

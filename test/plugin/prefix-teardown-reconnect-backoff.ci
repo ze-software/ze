@@ -93,7 +93,7 @@ option=env:var=ze.log.bgp.reactor.peer:value=debug
 # lands about 5s after the first teardown and a green run takes about 8s. The
 # 20s timeouts are the ceiling, not the runtime: the runner stops ze as soon as
 # ze-peer completes. No sleep is used; the wait is the daemon's own timer.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 
 # The limit stopped the session, and the peer dialed a second time.

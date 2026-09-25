@@ -44,7 +44,7 @@ EOF_CONF
 option=env:var=ze.log.firewall:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test fixture firewall/firewall-icmp-type:timeout=10s
+cmd=foreground:seq=2:exec=le test fixture firewall/firewall-icmp-type:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=firewall config applied
 expect=stdout:contains=table inet ze_fw8_012

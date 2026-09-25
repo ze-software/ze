@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external cos-dynamic-coa-test {
-        run "le-test fixture plugin/cos-dynamic-coa"
+        run "le test fixture plugin/cos-dynamic-coa"
     }
 }
 
@@ -72,6 +72,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
 expect=exit:code=0

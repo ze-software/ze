@@ -38,7 +38,7 @@ expect=stdout:contains="collected": true
 # foreground helper that is the last line of a file is otherwise started and
 # torn down without a Wait, and its stdout races the assertions below
 # (runOrchestrated, internal/test/runner/runner_exec.go).
-cmd=foreground:seq=2:exec=le-test fixture plugin/support-crashes-archive
+cmd=foreground:seq=2:exec=le test fixture plugin/support-crashes-archive
 expect=exit:code=0
 expect=stdout:contains="kind": "kernel"
 expect=stdout:contains="readiness"

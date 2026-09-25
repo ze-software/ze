@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md -- le-test shared helpers
+// Design: docs/architecture/testing/ci-format.md -- le test shared helpers
 
 package cli
 

@@ -79,11 +79,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external config-apply-ordering-mixed-rollback-failer {
-		run "le-test fixture reload/config-apply-ordering-mixed-rollback-failer"
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
 		encoder json
 	}
 	external config-apply-ordering-mixed-rollback-observer {
-		run "le-test fixture reload/config-apply-ordering-mixed-rollback-observer"
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-observer"
 		encoder json
 	}
 }
@@ -145,11 +145,11 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external config-apply-ordering-mixed-rollback-failer {
-		run "le-test fixture reload/config-apply-ordering-mixed-rollback-failer"
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-failer"
 		encoder json
 	}
 	external config-apply-ordering-mixed-rollback-observer {
-		run "le-test fixture reload/config-apply-ordering-mixed-rollback-observer"
+		run "le test fixture reload/config-apply-ordering-mixed-rollback-observer"
 		encoder json
 	}
 }
@@ -168,8 +168,8 @@ bgp {
 }
 EOF_CONF2
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture reload/config-apply-ordering-mixed-rollback-trigger
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture reload/config-apply-ordering-mixed-rollback-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
 
 # Stop once the reload's outcome and both observer lines are on stderr, and the

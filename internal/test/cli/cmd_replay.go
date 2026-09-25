@@ -1,5 +1,5 @@
 // Design: docs/architecture/bgp/protocol-event-capture.md -- replay a captured BGP session
-// Related: register.go -- le-test root handler registration
+// Related: register.go -- le test root handler registration
 
 package cli
 
@@ -83,7 +83,7 @@ func CmdReplay(args []string) int {
 		return 2
 	}
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->") //nolint:errcheck // usage
+		fmt.Fprintln(os.Stderr, "usage: le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->") //nolint:errcheck // usage
 		return 2
 	}
 	path := fs.Arg(0)

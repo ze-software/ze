@@ -4,7 +4,7 @@
 #
 # Spec: plan/spec-web-2-operator-workbench.md (UI Mode Contract).
 # Notes: This test depends on the hub being started without
-# `ze.web.ui=workbench`. The default le-test web invocation satisfies that.
+# `ze.web.ui=workbench`. The default le test web invocation satisfies that.
 
 option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s

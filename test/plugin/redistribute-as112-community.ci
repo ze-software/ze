@@ -43,7 +43,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-community-test {
-		run "le-test fixture plugin/redistribute-as112-community"
+		run "le test fixture plugin/redistribute-as112-community"
 		encoder json
 	}
 	internal redistribute-orchestrator {
@@ -101,7 +101,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

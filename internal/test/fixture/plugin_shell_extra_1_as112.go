@@ -49,7 +49,7 @@ func extra1AS112ProbeAnycast(ctx context.Context, args []string) error {
 bgp {
 	healthcheck {
 		probe as112check {
-			command "ze-test fixture plugin/as112-probe-anycast-not-loopback-probe %s"
+			command "le test fixture plugin/as112-probe-anycast-not-loopback-probe %s"
 			group as112-hc
 			interval 1
 			rise 1

@@ -225,7 +225,7 @@ func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
 	if err := os.MkdirAll(shared, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	for _, n := range []string{"ze", "ze-test"} {
+	for _, n := range []string{"ze", "ze-stripped"} {
 		if err := os.WriteFile(filepath.Join(shared, n), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -233,7 +233,7 @@ func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
 
 	setSession(t, "sid-one")
 
-	if got, want := FindPrebuiltDir(base, "ze", "ze-test"), shared; got != want {
+	if got, want := FindPrebuiltDir(base, "ze", "ze-stripped"), shared; got != want {
 		t.Errorf("FindPrebuiltDir = %q, want shared %q", got, want)
 	}
 
@@ -246,15 +246,15 @@ func TestFindPrebuiltDirPrefersSessionThenShared(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(sessionBin, "ze"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := FindPrebuiltDir(base, "ze", "ze-test"), shared; got != want {
+	if got, want := FindPrebuiltDir(base, "ze", "ze-stripped"), shared; got != want {
 		t.Errorf("partial session dir won: FindPrebuiltDir = %q, want %q", got, want)
 	}
 
 	// Complete the session set -> it wins.
-	if err := os.WriteFile(filepath.Join(sessionBin, "ze-test"), []byte("x"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(sessionBin, "ze-stripped"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := FindPrebuiltDir(base, "ze", "ze-test"), sessionBin; got != want {
+	if got, want := FindPrebuiltDir(base, "ze", "ze-stripped"), sessionBin; got != want {
 		t.Errorf("FindPrebuiltDir = %q, want session %q", got, want)
 	}
 

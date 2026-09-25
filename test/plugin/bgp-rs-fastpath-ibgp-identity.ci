@@ -34,7 +34,7 @@ plugin {
 		use bgp-rs
 	}
 	external shutdown-after-up {
-		run "le-test fixture plugin/bgp-rs-fastpath-ibgp-identity"
+		run "le test fixture plugin/bgp-rs-fastpath-ibgp-identity"
 		encoder json
 	}
 }
@@ -76,7 +76,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
 expect=exit:code=0
 reject=stderr:pattern=panic

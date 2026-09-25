@@ -8,7 +8,7 @@
 #
 # Spec: plan/spec-web-2-operator-workbench.md (Phase 4 -- BGP change-and-
 # verify loop). Gates the Phase 4 default flip and Phase 7 promotion.
-# Run with: ZE_WEB_UI=workbench bin/le-test web -p workbench-bgp-change-verify
+# Run with: ZE_WEB_UI=workbench ./le test web -p workbench-bgp-change-verify
 
 option=skip:reason=requires ZE_WEB_UI=workbench
 option=timeout:value=60s

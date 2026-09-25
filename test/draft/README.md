@@ -19,13 +19,13 @@ gate reads it, and it states its own reason in its own header.
 |------|-----------|--------------------|--------------------|
 | `plugin/gr-vacuity-*.ci` | three DEMONSTRATIONS: two pass with Graceful Restart unreachable, and the third MUST fail | a demonstration that MUST fail reddens every sweep of the directory that holds it (`plan/journal/unwired-feature.md`, 2026-09-08) | nothing. A demonstration is never a regression test |
 
-Run it with `le-test bgp plugin --draft --pattern gr-vacuity`.
+Run it with `le test bgp plugin --draft --pattern gr-vacuity`.
 
 `l2tp/subscriber-reader-failing-socket.ci` was the second exception until
 2026-09-11. It was KNOWN VACUOUS because `strace` was the only mechanism that
 sustained a read error, and ptrace's own signal-trap overhead throttled the
 traced daemon into the same range the fix produces, so the pre-fix build passed
-every assertion in it. `le-test fail-syscall` (`internal/test/failsyscall`)
+every assertion in it. `le test fail-syscall` (`internal/test/failsyscall`)
 replaced that stimulus with a seccomp filter, which has no tracer in the path,
 and the scenario moved to `test/l2tp/` and is now gated. Its header carries the
 whole finding, including the ptrace numbers.
@@ -69,8 +69,8 @@ $EDITOR test/draft/plugin/my-new-test.ci
 #    The verb is the suite's own: `bgp plugin`, but bare `ui`, `editor`, `web`.
 #    internal/le/test/functional/suites.go carries the argv for each suite, and a
 #    runner given a verb it does not know prints usage and EXITS 0.
-le-test bgp plugin --draft -a
-le-test bgp plugin --draft --pattern my-new-test
+le test bgp plugin --draft -a
+le test bgp plugin --draft --pattern my-new-test
 
 # 3. prove it under load, still as a draft
 ./le test stress-repro run suite "bgp plugin --draft" test 1 any-failure
@@ -79,7 +79,7 @@ le-test bgp plugin --draft --pattern my-new-test
 mv test/draft/plugin/my-new-test.ci test/plugin/my-new-test.ci
 
 # 5. now it is a real test -- run the whole suite once before committing
-le-test bgp plugin -a
+le test bgp plugin -a
 ```
 
 Replacing an existing test is the same move: draft alongside it under

@@ -25,7 +25,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external graph-test {
-		run "le-test fixture plugin/rib-graph"
+		run "le test fixture plugin/rib-graph"
 		encoder json
 	}
 	internal bgp-rib {
@@ -70,6 +70,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

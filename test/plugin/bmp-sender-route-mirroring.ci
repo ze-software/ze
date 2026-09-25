@@ -73,14 +73,14 @@ bgp {
 }
 plugin {
     external bmp-shutdown {
-        run "le-test fixture plugin/bmp-sender-route-mirroring;"
+        run "le test fixture plugin/bmp-sender-route-mirroring;"
         encoder json;
     }
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=le-test fixture plugin/bmp-sender-route-mirroring-collector $PORT2:ready=BMP-COLLECTOR: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test fixture plugin/bmp-sender-route-mirroring-collector $PORT2:ready=BMP-COLLECTOR: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
 expect=stderr:pattern=BMP-COLLECTOR: listening on

@@ -1,4 +1,4 @@
-cmd=foreground:seq=1:exec=le-test fixture ui/ze-stripped-surface
+cmd=foreground:seq=1:exec=le test fixture ui/ze-stripped-surface
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 expect=exit:code=0
 expect=stdout:contains=OK

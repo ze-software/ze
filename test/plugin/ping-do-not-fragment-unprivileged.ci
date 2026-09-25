@@ -23,13 +23,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=probe.conf:terminator=EOF_CONF
 plugin {
 	external ping-df-test {
-		run "le-test fixture plugin/ping-do-not-fragment"
+		run "le test fixture plugin/ping-do-not-fragment"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zedfu$PORT without-net-raw run ze start probe.conf:timeout=40s
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zedfu$PORT without-net-raw run ze start probe.conf:timeout=40s
 expect=exit:code=0
 expect=stderr:contains=DROPPED: cap_net_raw absent from CapEff
 expect=stderr:contains=OK: a DF probe over the clamp reported next-hop-mtu 1400 in both modes, and one under it was answered

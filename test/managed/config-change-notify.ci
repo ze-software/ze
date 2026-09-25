@@ -7,5 +7,5 @@
 # through a compiled fixture.
 
 
-cmd=foreground:seq=1:exec=le-test fixture managed/config-change-notify:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture managed/config-change-notify:timeout=10s
 expect=exit:code=0

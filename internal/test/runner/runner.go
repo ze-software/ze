@@ -171,7 +171,7 @@ type Runner struct {
 	concurrency int
 
 	// extraBinaries maps binary name -> build spec for additional
-	// binaries that should be built alongside ze and ze-test.
+	// binaries that should be built alongside ze.
 	extraBinaries map[string]ExtraBinary
 
 	// binShimDir holds the bare names a child resolves on PATH: symlinks for
@@ -502,7 +502,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	// `concurrency > 1`, and its contract is that a single selected test keeps
 	// the authored timeout so a real slowdown surfaces immediately. Once suites
 	// carry a bounded DEFAULT (DefaultSuiteConcurrency) instead of 0, the
-	// requested cap is 8/32/128 even for `le-test <suite> <one-id>` -- so
+	// requested cap is 8/32/128 even for `le test <suite> <one-id>` -- so
 	// storing the cap silently tripled every budget in exactly the single-test
 	// debug loop ai/rules/testing.md tells people to use.
 	r.concurrency = min(parallel, len(selected))
@@ -541,7 +541,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 
 	// -v prints what the runner RAN for every test, passing ones included. The
 	// option was carried from the command line into RunOptions and read by
-	// nothing, so `le-test <suite> -v` over a green suite printed no more than a
+	// nothing, so `le test <suite> -v` over a green suite printed no more than a
 	// bare run (AC-8, spec-fixit-ci-runner-cannot-test-stdin).
 	pr.SetVerbose(opts.Verbose)
 	pr.setOnVerbose(func(tests *Tests) {

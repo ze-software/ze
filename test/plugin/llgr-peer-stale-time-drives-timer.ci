@@ -59,7 +59,7 @@ plugin {
 		use bgp-rib
 	}
 	external gr-sender-facts {
-		run "le-test fixture plugin/llgr-peer-stale-time-drives-timer"
+		run "le test fixture plugin/llgr-peer-stale-time-drives-timer"
 		encoder json
 	}
 }
@@ -147,8 +147,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=holder
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=holder
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=35s
 expect=stderr:contains=OK: ze entered LLGR on the peer's own graceful-restart and stale times
 reject=stderr:pattern=panic

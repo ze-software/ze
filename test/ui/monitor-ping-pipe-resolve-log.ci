@@ -7,7 +7,7 @@
 
 option=timeout:value=30s
 
-# go.mod marker: le-test editor roots its base dir at the first go.mod above
+# go.mod marker: le test editor roots its base dir at the first go.mod above
 # the working directory, so --dir . resolves to this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-monitor-ping-fixture
@@ -36,5 +36,5 @@ input=enter
 expect=viewport:contains=--- 198.51.100.9 ---
 EOF_ET
 
-cmd=foreground:seq=1:exec=le-test editor --dir . --all
+cmd=foreground:seq=1:exec=le test editor --dir . --all
 expect=exit:code=0

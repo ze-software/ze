@@ -39,6 +39,6 @@
 # answer.
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/show-bgp-plugin-shapes
+cmd=foreground:seq=1:exec=le test fixture ui/show-bgp-plugin-shapes
 expect=exit:code=0
 expect=stdout:contains=OK

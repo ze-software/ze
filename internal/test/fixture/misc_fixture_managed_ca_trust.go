@@ -333,7 +333,7 @@ func caTrustHubConfig(pluginPort, managedPort int, exportPath string) string {
 		Str("; secret \"").Str(caTrustHubSecret).Str("\";\n")
 	b.Str("            client ").Str(caTrustClientName).Str(" { secret \"").Str(caTrustClientSecret).Str("\"; }\n")
 	b.Str("        }\n    }\n")
-	b.Str("    external ca-export { run \"ze-test fixture managed/hub-ca-export -out ").Str(exportPath).
+	b.Str("    external ca-export { run \"le test fixture managed/hub-ca-export -out ").Str(exportPath).
 		Str("\"; encoder json; }\n")
 	b.Str("}\n")
 	b.Str("bgp {\n    router-id 10.0.0.1\n}\n")

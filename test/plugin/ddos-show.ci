@@ -53,7 +53,7 @@ ddos {
 
 plugin {
 	external ddos-show-test {
-		run "le-test fixture plugin/ddos-show"
+		run "le test fixture plugin/ddos-show"
 		encoder json
 	}
 }
@@ -93,6 +93,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

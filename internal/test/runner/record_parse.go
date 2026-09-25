@@ -134,7 +134,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 	// Runner.runTest leases the real pair from this preference when the test
 	// starts (LeaseTestPorts). Nothing between discovery and that lease may
 	// assume the preference is free: discovery can run minutes ahead of the test,
-	// and a second le-test process on the same machine numbers its own suite from
+	// and a second le test process on the same machine numbers its own suite from
 	// the same base.
 	r.Port = et.port
 	et.port += TestPortSpan

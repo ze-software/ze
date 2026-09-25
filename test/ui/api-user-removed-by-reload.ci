@@ -15,5 +15,5 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/api-user-removed-by-reload:timeout=120s
+cmd=foreground:seq=1:exec=le test fixture ui/api-user-removed-by-reload:timeout=120s
 expect=exit:code=0

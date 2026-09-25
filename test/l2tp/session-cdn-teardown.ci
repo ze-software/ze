@@ -22,7 +22,7 @@ option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le-test fixture l2tp/session-cdn-teardown $PORT:timeout=10s
+cmd=foreground:seq=2:exec=le test fixture l2tp/session-cdn-teardown $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: CDN sent
 expect=stderr:contains=session destroyed

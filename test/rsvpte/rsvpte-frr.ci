@@ -22,7 +22,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external rsvpte-frr {
-		run "le-test fixture rsvpte/rsvpte-frr"
+		run "le test fixture rsvpte/rsvpte-frr"
 		encoder json
 	}
 }

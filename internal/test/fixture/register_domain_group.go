@@ -7,7 +7,7 @@ package fixture
 // The three drivers register here rather than in netfilter_fixture.go's init,
 // because two of them serve the `plugin` suite and one the `firewall` suite,
 // and one feature's fixtures belong together. The name is the path a `.ci`
-// file spells after `ze-test fixture`.
+// file spells after `le test fixture`.
 func init() {
 	Register("plugin/firewall-domain-group-update", domainGroupUpdate)
 	Register("plugin/firewall-domain-group-clear", domainGroupClear)

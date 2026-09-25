@@ -49,7 +49,7 @@ option=timeout:value=90s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-ra-slaac {
-		run "le-test fixture plugin/iface-ra-slaac"
+		run "le test fixture plugin/iface-ra-slaac"
 		encoder json
 	}
 }

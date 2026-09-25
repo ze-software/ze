@@ -157,7 +157,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		v := tmpfsForRecord(rec)
 		if len(rec.EngineSteps) > 0 {
 			// Contract with the .ci-declared external executor plugin:
-			// run "le-test engine-steps ./engine-steps.json" (engine_steps.go).
+			// run "le test engine-steps ./engine-steps.json" (engine_steps.go).
 			stepsJSON, stepsErr := marshalEngineSteps(r.engineStepsForRun(rec.EngineSteps))
 			if stepsErr != nil {
 				rec.Error = fmt.Errorf("marshal engine steps: %w", stepsErr)
@@ -661,10 +661,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}()
 
-	// Check if any command uses ze-peer (which provides BGP-level synchronization).
+	// Check if any command starts the peer (which provides BGP-level synchronization).
 	hasPeer := false
 	for _, cmd := range cmds {
-		if strings.Contains(cmd.Exec, "ze-peer") {
+		if isPeerExec(cmd.Exec) {
 			hasPeer = true
 			break
 		}
@@ -712,8 +712,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Resolve binary path. An `le` head, and until Phase 3 a retired
 		// harness head, runs the runner's own le with the words the head
 		// stands for (leHeadWords). A retired harness head is rewritten to
-		// `le`, so everything below reads one name for the harness. `ze-peer`
-		// keeps its name: the peer's stdin route and port read it.
+		// `le`, so everything below reads one name for the harness. A step
+		// that starts the peer, under either spelling, takes the role name
+		// binNamePeer: the peer's stdin route and port read it.
 		binName := cmdParts[0]
 		var binPath string
 		var extraArgs []string
@@ -722,8 +723,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case isLE:
 			binPath = r.lePath
 			extraArgs = words
-			if binName != binNameZePeer {
-				binName = binNameLE
+			binName = binNameLE
+			if launchesPeer(cmdParts) {
+				binName = binNamePeer
 			}
 		case binName == binNameZe:
 			binPath = r.zePath
@@ -900,10 +902,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			"ze.test.doctor.probe-timeout=250ms",
 		)
 		proc.Env = append(proc.Env, "ze.config.dir="+configDir)
-		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
+		// Only set ze_test_bgp_port for ze and the peer. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
-		if binName == binNameZe || binName == binNameZePeer {
+		if binName == binNameZe || binName == binNamePeer {
 			proc.Env = append(proc.Env, textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)))
 		}
 		// Point ze at the test syslog server when one was started. Uses the
@@ -976,7 +978,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Capture output: each ze-peer gets its own syncWriter/stderr
 		// so WaitFor works independently per process.
 		switch {
-		case isZePeerExec(execStr):
+		case isPeerExec(execStr):
 			po := peerOutput{
 				stdout: newSyncWriter(),
 				stderr: &lockedBuilder{},
@@ -1053,7 +1055,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				return false
 			}
 			switch {
-			case isZePeerExec(execStr):
+			case isPeerExec(execStr):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
 				// sleep. A peer that never binds is a FAILURE, never a skip: ze
 				// would dial a dead port, get connection refused, and back off,
@@ -1128,7 +1130,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// instead, because no sleep is long enough on a loaded host.
 				time.Sleep(100 * time.Millisecond)
 			}
-		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNameZePeer && cmdIdx < len(cmds)-1:
+		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNamePeer && cmdIdx < len(cmds)-1:
 			// Foreground setup script (non-daemon, e.g., create-marker.sh) that
 			// precedes other commands: wait for completion before starting the
 			// next command. Without this, the setup script may not finish before
@@ -1246,7 +1248,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Find foreground (daemon) process -- the last non-peer background process.
 	// Uses peerProcs map for reliable detection since ze-peer is executed as
-	// "le-test peer ..." and p.Path/p.String() won't contain "ze-peer".
+	// "le test peer ..." and p.Path/p.String() won't contain "ze-peer".
 	var fgProc *exec.Cmd
 	for _, p := range bgProcs {
 		if !peerProcs[p] {

@@ -21,13 +21,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=mtu-json.conf:terminator=EOF_CONF
 plugin {
 	external show-mtu-test {
-		run "le-test fixture plugin/show-mtu-json"
+		run "le test fixture plugin/show-mtu-json"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtujson$PORT run ze start mtu-json.conf:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zemtujson$PORT run ze start mtu-json.conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: show mtu answers one kebab-case document with its lists as lists
 reject=stderr:pattern=ZE-OBSERVER-FAIL

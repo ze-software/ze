@@ -22,7 +22,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 exabgp {
 	bridge {
 		process helper {
-			run "le-test fixture plugin/exabgp-bridge-bare-helper"
+			run "le test fixture plugin/exabgp-bridge-bare-helper"
 		}
 		family ipv4/unicast
 	}
@@ -69,5 +69,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

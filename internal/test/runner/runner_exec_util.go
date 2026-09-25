@@ -224,7 +224,7 @@ func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 // parallelFactorEnv publishes the contention factor to a child that enforces a
 // deadline inside its own binary. withParallelHeadroom widens the budgets this
 // runner measures a child against, and a child racing its own clock never sees
-// that widening: `le-test mcp` waited a fixed 10s for the daemon's listener and
+// that widening: `le test mcp` waited a fixed 10s for the daemon's listener and
 // failed six tests in one 32-way plugin run for that reason alone.
 //
 // A factor rather than a duration, because the child owns the value it is
@@ -347,7 +347,7 @@ type lockedBuilder struct {
 // whose needle lands past the cap fails over a capture that looks complete, and
 // the failure reads as "the daemon never printed it". The runner sets
 // every client, so 10 MB is reachable.
-const truncationMarker = "\n[le-test: output truncated at maxOutputBytes; the capture below this line is incomplete]\n"
+const truncationMarker = "\n[le test: output truncated at maxOutputBytes; the capture below this line is incomplete]\n"
 
 // appendCapped stores as much of s as the cap allows and records whether it had
 // to drop anything. Caller MUST hold b.mu.
@@ -629,7 +629,7 @@ func drainPeers(peers []peerOutput, grace time.Duration) {
 // until it is signaled (peer_contract.go hasCheckPeer). Its producer says the same
 // thing -- the accept loop of (*Peer).Run in internal/test/peer/peer.go
 // `continue`s for every non-check mode, and its only exit is ctx.Done(), which
-// returns Result{Success: true}. le-test peer maps SIGTERM to that cancel
+// returns Result{Success: true}. le test peer maps SIGTERM to that cancel
 // (internal/test/cli/cmd_peer.go), so teardown IS such a peer's normal exit.
 //
 // Without this, the peer is still running when drainPeers starts and the whole
@@ -761,7 +761,7 @@ func routeStdinBlock(binName string, args []string) (stdinRoute, int) {
 			return stdinRouteDaemonConfig, idx
 		}
 		return stdinRoutePipe, -1
-	case binNameZePeer:
+	case binNamePeer:
 		if slices.Contains(args, "-") {
 			return stdinRoutePipe, -1
 		}
@@ -848,7 +848,7 @@ func isQuickExitZeCommand(args []string) bool {
 // accepts to cliClient.StreamMonitor.
 //
 // The word rather than the registry, because the runner classifies an
-// invocation of ANOTHER binary. le-test links a subset of the streaming
+// invocation of ANOTHER binary. le links a subset of the streaming
 // handlers the daemon links -- `monitor interface rate` and
 // `monitor traffic stat` are in it, `monitor event` and `monitor vpn ipsec` are
 // not -- so pluginserver.StreamingPrefixes() read here would answer about the

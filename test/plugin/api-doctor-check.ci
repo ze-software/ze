@@ -15,11 +15,11 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
     external doctor-provider {
-        run "le-test fixture plugin/api-doctor-check-provider"
+        run "le test fixture plugin/api-doctor-check-provider"
         encoder json
     }
     external doctor-checker {
-        run "le-test fixture plugin/api-doctor-check-checker"
+        run "le test fixture plugin/api-doctor-check-checker"
         encoder json
     }
 }
@@ -55,6 +55,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
 expect=exit:code=0

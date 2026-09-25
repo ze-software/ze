@@ -27,6 +27,6 @@ option=timeout:value=60s
 # The plugin under test: one command, one shape spelling no shape writes.
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/shape-declaration-refused
+cmd=foreground:seq=1:exec=le test fixture plugin/shape-declaration-refused
 expect=exit:code=0
 expect=stdout:contains=OK

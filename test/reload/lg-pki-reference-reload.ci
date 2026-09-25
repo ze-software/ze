@@ -25,7 +25,7 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=le-test fixture reload/lg-pki-reference-reload:timeout=90s
+cmd=foreground:seq=1:exec=le test fixture reload/lg-pki-reference-reload:timeout=90s
 expect=exit:code=0
 expect=stderr:contains=OK: the next handshake receives the rotated chain
 expect=stderr:contains=OK: the listener address is unchanged and the socket was never rebound

@@ -487,7 +487,7 @@ func aliasConfig(which aliasCase) string {
 	}
 	return bgp + `plugin {
     external ` + pluginName + ` {
-        run "ze-test fixture ` + provider + `"
+        run "le test fixture ` + provider + `"
         encoder json
     }
 }

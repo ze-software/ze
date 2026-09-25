@@ -14,7 +14,7 @@
 #
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/vpp-loopback-reload-create:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/vpp-loopback-reload-create:timeout=60s
 expect=exit:code=0
 expect=stderr:pattern=OK: the reload created lo1 and committed
 reject=stderr:pattern=settlement timeout

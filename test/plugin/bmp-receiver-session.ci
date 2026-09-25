@@ -22,7 +22,7 @@ environment {
 }
 plugin {
     external bmp-observer {
-        run "le-test fixture plugin/bmp-receiver-session $PORT2;"
+        run "le test fixture plugin/bmp-receiver-session $PORT2;"
         encoder json;
     }
 }
@@ -55,7 +55,7 @@ EOF_CONF
 stdin=peer:terminator=EOF_PEER
 EOF_PEER
 
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
 expect=stderr:pattern=bmp: receiver listening

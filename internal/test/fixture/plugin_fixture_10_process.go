@@ -516,7 +516,7 @@ func fixture10DocumentTooWide(ctx context.Context, _ []string) error {
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 	config := `plugin {
 	external record-plugin {
-		run "ze-test record-plugin"
+		run "le test record-plugin"
 		encoder json
 	}
 }

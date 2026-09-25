@@ -42,7 +42,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external mrt-observer {
-		run "le-test fixture plugin/mrt-dump-updates"
+		run "le test fixture plugin/mrt-dump-updates"
 		encoder json
 	}
 }
@@ -93,7 +93,7 @@ EOF_CONF
 expect=file:path=mrt-updates.dump:exists=true
 
 # Process orchestration: ze-peer listener (background) + ze (foreground).
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

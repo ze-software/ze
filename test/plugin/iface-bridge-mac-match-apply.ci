@@ -53,7 +53,7 @@ option=timeout:value=30s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-bridge-mac-match-apply {
-		run "le-test fixture plugin/iface-bridge-mac-match-apply"
+		run "le test fixture plugin/iface-bridge-mac-match-apply"
 		encoder json
 	}
 }

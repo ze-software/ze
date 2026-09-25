@@ -59,7 +59,7 @@ option=env:var=ze_log_ike:value=info
 stdin=responder:terminator=EOF_RESPONDER
 plugin {
 	external engine-steps {
-		run "le-test engine-steps ./engine-steps.json"
+		run "le test engine-steps ./engine-steps.json"
 		encoder json
 	}
 }
@@ -162,13 +162,13 @@ cmd=background:seq=1:exec=ze -:stdin=responder:name=responder
 # just execs, so the daemon still gets the signal cmd=stop sends. The bare `ze` resolves
 # through the shim the runner puts first on the child PATH (Runner.setupBinShims).
 cmd=background:seq=2:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
-cmd=foreground:seq=3:exec=le-test fixture ipsec/teardown-leaves-nothing/cycle:timeout=70s
+cmd=foreground:seq=3:exec=le test fixture ipsec/teardown-leaves-nothing/cycle:timeout=70s
 # signal=term, not the default kill: the release under test runs on the way out of
 # runEngine, and a SIGKILLed process runs nothing at all. The runner reaps each
 # process before the next step, so the residue check below sees a settled kernel.
 cmd=stop:seq=4:name=initiator:signal=term
 cmd=stop:seq=5:name=responder:signal=term
-cmd=foreground:seq=6:exec=le-test fixture ipsec/teardown-leaves-nothing/residue
+cmd=foreground:seq=6:exec=le test fixture ipsec/teardown-leaves-nothing/residue
 
 # The operator clear, dispatched inside the responder. It ends the
 # owner loop, which removes this Child SA's two states and two policies from the kernel

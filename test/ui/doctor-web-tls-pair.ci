@@ -45,7 +45,7 @@ jGgjPUai0Kqk1np08pUYbO0jUiocVBXBnw==
 -----END EC PRIVATE KEY-----
 EOF_KEY
 
-cmd=foreground:seq=1:exec=le-test fixture ui/doctor-web-tls-pair
+cmd=foreground:seq=1:exec=le test fixture ui/doctor-web-tls-pair
 expect=exit:code=0
 expect=stdout:contains=doctor-tls-invalid
 expect=stdout:contains=certificate and key in storage are not a usable pair

@@ -7,6 +7,6 @@
 
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/le-evidence-vpp-answers
+cmd=foreground:seq=1:exec=le test fixture ui/le-evidence-vpp-answers
 expect=exit:code=0
 expect=stdout:contains=OK

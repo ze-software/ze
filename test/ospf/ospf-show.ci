@@ -18,7 +18,7 @@ option=netns-link:name=eth1:address=10.0.2.1/24
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-show {
-		run "le-test fixture ospf/ospf-show"
+		run "le test fixture ospf/ospf-show"
 		encoder json
 	}
 }

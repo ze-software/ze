@@ -27,7 +27,7 @@ option=exclusive:group=bfd-ports
 
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/bfd-ipv6-dual-bind:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture plugin/bfd-ipv6-dual-bind:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=bfd plugin running
 expect=stderr:pattern=ipv6=true

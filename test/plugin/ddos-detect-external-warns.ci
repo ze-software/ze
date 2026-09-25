@@ -9,7 +9,7 @@
 # would never receive a rate signal either way. Warns rather than refuses,
 # consistent with ddos-detect's existing trafficstat-unavailable graceful
 # degradation framing.
-# Uses `le-test plugin-external ddos-detect`
+# Uses `le test plugin-external ddos-detect`
 # (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
 # RunEngine via a real TLS connect-back, exercising the warning through the
 # actual external-plugin transport, not a mocked conn.
@@ -49,7 +49,7 @@ ddos {
 
 plugin {
 	external ddos-detect {
-		run "le-test plugin-external ddos-detect"
+		run "le test plugin-external ddos-detect"
 	}
 }
 

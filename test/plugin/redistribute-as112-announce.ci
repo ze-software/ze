@@ -54,7 +54,7 @@ EOF_PEER6
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-announce-test {
-		run "le-test fixture plugin/redistribute-as112-announce"
+		run "le test fixture plugin/redistribute-as112-announce"
 		encoder json
 	}
 	internal redistribute-orchestrator {
@@ -170,8 +170,8 @@ EOF_CONF
 # Process orchestration: v4 check peer (block "peer") + v6 check peer. Each
 # completes (prints "successful") once its covering-prefix UPDATEs match, which
 # activates the runner's JSON validator over every received UPDATE.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=ze-peer --bind ::1 --port $PORT:stdin=peer6
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=peer6
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error

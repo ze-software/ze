@@ -95,7 +95,7 @@ func storageProbe(ctx context.Context, _ []string) error {
 
 const storageProbeConfig = `plugin {
  external storage-probe {
-  run "ze-test fixture storage/probe"
+  run "le test fixture storage/probe"
   encoder json
  }
 }
@@ -730,7 +730,7 @@ func storageStateObserver(ctx context.Context, args []string) error {
 
 func storageStateRestart(ctx context.Context) error {
 	for _, mode := range []string{observerModeWrite, observerModeRead} {
-		config := fmt.Sprintf("plugin { external ospf { run \"ze-test fixture storage/state-observer %s\"; encoder json; } }\n", mode)
+		config := fmt.Sprintf("plugin { external ospf { run \"le test fixture storage/state-observer %s\"; encoder json; } }\n", mode)
 		if err := os.WriteFile("state.conf", []byte(config), 0o600); err != nil {
 			return err
 		}

@@ -4,5 +4,5 @@
 # PREVENTS: managed mode not persisted after init.
 
 
-cmd=foreground:seq=1:exec=le-test fixture managed/init-managed-key:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture managed/init-managed-key:timeout=10s
 expect=exit:code=0

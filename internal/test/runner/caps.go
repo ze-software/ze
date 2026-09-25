@@ -58,7 +58,7 @@ const (
 //     about ze. CAP_NET_RAW alone: nothing on this path needs NET_ADMIN, and
 //     requiring both would skip a host that can genuinely run the test.
 //
-//   - net-bind: binding a port below 1024. `le-test dns` serves its stub zone
+//   - net-bind: binding a port below 1024. `le test dns` serves its stub zone
 //     on port 53, because `system name-server` is declared `type zt:ip-address`
 //     (internal/component/config/system/yang/ze-system-conf.yang) and carries
 //     no port, so a daemon pointed at the stub reaches it there or nowhere.

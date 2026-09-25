@@ -263,9 +263,9 @@ option=env:var=ze.log.interface:value=info
 # keeps the readback and the event stream out of the teardown's way. The same
 # reasoning is written out in tx-iface-address-swap.ci, where a background
 # driver raced its own teardown.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=le-test fixture reload/config-apply-ordering-address-swap-driver:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture reload/config-apply-ordering-address-swap-driver:timeout=60s
 
 expect=exit:code=0
 expect=stderr:contains=sighup reload complete

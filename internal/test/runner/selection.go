@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md -- common le-test selection contract
+// Design: docs/architecture/testing/ci-format.md -- common le test selection contract
 
 package runner
 
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Selection describes the common le-test selection contract.
+// Selection describes the common le test selection contract.
 type Selection struct {
 	All     bool
 	Start   string
@@ -19,7 +19,7 @@ func (s Selection) requestsRun() bool {
 	return s.All || s.Start != "" || s.Pattern != "" || len(s.Args) > 0
 }
 
-// Select activates tests matching the common le-test selection contract.
+// Select activates tests matching the common le test selection contract.
 func (ts *Tests) Select(sel Selection) (int, error) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
@@ -100,7 +100,7 @@ func (ts *TestSet[T]) disableAll() {
 	}
 }
 
-// Select activates generic tests matching the common le-test selection contract.
+// Select activates generic tests matching the common le test selection contract.
 func (ts *TestSet[T]) Select(sel Selection) (int, error) {
 	ts.disableAll()
 	if !sel.requestsRun() {

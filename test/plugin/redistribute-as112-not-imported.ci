@@ -34,7 +34,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external as112-nocfg-test {
-		run "le-test fixture plugin/redistribute-as112-not-imported"
+		run "le test fixture plugin/redistribute-as112-not-imported"
 		encoder json
 	}
 	# Orchestrator IS running (subscribed to as112) -- so a route reaching the
@@ -78,7 +78,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

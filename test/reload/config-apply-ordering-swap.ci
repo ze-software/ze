@@ -223,5 +223,5 @@ bgp {
 EOF_CONF2
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --bind 0.0.0.0 --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --bind 0.0.0.0 --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s

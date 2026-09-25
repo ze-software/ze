@@ -127,7 +127,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-link-flap-during-commit {
-		run "le-test fixture plugin/iface-link-flap-during-commit $PORT2"
+		run "le test fixture plugin/iface-link-flap-during-commit $PORT2"
 		encoder json
 	}
 }

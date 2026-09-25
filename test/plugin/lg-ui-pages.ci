@@ -57,7 +57,7 @@ EOF_BAD_BODY
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external lg-ui-pages {
-		run "le-test fixture plugin/lg-ui-pages"
+		run "le test fixture plugin/lg-ui-pages"
 		encoder json
 	}
 	internal bgp-rib {
@@ -117,7 +117,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration -- both in background, HTTP checks are the assertions
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 
 # Readiness: wait until the 15 routes are injected and queryable (proves the LG

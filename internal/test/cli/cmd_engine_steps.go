@@ -14,7 +14,7 @@ import (
 
 // engineStepsPluginName is the plugin name .ci files must declare:
 //
-//	plugin { external engine-steps { run "le-test engine-steps ./engine-steps.json" } }
+//	plugin { external engine-steps { run "le test engine-steps ./engine-steps.json" } }
 //
 // The spawn env binds the connect-back token to this exact name.
 const engineStepsPluginName = "engine-steps"
@@ -34,7 +34,7 @@ const engineStepsPluginName = "engine-steps"
 // asks the daemon to shut down so the test finishes.
 func CmdEngineSteps(args []string) int {
 	if len(args) != 1 {
-		slog.Error("engine-steps: usage: le-test engine-steps <steps.json>")
+		slog.Error("engine-steps: usage: le test engine-steps <steps.json>")
 		return 1
 	}
 	data, err := cliio.ReadFile(args[0]) // "-" reads stdin

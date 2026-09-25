@@ -28,11 +28,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external unattached-served {
-		run "le-test fixture plugin/attach-process-unattached-served"
+		run "le test fixture plugin/attach-process-unattached-served"
 		encoder json
 	}
 	external unattached-silent {
-		run "le-test fixture plugin/attach-process-unattached-silent"
+		run "le test fixture plugin/attach-process-unattached-silent"
 		encoder json
 	}
 }
@@ -81,6 +81,6 @@ expect=stderr:pattern=UNATTACHED-SILENT: fed nothing, as no peer attaches it
 # gets its own line, and the one under test must be among them.
 expect=stderr:pattern=no peer attaches it.*process=unattached-silent
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0

@@ -53,7 +53,7 @@ system {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start rbac-ssh-only.conf:timeout=30s
-cmd=foreground:seq=2:exec=le-test fixture plugin/rbac-ssh-only-enforced $PORT2:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture plugin/rbac-ssh-only-enforced $PORT2:timeout=30s
 expect=exit:code=0
 # The read-only profile still allows operational reads.
 expect=stderr:pattern=OK: 'show version' allowed

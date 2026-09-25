@@ -2,7 +2,7 @@
 # VALIDATES: RADIUS infrastructure errors continue the authentication chain.
 # PREVENTS: an unreachable RADIUS server locking out operators with valid local credentials.
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/aaa-radius-fallback:timeout=20s
+cmd=foreground:seq=1:exec=le test fixture plugin/aaa-radius-fallback:timeout=20s
 expect=exit:code=0
 expect=stderr:pattern=auth success.*source=local
 reject=stderr:pattern=auth success.*source=radius

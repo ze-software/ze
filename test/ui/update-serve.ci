@@ -11,7 +11,7 @@ option=timeout:value=20s
 # Run through a native fixture so the runner treats the server as a foreground
 # daemon rather than as a `ze update` subcommand. The fixture directly replaces
 # itself with the product binary, preserving its environment, stdio, and signals.
-cmd=foreground:seq=1:exec=le-test fixture ui/update-serve $PORT:timeout=20s
+cmd=foreground:seq=1:exec=le test fixture ui/update-serve $PORT:timeout=20s
 
 # http=wait polls until the listener is up; http=get is a real check (populates
 # HTTPChecks) so the test is self-validated and the runner does not fall through

@@ -13,7 +13,7 @@
 // own signal-trap overhead suppressed the traced daemon's CPU accounting and
 // iteration rate enough to make the paced and unpaced builds
 // indistinguishable, so the file sat under test/draft/ where no gate read
-// it. `ze-test fail-syscall` replaced ptrace with a seccomp filter, the two
+// it. `le test fail-syscall` replaced ptrace with a seccomp filter, the two
 // builds separated by three orders of magnitude on the counter, and the .ci
 // moved into test/l2tp/. The .ci file's header carries the numbers.
 
@@ -56,7 +56,7 @@ const tunnelL2TPFailingSocketMaxErrors = 1000
 // tunnelL2TPFailingSocket proves AC-1 of
 // spec-subscriber-reader-loops-retry-a-failing-socket-without-backoff: with
 // readLoop's UDP socket held in a persistently failing state (the .ci file
-// launches the daemon under `ze-test fail-syscall`, whose seccomp filter
+// launches the daemon under `le test fail-syscall`, whose seccomp filter
 // answers ENETDOWN for every 1500-byte recvfrom), the daemon's own CPU use over
 // the window stays a small fraction of one core, and the swallowed-read
 // counter rises. The log line is asserted separately, by the .ci file's own

@@ -232,19 +232,15 @@ func nativeFixtureCallers(root string) (map[string][]string, error) {
 		}
 		rel, _ := filepath.Rel(root, path)
 		for line := range strings.SplitSeq(string(raw), "\n") {
-			at := strings.Index(line, "le-test fixture ")
-			if at < 0 {
-				// The retired harness name, until Phase 3 removes it.
-				at = strings.Index(line, "ze-test fixture ")
-			}
+			at := strings.Index(line, "le test fixture ")
 			if at < 0 {
 				continue
 			}
 			fields := strings.Fields(line[at:])
-			if len(fields) < 3 {
+			if len(fields) < 4 {
 				continue
 			}
-			name, _, _ := strings.Cut(strings.Trim(fields[2], `"'`), ":")
+			name, _, _ := strings.Cut(strings.Trim(fields[3], `"'`), ":")
 			callers[name] = append(callers[name], filepath.ToSlash(rel))
 		}
 		return nil

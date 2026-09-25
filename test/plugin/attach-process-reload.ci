@@ -33,11 +33,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external reload-kept {
-		run "le-test fixture plugin/attach-process-reload-kept"
+		run "le test fixture plugin/attach-process-reload-kept"
 		encoder json
 	}
 	external reload-added {
-		run "le-test fixture plugin/attach-process-reload-added"
+		run "le test fixture plugin/attach-process-reload-added"
 		encoder json
 	}
 }
@@ -80,11 +80,11 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external reload-kept {
-		run "le-test fixture plugin/attach-process-reload-kept"
+		run "le test fixture plugin/attach-process-reload-kept"
 		encoder json
 	}
 	external reload-added {
-		run "le-test fixture plugin/attach-process-reload-added"
+		run "le test fixture plugin/attach-process-reload-added"
 		encoder json
 	}
 }
@@ -129,7 +129,7 @@ EOF_CONF2
 expect=stderr:pattern=RELOAD-KEPT: fed before and after the reload
 expect=stderr:pattern=RELOAD-ADDED: fed only after the reload attached it
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture plugin/attach-process-reload-trigger
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture plugin/attach-process-reload-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0

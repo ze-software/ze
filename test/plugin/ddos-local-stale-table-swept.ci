@@ -79,13 +79,13 @@ control-plane-protection {
 
 plugin {
 	external ddos-stale-table-swept-probe {
-		run "le-test fixture plugin/ddos-stale-table-swept-driver"
+		run "le test fixture plugin/ddos-stale-table-swept-driver"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/ddos-stale-table-plant:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture plugin/ddos-stale-table-plant:timeout=15s
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0
 expect=stdout:contains=STALE-TABLE-PLANTED 127.0.0.13

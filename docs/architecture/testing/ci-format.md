@@ -234,9 +234,9 @@ already writes: no new directive chooses between them.
 | The `exec=` line | Where the block goes | Why |
 |------------------|----------------------|-----|
 | `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in a stable per-daemon directory, and argv becomes `ze [flags] start <file>` | SIGHUP reads the source again and a restart reuses its tree |
-| `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `le-test peer` takes its expect script as a path argument |
-| `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
-| every other line, `ze bgp decode -`, `ze config validate -`, `le-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
+| `le test peer ...` with NO `-` in argv | a temporary FILE appended to argv | `le test peer` takes its expect script as a path argument |
+| `le test peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
+| every other line, `ze bgp decode -`, `ze config validate -`, `le test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
 
 The daemon `-` is recognized by POSITION, not by a list of verbs: the runner
 asks `zeDaemonConfigArgIndex` which argument is the config, and substitutes only
@@ -263,7 +263,7 @@ otherwise, and `test/ui/bgp-decode-stdin-hex.ci` failed with
 
 ### What a ze-peer block may carry
 
-A block handed to `ze-peer` (named on a `cmd=...:exec=ze-peer ...:stdin=<name>`
+A block handed to `ze-peer` (named on a `cmd=...:exec=le test peer ...:stdin=<name>`
 line) is read first by ze-peer and then by the test runner. The block named
 `peer` is validated by the same rules even with no such line, because a `.ci`
 with no `cmd=` at all feeds its `expect=` lines to ze-peer by another route. **A line neither of them

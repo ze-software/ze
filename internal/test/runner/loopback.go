@@ -33,7 +33,7 @@ import (
 //
 // A `.ci` names such an address in two places, and both are read here:
 //
-//   - `ze-peer --bind <ip>` on a command line. ze-peer is the one binary in a
+//   - `le test peer --bind <ip>` on a command line. the peer is the one binary in a
 //     fixture that takes its own source address from its arguments.
 //   - the local-address leaf of the config the fixture carries, in either
 //     grammar (configLocalAddresses). Ze binds that address twice over: the
@@ -66,11 +66,11 @@ func ensureBindAddresses(rec *Record) error {
 	return nil
 }
 
-// ensurePeerBindAddresses makes every `ze-peer --bind <ip>` address usable.
+// ensurePeerBindAddresses makes every `le test peer --bind <ip>` address usable.
 func ensurePeerBindAddresses(cmds []RunCommand) error {
 	for i := range cmds {
 		cmd := &cmds[i]
-		if !strings.Contains(cmd.Exec, "ze-peer") {
+		if !isPeerExec(cmd.Exec) {
 			continue
 		}
 		parts := strings.Fields(cmd.Exec)

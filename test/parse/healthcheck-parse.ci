@@ -2,7 +2,7 @@
 stdin=config:terminator=EOF_CONF
 plugin {
 	external service-nginx {
-		run "le-test fixture parse/healthcheck-parse"
+		run "le test fixture parse/healthcheck-parse"
 		encoder text
 	}
 }

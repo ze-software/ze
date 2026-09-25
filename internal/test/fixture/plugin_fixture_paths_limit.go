@@ -217,7 +217,7 @@ func startPathsLimitSession(ctx context.Context, args []string) (*cliWireSession
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return nil, err
 	}
-	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "ze-test", "peer",
+	session.peer, err = startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer",
 		"--port", args[0], "--asn", strconv.Itoa(cliWirePeerAS), filepath.Join(cwd, "peer-script"))
 	if err != nil {
 		return nil, err

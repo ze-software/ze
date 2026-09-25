@@ -29,7 +29,7 @@ option=timeout:value=180s
 
 
 
-cmd=foreground:seq=1:exec=le-test fixture runner/verify-scope-suite-map
+cmd=foreground:seq=1:exec=le test fixture runner/verify-scope-suite-map
 expect=exit:code=0
 expect=stdout:contains=map-narrows-to-the-suites-that-reached-the-package
 expect=stdout:contains=unknown-package-runs-every-suite-and-is-named

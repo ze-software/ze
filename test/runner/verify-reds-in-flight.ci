@@ -23,7 +23,7 @@ option=timeout:value=60s
 
 
 
-cmd=foreground:seq=1:exec=le-test fixture runner/verify-reds-in-flight
+cmd=foreground:seq=1:exec=le test fixture runner/verify-reds-in-flight
 expect=exit:code=0
 expect=stdout:contains=in-flight-run-ready
 expect=stdout:contains=reds-answers-before-the-run-ends

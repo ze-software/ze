@@ -1,6 +1,6 @@
 // VALIDATES: engine-step directive parsing (command=/stream=/expect=output|
 // event|stream), the steps-file round-trip handed to the spawned
-// `le-test engine-steps` executor, and the executor core's step semantics
+// `le test engine-steps` executor, and the executor core's step semantics
 // (spec-test-coverage-gaps AC-2).
 // PREVENTS: directive drift breaking the ipsec suite silently -- the parse
 // layer and step semantics are the contract the .ci files are written against.

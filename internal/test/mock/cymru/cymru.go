@@ -16,14 +16,14 @@ import (
 )
 
 func Run(args []string) int {
-	fs := flag.NewFlagSet("le-test cymru", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test cymru", flag.ExitOnError)
 
 	var port int
 
 	fs.IntVar(&port, "port", 0, "UDP listen port (0 = auto)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le-test cymru [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le test cymru [flags]
 
 Deterministic fake DNS server returning Team Cymru-formatted TXT records.
 
@@ -50,7 +50,7 @@ Flags:
 	defer func() { _ = pc.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(pc.LocalAddr().String())
-	fmt.Fprintf(os.Stderr, "le-test cymru: listening on port %s\n", portStr)
+	fmt.Fprintf(os.Stderr, "le test cymru: listening on port %s\n", portStr)
 
 	server := &mdns.Server{
 		PacketConn: pc,

@@ -34,7 +34,7 @@ option=timeout:value=30s
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external firewall-irr-table-term-uncached-test {
-		run "le-test fixture plugin/firewall-irr-table-term-uncached-reject"
+		run "le test fixture plugin/firewall-irr-table-term-uncached-reject"
 		encoder json
 	}
 }
@@ -79,7 +79,7 @@ EOF_CONF2
 stdin=ze-fw:terminator=EOF_CONF
 plugin {
 	external firewall-irr-table-term-uncached-test {
-		run "le-test fixture plugin/firewall-irr-table-term-uncached-reject"
+		run "le test fixture plugin/firewall-irr-table-term-uncached-reject"
 		encoder json
 	}
 }
@@ -104,8 +104,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=le-test irr --port $PORT2
-cmd=background:seq=2:exec=le-test fixture plugin/firewall-irr-table-term-uncached-reject/reload
+cmd=background:seq=1:exec=le test irr --port $PORT2
+cmd=background:seq=2:exec=le test fixture plugin/firewall-irr-table-term-uncached-reject/reload
 cmd=foreground:seq=3:exec=ze --plugin ze.firewall-irr -:stdin=ze-fw:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=no cached prefix data for as-set AS-MISSING

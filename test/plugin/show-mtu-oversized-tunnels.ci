@@ -29,7 +29,7 @@ option=timeout:value=180s
 tmpfs=mtu-oversized.conf:terminator=EOF_A
 plugin {
 	external show-mtu-test {
-		run "le-test fixture plugin/show-mtu-oversized"
+		run "le test fixture plugin/show-mtu-oversized"
 		encoder json
 	}
 }
@@ -205,7 +205,7 @@ vpn {
 }
 EOF_C
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtuoversized$PORT far-daemon mtu-oversized-b.conf far-daemon mtu-oversized-c.conf run ze start mtu-oversized.conf:timeout=170s
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zemtuoversized$PORT far-daemon mtu-oversized-b.conf far-daemon mtu-oversized-c.conf run ze start mtu-oversized.conf:timeout=170s
 expect=exit:code=0
 expect=stderr:contains=OK: both bound tunnels are oversized against the 1400 clamp and the circuit is clamped
 reject=stderr:pattern=ZE-OBSERVER-FAIL

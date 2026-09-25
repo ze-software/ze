@@ -27,7 +27,7 @@ plugin {
 	# The engine should auto-load bgp-rpki-decorator (and its dependency bgp-rpki)
 	# because rpki-auto-test has receive [ update-rpki ].
 	external rpki-auto-test {
-		run "le-test fixture plugin/rpki-decorator-autoload"
+		run "le test fixture plugin/rpki-decorator-autoload"
 		encoder json
 	}
 }
@@ -74,6 +74,6 @@ bgp {
 EOF_CONF
 
 # No RTR mock -- decorator will timeout and emit UPDATE without rpki section
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

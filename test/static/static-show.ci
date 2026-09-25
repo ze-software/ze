@@ -18,7 +18,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external static-show {
-        run "le-test fixture static/static-show"
+        run "le test fixture static/static-show"
         encoder json
     }
 }
@@ -43,7 +43,7 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=le-test fixture static/static-show-setup
+cmd=foreground:seq=1:exec=le test fixture static/static-show-setup
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=OK: show static reports both routes with weights, metric and tag

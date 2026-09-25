@@ -24,7 +24,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external l2tp-announce-test {
-		run "le-test fixture plugin/redistribute-l2tp-announce"
+		run "le test fixture plugin/redistribute-l2tp-announce"
 		encoder json
 	}
 	internal redistribute-orchestrator {
@@ -81,7 +81,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 # // expect=exit:code=0 removed -- this STRENGTHENS the test. Coverage
 # is replaced by the ze-peer wire expectation above, which now governs the verdict.

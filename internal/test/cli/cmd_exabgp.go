@@ -212,7 +212,7 @@ func isKnownExaBGPSuite(name string) bool {
 
 func parseExaBGPCLI(args []string) (exabgpCLI, error) {
 	var cli exabgpCLI
-	fs := flag.NewFlagSet("le-test exabgp", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test exabgp", flag.ExitOnError)
 	fs.BoolVar(&cli.all, "a", false, "run all tests")
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
 	fs.BoolVar(&cli.list, "l", false, "list available tests")
@@ -243,7 +243,7 @@ func parseExaBGPCLI(args []string) (exabgpCLI, error) {
 }
 
 func printExaBGPUsage() {
-	_, _ = os.Stderr.WriteString(`Usage: le-test exabgp [encoding] [options] [test-ids...]
+	_, _ = os.Stderr.WriteString(`Usage: le test exabgp [encoding] [options] [test-ids...]
 
 Run predecessor encoding tests using Ze's standard test selection and progress output.
 
@@ -265,12 +265,12 @@ Options:
   --port N            Port for --server or --client
 
 Examples:
-  le-test exabgp --list
-  le-test exabgp --all
-  le-test exabgp --start 20
-  le-test exabgp 1 2 3
-  le-test exabgp --server 1 --port 17900
-  le-test exabgp --client 1 --port 17900
+  le test exabgp --list
+  le test exabgp --all
+  le test exabgp --start 20
+  le test exabgp 1 2 3
+  le test exabgp --server 1 --port 17900
+  le test exabgp --client 1 --port 17900
 `)
 }
 
@@ -684,7 +684,7 @@ func printExaBGPFailure(test *exabgpTestEntry, detail exabgpRunDetail) {
 		_, _ = fmt.Fprintln(os.Stdout, "  error:", test.record.Error) //nolint:errcheck // output
 	}
 	printExaBGPOutput(test, detail)
-	_, _ = fmt.Fprintln(os.Stdout, "  rerun: le-test exabgp", test.record.Nick) //nolint:errcheck // output
+	_, _ = fmt.Fprintln(os.Stdout, "  rerun: le test exabgp", test.record.Nick) //nolint:errcheck // output
 }
 
 func printExaBGPOutput(_ *exabgpTestEntry, detail exabgpRunDetail) {
@@ -763,7 +763,7 @@ func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeB
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
-	args := []string{"interop-bgp", "exabgp-server", "--port", strconv.Itoa(port), "--terse"}
+	args := []string{"test", "interop-bgp", "exabgp-server", "--port", strconv.Itoa(port), "--terse"}
 	if saveDir != "" {
 		args = append(args, "--save", saveDir)
 	}
@@ -797,7 +797,7 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 		// from the binary's location and corrupt each other's zefs and CA.
 		tb.Reset().Str("ze.config.dir=").Str(filepath.Dir(configPath)).String(),
 		// The daemon FORKS the helper a config's process block names, and
-		// conf-watchdog names `le-test fixture ...`, which sits beside the ze
+		// conf-watchdog names `le test fixture ...`, which sits beside the ze
 		// under test. It was reachable from nowhere until the migration started
 		// emitting the bridge, because the process was being dropped and nothing
 		// ever forked it.
@@ -888,7 +888,7 @@ func absoluteBridgeRun(migrated, configDir string) string {
 		}
 		command = strings.Trim(command, `"`)
 		// Only an EXPLICITLY relative command is rooted at the config. A bare
-		// name is resolved through PATH, and conf-watchdog runs `le-test fixture
+		// name is resolved through PATH, and conf-watchdog runs `le test fixture
 		// ...`: absolutising that turned it into a path under the fixture
 		// directory and the bridge forked a file that does not exist.
 		if !strings.HasPrefix(command, "./") && !strings.HasPrefix(command, "../") {

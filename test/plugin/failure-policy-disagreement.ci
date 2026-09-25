@@ -18,7 +18,7 @@
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external failure-disagree {
-		run "le-test fixture plugin/failure-policy-disagree"
+		run "le test fixture plugin/failure-policy-disagree"
 		encoder json
 		respawn true;
 	}

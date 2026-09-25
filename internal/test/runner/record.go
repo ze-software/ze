@@ -254,7 +254,7 @@ type Record struct {
 	HTTPWaits  []httpCheck // http=wait readiness polls (run before checks)
 
 	// Engine steps: command=/stream= + expect=output|event|stream directives
-	// executed by the spawned `le-test engine-steps` external plugin, fed via
+	// executed by the spawned `le test engine-steps` external plugin, fed via
 	// engine-steps.json in the tmpfs dir (engine_steps.go).
 	EngineSteps []EngineStep
 

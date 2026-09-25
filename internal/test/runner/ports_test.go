@@ -33,7 +33,7 @@ func TestFindFreePortRange(t *testing.T) {
 
 // TestReservePortsExcludesHeldRange verifies suite-lifetime reservations.
 //
-// VALIDATES: Concurrent le-test processes using ReservePorts do not receive
+// VALIDATES: Concurrent le test processes using ReservePorts do not receive
 // the same range while the first reservation is still held.
 // PREVENTS: Full-suite flakes where one category probes a free range, releases
 // it, and another category chooses the same ports before the first has finished.
@@ -115,7 +115,7 @@ func TestAllocatePorts(t *testing.T) {
 // the first lease is held.
 // PREVENTS: The recorded failure class. reload-remove-bgp is the 30th test of
 // test/reload, so it preferred 1790+2*29=1848, and so did the 30th test of every
-// other suite; a second le-test process on the same box handed 1848 out again
+// other suite; a second le test process on the same box handed 1848 out again
 // and one of the two died with "bind: address already in use".
 func TestLeaseTestPortsRefusesToHandTwoTestsOnePort(t *testing.T) {
 	preferred, err := FindFreePortRange(53200, TestPortSpan)

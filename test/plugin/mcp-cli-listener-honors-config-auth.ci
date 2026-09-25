@@ -38,7 +38,7 @@ EOF_CONF
 
 # The client sends NO --token, so every request is credential-less.
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT:stdin=mcp:timeout=20s
+cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=20s
 expect=exit:code=0
 # Both methods refused, proving the check is per request rather than once.
 expect=stdout:pattern=(?s)probe status=401.*probe status=401

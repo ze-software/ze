@@ -8,6 +8,6 @@
 
 option=timeout:value=600s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/le-placement-answers
+cmd=foreground:seq=1:exec=le test fixture ui/le-placement-answers
 expect=exit:code=0
 expect=stdout:contains=PASS: the three placement gates satisfy their checkout contract

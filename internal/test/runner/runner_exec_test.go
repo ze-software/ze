@@ -55,7 +55,7 @@ func TestBackgroundZeGetsReadinessEnv(t *testing.T) {
 	}{
 		{name: "background ze with a work directory", mode: "background", binName: "ze", workDir: "/tmp/x", want: true},
 		{name: "foreground ze with a work directory", mode: modeForeground, binName: "ze", workDir: "/tmp/x", want: true},
-		{name: "background ze-peer", mode: "background", binName: binNameZePeer, workDir: "/tmp/x", want: false},
+		{name: "background ze-peer", mode: "background", binName: binNamePeer, workDir: "/tmp/x", want: false},
 		{name: "background native helper", mode: "background", binName: "ze-test", workDir: "/tmp/x", want: false},
 		{name: "foreground native helper", mode: modeForeground, binName: "ze-test", workDir: "/tmp/x", want: false},
 		// Defensive only. Every record carries a WorkDir, so an empty one means

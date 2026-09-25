@@ -11,14 +11,14 @@
 # (internal/component/cli/model_render.go) puts it on the second message row.
 #
 # accept-only: the value assertions are the expect=hint:contains= lines of the
-# embedded command-help-both-texts.et below. `le-test editor --dir . --all` runs
+# embedded command-help-both-texts.et below. `le test editor --dir . --all` runs
 # that file and exits non-zero when either summary is missing or clipped, so the
 # exit code carries them and a readback at this level would assert the same
 # screen twice.
 
 option=timeout:value=30s
 
-# go.mod marker: le-test editor roots its base dir at the first go.mod above
+# go.mod marker: le test editor roots its base dir at the first go.mod above
 # the working directory, so --dir . resolves to this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-command-help-both-texts-fixture
@@ -46,5 +46,5 @@ input=key:name=down
 expect=hint:contains=Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.
 EOF_ET
 
-cmd=foreground:seq=1:exec=le-test editor --dir . --all
+cmd=foreground:seq=1:exec=le test editor --dir . --all
 expect=exit:code=0

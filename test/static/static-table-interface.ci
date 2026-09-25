@@ -22,7 +22,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external static-show {
-        run "le-test fixture static/static-table-interface"
+        run "le test fixture static/static-table-interface"
         encoder json
     }
 }
@@ -66,7 +66,7 @@ option=env:var=ze.log.routing.table:value=info
 # pairs, the named table resolving to id 100, and the interface-only next-hop
 # landing on tun100. A substring "0.0.0.0/0" could be satisfied by either
 # table; the structured check cannot.
-cmd=foreground:seq=1:exec=le-test fixture static/static-table-interface-setup
+cmd=foreground:seq=1:exec=le test fixture static/static-table-interface-setup
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=static routes loaded

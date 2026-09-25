@@ -20,7 +20,7 @@ option=timeout:value=20s
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external flow-export-show-test {
-		run "le-test fixture flow-export/flow-export-show"
+		run "le test fixture flow-export/flow-export-show"
 		encoder json
 	}
 }

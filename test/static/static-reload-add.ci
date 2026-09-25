@@ -24,9 +24,9 @@ EOF_CONF
 
 option=env:var=ze.log.static:value=info
 
-cmd=foreground:seq=1:exec=le-test fixture static/static-reload-add-setup
+cmd=foreground:seq=1:exec=le test fixture static/static-reload-add-setup
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=3:exec=le-test fixture static/static-reload-add:timeout=15s
+cmd=foreground:seq=3:exec=le test fixture static/static-reload-add:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=static routes reloaded
 expect=stdout:contains=172.16.0.0/12

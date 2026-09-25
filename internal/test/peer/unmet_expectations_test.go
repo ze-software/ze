@@ -145,7 +145,7 @@ func TestListeningCheckPeerStoppedWhileWaitingForNextConnectionFails(t *testing.
 	case res := <-done:
 		t.Fatalf("peer ended before waiting for conn=2: success=%v err=%v", res.Success, res.Error)
 	}
-	cancel() // what the runner's SIGTERM does to le-test peer
+	cancel() // what the runner's SIGTERM does to le test peer
 	requireUnmet(t, <-done)
 }
 

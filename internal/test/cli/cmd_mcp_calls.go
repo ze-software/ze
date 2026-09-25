@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- MCP test client
-// Overview: cmd_mcp.go -- the le-test mcp command and its stdin directives
+// Overview: cmd_mcp.go -- the le test mcp command and its stdin directives
 // Related: cmd_mcp_client.go -- the send() transport these method helpers ride on
 
 package cli

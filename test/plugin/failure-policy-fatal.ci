@@ -17,7 +17,7 @@
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external failure-fatal {
-		run "le-test fixture plugin/failure-policy-fatal"
+		run "le test fixture plugin/failure-policy-fatal"
 		encoder json
 	}
 }

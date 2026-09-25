@@ -74,7 +74,7 @@ option=env:var=ze.log.bgp.reactor:value=info
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external dyn-group-observer {
-		run "le-test fixture plugin/attach-process-dynamic-group /tmp/ze-dynamic-group-$PORT.ready"
+		run "le test fixture plugin/attach-process-dynamic-group /tmp/ze-dynamic-group-$PORT.ready"
 		encoder json
 	}
 }
@@ -173,13 +173,13 @@ EOF_CONF
 # waited for, and a foreground ze daemon is not, so the daemon starts at seq=3,
 # this blocks at seq=4, and the member dials at seq=5.
 
-cmd=background:seq=1:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=inherits
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.4 --port $PORT:stdin=restates
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=inherits
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=restates
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
 # Asserted under the daemon that writes it. These lines used to sit
 # above every cmd=, where the runner checked them against the whole
 # test's output and they could have been satisfied by any command.
 expect=stderr:contains=dynamic peer created
-cmd=foreground:seq=4:exec=le-test fixture plugin/attach-process-dynamic-group-wait /tmp/ze-dynamic-group-$PORT.ready:timeout=25s
-cmd=background:seq=5:exec=ze-peer --dial 127.0.0.2:$PORT:stdin=dynamic
+cmd=foreground:seq=4:exec=le test fixture plugin/attach-process-dynamic-group-wait /tmp/ze-dynamic-group-$PORT.ready:timeout=25s
+cmd=background:seq=5:exec=le test peer --dial 127.0.0.2:$PORT:stdin=dynamic
 expect=exit:code=0

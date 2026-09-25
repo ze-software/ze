@@ -18,7 +18,7 @@
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ldp-show {
-		run "le-test fixture ldp/ldp-session"
+		run "le test fixture ldp/ldp-session"
 		encoder json
 	}
 }

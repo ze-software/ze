@@ -524,8 +524,8 @@ func TestParseCmdExec(t *testing.T) {
 		{
 			name: "exec_with_stdin",
 			mode: "background",
-			line: "cmd=background:seq=1:exec=ze-peer --port 1790:stdin=peer",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-peer --port 1790", Stdin: "peer"},
+			line: "cmd=background:seq=1:exec=le test peer --port 1790:stdin=peer",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "le test peer --port 1790", Stdin: "peer"},
 		},
 		{
 			name: "foreground_with_timeout",

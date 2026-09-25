@@ -18,7 +18,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external lifecycle-driver {
-        run "le-test fixture plugin/rest-peer-set-delete-lifecycle $PORT2 $PORT"
+        run "le test fixture plugin/rest-peer-set-delete-lifecycle $PORT2 $PORT"
         encoder json
     }
 }
@@ -71,6 +71,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0

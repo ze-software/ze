@@ -24,7 +24,7 @@ EOF_PEER
 tmpfs=web-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external web-commit-reject {
-        run "le-test fixture ui/web-commit-reject"
+        run "le test fixture ui/web-commit-reject"
         encoder json
     }
 }
@@ -66,7 +66,7 @@ tmpfs=show-bgp.form:encoding=base64:terminator=EOF_SHOW
 Y29tbWFuZD1zaG93K2JncA==
 EOF_SHOW
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start --web $PORT2 --insecure-web web-commit-reject.conf:timeout=20s
 
 http=wait:seq=1:url=https://127.0.0.1:$PORT2/config/edit/:status=200:contains=bgp:insecure-tls=true:timeout=15s

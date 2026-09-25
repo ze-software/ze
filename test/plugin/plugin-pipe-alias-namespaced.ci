@@ -24,6 +24,6 @@ option=timeout:value=60s
 # alias over the parent alone.
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/pipe-alias-namespaced
+cmd=foreground:seq=1:exec=le test fixture plugin/pipe-alias-namespaced
 expect=exit:code=0
 expect=stdout:contains=OK

@@ -11,9 +11,9 @@
 # 3. Compiled SSH client with matching key succeeds; a wrong key is rejected.
 # 4. Daemon log shows "source=public-key" for the successful auth.
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/ssh-pubkey-auth-setup $PORT2:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture plugin/ssh-pubkey-auth-setup $PORT2:timeout=15s
 cmd=foreground:seq=2:exec=ze start ssh-pubkey.conf:timeout=15s
-cmd=foreground:seq=3:exec=le-test fixture plugin/ssh-pubkey-auth $PORT2:timeout=15s
+cmd=foreground:seq=3:exec=le test fixture plugin/ssh-pubkey-auth $PORT2:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=OK: public key authentication succeeded
 expect=stderr:contains=OK: wrong key rejected

@@ -13,7 +13,7 @@
 # bare-presence check and a mode check; this one passes only under the mode
 # check, and Ze's pre-cutover parser was exactly a bare-presence check.
 #
-# The client polices the server from its side too: le-test refuses to answer an
+# The client polices the server from its side too: le test refuses to answer an
 # elicitation whose mode it did not declare, so a regression here fails with
 # "which this client did not declare" rather than quietly succeeding.
 #
@@ -59,7 +59,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT --elicit url:stdin=mcp:timeout=20s
+cmd=foreground:seq=2:exec=le test mcp --port $PORT --elicit url:stdin=mcp:timeout=20s
 expect=exit:code=1
 expect=stdout:pattern=probe status=200 code=ok
 expect=stdout:pattern=missing required argument: command

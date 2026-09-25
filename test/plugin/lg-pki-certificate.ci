@@ -36,7 +36,7 @@
 
 option=timeout:value=120s
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/lg-pki-certificate:timeout=90s
+cmd=foreground:seq=1:exec=le test fixture plugin/lg-pki-certificate:timeout=90s
 expect=exit:code=0
 expect=stderr:contains=OK: the looking glass serves the named store leaf first and its intermediate second
 expect=stderr:contains=OK: a client trusting only the operator root validated the served chain

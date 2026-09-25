@@ -106,7 +106,7 @@ EOF_UNFILTERED
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external export-flowspec {
-		run "le-test fixture plugin/filter-family-export-flowspec"
+		run "le test fixture plugin/filter-family-export-flowspec"
 		encoder json
 	}
 }
@@ -178,8 +178,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=filtered
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=unfiltered
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=filtered
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=unfiltered
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-family --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

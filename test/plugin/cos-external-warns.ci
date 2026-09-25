@@ -9,7 +9,7 @@
 # provides real value external (static profile config and
 # `show class-of-service` both work unaffected), so it warns rather than
 # refuses -- the plugin keeps running.
-# Uses `le-test plugin-external cos` (internal/test/cli/cmd_plugin_external.go)
+# Uses `le test plugin-external cos` (internal/test/cli/cmd_plugin_external.go)
 # to launch the real plugin's own RunEngine via a real TLS connect-back,
 # exercising the warning through the actual external-plugin transport, not a
 # mocked conn.
@@ -35,7 +35,7 @@ class-of-service {
 
 plugin {
 	external cos {
-		run "le-test plugin-external cos"
+		run "le test plugin-external cos"
 	}
 }
 

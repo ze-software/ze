@@ -6,6 +6,6 @@
 # the process holds it: the QEMU guest through ./le test qemu all-tests.
 option=needs-linux:caps=net-admin
 option=timeout:value=70s
-cmd=foreground:seq=1:exec=le-test fixture storage/consumer-restart-tc:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture storage/consumer-restart-tc:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: tc consumer restored operational state from selected tree without config-dir pin

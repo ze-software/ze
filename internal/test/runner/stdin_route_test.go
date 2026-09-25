@@ -116,7 +116,7 @@ func TestCIStdinZePeerHonorsDeclaredMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			route, idx := routeStdinBlock(binNameZePeer, tt.args)
+			route, idx := routeStdinBlock(binNamePeer, tt.args)
 			if route != tt.want {
 				t.Fatalf("routeStdinBlock(ze-peer, %v) = %d, want %d", tt.args, route, tt.want)
 			}
@@ -128,7 +128,7 @@ func TestCIStdinZePeerHonorsDeclaredMode(t *testing.T) {
 }
 
 // TestCIStdinPipesForEveryOtherBinary checks that a binary neither branch names
-// keeps piping. le-test and the helper scripts have always piped, by accident of
+// keeps piping. le test and the helper scripts have always piped, by accident of
 // the two guards naming only ze and ze-peer, and the corpus depends on it.
 func TestCIStdinPipesForEveryOtherBinary(t *testing.T) {
 	for _, bin := range []string{binNameZeTest, "sh", "./script.sh"} {

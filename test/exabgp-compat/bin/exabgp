@@ -384,7 +384,7 @@ def main():
                     "not available in this Python environment.\n"
                     "  paramiko is provided by uv; run the exabgp tests via their\n"
                     "  make target:      make ze-functional-exabgp-test\n"
-                    "  or a single test: uv run --with paramiko bin/le-test exabgp <N>",
+                    "  or a single test: uv run --with paramiko ./le test exabgp <N>",
                     file=sys.stderr,
                 )
                 return 1

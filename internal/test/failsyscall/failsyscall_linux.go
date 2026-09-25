@@ -101,7 +101,7 @@ var syscallsByName = map[string]syscallSelector{
 // usageLine is printed when the options do not parse. It lives beside the only
 // verb that prints it rather than beside the grammar it describes (options.go),
 // because options.go carries no build tag and the launcher is Linux-only.
-const usageLine = "usage: le-test fail-syscall syscall <name> errno <NAME> [length <bytes>] -- <command> [args...]"
+const usageLine = "usage: le test fail-syscall syscall <name> errno <NAME> [length <bytes>] -- <command> [args...]"
 
 // Run installs the filter and replaces this process with the command after
 // `--`. It returns only when something refused, because a successful execve

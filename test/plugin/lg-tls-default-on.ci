@@ -13,7 +13,7 @@
 option=timeout:value=60s
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/lg-tls-default-on:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/lg-tls-default-on:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: looking glass defaults to TLS
 expect=stderr:contains=OK: TLS handshake completed and the API answered

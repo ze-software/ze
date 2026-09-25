@@ -21,13 +21,13 @@ option=needs-linux:caps=net-admin,net-raw
 tmpfs=mtu-none.conf:terminator=EOF_CONF
 plugin {
 	external show-mtu-test {
-		run "le-test fixture plugin/show-mtu-no-tunnels"
+		run "le test fixture plugin/show-mtu-no-tunnels"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/clamped-path netns zemtunone$PORT run ze start mtu-none.conf:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture plugin/clamped-path netns zemtunone$PORT run ze start mtu-none.conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: a registered inventory with no tunnel answers verdict no-tunnels
 reject=stderr:pattern=ZE-OBSERVER-FAIL

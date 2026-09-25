@@ -7,5 +7,5 @@
 # blob key has the file/active/ prefix via ze data list.
 
 
-cmd=foreground:seq=1:exec=le-test fixture managed/file-namespace:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture managed/file-namespace:timeout=10s
 expect=exit:code=0

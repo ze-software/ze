@@ -10,13 +10,13 @@
 #       first candidate in name order is asdot.
 #
 # accept-only: the value assertion is the expect=hint:contains= line of the
-# embedded completion-enum-value-summary.et below. `le-test editor --dir .
+# embedded completion-enum-value-summary.et below. `le test editor --dir .
 # --all` runs that file and exits non-zero when the summary is missing, so
 # the exit code carries it.
 
 option=timeout:value=30s
 
-# go.mod marker: le-test editor roots its base dir at the first go.mod above
+# go.mod marker: le test editor roots its base dir at the first go.mod above
 # the working directory, so --dir . resolves to this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-completion-enum-value-summary-fixture
@@ -52,5 +52,5 @@ expect=dropdown:visible
 expect=hint:contains=An AS number of 65536 or more is X.Y
 EOF_ET
 
-cmd=foreground:seq=1:exec=le-test editor --dir . --all
+cmd=foreground:seq=1:exec=le test editor --dir . --all
 expect=exit:code=0

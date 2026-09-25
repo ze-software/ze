@@ -66,7 +66,7 @@ func Run(args []string) int {
 		authorAllow stringSliceFlag
 	)
 
-	fs := flag.NewFlagSet("le-test tacacs-mock", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test tacacs-mock", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.StringVar(&key, "key", "", "TACACS+ shared secret (required)")
 	fs.Var(&users, "user", "credential: name:pass[:privlvl] (repeatable, priv-lvl default 15)")
@@ -76,7 +76,7 @@ func Run(args []string) int {
 	fs.Var(&authorAllow, "author-allow", "allow an exact AUTHOR username=command pair without granting authentication (repeatable; deny rules still apply)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: le-test tacacs-mock [flags]\n\nMock TACACS+ server for AAA testing.\n\nFlags:\n")
+		fmt.Fprintf(os.Stderr, "Usage: le test tacacs-mock [flags]\n\nMock TACACS+ server for AAA testing.\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -101,7 +101,7 @@ func Run(args []string) int {
 	defer func() { _ = ln.Close() }()
 
 	addr := ln.Addr().String()
-	fmt.Fprintf(os.Stderr, "le-test tacacs-mock: listening on %s\n", addr)
+	fmt.Fprintf(os.Stderr, "le test tacacs-mock: listening on %s\n", addr)
 	if addrOut != "" {
 		if err := os.WriteFile(addrOut, []byte(addr), 0o600); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write addr-file: %v\n", err)

@@ -51,6 +51,6 @@ option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le-test fixture l2tp/radius-coa-listener $PORT2 testing123:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture l2tp/radius-coa-listener $PORT2 testing123:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=OK: Disconnect-NAK with Error-Cause 503 from the coa-port listener

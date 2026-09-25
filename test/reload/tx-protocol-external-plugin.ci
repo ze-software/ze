@@ -66,7 +66,7 @@ plugin {
 		use bgp-watchdog
 	}
 	external tx-protocol-external-plugin-observer {
-		run "le-test fixture reload/tx-protocol-external-plugin-observer"
+		run "le test fixture reload/tx-protocol-external-plugin-observer"
 		encoder json
 	}
 }
@@ -125,7 +125,7 @@ plugin {
 		use bgp-watchdog
 	}
 	external tx-protocol-external-plugin-observer {
-		run "le-test fixture reload/tx-protocol-external-plugin-observer"
+		run "le test fixture reload/tx-protocol-external-plugin-observer"
 		encoder json
 	}
 }
@@ -186,8 +186,8 @@ EOF_UPDATED
 # logs at WARN unless the subsystem is named.
 option=env:var=ze.log.bgp.plugin:value=info
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=background:seq=2:exec=le-test fixture reload/tx-protocol-external-plugin-trigger
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test fixture reload/tx-protocol-external-plugin-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
 await=stderr:contains=sighup reload complete
 expect=exit:code=0

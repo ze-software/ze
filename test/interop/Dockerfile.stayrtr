@@ -3,7 +3,7 @@
 #
 # WHY A THIRD-PARTY CACHE. Ze is the RTR CLIENT in production and was the RTR
 # SERVER in every test that exercised the protocol: scenario rpki-frr runs
-# `le-test rpki` and 25 functional tests run `le-test rtr-mock`, both of them
+# `le test rpki` and 25 functional tests run `le test rtr-mock`, both of them
 # Ze's own Go. A disagreement between Ze's encoder and Ze's decoder is invisible
 # to a codec that round-trips against itself, and the disagreement fails OPEN:
 # a prefix whose VRP was mis-decoded reads NotFound, NotFound is accepted, and

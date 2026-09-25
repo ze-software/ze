@@ -86,7 +86,7 @@ func Names() []string {
 	return names
 }
 
-// Run dispatches `ze-test fixture <name> [args...]`.
+// Run dispatches `le test fixture <name> [args...]`.
 func Run(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "fixture requires one of: %s\n", strings.Join(Names(), ", "))

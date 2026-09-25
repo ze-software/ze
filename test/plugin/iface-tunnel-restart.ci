@@ -74,7 +74,7 @@ option=needs-linux:caps=net-admin
 stdin=boot:terminator=EOF_BOOT_CONF
 plugin {
 	external iface-tunnel-restart-boot {
-		run "le-test fixture plugin/iface-tunnel-restart-boot"
+		run "le test fixture plugin/iface-tunnel-restart-boot"
 		encoder json
 	}
 }
@@ -97,7 +97,7 @@ EOF_BOOT_CONF
 stdin=restart:terminator=EOF_RESTART_CONF
 plugin {
 	external iface-tunnel-restart-check {
-		run "le-test fixture plugin/iface-tunnel-restart-check"
+		run "le test fixture plugin/iface-tunnel-restart-check"
 		encoder json
 	}
 }
@@ -117,7 +117,7 @@ interface {
 EOF_RESTART_CONF
 
 cmd=background:seq=1:exec=ze -:stdin=boot:name=ze1
-cmd=foreground:seq=2:exec=le-test fixture plugin/iface-tunnel-restart-wait
+cmd=foreground:seq=2:exec=le test fixture plugin/iface-tunnel-restart-wait
 cmd=stop:seq=3:name=ze1:signal=term
 # 30s, not the 20s this carried before the seq=2 barrier: the barrier is allowed
 # ~12s of its own, and the budget it sits inside has to leave room for that plus

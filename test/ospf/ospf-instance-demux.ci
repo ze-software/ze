@@ -19,7 +19,7 @@ option=netns-link:name=eth0:address=10.0.0.1/24
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-instance-demux {
-		run "le-test fixture ospf/ospf-instance-demux"
+		run "le test fixture ospf/ospf-instance-demux"
 		encoder json
 	}
 }

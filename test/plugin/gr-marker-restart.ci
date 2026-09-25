@@ -122,6 +122,6 @@ EOF_CONF
 # 1. Create marker file through the compiled fixture
 # 2. Start ze-peer (background, waits for connection)
 # 3. Start ze with marker present (foreground, reads marker on startup)
-cmd=foreground:seq=1:exec=le-test fixture plugin/gr-marker-restart-create
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=1:exec=le test fixture plugin/gr-marker-restart-create
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s

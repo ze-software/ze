@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rib-inject-rfc5549 {
-		run "le-test fixture plugin/rib-inject-rfc5549"
+		run "le test fixture plugin/rib-inject-rfc5549"
 		encoder json
 	}
 	internal bgp-rib {
@@ -78,7 +78,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 # runtime_fail emits this sentinel on the observer's stderr; without the reject the

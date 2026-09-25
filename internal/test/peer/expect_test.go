@@ -35,7 +35,7 @@ func TestConsumesLine(t *testing.T) {
 		"  expect=bgp:conn=1:seq=1:hex=FFFF  ", // leading/trailing space tolerated
 	}
 	for _, line := range consumed {
-		assert.True(t, ConsumesLine(line), "ze-peer consumes %q", line)
+		assert.True(t, ConsumesLine(line), "the peer consumes %q", line)
 	}
 
 	// These are the runner's business. A peer block containing only these makes
@@ -58,7 +58,7 @@ func TestConsumesLine(t *testing.T) {
 		"garbage-with-no-equals",
 	}
 	for _, line := range notConsumed {
-		assert.False(t, ConsumesLine(line), "ze-peer does NOT consume %q", line)
+		assert.False(t, ConsumesLine(line), "the peer does NOT consume %q", line)
 	}
 }
 

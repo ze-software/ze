@@ -26,7 +26,7 @@ EOF_CONF
 option=env:var=ze.log.copp:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test fixture firewall/copp-over-limit-drop:timeout=10s
+cmd=foreground:seq=2:exec=le test fixture firewall/copp-over-limit-drop:timeout=10s
 expect=exit:code=0
 expect=stderr:contains=copp table applied
 expect=stdout:contains=table inet ze_copp

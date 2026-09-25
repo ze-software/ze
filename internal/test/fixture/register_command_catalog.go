@@ -3,7 +3,7 @@
 
 package fixture
 
-// The name is the path a `.ci` file spells after `ze-test fixture`.
+// The name is the path a `.ci` file spells after `le test fixture`.
 func init() {
 	Register("plugin/command-catalog-plugin-shape", commandCatalogPluginShape)
 }

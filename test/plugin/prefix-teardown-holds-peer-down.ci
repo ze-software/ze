@@ -71,7 +71,7 @@ EOF_CONF
 option=env:var=ze.log.bgp.reactor.peer:value=debug
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=12s
 
 # The limit stopped the session, and the peer is held down by name.

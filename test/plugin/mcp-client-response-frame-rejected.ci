@@ -73,7 +73,7 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT:stdin=mcp:timeout=20s
+cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=20s
 expect=exit:code=0
 # The verdict, on the specific code rather than merely "an error".
 expect=stdout:contains=probe status=400 code=-32020

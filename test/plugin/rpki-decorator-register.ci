@@ -25,7 +25,7 @@ plugin {
 		}
 	}
 	external rpki-reg-test {
-		run "le-test fixture plugin/rpki-decorator-register"
+		run "le test fixture plugin/rpki-decorator-register"
 		encoder json
 	}
 	internal rpki {
@@ -90,7 +90,7 @@ bgp {
 EOF_CONF
 
 # RTR mock with one VRP so rpki plugin has data
-cmd=background:seq=1:exec=le-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,32,65001:ready=le-test rtr-mock: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,32,65001:ready=le test rtr-mock: listening on
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

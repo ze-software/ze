@@ -51,7 +51,7 @@ EOF_PEER
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external tunnel-ttl-default-test {
-		run "le-test fixture plugin/tunnel-ttl-default"
+		run "le test fixture plugin/tunnel-ttl-default"
 		encoder json
 	}
 }
@@ -150,7 +150,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=OK: all 7 tunnels carry the outer TTL their config asks for

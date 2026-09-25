@@ -24,7 +24,7 @@ func peerBlockCI(t *testing.T, blockLines ...string) (*Record, error) {
 		"stdin=ze-bgp:terminator=EOF_CONF\n" +
 		"bgp {\n}\n" +
 		"EOF_CONF\n" +
-		"cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer\n" +
+		"cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n" +
 		"cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s\n"
 	path := filepath.Join(t.TempDir(), "guard.ci")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
@@ -71,7 +71,7 @@ func TestRejectBGPOutsidePeerBlockNamesTheRemedy(t *testing.T) {
 		"expect=bgp:conn=1:seq=1:contains=18C00002\n" +
 		"EOF_PEER\n" +
 		"reject=bgp:conn=1:pattern=180A0100\n" +
-		"cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer\n"
+		"cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n"
 	path := filepath.Join(t.TempDir(), "outside.ci")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	et := NewEncodingTests(t.TempDir())
@@ -110,7 +110,7 @@ func TestPeerBlockTimeoutDoesNotOverrideTheFileLevelOne(t *testing.T) {
 		"expect=bgp:conn=1:seq=1:contains=18C00002\n" +
 		"option=timeout:value=5s\n" +
 		"EOF_PEER\n" +
-		"cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer\n"
+		"cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n"
 	path := filepath.Join(t.TempDir(), "timeout.ci")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	et := NewEncodingTests(t.TempDir())
@@ -125,7 +125,7 @@ func TestPeerBlockTimeoutDoesNotOverrideTheFileLevelOne(t *testing.T) {
 		"expect=bgp:conn=1:seq=1:contains=18C00002\n" +
 		"option=timeout:value=5s\n" +
 		"EOF_PEER\n" +
-		"cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer\n"
+		"cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n"
 	path2 := filepath.Join(t.TempDir(), "adopt.ci")
 	require.NoError(t, os.WriteFile(path2, []byte(noFileLevel), 0o600))
 	rec2, err := NewEncodingTests(t.TempDir()).parseAndAdd(path2)
@@ -170,7 +170,7 @@ func TestPeerBlockRefusesRejectOnANonCheckPeer(t *testing.T) {
 		"expect=bgp:conn=1:seq=1:contains=18C00002\n" +
 		"reject=bgp:conn=1:pattern=180A0100\n" +
 		"EOF_PEER\n" +
-		"cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer\n"
+		"cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer\n"
 	path := filepath.Join(t.TempDir(), "sink.ci")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	et := NewEncodingTests(t.TempDir())
@@ -185,8 +185,8 @@ func TestPeerBlockRefusesRejectOnANonCheckPeer(t *testing.T) {
 // The set is built in a map, so without the sort the error text is random.
 func TestPeerBlockNamesAreSorted(t *testing.T) {
 	r := &Record{RunCommands: []RunCommand{
-		{Exec: "ze-peer --port $PORT", Stdin: "zulu"},
-		{Exec: "ze-peer --port $PORT", Stdin: "alpha"},
+		{Exec: "le test peer --port $PORT", Stdin: "zulu"},
+		{Exec: "le test peer --port $PORT", Stdin: "alpha"},
 		{Exec: "helper --stdin ze-peer", Stdin: "ignored"},
 	}}
 	assert.Equal(t, []string{"alpha", "peer", "zulu"}, peerBlockNames(r))
@@ -284,7 +284,7 @@ func TestPeerBlockGuardCoversEveryPeerBlock(t *testing.T) {
 		"expect=bgp:conn=1:seq=1:contains=18C00002\n" +
 		"option=mode:value=sink\n" +
 		"EOF_UP\n" +
-		"cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=upstream\n"
+		"cmd=background:seq=1:exec=le test peer --port $PORT:stdin=upstream\n"
 	path := filepath.Join(t.TempDir(), "named.ci")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	et := NewEncodingTests(t.TempDir())
@@ -318,7 +318,7 @@ func TestPeerBlockRefusesRejectNoPeerReads(t *testing.T) {
 
 	// The same block WITH a peer reading it is accepted, so the refusal is
 	// keyed on the missing peer and not on the shape of the block.
-	withPeer := content + "cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer\n"
+	withPeer := content + "cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer\n"
 	path2 := filepath.Join(t.TempDir(), "withpeer.ci")
 	require.NoError(t, os.WriteFile(path2, []byte(withPeer), 0o600))
 	_, err = NewEncodingTests(t.TempDir()).parseAndAdd(path2)

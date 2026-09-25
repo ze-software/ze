@@ -75,7 +75,7 @@ func reloadSignalDriver(plan reloadSignalPlan) Driver {
 			return errors.New("daemon.ready not found")
 		}
 		if plan.awaitEstablished && !waitForFile(ctx, peerEstablishedFile, WaitAttempts(50, 100*time.Millisecond, 300), 100*time.Millisecond) {
-			return errors.New("ze-peer wrote no " + peerEstablishedFile + " file: the daemon sent it no UPDATE, so the session never reached Established")
+			return errors.New("the peer wrote no " + peerEstablishedFile + " file: the daemon sent it no UPDATE, so the session never reached Established")
 		}
 		pid, err := readPID("daemon.pid")
 		if err != nil {
@@ -184,7 +184,7 @@ func radiusSecretRotationDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile("daemon.ready", nil, 0o600); err != nil {
 		return err
 	}
-	mock, err := startFixtureProcess(ctx, os.Environ(), "", "ze-test", "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", "mock.addr")
+	mock, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "radius-mock", "--port", "0", "--key", "ze-mock-key", "--user", "admin:testpass:admin", "--addr-file", "mock.addr")
 	if err != nil {
 		return err
 	}

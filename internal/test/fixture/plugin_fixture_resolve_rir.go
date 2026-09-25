@@ -357,7 +357,7 @@ func resolveRIRStoreCopy(path string) error {
 		// This table came from this fixture rather than from a registry, and
 		// its provenance says so: naming the five published files here would
 		// be the lie the Source lines exist to prevent.
-		Sources: []string{"ze-test fixture plugin/resolve-rir-refresh"},
+		Sources: []string{"le test fixture plugin/resolve-rir-refresh"},
 	})
 	if err != nil {
 		return err

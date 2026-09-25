@@ -19,7 +19,7 @@
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external failure-restart {
-		run "le-test fixture plugin/failure-policy-restart"
+		run "le test fixture plugin/failure-policy-restart"
 		encoder json
 	}
 }

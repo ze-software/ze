@@ -36,7 +36,7 @@
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external redist-late-consumer-test {
-		run "le-test fixture plugin/redistribute-late-consumer"
+		run "le test fixture plugin/redistribute-late-consumer"
 		encoder json
 	}
 	internal fakeredist {

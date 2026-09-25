@@ -41,7 +41,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration - expect startup failure
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp
 expect=exit:code=1
 expect=stderr:contains=unknown address family

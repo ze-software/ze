@@ -1,7 +1,7 @@
 # Functional test: show vpn ipsec status
 # Spec: plan/spec-ipsec-10-cli-diag.md (AC-3); wired by spec-test-coverage-gaps
 # (AC-2/AC-3): the command=/expect=output directives below are executed by the
-# daemon-spawned `le-test engine-steps` external plugin (the runner writes
+# daemon-spawned `le test engine-steps` external plugin (the runner writes
 # ./engine-steps.json into the test dir; see
 # internal/test/runner/engine_steps.go for the execution model).
 #
@@ -18,7 +18,7 @@
 stdin=config:terminator=EOF_CONFIG
 plugin {
 	external engine-steps {
-		run "le-test engine-steps ./engine-steps.json"
+		run "le test engine-steps ./engine-steps.json"
 		encoder json
 	}
 }

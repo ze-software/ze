@@ -30,7 +30,7 @@ system {
 
 plugin {
 	external dns-stub-answer-change-test {
-		run "le-test fixture plugin/dns-stub-answer-change"
+		run "le test fixture plugin/dns-stub-answer-change"
 		encoder json
 	}
 }

@@ -30,7 +30,7 @@ EOF_CONF
 
 
 cmd=foreground:seq=1:exec=ze start cli-commit.conf:timeout=30s
-cmd=foreground:seq=2:exec=le-test fixture plugin/cli-commit-transactional $PORT2:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture plugin/cli-commit-transactional $PORT2:timeout=30s
 expect=exit:code=0
 expect=key:path=meta/config/cli-commit.conf/active:exists=true
 expect=key:path=meta/config/cli-commit.conf/candidate:absent=true

@@ -35,7 +35,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external config-edit-test {
-		run "le-test fixture plugin/config-edit-ssh $PORT2"
+		run "le test fixture plugin/config-edit-ssh $PORT2"
 		encoder json
 	}
 }
@@ -89,6 +89,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

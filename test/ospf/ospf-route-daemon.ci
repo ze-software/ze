@@ -13,7 +13,7 @@ option=skip-os:value=darwin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external ospf-route {
-		run "le-test fixture ospf/ospf-route-daemon"
+		run "le test fixture ospf/ospf-route-daemon"
 		encoder json
 	}
 }

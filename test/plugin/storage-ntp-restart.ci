@@ -10,6 +10,6 @@
 option=needs-linux:caps=sys-time
 option=env:var=ZE_STORAGE_CLOCK_TEST:value=1
 option=timeout:value=70s
-cmd=foreground:seq=1:exec=le-test fixture storage/consumer-restart ntp:timeout=60s
+cmd=foreground:seq=1:exec=le test fixture storage/consumer-restart ntp:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=OK: ntp consumer restored operational state from selected tree without config-dir pin

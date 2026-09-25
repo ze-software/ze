@@ -3,6 +3,6 @@
 # PREVENTS: silent loose-file fallback or loss of state at restart.
 option=timeout:value=90s
 option=needs-linux:caps=net-admin,net-raw
-cmd=foreground:seq=1:exec=le-test fixture storage/tree ospf-state-through-daemon:timeout=90s:exit=0
+cmd=foreground:seq=1:exec=le test fixture storage/tree ospf-state-through-daemon:timeout=90s:exit=0
 expect=exit:code=0
 expect=stdout:contains=OK: ospf-state-through-daemon

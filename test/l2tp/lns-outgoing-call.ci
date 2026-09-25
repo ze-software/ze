@@ -44,7 +44,7 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le-test fixture l2tp/lns-outgoing-call $PORT2 18093:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture l2tp/lns-outgoing-call $PORT2 18093:timeout=30s
 expect=exit:code=0
 expect=stdout:contains=OK: OCRQ received msgtype=7 called='5551234'
 expect=stdout:contains=OK: outgoing-call established; RPC returned session identifiers

@@ -26,6 +26,6 @@ option=update:value=send-route:prefix=10.30.0.0/24:next-hop=10.0.0.1:origin-as=6
 EOF_PEER
 
 
-cmd=foreground:seq=1:exec=le-test fixture vpp/vpp-mpls-push $PORT:timeout=30s
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-mpls-push $PORT:timeout=30s
 expect=exit:code=0
 expect=stderr:pattern=OK: fib-vpp programmed 10.30.0.0/24 with label 100 into stub

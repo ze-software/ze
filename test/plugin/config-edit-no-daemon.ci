@@ -7,5 +7,5 @@
 # VALIDATES: AC-5 -- ze init bootstraps credentials for editor.
 # PREVENTS: Editor failing silently when daemon not available.
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/config-edit-no-daemon:timeout=10s
+cmd=foreground:seq=1:exec=le test fixture plugin/config-edit-no-daemon:timeout=10s
 expect=exit:code=0

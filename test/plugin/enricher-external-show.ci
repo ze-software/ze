@@ -15,11 +15,11 @@ plugin {
         use fakeenrich
     }
     external enricher-provider {
-        run "le-test fixture plugin/enricher-external-show-provider"
+        run "le test fixture plugin/enricher-external-show-provider"
         encoder json
     }
     external enricher-checker {
-        run "le-test fixture plugin/enricher-external-show-checker"
+        run "le test fixture plugin/enricher-external-show-checker"
         encoder json
     }
 }
@@ -55,6 +55,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
 expect=exit:code=0

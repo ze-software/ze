@@ -13,7 +13,7 @@
 #           multi-probe paced path runPingBatch introduced (spec
 #           fixit-show-ping-serial-pacing): count 1 alone never spaced two sends,
 #           so it could not catch a shape regression under a real batch.
-# NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default bin/le-test runner is
+# NOTE: raw ICMP (ip4:icmp) needs CAP_NET_RAW; the default ./le test runner is
 #       unprivileged, so the error branch is what executes here. The boundedness
 #       the spec targets (a lossy batch finishing in ~timeout, not count*timeout)
 #       is proven by the fake-clock unit tests (TestDoPing* in ping_test.go); a
@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external ping-show-test {
-		run "le-test fixture plugin/ping-show"
+		run "le test fixture plugin/ping-show"
 		encoder json
 	}
 }
@@ -73,6 +73,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

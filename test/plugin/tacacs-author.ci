@@ -25,7 +25,7 @@ system {
 environment { ssh { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
 plugin {
 	external tacacs-author-test {
-		run "le-test fixture plugin/tacacs-author $PORT $PORT2"
+		run "le test fixture plugin/tacacs-author $PORT $PORT2"
 		encoder json
 	}
 }

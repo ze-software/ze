@@ -18,6 +18,6 @@
 
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/le-consistency-answers
+cmd=foreground:seq=1:exec=le test fixture ui/le-consistency-answers
 expect=exit:code=0
 expect=stdout:contains=OK

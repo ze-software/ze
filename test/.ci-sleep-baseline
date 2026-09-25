@@ -54,7 +54,7 @@
 # NOTE for whoever runs these next: `./le test qemu netns-test` reports
 # ddos-local-withdraw as FAILING, and that is the action's own defect rather
 # than the test's. `internal/le/test/qemu/netns_linux.go` selects the production
-# binary, which carries neither zetest nor ze_test, so the ddos/fake config node
+# binary, which does not carry the zetest tag, so the ddos/fake config node
 # this test needs does not exist and the daemon dies with "unknown field in
 # ddos: fake". With a zetest-tagged DUT the same test passes in 653ms.
 -8

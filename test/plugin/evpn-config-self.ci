@@ -17,7 +17,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external self-observer {
-        run "le-test fixture plugin/evpn-config-self"
+        run "le test fixture plugin/evpn-config-self"
         encoder json
     }
 }
@@ -48,7 +48,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-nlri-evpn -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=OK native EVPN self route and EOR reached collector

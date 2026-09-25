@@ -27,7 +27,7 @@ option=env:var=ze.log.pppoe:value=debug
 option=env:var=TEST_IFACE:value=veth-sub
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le-test fixture pppoe/basic:timeout=45s
+cmd=foreground:seq=2:exec=le test fixture pppoe/basic:timeout=45s
 expect=exit:code=0
 expect=stdout:contains=OK: PADO received
 expect=stdout:contains=OK: PADS received

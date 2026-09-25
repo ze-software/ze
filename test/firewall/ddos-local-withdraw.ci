@@ -31,7 +31,7 @@ option=env:var=ze.log.ddos.local:value=info
 option=env:var=ze.log.ddos.fake:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test fixture firewall/ddos-local-withdraw:timeout=20s
+cmd=foreground:seq=2:exec=le test fixture firewall/ddos-local-withdraw:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=MITIGATION: ze_ddos-local installed
 expect=stderr:contains=WITHDRAW: ze_ddos-local removed

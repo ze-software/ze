@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md — stress injection from le-test peer
+// Design: docs/architecture/testing/ci-format.md — stress injection from le test peer
 // RFC: rfc/short/rfc4271.md — UPDATE message format and the 4096-octet message ceiling
 // RFC: rfc/short/rfc8654.md — Extended Message capability, which raises that ceiling to 65535
 // Overview: peer.go — test peer runtime and mode dispatch
@@ -36,7 +36,7 @@ const (
 	keepaliveInterval = 30 * time.Second
 )
 
-// InjectSpec describes the UPDATE stream a le-test peer in ModeInject
+// InjectSpec describes the UPDATE stream a le test peer in ModeInject
 // emits after the OPEN handshake.
 type InjectSpec struct {
 	// Prefix is the base network (e.g. 10.0.0.0/24 or 2001:db8::/48).

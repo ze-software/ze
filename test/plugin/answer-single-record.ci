@@ -29,7 +29,7 @@
 # Native fixture: a one-record answer over the SSH exec channel
 
 # Process orchestration
-cmd=foreground:seq=1:exec=le-test fixture plugin/answer-single-record:timeout=25s
+cmd=foreground:seq=1:exec=le test fixture plugin/answer-single-record:timeout=25s
 expect=exit:code=0
 expect=stderr:contains=OK: one record and many records read through one path
 expect=stderr:contains=OK: the streamed answer reached the operator one record per line

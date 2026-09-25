@@ -27,7 +27,7 @@ EOF_CONF
 # A missing probe socket is a WARNING: the daemon still routes, so readiness
 # stays true and doctor exits 0. The diagnostic, not the exit code, is the
 # answer here.
-cmd=foreground:seq=1:exec=le-test fixture plugin/isolated-netns netns zedfd$PORT without-net-raw run ze doctor --json probe.conf:timeout=20s
+cmd=foreground:seq=1:exec=le test fixture plugin/isolated-netns netns zedfd$PORT without-net-raw run ze doctor --json probe.conf:timeout=20s
 expect=exit:code=0
 # The JSON row, quotes and comma included: a bare `doctor-icmp-probe` is also a
 # prefix of the unprivileged code and of the `ze explain` line below.

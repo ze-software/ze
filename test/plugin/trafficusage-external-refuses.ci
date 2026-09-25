@@ -6,7 +6,7 @@
 # internal/component/iface's package-level subscriber list) that would
 # silently no-op across the process boundary -- it is the monitor's only
 # attach/detach mechanism.
-# Uses `le-test plugin-external traffic-usage`
+# Uses `le test plugin-external traffic-usage`
 # (internal/test/cli/cmd_plugin_external.go) to launch the real plugin's own
 # RunEngine via a real TLS connect-back, exercising the guard through the
 # actual external-plugin transport, not a mocked conn.
@@ -43,7 +43,7 @@ traffic {
 
 plugin {
 	external traffic-usage {
-		run "le-test plugin-external traffic-usage"
+		run "le test plugin-external traffic-usage"
 	}
 }
 

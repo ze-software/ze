@@ -64,7 +64,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-learned-route-metric {
-		run "le-test fixture plugin/iface-learned-route-metric"
+		run "le test fixture plugin/iface-learned-route-metric"
 		encoder json
 	}
 }

@@ -66,8 +66,8 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT:stdin=mcp:timeout=20s
-# The @ze_execute call ends in a tool error, which le-test reports and exits 1.
+cmd=foreground:seq=2:exec=le test mcp --port $PORT:stdin=mcp:timeout=20s
+# The @ze_execute call ends in a tool error, which le test reports and exits 1.
 expect=exit:code=1
 # The probe result, in full: a tool-level error on a normal 200, because the
 # request was conformant and only its arguments were wrong.

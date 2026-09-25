@@ -32,7 +32,7 @@
 
 # Alice: create a task and run it to completion.
 stdin=mcp1:terminator=EOF_MCP1
-# The readiness gate names a GENERATED tool on purpose: le-test mcp's waitReady
+# The readiness gate names a GENERATED tool on purpose: le test mcp's waitReady
 # only dials the TCP port, and the MCP listener binds before the command
 # registry is populated. Handcrafted tools (ze_execute, ze_reference) come from
 # a static list and appear immediately, so waiting on one would not close that
@@ -106,8 +106,8 @@ expect=stdout:pattern=(?s)completed.*task not found
 # Asserted under the command that WRITES it. It used to sit under a later
 # command, where the runner checked it against the whole test's output.
 expect=stdout:contains=completed
-cmd=foreground:seq=2:exec=le-test mcp --port $PORT2 --tasks --token alice-token --timeout 20s:stdin=mcp1:timeout=25s
-cmd=foreground:seq=3:exec=le-test mcp --port $PORT2 --tasks --token bob-token --timeout 20s:stdin=mcp2:timeout=25s
+cmd=foreground:seq=2:exec=le test mcp --port $PORT2 --tasks --token alice-token --timeout 20s:stdin=mcp1:timeout=25s
+cmd=foreground:seq=3:exec=le test mcp --port $PORT2 --tasks --token bob-token --timeout 20s:stdin=mcp2:timeout=25s
 expect=exit:code=0
 # Alice's task really existed and completed: the isolation below is about a live
 # task, not about an empty registry.

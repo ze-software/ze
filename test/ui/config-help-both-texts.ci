@@ -7,12 +7,12 @@
 #
 # accept-only: the value assertions are the expect=hint:contains= and
 # expect=explanation:contains= lines of the embedded config-help-both-texts.et
-# below. `le-test editor --dir . --all` runs that file and exits non-zero when
+# below. `le test editor --dir . --all` runs that file and exits non-zero when
 # either text is missing, so the exit code carries them.
 
 option=timeout:value=30s
 
-# go.mod marker: le-test editor roots its base dir at the first go.mod above
+# go.mod marker: le test editor roots its base dir at the first go.mod above
 # the working directory, so --dir . resolves to this test's temp dir.
 tmpfs=go.mod:terminator=EOF_MOD
 module ze-ui-config-help-both-texts-fixture
@@ -56,5 +56,5 @@ expect=explanation:contains=RFC 6286 Section 2.1
 expect=explanation:contains=rejects 0.0.0.0
 EOF_ET
 
-cmd=foreground:seq=1:exec=le-test editor --dir . --all
+cmd=foreground:seq=1:exec=le test editor --dir . --all
 expect=exit:code=0

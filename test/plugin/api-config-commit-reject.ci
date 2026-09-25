@@ -13,7 +13,7 @@ EOF_PEER
 tmpfs=api-config-commit-reject.conf:terminator=EOF_CONF
 plugin {
     external api-commit-reject {
-        run "le-test fixture plugin/api-config-commit-reject"
+        run "le test fixture plugin/api-config-commit-reject"
         encoder json
     }
 }
@@ -63,7 +63,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start api-config-commit-reject.conf:timeout=30s
 expect=exit:code=0
 expect=key:path=meta/config/api-config-commit-reject.conf/active:exists=true

@@ -9,7 +9,7 @@
 //
 // All three exist because of one defect class. A check-mode ze-peer with no
 // expectation exits 1 BEFORE binding a listening socket (the "no test data"
-// branch of le-test peer). ze then dials a dead port, gets connection refused,
+// branch of le test peer). ze then dials a dead port, gets connection refused,
 // and backs off 5->10->20->40s, which reads as a BGP establishment stall. An
 // expect=exit:code=0 on the same test skipped every BGP-level assertion, so the
 // test passed while no BGP ever ran. Per ai/rules/evidence.md the
@@ -33,12 +33,10 @@ import (
 )
 
 // peerNoTestDataMessage is the stderr ze-peer emits in check mode with no
-// expectations, from the "no test data" branch of le-test peer's cmd_peer.go.
+// expectations, from the "no test data" branch of le test peer's cmd_peer.go.
 const peerNoTestDataMessage = "no test data available to test against"
 
 // zePeerBin is the command name the runner recognizes as a BGP test peer.
-const zePeerBin = "ze-peer"
-
 // hasCheckPeer reports whether any command launches a check-mode ze-peer.
 //
 // Only a check-mode peer validates the messages it receives and reports
@@ -58,7 +56,7 @@ func hasCheckPeer(cmds []*RunCommand) bool {
 // isCheckPeerExec reports whether an exec value launches a check-mode ze-peer --
 // the only peer kind that validates what it receives and reports peerSuccessToken.
 func isCheckPeerExec(exec string) bool {
-	return isZePeerExec(exec) && zePeerExecMode(exec) == peer.ModeCheck
+	return isPeerExec(exec) && zePeerExecMode(exec) == peer.ModeCheck
 }
 
 // peerLingers reports whether a peer's expectation block declares
@@ -195,7 +193,7 @@ func isSelfValidated(rec *Record, hasCheckPeer bool) bool {
 // that was never applied.
 func peerBindFailure(timeout time.Duration, stderr, stdout string) error {
 	if strings.Contains(stderr, peerNoTestDataMessage) {
-		return fmt.Errorf("ze-peer exited without binding: %q. Its peer block declares no "+
+		return fmt.Errorf("the peer exited without binding: %q. Its peer block declares no "+
 			"ze-peer-consumed expectation (expect=bgp:, or action=send/notification/rewrite/"+
 			"close/sighup/sigterm), so ze-peer had nothing to check and never listened, and "+
 			"every ze dial hit connection refused. Note expect=json is validated by the test "+
@@ -219,7 +217,7 @@ func peerBindFailure(timeout time.Duration, stderr, stdout string) error {
 func validatePeerBlocks(r *Record) error {
 	for i := range r.RunCommands {
 		cmd := &r.RunCommands[i]
-		if !isZePeerExec(cmd.Exec) || zePeerExecMode(cmd.Exec) != peer.ModeCheck {
+		if !isPeerExec(cmd.Exec) || zePeerExecMode(cmd.Exec) != peer.ModeCheck {
 			continue
 		}
 		if cmd.Stdin == "" {
@@ -261,7 +259,7 @@ func peerBlockHasConsumedDirective(block string) bool {
 
 // peerBlockNames returns the stdin blocks a .ci file hands to a ze-peer.
 //
-// Every peer block is named on a `cmd=...:exec=ze-peer ...:stdin=<name>` line.
+// Every peer block is named on a `cmd=...:exec=le test peer ...:stdin=<name>` line.
 // The block named "peer" is included unconditionally, because this loop is what
 // puts a block's expect= lines on Record.Expects, and the non-orchestrated path
 // (a .ci with no cmd= lines: 43 tracked files, 42 of them under
@@ -288,7 +286,7 @@ func peerBlockNames(r *Record) []string {
 	seen := map[string]bool{"peer": true}
 	for i := range r.RunCommands {
 		cmd := &r.RunCommands[i]
-		if isZePeerExec(cmd.Exec) && cmd.Stdin != "" {
+		if isPeerExec(cmd.Exec) && cmd.Stdin != "" {
 			seen[cmd.Stdin] = true
 		}
 	}
@@ -303,7 +301,7 @@ func peerBlockNames(r *Record) []string {
 // blockPeerMode is the --mode of the ze-peer a block is handed to, and whether
 // any ze-peer READS the block at all.
 //
-// read is true ONLY when a `cmd=...:exec=ze-peer ...:stdin=<name>` line names
+// read is true ONLY when a `cmd=...:exec=le test peer ...:stdin=<name>` line names
 // the block. That is the only path on which ze-peer receives the block's text.
 //
 // A file with NO cmd= lines takes the non-orchestrated path, and read is false
@@ -318,7 +316,7 @@ func peerBlockNames(r *Record) []string {
 func blockPeerMode(r *Record, name string) (mode peer.Mode, read bool) {
 	for i := range r.RunCommands {
 		cmd := &r.RunCommands[i]
-		if isZePeerExec(cmd.Exec) && cmd.Stdin == name {
+		if isPeerExec(cmd.Exec) && cmd.Stdin == name {
 			return zePeerExecMode(cmd.Exec), true
 		}
 	}
@@ -482,7 +480,7 @@ func validatePeerBlockRejects(name, block string, mode peer.Mode, read bool) err
 	if len(rejects) > 0 && !read {
 		return fmt.Errorf("stdin=%s block line %d: reject=bgp is read by ze-peer, and no "+
 			"cmd= line in this file launches a ze-peer against stdin=%s, so the block reaches "+
-			"nothing. Add cmd=background:seq=N:exec=ze-peer ...:stdin=%s, or move the rejection "+
+			"nothing. Add cmd=background:seq=N:exec=le test peer ...:stdin=%s, or move the rejection "+
 			"to the block of a peer that runs", name, rejects[0].line, name, name)
 	}
 	if len(rejects) > 0 && mode != peer.ModeCheck {
@@ -522,11 +520,10 @@ func connOfExpect(tail string) int {
 	return 0
 }
 
-// isZePeerExec reports whether a cmd= exec value launches ze-peer. It matches the
-// command word so a helper whose arguments mention ze-peer does not false-positive.
-func isZePeerExec(exec string) bool {
-	fields := strings.Fields(exec)
-	return len(fields) > 0 && fields[0] == zePeerBin
+// isPeerExec reports whether a cmd= exec value launches the harness peer
+// (launchesPeer).
+func isPeerExec(exec string) bool {
+	return launchesPeer(strings.Fields(exec))
 }
 
 // zePeerExecMode extracts the peer mode from a ze-peer exec value, defaulting to

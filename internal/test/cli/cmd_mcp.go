@@ -23,7 +23,7 @@ import (
 // probeOmit is the probe-* sentinel meaning "leave this out entirely".
 const probeOmit = "-"
 
-const mcpUsageHead = `Usage: le-test mcp --port <port> [--token <token>] [--timeout <duration>] [--tasks] [--elicit <modes>]
+const mcpUsageHead = `Usage: le test mcp --port <port> [--token <token>] [--timeout <duration>] [--tasks] [--elicit <modes>]
 
 Send commands to a running Ze daemon over MCP protocol revision `
 
@@ -124,7 +124,7 @@ Options:
 func CmdMcp(args []string) int {
 	var text textbuf.Buffer
 
-	fs := flag.NewFlagSet("le-test mcp", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le test mcp", flag.ContinueOnError)
 	port := fs.String("port", "", "MCP server port (required)")
 	token := fs.String("token", "", "Bearer token for MCP authentication")
 	timeout := fs.Duration("timeout", 10*time.Second, "Connection timeout")

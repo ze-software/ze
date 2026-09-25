@@ -332,6 +332,11 @@ executable (`os.Executable`) answers every harness exec.
 | anything else | an extra binary of this run, else a PATH lookup |
 
 The parse steps resolve the same heads the same way (`resolveParseExec`).
+A step whose words are `le test peer`, or the retired head `ze-peer`, takes the
+peer role (`launchesPeer`, `internal/test/runner/harness_exec.go`): its stdin
+block goes to the peer as an expect file, it receives the leased BGP port, the
+peer contract (`peer_contract.go`) validates its block, and a check-mode peer's
+`successful` line governs the result.
 `le test <name>` runs in the test's work directory when `test <name>` is a
 harness command, which the runner reads off registration: under `test`, the
 forwarding commands are the harness commands. Every other `le` head keeps the

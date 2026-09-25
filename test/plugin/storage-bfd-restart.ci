@@ -3,6 +3,6 @@
 # PREVENTS: generic state RPC success hiding a BFD state-lifetime failure.
 option=needs-linux
 option=exclusive:group=bfd-ports
-cmd=foreground:seq=1:exec=le-test fixture plugin/bfd-auth-meticulous-persist:timeout=40s
+cmd=foreground:seq=1:exec=le test fixture plugin/bfd-auth-meticulous-persist:timeout=40s
 expect=exit:code=0
 expect=stderr:contains=persisted and restored across restart

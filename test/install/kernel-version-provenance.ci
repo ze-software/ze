@@ -5,6 +5,6 @@
 option=timeout:value=30s
 
 
-cmd=foreground:seq=1:exec=le-test fixture install/kernel-version-provenance
+cmd=foreground:seq=1:exec=le test fixture install/kernel-version-provenance
 expect=exit:code=0
 expect=stdout:contains=OK

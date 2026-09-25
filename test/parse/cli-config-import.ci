@@ -13,7 +13,7 @@ EOF_FILE
 
 option=env:var=ze.config.dir:value=.
 
-cmd=foreground:seq=1:exec=le-test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=1:exec=le test fixture storage/empty-tree:exit=0
 cmd=foreground:seq=2:exec=ze config import small.conf
 expect=exit:code=0
 expect=stdout:contains=imported small.conf

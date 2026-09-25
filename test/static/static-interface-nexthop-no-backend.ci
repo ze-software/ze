@@ -40,7 +40,7 @@ EOF_CONF
 option=env:var=ze.log.static:value=info
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=le-test fixture static/static-interface-nexthop-no-backend:timeout=15s
+cmd=foreground:seq=2:exec=le test fixture static/static-interface-nexthop-no-backend:timeout=15s
 expect=exit:code=0
 expect=stderr:contains=tun404
 expect=stderr:contains=static: route skipped, kept rest of section

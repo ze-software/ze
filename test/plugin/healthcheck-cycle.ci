@@ -98,9 +98,9 @@ EOF_HEALTHY
 # helper raced the probe on a wall clock, and under load it deleted the sentinel
 # before the first probe ever ran, so the probe went INIT -> DOWN, no route was
 # ever announced, and the test timed out having received only the EOR (seen as
-# TIME 240 in a loaded `le-test bgp plugin --all` run). Replaced coverage, not
+# TIME 240 in a loaded `le test bgp plugin --all` run). Replaced coverage, not
 # reduced coverage.
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s

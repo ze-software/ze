@@ -111,7 +111,7 @@ traffic {
 
 plugin {
 	external ddos-parent-config-removed-probe {
-		run "le-test fixture plugin/ddos-parent-config-removed-driver"
+		run "le test fixture plugin/ddos-parent-config-removed-driver"
 		encoder json
 	}
 }

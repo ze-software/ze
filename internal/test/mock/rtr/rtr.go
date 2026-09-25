@@ -114,7 +114,7 @@ func Run(args []string) int {
 		aspas aspaList
 	)
 
-	fs := flag.NewFlagSet("le-test rtr-mock", flag.ExitOnError)
+	fs := flag.NewFlagSet("le test rtr-mock", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	fs.Var(&aspas, "aspa", "ASPA record: customer:provider1,provider2,... (repeatable)")
@@ -124,7 +124,7 @@ func Run(args []string) int {
 	syncRelease := fs.String("sync-release", "", "wait for this file before answering a query")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: le-test rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
+		fmt.Fprintf(os.Stderr, "Usage: le test rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -142,7 +142,7 @@ func Run(args []string) int {
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "le-test rtr-mock: listening on port %s with %d VRPs, %d ASPAs\n", portStr, len(vrps), len(aspas))
+	fmt.Fprintf(os.Stderr, "le test rtr-mock: listening on port %s with %d VRPs, %d ASPAs\n", portStr, len(vrps), len(aspas))
 
 	for {
 		conn, err := ln.Accept()

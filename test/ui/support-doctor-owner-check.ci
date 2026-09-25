@@ -14,6 +14,6 @@ plugin {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture ui/support-doctor-owner-check:timeout=15s
+cmd=foreground:seq=1:exec=le test fixture ui/support-doctor-owner-check:timeout=15s
 expect=exit:code=0
 expect=stdout:contains=OK support doctor owner check

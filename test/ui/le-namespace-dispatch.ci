@@ -5,6 +5,6 @@
 # and a pipe operator survives the longer lookup.
 option=timeout:value=300s
 
-cmd=foreground:seq=1:exec=le-test fixture ui/le-namespace-dispatch
+cmd=foreground:seq=1:exec=le test fixture ui/le-namespace-dispatch
 expect=exit:code=0
 expect=stdout:contains=OK

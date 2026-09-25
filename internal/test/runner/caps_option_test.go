@@ -177,7 +177,7 @@ func TestBPFTokenIsCapBPFOnly(t *testing.T) {
 // PREVENTS: two failures with one shape. Declaring `caps=net-admin` on a test
 // whose only privileged act is binding port 53 would skip a host that can bind
 // it and cannot program nftables, deleting coverage; checking no bit at all
-// would let the test run unprivileged, where `le-test dns` fails to bind and
+// would let the test run unprivileged, where `le test dns` fails to bind and
 // the daemon's lookups time out against nothing.
 func TestCapsNetBindGateBothPolarities(t *testing.T) {
 	bits := capsRequired[capsNetBind]

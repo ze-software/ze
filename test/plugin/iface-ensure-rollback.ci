@@ -50,7 +50,7 @@ option=needs-linux:caps=net-admin
 stdin=ze-conf:terminator=EOF_CONF
 plugin {
 	external iface-ensure-rollback {
-		run "le-test fixture plugin/iface-ensure-rollback"
+		run "le test fixture plugin/iface-ensure-rollback"
 		encoder json
 	}
 }

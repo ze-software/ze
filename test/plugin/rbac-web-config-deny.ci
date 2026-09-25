@@ -5,5 +5,5 @@
 option=timeout:value=30s
 
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/rbac-web-config-deny:timeout=30s
+cmd=foreground:seq=1:exec=le test fixture plugin/rbac-web-config-deny:timeout=30s
 expect=exit:code=0

@@ -33,7 +33,7 @@ func recordWith(config, block string) *Record {
 	return &Record{
 		TmpfsFiles:  map[string]tmpfs.File{"ze-bgp.conf": {Path: "ze-bgp.conf", Content: []byte(config)}},
 		StdinBlocks: map[string][]byte{"peer": []byte(block)},
-		RunCommands: []RunCommand{{Seq: 1, Exec: "ze-peer --port 1179", Stdin: "peer"}},
+		RunCommands: []RunCommand{{Seq: 1, Exec: "le test peer --port 1179", Stdin: "peer"}},
 	}
 }
 
@@ -327,7 +327,7 @@ func TestDeclarePeerASReadsAConfigOnDisk(t *testing.T) {
 	record := &Record{
 		ConfigFile:  path,
 		StdinBlocks: map[string][]byte{"peer": []byte("expect=bgp:conn=1:seq=1:hex=FFFF001304\n")},
-		RunCommands: []RunCommand{{Seq: 1, Exec: "ze-peer --port 1179", Stdin: "peer"}},
+		RunCommands: []RunCommand{{Seq: 1, Exec: "le test peer --port 1179", Stdin: "peer"}},
 	}
 	if err := declarePeerAS(record); err != nil {
 		t.Fatalf("declarePeerAS: %v", err)

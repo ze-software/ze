@@ -140,14 +140,14 @@ bgp {
 
 plugin {
 	external ddos-announce-rate-limit-probe {
-		run "le-test fixture plugin/ddos-announce-rate-limit-driver"
+		run "le test fixture plugin/ddos-announce-rate-limit-driver"
 		encoder json
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=le-test fixture plugin/ddos-transit-forward-drop-setup
-cmd=background:seq=2:exec=ze-peer --mode sink --port $PORT:stdin=peer
+cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
+cmd=background:seq=2:exec=le test peer --mode sink --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-nlri-flowspec -:stdin=ze-bgp:timeout=195s
 expect=exit:code=0
 expect=stderr:contains=ANNOUNCED 203.0.113.9
