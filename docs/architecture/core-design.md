@@ -91,7 +91,7 @@ members it could have been, and exit 1. A first word that holds no members is
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
 **A retired name runs as the command that replaced it.** The subject-first
-rename (`plan/spec-le-subject-first-command-tree.md`) moves every le command to
+rename (`spec-le-subject-first-command-tree`) moves every le command to
 `le <subject> <action>`. `internal/le/doc/check/retirednames.go` declares the
 rename map once: each row maps a retired command, or one retired action of a
 command, to the command and action that replace it, and a second table lists

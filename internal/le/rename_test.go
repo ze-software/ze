@@ -1,6 +1,6 @@
 // VALIDATES: every row of the rename map names a command le really composes,
 // and that command's package sits at the directory its new name predicts
-// (AC-1, AC-2 and AC-6 of plan/spec-le-subject-first-command-tree.md).
+// (AC-1, AC-2 and AC-6 of spec-le-subject-first-command-tree).
 // PREVENTS: a family that moved its directory but kept its old registered
 // name, or registered the new name from a directory no reader would open.
 //

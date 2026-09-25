@@ -1,7 +1,7 @@
 // VALIDATES: Dispatch holds no alias layer. A word sequence spelled like a
 // retired name answers `unknown command` and exit 1, writes no rename line,
 // and never reaches the command whose words it resembles (AC-17 of
-// plan/spec-le-subject-first-command-tree.md).
+// spec-le-subject-first-command-tree).
 // PREVENTS: a rewrite surviving the Phase 3 removal, which would run an old
 // name as a new command and keep callers of the old spelling green.
 //

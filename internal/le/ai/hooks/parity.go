@@ -21,7 +21,7 @@ const (
 	postWriteEditRowsExpected = 24
 )
 
-// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md, Phase 2:
+// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree, Phase 2:
 // the bash fixtures name the subject-first commands (`ai rules index-update`,
 // `ai hooks unit`, `spec wip`, `test unit`, `repo changed`, `test qemu`). Same
 // rows, same expected codes.

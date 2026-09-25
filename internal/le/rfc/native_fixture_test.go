@@ -319,10 +319,15 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// pages as one unsynced batch through derived.WriteAtomicAll (write.go).
 	// It is an intended change its commit states.
 	//
-	// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md: the
+	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree: the
 	// package's imports and command words moved to the subject-first tree
 	// (2bdd55e01c and the commits before it). No decision moved.
-	const want = "173a18000a8e902b209b07aa0e85a3c8c8fc7b461f68d244f185304e6ed470a6"
+	//
+	// Re-sealed 2026-09-25 for e43f0aa939, which reads a scheduled interop
+	// action through workflowCommand (carriers.go): a binary that links only
+	// part of le now reads `test integration interop` by its declared tree.
+	// It is an intended change its commit states.
+	const want = "19ff9afe6709fb16d2ac7f8c8ac80a42f6acae4a41954b9b1620e2469cb604e6"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

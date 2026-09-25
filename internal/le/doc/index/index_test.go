@@ -1,6 +1,6 @@
 // VALIDATES: `le doc index check` judges ai/DOCS-TO-CODE.md, ai/CODE-TO-DOCS.md
 // and the anchors in one run, and `le doc index write` regenerates both files
-// (AC-29, D-5 of plan/spec-le-subject-first-command-tree.md).
+// (AC-29, D-5 of spec-le-subject-first-command-tree).
 // PREVENTS: the merged check dropping one of the three judgments the four old
 // verbs made, or the write leaving one of the two files stale.
 

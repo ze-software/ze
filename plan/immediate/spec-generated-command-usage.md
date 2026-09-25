@@ -328,7 +328,7 @@ then its children are listed, which is new output where today there is none.
 |----------|--------|
 | What breaks if this is wrong? | An operator's command binds a value to the wrong argument and the daemon acts on it without an error. That is the positional-binding half. The usage half is documentation only: a wrong generated line misleads but breaks nothing |
 | How is it reverted? | Phases 1 to 5 revert as single commits. From phase 6 onward the YANG modules carry declared leaves that handlers rely on, so a revert must take the YANG and the handler edits together |
-| Who else touches this path? | `plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md` works the same static grammar gate. `plan/spec-le-subject-first-command-tree.md` works the `./le` action tables this spec adds a verb to |
+| Who else touches this path? | `plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md` works the same static grammar gate. `spec-le-subject-first-command-tree` (closed 2026-09-25) moved the `./le` action tables this spec adds a verb to |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

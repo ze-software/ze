@@ -139,7 +139,7 @@ against a grep.
 |----------|--------|
 | What breaks if this is wrong? | A renamed verb breaks every citation of it, including ones inside hooks and CI. A wrongly split exit code turns a red gate green, which is the dangerous direction |
 | How is it reverted? | A single commit revert per defect; the three are separable and should land separately |
-| Who else touches this path? | Specs 1 and 2 of this series land first. `plan/spec-le-subject-first-command-tree.md` owns le's root naming grammar |
+| Who else touches this path? | Specs 1 and 2 of this series land first. `spec-le-subject-first-command-tree` (closed 2026-09-25) set le's subject-first root naming grammar |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

@@ -14,7 +14,7 @@ import (
 )
 
 // The exec heads the runner answers with its own executable. Every harness
-// command is `le test <name>` (plan/spec-le-subject-first-command-tree.md, D-8),
+// command is `le test <name>` (spec-le-subject-first-command-tree, D-8),
 // and the runner runs inside that `le`, so an `le` head runs the runner's own
 // file rather than whatever `le` a PATH lookup finds. Any other head, the
 // retired standalone harness names among them, is no head of the runner's: it
@@ -32,12 +32,9 @@ const (
 )
 
 // launchesPeer answers whether the words of an exec value start the harness
-// peer: `le test peer ...`. It reads the command words only, so a helper whose arguments mention the
-// peer does not match.
+// peer: `le test peer ...`. It reads the command words only, so a helper
+// whose arguments mention the peer does not match.
 func launchesPeer(fields []string) bool {
-	if len(fields) == 0 {
-		return false
-	}
 	if len(fields) < 3 {
 		return false
 	}

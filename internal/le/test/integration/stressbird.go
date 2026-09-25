@@ -160,7 +160,7 @@ type stressBirdSystem interface {
 	LookPath(string) (string, error)
 	FileExists(string) bool
 	// Executable answers the running le, which is also the BGP peer: the
-	// peer is `le test peer` (plan/spec-le-subject-first-command-tree.md, D-8).
+	// peer is `le test peer` (spec-le-subject-first-command-tree, D-8).
 	Executable() (string, error)
 	PID() int
 	Environ() []string

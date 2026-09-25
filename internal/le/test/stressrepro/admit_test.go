@@ -1,6 +1,6 @@
 // VALIDATES: a stress run holds one job registry slot and every one of its N
 // parallel children runs inside it, each as a distinct run (AC-45 of
-// plan/spec-le-subject-first-command-tree.md).
+// spec-le-subject-first-command-tree).
 // PREVENTS: children 2..N attaching to child 1's verdict or queueing behind it,
 // which silently collapses N requested repetitions into one.
 package teststressrepro

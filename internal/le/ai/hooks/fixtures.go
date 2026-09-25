@@ -48,7 +48,7 @@ var (
 		0x3c, 0xad, 0xa9, 0x2b, 0x53, 0xbe, 0x84, 0x0a,
 		0x5b, 0xe6, 0xdf, 0x8b, 0x09, 0xe9, 0x74, 0x87,
 	}
-	// Re-sealed 2026-09-24 for plan/spec-le-subject-first-command-tree.md:
+	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
 	// internal/le/doc/consistency. One producer path, no category or verdict.
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: the raw-job-admission
@@ -59,7 +59,7 @@ var (
 		0xf9, 0x50, 0x60, 0xac, 0xee, 0x82, 0xf1, 0xdd,
 		0x07, 0x48, 0x75, 0xbe, 0x08, 0x28, 0x04, 0xbb,
 	}
-	// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md:
+	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
 	// internal/le/testweakened to internal/le/test/weakened. Two owner paths,
 	// no boundary or verdict.
@@ -111,7 +111,7 @@ var (
 	// CLAUDE.md changed. Neither adds a refusal this population describes, so
 	// no fixture is owed.
 	//
-	// Re-sealed 2026-09-24 for plan/spec-le-subject-first-command-tree.md:
+	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the hook sources import the moved packages under their new paths
 	// (internal/le/ai/sync, internal/le/ai/rules, internal/le/doc/ste,
 	// internal/le/doc/index) and name `le ai hooks` and `le ai sync write` in

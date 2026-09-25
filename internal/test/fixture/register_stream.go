@@ -5,7 +5,7 @@
 // at fixed pauses until they are stopped, for a test that spawns them as a
 // command source. They were the le actions `test fixture dynamic` and
 // `test fixture watchdog` until the harness fixture command became
-// `le test fixture` (plan/spec-le-subject-first-command-tree.md, D-8), and they
+// `le test fixture` (spec-le-subject-first-command-tree, D-8), and they
 // write the same lines at the same pauses.
 
 package fixture

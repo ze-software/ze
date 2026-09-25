@@ -1,7 +1,7 @@
 // VALIDATES: the stream drivers `dynamic` and `watchdog` are registered in the
 // harness fixture registry, which `le test fixture` runs, and write the same
 // lines at the same pauses as the le actions they replaced (AC-35 of
-// plan/spec-le-subject-first-command-tree.md).
+// spec-le-subject-first-command-tree).
 package fixture
 
 import (

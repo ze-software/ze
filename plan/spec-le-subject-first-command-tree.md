@@ -1045,3 +1045,206 @@ N-A: Scope is tooling.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/spec-le-subject-first-command-tree.md` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Every le command is `./le <subject> <action>`: 72 renamed commands moved to the directory `directoryFor` predicts (commits 59bc77e948 to eb5ab968a1, a9dc926974, c86fc8e267).
+- The developer programs folded into le: `le chaos run`, `le mrt`, `le perf` (one area, D-1), `le build gokrazy`, `le site terminal-demo pty` (6cdc8934d4, fd380a381f). `cmd/ze-gok`, `cmd/ze-perf-run`, `cmd/ze-terminal-pty` and the `ze_chaos`, `ze_analyze`, `ze_perf`, `ze_test` tags are gone (1958b8013e, aff3ed3d32).
+- D-8: the harness registers no global root; each of the 54 harness commands is `le test <name>`, one forwarding package per command over `internal/le/test/harnesstool` (20667e8d9f). The runner runs its own executable; containers, QEMU guests, VPP evidence and the terminal demo carry a linux `le` built by `internal/le/linuxle` (b455412d13); runner areas admit through `internal/le/job` (01aab46b3e).
+- R9 renames `test wire`, `test scale l2tp`, `test httpd`, `test vpp stub` (e6261dd0a5). Framework packages moved under `le/`, `go/`, `spec/` (6012e7243d).
+- Phase 2 moved every caller (a1cbfd938c, eaa84e499e, d007e0437f, c198e0fe55, 4a923c72de, 594e6af027, 1fb33e8098). Phase 3 deleted the alias rewrite and made `./le doc check retired-commands` a full verify stage (aff3ed3d32, 2bdd55e01c, e43f0aa939).
+
+### Bugs Found/Fixed
+- `ze.qemu.test.bin` had two defaults; the variable is gone with the linuxle guest build (AC-40).
+- Closure: `TestNativeImplementationFixture` (internal/le/rfc) was red at HEAD because e43f0aa939 changed `carriers.go` after the seal; re-sealed.
+- Closure: VPP evidence had no test pinning the linux `le` name and the `le test peer` command; `TestVPPEvidenceBuildsLinuxLe` added.
+
+### Documentation Updates
+- Pages moved with each family commit (see Documentation Verified). `./le doc check retired-commands` is green: no tracked page names an old form.
+- `./le doc check verify` at closure: anchors all resolve (3025 across 23 digests); its two reds are foreign (`send bgp flowspec` usage, a gh-pages per-command surface).
+
+### Deviations from Plan
+- D-8 superseded the `le-test` binary, AC-7 to AC-11, AC-30 and their tests; replaced by AC-32 to AC-46.
+- A-6 broke: historical records are declared exceptions of the gate (`retiredRecords`, `internal/le/doc/check/retired.go`) rather than rewritten.
+- AC-17 amended (2026-09-25): a retired action of a live command answers `no such action`, exit 2.
+- Several TDD tests landed under other names (Tests from TDD Plan below). The planned functional fixture `le-subject-first-dispatch` became `test/ui/le-namespace-dispatch.ci` and `test/ui/le-binary-dispatches.ci`; its old-name half is moot since Phase 3.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-6: rewriting historical records keeps their meaning | a record states what ran on its day; rewriting it falsifies history | Phase 2 review of plan/journal and plan/learned | records declared as gate exceptions |
+| assumption | A-4: the host `le` runs in the terminal-demo container | the host build is not a static linux build | Phase 1 demo run | owner option (a): linuxle cross-build |
+| approach | fixtures built old argv from split Go string words (`"changed"`), invisible to the text sweep | the sweep matches word sequences, not split literals | functional runner suite after Phase 3 | fixtures rewritten; route recorded in the learned summary |
+| approach | a seal over HEAD taken before the sealing commit's own rfc change | the seal trails its change by one commit by design | closure unit run | re-sealed in commit A |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1 every new name works | Done | `internal/le/rename_test.go` `TestEveryNewNameResolvesToItsArea` | |
+| G-2 no tracked file names an old name | Done | `./le doc check retired-commands` exit 0, 0 lines | declared records and exceptions only |
+| G-3 old names and standalone builds gone | Done | `ls cmd/` = ze, ze-installer, ze-serial-shell | |
+| G-4 le-test artifact | Changed | superseded by D-8 | owner decision 2026-09-25 |
+| G-5 every harness command is `le test <name>` | Done | `internal/le/harness_test.go` `TestEveryHarnessCommandForwards` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEveryNewNameResolvesToItsArea` | |
+| AC-2 | Done | `TestRetiredNamesAreNotInTheManifest` | |
+| AC-3 | Changed | Phase 3 deleted the alias; `TestEveryRetiredNameAnswersUnknownCommand` | Phases 1-2 behavior, removed by design |
+| AC-4 | Changed | as AC-3 | |
+| AC-5 | Changed | as AC-3 (`verify lock` answers `no such action`, AC-17) | |
+| AC-6 | Done | `TestEveryCommandIsFoundAtThePathItsNamePredicts` | |
+| AC-7 to AC-11 | Changed | superseded by D-8 | |
+| AC-12 | Done | `TestChaosRunReachesTheOrchestrator`; `test/chaos/smoke-chaos.ci` | |
+| AC-13 | Done | `TestMrtReachesEveryAnalyzeSubcommand` | |
+| AC-14 | Done | `TestBuildGokrazyPreparesTheInstance`; `cmd/ze-gok` absent | |
+| AC-15 | Done | `TestRetiredCommandSweepFindsAnInjectedName` | report became the gate in Phase 3 |
+| AC-16 | Done | `TestRetiredCommandGateGoesRedOnAnInjectedName`; stage in `internal/le/verify/engine/stages.go` | |
+| AC-17 | Done | `TestEveryRetiredNameAnswersUnknownCommand`, `TestDispatchRewritesNoRetiredName`; greps below | amended wording |
+| AC-18 | Done | `internal/le/verify/stagelogname_test.go` | pins by file, not `TestStageLogPathFollowsTheNewName` |
+| AC-19 | Done | `./le cli grammar` OK; `leNamespaceExempt` empty | |
+| AC-20 | Done | `.claude/settings.json` hooks call `le ai hooks`; `internal/le/ai/hooks` tests ok | |
+| AC-21 | Done | cold build of the le personality (`ze_le` plus every feature gate, empty GOCACHE, `CGO_ENABLED=0`), AMD EPYC 7351, 32 threads, 2026-09-25: before the spec (tree 0eefe3098e) 59.6 s, 130.1 MB; HEAD 50.9 s, 145.4 MB. One run each, while a full unit run loaded the host, so the times carry noise; the size delta is exact | measured at closure (`scratch/cl-ac21.sh`) |
+| AC-22 | Done | `./le arch tier check` OK, `./le repo feature-tags check` OK | |
+| AC-23 | Done | `ai/INSTRUCTIONS.md` Programs table | |
+| AC-24 | Done | `TestPerfRunAcceptsRunnerOptionsAsKeywords`, `TestPerfVerbsAnswerAsTheirPredecessors` | |
+| AC-25 | Done | `TestPerfVerbsAnswerAsTheirPredecessors`; `.github/workflows/perf-nightly.yml` | |
+| AC-26 | Done | `TestPerfRunnerMountsLinuxLe`; times in Design Insights | |
+| AC-27 | Done | `TestPerfSendAnswersWithoutLauncherEnv` | |
+| AC-28 | Changed | Phases 1-2 only; deleted in Phase 3 (`TestLeLauncherAcceptsTestNames`) | |
+| AC-29 | Done | `TestDocIndexCheckCoversBothFilesAndAnchors` | |
+| AC-30 | Changed | superseded by AC-43 | |
+| AC-31 | Done | `TestBareNamespaceTokenListsItsMembers` | |
+| AC-32 | Done | `TestEveryHarnessCommandForwards` | |
+| AC-33 | Done | `TestLeRegistersOneRootAndNoToolRoots`, `TestZeRootsUnchangedByTheHarness` | |
+| AC-34 | Done | `internal/test/cli/register.go` absent; no `MustRegisterRootHandler` under `internal/test` | |
+| AC-35 | Done | `TestFixtureCarriesTheStreamDrivers` | |
+| AC-36 | Changed | Phase 3 removed the `test harness` row; it answers `unknown command` | |
+| AC-37 | Done | `TestRunnerUsesItsOwnExecutable`, `TestRunnerShimsResolveLeToItself` | retired heads removed in Phase 3 |
+| AC-38 | Done | `internal/le/test/functional/functional_test.go` (a set builds ze, ze-stripped and le) | |
+| AC-39 | Done | `internal/le/interoplab/bgp/bgp_test.go` (le-linux build row, Dockerfile COPY) | |
+| AC-40 | Done | `TestQemuGuestRunsLinuxLe` (`internal/le/test/qemu/guestle_run_test.go`) | |
+| AC-41 | Done | `TestVPPEvidenceBuildsLinuxLe`, `TestBuildCommandsAreExact`, `TestActionsCarryTheirContracts`, `TestL2TPScaleRunsItsOwnExecutable` | |
+| AC-42 | Done | `TestNoBuildReadsOnlyTheLeName`; no harness key registered (grep) | |
+| AC-43 | Done | grep: no `ze_test` tag under cmd/internal/.github/Dockerfiles; `./le --name test spec current` exit 0 | |
+| AC-44 | Done | cold build 45.4 s to 50.8 s, 133.4 MB to 145.6 MB (host le); linux/arm64 le 123.1 MB to 134.1 MB; EPYC 7351, 32 threads; `./le arch tier check` OK | |
+| AC-45 | Done | `TestHarnessSuiteAdmitsOnHostOnly`, `TestBashHookReadsHarnessSuitesAsHeavy` | |
+| AC-46 | Done | `./le doc check retired-commands` exit 0; RFC-tagged exec lines approved in 1fb33e8098 trailers | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestEveryRetiredNameRunsItsNewCommand` | Changed | `TestEveryRetiredNameAnswersUnknownCommand` | Phase 3 |
+| `TestStageLogPathFollowsTheNewName` | Changed | `internal/le/verify/stagelogname_test.go` | |
+| `TestBinarySetBuildsLeNotAHarness` | Changed | `internal/le/test/functional/functional_test.go` | |
+| `TestInteropBuildsLinuxLe` | Changed | `internal/le/interoplab/bgp/bgp_test.go` | |
+| `TestTerminalDemoHasNoHarnessBuild` | Changed | `TestBuildCommandsAreExact`, `TestActionsCarryTheirContracts` | |
+| `TestL2TPScaleExecsItself` | Changed | `TestL2TPScaleRunsItsOwnExecutable` | |
+| `TestNoHarnessVariableIsRead` | Changed | `TestNoBuildReadsOnlyTheLeName` | |
+| `TestRetiredCommandSweepFindsTheHarnessTag` | Changed | `TestRetiredCommandSweepHonorsDeclaredExceptions`, `TestRetiredHarnessMatchesOnlyInProgramPosition` | |
+| `TestLeLauncherRefusesHarnessNames` | Changed | `TestLeLauncherAcceptsTestNames` | Phase 3 |
+| every other named test | Done | the file the table names | present by name |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/le/root/retired.go` | Changed | map moved to `internal/le/doc/check/retirednames.go` in Phase 3 |
+| `internal/le/test/harness/` | Changed | deleted by D-8 |
+| `internal/test/fixture/ui_fixture_le_subject_first_dispatch.go` | Changed | covered by `ui/le-namespace-dispatch`, `ui/le-binary-dispatches` |
+| every other file | Done | per commit list above |
+
+### Audit Summary
+- **Total items:** 46 ACs, 5 goals
+- **Done:** 36 ACs, 4 goals
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 10 ACs (superseded by D-8 or by the Phase 3 removal, owner decisions), 1 goal (G-4)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1 every new name works | unit + functional | `TestEveryNewNameResolvesToItsArea`; `test/ui/le-namespace-dispatch.ci` |
+| G-2 no tracked file names an old name | gate | `./le doc check retired-commands`: `0 tracked line(s) name a retired form` (closure run) |
+| G-3 old names and builds gone | grep + unit | `ls cmd/`; `TestEveryRetiredNameAnswersUnknownCommand`; no `ze_chaos`/`ze_analyze`/`ze_perf`/`ze_test` tag |
+| G-5 harness is `le test <name>` | unit + functional + interop | `TestEveryHarnessCommandForwards`; every `.ci` runs `exec=le test ...` through the runner; `test/interop/Dockerfile.ze` copies `/usr/local/bin/le` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is Done or Changed by an owner decision | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/le-subject-first-command-tree-2dab35f2-57c1-4bbd-a05a-00afe1b5f87d.md` (36 files, verdict clean) |
+| `./le spec review check` | clean over the 36 files of commit A |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, removed-behavior audit (`./le commit audit base 0eefe3098e`), security (exec paths, shims), style pass over new Go (harnesstool, runner, hook), docs drift, citation sweep |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `TestNativeImplementationFixture` red at HEAD: e43f0aa939 changed `carriers.go` after the seal | `internal/le/rfc/native_fixture_test.go` | re-seal to 19ff9afe... |
+| 2 | ISSUE | AC-41: no test pinned the VPP evidence linux `le` and its `le test peer` command | `internal/le/test/deployment/vppevidence.go` | `TestVPPEvidenceBuildsLinuxLe` |
+| 3 | ISSUE | 34 tracked files cite this spec by path, which commit B removes; one gate exception named the spec file | Go headers and comments, `docs/architecture/core-design.md`, two specs, `retiredRecords` | restated as the bare stem; the exception dropped |
+| 4 | ISSUE | stale comment: `heavyArea` said `test unit` is `test-unit` | `internal/le/hookruntime/bash.go` | comment rewritten |
+
+NOTEs: `launchesPeer` carried a dead `len == 0` guard (removed). `./le commit audit` lists the 46 RFC-tagged `.ci` files as WEAKENED: their net diff is exec heads and path comments only (99+/99-), and 1fb33e8098 carries the owner's `RFC-approved:` trailers. `test vpp stub` inherits the suite's admitted mark, so the hook reads a piped stub as heavy.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/test/harnesstool/harnesstool.go` | yes | ls |
+| `internal/le/doc/check/retired.go`, `retirednames.go` | yes | ls |
+| `internal/le/harness_test.go`, `internal/le/rename_test.go` | yes | ls |
+| `test/chaos/smoke-chaos.ci`, `test/ui/le-namespace-dispatch.ci` | yes | ls |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-16 | gate green | `./le doc check retired-commands` exit 0 (closure) |
+| AC-17 | programs and tags gone | `git grep binarySuffixRoot` empty; `ls cmd/` three entries |
+| AC-19 | grammar green | `./le cli grammar` OK |
+| AC-22 | tiers and tags | `./le arch tier check` OK; `./le repo feature-tags check` current |
+| AC-34 | no root under internal/test | `git grep MustRegisterRootHandler -- internal/test` empty |
+| AC-41 | VPP evidence le | `go test ./internal/le/test/deployment` ok |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `le test fixture ui/le-namespace-dispatch` | `test/ui/le-namespace-dispatch.ci` | exec line read |
+| `le chaos run` | `test/chaos/smoke-chaos.ci` | file names `le chaos run` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed (moot) | no alias registered; Phase 3 deleted the rewrite |
+| A-2 | confirmed | `internal/le/go/lint` builds; `./le go lint run` clean (finv) |
+| A-3 | confirmed, superseded by D-8 | `internal/test/cli/register.go` gone |
+| A-4 | broken | Mistake Log; owner option (a) |
+| A-5 | confirmed | `le.test.no.build` registered in `internal/test/runner`; `TestNoBuildReadsOnlyTheLeName` |
+| A-6 | broken | Mistake Log; records declared as exceptions |
+| A-7 | confirmed | linux le cross-build 45.4 s (Design Insights); `TestPerfSendAnswersWithoutLauncherEnv` |
+| A-8 | confirmed | `envKeyTestPort` in `internal/component/bgp/reactor/reactor_peers.go` reads it |
+| A-9 | confirmed | `TestLeRegistersOneRootAndNoToolRoots` passes with `internal/test/cli` linked |
+| A-10 | confirmed | `TestHarnessSuiteAdmitsOnHostOnly` |
+| A-11 | confirmed | `TestRunnerShimsResolveLeToItself` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI and user guides name only new commands | `./le doc check retired-commands` 0 lines | yes |
+| `docs/architecture/config/environment.md` lists `le.test.no.build` only | `internal/test/runner/runner.go` registration | yes |
+| `docs/architecture/system-architecture.md` Build personalities | no harness personality; `defaultDispatch` in `cmd/ze/dispatch.go` | yes |
+| source anchors | `./le doc check verify`: 3025 anchors resolve | yes |
+| No RFC behavior (row 9) | tooling only | N-A |

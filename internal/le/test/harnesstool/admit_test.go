@@ -1,7 +1,7 @@
 // VALIDATES: a runner command admits its run through internal/le/job when a
 // checkout resolves, runs in its parent's slot when one is held, runs
 // unadmitted when no checkout exists (a container), and a helper tool never
-// admits (AC-45 of plan/spec-le-subject-first-command-tree.md).
+// admits (AC-45 of spec-le-subject-first-command-tree).
 // PREVENTS: a suite run that oversubscribes the host, a container run that
 // fails on a missing registry, and a helper that queues behind its own suite.
 package harnesstool

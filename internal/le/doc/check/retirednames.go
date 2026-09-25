@@ -2,7 +2,7 @@
 // Related: retired.go -- the sweep that reads this map and gates on what it finds
 //
 // This file is the ONE declaration of every name the subject-first rename
-// retired (plan/spec-le-subject-first-command-tree.md): the le commands, the
+// retired (spec-le-subject-first-command-tree): the le commands, the
 // programs folded into le, the build tags, the harness file names and the
 // harness variables. `le doc check retired-commands` reads it to find the
 // callers that still name an old form. No other surface lists an old name.

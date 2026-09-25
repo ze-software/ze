@@ -3,7 +3,7 @@
 // Related: retirednames.go -- the rename map the sweep reads
 //
 // The retired-name sweep finds every tracked line that still names a form the
-// subject-first rename retires (plan/spec-le-subject-first-command-tree.md).
+// subject-first rename retires (spec-le-subject-first-command-tree).
 // It reads the one rename map retirednames.go declares and holds no list of its
 // own. It is a gate: a line that names an old form outside the declared
 // records and exceptions makes it exit 1, and it runs as a stage of the full
@@ -65,10 +65,6 @@ var retiredRecords = [...]retiredRecord{
 	{
 		path: "internal/le/completeness_record_test.go",
 		why:  "the Makefile migration record names each retired target and the recipe it ran",
-	},
-	{
-		path: "plan/spec-le-subject-first-command-tree.md",
-		why:  "the spec of this rename names every old form in order to retire it",
 	},
 	{
 		path: "cmd/ze/testdata/godebug-guidance-defect.txt",
@@ -713,7 +709,7 @@ func sweepRetired(root string) (retiredReport, error) {
 }
 
 // runRetiredCheck is `le doc check retired-commands`, the gate AC-16 of
-// plan/spec-le-subject-first-command-tree.md names. Every line that still
+// spec-le-subject-first-command-tree names. Every line that still
 // names a retired form makes it answer 1, and the report names each file and
 // line. A file it could not read makes the answer incomplete, and that is said
 // with 2 rather than hidden behind a verdict the sweep cannot support.

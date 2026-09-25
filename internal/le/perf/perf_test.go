@@ -1,6 +1,6 @@
 // Related: actions.go -- the table and the forwarding these tests drive
 //
-// VALIDATES: AC-24 and AC-25 of plan/spec-le-subject-first-command-tree.md.
+// VALIDATES: AC-24 and AC-25 of spec-le-subject-first-command-tree.
 // `perf run` takes the keywords of perf-bench run and the step and DUT
 // selection of the retired ze-perf-run, and every perf verb answers as the
 // command it replaced: suggest as suggestion-report, send, report and track as

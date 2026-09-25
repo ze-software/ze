@@ -330,9 +330,9 @@ func beforeRedirection(words []string) []string {
 // verify` still runs the gate on its bare name, which is why the exemption
 // names the two areas rather than the shape.
 //
-// `le test <suite>` is the subject-first spelling of the suite areas, so the
-// word after `test` is read as the area: `test unit` is `test-unit`. No
-// harness binary exists (plan/spec-le-subject-first-command-tree.md, D-8), so
+// A suite area is a member of `test`, so the word after `test` names the
+// area: `le test unit all` is the area `test unit`. No
+// harness binary exists (spec-le-subject-first-command-tree, D-8), so
 // no file name is read as the functional runner. A harness command under
 // `test` is heavy when its registration says its run is admitted
 // (leroot.Admits): `le test bgp` and `le test ospf` run the functional runner,

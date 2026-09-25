@@ -99,7 +99,7 @@ type fakeCall struct {
 }
 
 // TestPerfRunnerMountsLinuxLe pins AC-26 of
-// plan/spec-le-subject-first-command-tree.md at the runner's command seam: the
+// spec-le-subject-first-command-tree at the runner's command seam: the
 // cross-build of le is GOOS=linux, CGO_ENABLED=0 and the container's GOARCH,
 // its output file is named le, the sender container mounts it at
 // /usr/local/bin/le, the sender runs `le perf send`, and no command names a

@@ -8,7 +8,7 @@
 // the harness registered a `l2tp` SUITE root of its own and linked plugin/all, so
 // a generated blank import put two `l2tp` roots in one binary and
 // MustRegisterRootHandler panicked at init. Since the harness became
-// `le test <name>` (plan/spec-le-subject-first-command-tree.md, D-8) it registers
+// `le test <name>` (spec-le-subject-first-command-tree, D-8) it registers
 // no root, so that collision no longer exists; the skip stands until the
 // composition root is regenerated without it.
 

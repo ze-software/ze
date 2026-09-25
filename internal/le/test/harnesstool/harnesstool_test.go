@@ -1,7 +1,7 @@
 // VALIDATES: a harness command registered through harnesstool forwards every
 // word after `test <name>` to its handler, a trailing help word included, and
 // answers the handler's exit code (AC-32 of
-// plan/spec-le-subject-first-command-tree.md).
+// spec-le-subject-first-command-tree).
 package harnesstool
 
 import (

@@ -121,7 +121,7 @@ func captureBuildNameStderr(t *testing.T, run func()) string {
 }
 
 // TestPerfSendAnswersWithoutLauncherEnv pins AC-27 of
-// plan/spec-le-subject-first-command-tree.md: the perf sender container runs a
+// spec-le-subject-first-command-tree: the perf sender container runs a
 // file named le with no launcher environment, so ZE_LE_BUILD_NAME is unset.
 // The guard must let it through and the name must select the le root, or
 // `le perf send` answers nothing inside the container.

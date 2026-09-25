@@ -18,7 +18,7 @@ import (
 var updateZeRoots = flag.Bool("update-ze-roots", false, "rewrite testdata/ze-roots-distro.golden")
 
 // zeRootsGolden is the root set of a ze_core ze_distro build, recorded before
-// the harness became `le test <name>` (plan/spec-le-subject-first-command-tree.md,
+// the harness became `le test <name>` (spec-le-subject-first-command-tree,
 // D-8) and rewritten only with -update-ze-roots.
 const zeRootsGolden = "testdata/ze-roots-distro.golden"
 

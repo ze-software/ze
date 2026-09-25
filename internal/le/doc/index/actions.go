@@ -4,7 +4,7 @@
 // generates two files, ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md, and like
 // every other generated file it answers two verbs: `check` judges both files
 // and the anchors, and `write` regenerates both files (D-5 of
-// plan/spec-le-subject-first-command-tree.md).
+// spec-le-subject-first-command-tree).
 //
 // The dispatch, the listing, the help line and the two refusals live in
 // internal/le/le/action. What stays here is the TABLE.

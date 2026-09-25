@@ -2,7 +2,7 @@
 // by its own package through internal/le/test/harnesstool, no package under
 // internal/test registers a ze root, and every test/<dir> holding .ci files is
 // reached by a suite command or a big runner (AC-32 to AC-34 of
-// plan/spec-le-subject-first-command-tree.md, and AC-1 of
+// spec-le-subject-first-command-tree, and AC-1 of
 // spec-fixit-pppoe-orphaned-tests, whose guard moved here from
 // internal/test/cli when the suites became le commands).
 package le

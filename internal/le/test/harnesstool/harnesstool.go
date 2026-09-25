@@ -3,7 +3,7 @@
 // Related: ../../job/job.go -- the admission a runner command takes on the host
 //
 // Package harnesstool adapts one handler of the test harness to an le command
-// under the `test` namespace (plan/spec-le-subject-first-command-tree.md, D-8).
+// under the `test` namespace (spec-le-subject-first-command-tree, D-8).
 //
 // It registers nothing itself and holds no register.go. Each harness command
 // has its own package at internal/le/test/<name>, whose register.go calls

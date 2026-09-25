@@ -39,7 +39,7 @@ var (
 
 // The variable that skips the runner's `ze` build. It has one spelling:
 // nothing registers or reads the `ze.` spelling that Phase 3 of
-// plan/spec-le-subject-first-command-tree.md retired.
+// spec-le-subject-first-command-tree retired.
 const (
 	KeyNoBuild = "le.test.no.build"
 	// EnvNoBuild is the spelling a parent process writes for a child.

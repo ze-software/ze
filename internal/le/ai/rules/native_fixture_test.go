@@ -54,7 +54,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// CLAUDE.md as the file that imports CORE.md, because the root CLAUDE.md is
 	// no longer generated. One word of output text, no decision moved.
 	//
-	// Re-sealed 2026-09-24 for plan/spec-le-subject-first-command-tree.md: the
+	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree: the
 	// package moved to internal/le/ai/rules as package airules, registers as
 	// `ai rules`, and names its generator path and its command in the new
 	// words. No decision moved.
