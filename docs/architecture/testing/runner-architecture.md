@@ -371,7 +371,7 @@ worktree and pass in a checkout where a developer had built one
 (`plan/journal/gate-verdict-depends-on-the-machine.md`).
 
 <!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
-<!-- source: internal/test/runner/harness_exec.go -- leHeadWords, leHarnessArea, droppedFromChild -->
+<!-- source: internal/test/runner/harness_exec.go -- leHarnessArea, droppedFromChild -->
 <!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
 <!-- source: internal/test/fixture/fixture.go -- nativeLEBinary -->
 <!-- source: internal/le/test/functional/binaries.go -- buildCommands, Prepare -->
