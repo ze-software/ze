@@ -163,7 +163,7 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 
 func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 	// VALIDATES: a declared word that contains a retired name (the skill,
-	// the EAP identity, the old make target, the chaos MCP server name, the
+	// the EAP identity, the two old make targets, the chaos MCP server name, the
 	// pkg/ze external test package) is not a match, and the harness
 	// name beside it on the same line still is.
 	// PREVENTS: a declared word hiding a live caller on its line.
@@ -174,6 +174,7 @@ func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 			"make ze-test-all",
 			"contains=ze-chaos-mcp",
 			"package ze_test",
+			"make ze-perf-bench PERF_DUT=ze",
 			"run /ze-test && ze-test peer",
 		}, "\n") + "\n",
 	})
@@ -184,12 +185,12 @@ func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 	}
 
 	for _, found := range retiredLinesOf(report, "docs/words.md") {
-		if !strings.HasSuffix(found, "@6") {
+		if !strings.HasSuffix(found, "@7") {
 			t.Errorf("docs/words.md lists %s, and that line holds only a declared word", found)
 		}
 	}
-	if !retiredFound(report, "ze-test", "docs/words.md", 6) {
-		t.Errorf("docs/words.md:6 names the harness beside a declared word, and the report misses it")
+	if !retiredFound(report, "ze-test", "docs/words.md", 7) {
+		t.Errorf("docs/words.md:7 names the harness beside a declared word, and the report misses it")
 	}
 }
 
@@ -275,6 +276,10 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		"ze-perf-run":                 "go run ./cmd/ze-perf-run --build",
 		"ze-analyze":                  "bin/ze-analyze density",
 		"ze-chaos":                    "exec=ze-chaos --quiet",
+		"ze_chaos":                    "//go:build ze_chaos",
+		"ze.test.no.build":            "ZE_TEST_NO_BUILD=1",
+		"ze-peer":                     "exec=ze-peer --mode sink",
+		"bin/ze-perf":                 "run bin/ze-perf track --check",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]

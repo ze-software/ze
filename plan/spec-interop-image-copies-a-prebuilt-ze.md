@@ -112,7 +112,7 @@ This is source evidence only. No build, scenario, timing, memory measurement,
 discrimination re-recording or validation was run for this reconciliation.
 
 **Behavior to preserve:**
-- The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/le-test` on an
+- The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/le` on an
   `alpine:3.21` base with `tini`, `nftables` and `iproute2`, entrypoint `tini -- ze`.
 - The feature set. Both binaries carry the tags `feature-gates.txt` declares,
   through `featuretags`, so the lab daemon cannot drift from the shipped one.
@@ -177,7 +177,7 @@ in `.github/workflows/evidence-nightly.yml`.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `CGO_ENABLED=0` makes the binary independent of the container's libc | `Toolchain.Overrides` sets it by default; `test/interop-radius/Dockerfile.ze` runs such a binary on `alpine:3.21` today | the image execs and fails on musl | the converted lab starts a container and its ready probe passes | unvalidated |
 | A-2 | `docker version --format '{{.Server.Arch}}'` returns a Go `GOARCH` spelling (`amd64`, `arm64`) | Docker reports the daemon architecture in Go's own naming | `go build` refuses an unknown `GOARCH`, loudly, before any image is built | a unit test over the parser plus one real run on this workstation | unvalidated |
-| A-3 | The image needs both `ze` and `le test` | the current Dockerfile copies `/le-test` into the image, and 14 scenario `ze.conf` files `run "le test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
+| A-3 | The image needs both `ze` and `le test` | the current Dockerfile copies the linux `le` into the image as `/usr/local/bin/le`, and 14 scenario `ze.conf` files `run "le test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
 | A-4 | Removing the builder stage leaves the Go-version gate with carriers | `docker/Dockerfile`, `docker/Dockerfile.lab`, `internal/le/interoplab/l2tp/radiusmock/Dockerfile` and `tools/kernel-builder/Dockerfile` still copy the module, and `Result.judgeGoSource` counts Go string literals as carriers too | `goversion` errors with "the walk judged no build carrier" | `./le verify current mode full`, which runs the gate | unvalidated |
 | A-5 | The nightly runners still pass: they already build `bin/le` with Go, so the host toolchain is present | every interop step in `.github/workflows/evidence-nightly.yml` runs a `./le` action | five nightly jobs go red | read the workflow's setup steps; then one nightly cycle | unvalidated |
 
@@ -239,7 +239,7 @@ covers each one.
 | `TestPreflightRefusesAnUnreadableDaemonArchitecture` | `internal/le/interoplab/zebuild_test.go` | AC-6: no default, no host fallback, an error naming the query and the answer | |
 | `TestPreflightSkippedUnderNoBuild` | `internal/le/interoplab/zebuild_test.go` | `NO_BUILD=1` performs no build | |
 | `TestBGPSuiteDeclaresAPreflightBuild` | `internal/le/interoplab/bgp/bgp_test.go` | `RunAt` wires the preflight and no longer passes `ZE_FEATURES` as a build argument | |
-| `TestBGPPreflightDeclaresBothPersonalities` | `internal/le/interoplab/bgp/bgp_test.go` | the daemon (tags `ze_core ze_distro` plus gates) and the test personality (tags `ze_test` plus gates) are both declared | |
+| `TestBGPPreflightDeclaresBothPersonalities` | `internal/le/interoplab/bgp/bgp_test.go` | the daemon (tags `ze_core ze_distro` plus gates) and the le personality (tags `ze_core ze_le` plus gates) are both declared | |
 | `TestZeDockerfilesCarryNoCompiler` | `internal/le/interoplab/zebuild_test.go` | AC-1, over every tracked `test/interop*/Dockerfile.ze` discovered by walk rather than by a hand-written list | |
 | `TestDockerIgnoreAdmitsEveryStagedLabBinary` | `internal/le/interoplab/zebuild_test.go` | R-3: every staging path the labs declare has a `.dockerignore` negation, derived from the declarations | |
 
@@ -367,7 +367,7 @@ not recreated merely because their names appeared in the original design.
 |-------|------------------------------|
 | Completeness | every AC-N has a file or a recorded measurement behind it |
 | Correctness | the staged binary is `GOOS=linux`, `CGO_ENABLED=0`, at the DAEMON's `GOARCH`, and no host binary anywhere in the tree acquired a `GOARCH` |
-| Correctness | the feature tags reaching each staged binary are the same set the deleted Dockerfile derived: `ze_core ze_distro` plus gates for the daemon, `ze_test` plus gates for the test personality |
+| Correctness | the feature tags reaching each staged binary are the same set the deleted Dockerfile derived: `ze_core ze_distro` plus gates for the daemon, `ze_core ze_le` plus gates for the le personality |
 | Naming | the producer is named for what it builds, not for one lab, since five labs call it |
 | Data flow | `feature-gates.txt` is read once per lab through `featuretags`, and no `awk`, `--build-arg` or second derivation survives |
 | Rule: `ai/rules/no-layering.md` | the in-image compile is DELETED, not kept beside a cache mount or behind a flag |

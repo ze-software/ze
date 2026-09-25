@@ -15,8 +15,7 @@ func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
 		ShortHelp: "each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner",
 		Mode:      "offline",
-		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// SectionTest is where ze files a tool rather than a product command.
 		Section: registry.SectionTest,
 	})
 

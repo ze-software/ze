@@ -18,7 +18,7 @@ reproducing" because the run never contained it, and an unrelated failure
 already fixed in the tree looks like a fresh reproduction.
 
 `_bin_from_env` already documents that exact incident: the tool once hardcoded
-`bin/ze`, and the repair made it honour `ZE_BIN` / `LE_TEST_BIN`. The FALLBACK
+`bin/ze`, and the repair made it honour `ZE_BIN` and a harness-path variable since retired. The FALLBACK
 was left at `bin/ze`, and in this repository that path is stale by
 construction, because `internal/le/session/actions.go` builds every canonical binary into a
 per-session directory and the functional make targets run against an isolated

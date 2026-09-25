@@ -16,9 +16,9 @@ import (
 // The exec heads the runner answers with its own executable. Every harness
 // command is `le test <name>` (plan/spec-le-subject-first-command-tree.md, D-8),
 // and the runner runs inside that `le`, so an `le` head runs the runner's own
-// file rather than whatever `le` a PATH lookup finds. A retired harness name
-// (`le-test`, `ze-test`, `ze-peer`) is no head of the runner's: it reaches a
-// PATH lookup, which finds no such program and fails the step.
+// file rather than whatever `le` a PATH lookup finds. Any other head, the
+// retired standalone harness names among them, is no head of the runner's: it
+// reaches a PATH lookup, which finds no such program and fails the step.
 const (
 	binNameLE = "le"
 

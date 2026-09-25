@@ -16,8 +16,8 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 func hookCheckout(t *testing.T) string {

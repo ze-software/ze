@@ -54,6 +54,10 @@ type observationRunner struct {
 
 // newObservationRunner resolves everything one observation needs before any of
 // it runs, so a missing scenario or an unresolvable unit costs no `go test`.
+
+// leTestCommand is the le command every harness and integration run is under.
+const leTestCommand = "test"
+
 func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, carrier Carrier,
 	tag Tag, record DiscriminationRecord) (*observationRunner, error) {
 	toolchain, err := gotoolchain.New(tree)
@@ -390,7 +394,7 @@ func (o *observationRunner) carrierArgv() []string {
 		var tb textbuf.Buffer
 		verb = tb.Str("interop-").Str(protocol).String()
 	}
-	return []string{o.self, "test", "integration", verb}
+	return []string{o.self, leTestCommand, "integration", verb}
 }
 
 // coverPackages answers the -coverpkg patterns one clean run instruments: the
@@ -482,7 +486,7 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 	}
 	defer testfunctional.Release(set)
 
-	argv := append([]string{filepath.Join(set.Dir, testfunctional.LE), "test"}, selector...)
+	argv := append([]string{filepath.Join(set.Dir, testfunctional.LE), leTestCommand}, selector...)
 	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }

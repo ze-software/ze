@@ -26,7 +26,7 @@ const (
 // `ai hooks unit`, `spec wip`, `test unit`, `repo changed`, `test qemu`). Same
 // rows, same expected codes.
 // Re-sealed 2026-09-25 for the same spec, Phase 3: the seven bash fixtures that
-// ran or named the deleted harness binary `bin/ze-test` are gone with the
+// ran or named the deleted standalone harness binary are gone with the
 // rawZeTest guard and the harness alternative of expensivePipe. 82 rows are 75.
 var parityCatalogDigest = [sha256.Size]byte{
 	0x1f, 0xee, 0x8a, 0xd3, 0x00, 0xa1, 0xc2, 0x21,

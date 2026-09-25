@@ -310,7 +310,7 @@ existing identifier, a method that satisfies an interface.
 PKG=<package dir>
 FEATURES=$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')
 for GOOS_V in darwin linux; do
-  for TAGS in "ze_core ze_distro $FEATURES" "ze_test $FEATURES"; do
+  for TAGS in "ze_core ze_distro $FEATURES" "ze_core ze_le $FEATURES"; do
     GOOS=$GOOS_V go vet -tags "$TAGS" ./$PKG/... || echo "FAILED: $GOOS_V / $TAGS"
   done
 done
@@ -458,7 +458,7 @@ This section covers buckets 1 to 6 and 8. Bucket 7 is open (Remaining Work).
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_test $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
+| AC-1 | An accepted symbol is unexported and its package compiles in every build view | `go vet ./internal/... ./cmd/...` under GOOS darwin and linux, with `ze_core ze_distro $(ZE_FEATURES)` and `ze_core ze_le $(ZE_FEATURES)`: clean apart from the pre-existing `noescape` finding in `internal/core/textbuf/textbuf.go`, which the pre-rename baseline reports identically |
 | AC-2 | A refused symbol is untouched and its reason recorded | 139 refusals recorded in the per-bucket handoffs (`tmp/unexport-handoffs-buckets-1-6-8.md`), each carrying the `gopls` text |
 | AC-3 | No wiring finding remains outside the recorded skips | Per-package `validate.py --changed-file` re-run in every phase. NOT true tree-wide, and a green `./le repo check` cannot show that it is: the check reads the CHANGED file set only (`checkCrossPackageWiring`, `internal/le/repository/wiring.go`). A whole-tree sweep on 2026-09-05 put the upper bound at 1993 |
 | AC-4 | Every touched package passes its tests | `go test -race ./<pkg>` green for all 161 processed packages, per phase |

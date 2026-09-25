@@ -349,7 +349,7 @@ func (l *L2TPPPP) setupNamespaces() error {
 	}
 
 	for _, ns := range []string{l.ZeNamespace, l.LACNamespace} {
-		out, ok := nsText(ns, "ip", "l2tp", ipShow, tunnelObjectName)
+		out, ok := nsText(ns, "ip", ipL2TP, ipShow, tunnelObjectName)
 		if ok {
 			continue
 		}
@@ -594,8 +594,8 @@ func (l *L2TPPPP) diagnose(work string) {
 	writeProgress(l.Progress, "\n--- diagnostics ---")
 
 	queries := [][]string{
-		{"ip", "l2tp", ipShow, tunnelObjectName},
-		{"ip", "l2tp", ipShow, "session"},
+		{"ip", ipL2TP, ipShow, tunnelObjectName},
+		{"ip", ipL2TP, ipShow, "session"},
 		{"ip", ipLink, ipShow, ipType, pppPrefix},
 	}
 	var tb textbuf.Buffer

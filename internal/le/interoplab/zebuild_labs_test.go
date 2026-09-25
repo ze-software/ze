@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	"github.com/ze-software/ze/internal/le/interoplab/pppoe"
 	"github.com/ze-software/ze/internal/le/interoplab/radius"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // declaredBinaries answers every binary the five interop labs stage, which is

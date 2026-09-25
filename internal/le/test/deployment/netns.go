@@ -49,6 +49,7 @@ const (
 	ipSet   = "set"
 	ipAdd   = "add"
 	ipShow  = "show"
+	ipL2TP  = "l2tp"
 	ipType  = "type"
 	ipDev   = "dev"
 )

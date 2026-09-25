@@ -610,17 +610,15 @@ func sited(findings []grammar.FlagFinding, set parsedFlagSet) []FlagRegisterHit 
 // A path qualifies when its first token is a registered root, or when the flag
 // registry already holds a path with that first token. The second arm is what
 // covers `l2tp`, whose root is registered with a constant this scan cannot
-// read. Everything else -- `ze-test <suite>`, `ze-perf run`, `ze-chaos`, the
-// mock servers, the appliance's internal tools -- is a separate binary with no
-// completion surface to be invisible to, and is counted out of scope rather
-// than judged.
+// read. Everything else -- the mock servers, the appliance's internal tools --
+// is a separate binary with no completion surface to be invisible to, and is
+// counted out of scope rather than judged.
 //
 // A path under the `le` root is out of scope too, although `le` is a
 // registered root. A le command takes keywords (leaction.Parameter), and its
 // grammar is judged by the le command check. A flag set named `le perf send` or
-// `le chaos run` belongs to a program that le hands its argv to unparsed: the
-// programs `ze-perf` and `ze-chaos` were before they moved under le, with the
-// same flags. No RegisterCommandFlags declaration exists under `le`, so the
+// `le chaos run` belongs to a program that le hands its argv to unparsed, with
+// the flags that program had when it was a separate binary. No RegisterCommandFlags declaration exists under `le`, so the
 // completion surface F4 protects does not exist there. The day one is
 // declared, the declared arm brings every `le` flag set back into scope.
 func offlineZeCommand(path string, roots []string, declared map[string][]string) bool {

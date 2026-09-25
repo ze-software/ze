@@ -746,8 +746,8 @@ One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
 
 The first word selects the program. `ze` is the daemon under test, and
-`le test <name>` runs the harness, which is the runner's own executable. A
-retired harness name (`le-test`, `ze-test`, `ze-peer`) is no head of the
+`le test <name>` runs the harness, which is the runner's own executable. Any
+other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory
 runs from there: the chaos suites compile `le`, so `exec=le chaos run ...`

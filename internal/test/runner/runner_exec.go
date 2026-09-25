@@ -714,13 +714,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// stdin route and port read it.
 		binName := cmdParts[0]
 		var binPath string
-		switch {
-		case binName == binNameLE:
+		switch binName {
+		case binNameLE:
 			binPath = r.lePath
 			if launchesPeer(cmdParts) {
 				binName = binNamePeer
 			}
-		case binName == binNameZe:
+		case binNameZe:
 			binPath = r.zePath
 		default:
 			// Check if the binary was built as an extra binary in the temp dir.

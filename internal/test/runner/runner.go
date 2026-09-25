@@ -37,34 +37,21 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: envTypeString, Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
 )
 
-// The variable that skips the runner's `ze` build. Each key is read under its
-// `le.` spelling first and its retired `ze.` spelling second, until Phase 3 of
-// plan/spec-le-subject-first-command-tree.md removes the retired one.
-//
-// Two registered entries, not an `Aliases` entry: env.Get reads an alias
-// spelling only when the caller passes the alias key, so an alias on
-// `le.test.no.build` would never see an environment that sets only
-// `ZE_TEST_NO_BUILD`. The retired entry carries `Deprecated`, so env.Get prints
-// its one warning the first time a value is read from it.
+// The variable that skips the runner's `ze` build. It has one spelling:
+// nothing registers or reads the `ze.` spelling that Phase 3 of
+// plan/spec-le-subject-first-command-tree.md retired.
 const (
-	KeyNoBuild        = "le.test.no.build"
-	RetiredKeyNoBuild = "ze.test.no.build"
+	KeyNoBuild = "le.test.no.build"
 	// EnvNoBuild is the spelling a parent process writes for a child.
 	EnvNoBuild = "LE_TEST_NO_BUILD"
 )
 
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: KeyNoBuild, Type: envTypeBool, Description: "Skip the in-process go build of ze and require a pre-built ze"})
-	_ = env.MustRegister(env.EnvEntry{Key: RetiredKeyNoBuild, Type: envTypeBool, Deprecated: EnvNoBuild, Description: "Retired spelling of le.test.no.build, read when le.test.no.build is unset"})
-)
+var _ = env.MustRegister(env.EnvEntry{Key: KeyNoBuild, Type: envTypeBool, Description: "Skip the in-process go build of ze and require a pre-built ze"})
 
 // NoBuild answers whether the runner skips its `ze` build and uses a pre-built
-// ze (le.test.no.build, or its retired ze. spelling when that is unset).
+// ze (le.test.no.build).
 func NoBuild() bool {
-	if env.Get(KeyNoBuild) != "" {
-		return env.IsEnabled(KeyNoBuild)
-	}
-	return env.IsEnabled(RetiredKeyNoBuild)
+	return env.IsEnabled(KeyNoBuild)
 }
 
 // binNameZe is the daemon under test, the one binary the runner builds.

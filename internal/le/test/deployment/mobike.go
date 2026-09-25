@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func runIPsecMOBIKEHere(args leaction.Arguments) (any, int) {

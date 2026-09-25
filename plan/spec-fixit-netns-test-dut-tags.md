@@ -25,8 +25,8 @@ report failures no test is responsible for.
 `$(ZEBIN_ZE)` (`internal/le/integration/gates.go`), and the recipe hands the suites
 `LE_TEST_NO_BUILD=1` (`internal/le/integration/gates.go`), so the daemon under test is
 the production binary. But
-`internal/le/integration/gates.go` states plainly that "the real `$(ZEBIN_ZE)` has
-neither zetest nor ze_test", while the functional-test DUT is built with
+`internal/le/integration/gates.go` states plainly that the real `$(ZEBIN_ZE)` carries
+neither the `zetest` tag nor the retired harness tag, while the functional-test DUT is built with
 `-tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)'`
 (`internal/le/functional/suites.go`). Any test whose config touches a `zetest`-only
 YANG augment therefore cannot start its daemon.

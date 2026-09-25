@@ -104,8 +104,9 @@ type Result struct {
 	// FlagSetsInScope is how many of them are `ze` offline commands, which are
 	// the ones that owe a registry declaration.
 	FlagSetsInScope int `json:"flag-sets-in-scope"`
-	// FlagSetsOutOfScope is how many belong to another binary (ze-test,
-	// ze-perf, ze-chaos, the mock servers), which has no completion surface.
+	// FlagSetsOutOfScope is how many belong to another binary (the mock
+	// servers, the appliance's internal tools) or to an le command, neither of
+	// which has a ze completion surface.
 	FlagSetsOutOfScope int `json:"flag-sets-out-of-scope"`
 	// FlagNamesUnresolved counts flag declarations whose name is not a literal,
 	// so no feeder judged them.

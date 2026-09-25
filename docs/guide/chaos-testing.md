@@ -31,7 +31,7 @@ prints its own option list.
 
 The chaos tool, `./le chaos run`, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
 
-![chaos dashboard](img/ze-chaos-dashboard.png)
+![chaos dashboard](img/chaos-dashboard.png)
 
 The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.
 

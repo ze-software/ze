@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	"github.com/ze-software/ze/internal/le/hookruntime"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )

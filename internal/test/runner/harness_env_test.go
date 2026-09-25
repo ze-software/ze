@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -35,32 +36,36 @@ func captureStderr(t *testing.T, fn func()) string {
 }
 
 // runShim runs one shim with args and answers its standard output.
-func runShim(path string, args ...string) (string, error) {
-	out, err := exec.Command(path, args...).Output() //nolint:gosec // a shim this test wrote
+func runShim(ctx context.Context, path string, args ...string) (string, error) {
+	out, err := exec.CommandContext(ctx, path, args...).Output() //nolint:gosec // a shim this test wrote
 	return string(out), err
 }
 
-// TestNoBuildReadsBothNames proves le.test.no.build answers under its LE_
-// spelling, its retired ZE_ spelling, or both (AC-42: the variable stays, and
-// moves into this package).
+// TestNoBuildReadsOnlyTheLeName proves le.test.no.build answers under its LE_
+// spelling alone, and that the ZE_ spelling Phase 3 retired is neither read nor
+// registered (AC-42, AC-17).
 //
 // Method: set one spelling, the other, then both, and read through NoBuild,
-// the resolver Build calls. The LE_ value MUST win, and only a value that came
-// from the ZE_ spelling prints the deprecation line, once, naming the LE_
-// spelling.
+// the resolver Build calls. Only the LE_ value decides, and no read prints a
+// deprecation line, because no retired entry exists to print one.
 //
-// VALIDATES: AC-42, the LE_ spelling wins and the ZE_ spelling warns once.
-// PREVENTS: an environment that sets only ZE_TEST_NO_BUILD going unread.
-func TestNoBuildReadsBothNames(t *testing.T) {
+// VALIDATES: AC-42, the LE_ spelling alone decides; AC-17, the ZE_ entry is
+// not registered.
+// PREVENTS: the retired spelling still skipping the build, or a registered
+// retired entry left behind.
+func TestNoBuildReadsOnlyTheLeName(t *testing.T) {
 	t.Cleanup(env.ResetCache)
+	if env.IsRegistered("ze.test.no.build") {
+		t.Fatal("ze.test.no.build is still registered")
+	}
 	cases := []struct {
 		name, fresh, retired string
-		want, warns          bool
+		want                 bool
 	}{
-		{"LE_ only", "1", "", true, false},
-		{"ZE_ only", "", "1", true, true},
-		{"both", "1", "junk", true, false},
-		{"neither", "", "", false, false},
+		{"LE_ only", "1", "", true},
+		{"ZE_ only", "", "1", false},
+		{"both", "1", "junk", true},
+		{"neither", "", "", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -75,15 +80,8 @@ func TestNoBuildReadsBothNames(t *testing.T) {
 			if first != tc.want || second != tc.want {
 				t.Errorf("read %v then %v, want %v", first, second, tc.want)
 			}
-			lines := strings.Count(warning, "deprecated")
-			if !tc.warns {
-				if lines != 0 {
-					t.Errorf("unexpected warning %q", warning)
-				}
-				return
-			}
-			if lines != 1 || !strings.Contains(warning, EnvNoBuild) {
-				t.Errorf("warning %q, want one line naming %s", warning, EnvNoBuild)
+			if strings.Contains(warning, "deprecated") {
+				t.Errorf("unexpected warning %q", warning)
 			}
 		})
 	}
@@ -156,7 +154,7 @@ func TestRunnerShimsResolveLeToItself(t *testing.T) {
 	if err != nil || target != standIn {
 		t.Fatalf("le shim links to %q (%v), want %q", target, err, standIn)
 	}
-	out, err := runShim(filepath.Join(r.binShimDir, "le"), "test", "bgp", "--list")
+	out, err := runShim(t.Context(), filepath.Join(r.binShimDir, "le"), "test", "bgp", "--list")
 	if err != nil {
 		t.Fatalf("run the le link: %v", err)
 	}

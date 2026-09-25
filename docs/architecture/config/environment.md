@@ -178,13 +178,12 @@ Every harness command is `le test <name>`, so the harness is the `le` process
 itself and no variable names a harness file. The runner, a stress repro and
 l2tp scale run their own executable. A QEMU guest and the VPP evidence
 container run a linux `le` built by `internal/le/linuxle`. One harness variable
-remains. Its `ze.` spelling is retired and still read until Phase 3: the `LE_`
-value wins, and a value read from the `ZE_` spelling prints one deprecation
-line.
+remains, under its `le.` spelling only: nothing registers or reads a `ze.`
+spelling of it.
 
-| Variable | Retired spelling | Default | Description |
-|----------|------------------|---------|-------------|
-| `le.test.no.build` | `ze.test.no.build` | false | Skip the runner's in-process `ze` build and require a pre-built `ze`. Registered in `internal/test/runner` |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `le.test.no.build` | false | Skip the runner's in-process `ze` build and require a pre-built `ze`. Registered in `internal/test/runner` |
 
 The harness binary-path variables are gone: the runner, l2tp scale and the
 QEMU action each run or build their own `le`. The rename map lists each retired

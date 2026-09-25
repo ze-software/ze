@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
@@ -99,11 +99,10 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	if !strings.Contains(string(body), "COPY test/interop/le-linux /usr/local/bin/le\n") {
 		t.Error("test/interop/Dockerfile.ze does not install the le build as /usr/local/bin/le")
 	}
-	// The scenario configs still exec the harness by its two retired names, so
-	// the image answers each with a shim that runs `le test`.
-	if !strings.Contains(string(body), "for name in le-test ze-test;") ||
-		!strings.Contains(string(body), `exec /usr/local/bin/le test "$@"`) {
-		t.Error("test/interop/Dockerfile.ze gives the retired harness names no `le test` shim")
+	// Every scenario config execs the harness as `le test <name>`, so the image
+	// carries no shim that forwards another program name to it (AC-43).
+	if strings.Contains(string(body), "exec /usr/local/bin/le test") {
+		t.Error("test/interop/Dockerfile.ze still installs a shim that forwards to `le test`")
 	}
 }
 

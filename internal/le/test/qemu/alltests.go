@@ -41,7 +41,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/population"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
@@ -131,6 +131,14 @@ const tagsFlag = "-tags"
 // same word internal/le/test/functional spells for the same reason.
 const allTests = "--all"
 
+// The le test subcommands of the guest suites that more than one row names:
+// the plain suite and its wire-level twin. OSPF uses netnsOSPF.
+const (
+	guestL2TP = "l2tp"
+	guestISIS = "isis"
+	guestWire = "wire"
+)
+
 // The concurrency a suite takes. An empty value is the run's own, and takeNoP
 // is the suite whose default lives in its own command.
 const (
@@ -190,7 +198,7 @@ var vmSuites = []vmSuite{
 		Name: "managed", Args: []string{"managed", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "it shares the VM's one routing table with reload",
 	},
-	{Name: "l2tp", Args: []string{"l2tp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: guestL2TP, Args: []string{guestL2TP, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
 		Name: "firewall", Args: []string{"firewall", allTests}, Concurrency: serial, Namespace: perTest,
 		Why: "firewall-nat-exclude installs a nat prerouting chain, and in the guest root namespace" +
@@ -212,9 +220,9 @@ var vmSuites = []vmSuite{
 	{Name: "appliance", Args: []string{"appliance", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "ldp", Args: []string{"ldp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "rsvpte", Args: []string{"rsvpte", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
-	{Name: "isis", Args: []string{"isis", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: guestISIS, Args: []string{guestISIS, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
-		Name: "ospf", Args: []string{"ospf", allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
+		Name: netnsOSPF, Args: []string{netnsOSPF, allTests}, Concurrency: scaledConcurrency, Namespace: perTest,
 		Why: "its tests declare option=netns-link and provision eth0, eth1, nbma0 and ptmp0. The" +
 			" runner SKIPS a netns-link test outside this mode (applyNetnsLinkGate), so eight of them" +
 			" executed in no VM phase, and creating those names in the guest root namespace is the" +
@@ -241,9 +249,9 @@ var vmSuites = []vmSuite{
 		Why: "its tests validate config through `ze config validate` and open no socket, so they" +
 			" need neither a namespace of their own nor the guest's privileges",
 	},
-	{Name: "l2tp-wire", Args: []string{"wire", "l2tp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
-	{Name: "isis-wire", Args: []string{"wire", "isis", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
-	{Name: "ospf-wire", Args: []string{"wire", "ospf", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "l2tp-wire", Args: []string{guestWire, guestL2TP, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "isis-wire", Args: []string{guestWire, guestISIS, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "ospf-wire", Args: []string{guestWire, netnsOSPF, allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
 		Name: "traffic", Args: []string{"traffic", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "the needs-linux qdisc tests mutate shared kernel qdisc state on eth0, which is the" +

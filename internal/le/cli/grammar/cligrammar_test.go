@@ -436,7 +436,7 @@ func TestARenderingFlagOnAnUnregisteredCommandIsAFinding(t *testing.T) {
 		"\treturn use(yaml, depth, fs.Parse(args))\n" +
 		"}\n\n" +
 		"func perf(args []string) int {\n" +
-		"\tfs := flag.NewFlagSet(\"ze-perf run\", flag.ContinueOnError)\n" +
+		"\tfs := flag.NewFlagSet(\"ze-mock-server run\", flag.ContinueOnError)\n" +
 		"\treturn use(fs.Bool(\"json\", false, \"output as JSON\"), fs.Parse(args))\n" +
 		"}\n"
 	tree := writeTree(t, files)
@@ -542,7 +542,7 @@ func TestWhatTheFlagScanCouldNotJudgeIsCounted(t *testing.T) {
 	files := cleanFixture(t)
 	files["internal/other/tool.go"] = "package other\n\n" +
 		"func run(args []string) int {\n" +
-		"\tfs := flag.NewFlagSet(\"ze-perf run\", flag.ContinueOnError)\n" +
+		"\tfs := flag.NewFlagSet(\"ze-mock-server run\", flag.ContinueOnError)\n" +
 		"\treturn use(fs.Bool(\"all\", false, \"every case\"), fs.Parse(args))\n" +
 		"}\n\n" +
 		"func named(args []string, name string) int {\n" +
@@ -556,7 +556,7 @@ func TestWhatTheFlagScanCouldNotJudgeIsCounted(t *testing.T) {
 		t.Fatalf("the gate failed over the fixture: %v", err)
 	}
 	if result.FlagSetsOutOfScope != 1 {
-		t.Errorf("the scan put %d flag sets outside the ze surface, want the ze-perf one", result.FlagSetsOutOfScope)
+		t.Errorf("the scan put %d flag sets outside the ze surface, want the ze-mock-server one", result.FlagSetsOutOfScope)
 	}
 	if result.FlagSetNamesUnresolved != 1 {
 		t.Errorf("the scan reported %d unreadable flag-set names, want the one built from a variable",
@@ -640,10 +640,10 @@ func TestEveryPointBindingOnTheFlagCheckerResolves(t *testing.T) {
 // under the `le` root. The method calls offlineZeCommand with `le` among the
 // roots, as the real scan passes it.
 //
-// `le perf send` parses the flags `ze-perf run` parsed. le takes keywords, so
-// such a flag set belongs to a program le hands argv to, and judging it as a
-// ze offline command reports 37 findings about a completion surface that does
-// not exist. A declaration under `le` MUST bring it back into scope.
+// `le perf send` parses the flags the separate perf program parsed. le takes
+// keywords, so such a flag set belongs to a program le hands argv to, and
+// judging it as a ze offline command reports 37 findings about a completion
+// surface that does not exist. A declaration under `le` MUST bring it back into scope.
 func TestLeFlagSetsAreOutOfTheOfflineScope(t *testing.T) {
 	roots := []string{"bgp", "le"}
 	if offlineZeCommand("le perf send", roots, nil) {

@@ -27,7 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 

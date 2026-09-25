@@ -336,6 +336,7 @@ const (
 	textRPKIDirectionReceived       = "rpki direction received"
 	textUpdateRPKIDirectionReceived = "update-rpki direction received"
 	wordWrites                      = "writes"
+	wordLint                        = "lint"
 )
 
 // Scenario, plugin, profile, mode and case names.

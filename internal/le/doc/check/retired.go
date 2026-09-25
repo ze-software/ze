@@ -70,6 +70,18 @@ var retiredRecords = [...]retiredRecord{
 		path: "plan/spec-le-subject-first-command-tree.md",
 		why:  "the spec of this rename names every old form in order to retire it",
 	},
+	{
+		path: "cmd/ze/testdata/godebug-guidance-defect.txt",
+		why:  "a verbatim copy of cmd/ze/main.go at a past commit, the defect the GODEBUG guidance test must go red on",
+	},
+	{
+		path: "internal/le/site/testdata/published-health-record.json",
+		why:  "a captured copy of a published health record, which the site renderer test replays as published",
+	},
+	{
+		path: "internal/le/site/testdata/published-health-body.html",
+		why:  "a captured copy of a published health page, which the site renderer test replays as published",
+	},
 }
 
 // retiredException is one declared use of an old spelling that names
@@ -92,21 +104,21 @@ const discordChannelWhy = "the Discord channel named ze-test, not the harness bi
 const retiredHookNegativeWhy = "the hook test feeds the retired name to prove the deleted harness admission refuses nothing"
 
 var retiredExceptions = [...]retiredException{
-	{file: "internal/le/hookruntime/bash_test.go", old: "ze-test", why: retiredHookNegativeWhy},
-	{file: "internal/le/hookruntime/bash_test.go", old: "le-test", why: retiredHookNegativeWhy},
+	{file: "internal/le/hookruntime/bash_test.go", old: retiredZeTest, why: retiredHookNegativeWhy},
+	{file: "internal/le/hookruntime/bash_test.go", old: retiredLeTest, why: retiredHookNegativeWhy},
 	{
 		file: "internal/le/weekly/answer.go",
-		old:  "ze-test",
+		old:  retiredZeTest,
 		why:  "the publication channel named ze-test, not the harness binary",
 	},
 	{
 		file: "internal/component/firewall/validate_test.go",
-		old:  "ze_test",
+		old:  retiredZeTestTag,
 		why:  "the nftables table named ze_test, not the build tag",
 	},
 	{
 		file: "docs/architecture/testing/qemu-integration.md",
-		old:  "ze_test",
+		old:  retiredZeTestTag,
 		why:  "the nftables table named ze_test, not the build tag",
 	},
 	{
@@ -116,22 +128,22 @@ var retiredExceptions = [...]retiredException{
 	},
 	{
 		file: "ai/skills/ze-weekly-update.md",
-		old:  "ze-test",
+		old:  retiredZeTest,
 		why:  discordChannelWhy,
 	},
 	{
 		file: ".claude/memory/reference_discord_bot.md",
-		old:  "ze-test",
+		old:  retiredZeTest,
 		why:  discordChannelWhy,
 	},
 	{
 		file: "website/changes/discord/STYLE.md",
-		old:  "ze-test",
+		old:  retiredZeTest,
 		why:  discordChannelWhy,
 	},
 	{
 		file: "ai/skills/ze-test.md",
-		old:  "ze-test",
+		old:  retiredZeTest,
 		why:  "the skill named ze-test, not the harness binary",
 	},
 	{
@@ -211,7 +223,7 @@ var retiredExceptions = [...]retiredException{
 	},
 	{
 		file: retiredHostLoadTestFile,
-		old:  "le-test",
+		old:  retiredLeTest,
 		why:  retiredHarnessRefusedWhy,
 	},
 	{
@@ -221,12 +233,12 @@ var retiredExceptions = [...]retiredException{
 	},
 	{
 		file: "cmd/ze/login_test.go",
-		old:  "le-test",
+		old:  retiredLeTest,
 		why:  retiredHarnessRefusedWhy,
 	},
 	{
 		file: retiredPerfTestFile,
-		old:  "ze-perf",
+		old:  retiredZePerf,
 		why:  retiredParityWhy,
 	},
 	{
@@ -236,7 +248,7 @@ var retiredExceptions = [...]retiredException{
 	},
 	{
 		file: "internal/le/perf/bench_test.go",
-		old:  "ze-perf",
+		old:  retiredZePerf,
 		why:  retiredParityWhy,
 	},
 	{
@@ -246,10 +258,35 @@ var retiredExceptions = [...]retiredException{
 	},
 	{
 		file: "internal/le/chaos/run/run_test.go",
-		old:  "ze-chaos",
+		old:  retiredZeChaos,
 		why:  retiredParityWhy,
 	},
+	{file: retiredOwnershipTestFile, old: retiredZeTestTag, why: retiredTagRefusedWhy},
+	{file: retiredOwnershipTestFile, old: "ze_chaos", why: retiredTagRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredLeTestBin, why: retiredVariableIgnoredWhy},
+	{file: retiredHarnessEnvTestFile, old: "ze.test.no.build", why: retiredVariableIgnoredWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredLeTest, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZeTest, why: retiredHarnessRefusedWhy},
+	{file: retiredHarnessEnvTestFile, old: retiredZePeer, why: retiredHarnessRefusedWhy},
+	{file: retiredParsingTestFile, old: retiredLeTest, why: retiredHarnessRefusedWhy},
+	{file: retiredParsingTestFile, old: retiredZeTest, why: retiredHarnessRefusedWhy},
+	{file: retiredParsingTestFile, old: retiredZePeer, why: retiredHarnessRefusedWhy},
+	{file: "internal/test/runner/peer_contract_test.go", old: retiredZePeer, why: retiredHarnessRefusedWhy},
+	{file: retiredPerfRunnerTestFile, old: retiredZePerf, why: retiredPerfPathWhy},
+	{file: retiredPerfRunnerTestFile, old: "bin/ze-perf", why: retiredPerfPathWhy},
+	{file: retiredRoutingPlanFile, old: retiredZeTestTag, why: retiredLearnedQuoteWhy},
+	{file: retiredRoutingPlanFile, old: retiredZeChaos, why: retiredLearnedQuoteWhy},
 }
+
+// The retired names that several exceptions declare.
+const (
+	retiredZeTest    = "ze-test"
+	retiredLeTest    = "le-test"
+	retiredZeTestTag = "ze_test"
+	retiredZePerf    = "ze-perf"
+	retiredZeChaos   = "ze-chaos"
+	retiredZePeer    = "ze-peer"
+)
 
 // Files that declare more than one exception, and the variable names that
 // several of them declare.
@@ -263,7 +300,24 @@ const (
 	retiredStressReproTestFile = "internal/le/test/stressrepro/stressrepro_test.go"
 	retiredHostLoadTestFile    = "internal/core/hostload/hostload_test.go"
 	retiredPerfTestFile        = "internal/le/perf/perf_test.go"
+	retiredOwnershipTestFile   = "internal/le/cli/ownership/commandownership_test.go"
+	retiredHarnessEnvTestFile  = "internal/test/runner/harness_env_test.go"
+	retiredParsingTestFile     = "internal/test/runner/parsing_test.go"
+	retiredPerfRunnerTestFile  = "internal/test/perfrunner/run_test.go"
+	retiredRoutingPlanFile     = "plan/knowledge-routing-plan.md"
 )
+
+// retiredTagRefusedWhy is the reason of the ownership test that feeds a
+// retired build tag to prove it no longer exempts a root handler.
+const retiredTagRefusedWhy = "a test sample that proves a retired build tag no longer exempts a root handler"
+
+// retiredPerfPathWhy is the reason of the perf runner test that proves no
+// command it issues names the retired perf binary.
+const retiredPerfPathWhy = "a test that proves no perf runner command names the retired perf binary"
+
+// retiredLearnedQuoteWhy is the reason of the routing plan, which quotes two
+// learned summaries verbatim and names their files.
+const retiredLearnedQuoteWhy = "the plan quotes the learned summaries 861 and 862 verbatim and names their files"
 
 // retiredVariableIgnoredWhy is the reason shared by the tests that export a
 // retired variable to prove nothing reads it.
@@ -299,6 +353,10 @@ var retiredWords = [...]retiredWord{
 		why:   "the retired make target ze-test-all, not the harness binary",
 	},
 	{
+		match: regexp.MustCompile(`ze-perf-bench(?:$|[^A-Za-z0-9_-])`),
+		why:   "the retired make target ze-perf-bench, not the perf program",
+	},
+	{
 		match: regexp.MustCompile(`ze-chaos-mcp(?:$|[^A-Za-z0-9_-])`),
 		why:   "the MCP server name ze-chaos-mcp that the chaos orchestrator reports, not the program",
 	},
@@ -329,7 +387,7 @@ func retiredExcluded(rel string) bool {
 	if slices.Contains(retiredDeclarations[:], rel) {
 		return true
 	}
-	for _, record := range retiredRecords {
+	for _, record := range &retiredRecords {
 		if strings.HasSuffix(record.path, "/") {
 			if strings.HasPrefix(rel, record.path) {
 				return true
@@ -346,7 +404,7 @@ func retiredExcluded(rel string) bool {
 // retiredExempt reports whether one old spelling is declared legitimate in one
 // file.
 func retiredExempt(rel, old string) bool {
-	for _, exception := range retiredExceptions {
+	for _, exception := range &retiredExceptions {
 		if exception.file != rel {
 			continue
 		}

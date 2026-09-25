@@ -57,7 +57,7 @@ const (
 const containerLe = "/usr/local/bin/le"
 
 // linuxBuildTimeout bounds the cross-build of le. It links every feature the
-// launcher's le links, which is more than the ze-perf personality it replaced.
+// launcher's le links, which is more than the perf personality it replaced.
 const linuxBuildTimeout = 10 * time.Minute
 
 // Steps selects what one suite run does. The runner refuses a run that selects

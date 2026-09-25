@@ -246,12 +246,13 @@ func TestParseCICorpusReadsUnderTheGenericParser(t *testing.T) {
 }
 
 // TestParseExecResolvesBothBinaries pins the head-of-line mapping the parse
-// runner applies before it spawns a cmd= line. `le-test` maps to the runner's
-// own executable, never to a PATH lookup: the verify gate's bin directory is
-// not on PATH, and `test/parse/cli-config-history.ci` seeds its store with
-// `le-test fixture storage/empty-tree`, which failed with "executable file not
+// runner applies before it spawns a cmd= line. `le` maps to the runner's own
+// executable, never to a PATH lookup: the verify gate's bin directory is not on
+// PATH, and `test/parse/cli-config-history.ci` seeds its store with
+// `le test fixture storage/empty-tree`, which failed with "executable file not
 // found in $PATH" under the gate while it passed from a shell that had bin/
-// on PATH.
+// on PATH. A retired standalone harness head is left verbatim for the PATH
+// lookup, which finds no such program (AC-43).
 func TestParseExecResolvesBothBinaries(t *testing.T) {
 	const zePath, lePath = "/gate/bin/ze", "/gate/bin/le"
 	for _, tc := range []struct{ exec, want string }{

@@ -86,7 +86,7 @@ func leRulesAnswers(ctx context.Context) error {
 		args    []string
 		markers []string
 	}{
-		{"rules lint", []string{areaAIRules, "lint"}, []string{"rule point(s) state an RFC 2119 level"}},
+		{"rules lint", []string{areaAIRules, wordLint}, []string{"rule point(s) state an RFC 2119 level"}},
 		{"rules render-check", []string{areaAIRules, "render-check"}, []string{"rules are fresh"}},
 		{"rules points-roundtrip-check", []string{areaAIRules, "points-roundtrip-check"}, []string{"round-trip byte-identical"}},
 		{"rules gate-map-report", []string{areaAIRules, "gate-map-report"}, []string{"gate map: ", "PUBLISHED: "}},
@@ -179,7 +179,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return err
 	}
 
-	lint, err := jsonAnswer(le, root, "lint")
+	lint, err := jsonAnswer(le, root, wordLint)
 	if err != nil {
 		return err
 	}
@@ -219,7 +219,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if count, isList := listLength(lint["empty"]); !isList || count > 0 {
 		return uiLeRulesAnswersFailf("the lint read an empty or invalid population: %v", lint["empty"])
 	}
-	if err := requireRenderings(le, root, "lint"); err != nil {
+	if err := requireRenderings(le, root, wordLint); err != nil {
 		return err
 	}
 
@@ -264,7 +264,7 @@ func leRulesAnswers(ctx context.Context) error {
 	if listing.code != 0 {
 		return uiLeRulesAnswersFailf("`le ai rules` exited %d: %s%s", listing.code, listing.stdout, listing.stderr)
 	}
-	for _, word := range []string{"lint", "render-check", "render-update", "points-roundtrip-check", "gate-map-report", wordWrites, fieldChecks} {
+	for _, word := range []string{wordLint, "render-check", "render-update", "points-roundtrip-check", "gate-map-report", wordWrites, fieldChecks} {
 		if !strings.Contains(listing.stdout, word) {
 			return uiLeRulesAnswersFailf("the rules listing does not carry %q: %s", word, listing.stdout)
 		}
@@ -278,7 +278,7 @@ func leRulesAnswers(ctx context.Context) error {
 		return uiLeRulesAnswersFailf("an unknown action answered %d rather than 2", unknown.code)
 	}
 
-	refused, err := le(root, areaAIRules, "lint", "ai/rules")
+	refused, err := le(root, areaAIRules, wordLint, "ai/rules")
 	if err != nil {
 		return err
 	}

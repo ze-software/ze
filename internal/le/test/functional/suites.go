@@ -112,6 +112,8 @@ const (
 const (
 	allTests = "--all"
 	bgpVerb  = "bgp"
+	// wireVerb is the le test subcommand the wire-level suites run under.
+	wireVerb = "wire"
 )
 
 // AllTests is the selector a caller replaces to run ONE test of a suite.
@@ -209,9 +211,9 @@ var Suites = []Suite{
 		Name: suiteAppliance, Args: []string{"appliance", allTests},
 		Why: "the appliance CLI: build, iso, list, serial-login",
 	},
-	{Name: suiteL2tpWire, Args: []string{"wire", "l2tp", allTests}, Why: "L2TP wire level"},
-	{Name: suiteIsisWire, Args: []string{"wire", "isis", allTests}, Why: "IS-IS wire-level decode"},
-	{Name: suiteOspfWire, Args: []string{"wire", "ospf", allTests}, Why: "OSPFv2 wire-level decode"},
+	{Name: suiteL2tpWire, Args: []string{wireVerb, "l2tp", allTests}, Why: "L2TP wire level"},
+	{Name: suiteIsisWire, Args: []string{wireVerb, "isis", allTests}, Why: "IS-IS wire-level decode"},
+	{Name: suiteOspfWire, Args: []string{wireVerb, "ospf", allTests}, Why: "OSPFv2 wire-level decode"},
 	{
 		Name: suiteRunner, Args: []string{"runner", allTests},
 		Why: "the test-runner primitives (test/runner/*.ci). Host-safe: it spawns only" +

@@ -129,7 +129,7 @@ func TestHarnessSampleSeesALiveLeTest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	child := exec.Command(le, "test")
+	child := exec.CommandContext(t.Context(), le, "test")
 	child.Dir = dir
 	stdin, err := child.StdinPipe()
 	if err != nil {

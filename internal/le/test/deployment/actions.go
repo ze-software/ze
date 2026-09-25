@@ -19,8 +19,8 @@ import (
 
 	interopl2tp "github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	interoppppoe "github.com/ze-software/ze/internal/le/interoplab/pppoe"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

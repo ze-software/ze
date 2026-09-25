@@ -329,7 +329,7 @@ executable (`os.Executable`) answers every harness exec.
 | `le` | the runner's own executable, with the authored words |
 | anything else | an extra binary of this run, else a PATH lookup |
 
-A retired harness name (`le-test`, `ze-test`, `ze-peer`) falls in the last row.
+A retired standalone harness name falls in the last row.
 No program answers to it, so the step fails at the lookup.
 
 The parse steps resolve the same heads the same way (`resolveParseExec`).

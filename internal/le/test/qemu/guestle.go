@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/linuxle"
 )

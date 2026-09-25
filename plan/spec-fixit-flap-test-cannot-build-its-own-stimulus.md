@@ -41,7 +41,7 @@ guest, runtime kernel 7.2:
 ```
 
 The daemon and fixture binaries were both cross-built AFTER the counter landed
-(`bin/ze-linux-arm64` 14:01, `bin/le-test-linux-arm64` 14:10, counter committed
+(`bin/ze-linux-arm64` 14:01, the linux arm64 harness build 14:10, counter committed
 13:06), so this is not a stale binary reporting on old code.
 
 **Why this green is not the third false one.** Both earlier greens came from

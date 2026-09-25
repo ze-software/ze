@@ -27,7 +27,7 @@ func TestGenerateToFileNeverDestroysTheExistingReport(t *testing.T) {
 		return errors.New("generator failed")
 	}
 	var stderr strings.Builder
-	if generateToFile(context.Background(), failed, []string{"ze-perf", "report"}, destination, &stderr) {
+	if generateToFile(context.Background(), failed, []string{"le", "perf", "report"}, destination, &stderr) {
 		t.Fatal("failing generator reported success")
 	}
 	content, err := os.ReadFile(destination)
@@ -48,7 +48,7 @@ func TestGenerateToFilePublishesOnlyACompleteResult(t *testing.T) {
 		_, _ = io.WriteString(stdout, "HTML\n")
 		return nil
 	}
-	if !generateToFile(context.Background(), succeeded, []string{"ze-perf", "report"}, destination, io.Discard) {
+	if !generateToFile(context.Background(), succeeded, []string{"le", "perf", "report"}, destination, io.Discard) {
 		t.Fatal("successful generator reported failure")
 	}
 	content, err := os.ReadFile(destination)

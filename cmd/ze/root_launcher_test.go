@@ -589,8 +589,8 @@ func formatLauncherRecord(lines []string) string {
 }
 
 // TestLeLauncherAcceptsTestNames proves `./le --name` builds under the names
-// the D-3 refusal once held back (AC-43): no bin/le-test* harness artifact
-// remains for a build directory to collide with.
+// the D-3 refusal once held back (AC-43): no standalone harness artifact
+// remains under bin/ for a build directory to collide with.
 //
 // Method: run the launcher over a fixture with a fake go, and read that each
 // name reached the build.

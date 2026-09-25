@@ -76,8 +76,8 @@ func linkName(line string) string {
 // l2tpState answers what the kernel holds for ns: its tunnels, then its
 // sessions.
 func l2tpState(ns string) (string, string, error) {
-	tunnel, tunnelOK := nsText(ns, "ip", "l2tp", "show", tunnelObjectName)
-	session, sessionOK := nsText(ns, "ip", "l2tp", "show", "session")
+	tunnel, tunnelOK := nsText(ns, "ip", ipL2TP, "show", tunnelObjectName)
+	session, sessionOK := nsText(ns, "ip", ipL2TP, "show", "session")
 	if !tunnelOK || !sessionOK {
 		return "", "", errors.New("ip l2tp state inspection failed")
 	}
