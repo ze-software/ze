@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"strconv"
@@ -17,21 +18,51 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// freePort asks the kernel for a free UDP port by binding :0 and releasing
-// it immediately (same approach as geodns's server_test.go freePort).
+// freePortLow and freePortHigh bound the ports freePort draws from. The span
+// sits below the kernel's ephemeral range (Linux 32768-60999, BSD and macOS
+// 49152-65535), so no client socket's automatic source port can land on it.
+const (
+	freePortLow   = 10000
+	freePortHigh  = 32768
+	freePortTries = 64
+)
+
+// freePort returns a loopback port that is free for BOTH UDP and TCP, because
+// dnsserver.Manager binds every endpoint on both.
+//
+// Asking the kernel for "127.0.0.1:0" is not enough: that port comes from the
+// ephemeral range and is released before dnsserver.Manager binds it, so any UDP or TCP
+// client socket on the machine, this package's own dns.Client exchanges
+// included, can be given the same number in between. Under a loaded gate run
+// that made Apply fail with "no listeners bound".
 func freePort(t *testing.T) uint16 {
 	t.Helper()
 	var lc net.ListenConfig
-	pc, err := lc.ListenPacket(context.Background(), "udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("freePort: %v", err)
+	ctx := context.Background()
+	var lastErr error
+	for range freePortTries {
+		port := uint16(freePortLow + rand.IntN(freePortHigh-freePortLow))
+		addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(port)))
+		pc, err := lc.ListenPacket(ctx, "udp", addr)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if cerr := pc.Close(); cerr != nil {
+			t.Fatalf("close udp probe: %v", cerr)
+		}
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if cerr := ln.Close(); cerr != nil {
+			t.Fatalf("close tcp probe: %v", cerr)
+		}
+		return port
 	}
-	defer func() { _ = pc.Close() }()
-	udpAddr, ok := pc.LocalAddr().(*net.UDPAddr)
-	if !ok {
-		t.Fatalf("freePort: LocalAddr() = %T, want *net.UDPAddr", pc.LocalAddr())
-	}
-	return uint16(udpAddr.Port)
+	t.Fatalf("no port in [%d, %d) free for udp and tcp after %d tries: %v", freePortLow, freePortHigh, freePortTries, lastErr)
+	return 0
 }
 
 // startTestServer binds a real dnsserver.Manager instance (through
