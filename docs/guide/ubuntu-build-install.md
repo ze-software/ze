@@ -79,7 +79,7 @@ CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bg
 
 The default feature-tag list is derived from `feature-gates.txt`.
 `./le repo feature-tags check` verifies every checked-in consumer of that list, and
-`./le repo tracked-build matrix` shows the shipped build flavors.
+`./le repo compiles matrix` shows the shipped build flavors.
 
 For a deliberately smaller custom binary, name its feature tags explicitly:
 

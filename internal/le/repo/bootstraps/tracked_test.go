@@ -7,7 +7,7 @@
 // Python failure was an area that would not IMPORT. A Go area cannot fail in
 // that way. The corresponding failure is a blank import that nobody added.
 
-package repotrackedle
+package repobootstraps
 
 import (
 	"context"

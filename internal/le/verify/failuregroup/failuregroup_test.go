@@ -43,7 +43,7 @@ func TestBothToolchainDiagnosticShapesAreRead(t *testing.T) {
 func TestProseThatNamesNoFileYieldsNothing(t *testing.T) {
 	for name, text := range map[string]string{
 		"a config error": "level=error cannot load config: no such file\n",
-		"a passing run":  "tracked-build: OK (every flavor of the committed tree compiles)\n",
+		"a passing run":  "compiles: OK (every flavor of the committed tree compiles)\n",
 		"a bare symbol":  "undefined: argInit\n",
 		"nothing at all": "",
 	} {

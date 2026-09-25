@@ -62,11 +62,11 @@ func leJobAdmits(ctx context.Context) error {
 
 	testBinary, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("locate ze-test executable: %w", err)
+		return fmt.Errorf("locate le-test executable: %w", err)
 	}
 	testBinary, err = filepath.Abs(testBinary)
 	if err != nil {
-		return fmt.Errorf("make ze-test executable path absolute: %w", err)
+		return fmt.Errorf("make le-test executable path absolute: %w", err)
 	}
 
 	testDir, err := os.MkdirTemp("", "ze-le-job-admits-")

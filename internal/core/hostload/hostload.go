@@ -51,7 +51,7 @@ func Snapshot() Load {
 		CPUs: runtime.NumCPU(),
 	}
 	l.LoadAvg1 = readLoadAvg1()
-	l.ZeProcs = processCount("ze-test")
+	l.ZeProcs = processCount("le-test")
 	l.GoTestProcs = processCount("\\.test")
 	return l
 }

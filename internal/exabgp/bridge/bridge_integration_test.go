@@ -77,13 +77,13 @@ func setupTestBinaries(t *testing.T) {
 			return
 		}
 
-		testZeTestPath = filepath.Join(testTmpDir, "ze-test")
+		testZeTestPath = filepath.Join(testTmpDir, "le-test")
 		buildCmd = exec.CommandContext(ctx, "go", "build", "-tags", "ze_test", "-o", testZeTestPath, "./cmd/ze")
 		buildCmd.Dir = projectRoot
 		buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		buildOutput, err = buildCmd.CombinedOutput()
 		if err != nil {
-			testSetupErr = fmt.Errorf("build ze-test: %w\n%s", err, buildOutput)
+			testSetupErr = fmt.Errorf("build le-test: %w\n%s", err, buildOutput)
 			return
 		}
 	})

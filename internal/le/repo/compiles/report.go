@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- the tracked-build gate's answer
 //
-// report.go holds what `le repo tracked-build check` ANSWERS, apart from
+// report.go holds what `le repo compiles check` ANSWERS, apart from
 // what produced it.
 //
 // The payload is an object, because the counts and the commit are the point: a
@@ -12,7 +12,7 @@
 // action, exactly as the script wrote it, because it tells a person what to do
 // next rather than saying what is true of the commit.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -78,7 +78,7 @@ func (r Report) Text() string {
 		short = short[:shortCommit]
 	}
 
-	tb.Str("tracked-build: ").Str(r.Rev).Str(" (").Str(short).Str("), ").
+	tb.Str("compiles: ").Str(r.Rev).Str(" (").Str(short).Str("), ").
 		Int(int64(len(r.Features))).Str(" feature tags, ").Str(buildPackages)
 	switch {
 	case r.PackageFloor < DefaultPackageFloor:
@@ -101,7 +101,7 @@ func (r Report) Text() string {
 	}
 
 	if r.OK {
-		tb.Str("tracked-build: OK (every flavor of the committed tree compiles)\n")
+		tb.Str("compiles: OK (every flavor of the committed tree compiles)\n")
 
 		return tb.String()
 	}
@@ -111,7 +111,7 @@ func (r Report) Text() string {
 	// stage log, which holds what the action returned.
 	if err := failuregroup.Declare(&groupOut, trackedBuildGroupID, "files",
 		"the committed tree does not compile; these files hold the named symbols",
-		"./le repo tracked-build check", r.failingPaths()); err == nil {
+		"./le repo compiles check", r.failingPaths()); err == nil {
 		tb.Str(groupOut.String())
 	}
 
@@ -119,7 +119,7 @@ func (r Report) Text() string {
 }
 
 // trackedBuildGroupID names this stage's one failure group.
-const trackedBuildGroupID = "files:repository tracked-build/check"
+const trackedBuildGroupID = "files:repo compiles/check"
 
 // failingPaths answers the source files the compiler named across every flavor
 // that failed. Without them a red here is unattributable, and the commit gate
@@ -147,10 +147,10 @@ func (r Report) Diagnosis() string {
 
 	var tb textbuf.Buffer
 	if r.Incomplete {
-		tb.Str("\ntracked-build: INCOMPLETE. The flavors listed were judged; the rest were not.\n")
+		tb.Str("\ncompiles: INCOMPLETE. The flavors listed were judged; the rest were not.\n")
 		tb.Str("  A FAIL below is a real break. The absence of one is not a clean commit.\n")
 	} else {
-		tb.Str("\ntracked-build: the tree GIT HOLDS does not compile.\n")
+		tb.Str("\ncompiles: the tree GIT HOLDS does not compile.\n")
 	}
 
 	// Printed for an incomplete run too: a flavor that failed BEFORE the

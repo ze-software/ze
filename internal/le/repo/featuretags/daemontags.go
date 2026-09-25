@@ -42,7 +42,7 @@ const DaemonBase = "ze_core ze_distro"
 //
 // It is declared here, beside the manifest reader, because three Go callers
 // build that personality and a per-caller literal is a second record of one
-// fact: `internal/le/repo/trackedle` builds it from a git archive, the functional
+// fact: `internal/le/repo/bootstraps` builds it from a git archive, the functional
 // binary set builds the one the ui fixtures drive, and a ui fixture builds its
 // own variant with an extra tag.
 const LEBase = "ze_le"

@@ -3,7 +3,7 @@
 // One package, one register.go, one init(). Adding a tool to le is this file
 // plus a blank import in internal/le/register.go, and nothing else.
 
-package repotrackedle
+package repobootstraps
 
 import (
 	"github.com/ze-software/ze/internal/component/command"

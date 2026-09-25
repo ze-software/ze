@@ -127,8 +127,57 @@ func TestL2TPScaleSessionTimeoutDefaultsAndOverrides(t *testing.T) {
 	}
 }
 
+// TestL2TPScaleLocatesTheHarness proves where the runner finds le-test. Method:
+// a recorder whose bin/ lacks the harness, with each variable spelling set in
+// turn, and the path the first simulator command executes.
+//
+// VALIDATES: bin/le-test first, then LE_TEST_BINARY, then the retired
+// ZE_TEST_BINARY with a deprecation line, and a named file that is missing
+// answers the failure.
+func TestL2TPScaleLocatesTheHarness(t *testing.T) {
+	cases := []struct {
+		name        string
+		env         map[string]string
+		files       []string
+		wantBinary  string
+		wantWarning bool
+	}{
+		{name: "bin", files: []string{"/repo/bin/le-test"}, wantBinary: "/repo/bin/le-test"},
+		{name: "current variable", env: map[string]string{"LE_TEST_BINARY": "/opt/le-test", "ZE_TEST_BINARY": "/old/harness"},
+			files: []string{"/opt/le-test", "/old/harness"}, wantBinary: "/opt/le-test"},
+		{name: "retired variable", env: map[string]string{"ZE_TEST_BINARY": "/old/harness"},
+			files: []string{"/old/harness"}, wantBinary: "/old/harness", wantWarning: true},
+		{name: "retired variable names no file", env: map[string]string{"ZE_TEST_BINARY": "/old/harness"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			system := newL2TPScaleRecorder()
+			delete(system.files, "/repo/bin/le-test")
+			system.env = tc.env
+			for _, file := range tc.files {
+				system.files[file] = true
+			}
+			report, _ := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: l2tpScaleScenarios()[0]}, system)
+			if tc.wantBinary == "" {
+				if report.Failure != "bin/le-test not found" || len(system.commands) != 0 {
+					t.Fatalf("failure = %q with %d commands, want bin/le-test not found and none", report.Failure, len(system.commands))
+				}
+				return
+			}
+			if len(system.commands) == 0 || system.commands[0].argv[0] != tc.wantBinary {
+				t.Fatalf("commands = %#v, want the first to execute %s", system.commands, tc.wantBinary)
+			}
+			warned := strings.Contains(report.Text(), "warning: ZE_TEST_BINARY is deprecated: set LE_TEST_BINARY\n")
+			if warned != tc.wantWarning {
+				t.Fatalf("deprecation line printed = %v, want %v:\n%s", warned, tc.wantWarning, report.Text())
+			}
+		})
+	}
+}
+
 type l2tpScaleRecorder struct {
 	files    map[string]bool
+	env      map[string]string
 	starts   []l2tpScaleStart
 	commands []l2tpScaleCommand
 	stops    int
@@ -137,14 +186,14 @@ type l2tpScaleRecorder struct {
 
 func newL2TPScaleRecorder() *l2tpScaleRecorder {
 	return &l2tpScaleRecorder{
-		files: map[string]bool{"/repo/bin/ze": true, "/repo/bin/ze-test": true},
+		files: map[string]bool{"/repo/bin/ze": true, "/repo/bin/le-test": true},
 		port:  20_000,
 	}
 }
 
 func (r *l2tpScaleRecorder) FileExists(path string) bool { return r.files[path] }
 
-func (r *l2tpScaleRecorder) Getenv(string) string { return "" }
+func (r *l2tpScaleRecorder) Getenv(key string) string { return r.env[key] }
 
 func (r *l2tpScaleRecorder) Environ() []string { return []string{"PATH=/fixture/bin"} }
 

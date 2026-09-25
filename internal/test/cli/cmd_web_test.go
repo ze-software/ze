@@ -38,7 +38,7 @@ func TestWebBrowserMissingSkipsOutsideVerifyMode(t *testing.T) {
 // closed the browser another run's test N was reading.
 func TestZeTestBrowserSessionIsPerRun(t *testing.T) {
 	got := zeTestBrowserSession("12")
-	want := "ze-test-web-" + strconv.Itoa(os.Getpid()) + "-12"
+	want := "le-test-web-" + strconv.Itoa(os.Getpid()) + "-12"
 	if got != want {
 		t.Fatalf("zeTestBrowserSession(12) = %q, want %q", got, want)
 	}

@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- compile what git holds
 //
-// Package repotrackedbuild COMPILES the repository as git holds it, which is the
+// Package repocompiles COMPILES the repository as git holds it, which is the
 // one population no other check in this repository compiles.
 //
 // The daemon build, the native verify gate, changed-file lint, and test actions
@@ -19,7 +19,7 @@
 // any commit-ish with no extra bookkeeping, so judging a past commit is the
 // same code path as the default.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"context"
@@ -44,7 +44,7 @@ import (
 // its own: the tree is the checkout and the rendering is a pipe operator.
 //
 // RevKey carries the retained REV environment alias, so
-// `REV=<sha> ./le repo tracked-build check` keeps working.
+// `REV=<sha> ./le repo compiles check` keeps working.
 const (
 	RevKey      = "ze.tracked.build.rev"
 	KeepKey     = "ze.tracked.build.keep"
@@ -70,7 +70,7 @@ var revEntry = env.MustRegister(env.EnvEntry{
 	Default:     "HEAD",
 	Description: "the commit this gate compiles; a past sha reproduces a break that has already landed",
 	// REV is retained as an environment alias so
-	// `REV=<sha> ./le repo tracked-build check` reproduces a past build.
+	// `REV=<sha> ./le repo compiles check` reproduces a past build.
 	Aliases: []string{"REV"},
 	// Private keeps the key out of `ze env list`. It names a build-host commit
 	// and an operator has nothing to do with it.
@@ -206,7 +206,7 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 		}
 		if rmErr := os.RemoveAll(dir); rmErr != nil {
 			var tb textbuf.Buffer
-			tb.Str("tracked-build: could not remove ").Str(dir).Str(": ").Err(rmErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
+			tb.Str("compiles: could not remove ").Str(dir).Str(": ").Err(rmErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 	}()
 
@@ -297,18 +297,18 @@ func resolveRev(ctx context.Context, repo, rev string) (string, error) {
 // on purpose.
 func scratchTree(ctx context.Context, repo string) (string, error) {
 	if err := ctx.Err(); err != nil {
-		return "", fmt.Errorf("resolve tracked-build scratch: %w", err)
+		return "", fmt.Errorf("resolve compiles scratch: %w", err)
 	}
 	paths, err := lepath.ResolveSession(repo, true)
 	if err != nil {
-		return "", fmt.Errorf("resolve tracked-build scratch: %w", err)
+		return "", fmt.Errorf("resolve compiles scratch: %w", err)
 	}
 
 	// The pid keeps two runs in ONE session apart, and the directory is cleared
 	// first. `tar -x` overwrites archived paths but never removes extras, so a
 	// reused non-empty directory CAN put a file back into the view that the
 	// commit under test deleted.
-	dir := filepath.Join(repo, paths.Scratch, "tracked-build", strconv.Itoa(os.Getpid()))
+	dir := filepath.Join(repo, paths.Scratch, "compiles", strconv.Itoa(os.Getpid()))
 	if err := os.RemoveAll(dir); err != nil {
 		return "", fmt.Errorf("clear scratch %s: %w", dir, err)
 	}
@@ -342,11 +342,11 @@ func extract(ctx context.Context, repo, commit, dest string) error {
 	if err := untar.Start(); err != nil {
 		if killErr := archive.Process.Kill(); killErr != nil {
 			var tb textbuf.Buffer
-			tb.Str("tracked-build: kill git archive: ").Err(killErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
+			tb.Str("compiles: kill git archive: ").Err(killErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 		if waitErr := archive.Wait(); waitErr != nil {
 			var tb textbuf.Buffer
-			tb.Str("tracked-build: reap git archive: ").Err(waitErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
+			tb.Str("compiles: reap git archive: ").Err(waitErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 		return fmt.Errorf("start tar: %w", err)
 	}

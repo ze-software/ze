@@ -226,7 +226,7 @@ from, and the push authorisation apply in every tree.
 ## After the script runs
 
 For a commit carrying Go, module, or vendor paths, run
-`./le repo tracked-build check` immediately afterwards. It judges the
+`./le repo compiles check` immediately afterwards. It judges the
 commit you just made, which no run before that commit could see.
 
 Report the commit SHA, the included files, the message file, the script path,

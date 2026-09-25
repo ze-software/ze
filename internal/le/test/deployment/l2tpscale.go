@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const L2TPScaleAction = "l2tp-scale-test"
@@ -39,12 +41,27 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
+// The environment spellings that locate a binary when bin/ holds none. The
+// harness variable keeps its spelling from before the harness was renamed
+// le-test, read only when the current one is unset, as internal/test/harnessbin
+// does for its own variables.
+const (
+	l2tpScaleZeEnv             = "ZE_BINARY"
+	l2tpScaleHarnessEnv        = "LE_TEST_BINARY"
+	l2tpScaleRetiredHarnessEnv = "ZE_TEST_BINARY"
+)
+
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "le.test.binary", Type: "string", Description: "le-test harness binary the L2TP scale runner uses when bin/le-test is absent", Private: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.binary", Type: "string", Deprecated: l2tpScaleHarnessEnv, Description: "Retired spelling of le.test.binary, read when le.test.binary is unset", Private: true})
+)
+
 // l2tpScaleRunOptions selects one exact scenario. An empty selection runs the registry.
 type l2tpScaleRunOptions struct {
 	Scenario string
 }
 
-// L2TPScaleResult is the exact JSON contract emitted by ze-test l2tp-scale.
+// L2TPScaleResult is the exact JSON contract emitted by le-test l2tp-scale.
 type L2TPScaleResult struct {
 	TunnelsRequested  int           `json:"tunnels-requested"`
 	TunnelsUp         int           `json:"tunnels-up"`
@@ -82,10 +99,22 @@ type l2tpScaleReport struct {
 	Failed    int                       `json:"failed"`
 	Code      int                       `json:"code"`
 	Failure   string                    `json:"failure,omitempty"`
+	// Warnings carries the run's deprecation lines, such as a harness binary
+	// located through a retired variable spelling.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
-// Text preserves the former runner's summary contract.
+// Text answers one line for each warning, then the former runner's summary.
 func (r l2tpScaleReport) Text() string {
+	var tb textbuf.Buffer
+	for _, warning := range r.Warnings {
+		tb.Str("warning: ").Str(warning).Byte('\n')
+	}
+	return tb.Str(r.summary()).String()
+}
+
+// summary preserves the former runner's summary contract.
+func (r l2tpScaleReport) summary() string {
 	if r.Failure != "" {
 		return r.Failure
 	}
@@ -181,12 +210,19 @@ func runL2TPScaleAt(
 		return report, report.Code
 	}
 
-	zeBinary := findL2TPScaleBinary(system, root, "ze")
-	zeTestBinary := findL2TPScaleBinary(system, root, "ze-test")
+	zeBinary := findL2TPScaleBinary(system, root, "ze", l2tpScaleZeEnv)
+	zeTestBinary := findL2TPScaleBinary(system, root, harnessbin.Name, l2tpScaleHarnessEnv)
+	if zeTestBinary == "" {
+		zeTestBinary = l2tpScaleBinaryFromEnv(system, l2tpScaleRetiredHarnessEnv)
+		if zeTestBinary != "" {
+			report.Warnings = append(report.Warnings,
+				l2tpScaleRetiredHarnessEnv+" is deprecated: set "+l2tpScaleHarnessEnv)
+		}
+	}
 	if zeBinary == "" || zeTestBinary == "" {
 		missing := "ze"
 		if zeBinary != "" {
-			missing = "ze-test"
+			missing = harnessbin.Name
 		}
 		report.Failure = "bin/" + missing + " not found"
 		report.Code = 1
@@ -208,17 +244,27 @@ func runL2TPScaleAt(
 	return report, report.Code
 }
 
-func findL2TPScaleBinary(system l2tpScaleSystem, root, name string) string {
+// findL2TPScaleBinary answers bin/<name> under root, else the existing file the
+// environment variable envName names, else "".
+func findL2TPScaleBinary(system l2tpScaleSystem, root, name, envName string) string {
 	path := filepath.Join(root, "bin", name)
 	if system.FileExists(path) {
 		return path
 	}
-	envName := strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_BINARY"
-	path = system.Getenv(envName)
-	if path != "" && system.FileExists(path) {
-		return path
+	return l2tpScaleBinaryFromEnv(system, envName)
+}
+
+// l2tpScaleBinaryFromEnv answers the file envName names when that file exists,
+// else "".
+func l2tpScaleBinaryFromEnv(system l2tpScaleSystem, envName string) string {
+	path := system.Getenv(envName)
+	if path == "" {
+		return ""
 	}
-	return ""
+	if !system.FileExists(path) {
+		return ""
+	}
+	return path
 }
 
 func runL2TPScaleScenario(
@@ -283,11 +329,11 @@ func runL2TPScaleScenario(
 	report.ResultBytes = command.stdout
 	report.ErrorBytes = command.stderr
 	if runErr != nil {
-		report.Failure = "run ze-test l2tp-scale: " + runErr.Error()
+		report.Failure = "run le-test l2tp-scale: " + runErr.Error()
 		return report
 	}
 	if len(bytes.TrimSpace(command.stdout)) == 0 {
-		report.Failure = "no result from ze-test l2tp-scale"
+		report.Failure = "no result from le-test l2tp-scale"
 		return report
 	}
 	var result L2TPScaleResult

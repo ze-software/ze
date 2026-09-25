@@ -163,5 +163,6 @@ with fresh results:
 # Regenerate this document from existing results
 ./le perf report --doc test/perf/results/*.json > docs/performance.md
 ```
+
 Requires Docker (Colima on macOS). See [Benchmarking Guide](guide/benchmarking.md)
 for details on environment variables (`DUT_ROUTES`, `DUT_REPEAT`, `PPROF`, etc.).

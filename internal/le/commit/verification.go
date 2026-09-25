@@ -21,7 +21,7 @@ type VerificationState struct {
 	Commit    string `json:"commit,omitempty"`
 }
 
-const trackedBuildStage = "repo tracked-build/check"
+const compilesStage = "repo compiles/check"
 
 // structuralStages answers which recorded reds mean the tree is broken.
 //

@@ -412,13 +412,13 @@ the rows it judged in its own log. Rerun one piece, or the whole matrix:
 ```
 
 The matrix checks package and test variants in the working tree.
-`./le repo tracked-build check` remains the committed-tree final-link check for shipped
+`./le repo compiles check` remains the committed-tree final-link check for shipped
 build flavors.
 
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repo tracked-build check` (`internal/le/repo/trackedbuild.Answer`) is the
+included. `./le repo compiles check` (`internal/le/repo/compiles.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -427,11 +427,11 @@ producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:
 
 ```sh
-./le repo tracked-build check
-REV=7abe8a07e ./le repo tracked-build check
+./le repo compiles check
+REV=7abe8a07e ./le repo compiles check
 ```
 
-The action builds every flavor in `internal/le/repo/trackedbuild/matrix.go` over
+The action builds every flavor in `internal/le/repo/compiles/matrix.go` over
 `./...`. Each row pins its tags, operating system where required, and a
 tag-gated anchor file that proves the flavor selected code. Naming the package
 alone is insufficient because `go build ./...` can skip every constrained file
@@ -546,6 +546,6 @@ Reproducing a load-dependent flake is
 | List functional tests | `./le job run label encode-list command bin/le-test bgp encode --list` |
 | Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le test fuzz run` |
 | Run all fuzz targets | `./le test fuzz run` |
-| Check the commit compiles | `./le repo tracked-build check` |
+| Check the commit compiles | `./le repo compiles check` |
 | Check web behavior | `./le test functional web` |
 | Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo generate` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |

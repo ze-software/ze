@@ -45,11 +45,9 @@ type Suite struct {
 	// Warm compiles packages that this suite's .ci commands build inside
 	// their own deadlines before the suite starts.
 	Warm bool
-	// Chaos says this suite starts the chaos dashboard, so the isolated set it
-	// runs against needs a second compile of cmd/ze beside the ze binary.
-	Chaos bool
 	// LE says this suite drives the native le binary, so the isolated set it
 	// runs against needs a compile of the le personality beside the ze binary.
+	// The web suite is one: it starts the chaos dashboard as `le chaos run`.
 	// A checkout holds no bin/le of its own: .gitignore excludes bin/, and the
 	// ./le launcher writes one only for the tree a developer types it in.
 	LE bool
@@ -211,7 +209,7 @@ var Suites = []Suite{
 	{Name: suiteOspf, Args: []string{"ospf", allTests}, Warm: true, Why: "OSPF config and doctor"},
 	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Warm: true, Why: "OSPFv3 config and doctor"},
 	{
-		Name: suiteWeb, Args: []string{"web", allTests}, Chaos: true,
+		Name: suiteWeb, Args: []string{"web", allTests}, LE: true,
 		Why: "the web UI; the only suite that starts the chaos dashboard (option=server:kind=chaos)",
 	},
 	{Name: suiteInstall, Args: []string{"install", allTests}, Why: "installer, PXE, kernel config"},

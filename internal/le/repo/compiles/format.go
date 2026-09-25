@@ -4,7 +4,7 @@
 // else. They are here rather than inline because both are right-aligned in a
 // fixed column, and a column that shifts by a character makes six rows unreadable.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"strconv"

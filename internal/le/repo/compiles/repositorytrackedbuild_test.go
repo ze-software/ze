@@ -5,7 +5,7 @@
 // over a pattern that matched nothing buildable, so a flavor that compiled zero
 // packages would report success.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"context"
@@ -191,7 +191,7 @@ func TestABadOptionIsRefused(t *testing.T) {
 // on.
 func TestBothAnswersAreStructuredData(t *testing.T) {
 	raw, err := json.Marshal(Report{
-		Rev: "HEAD", Commit: "abc", Tree: "scratch/tracked-build/1", Features: []string{"ze_web"},
+		Rev: "HEAD", Commit: "abc", Tree: "scratch/compiles/1", Features: []string{"ze_web"},
 		PackageFloor: DefaultPackageFloor, OK: true,
 		Results: []Result{{Name: "distro", Tags: "ze_core", Anchor: "./cmd/ze", Packages: 672, OK: true, Seconds: 1.5}},
 	})
@@ -225,10 +225,10 @@ func TestThePageAndTheDiagnosisStayApart(t *testing.T) {
 	clean := Report{Rev: "HEAD", Commit: "abcdef0123456789", PackageFloor: DefaultPackageFloor, OK: true,
 		Results: []Result{{Name: "distro", Tags: "ze_core", Packages: 672, OK: true, Seconds: 10.9}}}
 	page := clean.Text()
-	if !strings.Contains(page, "tracked-build: HEAD (abcdef012345), 0 feature tags, ./...") {
+	if !strings.Contains(page, "compiles: HEAD (abcdef012345), 0 feature tags, ./...") {
 		t.Errorf("the clean page does not carry its commit line:\n%s", page)
 	}
-	if !strings.Contains(page, "tracked-build: OK (every flavor of the committed tree compiles)") {
+	if !strings.Contains(page, "compiles: OK (every flavor of the committed tree compiles)") {
 		t.Errorf("the clean page does not carry its verdict:\n%s", page)
 	}
 	if clean.Diagnosis() != "" {
@@ -342,7 +342,7 @@ func TestTheScratchTreeUsesTheNativeSessionPathAndIsEmptied(t *testing.T) {
 	want := filepath.Join(
 		root,
 		"tmp", "session", time.Now().Format("2006-01-02")+"-tracked-fixture",
-		"scratch", "tracked-build", strconv.Itoa(os.Getpid()),
+		"scratch", "compiles", strconv.Itoa(os.Getpid()),
 	)
 	if dir != want {
 		t.Fatalf("scratchTree = %q, want native path %q", dir, want)

@@ -241,7 +241,7 @@ func TestEveryLedgerGateNameIsDeclared(t *testing.T) {
 // same lookup a verification uses, debtGateAt, over the literal row text.
 //
 // The command was renamed from `le repository tracked-build` to `le repo
-// tracked-build`. The ledger rows are history and keep the old name, so a
+// compiles`. The ledger rows are history and keep the old name, so a
 // rewrite that follows the rename into the alias list strands those rows as
 // unrecognized, and a green verification then never clears them.
 func TestHistoricalTrackedBuildSpellingIsDeclared(t *testing.T) {

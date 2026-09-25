@@ -4,7 +4,7 @@
 // The table is the only part of the gate that is a judgement about which
 // combinations matter, so it is stated apart from the machinery that runs it.
 
-package repotrackedbuild
+package repocompiles
 
 // Flavor is one build flavor of the module. Each is built over `./...`, not
 // over its own main package alone: measured on 2026-08-04, `./...` costs about

@@ -177,9 +177,6 @@ func covering() bool { return env.Get("ze.cover") != "" }
 // the suite table by ExtrasFor. A suite that drives neither binary pays for
 // neither compile.
 type Extras struct {
-	// Chaos says a suite starts the chaos dashboard, so the set needs
-	// ze-chaos beside ze.
-	Chaos bool
 	// LE says a suite drives the native le binary, so the set needs le
 	// beside ze. Its fixtures execute it by bare name off the child PATH
 	// (nativeLEBinary, internal/test/fixture/fixture.go).
@@ -196,9 +193,6 @@ type Extras struct {
 func ExtrasFor(suites ...Suite) Extras {
 	var extras Extras
 	for _, suite := range suites {
-		if suite.Chaos {
-			extras.Chaos = true
-		}
 		if suite.LE {
 			extras.LE = true
 		}
@@ -211,13 +205,14 @@ func ExtrasFor(suites ...Suite) Extras {
 // The DUT build mirrors runner.TestBuildTags (internal/test/runner/runner.go).
 // It includes the zetest plugins, full command surface, and default feature gates.
 // It omits version ldflags so `ze show version` prints "ze dev"
-// (test/parse/cli-version-show.ci). The stripped and chaos builds use the native
-// tag sets declared here. The chaos dashboard sits beside the ze binary where
-// cmd_web.go expects it.
+// (test/parse/cli-version-show.ci). The stripped build uses the native tag set
+// declared here.
 //
 // The le build carries the personality tag and tc.Features, which is every
 // gate repofeaturetags.DaemonTags read out of the manifest, so the binary a
-// fixture drives holds the same feature set as the one ./le builds.
+// fixture drives holds the same feature set as the one ./le builds. It sits
+// beside the ze binary, where cmd_web.go looks for the `le chaos run` that
+// serves the chaos dashboard.
 func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][]string {
 	cover := []string{}
 	if covering() {
@@ -236,9 +231,6 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][
 		build(cover, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
 		// NOT instrumented: le-test is the harness, not the subject.
 		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), LETest),
-	}
-	if extras.Chaos {
-		commands = append(commands, build(nil, tagString(tc, "ze_chaos", "ze_bgp"), "ze-chaos"))
 	}
 	if extras.LE {
 		commands = append(commands, build(nil,
@@ -316,7 +308,7 @@ func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, 
 
 	var tb textbuf.Buffer
 	// The names are not written out here. The list said ze, le-test and
-	// ze-stripped while a chaos run compiled a fourth binary, and each command
+	// ze-stripped while a run that drives le compiled a fourth binary, and each command
 	// prints itself as it starts (gaterun.Stream).
 	gaterun.Note(tb.Str("Building the isolated test binaries in ").Str(binaries).
 		Str("/...").String())

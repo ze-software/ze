@@ -60,7 +60,7 @@ shared renderer rather than add a private JSON mode.
 **The package sits at the path its command name predicts.** A space in the name
 is a directory level, and a hyphen inside a level joins words naming one thing:
 `le spec journal` lives at `internal/le/spec/journal`, and
-`le repo tracked-build` at `internal/le/repo/trackedbuild`. The rule
+`le repo compiles` at `internal/le/repo/compiles`. The rule
 holds in both directions, and
 `TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
 reader who knows the command knows the directory. A package that registers

@@ -66,7 +66,7 @@ func TestShellArgvDispatch(t *testing.T) {
 		{"ash triggers login", "ash", true},
 		{"sh triggers login", "sh", true},
 		{"ze does not trigger", "ze", false},
-		{"ze-test does not trigger", "ze-test", false},
+		{"le-test does not trigger", "le-test", false},
 		{"empty does not trigger", "", false},
 		{"bash does not trigger", "bash", false},
 	}

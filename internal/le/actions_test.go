@@ -48,7 +48,7 @@ var areasWithoutAnActionTable = []string{
 	"go extract",
 	"job",
 	"repo inventory",
-	"repo tracked-le",
+	"repo bootstraps",
 	"repo working-tree",
 	"spec citation",
 	"spec claim",

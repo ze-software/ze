@@ -391,9 +391,9 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the toolchain: %v", err)
 	}
-	commands := buildCommands(tc, filepath.Join("out", "bin"), Extras{Chaos: true})
+	commands := buildCommands(tc, filepath.Join("out", "bin"), Extras{LE: true})
 	if len(commands) != 4 {
-		t.Fatalf("a chaos build needs 4 commands, got %d", len(commands))
+		t.Fatalf("a build with the le personality needs 4 commands, got %d", len(commands))
 	}
 	if len(buildCommands(tc, filepath.Join("out", "bin"), Extras{})) != 3 {
 		t.Error("a build with no extra binaries still compiled more than three")
@@ -465,11 +465,13 @@ func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
 	}
 }
 
-func TestWebSessionBuildsChaosForBareAndAliasVerbs(t *testing.T) {
+// TestWebSessionBuildsLEForBareAndAliasVerbs pins that the web suite asks for
+// the le personality, which serves its chaos dashboard as `le chaos run`.
+func TestWebSessionBuildsLEForBareAndAliasVerbs(t *testing.T) {
 	for _, verb := range []string{"web", "web-test"} {
 		current := newSession([]string{verb})
-		if !current.extras.Chaos {
-			t.Errorf("%q did not request the chaos dashboard binary", verb)
+		if !current.extras.LE {
+			t.Errorf("%q did not request the le binary that serves the chaos dashboard", verb)
 		}
 		if current.label != suiteWeb {
 			t.Errorf("%q label = %q, want %q", verb, current.label, suiteWeb)

@@ -6,7 +6,7 @@
 // is charged to EVERY commit in the checkout (internal/le/commit/verification.go,
 // structuralGateReds), so a consumer committed without its producer refuses
 // every other session's commit rather than the one that broke the tree.
-package repotrackedbuild
+package repocompiles
 
 import (
 	"encoding/json"

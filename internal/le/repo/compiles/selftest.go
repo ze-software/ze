@@ -8,11 +8,11 @@
 // is deleted from Build's switch, which is exactly the edit that would disarm
 // the gate.
 //
-// The table is declared ONCE and read twice: `le repo tracked-build
+// The table is declared ONCE and read twice: `le repo compiles
 // selftest` runs it, and the package test runs the same rows so a failure names
 // the case rather than a count.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"context"
@@ -266,7 +266,7 @@ func Selftest(root string) (leroot.SelftestReport, error) {
 	if err := os.MkdirAll(base, 0o750); err != nil {
 		return leroot.SelftestReport{}, err
 	}
-	dir, err := os.MkdirTemp(base, "tracked-build-selftest")
+	dir, err := os.MkdirTemp(base, "compiles-selftest")
 	if err != nil {
 		return leroot.SelftestReport{}, err
 	}
@@ -287,13 +287,13 @@ func Selftest(root string) (leroot.SelftestReport, error) {
 	}
 
 	return leroot.NewSelftestReport(
-		"tracked-build: selftest OK",
-		"tracked-build: SELFTEST FAILED:",
+		"compiles: selftest OK",
+		"compiles: SELFTEST FAILED:",
 		results...,
 	), nil
 }
 
-// runSelftest is the `le repo tracked-build selftest` action.
+// runSelftest is the `le repo compiles selftest` action.
 func runSelftest() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {

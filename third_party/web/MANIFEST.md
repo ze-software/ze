@@ -71,7 +71,7 @@ so both upgrade actions remain offline and deterministic.
 ```
 
 The consumer copies are generated files and they stay tracked in git. `//go:embed`
-reads them at compile time, and `./le repository-tracked-build check` compiles what git
+reads them at compile time, and `./le repo compiles check` compiles what git
 holds, so a build that runs no generator must find them.
 
 `./le web vendor check` is a stage of `./le verify current mode full` and a

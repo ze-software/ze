@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -327,17 +328,18 @@ type zeTestWebBinaries struct {
 	// running from the binary the run was built against, so resolving it any
 	// other way could pick up a different build.
 	zeTest string
-	// chaos serves the chaos dashboard. Empty when no selected test asks for
-	// it, because building it costs a minute that a web-only run should not
-	// pay. zeTestStartChaosServer refuses rather than starting nothing.
+	// chaos is the le personality, which serves the chaos dashboard as
+	// `le chaos run`. Empty when no selected test asks for it, because building
+	// it costs a minute that a web-only run should not pay.
+	// zeTestStartChaosServer refuses rather than starting nothing.
 	chaos string
 }
 
 // zeTestResolveWebBinaries resolves the programs the selected tests need.
 //
 // The chaos build is CONDITIONAL and the looking glass one is not: `ze` is
-// needed by every test, while `ze-chaos` is a second full compile of cmd/ze
-// under different tags. It is built only when a selected test names the chaos
+// needed by every test, while `le` is a second full compile of cmd/ze under
+// different tags. It is built only when a selected test names the chaos
 // server, so the common run is unchanged.
 func zeTestResolveWebBinaries(ctx context.Context, baseDir string, tests []*zeTestWebTest) (zeTestWebBinaries, error) {
 	var bins zeTestWebBinaries
@@ -381,37 +383,45 @@ func zeTestWantsChaos(tests []*zeTestWebTest) bool {
 	return false
 }
 
-// zeTestBuildChaos resolves ze-chaos BESIDE the ze binary this run uses.
+// zeTestBuildChaos resolves the le personality BESIDE the ze binary this run
+// uses. Its build carries every feature gate, as ./le's own build does
+// (repofeaturetags.DaemonBuildTags): without ze_bgp the BGP YANG modules are not
+// linked, and `le chaos run --in-process` stops at startup.
 //
 // Beside, rather than in a directory of its own: the functional flow builds an
 // isolated binary set into a throwaway directory and points ZE_BIN at it, while
 // a plain run uses this session's bin/. One rule reaches both, and it cannot
-// pick up a stale chaos binary from the other tree.
+// pick up a stale le binary from the other tree.
 //
 // The build is skipped under LE_TEST_NO_BUILD, the native functional flow's
 // promise that the caller built the isolated set already. A miss there is an
 // error rather than a build: building would defeat the isolation the flag gives.
 func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error) {
-	chaosPath := filepath.Join(filepath.Dir(zeBin), "ze-chaos")
+	chaosPath := filepath.Join(filepath.Dir(zeBin), "le")
 
 	if _, err := os.Stat(chaosPath); err == nil {
 		return chaosPath, nil
 	}
 
 	if harnessbin.NoBuild() {
-		if dir := sessionpath.FindPrebuiltDir(baseDir, "ze-chaos"); dir != "" {
-			return filepath.Join(dir, "ze-chaos"), nil
+		if dir := sessionpath.FindPrebuiltDir(baseDir, "le"); dir != "" {
+			return filepath.Join(dir, "le"), nil
 		}
 
 		return "", fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (unset LE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, packageZe) //nolint:gosec // paths from internal runner
+	leTags, err := repofeaturetags.DaemonBuildTags(baseDir, repofeaturetags.LEBase)
+	if err != nil {
+		return "", fmt.Errorf("le build tags: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", leTags, "-o", chaosPath, packageZe) //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("build ze-chaos: %w: %s", err, output)
+		return "", fmt.Errorf("build le: %w: %s", err, output)
 	}
 
 	return chaosPath, nil
@@ -585,12 +595,16 @@ func zeTestStartLGNoEngineServer(ctx context.Context, bins zeTestWebBinaries, li
 
 // zeTestStartChaosServer starts the chaos dashboard.
 //
-// The run duration outlives any .wb budget on purpose: ze-chaos stops itself
+// The dashboard is `le chaos run --in-process`. In-process mode forks no ze
+// daemon, so the orchestrator never resolves one through --binary or PATH
+// (internal/chaos/orchestrator/cli.go): the le build carries the daemon itself.
+//
+// The run duration outlives any .wb budget on purpose: the chaos run stops itself
 // when its run ends, and a dashboard that exited mid-test would fail the
 // assertions with an empty page instead of a verdict. srv.stop() ends this one.
 func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenAddr string, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
 	if bins.chaos == "" {
-		return nil, errors.New("no ze-chaos binary was built for this run")
+		return nil, errors.New("no le binary was built for this run's chaos dashboard")
 	}
 
 	_, portStr, _ := net.SplitHostPort(listenAddr)
@@ -598,7 +612,7 @@ func zeTestStartChaosServer(ctx context.Context, bins zeTestWebBinaries, listenA
 	var tb textbuf.Buffer
 
 	cmd := exec.CommandContext(ctx, bins.chaos, //nolint:gosec // test binary path
-		"--in-process", "--web", tb.Byte(':').Str(portStr).String(),
+		"chaos", "run", "--in-process", "--web", tb.Byte(':').Str(portStr).String(),
 		"--duration", "10m", "--peers", "6", "--seed", "42", "--routes", "20", "--quiet")
 	cmd.Env = zeTestEnv(envVars)
 

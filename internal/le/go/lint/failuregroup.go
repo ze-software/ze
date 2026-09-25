@@ -1,6 +1,6 @@
 // Related: verifylint.go -- streamCommand, the child whose output is scanned
 // Related: ../failuregroup/failuregroup.go -- Paths and Declare, shared with the
-// tracked-build stage
+// repo compiles stage
 //
 // A lint red must say WHICH files its findings were about, or the commit gate
 // charges it to every commit in the checkout (../../commit/verification.go,

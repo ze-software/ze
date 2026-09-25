@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/tracked-build-gate.md -- checks whether le works from what GIT holds
 //
-// Package repotrackedle checks whether `le` still works when built from the commit
+// Package repobootstraps checks whether `le` still works when built from the commit
 // instead of the working tree.
 //
 // THE FAILURE THAT CAUSED THIS CHECK OCCURRED. On 2026-08-25, a clean archive
@@ -14,8 +14,8 @@
 //
 // WHAT A COMPILED le CHANGES. A Go `le` cannot have this import failure. A
 // caller committed without its callee does not compile. In addition,
-// ze-repository-tracked-build-check already compiles the complete committed tree
-// in every shipped flavor (internal/le/repositorytrackedbuild). Thus, the exact Python
+// `le repo compiles` already compiles the complete committed tree
+// in every shipped flavor (internal/le/repo/compiles). Thus, the exact Python
 // failure cannot occur, but two other failures can occur:
 //
 //   - A tool package is committed and registers a command, but
@@ -26,7 +26,7 @@
 // This gate builds the cmd/ze le personality from the commit, runs it, and
 // compares the composition imports, registering packages, and help inventory.
 
-package repotrackedle
+package repobootstraps
 
 import (
 	"bytes"

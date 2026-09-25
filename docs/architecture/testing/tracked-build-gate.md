@@ -1,14 +1,14 @@
 # The Tracked-Build Gate
 
-`./le repo tracked-build check` compiles what git holds. Every other build and
+`./le repo compiles check` compiles what git holds. Every other build and
 test target in this repository compiles the WORKING TREE, so a commit that
 lands a consumer while its producer stays uncommitted passes every gate and
 breaks HEAD for everyone else.
 
-<!-- source: internal/le/repo/trackedbuild/actions.go -- Answer -->
+<!-- source: internal/le/repo/compiles/actions.go -- Answer -->
 
 On 2026-08-04 four commits broke the retired tracked-build path in one day.
-The current replacement, `./le repo tracked-build check`, compiles the
+The current replacement, `./le repo compiles check`, compiles the
 committed population and catches that class.
 
 ## Structural type checking and final linking
@@ -58,7 +58,7 @@ fills that cache, so its trim walks a bounded population.
 <!-- source: internal/le/go/staticcheck/judge.go -- CacheDir -->
 
 Staticcheck stops after package and test-variant type checking.
-`./le repo tracked-build check` supplies committed-tree final-link proof for
+`./le repo compiles check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both
 stages live because they judge different populations and compiler boundaries.
 
@@ -134,10 +134,10 @@ four earlier rounds did not.
 - `_test.go` files are outside the gate forever, because `go build` never
   compiles them. A test file committed without its fixture producer stays
   invisible here.
-- Adding a binary flavor outside `internal/le/repo/trackedbuild/matrix.go` does not
+- Adding a binary flavor outside `internal/le/repo/compiles/matrix.go` does not
   extend the gate. `TestEveryFlavorNamesATagGatedAnchorFile` requires each
   shipped row to name the tag-gated file it exists to compile.
-- `REV=<commit-ish> ./le repo tracked-build check` judges a past commit,
+- `REV=<commit-ish> ./le repo compiles check` judges a past commit,
   so a break found later remains bisectable.
 
 ## Two shell and tooling traps

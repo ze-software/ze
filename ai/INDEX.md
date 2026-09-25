@@ -259,7 +259,7 @@ Reach for one of these before inventing a new mechanism.
 | Command inventory | `./le cli list` |
 | Spec progress | `./le spec status` |
 | Generated plugin imports | `./le plugin imports check` |
-| Whether the tree git holds compiles | `./le repo tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
+| Whether the tree git holds compiles | `./le repo compiles check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
 Each of these answers with structured data, so `| json`, `| yaml` and `| table`
@@ -355,8 +355,8 @@ disagree, the manifest is right and the row is stale.
 | `./le repo inventory` | `internal/le/repo/inventory.Answer` | what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes |
 | `./le repo package-map` | `internal/le/repo/packagemap.Answer` | the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree |
 | `./le repo rewrite` | `internal/le/repo/rewrite.Answer` | deterministic repository rewrites: rules, BGP expectations, replacements, and activity HTML |
-| `./le repo tracked-build` | `internal/le/repo/trackedbuild.Answer` | the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit |
-| `./le repo tracked-le` | `internal/le/repo/trackedle.Answer` | does le still work when built from what git holds, rather than from the working tree |
+| `./le repo compiles` | `internal/le/repo/compiles.Answer` | the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit |
+| `./le repo bootstraps` | `internal/le/repo/bootstraps.Answer` | does le still work when built from what git holds, rather than from the working tree |
 | `./le repo working-tree` | `internal/le/repo/workingtree.Answer` | how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling |
 | `./le repo` | `internal/le/repo.Answer` | the post-verify repository checks: source anchors resolve, exported symbols have a cross-package caller, CLI commands have a .ci test, an in-progress spec's acceptance criteria say how they are demonstrated, and every 32-bit text-to-integer parse is on the allowlist that keeps AS numbers going through `asn.Parse` (`internal/le/repo/numberparse-allowlist.txt`) |
 | `./le rfc` | `internal/le/rfc.Answer` | RFC conformance: bind every MUST-level requirement of an enrolled RFC to the tests that enforce it, prove each binding with a recorded break under which the tagged test goes red, and bound what the summaries missed |

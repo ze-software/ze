@@ -289,7 +289,7 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 	if result.Verify.State != verifyFresh {
 		reds := structuralGateReds(root, all)
 		charged := append([]string(nil), reds.Charged...)
-		if len(charged) == 1 && charged[0] == trackedBuildStage &&
+		if len(charged) == 1 && charged[0] == compilesStage &&
 			strings.TrimSpace(options.BrokenHeadFix) != "" {
 			charged = nil
 		}
@@ -301,7 +301,7 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 			}
 			return nil, "", fmt.Errorf(
 				"deterministic structural gate(s) are red for this commit: %s%s\n"+
-					"  fix the producer, use broken-head-fix for the sole tracked-build red, "+
+					"  fix the producer, use broken-head-fix for the sole compiles red, "+
 					"or name structural-red-ok with a truthful reason",
 				strings.Join(charged, ", "), detail,
 			)

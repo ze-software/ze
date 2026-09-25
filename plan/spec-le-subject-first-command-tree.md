@@ -93,8 +93,8 @@ That is 27 commands.
 | `platform-vet` | `go vet-platforms` | `go/vetplatforms` |
 | `staticcheck-feature-matrix` | `go staticcheck` | `go/staticcheck` |
 | `repository` | `repo` | `repo` (verbs check, tree-check, generate, generated-check unchanged) |
-| `repository tracked-build` | `repo tracked-build` | `repo/trackedbuild` |
-| `tracked` | `repo tracked-le` | `repo/trackedle` |
+| `repository tracked-build` | `repo compiles` | `repo/compiles` |
+| `tracked` | `repo bootstraps` | `repo/bootstraps` |
 | `changed` | `repo changed` | `repo/changed` |
 | `working-tree` | `repo working-tree` | `repo/workingtree` |
 | `inventory` | `repo inventory` | `repo/inventory` |

@@ -355,7 +355,7 @@ and name, plus periodic progress while tests are still running.
 | Firewall | `le-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `le-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
 | IPsec | `le-test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. Two of them read Ze's own kernel read-back surface: `ipsec-show-dataplane-kernel` asserts that `show vpn ipsec dataplane sa` names the ESP transform and the addresses the test configured, and stops naming them after `clear vpn ipsec sa`, which is a transition rather than a state; `ipsec-show-sa-counters` asserts that `show vpn ipsec sa` reports `counters-known` true and NUMERIC byte counters, where 0 is the kernel's true count for a tunnel no packet crossed and null is the failure it discriminates. `ipsec-dataplane-show` is their unprivileged sibling: under the noop backend every dump reports that the backend cannot enumerate, which is reachability evidence and never kernel evidence. |
-| Web | `le-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le-test lg`), or the chaos dashboard (`ze-chaos`). |
+| Web | `le-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le-test lg`), or the chaos dashboard (`le chaos run`). |
 | Install | `le-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `le-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `le-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
@@ -930,11 +930,12 @@ session-owned temporary `bin/` directory. It sets the binary paths before the
 suite starts, freezes that set for the run, and removes it afterward. Editing
 or rebuilding `bin/ze` cannot change a suite already in flight.
 
-Two suites name a fourth binary in the suite table, and the run then compiles
-it into the same directory: the `web` suite starts the chaos dashboard
-(`ze-chaos`), and the `ui` and `runner` suites drive the native `le` binary
-(`le`, built with `ze_le` and every gate `feature-gates.txt` declares). A suite
-that names no extra binary pays for no extra compile.
+Three suites name a fourth binary in the suite table, and the run then compiles
+it into the same directory: the native `le` binary (`le`, built with `ze_le`
+and every gate `feature-gates.txt` declares). The `ui` and `runner` suites drive
+it, and the `web` suite starts the chaos dashboard with it as
+`le chaos run --in-process`. A suite that names no extra binary pays for no
+extra compile.
 
 The binaries must live below a directory named `bin` or `sbin`, because Ze
 derives its config and database directory from its executable path. The runner

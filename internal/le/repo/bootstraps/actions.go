@@ -2,17 +2,17 @@
 //
 // actions.go contains the port of the Python area. The area has ONE action.
 // Therefore, the command uses a root handler instead of an leaction table.
-// `le repo tracked-le` judges the commit and does not take a verb.
+// `le repo bootstraps` judges the commit and does not take a verb.
 //
 // THE REVISION COMES FROM THE ENVIRONMENT. It is not a value typed after the
 // command. The tree is the checkout. The rendering is a pipe operator. Thus, no
 // le command takes a value of its own (ai/rules/cli.md). The key belongs to le.
 //
-// It is not the bare REV that internal/le/repositorytrackedbuild already owns. By default, the
+// It is not the bare REV that internal/le/repo/compiles already owns. By default, the
 // two gates judge the same commit. A caller that names one for the build gate
 // has not requested it here.
 
-package repotrackedle
+package repobootstraps
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 )
 
 // area is the name this command is typed as.
-const area = "repo tracked-le"
+const area = "repo bootstraps"
 
 // RevKey names the commit this gate judges.
 const RevKey = "ze.le.tracked.rev"
@@ -39,7 +39,7 @@ var revEntry = env.MustRegister(env.EnvEntry{
 	Private: true,
 })
 
-// Answer implements the `le repo tracked-le` command.
+// Answer implements the `le repo bootstraps` command.
 //
 // The three codes have separate meanings, as they did in the script. Code 0
 // means le works for the commit. Code 1 means it does not work. Code 2 means the

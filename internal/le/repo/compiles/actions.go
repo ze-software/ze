@@ -5,7 +5,7 @@
 // TABLE, because the table is the only part of an area that is about compiling
 // the tree git holds.
 
-package repotrackedbuild
+package repocompiles
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 // area is the name this command is typed as, and the prefix leaction removes
 // from each gate name to derive its verb.
-const area = "repo tracked-build"
+const area = "repo compiles"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
@@ -43,13 +43,13 @@ func Actions() leaction.List { return actions.Actions() }
 // Subs is the one-line hint help renders under the command.
 func Subs() string { return actions.Subs() }
 
-// Answer is the `le repo tracked-build` command.
+// Answer is the `le repo compiles` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// runMatrix is the `le repo tracked-build matrix` action.
+// runMatrix is the `le repo compiles matrix` action.
 func runMatrix() (any, int) { return buildMatrix, 0 }
 
-// runCheck is the `le repo tracked-build check` action.
+// runCheck is the `le repo compiles check` action.
 //
 // The three codes stay apart: 0 for a commit that compiles, 1 for one that does
 // not, and 2 for a run that could not judge it. A killed build and a broken
