@@ -5,7 +5,7 @@
       "rid": "RFC8955-4-3",
       "polarity": "positive",
       "unit": "test/encode/flow-encode.ci",
-      "unit-sha": "c67857d08788c87f",
+      "unit-sha": "a0315c9992b4a0e5",
       "claim-sha": "50a1b4d264e7337a",
       "route": "revert",
       "producer": "internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin",
