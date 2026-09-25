@@ -94,7 +94,7 @@ func (b *Browser) waitLoad() error {
 	if ensureInitScript() == "" {
 		return b.runAgent("wait", "--load", "networkidle")
 	}
-	deadline := time.Now().Add(waitLoadDeadline)
+	deadline := time.Now().Add(contended(waitLoadDeadline))
 	for {
 		out, err := b.runAgentOutput("eval", inflightIdleExpr)
 		if err == nil && strings.TrimSpace(out) == "true" {
@@ -457,11 +457,17 @@ func (b *Browser) getHeadHTML() (string, error) {
 
 // Close closes the browser session. When the browser is bound to a session,
 // only that session is closed. Without a session, all sessions are closed.
+//
+// Close goes through runAgentEnsureDaemon like every other command. A close
+// sent with --ignore-https-errors to the daemon this browser started printed
+// "--ignore-https-errors ignored: daemon already running" once per test. That
+// warning is about this browser's own daemon, and it read as a shared daemon
+// that had lost the option.
 func (b *Browser) Close() {
 	if b.session != "" {
-		_ = b.runAgentWithHTTPSIgnore("close")
+		_ = b.runAgentEnsureDaemon("close")
 	} else {
-		_ = b.runAgentWithHTTPSIgnore("close", "--all")
+		_ = b.runAgentEnsureDaemon("close", "--all")
 	}
 	b.daemonStarted = false
 }
@@ -490,6 +496,24 @@ const agentBrowserBin = "agent-browser"
 // agentTimeout is the default timeout for agent-browser commands.
 var agentTimeout = 30 * time.Second
 
+// contended widens one browser-side bound by the verification headroom.
+//
+// The full verification run starts every gating suite at once, and the web
+// suite shares the CPU with them. The first browser launch of a run then
+// measured past 30s: three tests of one run were killed on their first `open`
+// at the same instant, and a form save outlasted waitLoad's 5s, so the next
+// navigation read a half-applied change. The file budget and the server
+// readiness wait (zeTestReadyTimeout) already take this headroom. Every inner
+// bound takes it through here, so no bound expires before the budget that
+// holds it. A standalone run keeps the tight values and reports a real hang
+// quickly.
+func contended(bound time.Duration) time.Duration {
+	if runner.VerifyModeEnabled() {
+		return bound * runner.ParallelTimeoutHeadroom
+	}
+	return bound
+}
+
 func (b *Browser) runAgent(args ...string) error {
 	return b.runAgentCore(nil, args...)
 }
@@ -499,7 +523,7 @@ func (b *Browser) runAgentWithHTTPSIgnore(args ...string) error {
 }
 
 func (b *Browser) runAgentCore(globalArgs []string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), agentTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), contended(agentTimeout))
 	defer cancel()
 
 	if len(globalArgs) > 0 {
@@ -512,7 +536,7 @@ func (b *Browser) runAgentCore(globalArgs []string, args ...string) error {
 }
 
 func (b *Browser) runAgentOutput(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), agentTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), contended(agentTimeout))
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
@@ -708,9 +732,7 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	if budget <= 0 {
 		budget = defaultWBTimeout
 	}
-	if runner.VerifyModeEnabled() {
-		budget *= runner.ParallelTimeoutHeadroom
-	}
+	budget = contended(budget)
 	deadline := time.Now().Add(budget)
 
 	for i, step := range tc.Steps {
@@ -775,7 +797,7 @@ const (
 // JavaScript render can land after waitLoad reports network idle. Retrying turns
 // that race into a bounded wait. A wrong page still fails after the deadline.
 func checkExpectationRetry(b *Browser, e *WBExpectation) error {
-	deadline := time.Now().Add(expectRetryDeadline)
+	deadline := time.Now().Add(contended(expectRetryDeadline))
 	for {
 		err := checkExpectation(b, e)
 		if err == nil {

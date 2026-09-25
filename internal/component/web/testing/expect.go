@@ -57,7 +57,7 @@ func retryPositive(check func() error) error {
 // element that is not there was not clicked. A command that acted and THEN
 // reported an error would be re-run, which is the accepted residual.
 func retryCommand(run func() error) error {
-	deadline := time.Now().Add(expectDeadline)
+	deadline := time.Now().Add(contended(expectDeadline))
 	for {
 		err := run()
 		if err == nil {
@@ -78,7 +78,7 @@ func retryCommand(run func() error) error {
 // page. Negatives cannot use retryPositive because that can hide a real failure.
 // They can require a usable answer before they judge it.
 func retryFetch(fetch func() (string, error)) (string, error) {
-	deadline := time.Now().Add(expectDeadline)
+	deadline := time.Now().Add(contended(expectDeadline))
 	for {
 		out, err := fetch()
 		if err == nil {

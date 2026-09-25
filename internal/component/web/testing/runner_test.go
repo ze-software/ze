@@ -77,7 +77,9 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	assertAgentCommands(t, logPath, []string{
 		"--ignore-https-errors open https://127.0.0.1:1234/first",
 		"eval " + inflightIdleExpr,
-		"--ignore-https-errors close --all",
+		// The close reaches the daemon this browser started, so it carries no
+		// launch option: the option would only draw the "ignored" warning.
+		"close --all",
 		"--ignore-https-errors open https://127.0.0.1:1234/second",
 		"eval " + inflightIdleExpr,
 	})

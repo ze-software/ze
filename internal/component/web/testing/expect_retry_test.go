@@ -53,8 +53,8 @@ func TestRetryPositiveReturnsLastError(t *testing.T) {
 	if calls < 2 {
 		t.Fatalf("check called %d times, want it retried at least once", calls)
 	}
-	if elapsed < expectDeadline {
-		t.Fatalf("gave up after %s, want it to poll for the full %s", elapsed, expectDeadline)
+	if elapsed < contended(expectDeadline) {
+		t.Fatalf("gave up after %s, want it to poll for the full %s", elapsed, contended(expectDeadline))
 	}
 }
 

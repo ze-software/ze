@@ -155,7 +155,7 @@ Unknown directives or kinds fail parsing immediately.
 
 | Option | Effect |
 |--------|--------|
-| `option=timeout:value=<dur>` | The test's wall-clock budget, default 30s. `runWBTestCase` checks it before each step, so a test is bounded at its budget plus one step. Each step is bounded by `agentTimeout` (30s per `agent-browser` command) or `expectDeadline` (15s per retried assertion or `wait-until`). A value the runner cannot read is a parse error, never a fall back to the default. A budget nothing can enforce must not leave the file looking bounded |
+| `option=timeout:value=<dur>` | The test's wall-clock budget, default 30s. `runWBTestCase` checks it before each step, so a test is bounded at its budget plus one step. Each step is bounded by `agentTimeout` (30s per `agent-browser` command) or `expectDeadline` (15s per retried assertion or `wait-until`). Under `ZE_VERIFY_MODE=1` the budget and every inner bound (`agentTimeout`, `expectDeadline`, the 5s `waitLoad` cap, the 5s expectation retry) take `ParallelTimeoutHeadroom` (x3) through one function, `contended`, so no inner bound expires before the budget that holds it <!-- source: internal/component/web/testing/runner.go -- contended -->. A value the runner cannot read is a parse error, never a fall back to the default. A budget nothing can enforce must not leave the file looking bounded |
 | `option=skip:reason=<text>` | Skip the test; `reason` is surfaced in runner output |
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
@@ -273,7 +273,7 @@ isolation: each test gets its own `ze` daemon (own port via `ReservePorts` + own
 tmpdir config store) and its own `agent-browser` session (via `AGENT_BROWSER_SESSION`
 env var), so `.wb` scenarios that mutate and `commit` config cannot corrupt each other.
 The session name carries the runner's process id and the test nick
-(`ze-test-web-<pid>-<nick>`). The `agent-browser` daemon is shared by every run
+(`le-web-<pid>-<nick>`). The `agent-browser` daemon is shared by every run
 on the host, so a name from the nick alone made two concurrent runs drive one
 browser for the same test number. Each test closes only its own session, and
 the daemon's idle timeout reaps a session whose run died. No run closes all
