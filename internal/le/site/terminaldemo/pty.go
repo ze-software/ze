@@ -22,6 +22,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 const (
@@ -85,11 +86,37 @@ func defaultTapeSettings() tapeSettings {
 	}
 }
 
+// ptyUsage is the help `le site terminal-demo pty --help` prints. It names the
+// options parsePTYOptions accepts.
+const ptyUsage = `usage: le site terminal-demo pty --tape <file.tape>
+       le site terminal-demo pty --command <line> [--command <line>...] [options] -- <program> [<argument>...]
+
+Records a checked-in terminal tape, or drives a program through a PTY with a
+list of command lines.
+
+options:
+  --tape <file>     record this tape; takes no --command and no program
+  --command <line>  one line to type, or a directive: @sleep <s>, @wait <regex>,
+                    @type <text>, @key <name>, @escape
+  --timeout <s>     seconds to wait for each ready prompt (default 15)
+  --delay <s>       seconds to wait after each line (default 1)
+  --ready <regex>   the prompt that means the program is ready (default 'ze[>#]')
+`
+
+// errPTYHelp is the answer parsePTYOptions gives to a help word: the caller
+// prints ptyUsage and exits 0, because asking for help is not an error.
+var errPTYHelp = errors.New("help requested")
+
 // RunPTY drives either a checked-in terminal tape or a legacy command list.
-// It is the implementation behind ze-terminal-pty, the small binary copied into
-// the demo renderer container.
+// It is the `pty` action of `le site terminal-demo`, which the demo renderer
+// container runs through a linux le (entrypoint.go), and the implementation
+// behind cmd/ze-terminal-pty until that program is removed.
 func RunPTY(args []string, stdout, stderr io.Writer) int {
 	options, err := parsePTYOptions(args)
+	if errors.Is(err, errPTYHelp) {
+		_, _ = io.WriteString(stdout, ptyUsage)
+		return 0
+	}
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
 		return 2
@@ -131,6 +158,9 @@ func parsePTYOptions(args []string) (ptyOptions, error) {
 			}
 			index++
 			return args[index], nil
+		}
+		if leaction.IsHelpArg(argument) {
+			return ptyOptions{}, errPTYHelp
 		}
 		switch argument {
 		case "--tape":

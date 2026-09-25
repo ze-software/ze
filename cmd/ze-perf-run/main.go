@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/le/linuxle"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
 
@@ -16,7 +16,7 @@ func main() {
 	runner := perfrunner.New(root, os.Stdout, os.Stderr)
 	// The sender container runs a linux le, built with the tags the launcher
 	// builds le with, so `le perf send` links the BGP code it measures with.
-	runner.LinuxTags, err = repofeaturetags.DaemonBuildTags(root, "ze_le")
+	runner.LinuxTags, err = linuxle.Tags(root)
 	if err != nil {
 		fail(err)
 	}

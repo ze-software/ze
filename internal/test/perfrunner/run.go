@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 const (
@@ -180,7 +181,7 @@ func New(root string, stdout, stderr io.Writer) *Runner {
 	runDir := filepath.Join(root, "tmp", "perf-run")
 	// The linux le lives under tmp/, never under bin/: bin/le-<name> is the
 	// launcher's namespace, and a perf artifact there would claim a name.
-	linux := filepath.Join(runDir, "linux-"+runtime.GOARCH, "le")
+	linux := filepath.Join(runDir, "linux-"+runtime.GOARCH, linuxle.Name)
 	return &Runner{Root: root, PerfBinary: perf, Reporter: []string{perf, perfReport}, LinuxBinary: linux, ConfigOverlay: os.Getenv("PERF_CONFIGS_DIR"), Routes: routes, Seed: seed, Repeat: repeat, NoBuild: os.Getenv("NO_BUILD") != "", PProf: os.Getenv("PPROF") != "", GCTrace: os.Getenv("GCTRACE") != "", PProfPort: pprofPort, PProfCPUSeconds: cpu, PProfDir: envOr("PPROF_DIR", filepath.Join(root, "tmp", "perf-run", "pprof")), Stdout: stdout, Stderr: stderr, Run: systemCommand, suffix: suffix, network: "ze-perf-" + suffix, resultsDir: filepath.Join(root, "test", "perf", "results"), runDir: runDir, interopDir: filepath.Join(root, "test", "interop"), configDir: filepath.Join(root, "test", "perf", "configs")}
 }
 
@@ -227,10 +228,9 @@ func (runner *Runner) containerName(name string) string {
 	return "ze-perf-" + name + "-" + runner.suffix
 }
 
-// buildLinuxBinary cross-builds le for the container: linux, the host's
-// architecture because Docker runs the image natively, and CGO_ENABLED=0 so
-// the binary runs on alpine without a C library. It prints the build time,
-// which is the cost this run pays before its first measurement.
+// buildLinuxBinary cross-builds le for the container by the linuxle recipe, for
+// the host's architecture because Docker runs the image natively. It prints the
+// build time, which is the cost this run pays before its first measurement.
 func (runner *Runner) buildLinuxBinary() error {
 	if runner.LinuxTags == "" {
 		return errors.New("no build tags for the linux le: the caller MUST set LinuxTags")
@@ -238,12 +238,12 @@ func (runner *Runner) buildLinuxBinary() error {
 	if err := os.MkdirAll(filepath.Dir(runner.LinuxBinary), 0o750); err != nil {
 		return err
 	}
-	env := append(os.Environ(), "GOOS=linux", "GOARCH="+runtime.GOARCH, "CGO_ENABLED=0")
+	env := append(os.Environ(), linuxle.Overrides(runtime.GOARCH)...)
 	ctx, cancel := context.WithTimeout(context.Background(), linuxBuildTimeout)
 	defer cancel()
 
 	started := time.Now()
-	argv := []string{"go", "build", "-tags", runner.LinuxTags, "-o", runner.LinuxBinary, "./cmd/ze"}
+	argv := linuxle.Argv(runner.LinuxTags, runner.LinuxBinary)
 	if err := runner.Run(ctx, runner.Stdout, runner.Stderr, runner.Root, env, argv); err != nil {
 		return err
 	}

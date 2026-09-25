@@ -17,9 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
-// VALIDATES: all eight terminal-demo actions keep their names, reason text, and writes metadata, and only the single-demo render takes a value.
+// VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; only the single-demo render takes a value, and pty forwards its words.
 // PREVENTS: a port that claims a writing renderer as a read-only check, drops one build action, or lets a demo id sit in an untyped positional slot.
-func TestActionsCarryTheEightActionContracts(t *testing.T) {
+func TestActionsCarryTheirContracts(t *testing.T) {
 	want := []struct {
 		verb   string
 		writes bool
@@ -29,10 +29,11 @@ func TestActionsCarryTheEightActionContracts(t *testing.T) {
 		{"validation-check-all", false, "each scenario's output validators pass, so a demo shows the product working"},
 		{"release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
 		{"image-build", true, "the container every demo is recorded in, tagged as the manifest names it"},
-		{"binaries-build-ze", true, "the ze a demo drives, cross-built for the renderer container"},
+		{"binaries-build-ze", true, "the ze a demo drives, and the le that records it, cross-built for the renderer container"},
 		{"binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
 		{"render-all", true, "re-record every website demo from its checked-in tape"},
 		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo"},
+		{"pty", false, "record one tape, or drive a program through a PTY; the renderer container runs it"},
 	}
 	got := Actions()
 	if got.Area != area {
@@ -47,10 +48,14 @@ func TestActionsCarryTheEightActionContracts(t *testing.T) {
 			t.Errorf("action %d = %#v, want verb=%q writes=%t why=%q", index, row, expected.verb, expected.writes, expected.why)
 		}
 	}
-	// The demo id is typed by a keyword, and no other action consumes a value.
+	// The demo id is typed by a keyword, pty's words are RunPTY's command line,
+	// and no other action consumes a value.
 	table := actionTable()
 	if !table.TakesArguments("render") {
 		t.Error("render declares no keyword grammar, so a demo id would sit in an untyped positional slot")
+	}
+	if !got.Actions[len(got.Actions)-1].Forwards {
+		t.Error("pty does not forward its words, so RunPTY's options would be refused by le")
 	}
 	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "image-build", "binaries-build-ze", "binaries-build-ze-test", "render-all"} {
 		if table.TakesArguments(verb) {
@@ -97,14 +102,24 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	assertEnvironmentLast(t, ze.Env, "GOTOOLCHAIN", "go1.26.6")
 	assertEnvironmentLast(t, ze.Env, "GOOS", "linux")
 	assertEnvironmentLast(t, ze.Env, "GOARCH", "arm64")
-	helper := ptyBuildCommand(root, ze.Env)
-	wantHelper := []string{
-		"go", "build", "-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-terminal-pty"),
-		"./cmd/ze-terminal-pty",
+	recorder, recorderOutput := recorderBuildCommand(root, ze.Env, "ze_le ze_alpha", "arm64")
+	wantRecorder := []string{
+		"go", "build", "-tags", "ze_le ze_alpha",
+		"-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "le"), "./cmd/ze",
 	}
-	if !reflect.DeepEqual(helper.Args, wantHelper) {
-		t.Errorf("PTY helper argv = %#v, want %#v", helper.Args, wantHelper)
+	if !reflect.DeepEqual(recorder.Args, wantRecorder) {
+		t.Errorf("recorder argv = %#v, want %#v", recorder.Args, wantRecorder)
 	}
+	if filepath.Base(recorderOutput) != "le" {
+		t.Errorf("the recorder is %s; cmd/ze is le only under the name le", recorderOutput)
+	}
+	if strings.Contains(strings.Join(recorder.Args, " "), "ze-terminal-pty") {
+		t.Errorf("the demo build still builds ze-terminal-pty: %q", recorder.Args)
+	}
+	assertEnvironmentLast(t, recorder.Env, "CGO_ENABLED", "0")
+	assertEnvironmentLast(t, recorder.Env, "GOOS", "linux")
+	assertEnvironmentLast(t, recorder.Env, "GOARCH", "arm64")
+	assertEnvironmentLast(t, recorder.Env, "GOTOOLCHAIN", "go1.26.6")
 	runtimeHelper := runtimeBuildCommand(root, ze.Env)
 	wantRuntimeHelper := []string{
 		"go", "build", "-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-demo"),
@@ -830,5 +845,47 @@ func TestRecorderSourcesFollowThePackage(t *testing.T) {
 	}
 	if !slices.IsSorted(after) {
 		t.Error("recorder sources are unsorted, so the digest depends on directory order")
+	}
+}
+
+// VALIDATES: the renderer container records a tape with `le site terminal-demo pty`, run from the linux le the build writes.
+// PREVENTS: the container entrypoint or a validator still exec'ing ze-terminal-pty, which the demo build no longer writes.
+func TestTheContainerRecordsThroughLe(t *testing.T) {
+	name, arguments := recorderCommand("--tape", "term/demo.tape")
+	if name != demoBinary("le") {
+		t.Errorf("the recorder program is %s, want %s", name, demoBinary("le"))
+	}
+	want := []string{"site", "terminal-demo", "pty", "--tape", "term/demo.tape"}
+	if !reflect.DeepEqual(arguments, want) {
+		t.Errorf("the recorder argv is %q, want %q", arguments, want)
+	}
+}
+
+// VALIDATES: `le site terminal-demo pty --help` reaches RunPTY, which answers its own usage and exit 0.
+// PREVENTS: the pty action answering le's one-line usage, or RunPTY refusing --help as an unknown argument.
+func TestPTYActionAnswersRunPTYsHelp(t *testing.T) {
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stdout
+	os.Stdout = writer
+	payload, code := Answer([]string{"pty", "--help"})
+	os.Stdout = saved
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if _, err := output.ReadFrom(reader); err != nil {
+		t.Fatal(err)
+	}
+	if code != 0 || payload != nil {
+		t.Errorf("pty --help answered (%v, %d), want (nil, 0)", payload, code)
+	}
+	if output.String() != ptyUsage {
+		t.Errorf("pty --help printed %q, want RunPTY's usage", output.String())
+	}
+	if _, code := Answer([]string{"pty", "--no-such-option"}); code != 2 {
+		t.Errorf("pty --no-such-option answered %d, want RunPTY's refusal 2", code)
 	}
 }

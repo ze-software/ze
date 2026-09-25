@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error) {
@@ -50,8 +52,7 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 	name := args[0]
 	arguments := args[1:]
 	if strings.HasSuffix(name, ".tape") {
-		arguments = append([]string{"--tape", name}, arguments...)
-		name = demoBinary("ze-terminal-pty")
+		name, arguments = recorderCommand(append([]string{"--tape", name}, arguments...)...)
 	}
 	// The demo tree is the directory a tape's own paths are written against: the
 	// shared `Source common.tape` and each `Output artifacts/<id>.<ext>`, which is
@@ -66,6 +67,14 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	return nil
+}
+
+// recorderCommand answers the program and the argv that run
+// `le site terminal-demo pty <args>` in the renderer container: the linux le
+// that the binaries-build-ze action writes (recorderBuildCommand).
+func recorderCommand(args ...string) (string, []string) {
+	words := append(strings.Fields(area), ptyVerb)
+	return demoBinary(linuxle.Name), append(words, args...)
 }
 
 // acquireContainerLock takes the exclusive demo lock. The caller MUST NOT call

@@ -70,11 +70,13 @@ func requireNone(value string, unexpected ...string) error {
 	return nil
 }
 
-// runPTYFixture drives ze-terminal-pty under environ. A fixture that reaches the
-// daemon over SSH MUST be given the scenario environment: sshpass reads the
-// password from SSHPASS, which scenarioEnv sets and demoEnvironment does not.
+// runPTYFixture drives `le site terminal-demo pty` under environ. A fixture that
+// reaches the daemon over SSH MUST be given the scenario environment: sshpass
+// reads the password from SSHPASS, which scenarioEnv sets and demoEnvironment
+// does not.
 func runPTYFixture(environ []string, args ...string) (string, error) {
-	output, err := runCommand(demoBinary("ze-terminal-pty"), args, commandOptions{env: environ})
+	name, arguments := recorderCommand(args...)
+	output, err := runCommand(name, arguments, commandOptions{env: environ})
 	return string(output), err
 }
 

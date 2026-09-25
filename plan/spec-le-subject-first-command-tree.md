@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1c/5 |
+| Phase | 2/5 |
 | Handoff | - |
 | Updated | 2026-09-24 |
 
@@ -409,7 +409,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 | A-1 | An alias registered from the `init` of `internal/le/register.go` sees every new name, because that `init` runs after all blank imports | Go init order; `internal/le/register.go` already registers root `le` there | the alias of a name whose area has not registered misroutes | `TestEveryRetiredNameRunsItsNewCommand` over the full map | confirmed, moot (Phase 1a): no alias is registered. `leroot.Dispatch` reads the map through `retiredRewrite` (`internal/le/leroot/retired.go`) at call time, after every `init`, and rewrites only when the row's new command is registered, so `internal/le/register.go` needs no change |
 | A-2 | A directory named `go` under `internal/le` builds. Only a package NAMED `go` is illegal, and no `register.go` lives at `internal/le/go` | Go spec: `go` is a keyword; directory names are free | the `go` family needs another directory | `go build ./internal/le/go/...` in Phase 1 | unvalidated |
 | A-3 | `internal/test/cli` cannot be imported into `internal/le` | root `bgp` is registered by `internal/component/bgp/cli/register.go` and by `internal/test/cli/register.go`; `MustRegisterRootHandler` panics on a duplicate (`internal/component/command/registry/registry.go`) | an in-process harness would be simpler | read of both registrations, 2026-09-24 | validated |
-| A-4 | The host-built `le` runs inside the terminal-demo container, as `ze-terminal-pty` does today | both are host-built Go binaries from one toolchain (`internal/le/terminaldemo/actions.go`) | the demo image needs its own `le` build | `./le site terminal-demo check-all` after the Phase 1 move | unvalidated |
+| A-4 | The host-built `le` runs inside the terminal-demo container, as `ze-terminal-pty` does today | both are host-built Go binaries from one toolchain (`internal/le/terminaldemo/actions.go`) | the demo image needs its own `le` build | `./le site terminal-demo check-all` after the Phase 1 move | broken (the host `le` is not a linux static build); owner decision 2026-09-25, option (a): `binaries-build-ze` cross-builds a linux `le` by the shared `internal/le/linuxle` recipe the perf sender uses, and the container runs `le site terminal-demo pty` |
 | A-5 | `le.` keys register in `internal/core/env` | `MustRegister` has no prefix filter; grep of `ai/rules/config.md` found no prefix rule (2026-09-24) | registration refuses `le.` keys | `TestHarnessVariablesReadBothNames` registers and reads `le.test.bin` | unvalidated |
 | A-6 | Rewriting a historical record (journal row, learned file, spec text) from an old command name to its new name keeps its meaning, because the command still exists under the new name | owner goal G-2 names every tracked file | a record changes meaning | review of the Phase 2 diff of `plan/journal/` and `plan/learned/` | unvalidated |
 | A-7 | A linux `le` cross-built with `CGO_ENABLED=0` runs in the perf sender container and links the BGP code `perf send` needs | `build_le` in the launcher `le` sets `CGO_ENABLED=0` and the `feature-gates.txt` tags | the container needs another payload | AC-26 and AC-27 | unvalidated |

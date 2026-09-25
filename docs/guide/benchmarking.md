@@ -1,21 +1,22 @@
 # Benchmarking
 
-Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation
-latency through a device under test (DUT). It works with any BGP implementation,
+Ze includes `le perf`, a tool for measuring BGP route propagation latency
+through a device under test (DUT). It works with any BGP implementation,
 including Ze.
 
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-`le` runs the same three subcommands: `le perf send` is `ze-perf run`, and
-`le perf report` and `le perf track` keep their names. Every word after the
-verb reaches the program unchanged, and the program's exit code is le's.
+`le perf send`, `le perf report` and `le perf track` run what `ze-perf run`,
+`ze-perf report` and `ze-perf track` run. The separate `ze-perf` binary keeps
+working until it is removed. Every word after the verb reaches the program
+unchanged, and the program's exit code is le's.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 
 ## Architecture
 
 ```
                   +-----------+
-  ze-perf         |           |         ze-perf
+  le perf send    |           |         le perf send
   (sender)  ----> |    DUT    | ---->  (receiver)
   AS 65001        |  AS 65000 |         AS 65002
                   +-----------+
@@ -23,7 +24,7 @@ verb reaches the program unchanged, and the program's exit code is le's.
 
 The sender establishes a BGP session with the DUT, injects routes, and the
 receiver measures when those routes arrive. Both sessions are managed by
-`ze-perf` in a single process. Timing starts when the sender writes the first
+`le perf send` in a single process. Timing starts when the sender writes the first
 UPDATE and stops when the receiver has collected all expected prefixes.
 
 <!-- source: internal/perf/sender.go -- sender UPDATE construction -->
@@ -38,19 +39,19 @@ Run a benchmark against Ze on localhost:
 ze start test-config.conf &
 
 # Run the benchmark
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
+./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze --routes 1000
 ```
 
 With JSON output saved to a file:
 
 ```bash
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
+./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --dut-name ze \
   --routes 1000 --output result-ze.json
 ```
 
 ## Running Benchmarks
 
-For a complete flag reference, see [ze-perf run](command-reference.md#ze-perf-run).
+For a complete flag reference, see [le perf send](command-reference.md#le-perf-send).
 
 ### Encoding Modes
 
@@ -66,7 +67,7 @@ Three encoding modes measure different code paths through the DUT:
 
 ### Multi-Iteration
 
-By default, `ze-perf run` executes 5 iterations with 1 warmup run. The warmup
+By default, `le perf send` executes 5 iterations with 1 warmup run. The warmup
 run is discarded, and outliers beyond 2 standard deviations from the median
 convergence time are removed (minimum 3 iterations kept). Final results report
 median and standard deviation across the kept iterations.
@@ -83,7 +84,7 @@ More iterations improve statistical confidence. For reliable results, use at
 least `--repeat 10`:
 
 ```bash
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --repeat 10 --warmup-runs 2
 ```
 
 ### Timing
@@ -148,8 +149,10 @@ The runner builds no host benchmark program. It cross-builds `le` for linux
 with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long
 that build took. It mounts the file at `/usr/local/bin/le` in the sender
 container, which runs `le perf send`. The `le` that started the run renders
-the report as `le perf report`.
+the report as `le perf report`. The terminal-demo recorder container runs a
+linux `le` built by the same recipe (`docs/contributing/gh-pages.md`).
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
+<!-- source: internal/le/linuxle/linuxle.go -- Tags -->
 
 `go run ./cmd/ze-perf-run --build --test [<dut>...]` drives the same runner
 until it is removed. It still renders the report with `bin/ze-perf`, which
@@ -165,27 +168,27 @@ After running benchmarks, generate reports from the result files:
 
 ```bash
 # Markdown report (default)
-ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
+./le perf report result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
-ze-perf report --html result-ze.json result-gobgp.json > comparison.html
+./le perf report --html result-ze.json result-gobgp.json > comparison.html
 ```
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
 
-For the full flag reference, see [ze-perf report](command-reference.md#ze-perf-report).
+For the full flag reference, see [le perf report](command-reference.md#le-perf-report).
 
 ## Tracking Performance Over Time
 
 ### NDJSON History
 
-Each `ze-perf run --json` invocation produces a single JSON object. Append
+Each `le perf send --json` invocation produces a single JSON object. Append
 results to an NDJSON (newline-delimited JSON) file to build a history:
 
 ```bash
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
+./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
 ```
 
 <!-- source: internal/perf/result.go -- ReadNDJSON and WriteNDJSON -->
@@ -195,8 +198,8 @@ ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --json >> history.ndjson
 Generate a trend report from a history file:
 
 ```bash
-ze-perf track history.ndjson
-ze-perf track --html history.ndjson > trend.html
+./le perf track history.ndjson
+./le perf track --html history.ndjson > trend.html
 ```
 
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
@@ -208,7 +211,7 @@ Use `--check` in CI to detect performance regressions. The tool compares the
 most recent entry against the previous one using stddev-aware thresholds:
 
 ```bash
-ze-perf track --check history.ndjson
+./le perf track --check history.ndjson
 ```
 
 <!-- source: internal/perf/regression.go -- CheckRegression and CheckHistory -->
@@ -233,16 +236,16 @@ Default thresholds:
 Custom thresholds:
 
 ```bash
-ze-perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
+./le perf track --check --threshold-convergence 15 --threshold-throughput 10 --threshold-p99 25 history.ndjson
 ```
 
 Limit the comparison window to the last N entries with `--last`:
 
 ```bash
-ze-perf track --check --last 5 history.ndjson
+./le perf track --check --last 5 history.ndjson
 ```
 
-For the full flag reference, see [ze-perf track](command-reference.md#ze-perf-track).
+For the full flag reference, see [le perf track](command-reference.md#le-perf-track).
 
 ## Understanding Results
 

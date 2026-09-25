@@ -281,11 +281,12 @@ func (e *Engine) sourceDigest(demo Demo) (string, error) {
 	return e.digestPaths(contract, files)
 }
 
-// recorderBinaries are the two programs that drive a recording and live
-// outside this package. They are named because nothing here can discover them:
-// one is a shipped binary, the other belongs to the demo tree.
+// recorderBinaries are the two program entry points that drive a recording
+// and live outside this package. They are named because nothing here can
+// discover them: cmd/ze is started as le and dispatches the pty action by that
+// name (defaultDispatch), and ze-demo belongs to the demo tree.
 var recorderBinaries = []string{
-	"cmd/ze-terminal-pty/main.go",
+	"cmd/ze/dispatch.go",
 	"demos/terminal/cmd/ze-demo/main.go",
 }
 

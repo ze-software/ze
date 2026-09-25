@@ -4,8 +4,8 @@ Website sources live under `website/` on the main branch.
 All `../gh-pages` content MUST be generated from this repository.
 `./le site build` writes the publishable artifact to `../gh-pages` and removes
 old source-only files there. It reuses matching demo artifacts. Run
-`./le terminal-demo render-all` first to force new demo artifacts.
-`./le terminal-demo render name <demo-id>` re-records one demo while you work on
+`./le site terminal-demo render-all` first to force new demo artifacts.
+`./le site terminal-demo render name <demo-id>` re-records one demo while you work on
 its tape, and publishes it beside the artifacts it did not record. The ids are in
 `demos/terminal/manifest.json`.
 
@@ -19,10 +19,25 @@ rendered. `TERMINAL_DEMO_OUTPUT` moves a render to another root.
 <!-- source: internal/le/site/terminaldemo/actions.go -- renderEngine -->
 
 A recording runs in a container this repository builds and publishes to no
-registry, so build it once per checkout with `./le terminal-demo image-build`.
+registry, so build it once per checkout with `./le site terminal-demo image-build`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
 recorder runs. A render refuses to start when that image is absent and names
 this action. Rebuild after any change to `demos/terminal/Dockerfile`.
+
+`./le site terminal-demo binaries-build-ze` cross-builds the programs the
+container runs into `tmp/terminal-demos/bin`: `ze`, `ze-demo`, and a linux
+`le`. The `le` build takes the recipe the perf sender container uses: the
+`ze_le` tag plus every daemon feature tag, `GOOS=linux`, `CGO_ENABLED=0`, and
+the renderer's architecture. The file MUST be named `le`, because `cmd/ze`
+selects its personality from its file name. The container records a tape with
+`le site terminal-demo pty --tape <file>`. That action hands its words to the
+PTY recorder, so `./le site terminal-demo pty --help` prints the recorder's own
+options. `cmd/ze-terminal-pty` runs the same recorder until it is removed, and
+no demo build writes it.
+<!-- source: internal/le/linuxle/linuxle.go -- Argv -->
+<!-- source: internal/le/site/terminaldemo/actions.go -- recorderBuildCommand -->
+<!-- source: internal/le/site/terminaldemo/entrypoint.go -- recorderCommand -->
+<!-- source: internal/le/site/terminaldemo/pty.go -- RunPTY -->
 
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to

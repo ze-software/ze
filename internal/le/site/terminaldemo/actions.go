@@ -18,6 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 const (
@@ -25,9 +26,11 @@ const (
 	// demoKeyword types the value the render action selects one demo by, so a
 	// demo id can never sit in an untyped positional slot (ai/rules/cli.md).
 	demoKeyword = "name"
-	goarchEnv   = "TERMINAL_DEMO_GOARCH"
-	outputEnv   = "TERMINAL_DEMO_OUTPUT"
-	releaseEnv  = "TERMINAL_DEMO_RELEASE"
+	// ptyVerb is the action the renderer container runs to record a tape.
+	ptyVerb    = "pty"
+	goarchEnv  = "TERMINAL_DEMO_GOARCH"
+	outputEnv  = "TERMINAL_DEMO_OUTPUT"
+	releaseEnv = "TERMINAL_DEMO_RELEASE"
 )
 
 // BuildReport is the structured result of one staged binary build.
@@ -56,7 +59,7 @@ func actionTable() leaction.Area {
 		leaction.Action{Verb: "image-build", Why: "the container every demo is recorded in, tagged as the manifest names it",
 			Writes: true,
 			Answer: runImageBuild},
-		leaction.Action{Verb: "binaries-build-ze", Why: "the ze a demo drives, cross-built for the renderer container",
+		leaction.Action{Verb: "binaries-build-ze", Why: "the ze a demo drives, and the le that records it, cross-built for the renderer container",
 			Writes: true,
 			Answer: func() (any, int) { return runBuild(false) }},
 		leaction.Action{Verb: "binaries-build-ze-test", Why: "the ze-test a demo drives, which carries ze_test alone and no version",
@@ -69,10 +72,18 @@ func actionTable() leaction.Area {
 			Writes:     true,
 			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Value: "demo-id", Requirement: leaction.Required}},
 			AnswerArgs: runRenderOne},
+		leaction.Action{Verb: ptyVerb, Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
+			AnswerWords: runPTYAction},
 	)
 }
 
-// Actions answers all eight actions with their exact writes metadata.
+// runPTYAction hands its words to RunPTY verbatim, so every option, a help
+// word included, is RunPTY's to parse. RunPTY writes its own output.
+func runPTYAction(words []string) (any, int) {
+	return nil, RunPTY(words, os.Stdout, os.Stderr)
+}
+
+// Actions answers every action with its exact writes metadata.
 func Actions() leaction.List { return actionTable().Actions() }
 
 // Subs answers the action hint from the same table.
@@ -115,10 +126,15 @@ func runBuild(testBinary bool) (any, int) {
 	gaterun.Announce(report.Action)
 	code := gaterun.Stream(command.Args, command.Dir, command.Env)
 	if code == 0 && !testBinary {
-		helper := ptyBuildCommand(root, command.Env)
-		report.HelperArgs = helper.Args
-		report.HelperOutput = helper.Args[len(helper.Args)-2]
-		code = gaterun.Stream(helper.Args, helper.Dir, helper.Env)
+		tags, err := linuxle.Tags(root)
+		if err != nil {
+			leaction.ReportError(err)
+			return nil, 1
+		}
+		recorder, output := recorderBuildCommand(root, command.Env, tags, arch)
+		report.HelperArgs = recorder.Args
+		report.HelperOutput = output
+		code = gaterun.Stream(recorder.Args, recorder.Dir, recorder.Env)
 		if code == 0 {
 			runtime := runtimeBuildCommand(root, command.Env)
 			report.RuntimeArgs = runtime.Args
@@ -164,13 +180,18 @@ func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string, tes
 	return command, BuildReport{Action: action, Args: args, Output: output}
 }
 
-func ptyBuildCommand(root string, environ []string) Command {
-	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-terminal-pty")
+// recorderBuildCommand answers the build of the linux le the renderer
+// container records with (`le site terminal-demo pty`), and the path it writes.
+// The recipe is linuxle's, the one the perf sender container runs, applied over
+// the demo toolchain environment; the file name is linuxle.Name because that
+// name is what makes the binary le.
+func recorderBuildCommand(root string, environ []string, tags, arch string) (Command, string) {
+	output := filepath.Join(root, "tmp", "terminal-demos", "bin", linuxle.Name)
 	return Command{
-		Args: []string{"go", goCommandBuild, "-o", output, "./cmd/ze-terminal-pty"},
+		Args: linuxle.Argv(tags, output),
 		Dir:  root,
-		Env:  environ,
-	}
+		Env:  append(append([]string(nil), environ...), linuxle.Overrides(arch)...),
+	}, output
 }
 
 func runtimeBuildCommand(root string, environ []string) Command {

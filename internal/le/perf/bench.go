@@ -28,7 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/le/linuxle"
 	"github.com/ze-software/ze/internal/perf"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
@@ -49,10 +49,6 @@ const (
 	stepBuild = "build"
 	// stepTest measures with the images that exist.
 	stepTest = "test"
-
-	// leTagBase is the personality tag of the linux le the sender container
-	// runs. Every feature gate follows it, as in the launcher's own build.
-	leTagBase = "ze_le"
 
 	// resultsDir is where the runner writes one <dut>.json per measured DUT.
 	// It is a build output and .gitignore excludes it.
@@ -187,7 +183,7 @@ func newBench() (*Bench, error) {
 	if err != nil {
 		return nil, err
 	}
-	tags, err := repofeaturetags.DaemonBuildTags(root, leTagBase)
+	tags, err := linuxle.Tags(root)
 	if err != nil {
 		return nil, err
 	}
