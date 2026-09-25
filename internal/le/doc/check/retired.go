@@ -276,6 +276,16 @@ var retiredExceptions = [...]retiredException{
 	{file: retiredWikiIndexFile, old: retiredZeChaos, why: retiredWikiIndexWhy},
 	{file: retiredWikiIndexFile, old: retiredZePerf, why: retiredWikiIndexWhy},
 	{file: "docs/features/test-health.md", old: "le test-health", why: retiredTestHealthPageWhy},
+	{
+		file: "internal/test/fixture/ui_fixture_le_checks_answers.go",
+		old:  "le tracked",
+		why:  "the tracked action of `le test sensitivity`, passed after the command constant, not the retired command",
+	},
+	{
+		file: "internal/le/cli/grammar/cligrammar_test.go",
+		old:  "le dash-stdio",
+		why:  "a synthetic probe root the grammar test feeds its own gate, and namesLeFinding runs no le",
+	},
 }
 
 // The retired names that several exceptions declare.
@@ -468,9 +478,20 @@ const (
 	edgeAfterIdent = `(?:$|[^A-Za-z0-9_])`
 )
 
+// leCallee is a Go function named for le: `le`, a name that starts with `le`
+// and an upper-case letter (`leSTERun`), or a name that carries `Le` or `LE`
+// after a lower-case letter (`runLE`, `uiLeDocvalidAnswersRunCommand`). The
+// ui fixtures run le through such helpers, and the helper supplies the
+// program, so the argv it is handed starts at the command.
+const leCallee = `(?:le|[A-Za-z0-9_]*[a-z](?:Le|LE))(?:[A-Z0-9_][A-Za-z0-9_]*)?\(`
+
 // commandPattern compiles the forms a caller names a retired command in:
 // `le <old>` after any path or program prefix (`./le`, `ze le`,
-// `$CLAUDE_PROJECT_DIR/le`), and a Go argv built from literals, `"le", "<w1>"`.
+// `$CLAUDE_PROJECT_DIR/le`), and a Go argv whose command words are literals
+// and whose program is the literal `"le"`, a variable named `le`
+// (`run(ctx, le, "<w1>")`), or a helper named for le whose first literal
+// argument is the command (`runLE(nil, "<w1>")`). A literal in any other call
+// is not read as an argv: `filepath.Join(root, "qemu")` names a directory.
 func commandPattern(row Rename) retiredPattern {
 	old := row.Old()
 	quoted := make([]string, 0, len(old))
@@ -483,8 +504,11 @@ func commandPattern(row Rename) retiredPattern {
 	}
 
 	var tb textbuf.Buffer
+	argv := tb.Byte('"').Join(quoted, `",[ \t]*"`).Byte('"').String()
+	tb.Reset()
 	tb.Str(edgeBeforeLe).Str(`le[ \t]+`).Join(quoted, `[ \t]+`).Str(edgeAfterName).
-		Byte('|').Str(`"le",[ \t]*"`).Join(quoted, `",[ \t]*"`).Byte('"')
+		Byte('|').Str(edgeBefore).Str(`(?:"le"|le),[ \t]*`).Str(argv).
+		Byte('|').Str(edgeBefore).Str(leCallee).Str(`(?:[^()"]*,[ \t]*)?`).Str(argv)
 	expression := tb.String()
 	tb.Reset()
 

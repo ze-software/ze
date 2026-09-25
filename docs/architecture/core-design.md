@@ -104,8 +104,11 @@ that namespace, and a retired action of a command that is still registered is
 refused by that command's closed action table with exit 2. `le doc check
 retired-commands` reads the
 map and names the file and line of every tracked line that still names an old
-form, outside the declared historical records and exceptions. It exits 1 on
-any such line and runs as a stage of the full verify.
+form, outside the declared historical records and exceptions. A command is
+found as `le <old>` after any path prefix, and as a Go argv of literals whose
+program is the literal `"le"`, a variable named `le`, or a helper named for le
+(`runLE(nil, "<old>")`). It exits 1 on any such line and runs as a stage of
+the full verify.
 <!-- source: internal/le/doc/check/retirednames.go -- Renames -->
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 

@@ -76,27 +76,27 @@ func runLEChecksAnswers(ctx context.Context) error {
 		{checkIfaceResolution, []string{checkIfaceResolution}},
 		{checkCommandOwnership, []string{checkCommandOwnership}},
 		{checkConfigCoercion, []string{checkConfigCoercion, actionCheck}},
-		{"config-coercion selftest", []string{checkConfigCoercion, actionSelftest}},
+		{checkConfigCoercion + " selftest", []string{checkConfigCoercion, actionSelftest}},
 		{checkPortDefaults, []string{checkPortDefaults, actionCheck}},
-		{"port-defaults selftest", []string{checkPortDefaults, actionSelftest}},
+		{checkPortDefaults + " selftest", []string{checkPortDefaults, actionSelftest}},
 		{checkCLIGrammar, []string{checkCLIGrammar}},
 		{checkFSPersistence, []string{checkFSPersistence, actionCheck}},
-		{"fs-persistence selftest", []string{checkFSPersistence, actionSelftest}},
+		{checkFSPersistence + " selftest", []string{checkFSPersistence, actionSelftest}},
 		{checkGoVersion, []string{checkGoVersion, actionCheck}},
-		{"go-version selftest", []string{checkGoVersion, actionSelftest}},
+		{checkGoVersion + " selftest", []string{checkGoVersion, actionSelftest}},
 		{checkPluginBoundary, []string{checkPluginBoundary, actionCheck}},
-		{"plugin-boundary selftest", []string{checkPluginBoundary, actionSelftest}},
-		{"plugin-boundary roots", []string{checkPluginBoundary, "roots"}},
-		{"yang-leaf-mentions report", []string{checkYANGLeafMentions, actionReport}},
-		{"yang-leaf-mentions selftest", []string{checkYANGLeafMentions, actionSelftest}},
-		{"staticcheck-feature-matrix rows", []string{checkStaticcheckFeatureMatrix, fieldRows}},
+		{checkPluginBoundary + " selftest", []string{checkPluginBoundary, actionSelftest}},
+		{checkPluginBoundary + " roots", []string{checkPluginBoundary, "roots"}},
+		{checkYANGLeafMentions + " report", []string{checkYANGLeafMentions, actionReport}},
+		{checkYANGLeafMentions + " selftest", []string{checkYANGLeafMentions, actionSelftest}},
+		{checkStaticcheckFeatureMatrix + " rows", []string{checkStaticcheckFeatureMatrix, fieldRows}},
 		{checkDashStdio, []string{checkDashStdio, actionCheck}},
-		{"dash-stdio selftest", []string{checkDashStdio, actionSelftest}},
+		{checkDashStdio + " selftest", []string{checkDashStdio, actionSelftest}},
 		{checkCIDispatch, []string{checkCIDispatch, actionCheck}},
-		{"ci-dispatch selftest", []string{checkCIDispatch, actionSelftest}},
-		{"repo-compiles selftest", []string{checkRepoCompiles, actionSelftest}},
-		{"test-sensitivity report", []string{checkTestSensitivity, actionReport}},
-		{"test-sensitivity selftest", []string{checkTestSensitivity, actionSelftest}},
+		{checkCIDispatch + " selftest", []string{checkCIDispatch, actionSelftest}},
+		{checkRepoCompiles + " selftest", []string{checkRepoCompiles, actionSelftest}},
+		{checkTestSensitivity + " report", []string{checkTestSensitivity, actionReport}},
+		{checkTestSensitivity + " selftest", []string{checkTestSensitivity, actionSelftest}},
 	}
 	for _, tc := range baseline {
 		got, err := runLE(nil, tc.args...)
@@ -191,17 +191,17 @@ func runLEChecksAnswers(ctx context.Context) error {
 		}
 	}
 
-	portCases, err := runLE(nil, "port-defaults", "selftest", "|", "json")
+	portCases, err := runLE(nil, checkPortDefaults, "selftest", "|", "json")
 	if err != nil {
 		return err
 	}
 	if portCases.code != 0 {
 		return leChecksFailf("`le config ports selftest | json` exited %d", portCases.code)
 	}
-	if err := leChecksPassedRows(portCases.stdout, "port-defaults", 8); err != nil {
+	if err := leChecksPassedRows(portCases.stdout, checkPortDefaults, 8); err != nil {
 		return err
 	}
-	portCount, err := runLE(nil, "port-defaults", "selftest", "|", "count")
+	portCount, err := runLE(nil, checkPortDefaults, "selftest", "|", "count")
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the feature scope changed on disk: %q", writtenScope)
 	}
 	scopeEnv := map[string]string{"ZE_VERIFY_SCOPE_TAGS": scopePath}
-	scoped, err := runLE(scopeEnv, "staticcheck-feature-matrix", "rows")
+	scoped, err := runLE(scopeEnv, checkStaticcheckFeatureMatrix, "rows")
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if !strings.Contains(scoped.stderr, "4 of") {
 		return leChecksFailf("the scoped run judged every row, so the variable never reached it: %q", scoped.stderr)
 	}
-	scopedJSON, err := runLE(scopeEnv, "staticcheck-feature-matrix", "rows", "|", "json")
+	scopedJSON, err := runLE(scopeEnv, checkStaticcheckFeatureMatrix, "rows", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -269,9 +269,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the scoped matrix answered %#v, want four rows", scopedValue)
 	}
 
-	// cli-grammar is a three-row-set document: row operators are refused while
+	// cli grammar is a three-row-set document: row operators are refused while
 	// any-shape rendering remains available.
-	grammarCount, err := runLE(nil, "cli-grammar", "|", "count")
+	grammarCount, err := runLE(nil, checkCLIGrammar, "|", "count")
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 	if !strings.Contains(grammarCount.stderr, "count") {
 		return leChecksFailf("the refusal does not name the operator: %q", grammarCount.stderr)
 	}
-	grammarResult, err := runLE(nil, "cli-grammar", "|", "json")
+	grammarResult, err := runLE(nil, checkCLIGrammar, "|", "json")
 	if err != nil {
 		return err
 	}
@@ -314,9 +314,9 @@ func runLEChecksAnswers(ctx context.Context) error {
 	}
 
 	for _, tc := range []leChecksCase{
-		{"fs-persistence check", []string{checkFSPersistence, actionCheck}},
-		{"plugin-boundary check", []string{checkPluginBoundary, actionCheck}},
-		{"dash-stdio check", []string{checkDashStdio, actionCheck}},
+		{checkFSPersistence + " check", []string{checkFSPersistence, actionCheck}},
+		{checkPluginBoundary + " check", []string{checkPluginBoundary, actionCheck}},
+		{checkDashStdio + " check", []string{checkDashStdio, actionCheck}},
 	} {
 		rowsResult, err := runLE(nil, append(append([]string{}, tc.args...), "|", "json")...)
 		if err != nil {
@@ -342,7 +342,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		}
 	}
 
-	dispatchResult, err := runLE(nil, "ci-dispatch", "check", "|", "json")
+	dispatchResult, err := runLE(nil, checkCIDispatch, "check", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -499,7 +499,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		}
 	}
 
-	staticMatrixResult, err := runLE(nil, "staticcheck-feature-matrix", "rows", "|", "json")
+	staticMatrixResult, err := runLE(nil, checkStaticcheckFeatureMatrix, "rows", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -551,7 +551,7 @@ func runLEChecksAnswers(ctx context.Context) error {
 		}
 	}
 
-	refused, err := runLE(nil, "cli-grammar", "internal")
+	refused, err := runLE(nil, checkCLIGrammar, "internal")
 	if err != nil {
 		return err
 	}

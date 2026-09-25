@@ -216,16 +216,16 @@ func leDocvalidAnswers(ctx context.Context) error {
 		return fmt.Errorf("count was refused for another reason: %q", counted.stderr)
 	}
 
-	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid")
+	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract")
 	if err != nil {
 		return err
 	}
 	if listing.code != 0 {
-		return fmt.Errorf("docvalid listing exited %d: %s", listing.code, listing.stderr)
+		return fmt.Errorf("doc yang-contract listing exited %d: %s", listing.code, listing.stderr)
 	}
 	for _, wanted := range []string{"command-contract", "doc-drift", "pipe-operators-update", wordWrites, fieldChecks} {
 		if !bytes.Contains(listing.stdout, []byte(wanted)) {
-			return fmt.Errorf("docvalid listing does not contain %q:\n%s", wanted, listing.stdout)
+			return fmt.Errorf("doc yang-contract listing does not contain %q:\n%s", wanted, listing.stdout)
 		}
 	}
 	foundWriter := false
@@ -238,7 +238,7 @@ func leDocvalidAnswers(ctx context.Context) error {
 		}
 	}
 	if !foundWriter {
-		return fmt.Errorf("docvalid listing has no action row for pipe-operators-update")
+		return fmt.Errorf("doc yang-contract listing has no action row for pipe-operators-update")
 	}
 
 	// Drive the writer over two isolated roots. Both begin stale, both must be

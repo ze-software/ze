@@ -281,6 +281,8 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		"ze-peer":                     "exec=ze-peer --mode sink",
 		"bin/ze-perf":                 "run bin/ze-perf track --check",
 		"le test-health":              "./le test-health update",
+		"le tracked":                  `runLE(nil, "tracked", "|", "json")`,
+		"le dash-stdio":               `namesLeFinding(result, "dash-stdio")`,
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
@@ -422,5 +424,59 @@ func TestRetiredCommandGateGoesRedOnAnInjectedName(t *testing.T) {
 	})
 	if _, code := runRetiredCheck(clean); code != 0 {
 		t.Errorf("a tree naming only new forms answered %d, want 0", code)
+	}
+}
+
+func TestRetiredCommandSweepFindsArgvWithAVariableProgram(t *testing.T) {
+	// VALIDATES: a Go argv whose program is not the literal "le" is still read
+	// as an le call when the program is a variable named le or the callee is a
+	// helper named for le, the two shapes the ui fixtures run le in.
+	// PREVENTS: `helper(ctx, work, nil, le, "docvalid")` and
+	// `runLE(nil, "port-defaults", "selftest")` passing the gate while the
+	// fixture fails with "unknown command".
+	root := fixtureRepository(t, map[string]string{
+		"internal/x/fixture.go": strings.Join([]string{
+			"package x",
+			`	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "docvalid")`,
+			`	portCases, err := runLE(nil, "port-defaults", "selftest", "|", "json")`,
+			`	scoped, err := runLE(scopeEnv, "staticcheck-feature-matrix", "rows")`,
+			`	got, err := leSTERun(ctx, export, nil, "verify", "lock")`,
+			`	reader, err := os.ReadFile(filepath.Join(root, "feature-tags"))`,
+			`	area := New("web-assets", nil)`,
+			`	listing, err := uiLeDocvalidAnswersRunCommand(ctx, work, nil, le, "doc", "yang-contract")`,
+			`	dir := handleRequest(root, "qemu")`,
+		}, "\n") + "\n",
+	})
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const file = "internal/x/fixture.go"
+	found := []struct {
+		form string
+		old  string
+		line int
+	}{
+		{"variable program named le", "le docvalid", 2},
+		{"helper named for le, env first", "le port-defaults", 3},
+		{"helper named for le, named env", "le staticcheck-feature-matrix", 4},
+		{"helper whose name starts with le, two words", "le verify lock", 5},
+	}
+	for _, tc := range found {
+		if !retiredFound(report, tc.old, file, tc.line) {
+			t.Errorf("%s: %s:%d is not listed under %q; the file matched %v",
+				tc.form, file, tc.line, tc.old, retiredLinesOf(report, file))
+		}
+	}
+	lines := retiredLinesOf(report, file)
+	for _, line := range []int{6, 7, 8, 9} {
+		at := "@" + strconv.Itoa(line)
+		for _, match := range lines {
+			if strings.HasSuffix(match, at) {
+				t.Errorf("%s:%d is not an le call naming a retired form, but the sweep listed it as %s", file, line, match)
+			}
+		}
 	}
 }
