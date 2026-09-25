@@ -392,7 +392,7 @@ func (s *scan) registerRootNames(path string) ([]string, error) {
 }
 
 // hasVariantBuildTag reports whether a Go file starts with a build tag
-// for a binary variant (ze_test, ze_chaos) that is exempt from the
+// for a binary variant (ze_chaos) that is exempt from the
 // ownership check because its handlers are test/tool infrastructure.
 func hasVariantBuildTag(path string) (bool, error) {
 	file, err := os.Open(path) //nolint:gosec // the path comes from this tool's own walk
@@ -412,8 +412,7 @@ func hasVariantBuildTag(path string) (bool, error) {
 		return false, err
 	}
 	header := string(buf[:read])
-	return strings.Contains(header, "//go:build ze_test") ||
-		strings.Contains(header, "//go:build ze_chaos"), nil
+	return strings.Contains(header, "//go:build ze_chaos"), nil
 }
 
 // forEachRegistryCall invokes fn for every call whose selector package is

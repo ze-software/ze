@@ -23,8 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 const (
@@ -145,18 +144,15 @@ func (v *VPP) buildBinaries() error {
 	if err := buildDaemon(v.Tree, v.Goarch, v.Progress); err != nil {
 		return err
 	}
-	tags, err := repofeaturetags.DaemonTags(v.Tree)
+	// The container runs the harness as `le test peer`, from a linux le built
+	// by linuxle's recipe. runBuild adds the go command and the linux
+	// environment itself, so the recipe's leading "go" is dropped.
+	tags, err := linuxle.Tags(v.Tree)
 	if err != nil {
 		return err
 	}
-	var tb textbuf.Buffer
-	testTags := tb.Str("ze_test").Byte(' ').Join(tags, " ").String()
-	if err := v.runBuild([]string{
-		"build", goBuildTagsArg, testTags, "-o", filepath.Join(v.Tree, vppTestRel(v.Goarch)), "./cmd/ze",
-	}, errors.New("go build le-test (-tags ze_test ./cmd/ze) failed")); err != nil {
-		return err
-	}
-	if _, err := harnessbin.LinkRetired(filepath.Join(v.Tree, vppTestRel(v.Goarch))); err != nil {
+	if err := v.runBuild(linuxle.Argv(tags, filepath.Join(v.Tree, vppLeRel(v.Goarch)))[1:],
+		errors.New("building the linux le (./cmd/ze) failed")); err != nil {
 		return err
 	}
 	return v.runBuild([]string{
@@ -275,9 +271,19 @@ func vppCommand(parts ...string) string {
 	return textbuf.Join(parts, " ")
 }
 
-func vppTestRel(goarch string) string {
-	var tb textbuf.Buffer
-	return filepath.Join("tmp", "evidence", "bin", tb.Str(harnessbin.Name).Str("-linux-").Str(goarch).String())
+// vppLeRel answers where the linux le the container runs is written, relative
+// to the checkout. The file MUST be named le: cmd/ze selects its personality
+// from that name.
+func vppLeRel(goarch string) string {
+	return filepath.Join("tmp", "evidence", "bin", "linux-"+goarch, linuxle.Name)
+}
+
+// vppPeerCommand answers the command line of the harness peer inside the
+// container, without its arguments. It is also the pattern that stops the
+// peer, because a bare `le` would match every process whose command line
+// holds those two letters.
+func vppPeerCommand(goarch string) string {
+	return "/src/" + filepath.ToSlash(vppLeRel(goarch)) + " test peer"
 }
 
 func vppIPsecProbeRel(goarch string) string {

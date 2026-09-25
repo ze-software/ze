@@ -169,31 +169,31 @@ writes it via `config.ApplyEnvConfig` when the operator sets
 
 | Variable | Default | Class | Description |
 |----------|---------|-------|-------------|
-| `ze.test.bgp.port` | 179 | ENV | BGP TCP port (le-test peer + le-test harness; private) |
+| `ze.test.bgp.port` | 179 | ENV | BGP TCP port (`le test peer` and the harness; private) |
 | `ze.bfd.test-parallel` | false | ENV | BFD parallel test mode (private) |
 
 ### Harness variables
 
-The test harness `le-test` owns three variables under the `le.` prefix. The
-`ze.` spelling of each is retired. Until the le rename completes, both
-spellings are read: the `LE_` value wins, and a value read from the `ZE_`
-spelling prints one deprecation line that names the `LE_` spelling. The two
-spellings are two registered entries, because `env.Get` reads an alias spelling
-only when the caller passes the alias key. `harnessbin.Setting` is the one
-resolver.
+Every harness command is `le test <name>`, so the harness is the `le` process
+itself and no variable names a harness file. The runner, a stress repro and
+l2tp scale run their own executable. A QEMU guest and the VPP evidence
+container run a linux `le` built by `internal/le/linuxle`. One harness variable
+remains. Its `ze.` spelling is retired and still read until Phase 3: the `LE_`
+value wins, and a value read from the `ZE_` spelling prints one deprecation
+line.
 
 | Variable | Retired spelling | Default | Description |
 |----------|------------------|---------|-------------|
-| `le.test.bin` | `ze.test.bin` | `bin/le-test` | Read only inside a QEMU guest (`newAllTests`) until the guest runs a linux `le` (D-8). The runner, `le test <name>` and a stress repro run the process's own `le` and read no harness path |
 | `le.test.no.build` | `ze.test.no.build` | false | Skip the runner's in-process `ze` build and require a pre-built `ze`. Registered in `internal/test/runner` |
-| `le.qemu.test.bin` | `ze.qemu.test.bin` | `bin/le-test-linux-<guest arch>` | The harness cross-build a QEMU guest runs; the host forwards it into the guest as `LE_TEST_BIN` |
+
+`le.test.bin`, `le.qemu.test.bin`, `le.test.binary` and their `ze.` spellings
+are gone, and the rename map lists each as retired with no replacement.
 
 `ze.test.bgp.port` keeps its `ze.` key: the daemon reads it too, so it is a
 product setting.
 
-<!-- source: internal/test/harnessbin/harnessbin.go -- Setting, answering -->
 <!-- source: internal/test/runner/runner.go -- NoBuild -->
-<!-- source: internal/le/test/qemu/run.go -- qemuTestBin -->
+<!-- source: internal/le/leroot/retired.go -- retirements -->
 
 ---
 

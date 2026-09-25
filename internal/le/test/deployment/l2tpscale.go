@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const L2TPScaleAction = "l2tp-scale-test"
@@ -41,27 +40,17 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-// The environment spellings that locate a binary when bin/ holds none. The
-// harness variable keeps its spelling from before the harness was renamed
-// le-test, read only when the current one is unset, as internal/test/harnessbin
-// does for its own variables.
-const (
-	l2tpScaleZeEnv             = "ZE_BINARY"
-	l2tpScaleHarnessEnv        = "LE_TEST_BINARY"
-	l2tpScaleRetiredHarnessEnv = "ZE_TEST_BINARY"
-)
-
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "le.test.binary", Type: "string", Description: "le-test harness binary the L2TP scale runner uses when bin/le-test is absent", Private: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.binary", Type: "string", Deprecated: l2tpScaleHarnessEnv, Description: "Retired spelling of le.test.binary, read when le.test.binary is unset", Private: true})
-)
+// l2tpScaleZeEnv is the environment spelling that locates ze when bin/ holds
+// none. The simulator needs no variable: it is `le test l2tp-scale`, run from
+// this process's own executable.
+const l2tpScaleZeEnv = "ZE_BINARY"
 
 // l2tpScaleRunOptions selects one exact scenario. An empty selection runs the registry.
 type l2tpScaleRunOptions struct {
 	Scenario string
 }
 
-// L2TPScaleResult is the exact JSON contract emitted by le-test l2tp-scale.
+// L2TPScaleResult is the exact JSON contract emitted by le test l2tp-scale.
 type L2TPScaleResult struct {
 	TunnelsRequested  int           `json:"tunnels-requested"`
 	TunnelsUp         int           `json:"tunnels-up"`
@@ -211,26 +200,20 @@ func runL2TPScaleAt(
 	}
 
 	zeBinary := findL2TPScaleBinary(system, root, "ze", l2tpScaleZeEnv)
-	zeTestBinary := findL2TPScaleBinary(system, root, harnessbin.Name, l2tpScaleHarnessEnv)
-	if zeTestBinary == "" {
-		zeTestBinary = l2tpScaleBinaryFromEnv(system, l2tpScaleRetiredHarnessEnv)
-		if zeTestBinary != "" {
-			report.Warnings = append(report.Warnings,
-				l2tpScaleRetiredHarnessEnv+" is deprecated: set "+l2tpScaleHarnessEnv)
-		}
+	if zeBinary == "" {
+		report.Failure = "bin/ze not found"
+		report.Code = 1
+		return report, report.Code
 	}
-	if zeBinary == "" || zeTestBinary == "" {
-		missing := "ze"
-		if zeBinary != "" {
-			missing = harnessbin.Name
-		}
-		report.Failure = "bin/" + missing + " not found"
+	harness, err := system.Executable()
+	if err != nil {
+		report.Failure = "the runner does not know its own executable: " + err.Error()
 		report.Code = 1
 		return report, report.Code
 	}
 
 	for _, scenario := range selected {
-		result := runL2TPScaleScenario(ctx, system, zeBinary, zeTestBinary, scenario)
+		result := runL2TPScaleScenario(ctx, system, zeBinary, harness, scenario)
 		report.Scenarios = append(report.Scenarios, result)
 		if result.Passed {
 			report.Passed++
@@ -271,7 +254,7 @@ func runL2TPScaleScenario(
 	ctx context.Context,
 	system l2tpScaleSystem,
 	zeBinary string,
-	zeTestBinary string,
+	harness string,
 	scenario l2tpScaleScenario,
 ) (report L2TPScaleScenarioReport) {
 	report.Name = scenario.name
@@ -313,7 +296,7 @@ func runL2TPScaleScenario(
 	}
 
 	argv := []string{
-		zeTestBinary, "l2tp-scale",
+		harness, "test", "l2tp-scale",
 		"--target", fmt.Sprintf("127.0.0.1:%d", port),
 		"--tunnels", strconv.Itoa(scenario.tunnels),
 		"--sessions", strconv.Itoa(scenario.sessions),
@@ -497,6 +480,9 @@ type l2tpScaleProcess interface {
 }
 
 type l2tpScaleSystem interface {
+	// Executable answers the file of the running le, which runs the simulator
+	// as `le test l2tp-scale`.
+	Executable() (string, error)
 	FileExists(path string) bool
 	Getenv(key string) string
 	Environ() []string
@@ -507,6 +493,8 @@ type l2tpScaleSystem interface {
 }
 
 type realL2TPScaleSystem struct{}
+
+func (realL2TPScaleSystem) Executable() (string, error) { return os.Executable() }
 
 func (realL2TPScaleSystem) FileExists(path string) bool {
 	info, err := os.Stat(path)

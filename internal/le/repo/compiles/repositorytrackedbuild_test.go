@@ -289,8 +289,9 @@ func TestEveryFlavorNamesATagGatedAnchorFile(t *testing.T) {
 			t.Errorf("flavor %s names no anchor file, so its tags tie back to nothing", flavor.Name)
 		}
 	}
-	if len(buildMatrix) < 6 {
-		t.Errorf("the matrix holds %d flavors, want the six shipped ones", len(buildMatrix))
+	// Five since D-8 deleted the harness flavor: le carries the harness.
+	if len(buildMatrix) < 5 {
+		t.Errorf("the matrix holds %d flavors, want the five shipped ones", len(buildMatrix))
 	}
 }
 
@@ -303,7 +304,7 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 	if code != 0 {
 		t.Errorf("the matrix action answers %d, want 0", code)
 	}
-	if matrix, ok := payload.(Matrix); !ok || len(matrix) < 6 {
+	if matrix, ok := payload.(Matrix); !ok || len(matrix) != len(buildMatrix) {
 		t.Errorf("the matrix action answered %T with %v", payload, payload)
 	}
 	if _, code := Answer([]string{"nope"}); code != 2 {

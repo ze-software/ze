@@ -943,7 +943,7 @@ prepends the isolated directory to `PATH`, so `.ci` fixtures continue to invoke
 the canonical bare names.
 
 <!-- source: internal/le/test/functional/binaries.go -- Prepare, Release, buildCommands -->
-<!-- source: internal/le/test/functional/suites.go -- Suite.Chaos, Suite.LE -->
+<!-- source: internal/le/test/functional/suites.go -- Suite -->
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
@@ -1539,8 +1539,8 @@ VPP functional tests are outside the default release gate. Run them with:
 
 The suite uses the compiled Go VPP API stub. Each test gets a fresh Unix socket,
 so it needs no DPDK, vfio, root, or Python helper.
-<!-- source: internal/test/cli/cmd_vpp_stub.go -- cmdVPPStub, runVPPStub -->
-<!-- source: internal/test/cli/cmd_vpp.go -- cmdVpp -->
+<!-- source: internal/test/cli/cmd_vpp_stub.go -- CmdVPPStub, runVPPStub -->
+<!-- source: internal/test/cli/cmd_vpp.go -- CmdVpp -->
 
 Real-daemon evidence uses `./le test deployment vpp-test`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
@@ -1921,7 +1921,7 @@ It registers six commands, and each one is one property of the record path.
 | `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
 | `show test records table` | 300 rows against a declared column schema, so the head says `tab` and each row is a positional array |
 | `show test records object` | the same 300 rows with no schema declared, so the head says `map` and each row carries its own names |
-<!-- source: internal/test/cli/cmd_record_plugin.go -- cmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader -->
+<!-- source: internal/test/cli/cmd_record_plugin.go -- CmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader -->
 
 The last two are a PAIR, and neither means anything alone. They answer the same
 data through handlers that differ only in `plugin.Records.Fields`, so the

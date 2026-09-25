@@ -657,11 +657,11 @@ func dockerExec(args []string, joined string) {
         record(args)
         if hasState("acl") { fmt.Println("ze/wan/input") }
         if hasState("clear-acl") { clearState("acl"); clearState("clear-acl") }
-    case strings.Contains(joined, "pkill -TERM -f le-test-linux-amd64"):
+    case strings.Contains(joined, "pkill -TERM -f /src/tmp/evidence/bin/linux-amd64/le test peer"):
         record(args)
         clearState("fib")
         clearState("mpls")
-    case strings.Contains(joined, "/le-test-linux-amd64 peer "):
+    case strings.Contains(joined, "/linux-amd64/le test peer "):
         record(args)
         marker := "fib"
         if strings.Contains(joined, "mpls-peer-script") { marker = "mpls" }

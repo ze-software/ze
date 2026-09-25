@@ -50,11 +50,10 @@ const labBuildGOOS = "linux"
 // touches that lab alone: this producer holds no list of labs and no per-lab
 // branch.
 type LabBinary struct {
-	// Name is what the binary is called in a message: `ze`, `le-test`.
+	// Name is what the binary is called in a message: `ze`, `le`.
 	Name string
 	// Base is the tag pair this personality carries before the feature gates,
-	// such as repofeaturetags.DaemonBase for a daemon and `ze_test` for the test
-	// personality. The gates themselves are read from feature-gates.txt, so a
+	// such as repofeaturetags.DaemonBase for a daemon and linuxle.Base for le. The gates themselves are read from feature-gates.txt, so a
 	// lab cannot declare a feature set that differs from the shipped one.
 	Base string
 	// Output is the staging path, relative to the checkout root. It sits inside

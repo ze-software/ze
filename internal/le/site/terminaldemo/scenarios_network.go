@@ -111,7 +111,7 @@ func runBFD(action string, args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		peerPID, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-peer", "ze-test", ipPeer, flagMode, peerModeSink, flagBind, "172.30.0.3", flagPort, "1179", flagASN, "65002"}, environ, filepath.Join(state, "peer.log"))
+		peerPID, err := startCommand("ip", []string{ipNetns, commandExec, lab + "-peer", demoHarness, demoHarnessWord, ipPeer, flagMode, peerModeSink, flagBind, "172.30.0.3", flagPort, "1179", flagASN, "65002"}, environ, filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}
@@ -394,7 +394,7 @@ func runTraffic(action string, output io.Writer) error {
 		}
 	case commandStart:
 		env := scenarioEnv(id, demoPassword)
-		httpPID, err := startCommand("ze-test", []string{"static-http", flagBind, "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
+		httpPID, err := startCommand(demoHarness, []string{demoHarnessWord, "static-http", flagBind, "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
 		if err != nil {
 			return err
 		}

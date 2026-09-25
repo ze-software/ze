@@ -26,12 +26,12 @@ func runRPKI(action string) error {
 		}
 		environ := scenarioEnv(id, demoPassword)
 		pids := make([]int, 0, 3)
-		rpkiPID, err := startCommand("ze-test", []string{"rpki", flagBind, "127.0.0.3", flagPort, "3323", "--valid-asn", "65001", "--invalid-asn", "65099"}, environ, filepath.Join(state, "rpki.log"))
+		rpkiPID, err := startCommand(demoHarness, []string{demoHarnessWord, "rpki", flagBind, "127.0.0.3", flagPort, "3323", "--valid-asn", "65001", "--invalid-asn", "65099"}, environ, filepath.Join(state, "rpki.log"))
 		if err != nil {
 			return err
 		}
 		pids = append(pids, rpkiPID)
-		peerPID, err := startCommand("ze-test", []string{ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, environ, filepath.Join(state, "peer.log"))
+		peerPID, err := startCommand(demoHarness, []string{demoHarnessWord, ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, environ, filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func runIRR(action string) error {
 		fmt.Println("Base BGP configuration loaded without IRR filtering")
 	case commandStart:
 		environ := scenarioEnv(id, demoPassword)
-		pid, err := startCommand("ze-test", []string{"irr", flagPort, "4343"}, environ, filepath.Join(state, "irr.log"))
+		pid, err := startCommand(demoHarness, []string{demoHarnessWord, "irr", flagPort, "4343"}, environ, filepath.Join(state, "irr.log"))
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func runIRR(action string) error {
 		fmt.Println("IRR filter demo ready")
 	case "announce":
 		data, _ := os.ReadFile(filepath.Join(state, "pids")) //nolint:gosec // the path comes from the closed demo scenario table
-		pid, err := startCommand("ze-test", []string{ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, scenarioEnv(id, demoPassword), filepath.Join(state, "peer.log"))
+		pid, err := startCommand(demoHarness, []string{demoHarnessWord, ipPeer, flagMode, peerModeSink, flagBind, loopbackPeerAddress, flagPort, "1179", flagASN, "65001", filepath.Join(demoDir(id), "routes.msg")}, scenarioEnv(id, demoPassword), filepath.Join(state, "peer.log"))
 		if err != nil {
 			return err
 		}

@@ -1807,7 +1807,7 @@ Two consequences follow, and both are load-bearing when writing a test:
   test (`test/ipsec/ipsec-clear-reestablish.ci`), not by a second `expect=event`.
 
 <!-- source: internal/test/runner/engine_steps.go -- EngineStepSubscriptionFor, RunEngineSteps -->
-<!-- source: internal/test/cli/cmd_engine_steps.go -- cmdEngineSteps -->
+<!-- source: internal/test/cli/cmd_engine_steps.go -- CmdEngineSteps -->
 <!-- source: internal/component/plugin/server/dispatch.go -- buildEventEnvelope, resolveSubscriptionNamespace -->
 
 ### expect=command-error
@@ -2013,7 +2013,7 @@ not only latency: `test/plugin/event-predicate-wait.ci` failed at its 15s budget
 with `TYPE: timeout` while the daemon itself completed correctly.
 <!-- source: internal/test/runner/runner_exec_util.go -- terminateScaffoldPeers, drainPeers -->
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated teardown, terminateScaffoldPeers call -->
-<!-- source: internal/test/cli/cmd_peer.go -- cmdPeer, SIGTERM mapped to the peer's context cancel -->
+<!-- source: internal/test/cli/cmd_peer.go -- CmdPeer, SIGTERM mapped to the peer's context cancel -->
 <!-- test: internal/test/runner/peer_teardown_test.go TestTerminateScaffoldPeersReapsSinkPeer, TestTerminateScaffoldPeersLeavesCheckPeer -->
 
 ## Migration from Old Format

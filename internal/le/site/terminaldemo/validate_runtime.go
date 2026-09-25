@@ -889,7 +889,7 @@ func pipelineInput(input string, commands [][]string, environ []string) (string,
 	return string(current), nil
 }
 
-// The ze-test peer mode the demos run, the iproute2 next-hop keyword, and the
+// The `le test peer` mode the demos run, the iproute2 next-hop keyword, and the
 // CLI pipe keyword the runtime validator asserts on.
 const (
 	peerModeSink = "sink"

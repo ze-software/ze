@@ -30,7 +30,6 @@ func TestActionsCarryTheirContracts(t *testing.T) {
 		{"release-check-all", false, "the published artifacts carry this release identity, which is what a tag ships"},
 		{"image-build", true, "the container every demo is recorded in, tagged as the manifest names it"},
 		{"binaries-build-ze", true, "the ze a demo drives, and the le that records it, cross-built for the renderer container"},
-		{"binaries-build-ze-test", true, "the ze-test a demo drives, which carries ze_test alone and no version"},
 		{"render-all", true, "re-record every website demo from its checked-in tape"},
 		{"render", true, "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo"},
 		{"pty", false, "record one tape, or drive a program through a PTY; the renderer container runs it"},
@@ -57,7 +56,7 @@ func TestActionsCarryTheirContracts(t *testing.T) {
 	if !got.Actions[len(got.Actions)-1].Forwards {
 		t.Error("pty does not forward its words, so RunPTY's options would be refused by le")
 	}
-	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "image-build", "binaries-build-ze", "binaries-build-ze-test", "render-all"} {
+	for _, verb := range []string{"check-all", "validation-check-all", "release-check-all", "image-build", "binaries-build-ze", "render-all"} {
 		if table.TakesArguments(verb) {
 			t.Errorf("%s takes arguments, and a sweep of several actions can no longer name it", verb)
 		}
@@ -78,15 +77,15 @@ func TestRenderWithoutADemoIdIsRefused(t *testing.T) {
 	}
 }
 
-// VALIDATES: the two build actions stage the exact target binaries with their distinct tags and release flags.
-// PREVENTS: a ze-test carrying product features, or a demo ze built without ze_distro and release identity.
+// VALIDATES: the build action stages the exact target binaries with their distinct tags and release flags.
+// PREVENTS: a demo ze built without ze_distro and release identity, or a recorder le not named le.
 func TestBuildCommandsAreExact(t *testing.T) {
 	root := filepath.Join("checkout", "main")
 	toolchain := gotoolchain.Toolchain{
 		Root: root, Features: []string{"ze_alpha", "ze_beta"}, ExtraTags: []string{"ze_extra"},
 		GoToolchain: "go1.26.6", Version: "26.08.27", BuildDate: "2026-08-27T12:34:56Z",
 	}
-	ze, zeReport := buildCommand(root, toolchain, "arm64", false)
+	ze, zeReport := buildCommand(root, toolchain, "arm64")
 	wantZe := []string{
 		"go", "build", "-tags", "ze_core ze_distro ze_alpha ze_beta ze_extra",
 		"-ldflags", "-X main.version=26.08.27 -X main.buildDate=2026-08-27T12:34:56Z",
@@ -127,21 +126,6 @@ func TestBuildCommandsAreExact(t *testing.T) {
 	}
 	if !reflect.DeepEqual(runtimeHelper.Args, wantRuntimeHelper) {
 		t.Errorf("demo runtime argv = %#v, want %#v", runtimeHelper.Args, wantRuntimeHelper)
-	}
-
-	zeTest, testReport := buildCommand(root, toolchain, "arm64", true)
-	wantTest := []string{
-		"go", "build", "-tags", "ze_test",
-		"-o", filepath.Join(root, "tmp", "terminal-demos", "bin", "ze-test"), "./cmd/ze",
-	}
-	if !reflect.DeepEqual(zeTest.Args, wantTest) {
-		t.Errorf("ze-test argv = %#v, want %#v", zeTest.Args, wantTest)
-	}
-	if testReport.Action != "terminal-demo binaries-build-ze-test" {
-		t.Errorf("ze-test action = %q", testReport.Action)
-	}
-	if slices.Contains(zeTest.Args, "-ldflags") {
-		t.Error("ze-test unexpectedly carries release ldflags")
 	}
 }
 

@@ -55,10 +55,11 @@ var netnsSelections = map[string][]string{
 	},
 }
 
+// netnsBinaries names the two daemon binaries the launcher copies with
+// capabilities. The harness is the running le itself (guestLeLink).
 type netnsBinaries struct {
 	Ze       string
 	Stripped string
-	Test     string
 }
 
 func netnsGuestBinaries() netnsBinaries {
@@ -66,7 +67,6 @@ func netnsGuestBinaries() netnsBinaries {
 	return netnsBinaries{
 		Ze:       settingFromEnv("ZE_QEMU_BIN", filepath.Join("bin", "ze-linux-"+arch)),
 		Stripped: settingFromEnv("ZE_QEMU_STRIPPED_BIN", filepath.Join("bin", "ze-stripped-linux-"+arch)),
-		Test:     qemuTestBin(),
 	}
 }
 
@@ -201,7 +201,6 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 		inVMKey:         "1",
 		zeBinKey:        filepath.Join(netnsCapDir, "ze"),
 		strippedBinKey:  filepath.Join(netnsCapDir, "ze-stripped"),
-		guestTestBinKey: binaries.Test,
 		netnsModeKey:    netnsModeValue,
 		netnsUIDKey:     netnsUID,
 		netnsGIDKey:     netnsUID,
@@ -211,8 +210,14 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 	if suite, ok := testfunctional.SuiteNamed(suiteName); ok {
 		suiteArgs = suite.Args
 	}
-	argv := make([]string, 1, len(suiteArgs)+len(ids)+3)
-	argv[0] = binaries.Test
+	harness, err := guestLeLink(netnsCapDir)
+	if err != nil {
+		gaterun.Note("link the guest le into " + netnsCapDir + ": " + err.Error())
+		return 1
+	}
+	argv := make([]string, 2, len(suiteArgs)+len(ids)+4)
+	argv[0] = harness
+	argv[1] = leTestWord
 	for _, arg := range suiteArgs {
 		if arg == allTests {
 			break // Replace the registry's population and concurrency with this subset.

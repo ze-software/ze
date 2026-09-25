@@ -2,12 +2,14 @@
 // Related: ../site/terminaldemo/actions.go -- the linux le the demo container runs
 // Related: ../../test/perfrunner/run.go -- the perf runner that mounts it
 
-// Package linuxle declares, once, how a linux le is cross-built for a container.
+// Package linuxle declares, once, how a linux le is cross-built for a container
+// or a guest.
 //
-// Two containers run le itself rather than a program of their own: the perf
-// sender (`le perf send`) and the terminal-demo recorder
-// (`le site terminal-demo pty`). Both need the same binary, so the recipe lives
-// here and each builder takes its argv, its environment and its tags from it.
+// Every image and guest that runs le itself takes the recipe from here: the
+// perf sender (`le perf send`), the terminal-demo recorder
+// (`le site terminal-demo pty`), the BGP interop image, the QEMU guests and the
+// VPP evidence container (`le test <name>`). Each builder takes its argv, its
+// environment and its tags from this package.
 package linuxle
 
 import (
@@ -19,11 +21,15 @@ import (
 // named anything else is not le.
 const Name = "le"
 
-// Tags answers the build tags of a linux le: ze_le, which adds le's commands,
-// and every daemon feature tag, so the container's le carries the same feature
+// Base is the build tag a linux le carries before the daemon feature tags:
+// ze_le, which adds le's commands and, with them, every harness command
+// under `le test`.
+const Base = "ze_le"
+
+// Tags answers the build tags of a linux le: Base and every daemon feature tag, so the container's le carries the same feature
 // set as the le on the host.
 func Tags(root string) (string, error) {
-	return repofeaturetags.DaemonBuildTags(root, "ze_le")
+	return repofeaturetags.DaemonBuildTags(root, Base)
 }
 
 // Argv answers the go build command line that writes a linux le to output.

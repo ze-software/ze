@@ -1,7 +1,7 @@
 # Ze image for the general BGP interop lab.
 #
 # It expects two pre-built linux binaries, at test/interop/ze-linux and
-# test/interop/le-test-linux, which `./le test integration interop` cross-compiles
+# test/interop/le-linux, which `./le test integration interop` cross-compiles
 # before it builds this image (internal/le/interoplab/zebuild.go, StageBinaries,
 # declared by internal/le/interoplab/bgp/run.go, LabBinaries). A bare
 # `docker build -f test/interop/Dockerfile.ze .` on a clean checkout fails at
@@ -11,8 +11,9 @@
 # linker inside this image was killed by the kernel three times on an idle
 # 31 GiB workstation on 2026-09-06, and took 40m39s on a small VM on 2026-09-04.
 #
-# ze and le-test are both cmd/ze selected by build tag: the daemon personality
-# takes ze_core ze_distro and the test personality takes ze_test. Both also
+# ze and le are both cmd/ze selected by build tag: the daemon personality
+# takes ze_core ze_distro and le takes ze_le (internal/le/linuxle, Base), which
+# carries every harness command as `le test <name>`. Both also
 # carry every gate feature-gates.txt declares, because a personality tag alone
 # leaves every compile-out-able feature off and BGP itself is one of them
 # (ze_bgp). The producer reads that manifest through internal/le/repo/featuretags, so
@@ -31,10 +32,16 @@ FROM alpine:3.21
 RUN apk add --no-cache tini nftables iproute2
 
 COPY test/interop/ze-linux /usr/local/bin/ze
-COPY test/interop/le-test-linux /usr/local/bin/le-test
-# The harness is le-test. Scenarios that still exec its retired name ze-test
-# reach the same file through this hard link, until the le rename removes it.
-RUN ln /usr/local/bin/le-test /usr/local/bin/ze-test
+# The file MUST be named le: cmd/ze selects its personality from the name it
+# was started under.
+COPY test/interop/le-linux /usr/local/bin/le
+# Scenario ze.conf files still run the harness by its two retired names. Each
+# is a shell shim that runs `le test`, until Phase 3 of
+# plan/spec-le-subject-first-command-tree.md removes both.
+RUN for name in le-test ze-test; do \
+      printf '#!/bin/sh\nexec /usr/local/bin/le test "$@"\n' > /usr/local/bin/$name && \
+      chmod 0755 /usr/local/bin/$name; \
+    done
 
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

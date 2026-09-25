@@ -179,7 +179,7 @@ func startPeersAndDaemon(id string, peers [][]string, logName string, attempts i
 	environ := scenarioEnv(id, demoPassword)
 	pids := make([]int, 0, len(peers)+1)
 	for index, args := range peers {
-		pid, err := startCommand("ze-test", args, environ, filepath.Join(state, fmt.Sprintf("peer-%d.log", index)))
+		pid, err := startCommand(demoHarness, append([]string{demoHarnessWord}, args...), environ, filepath.Join(state, fmt.Sprintf("peer-%d.log", index)))
 		if err != nil {
 			return err
 		}

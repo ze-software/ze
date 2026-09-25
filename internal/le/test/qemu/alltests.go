@@ -44,7 +44,7 @@ import (
 	"github.com/ze-software/ze/internal/le/population"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // The guest uses fixed paths. The repository arrives on a 9p mount at a known
@@ -91,13 +91,12 @@ const functionalWeb = "web"
 const (
 	zeName         = "ze"
 	zeStrippedName = "ze-stripped"
-	zeTestName     = harnessbin.Name
 )
 
 // The environment every child is given.
 const (
 	repoRootKey    = "ZE_REPO_ROOT"
-	noBuildKey     = harnessbin.EnvNoBuild
+	noBuildKey     = runner.EnvNoBuild
 	inVMKey        = "ZE_QEMU"
 	zeBinKey       = "ZE_BIN"
 	strippedBinKey = "ZE_STRIPPED_BIN"
@@ -406,11 +405,11 @@ type allTestsRun struct {
 	Workspace string
 	// BinDir is the VM-local directory the binary shim is built in.
 	BinDir string
-	// The three binaries, as the host named them. A relative path is resolved
-	// against the workspace, which is how the native host action passes them.
+	// The two daemon binaries, as the host named them. A relative path is
+	// resolved against the workspace, which is how the native host action
+	// passes them. The harness is this run's own le (guestLeLink).
 	ZeBin       string
 	StrippedBin string
-	TestBin     string
 	// Skip names the suites this run must not start.
 	Skip []string
 	// LinuxOnly runs only the .ci tests marked `option=needs-linux`. It is the
@@ -448,7 +447,6 @@ func newAllTests() *allTestsRun {
 		BinDir:      guestBinDir,
 		ZeBin:       envOr(zeBinKey, "bin/ze"),
 		StrippedBin: envOr("ZE_STRIPPED_BIN", "bin/ze-stripped"),
-		TestBin:     testBinOr(filepath.Join("bin", harnessbin.Name)),
 		Skip:        splitList(envOr("ZE_QEMU_SKIP_SUITES", defaultSkip)),
 		LinuxOnly:   os.Getenv(linuxOnlyKey) == linuxOnlyValue,
 		Parallel:    envOr("ZE_QEMU_PARALLEL", defaultParallel),
@@ -463,15 +461,6 @@ func newAllTests() *allTestsRun {
 func envOr(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
-	}
-	return fallback
-}
-
-// testBinOr answers the harness binary the guest names through le.test.bin or
-// its retired spelling, or the fallback when neither is set.
-func testBinOr(fallback string) string {
-	if named := harnessbin.TestBin(); named != "" {
-		return named
 	}
 	return fallback
 }
@@ -604,7 +593,7 @@ func (a *allTestsRun) verify() error {
 		return errors.New(tb.Err(ErrNotMounted).Str(": ").Str(a.Workspace).String())
 	}
 
-	for _, bin := range []string{a.ZeBin, a.StrippedBin, a.TestBin} {
+	for _, bin := range []string{a.ZeBin, a.StrippedBin} {
 		path := a.workspacePath(bin)
 		info, err := os.Stat(path)
 		if err != nil || info.IsDir() || info.Mode().Perm()&0o111 == 0 {
@@ -742,7 +731,7 @@ func (a *allTestsRun) workspacePath(path string) string {
 //
 // The directory is TRAVERSABLE BY EVERY USER, not only by root. A suite in the
 // per-test network namespace runs ze as an ordinary user, ze relays a plugin
-// through `le-test` on this PATH, and a 0750 root-owned directory answers that
+// through `le test` on this PATH, and a 0750 root-owned directory answers that
 // exec with `/bin/sh: le-test: Permission denied`. The plugin then never
 // starts and the test times out on a symptom that names neither the directory
 // nor the user: measured on 2026-09-05, 18 test/ospf tests timed out that way.
@@ -760,10 +749,6 @@ func (a *allTestsRun) shim() error {
 	for name, target := range map[string]string{
 		zeName:         a.workspacePath(a.ZeBin),
 		zeStrippedName: a.workspacePath(a.StrippedBin),
-		zeTestName:     a.workspacePath(a.TestBin),
-		// A .ci still execs the harness by its retired name until Phase 2
-		// of the le rename rewrites it.
-		harnessbin.RetiredName: a.workspacePath(a.TestBin),
 	} {
 		link := filepath.Join(a.BinDir, name)
 		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -773,7 +758,11 @@ func (a *allTestsRun) shim() error {
 			return err
 		}
 	}
-	return nil
+	// The harness is this run's own le. A suite runs as `le test <suite>`
+	// through this link, and the runner under it links `le` into its children's
+	// PATH the same way.
+	_, err := guestLeLink(a.BinDir)
+	return err
 }
 
 // environment is what every child of this run is given.
@@ -865,8 +854,8 @@ func (a *allTestsRun) suite(suite vmSuite, environ []string) PhaseResult {
 // `timeout` runs the suite in its own process group. On expiry, it kills the
 // whole group. Thus a stuck ze or plugin child cannot wedge the run.
 func (a *allTestsRun) suiteCommand(suite vmSuite) []string {
-	argv := make([]string, 0, len(suite.Args)+7)
-	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, zeTestName))
+	argv := make([]string, 0, len(suite.Args)+8)
+	argv = append(argv, "timeout", killAfterFlag, killAfterSeconds, a.Timeout, filepath.Join(a.BinDir, leName), leTestWord)
 	argv = append(argv, suite.Args...)
 
 	switch suite.Concurrency {

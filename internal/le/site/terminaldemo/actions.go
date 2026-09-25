@@ -61,10 +61,7 @@ func actionTable() leaction.Area {
 			Answer: runImageBuild},
 		leaction.Action{Verb: "binaries-build-ze", Why: "the ze a demo drives, and the le that records it, cross-built for the renderer container",
 			Writes: true,
-			Answer: func() (any, int) { return runBuild(false) }},
-		leaction.Action{Verb: "binaries-build-ze-test", Why: "the ze-test a demo drives, which carries ze_test alone and no version",
-			Writes: true,
-			Answer: func() (any, int) { return runBuild(true) }},
+			Answer: runBuild},
 		leaction.Action{Verb: "render-all", Why: "re-record every website demo from its checked-in tape",
 			Writes: true,
 			Answer: func() (any, int) { return runRenderer(rendererRenderMode, true) }},
@@ -102,7 +99,7 @@ func Answer(args []string) (any, int) {
 	return table.Sweep(args, leaction.RunEveryAction)
 }
 
-func runBuild(testBinary bool) (any, int) {
+func runBuild() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -118,14 +115,14 @@ func runBuild(testBinary bool) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	command, report := buildCommand(root, toolchain, arch, testBinary)
+	command, report := buildCommand(root, toolchain, arch)
 	if err := os.MkdirAll(filepath.Dir(report.Output), 0o750); err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
 	gaterun.Announce(report.Action)
 	code := gaterun.Stream(command.Args, command.Dir, command.Env)
-	if code == 0 && !testBinary {
+	if code == 0 {
 		tags, err := linuxle.Tags(root)
 		if err != nil {
 			leaction.ReportError(err)
@@ -159,18 +156,11 @@ func rendererGOARCH() (string, error) {
 	}
 	return strings.TrimSpace(string(output)), nil
 }
-func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string, testBinary bool) (Command, BuildReport) {
-	outputName := "ze"
+func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string) (Command, BuildReport) {
 	tags := demoTags(toolchain)
 	ldflags := []string{"-ldflags", toolchain.LDFlags()}
 	action := "terminal-demo binaries-build-ze"
-	if testBinary {
-		outputName = "ze-test"
-		tags = "ze_test"
-		ldflags = nil
-		action = "terminal-demo binaries-build-ze-test"
-	}
-	output := filepath.Join(root, "tmp", "terminal-demos", "bin", outputName)
+	output := filepath.Join(root, "tmp", "terminal-demos", "bin", "ze")
 	args := make([]string, 0, 7+len(ldflags))
 	args = append(args, "go", goCommandBuild, "-tags", tags)
 	args = append(args, ldflags...)
@@ -180,8 +170,17 @@ func buildCommand(root string, toolchain gotoolchain.Toolchain, arch string, tes
 	return command, BuildReport{Action: action, Args: args, Output: output}
 }
 
+// demoHarness and demoHarnessWord start a harness helper in the demo container:
+// every harness command is `le test <name>`, run by the linux le the recorder
+// build writes beside ze.
+const (
+	demoHarness     = linuxle.Name
+	demoHarnessWord = "test"
+)
+
 // recorderBuildCommand answers the build of the linux le the renderer
-// container records with (`le site terminal-demo pty`), and the path it writes.
+// container records with (`le site terminal-demo pty`), and runs every harness
+// helper a scenario starts (`le test peer`), and the path it writes.
 // The recipe is linuxle's, the one the perf sender container runs, applied over
 // the demo toolchain environment; the file name is linuxle.Name because that
 // name is what makes the binary le.

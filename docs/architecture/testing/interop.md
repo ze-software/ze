@@ -218,8 +218,8 @@ A scenario directory may also carry files that start extra containers before Ze:
 
 | File | Sidecar | Purpose |
 |------|---------|---------|
-| `inject.msg` | `le-test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
-| `speaker-args` (and optional `speaker2-args`) | `le-test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
+| `inject.msg` | `le test peer` (raw injector, 172.30.0.9) | Drive Ze with wire bytes no conforming daemon would emit. An optional `inject-args` file adds flags. Because the injector and Ze start before the peer daemons, an early route exercises Ze's replay-on-peer-up path. |
+| `speaker-args` (and optional `speaker2-args`) | `le test interop-bgp speaker` (172.30.0.10; second at 172.30.0.11) | Dial Ze with an independent strict peer. The compiled speaker negotiates the requested families and ADD-PATH mode, frames BGP itself, applies the named native oracle, and writes a structured verdict to container logs. It catches wire output that Ze's own lenient decoder could accept. |
 | `vrps.json` | StayRTR (172.30.0.12:8282) | Serve RPKI VRPs from a real third-party cache, so Ze is the RTR client of an implementation that is not its own. The typed checker asserts each per-prefix validation answer, not merely the RTR session. |
 | `pmbmpd.conf` | pmacct `pmbmpd` (172.30.0.13:1790) | Read Ze's BMP stream with a collector Ze did not write. The file is also the selector: a scenario that carries it starts pmacct INSTEAD of Ze's own collector, because two collectors are two readings of one stream and only the third-party one is interop evidence. The typed checker greps pmacct's JSON msglog, so every needle is a field pmacct printed after decoding. |
 
@@ -229,9 +229,9 @@ needing a `bgpd` module (`-M bmp` for one that drives Ze's BMP receiver) carries
 its own copy instead of adding the module to every scenario in the suite. Without
 one, the shared `test/interop/daemons` is mounted.
 
-A BMP scenario with no `pmbmpd.conf` starts `le-test interop-bgp bmp-collector`. Announcement and
-observer process plugins use `le-test interop-bgp process <scenario> <plugin>`.
-These personalities are compiled into `le-test`; no interpreter or source mount
+A BMP scenario with no `pmbmpd.conf` starts `le test interop-bgp bmp-collector`. Announcement and
+observer process plugins use `le test interop-bgp process <scenario> <plugin>`.
+These personalities are compiled into `le`; no interpreter or source mount
 is present in the Ze image.
 <!-- source: internal/le/interoplab/bgp/prepare.go -- sidecar startup -->
 <!-- source: internal/le/interoplab/bgp/helper.go -- compiled process and BMP helpers -->
@@ -286,7 +286,7 @@ same structural predicate and save the observed route objects in
 `/tmp/rpki-check.json` inside the Ze container.
 
 This scenario exercises FRR-to-Ze BGP reception with RPKI eligibility decisions.
-It uses the same-repository `le-test rpki` RTR cache mock and does not establish
+It uses the same-repository `le test rpki` RTR cache mock and does not establish
 independent RTR interoperability. The `rtr-stayrtr` scenario uses StayRTR for
 that purpose. The retention observation does not measure downstream export:
 FRR originates these routes, and there is no separate receiving peer.
@@ -862,8 +862,13 @@ images. No `Dockerfile.ze` carries a Go compiler: each one is an `alpine:3.21`
 base, one `apk add`, and a `COPY` of a binary the suite's preflight has already
 written into the build context (`internal/le/interoplab/zebuild.go`,
 `StageBinaries`). Each lab declares the binaries it needs beside the images it
-needs, and the bgp lab declares two, because its scenarios also run `le-test`
-from inside the container.
+needs, and the bgp lab declares two, because its scenarios also run the harness
+from inside the container: a linux `le` built by `internal/le/linuxle`
+(`linuxle.Base`), staged at `test/interop/le-linux` and copied to
+`/usr/local/bin/le`. Harness peers start with entrypoint `le` and a command that
+begins `test` (`le test interop-bgp speaker ...`). Scenario `ze.conf` files that
+still run the retired names `le-test` or `ze-test` reach two shell shims in the
+image that exec `le test`, until Phase 3 removes them.
 
 Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03

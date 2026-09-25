@@ -189,7 +189,7 @@ is not production code. The two ends of the `lg` daemon peer carry different
 loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
 against the peer address has two values to compare.
 <!-- source: internal/test/cli/cmd_web.go -- zeTestStartLGServer, zeTestStartLGNoEngineServer, zeTestStartChaosServer, zeTestResolveWebBinaries -->
-<!-- source: internal/test/cli/cmd_lg.go -- cmdLG -->
+<!-- source: internal/test/cli/cmd_lg.go -- CmdLG -->
 <!-- source: internal/le/test/functional/binaries.go -- alternate chaos build -->
 
 ### Actions

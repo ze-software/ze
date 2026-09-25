@@ -3,6 +3,7 @@ package testdeployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -127,68 +128,53 @@ func TestL2TPScaleSessionTimeoutDefaultsAndOverrides(t *testing.T) {
 	}
 }
 
-// TestL2TPScaleLocatesTheHarness proves where the runner finds le-test. Method:
-// a recorder whose bin/ lacks the harness, with each variable spelling set in
-// turn, and the path the first simulator command executes.
+// TestL2TPScaleRunsItsOwnExecutable proves the simulator is the running le.
+// Method: a recorder that answers its own executable, and the argv of the first
+// simulator command; then a recorder that cannot answer it.
 //
-// VALIDATES: bin/le-test first, then LE_TEST_BINARY, then the retired
-// ZE_TEST_BINARY with a deprecation line, and a named file that is missing
-// answers the failure.
-func TestL2TPScaleLocatesTheHarness(t *testing.T) {
-	cases := []struct {
-		name        string
-		env         map[string]string
-		files       []string
-		wantBinary  string
-		wantWarning bool
-	}{
-		{name: "bin", files: []string{"/repo/bin/le-test"}, wantBinary: "/repo/bin/le-test"},
-		{name: "current variable", env: map[string]string{"LE_TEST_BINARY": "/opt/le-test", "ZE_TEST_BINARY": "/old/harness"},
-			files: []string{"/opt/le-test", "/old/harness"}, wantBinary: "/opt/le-test"},
-		{name: "retired variable", env: map[string]string{"ZE_TEST_BINARY": "/old/harness"},
-			files: []string{"/old/harness"}, wantBinary: "/old/harness", wantWarning: true},
-		{name: "retired variable names no file", env: map[string]string{"ZE_TEST_BINARY": "/old/harness"}},
+// VALIDATES: the simulator runs as `<own executable> test l2tp-scale ...`
+// (AC-41), and a runner that cannot name its own file fails before it runs
+// anything.
+func TestL2TPScaleRunsItsOwnExecutable(t *testing.T) {
+	system := newL2TPScaleRecorder()
+	report, _ := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: l2tpScaleScenarios()[0]}, system)
+	if len(system.commands) == 0 {
+		t.Fatalf("no simulator command ran: %s", report.Failure)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			system := newL2TPScaleRecorder()
-			delete(system.files, "/repo/bin/le-test")
-			system.env = tc.env
-			for _, file := range tc.files {
-				system.files[file] = true
-			}
-			report, _ := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: l2tpScaleScenarios()[0]}, system)
-			if tc.wantBinary == "" {
-				if report.Failure != "bin/le-test not found" || len(system.commands) != 0 {
-					t.Fatalf("failure = %q with %d commands, want bin/le-test not found and none", report.Failure, len(system.commands))
-				}
-				return
-			}
-			if len(system.commands) == 0 || system.commands[0].argv[0] != tc.wantBinary {
-				t.Fatalf("commands = %#v, want the first to execute %s", system.commands, tc.wantBinary)
-			}
-			warned := strings.Contains(report.Text(), "warning: ZE_TEST_BINARY is deprecated: set LE_TEST_BINARY\n")
-			if warned != tc.wantWarning {
-				t.Fatalf("deprecation line printed = %v, want %v:\n%s", warned, tc.wantWarning, report.Text())
-			}
-		})
+	if argv := system.commands[0].argv; len(argv) < 3 || argv[0] != "/fixture/le" || argv[1] != "test" || argv[2] != "l2tp-scale" {
+		t.Fatalf("the simulator argv is %q, want /fixture/le test l2tp-scale ...", argv)
+	}
+
+	broken := newL2TPScaleRecorder()
+	broken.executableErr = errors.New("no /proc")
+	report, code := runL2TPScaleAt(context.Background(), "/repo", l2tpScaleRunOptions{Scenario: l2tpScaleScenarios()[0]}, broken)
+	if code == 0 || !strings.Contains(report.Failure, "does not know its own executable") || len(broken.commands) != 0 {
+		t.Fatalf("code %d, failure %q, %d commands: want a refusal before any command", code, report.Failure, len(broken.commands))
 	}
 }
 
 type l2tpScaleRecorder struct {
-	files    map[string]bool
-	env      map[string]string
-	starts   []l2tpScaleStart
-	commands []l2tpScaleCommand
-	stops    int
-	port     int
+	executableErr error
+	files         map[string]bool
+	env           map[string]string
+	starts        []l2tpScaleStart
+	commands      []l2tpScaleCommand
+	stops         int
+	port          int
 }
 
 func newL2TPScaleRecorder() *l2tpScaleRecorder {
 	return &l2tpScaleRecorder{
-		files: map[string]bool{"/repo/bin/ze": true, "/repo/bin/le-test": true},
+		files: map[string]bool{"/repo/bin/ze": true},
 		port:  20_000,
 	}
+}
+
+func (r *l2tpScaleRecorder) Executable() (string, error) {
+	if r.executableErr != nil {
+		return "", r.executableErr
+	}
+	return "/fixture/le", nil
 }
 
 func (r *l2tpScaleRecorder) FileExists(path string) bool { return r.files[path] }

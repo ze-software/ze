@@ -4,8 +4,8 @@
 // RFC: rfc/short/rfc7627.md -- extended master secret, why the export is refused
 //
 // Single main() for all ze binaries. Build tags control which commands
-// register: ze_core (ze, ze-appliance), ze_setup, ze_test, ze_chaos,
-// ze_perf, ze_analyze. The binary name does not affect dispatch.
+// register: ze_core (ze, ze-appliance), ze_setup, ze_le (le, which carries
+// every harness command as `le test <name>`), ze_chaos, ze_perf, ze_analyze. The binary name does not affect dispatch.
 //
 // EAP-TLS against a TLS 1.2 peer with no Extended Master Secret: ze is
 // FAIL-CLOSED, and the opt-in no longer exists.

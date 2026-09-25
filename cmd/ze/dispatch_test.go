@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md -- the harness is le's, and ze's roots stay ze's
 //
-//go:build ze_core && ze_distro && ze_bgp && ze_exabgp && ze_isis && ze_l2tp && ze_ospf && ze_tacacs && !ze_appliance && !ze_setup && !ze_test && !ze_le
+//go:build ze_core && ze_distro && ze_bgp && ze_exabgp && ze_isis && ze_l2tp && ze_ospf && ze_tacacs && !ze_appliance && !ze_setup && !ze_le
 
 package main
 

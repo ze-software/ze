@@ -265,19 +265,19 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			Mounts: []interoplab.Mount{mount(pmacctConfig, "/etc/pmacct/pmbmpd.conf")}, Command: []string{"-f", "/etc/pmacct/pmbmpd.conf"}})
 	} else if configContains(filepath.Join(scenario, zeConfigFile), "bmp {") {
 		peers = append(peers, interoplab.PeerConfig{Name: peerBMP, Container: containerName(peerBMP, suffix), Image: "ze", Host: 6,
-			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: []string{"interop-bgp", "bmp-collector"}})
+			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: []string{leTestWord, "interop-bgp", "bmp-collector"}})
 	}
 	if path := filepath.Join(scenario, "inject.msg"); regularFile(path) {
 		arguments, err := readArguments(scenario, "inject-args")
 		if err != nil {
 			return nil, err
 		}
-		command := make([]string, 0, 4+len(arguments)+1)
-		command = append(command, "peer", "--port", "179", "--decode")
+		command := make([]string, 0, 5+len(arguments)+1)
+		command = append(command, leTestWord, "peer", "--port", "179", "--decode")
 		command = append(command, arguments...)
 		command = append(command, "/inject.msg")
 		peers = append(peers, interoplab.PeerConfig{Name: peerInject, Container: containerName(peerInject, suffix), Image: "ze", Host: 9,
-			Mounts: []interoplab.Mount{mount(path, "/inject.msg")}, Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
+			Mounts: []interoplab.Mount{mount(path, "/inject.msg")}, Arguments: []string{dockerEntrypointFlag, leBinary}, Command: command})
 	}
 	if path := filepath.Join(scenario, "vrps.json"); regularFile(path) {
 		peers = append(peers, interoplab.PeerConfig{Name: peerStayRTR, Container: containerName(peerStayRTR, suffix), Image: peerStayRTR, Host: 12,
@@ -288,9 +288,9 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		if err != nil {
 			return nil, err
 		}
-		command := append([]string{"rpki", "--bind", "0.0.0.0"}, arguments...)
+		command := append([]string{leTestWord, "rpki", "--bind", "0.0.0.0"}, arguments...)
 		peers = append(peers, interoplab.PeerConfig{Name: peerRPKI, Container: containerName(peerRPKI, suffix), Image: "ze", Host: 7,
-			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
+			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: command})
 	}
 
 	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, zeConfigFile), zeMountedConfig)}
@@ -327,6 +327,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 			return nil, readErr
 		}
 		command := []string{
+			leTestWord,
 			"interop-bgp",
 			zeTestCommandSpeaker,
 			"--connect",
@@ -334,7 +335,7 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 		}
 		command = append(command, arguments...)
 		peers = append(peers, interoplab.PeerConfig{Name: speaker.name, Container: containerName(speaker.name, suffix), Image: "ze", Host: speaker.host,
-			Arguments: []string{dockerEntrypointFlag, zeTestBinary}, Command: command})
+			Arguments: []string{dockerEntrypointFlag, leBinary}, Command: command})
 	}
 	for _, frr := range []struct {
 		name   string

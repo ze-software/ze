@@ -264,8 +264,8 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	// #nosec G204 -- docker is fixed; the container, built binary, numeric port, and peer file are produced by this closed FIB scenario.
 	peerCmd := exec.CommandContext(context.Background(), "docker",
 		dockerExec, container,
-		tb.Reset().Str("/src/").Str(filepath.ToSlash(vppTestRel(v.Goarch))).String(),
-		"peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
+		tb.Reset().Str("/src/").Str(filepath.ToSlash(vppLeRel(v.Goarch))).String(),
+		"test", "peer", "--mode", "sink", "--port", tb.Reset().Int(int64(port)).String(),
 		tb.Reset().Str(vppMount).Byte('/').Str(peerFile).String(),
 	)
 	peer, err := startWatched(peerCmd, "peer> ", peerSeen, v.Progress)
@@ -274,7 +274,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	}
 	defer stopVPPProcess(peer, peerSeen)
 	if !await(peerSeen, vppPeerReadyLine, peer, vppPeerWait) {
-		return VPPScenarioReport{}, errors.New("le-test peer did not start")
+		return VPPScenarioReport{}, errors.New("the le test peer did not start")
 	}
 
 	daemon, daemonSeen, err := v.startEvidenceDaemon(container, configFile, port)
@@ -315,8 +315,8 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 	}
 	checks = append(checks, passVPPCheck("installed", installDetail.String()))
 
-	if _, ok := v.containerText(container, "pkill", "-TERM", "-f", filepath.Base(vppTestRel(v.Goarch))); !ok {
-		return VPPScenarioReport{}, errors.New("failed to stop the le-test peer")
+	if _, ok := v.containerText(container, "pkill", "-TERM", "-f", vppPeerCommand(v.Goarch)); !ok {
+		return VPPScenarioReport{}, errors.New("failed to stop the le test peer")
 	}
 	waitForExit(peer, vppPeerWait)
 

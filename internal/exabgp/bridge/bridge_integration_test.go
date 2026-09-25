@@ -77,13 +77,13 @@ func setupTestBinaries(t *testing.T) {
 			return
 		}
 
-		testZeTestPath = filepath.Join(testTmpDir, "le-test")
-		buildCmd = exec.CommandContext(ctx, "go", "build", "-tags", "ze_test", "-o", testZeTestPath, "./cmd/ze")
+		testZeTestPath = filepath.Join(testTmpDir, "le")
+		buildCmd = exec.CommandContext(ctx, "go", "build", "-tags", "ze_le", "-o", testZeTestPath, "./cmd/ze")
 		buildCmd.Dir = projectRoot
 		buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		buildOutput, err = buildCmd.CombinedOutput()
 		if err != nil {
-			testSetupErr = fmt.Errorf("build le-test: %w\n%s", err, buildOutput)
+			testSetupErr = fmt.Errorf("build le: %w\n%s", err, buildOutput)
 			return
 		}
 	})
@@ -218,7 +218,7 @@ func newBridgeTestHarness(t *testing.T, ctx context.Context, testMode string, fl
 	setupTestBinaries(t)
 
 	args := append([]string{"exabgp", "plugin"}, flags...)
-	args = append(args, testZeTestPath, "interop-bgp", "exabgp-api", "echo")
+	args = append(args, testZeTestPath, "test", "interop-bgp", "exabgp-api", "echo")
 
 	//nolint:gosec // Test harness, paths from test fixtures.
 	cmd := exec.CommandContext(ctx, testZePath, args...)
@@ -343,7 +343,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 
 	//nolint:gosec // Test code, paths from test fixtures.
 	bridgeCmd := exec.CommandContext(ctx, testZePath, "exabgp", "plugin",
-		"--family", "ipv4/unicast", testZeTestPath, "interop-bgp", "exabgp-api", "echo")
+		"--family", "ipv4/unicast", testZeTestPath, "test", "interop-bgp", "exabgp-api", "echo")
 	bridgeCmd.Env = append(os.Environ(), "TEST_MODE=echo")
 
 	stdin, err := bridgeCmd.StdinPipe()
@@ -497,7 +497,7 @@ func TestBridgeIntegration_StartupProtocol(t *testing.T) {
 		"--family", "ipv4/unicast",
 		"--family", "ipv6/unicast",
 		"--route-refresh",
-		testZeTestPath, "interop-bgp", "exabgp-api", "echo")
+		testZeTestPath, "test", "interop-bgp", "exabgp-api", "echo")
 	bridgeCmd.Env = append(os.Environ(), "TEST_MODE=noop")
 
 	stdin, err := bridgeCmd.StdinPipe()
@@ -584,7 +584,7 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 
 	//nolint:gosec // Test code, paths from test fixtures.
 	bridgeCmd := exec.CommandContext(ctx, testZePath, "exabgp", "plugin",
-		"--family", "ipv4/unicast", testZeTestPath, "interop-bgp", "exabgp-api", "echo")
+		"--family", "ipv4/unicast", testZeTestPath, "test", "interop-bgp", "exabgp-api", "echo")
 	bridgeCmd.Env = append(os.Environ(), "TEST_MODE=noop")
 
 	stdin, err := bridgeCmd.StdinPipe()

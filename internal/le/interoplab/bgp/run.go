@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/linuxle"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
@@ -25,21 +25,23 @@ const defaultPMACCTImage = "pmacct/pmbmpd:latest"
 // LabBinaries declares the two personalities this lab stages into its Docker
 // build context, which is what test/interop/Dockerfile.ze copies in.
 //
-// TWO of them, and that is what separates this lab from the other four: 14
-// scenario ze.conf files run `le-test interop-bgp process ...` from inside the
-// container, so an image carrying the daemon alone answers those scenarios with
-// "le-test: not found".
+// TWO of them, and that is what separates this lab from the other four: the
+// peer containers run `le test interop-bgp ...`, `le test peer ...` and
+// `le test rpki ...`, and scenario ze.conf files run the harness from inside the
+// daemon container, so an image carrying the daemon alone answers those
+// scenarios with "not found".
 //
 // The bases differ because the personalities do. ze_core selects the daemon
-// dispatch table that registers the `start` root command, ze_distro selects the
-// distribution plugin mode, and ze_test selects the functional-test
-// personality. The feature gates are added to each by the producer, from
-// feature-gates.txt, so neither binary can carry a smaller feature set than the
-// shipped daemon.
+// dispatch table that registers the `start` root command and ze_distro selects
+// the distribution plugin mode. The le build is linuxle's: it carries every
+// harness command under `le test`, and its file is named le inside the image
+// because cmd/ze selects its personality from that name. The feature gates are
+// added to each by the producer, from feature-gates.txt, so neither binary can
+// carry a smaller feature set than the shipped daemon.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
-		{Name: harnessbin.Name, Base: "ze_test", Output: "test/interop/le-test-linux"},
+		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop/le-linux"},
 	}
 }
 

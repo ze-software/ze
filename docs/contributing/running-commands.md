@@ -111,7 +111,8 @@ every other component and over all of `internal/le`, `internal/appliance`,
 `./le test functional <suite>` builds an isolated bare-named binary pair into the
 session scratch directory (`internal/le/test/functional/binaries.go`). The daemon
 carries the test-only tag set, and the suite runs with `LE_TEST_NO_BUILD=1`,
-`ZE_BIN` and `LE_TEST_BIN` pointing at that pair (`BinarySet.Environment`).
+and `ZE_BIN` pointing at that set, as `<set>/le test <suite>`
+(`BinarySet.Environment`).
 
 Running a `le-test` binary directly skips all of that. The runner can then
 rebuild a daemon without the test-only surface, so a fixture times out for a

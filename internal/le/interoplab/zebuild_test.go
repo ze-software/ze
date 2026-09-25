@@ -76,7 +76,7 @@ func TestPreflightBuildsEveryDeclaredBinary(t *testing.T) {
 	}
 	declared := []LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
-		{Name: "ze-test", Base: "ze_test", Output: "test/interop/ze-test-linux"},
+		{Name: "le", Base: "ze_le", Output: "test/interop/le-linux"},
 	}
 
 	runner := newBuildRunner("amd64")

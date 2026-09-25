@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // Execute boots the plan, configures the guest, and runs its command. Operating
@@ -341,9 +341,9 @@ func (r *Run) keepAlive(ctx context.Context, report *RunReport, vm *exec.Cmd) (R
 	var hint textbuf.Buffer
 	ssh := hint.Str("ssh ").Join(r.sshOptions(report.Plan.SSHPort), " ").Str(" root@localhost").String()
 	hint.Reset()
-	fmt.Fprintln(os.Stderr, hint.Str("Run a guest test: ").Str(ssh).Str(" 'cd /workspace && ").Str(harnessbin.EnvNoBuild).Str("=1 ZE_BIN=").
+	fmt.Fprintln(os.Stderr, hint.Str("Run a guest test: ").Str(ssh).Str(" 'cd /workspace && ").Str(runner.EnvNoBuild).Str("=1 ZE_BIN=").
 		Str(settingOr(runBinaryEntry.Key, runBinaryEntry.Default)).Byte(' ').
-		Str(qemuTestBin()).Str(" bgp parse 264 -v'").String()) //nolint:errcheck // progress output
+		Str(guestLeRel(qemuGuestArch())).Str(" test bgp parse 264 -v'").String()) //nolint:errcheck // progress output
 	timer := time.NewTimer(r.Options.Timeout)
 	defer timer.Stop()
 	select {

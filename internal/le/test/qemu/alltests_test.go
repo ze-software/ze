@@ -51,7 +51,7 @@ func vmFixture(t *testing.T) *allTestsRun {
 	workspace := t.TempDir()
 
 	writeFile(t, workspace, "feature-gates.txt", "ze_bgp on\nze_ssh on\nnot_a_tag on\nze_bgp on\n")
-	for _, bin := range []string{"bin/ze", "bin/ze-stripped", "bin/ze-test"} {
+	for _, bin := range []string{"bin/ze", "bin/ze-stripped"} {
 		writeExecutable(t, workspace, bin)
 	}
 	for _, pkg := range integrationPackages {
@@ -66,7 +66,6 @@ func vmFixture(t *testing.T) *allTestsRun {
 		BinDir:      filepath.Join(t.TempDir(), "bin"),
 		ZeBin:       "bin/ze",
 		StrippedBin: "bin/ze-stripped",
-		TestBin:     "bin/ze-test",
 		Skip:        []string{functionalWeb},
 		Parallel:    "4",
 		Timeout:     "900s",
@@ -249,8 +248,8 @@ func TestASuiteRunsUnderTheWallClockCap(t *testing.T) {
 	run.Execute()
 
 	first := strings.Join(rec.calls[preparationCommands], " ")
-	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, zeTestName) +
-		" bgp encode --all -p 4"
+	want := "timeout -k " + killAfterSeconds + " 900s " + filepath.Join(run.BinDir, leName) +
+		" test bgp encode --all -p 4"
 	if first != want {
 		t.Errorf("the first suite command is\n  %s\nwant\n  %s", first, want)
 	}
@@ -301,14 +300,14 @@ func TestAnUnmountedWorkspaceIsRefusedBeforeAnythingRuns(t *testing.T) {
 
 func TestAMissingBinaryIsRefusedBeforeAnythingRuns(t *testing.T) {
 	run := vmFixture(t)
-	if err := os.Remove(filepath.Join(run.Workspace, "bin", "ze-test")); err != nil {
+	if err := os.Remove(filepath.Join(run.Workspace, "bin", "ze-stripped")); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	rec := &recorder{}
 	run.Run = rec.run
 
 	if _, code := run.Execute(); code == 0 {
-		t.Fatal("a run missing le-test exited 0")
+		t.Fatal("a run missing ze-stripped exited 0")
 	}
 	if len(rec.calls) != 0 {
 		t.Errorf("%d commands ran without the test binary", len(rec.calls))
@@ -426,7 +425,7 @@ func TestTheBinaryShimIsBuiltBeforeTheSuitesRun(t *testing.T) {
 	run.Run = rec.run
 	run.Execute()
 
-	for _, name := range []string{"ze", "ze-stripped", "ze-test"} {
+	for _, name := range []string{"ze", "ze-stripped"} {
 		link := filepath.Join(run.BinDir, name)
 		target, err := os.Readlink(link)
 		if err != nil {
@@ -436,6 +435,14 @@ func TestTheBinaryShimIsBuiltBeforeTheSuitesRun(t *testing.T) {
 		if !strings.HasPrefix(target, run.Workspace) {
 			t.Errorf("%s points at %s, which is outside the workspace", link, target)
 		}
+	}
+	// The harness is the run's own le: the suites run as `le test <suite>`.
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatalf("os.Executable: %v", err)
+	}
+	if target, err := os.Readlink(filepath.Join(run.BinDir, leName)); err != nil || target != self {
+		t.Errorf("the le link points at %q (%v), want the running executable %q", target, err, self)
 	}
 }
 

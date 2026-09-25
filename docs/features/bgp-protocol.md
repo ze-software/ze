@@ -332,7 +332,7 @@ le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-fi
 
 <!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->
 <!-- source: internal/component/bgp/reactor/capture_replay.go -- the session tee and the replay driver -->
-<!-- source: internal/test/cli/cmd_replay.go -- cmdReplay -->
+<!-- source: internal/test/cli/cmd_replay.go -- CmdReplay -->
 <!-- source: internal/component/bgp/config/doctor_checks.go -- doctorCheckBGPCaptureDirectory, capture directory readiness -->
 
 ### Path Attributes

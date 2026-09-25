@@ -18,7 +18,6 @@ import (
 func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	t.Setenv("ZE_BIN", "bin/ze-linux-arm64")
 	t.Setenv("ZE_STRIPPED_BIN", "bin/ze-stripped-linux-arm64")
-	t.Setenv("LE_TEST_BIN", "bin/le-test-linux-arm64")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 	t.Setenv("ZE_QEMU_SKIP_SUITES", "web, editor ,,")
@@ -28,9 +27,8 @@ func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	t.Setenv("GOMODCACHE", "/cache/mod")
 
 	run := newAllTests()
-	if run.ZeBin != "bin/ze-linux-arm64" || run.StrippedBin != "bin/ze-stripped-linux-arm64" ||
-		run.TestBin != "bin/le-test-linux-arm64" {
-		t.Errorf("the binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
+	if run.ZeBin != "bin/ze-linux-arm64" || run.StrippedBin != "bin/ze-stripped-linux-arm64" {
+		t.Errorf("the binaries are %q and %q", run.ZeBin, run.StrippedBin)
 	}
 	if run.Parallel != "8" || run.Timeout != "1200s" {
 		t.Errorf("concurrency is %q and the cap is %q", run.Parallel, run.Timeout)
@@ -69,8 +67,8 @@ func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 	if len(run.Skip) != 1 || run.Skip[0] != defaultSkip {
 		t.Errorf("the default skip list is %v, want exactly [%s]", run.Skip, defaultSkip)
 	}
-	if run.ZeBin != "bin/ze" || run.StrippedBin != "bin/ze-stripped" || run.TestBin != "bin/le-test" {
-		t.Errorf("the default binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
+	if run.ZeBin != "bin/ze" || run.StrippedBin != "bin/ze-stripped" {
+		t.Errorf("the default binaries are %q and %q", run.ZeBin, run.StrippedBin)
 	}
 	// The caches have NO default: they are the one pair the host action must
 	// supply and the guest action refuses to guess.
@@ -134,8 +132,8 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 	if err := os.MkdirAll(run.BinDir, 0o750); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	stale := filepath.Join(run.BinDir, "ze-test")
-	if err := os.Symlink("/nowhere/ze-test", stale); err != nil {
+	stale := filepath.Join(run.BinDir, "ze")
+	if err := os.Symlink("/nowhere/ze", stale); err != nil {
 		t.Fatalf("symlink: %v", err)
 	}
 

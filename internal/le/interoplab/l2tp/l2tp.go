@@ -298,7 +298,7 @@ func radiusPeer(suffix string) interoplab.PeerConfig {
 //
 // The base is ze_core alone. This lab runs the daemon and asserts nothing from
 // inside the container, so it needs neither the ze_distro plugin mode nor the
-// ze_test personality. The producer adds every gate feature-gates.txt declares.
+// harness that le carries. The producer adds every gate feature-gates.txt declares.
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: "ze_core", Output: "test/interop-l2tp/ze-linux"},

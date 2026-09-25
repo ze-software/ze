@@ -19,7 +19,7 @@
 // The gate is ze_bgp and NOT ze_core && ze_bgp, which is what dispatch_bgp.go
 // carries. ze_core selects the CLI dispatch personality, so it is the right
 // gate for a CLI command registration and the wrong gate for a seam every
-// personality reaches. The ze-test harness binary is built with ze_test plus
+// personality reaches. The harness (`le test editor`) is built with ze_le plus
 // the feature tags and no ze_core (internal/le/test/functional/binaries.go,
 // buildCommands), and it drives the config editor in-process: under the wider
 // gate it held the BGP filter plugins that declare a peer obligation and not

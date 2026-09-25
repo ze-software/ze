@@ -233,9 +233,12 @@ var retirements = []Retirement{
 	{Kind: RetiredFile, Old: "bin/ze-perf", Replacement: "none: a linux le at /usr/local/bin/le"},
 	{Kind: RetiredFile, Old: "bin/ze-perf-linux", Replacement: "none: a linux le at /usr/local/bin/le"},
 	{Kind: RetiredVariable, Old: "ze.perf.bin", Replacement: "none: the perf runner builds le"},
-	{Kind: RetiredVariable, Old: "ze.test.bin", Replacement: "le.test.bin"},
-	{Kind: RetiredVariable, Old: "ze.test.binary", Replacement: "le.test.binary"},
-	{Kind: RetiredVariable, Old: "ze.qemu.test.bin", Replacement: "le.qemu.test.bin"},
+	{Kind: RetiredVariable, Old: "ze.test.bin", Replacement: "none: the runner runs its own executable"},
+	{Kind: RetiredVariable, Old: "le.test.bin", Replacement: "none: the runner runs its own executable"},
+	{Kind: RetiredVariable, Old: "ze.test.binary", Replacement: "none: l2tp scale runs its own executable"},
+	{Kind: RetiredVariable, Old: "le.test.binary", Replacement: "none: l2tp scale runs its own executable"},
+	{Kind: RetiredVariable, Old: "ze.qemu.test.bin", Replacement: "none: the qemu action builds the guest le"},
+	{Kind: RetiredVariable, Old: "le.qemu.test.bin", Replacement: "none: the qemu action builds the guest le"},
 	{Kind: RetiredVariable, Old: "ze.test.no.build", Replacement: "le.test.no.build"},
 }
 

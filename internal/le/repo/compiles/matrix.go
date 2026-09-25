@@ -75,14 +75,6 @@ var buildMatrix = Matrix{
 		Why:         "bin/ze, the daemon build produced by the native Go toolchain. All four 2026-08-04 breaks were here",
 	},
 	{
-		Name:        "test-runner",
-		Tags:        []string{"ze_test"},
-		Features:    true,
-		Anchor:      zeCommand,
-		AnchorFiles: []string{"ze_test_register.go"},
-		Why:         "bin/ze-test: a break here disables the whole functional suite",
-	},
-	{
 		Name:        "appliance",
 		Tags:        []string{coreTag, "ze_appliance"},
 		Features:    true,

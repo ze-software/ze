@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/linuxle"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
@@ -49,8 +50,8 @@ func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
 	t.Fatal("the BGP suite declares no ze image")
 }
 
-// VALIDATES: the bgp lab stages BOTH personalities, the daemon and the test binary, at the paths its Dockerfile copies.
-// PREVENTS: an image with no le-test, or no le-test link to it; le-test is what 14 scenario ze.conf files run `le-test interop-bgp process ...` with.
+// VALIDATES: the bgp lab stages BOTH personalities, the daemon and a linuxle le, at the paths its Dockerfile copies.
+// PREVENTS: an image with no le, or no shim for a retired harness name the scenario ze.conf files still run.
 func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	declared := LabBinaries()
 	if len(declared) != 2 {
@@ -58,8 +59,8 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	}
 
 	want := map[string]struct{ base, output string }{
-		"ze":      {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
-		"le-test": {base: "ze_test", output: "test/interop/le-test-linux"},
+		"ze": {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
+		"le": {base: linuxle.Base, output: "test/interop/le-linux"},
 	}
 	for _, binary := range declared {
 		expected, named := want[binary.Name]
@@ -93,10 +94,16 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 			t.Errorf("test/interop/Dockerfile.ze copies no %s", binary.Output)
 		}
 	}
-	// The scenario configs still exec the harness by its retired name, so the
-	// image has to answer that name too.
-	if !strings.Contains(string(body), "RUN ln /usr/local/bin/le-test /usr/local/bin/ze-test") {
-		t.Error("test/interop/Dockerfile.ze gives le-test no ze-test link, and the scenarios exec ze-test")
+	// The file inside the image MUST be named le, because cmd/ze selects its
+	// personality from that name.
+	if !strings.Contains(string(body), "COPY test/interop/le-linux /usr/local/bin/le\n") {
+		t.Error("test/interop/Dockerfile.ze does not install the le build as /usr/local/bin/le")
+	}
+	// The scenario configs still exec the harness by its two retired names, so
+	// the image answers each with a shim that runs `le test`.
+	if !strings.Contains(string(body), "for name in le-test ze-test;") ||
+		!strings.Contains(string(body), `exec /usr/local/bin/le test "$@"`) {
+		t.Error("test/interop/Dockerfile.ze gives the retired harness names no `le test` shim")
 	}
 }
 
@@ -422,11 +429,11 @@ func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("peer order = %v, want %v", got, want)
 	}
-	if joined := strings.Join(peers[1].Command, " "); !strings.Contains(joined, "interop-bgp speaker --connect 172.31.22.2:179") {
+	if joined := strings.Join(peers[1].Command, " "); !strings.HasPrefix(joined, "test interop-bgp speaker --connect 172.31.22.2:179") {
 		t.Fatalf("compiled speaker command did not use selected network: %s", joined)
 	}
-	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "le-test"}) {
-		t.Fatalf("speaker entrypoint = %v, want compiled le-test", got)
+	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "le"}) {
+		t.Fatalf("speaker entrypoint = %v, want le", got)
 	}
 	if len(peers[0].Mounts) != 1 || peers[0].Mounts[0].Target != "/etc/ze/bgp.conf" || !peers[0].Mounts[0].ReadOnly {
 		t.Fatalf("ze mounts = %+v, want only immutable rendered config", peers[0].Mounts)

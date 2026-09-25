@@ -95,7 +95,7 @@ func flavorMatrix(featureTags []string) []Flavor {
 			Name: "capability", GOOS: goosLinux,
 			Tags: []string{
 				"debug", "race", "live", "stress", "maprib", "fleetperf", "zetest",
-				"gokrazy", "ze_test", "ze_perf", "ze_analyze", "ze_chaos", "ze_le",
+				"gokrazy", "ze_perf", "ze_analyze", "ze_chaos", "ze_le",
 				"integration", "ze_docvalid_fixture",
 			},
 			Why: "every additive capability tag that is not a mutually exclusive personality",

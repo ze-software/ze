@@ -80,7 +80,7 @@ func TestARootHandlerInCmdZeIsAFindingUnlessExempt(t *testing.T) {
 		"an unallowlisted root": {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
 		"an allowlisted root":   {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"version\", nil, m) }\n", 0},
 		"the alias spelling":    {"package main\n\nfunc f() { cmdregistry.RegisterRootHandler(\"bgp\", nil, m) }\n", 1},
-		"a ze_test variant":     {"//go:build ze_test\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
+		"a retired ze_test tag": {"//go:build ze_test\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
 		"a ze_chaos variant":    {"//go:build ze_chaos\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
 		"another package":       {"package main\n\nfunc f() { other.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
 	}

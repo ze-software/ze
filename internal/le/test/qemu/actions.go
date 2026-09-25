@@ -202,6 +202,12 @@ func runQEMUHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
+	// The guest runs every harness command as `le test <name>` from this
+	// build, so the harness it runs is the harness of this checkout.
+	if _, err := buildGuestLe(root, qemuGuestArch()); err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

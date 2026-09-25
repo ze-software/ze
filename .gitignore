@@ -125,7 +125,7 @@ test/perf/results/
 # `StageBinaries` in `internal/le/interoplab/zebuild.go`, which every one of the
 # five labs calls; regenerated on each run that is not NO_BUILD.
 test/interop/ze-linux
-test/interop/le-test-linux
+test/interop/le-linux
 test/interop-ipsec/ze-linux
 test/interop-l2tp/ze-linux
 test/interop-pppoe/ze-linux

@@ -3,7 +3,7 @@
 // Related: checkers.go, check_extras.go -- the scenario tables that read them.
 package bgp
 
-import "github.com/ze-software/ze/internal/test/harnessbin"
+import "github.com/ze-software/ze/internal/le/linuxle"
 
 // Peers. A name is the container's role in a scenario lab. It is the
 // PeerConfig name, the stem of the container name, and the peer argument that
@@ -26,12 +26,15 @@ const (
 // of peerGoBGP and names a different thing: the client binary, not the
 // container it runs in.
 const (
-	cmdVtysh     = "vtysh"
-	cmdBirdc     = "birdc"
-	cmdGoBGP     = "gobgp"
-	cmdCat       = "cat"
-	cmdIptables  = "iptables"
-	zeTestBinary = harnessbin.Name
+	cmdVtysh    = "vtysh"
+	cmdBirdc    = "birdc"
+	cmdGoBGP    = "gobgp"
+	cmdCat      = "cat"
+	cmdIptables = "iptables"
+	// leBinary is the entrypoint of a harness peer, and leTestWord the first
+	// word of its command: every harness command answers as `le test <name>`.
+	leBinary   = linuxle.Name
+	leTestWord = "test"
 )
 
 // signalTERM is the graceful-shutdown signal an opSignal step sends a peer. It
@@ -155,8 +158,9 @@ const (
 	zeShowBMPPeers     = "show bmp peers"
 )
 
-// le-test subcommands. A peer built from the Ze image runs one as its
-// container command, and Helper dispatches on the same word.
+// interop-bgp subcommands. A peer built from the Ze image runs one as its
+// container command (`le test interop-bgp speaker`), and Helper dispatches on
+// the same word.
 const zeTestCommandSpeaker = "speaker"
 
 // Lab addresses. networkHostAddress gives each peer a host number on the
