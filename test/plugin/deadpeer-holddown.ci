@@ -61,7 +61,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external deadpeer-watch {
-		run "ze-test fixture plugin/deadpeer-holddown"
+		run "le test fixture plugin/deadpeer-holddown"
 		encoder json
 	}
 }
@@ -112,7 +112,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0
 expect=stderr:contains=OK: silent peer torn down on its first hold expiry

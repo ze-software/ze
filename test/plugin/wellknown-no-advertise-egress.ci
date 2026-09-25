@@ -72,7 +72,7 @@ plugin {
 		use bgp-rs
 	}
 	external wellknown-noadv {
-		run "ze-test fixture plugin/wellknown-no-advertise-egress"
+		run "le test fixture plugin/wellknown-no-advertise-egress"
 		encoder json
 	}
 }
@@ -169,9 +169,9 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=internal
-cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=external
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=internal
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=external
 cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

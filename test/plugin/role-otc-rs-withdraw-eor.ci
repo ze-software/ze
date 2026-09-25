@@ -108,7 +108,7 @@ plugin {
 		use bgp-rs
 	}
 	external test-rs-eor {
-		run "ze-test fixture plugin/role-otc-rs-withdraw-eor"
+		run "le test fixture plugin/role-otc-rs-withdraw-eor"
 		encoder json
 	}
 }
@@ -210,8 +210,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

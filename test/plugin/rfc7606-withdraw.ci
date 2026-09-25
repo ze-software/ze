@@ -50,7 +50,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rfc7606-test {
-		run "ze-test fixture plugin/rfc7606-withdraw"
+		run "le test fixture plugin/rfc7606-withdraw"
 		encoder json
 	}
 }
@@ -88,5 +88,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

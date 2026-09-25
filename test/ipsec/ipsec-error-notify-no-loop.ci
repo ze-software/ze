@@ -81,7 +81,7 @@ vpn {
 EOF_RESPONDER
 
 cmd=background:seq=1:exec=ze -:stdin=responder
-cmd=foreground:seq=2:exec=ze-test fixture ipsec/error-notify-no-loop:timeout=30s
+cmd=foreground:seq=2:exec=le test fixture ipsec/error-notify-no-loop:timeout=30s
 
 expect=exit:code=0
 expect=stdout:contains=probe: all out-of-SA notification assertions passed

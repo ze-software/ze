@@ -103,13 +103,13 @@ option=env:var=ze.log.l2tp.auth.radius:value=debug
 option=env:var=TEST_SECRET:value=s3cr3t
 option=env:var=TEST_NAS_ID:value=lns1
 
-cmd=background:seq=1:exec=ze-test fixture l2tp/radius-acct-wire/radius $PORT2 testing123
+cmd=background:seq=1:exec=le test fixture l2tp/radius-acct-wire/radius $PORT2 testing123
 cmd=background:seq=2:exec=ze -:stdin=config
 # 240s, well past the peer's own deadlines, of which the longest is the 100s it
 # allows the Interim-Update: a stall must end with the peer's diagnostic (which
 # record never arrived), never with an opaque runner timeout. The happy path
 # takes about 70s, nearly all of it the 60s acct-interval.
-cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-acct-wire $PORT:timeout=240s:exit=0
+cmd=foreground:seq=3:exec=le test fixture l2tp/radius-acct-wire $PORT:timeout=240s:exit=0
 expect=exit:code=0
 expect=stdout:pattern=OK: CHAP Response sent for challenge identifier [0-9]+ as subscriber@ze
 expect=stdout:contains=OK: CHAP Success received

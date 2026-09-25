@@ -170,7 +170,7 @@ plugin {
 		use bgp-rs
 	}
 	external bgpls-withdraw {
-		run "ze-test fixture plugin/rfc9552-52-rs-opaque-withdraw-peer-down"
+		run "le test fixture plugin/rfc9552-52-rs-opaque-withdraw-peer-down"
 		encoder json
 	}
 }
@@ -246,8 +246,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

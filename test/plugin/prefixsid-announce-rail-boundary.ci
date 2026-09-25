@@ -62,7 +62,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external prefixsid-announce {
-		run "ze-test fixture plugin/prefixsid-announce-rail-boundary"
+		run "le test fixture plugin/prefixsid-announce-rail-boundary"
 		encoder json
 	}
 }
@@ -131,7 +131,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 reject=stderr:pattern=panic

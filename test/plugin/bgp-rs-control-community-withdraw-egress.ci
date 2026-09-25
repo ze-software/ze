@@ -99,7 +99,7 @@ plugin {
 		use bgp-rs
 	}
 	external rs-community-withdraw {
-		run "le-test fixture plugin/bgp-rs-control-community-withdraw-egress"
+		run "le test fixture plugin/bgp-rs-control-community-withdraw-egress"
 		encoder json
 	}
 }
@@ -205,7 +205,7 @@ EOF_CONF
 # reject= moved to conn=2 / conn=3 of that one peer, and the file gains the await_eor barrier
 # they need to be sound. The barrier is per accepted BATCH (peer_connmap.go), so it cannot
 # span processes -- one process is the only shape in which these assertions are not a race.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

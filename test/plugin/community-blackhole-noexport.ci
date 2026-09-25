@@ -33,7 +33,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-blackhole {
-		run "ze-test fixture plugin/community-blackhole-noexport"
+		run "le test fixture plugin/community-blackhole-noexport"
 		encoder json
 	}
 	internal bgp-rib {
@@ -87,7 +87,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 # The filter emits one info log when it modifies a received payload. The

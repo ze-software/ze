@@ -25,7 +25,7 @@ EOF_CONTROL
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external srv6-export {
-        run "ze-test fixture plugin/srv6-service-export-control"
+        run "le test fixture plugin/srv6-service-export-control"
         encoder json
     }
 }
@@ -66,8 +66,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=filtered
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=control
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=filtered
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=control
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community-match --plugin ze.bgp-nlri-vpn -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

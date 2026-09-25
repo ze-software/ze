@@ -93,7 +93,7 @@ plugin {
 		use bgp-rs
 	}
 	external wellknown-withdraw {
-		run "ze-test fixture plugin/wellknown-no-export-withdraw-egress"
+		run "le test fixture plugin/wellknown-no-export-withdraw-egress"
 		encoder json
 	}
 }
@@ -193,7 +193,7 @@ EOF_CONF
 # One process holding three connections is the only shape in which these RFC 1997
 # assertions are not a race: the await_eor barrier is per accepted batch
 # (peer_connmap.go) and cannot span processes.
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
 expect=exit:code=0
 reject=stderr:pattern=panic recovered

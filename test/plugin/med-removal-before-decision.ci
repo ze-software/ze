@@ -19,7 +19,7 @@
 # is cached and dispatched (reactor_notify.go), so what a decision process later weighs is what is
 # asserted here.
 #
-# ONE PEER. `ze-test peer` delivers `action=send:conn=2` to the first session under
+# ONE PEER. `le test peer` delivers `action=send:conn=2` to the first session under
 # `option=conn_map:value=remote-ip` (plan/journal/test-against-broken-path.md, 2026-08-15), so a
 # second live source would assert against whichever session actually received the bytes. The
 # confining negative is carried by the surviving attributes instead, and the unfiltered half is
@@ -54,7 +54,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external med-store-check {
-		run "ze-test fixture plugin/med-removal-before-decision"
+		run "le test fixture plugin/med-removal-before-decision"
 		encoder json
 	}
 	internal adj-rib-in {
@@ -110,7 +110,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-modify -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
 expect=stderr:pattern=filter=DROP-MED

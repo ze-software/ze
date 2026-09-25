@@ -1,5 +1,5 @@
 # draft-abraitis-idr-addpath-paths-limit-04 live operator admission.
-# The compiled fixture starts a daemon and this ze-test peer, then invokes the
+# The compiled fixture starts a daemon and this le test peer, then invokes the
 # real `ze send bgp * update text ...` CLI over ephemeral authenticated SSH.
 # Our receive limit is 9; the peer independently advertises IPv4=1 and IPv6=2.
 # All expectations are separate sequence groups: an excess route arriving before
@@ -81,6 +81,6 @@ expect=bgp:conn=1:seq=15:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0049020000003240010
 expect=bgp:conn=1:seq=16:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FFFD4003040A0000040000006318C63364
 EOF_PEER
 
-cmd=foreground:seq=1:exec=ze-test fixture plugin/paths-limit-live $PORT:timeout=170s
+cmd=foreground:seq=1:exec=le test fixture plugin/paths-limit-live $PORT:timeout=170s
 expect=exit:code=0
 expect=stdout:contains=OK: PATHS-LIMIT live IPv4 and IPv6 admission, replacement, withdrawal and retry

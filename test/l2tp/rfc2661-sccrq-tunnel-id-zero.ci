@@ -43,7 +43,7 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=ze-test fixture l2tp/rfc2661-sccrq-tunnel-id-zero $PORT:timeout=20s
+cmd=foreground:seq=2:exec=le test fixture l2tp/rfc2661-sccrq-tunnel-id-zero $PORT:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=OK: all RFC 2661 zero Assigned Tunnel ID checks passed
 # The daemon's own record that it chose to answer rather than drop. A positive
