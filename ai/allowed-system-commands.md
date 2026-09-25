@@ -41,7 +41,7 @@ the toolchain is present by construction and calling it is the point.
 1. **What does the kernel interface say?** `vishvananda/netlink` covers links,
    routes, addresses, qdiscs and generic netlink families. A family it does not
    wrap is still reachable: build the request by hand, as
-   `internal/le/deployment/l2tpdiag_linux.go` does for L2TP, which the library
+   `internal/le/test/deployment/l2tpdiag_linux.go` does for L2TP, which the library
    does not support at all.
 2. **Is the answer a file?** `/proc` and `/sys` answer most questions a
    command-line tool answers, and `os.ReadFile` needs no binary present.

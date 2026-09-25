@@ -304,7 +304,7 @@ Binaries fall into two families, and the distinction is load-bearing:
   `cmd/ze/` codebase selected by build tag) plus `ze-gok` (`cmd/ze-gok/`). A build or
   test action that must RUN one of these to drive `ze appliance ...` on the build
   host compiles `cmd/ze` (tags `ze_core,ze_setup`) and names it `ze-host` by
-  convention (for example, `internal/le/qemu.(*Installer).buildHostZe`).
+  convention (for example, `internal/le/test/qemu.(*Installer).buildHostZe`).
 - **Target binaries** run on the appliance or inside an image and are cross-compiled
   `GOOS=linux GOARCH=<arch> CGO_ENABLED=0`: `cmd/ze-installer` (the busybox-free
   installer initrd's PID 1, build tag `ze_installer`, packed into the initrd as

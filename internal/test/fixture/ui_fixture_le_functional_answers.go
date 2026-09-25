@@ -40,7 +40,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	}
 
 	// The suite table and the built personality.
-	command, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "list", "|", "json")
+	command, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "list", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	}
 
 	// A second answer verifies that the complete row order is deterministic.
-	repeated, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "list", "|", "json")
+	repeated, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "list", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 			return uiLeFunctionalAnswersFailf("suite %s appears more than once", name)
 		}
 		seenNames[name] = struct{}{}
-		if rerun != "./le functional "+action {
+		if rerun != "./le test functional "+action {
 			return uiLeFunctionalAnswersFailf("suite %s reruns with %q, want its native action", name, rerun)
 		}
 		if budget == "" || budgetVariable == "" || why == "" {
@@ -149,7 +149,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 	// the tree being right. `le functional select` publishes the run list a
 	// gating run would start, so the two surfaces are cross-checked against each
 	// other, which catches a name moving between them and not only a count.
-	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "select", "|", "json")
+	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "select", "|", "json")
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 
 	// One payload through every supported rendering used by this contract.
 	for _, operator := range []string{renderYAML, renderTable} {
-		rendered, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "list", "|", operator)
+		rendered, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "list", "|", operator)
 		if err != nil {
 			return err
 		}
@@ -193,7 +193,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 
 	// A name not held by this area is a refusal, distinguishable from a suite
 	// that ran and failed.
-	missing, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "no-such-suite")
+	missing, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "functional", "no-such-suite")
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 
 	// Integration has no aggregate run. Its bare answer still names the
 	// refusal, and its piped answer still carries the action listing.
-	bare, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "integration")
+	bare, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "integration")
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return uiLeFunctionalAnswersFailf("the refusal said nothing: %q", bare.stderr)
 	}
 
-	listing, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "integration", "|", "json")
+	listing, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "test", "integration", "|", "json")
 	if err != nil {
 		return err
 	}

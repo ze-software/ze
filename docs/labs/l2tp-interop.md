@@ -158,7 +158,7 @@ resolves that kernel itself because the pinned rtr7 kernel has no L2TP support.
 It validates an operator-supplied kernel package or materialises the runtime
 kernel from the durable cache and fails before boot when neither can carry
 PPPoL2TP.
-<!-- source: internal/le/deployment/actions.go -- Answer -->
+<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 
 ## Design Pattern
 

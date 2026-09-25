@@ -13,7 +13,7 @@
 # from a fixed base (marks.go fwmarkBase = 0x50000), so any two tests using
 # `table 100` build the byte-identical `mark 0x50000 table 100` rule.
 #
-# each test its own netns and runs -p 1; internal/le/qemu/alltests.go has
+# each test its own netns and runs -p 1; internal/le/test/qemu/alltests.go has
 # no netns, so it runs this suite -p 1. Do NOT raise the parallelism: concurrent
 # tests read each other's ze_pr rules, lose the ip-rule add with EEXIST, or find
 # ze_pr already deleted by a peer's shutdown. All six failed that way on

@@ -270,11 +270,11 @@ const (
 	actionVPPIfaceTest            = "vpp-iface-test"
 	actionVPPTest                 = "vpp-test"
 	areaCLI                       = "cli"
-	areaDeployment                = "deployment"
+	areaDeployment                = "test deployment"
 	areaDigest                    = "ai digest"
 	areaAIRules                   = "ai rules"
 	areaEvidence                  = "verify evidence"
-	areaQEMU                      = "qemu" // The le area.
+	areaQEMU                      = "test qemu" // The le area.
 	areaRepository                = "repo"
 	areaRules                     = "rules"
 	areaTier                      = "arch tier"

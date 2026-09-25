@@ -102,4 +102,4 @@ registered here, not by the CLI layer.
 ## Trap: QEMU evidence uses an explicit package list
 
 `./le qemu all-tests` uses `integrationPackages` in
-`internal/le/qemu/alltests.go`. Add every new integration-tagged package there.
+`internal/le/test/qemu/alltests.go`. Add every new integration-tagged package there.

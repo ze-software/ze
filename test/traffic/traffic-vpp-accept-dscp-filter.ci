@@ -10,7 +10,7 @@
 #            backend vpp" and never reach Apply (see traffic-vpp-reject-mark.ci).
 # PREVENTS: regression to the old dscp REJECTION (this file replaced
 #           traffic-vpp-reject-dscp-filter.ci per AC-6). Real-VPP programming is
-#           proven by the run_traffic_dscp_evidence check in internal/le/deployment/vppevidence.go
+#           proven by the run_traffic_dscp_evidence check in internal/le/test/deployment/vppevidence.go
 #           + fakeOps unit tests (apply-tier .ci is blocked on A-6 stub work in
 #           plan/spec-finish-vpp-stub.md).
 #

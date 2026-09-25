@@ -4,7 +4,7 @@
 //
 // A fuzz run writes progress for a long time, so its progress log goes to stderr.
 // The payload goes to stdout for the pipe operators.
-// internal/le/deployment uses the same shape for a proof that drives a real peer.
+// internal/le/test/deployment uses the same shape for a proof that drives a real peer.
 // Thus, `le test fuzz run | json` returns one sweep document while go test writes to the terminal.
 
 package testfuzz

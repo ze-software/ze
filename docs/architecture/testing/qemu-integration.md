@@ -23,7 +23,7 @@ guests. `build-artifacts host` builds only `ze-host`; it does not stage a kernel
 
 The Go release the guest unpacks is DERIVED from the `go` directive of `go.mod`
 (`goversion.DeclaredRelease`), so the guest and the host compile with one
-toolchain. It was a constant in `internal/le/qemu/run.go` until 2026-09-05, went
+toolchain. It was a constant in `internal/le/test/qemu/run.go` until 2026-09-05, went
 a minor behind, and every guest `go` command then downloaded a second toolchain
 until the run died on `error: command ssh exceeded its deadline`.
 
@@ -58,12 +58,12 @@ Both entry points run one VM for the whole population, never one VM per test.
 named populations in `netnsSelections`; selecting a suite does not run every
 test in its directory.
 
-<!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
-<!-- source: internal/le/qemu/guestlabs.go -- the netns-test suite selection -->
+<!-- source: internal/le/test/qemu/alltests.go -- AllTestsRun.Run, the phase population -->
+<!-- source: internal/le/test/qemu/guestlabs.go -- the netns-test suite selection -->
 
 ### `all-tests` is a GUEST action, and four things must be true before it runs
 
-`le qemu all-tests` refuses to start outside the VM: `internal/le/qemu/actions.go`
+`le qemu all-tests` refuses to start outside the VM: `internal/le/test/qemu/actions.go`
 registers it with "This action runs inside the VM. Its caller is the command
 value passed to the host qemu run action." Typed on the host it answers
 `qemu: the repository is not mounted: /workspace` and nothing runs. The host
@@ -81,7 +81,7 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 | The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `ze-test plugin <name>` is read as the `ze plugin` command; the suite form is `ze-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
 
 `le qemu run` installs only `git curl musl-dev` beyond the base image
-(`internal/le/qemu/run.go`), so anything else a test shells out to has to be
+(`internal/le/test/qemu/run.go`), so anything else a test shells out to has to be
 named in `packages`. `iproute2` and `libcap` are both preconditions of a whole
 run, and the refusal for each one names it.
 
@@ -89,7 +89,7 @@ run, and the refusal for each one names it.
 GNU `timeout --kill-after=15s`, which the guest's BusyBox `timeout` answers with
 `unrecognized option` and exit 1, so every suite printed the usage text under its
 own header and ran no test. The wrapper now passes `-k 15`, which BusyBox and GNU
-coreutils both accept (`killAfterFlag`, `internal/le/qemu/alltests.go`). A run
+coreutils both accept (`killAfterFlag`, `internal/le/test/qemu/alltests.go`). A run
 with `packages "iproute2"` alone reached ten suites and several thousand `.ci`
 tests on 2026-09-05, with no BusyBox usage text anywhere in its log.
 
@@ -111,9 +111,9 @@ path skips `all-tests`:
 Wrap it in `./le job run label <name> quiet command ...` so it takes its turn
 with the other sessions on the machine.
 
-<!-- source: internal/le/qemu/actions.go -- all-tests is registered as a guest action -->
-<!-- source: internal/le/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->
-<!-- source: internal/le/qemu/run.go -- runBootstrapCommand and the package list -->
+<!-- source: internal/le/test/qemu/actions.go -- all-tests is registered as a guest action -->
+<!-- source: internal/le/test/qemu/alltests.go -- suiteCommand, shim, the ZE_*_BIN knobs -->
+<!-- source: internal/le/test/qemu/run.go -- runBootstrapCommand and the package list -->
 
 ### Four suites do not run in the guest root namespace
 
@@ -170,9 +170,9 @@ This uses the architecture-qualified guest binaries selected by the existing
 `ZE_QEMU_BIN`, `ZE_QEMU_STRIPPED_BIN` and `ZE_QEMU_TEST_BIN` overrides or their
 defaults. A native prerequisite skip is not evidence for this subset.
 
-<!-- source: internal/le/qemu/netns.go -- the namespace table's producer and the capability preparation -->
-<!-- source: internal/le/qemu/alltests.go -- vmSuites, the Namespace of each row -->
-<!-- source: internal/le/qemu/netns_linux.go -- netnsSelections, runNetnsSuite -->
+<!-- source: internal/le/test/qemu/netns.go -- the namespace table's producer and the capability preparation -->
+<!-- source: internal/le/test/qemu/alltests.go -- vmSuites, the Namespace of each row -->
+<!-- source: internal/le/test/qemu/netns_linux.go -- netnsSelections, runNetnsSuite -->
 <!-- source: .github/workflows/qemu-nightly.yml -- runtime-kernel-labs ASPA plugin namespace subset -->
 
 ### A run says what it planned, what it reached, and how many tests ran
@@ -191,7 +191,7 @@ moved would otherwise report success.
 A process whose transport is cut reports nothing at all, which is why the
 population is printed at the START of the run as well.
 
-<!-- source: internal/le/qemu/alltests_report.go -- Planned, Unreached, Text -->
+<!-- source: internal/le/test/qemu/alltests_report.go -- Planned, Unreached, Text -->
 
 ### How `option=needs-linux` behaves on each host
 
@@ -229,7 +229,7 @@ The extra `le` after the guest binary is intentional. The cross-compiled file
 has an architecture-qualified basename, so `cmd/ze` treats it as a Ze
 personality; the `ze_le` crossing selects the same `qemu all-tests` action the
 standalone root launcher exposes. Guest-side VRRP, PPPoE, network-namespace, and
-full-suite work is Go in `internal/le/qemu`, not an interpreted guest driver.
+full-suite work is Go in `internal/le/test/qemu`, not an interpreted guest driver.
 
 A shared checkout hands the guest a symlink as a symlink, so a `tmp/` path that
 `./le scratch migrate` relocated out of the tree dangles inside the guest until
@@ -243,7 +243,7 @@ setup line, and `guestSetup` plus `qemuArgs` in the kernel builder do the same
 for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
 both sit under `/workspace/tmp`.
 <!-- source: internal/core/tmplink/tmplink.go -- Shares -->
-<!-- source: internal/le/qemu/run.go -- Run.scratchShares -->
+<!-- source: internal/le/test/qemu/run.go -- Run.scratchShares -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- guestSetup -->
 
 ```text
@@ -272,9 +272,9 @@ The runtime kernel itself is built by `ze appliance kernel`, which writes
 `internal/appliance/cmd_kernel.go`). The build is cache-backed under
 `~/.cache/ze` and only runs when the kernel key changes.
 
-<!-- source: internal/le/qemu/run.go -- Run, Plan -->
-<!-- source: internal/le/qemu/actions.go -- Answer -->
-<!-- source: internal/le/qemu/alltests.go -- AllTestsRun.Run -->
+<!-- source: internal/le/test/qemu/run.go -- Run, Plan -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/alltests.go -- AllTestsRun.Run -->
 
 The installer phase runs `go test -tags 'ze_core ze_installer'` over
 `./internal/install/...`. No other phase compiles those files. The tag is a
@@ -320,9 +320,9 @@ credentials. The check uses native Go SSH and TLS clients and needs neither
 `sshpass` nor `uv`. `ZE_INSTALL_KEEP=1` retains the disk, serial log and extracted
 store for diagnosis. A skipped action is not storage-import evidence.
 
-<!-- source: internal/le/qemu/install_boot.go -- executeHTTP, bootTargetSSH -->
-<!-- source: internal/le/qemu/install_storage.go -- seedInterruptedImport, assertImportedSeed, installSeedTLS -->
-<!-- source: internal/le/qemu/install_build.go -- buildHostZeEnv, buildImage -->
+<!-- source: internal/le/test/qemu/install_boot.go -- executeHTTP, bootTargetSSH -->
+<!-- source: internal/le/test/qemu/install_storage.go -- seedInterruptedImport, assertImportedSeed, installSeedTLS -->
+<!-- source: internal/le/test/qemu/install_build.go -- buildHostZeEnv, buildImage -->
 
 ## Writing Integration Tests
 
@@ -335,7 +335,7 @@ store for diagnosis. A skipped action is not storage-import evidence.
 | netlink / interface code | A network namespace plus veth or dummy test |
 | nftables / firewall code | A network namespace plus nft test |
 | sysctl / kernel tuning | A procfs read test (a write may need `t.Skip`) |
-| Any new Linux-only package | An entry in `integrationPackages`, `internal/le/qemu/alltests.go` |
+| Any new Linux-only package | An entry in `integrationPackages`, `internal/le/test/qemu/alltests.go` |
 | A Docker interop lab needing host-kernel features | A native `./le qemu <feature>` action beside the Docker action |
 
 ### Build Tags
@@ -469,11 +469,11 @@ capabilities.
 ### Registering a New Package
 
 Add the package to `integrationPackages` in
-`internal/le/qemu/alltests.go`. If it needs an Alpine package, add that package
+`internal/le/test/qemu/alltests.go`. If it needs an Alpine package, add that package
 to the owning native action. Do not add a guest script or a second QEMU
 lifecycle.
 
-For a distinct guest proof, add one action to `internal/le/qemu/actions.go` and
+For a distinct guest proof, add one action to `internal/le/test/qemu/actions.go` and
 keep the action callable from Go. The host recipe invokes it through:
 
 ```text
@@ -520,7 +520,7 @@ and the shipped kernel answered `link add: operation not supported`.
 each with `|| true`. Those lines are best-effort and load nothing on a
 `kernel`-supplied boot. They are not the reason those features work.
 
-<!-- source: internal/le/qemu/run.go -- Run.setupCommand, the best-effort modprobe list -->
+<!-- source: internal/le/test/qemu/run.go -- Run.setupCommand, the best-effort modprobe list -->
 <!-- source: gokrazy/kernel/runtime.config -- "no module of this kernel can load" -->
 <!-- source: gokrazy/kernel/runtime.require -- the symbols a =m answer must fail -->
 
@@ -534,13 +534,13 @@ actions.
 
 | Lab | Docker action | QEMU action | Native producer |
 |-----|---------------|-------------|-----------------|
-| L2TP (Ze LNS against xl2tpd) | `./le deployment docker-l2tp-ppp-test` | `./le deployment gokrazy-l2tp-ppp-test` | `internal/le/deployment` |
-| PPPoE (Ze client against accel-ppp) | `./le deployment docker-pppoe-accel-test` | `./le qemu pppoe-accel-test` | `internal/le/qemu/pppoe_accel_linux.go` |
-| VRRP (Ze against keepalived) | `./le integration interop`, scenario `vrrp-mastership-keepalived` | `./le qemu vrrp-keepalived-test` | `internal/le/qemu/vrrp_keepalived_linux.go` |
+| L2TP (Ze LNS against xl2tpd) | `./le deployment docker-l2tp-ppp-test` | `./le deployment gokrazy-l2tp-ppp-test` | `internal/le/test/deployment` |
+| PPPoE (Ze client against accel-ppp) | `./le deployment docker-pppoe-accel-test` | `./le qemu pppoe-accel-test` | `internal/le/test/qemu/pppoe_accel_linux.go` |
+| VRRP (Ze against keepalived) | `./le integration interop`, scenario `vrrp-mastership-keepalived` | `./le qemu vrrp-keepalived-test` | `internal/le/test/qemu/vrrp_keepalived_linux.go` |
 | MOBIKE (Ze initiator and responder against strongSwan) | `./le integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le qemu ipsec-mobike-test kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
 
-<!-- source: internal/le/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
-<!-- source: internal/le/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
+<!-- source: internal/le/test/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
+<!-- source: internal/le/test/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
 
 The MOBIKE action is a manual runtime-kernel proof, not a merge gate or a
 scheduled job. It runs both existing movement scenarios, without a selector:
@@ -565,8 +565,8 @@ Docker scenarios' MOBIKE checks. A pass requires unchanged IKE and Child SA
 identities, new installed endpoints with no stale states, and encrypted traffic
 in both directions before and after the old address is removed. A new SA or an
 unprotected ping cannot satisfy those checks.
-<!-- source: internal/le/qemu/mobike.go -- runIPsecMOBIKEHere, buildMOBIKEGuests -->
-<!-- source: internal/le/deployment/mobike.go -- runIPsecMOBIKEHere -->
+<!-- source: internal/le/test/qemu/mobike.go -- runIPsecMOBIKEHere, buildMOBIKEGuests -->
+<!-- source: internal/le/test/deployment/mobike.go -- runIPsecMOBIKEHere -->
 <!-- source: internal/le/interoplab/ipsec/mobike_netns_linux.go -- RunMOBIKENetns -->
 <!-- source: internal/le/interoplab/ipsec/mobike.go -- checkMOBIKE -->
 
@@ -577,8 +577,8 @@ private directory. This avoids a root daemon opening storage beneath a checkout
 owned by the host user. The database tree is created beside the input, and a
 VRRP restart reads the explicit file again while retaining the scenario's tree.
 Retained failure artifacts live in the guest and last for that guest's lifetime.
-<!-- source: internal/le/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
-<!-- source: internal/le/qemu/vrrp_keepalived_linux.go -- startZe -->
+<!-- source: internal/le/test/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
+<!-- source: internal/le/test/qemu/vrrp_keepalived_linux.go -- startZe -->
 
 `./le qemu vrrp-keepalived-test` runs four scenarios, selectable with
 `scenarios=<csv>`.
@@ -594,8 +594,8 @@ The first three names predate the rule that an interop scenario is NAMED rather
 than numbered (`ai/rules/interop-and-goal-validation.md`). Renaming them is not
 the tracking scenario's work, and the fourth does not copy the pattern.
 
-<!-- source: internal/le/qemu/guestlabs.go -- vrrpScenarioNames -->
-<!-- source: internal/le/qemu/vrrp_keepalived_linux.go -- runTrackedUplink -->
+<!-- source: internal/le/test/qemu/guestlabs.go -- vrrpScenarioNames -->
+<!-- source: internal/le/test/qemu/vrrp_keepalived_linux.go -- runTrackedUplink -->
 
 ## Reference Implementations
 
@@ -606,7 +606,7 @@ the tracking scenario's work, and the fourth does not copy the pattern.
 | nftables integration test | `internal/plugins/firewall/nft/integration_linux_test.go` |
 | Route watch integration | `internal/core/routewatch/integration_linux_test.go` |
 | PTY/termios integration | `internal/component/config/system/console_integration_linux_test.go` |
-| QEMU runner | `internal/le/qemu/run.go` |
+| QEMU runner | `internal/le/test/qemu/run.go` |
 
 ## Common Mistakes
 
@@ -614,7 +614,7 @@ the tracking scenario's work, and the fourth does not copy the pattern.
 |---------|-----|
 | "Needs real hardware, skipping test" | Use the virtual substitute in the table above |
 | `//go:build linux` on a test that needs root | Use `//go:build integration && linux`, unless the unit carries an `RFC requirement:` tag: see Build Tags |
-| A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/qemu/alltests.go` |
+| A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/test/qemu/alltests.go` |
 | `t.Fatal` for a missing capability | Use `t.Skip`, so the file stays portable |
 | Hardcoding `/dev/ttyS0` | Use `pty.Open()` for a real PTY pair |
 | Reading a QEMU timeout as "TCG is slow" | On Linux, check `kvm-access` first with `./le setup check`. A user outside the `kvm` group makes QEMU refuse to start, which surfaces as a timeout |
@@ -626,7 +626,7 @@ the tracking scenario's work, and the fourth does not copy the pattern.
 on ARM Macs) is installed. On macOS: `brew install qemu`.
 
 **Tests time out:** The default timeout is 120 seconds. Change the timeout in
-the owning action under `internal/le/qemu`.
+the owning action under `internal/le/test/qemu`.
 
 **Package not found in Alpine:** Check the Alpine package name at
 `https://pkgs.alpinelinux.org/`. Alpine package names sometimes differ from
@@ -637,11 +637,11 @@ networking provides NAT. Check that the host has connectivity.
 
 ## Existing Integration Test Packages
 
-The population is `integrationPackages` in `internal/le/qemu/alltests.go`, a
+The population is `integrationPackages` in `internal/le/test/qemu/alltests.go`, a
 closed list. `TestEveryIntegrationPackageIsNamed` derives every package holding
 an `integration`-tagged test file from the tree and fails when one is absent
 from that list; `TestEveryNamedIntegrationPackageExists` fails on a named
 package that is not in the tree. Read the Go list rather than a copy of it.
 
-<!-- source: internal/le/qemu/alltests.go -- integrationPackages -->
-<!-- source: internal/le/qemu/integration_coverage_test.go -- TestEveryIntegrationPackageIsNamed, TestEveryNamedIntegrationPackageExists -->
+<!-- source: internal/le/test/qemu/alltests.go -- integrationPackages -->
+<!-- source: internal/le/test/qemu/integration_coverage_test.go -- TestEveryIntegrationPackageIsNamed, TestEveryNamedIntegrationPackageExists -->

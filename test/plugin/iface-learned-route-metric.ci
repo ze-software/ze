@@ -43,7 +43,7 @@
 # removes both routes with it.
 #
 # The blocks are /28s because the plugin suite runs 8-wide
-# (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go) and the QEMU run gives every test
+# (ZE_PLUGIN_PARALLEL, internal/le/test/functional/budget.go) and the QEMU run gives every test
 # ONE namespace. This file used to claim 198.51.100.0/24 and 203.0.113.0/24 were
 # unique to it, and both claims were false: iface-route-protocol-name.ci
 # addressed the same /24 and installed two routes at 203.0.113.0/24, so the

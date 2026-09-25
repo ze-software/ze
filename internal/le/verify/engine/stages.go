@@ -119,8 +119,8 @@ func fullStages() []Stage {
 		stage("verify deps", "unit-cached"),
 		stage("verify deps", "unit-race-changed"),
 		stage("verify deps", "alloc"),
-		stage("functional", "gating"),
-		stage("functional", "exabgp-test"),
+		stage("test functional", "gating"),
+		stage("test functional", "exabgp-test"),
 	})
 	return stages
 }

@@ -269,7 +269,7 @@ virtualisation, or a VM without nested virt) reports `n/a`: QEMU runs under
 `tcg` there, only slower. macOS has no `/dev/kvm` and needs no group; the
 native QEMU actions select the Apple hypervisor (`hvf`) by platform.
 
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 **Loopback addresses.** The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as

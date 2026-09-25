@@ -51,22 +51,22 @@ jobs:
       # PATH across sudo so the Go toolchain remains available. Later actions
       # still run after an earlier failure, yielding the whole nightly verdict.
       - name: Interface integration
-        run: sudo -E env "PATH=$PATH" ./le integration iface
+        run: sudo -E env "PATH=$PATH" ./le test integration iface
       - name: FIB integration
         if: ${{ !cancelled() }}
-        run: sudo -E env "PATH=$PATH" ./le integration fib
+        run: sudo -E env "PATH=$PATH" ./le test integration fib
       - name: Firewall integration
         if: ${{ !cancelled() }}
-        run: sudo -E env "PATH=$PATH" ./le integration firewall
+        run: sudo -E env "PATH=$PATH" ./le test integration firewall
       - name: Traffic integration
         if: ${{ !cancelled() }}
-        run: sudo -E env "PATH=$PATH" ./le integration traffic
+        run: sudo -E env "PATH=$PATH" ./le test integration traffic
       - name: GTSM integration
         if: ${{ !cancelled() }}
-        run: sudo -E env "PATH=$PATH" ./le integration gtsm
+        run: sudo -E env "PATH=$PATH" ./le test integration gtsm
       - name: AS112 integration
         if: ${{ !cancelled() }}
-        run: sudo -E env "PATH=$PATH" ./le integration as112
+        run: sudo -E env "PATH=$PATH" ./le test integration as112
 
   # BGP interoperability against FRR, BIRD, and GoBGP. Its own advisory job
   # keeps a container-lab failure distinct from kernel integration evidence.
@@ -81,7 +81,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: BGP interoperability
-        run: ./le integration interop
+        run: ./le test integration interop
 
   # The strongSwan lab programs XFRM state in privileged containers. It remains
   # scheduled and advisory, never part of a merge gate.
@@ -96,7 +96,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: IKEv2/IPsec interoperability
-        run: ./le integration interop-ipsec
+        run: ./le test integration interop-ipsec
 
   # Ze's admin login against a real FreeRADIUS server. Every other RADIUS proof
   # ze holds runs against a mock ze wrote, and a mock built beside ze's own
@@ -118,7 +118,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: RADIUS admin-login interoperability against FreeRADIUS
-        run: ./le integration interop-radius
+        run: ./le test integration interop-radius
 
   # The L2TP lab builds a PPP/NCP path between peer-isolated containers. It needs
   # PPPoL2TP in the runner's kernel, so it is scheduled and advisory like the
@@ -141,7 +141,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: L2TP PPP/NCP interoperability
-        run: ./le deployment docker-l2tp-ppp-test
+        run: ./le test deployment docker-l2tp-ppp-test
 
   # Ze's PPPoE client against a real accel-ppp access concentrator. Same tiering
   # reason as the L2TP lab above, and the same advisory posture: it needs PPPoE
@@ -157,4 +157,4 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
       - name: PPPoE client against accel-ppp
-        run: ./le deployment docker-pppoe-accel-test
+        run: ./le test deployment docker-pppoe-accel-test

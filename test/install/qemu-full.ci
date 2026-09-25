@@ -1,6 +1,6 @@
 # Full end-to-end QEMU coverage of the installer chain (spec-install umbrella).
 #
-# Drives internal/le/qemu/install.go, which builds the installer
+# Drives internal/le/test/qemu/install.go, which builds the installer
 # initrd + a credential-matched gokrazy image from scratch, serves them over
 # HTTP, boots the installer kernel+initrd in QEMU against a blank disk, asserts
 # the initrd's serial success markers, then re-boots the written disk and logs
@@ -12,6 +12,6 @@
 # It exits 0 in both the PASS and SKIP cases; a genuine boot/install/SSH failure
 # exits non-zero. The exhaustive path is `./le qemu install-test`.
 
-cmd=foreground:seq=1:exec=./le qemu install-test
+cmd=foreground:seq=1:exec=./le test qemu install-test
 expect=exit:code=0
 expect=stdout:pattern=INSTALL-QEMU: (PASS|SKIP)

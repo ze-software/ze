@@ -123,7 +123,7 @@ the recovery NIC's directly connected subnet. The connected route always beats
 any default route the pinned or foreign NIC holds, so reachability does not
 depend on default-route ordering after the DHCP fallback re-leases every NIC.
 
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 
 ## What is not proven here

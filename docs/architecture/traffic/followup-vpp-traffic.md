@@ -96,7 +96,7 @@ verifier, through `RunVerifier` in `parseAndVerifyTrafficSections` under
 
 ## Evidence
 
-<!-- source: internal/le/deployment/actions.go -- Answer -->
+<!-- source: internal/le/test/deployment/actions.go -- Answer -->
 
 Real-VPP evidence is the authoritative apply-tier validation, because the stub
 cannot run a full traffic Apply. Both evidence phases are green on VPP v25.10.

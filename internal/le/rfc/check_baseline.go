@@ -370,8 +370,8 @@ func functionalSuitesFromGo(src, where string) ([]string, error) {
 
 func headCarriers(tree string) ([]Carrier, error) {
 	suites := FunctionalSuites()
-	if raw, ok := gitOutput(tree, "show", "HEAD:internal/le/functional/suites.go"); ok {
-		if found, err := functionalSuitesFromGo(string(raw), "HEAD:internal/le/functional/suites.go"); err == nil {
+	if raw, ok := gitOutput(tree, "show", "HEAD:internal/le/test/functional/suites.go"); ok {
+		if found, err := functionalSuitesFromGo(string(raw), "HEAD:internal/le/test/functional/suites.go"); err == nil {
 			suites = found
 		}
 	}

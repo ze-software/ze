@@ -201,7 +201,7 @@ func runLEL2TPDiagnosticsAnswers(ctx context.Context) error {
 
 func runLE(ctx context.Context, binary, work, record string, args ...string) uiLeL2tpDiagnosticsAnswersCommandResult {
 	argv := make([]string, 0, len(args)+1)
-	argv = append(argv, "deployment")
+	argv = append(argv, "test", "deployment")
 	argv = append(argv, args...)
 	return uiLeL2tpDiagnosticsAnswersRunCommand(
 		ctx,

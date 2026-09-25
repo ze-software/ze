@@ -66,11 +66,11 @@ jobs:
           ZE_QEMU_PARALLEL: "2"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run
+          ./le test qemu run
           kernel tmp/kernel/build/vmlinuz
           packages "coreutils nftables iproute2 iputils-ping kmod iptables libcap e2fsprogs e2fsprogs-extra"
           timeout 5400s
-          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_TEST_BIN=bin/ze-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le qemu all-tests'
+          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_TEST_BIN=bin/ze-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le test qemu all-tests'
 
   protocol-labs:
     runs-on: ubuntu-latest
@@ -122,7 +122,7 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "frr iproute2 kmod"
           timeout 150s
           command 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/plugins/ldp/...'
@@ -133,7 +133,7 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "frr iproute2 kmod tcpdump"
           timeout 180s
           command 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
@@ -144,10 +144,10 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "keepalived tcpdump iproute2 iputils-ping kmod"
           timeout 900s
-          command 'bin/ze-le-linux-amd64 le qemu vrrp-keepalived-test'
+          command 'bin/ze-le-linux-amd64 le test qemu vrrp-keepalived-test'
 
   runtime-kernel-labs:
     runs-on: ubuntu-latest
@@ -198,7 +198,7 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/ze-test-linux-amd64 ./cmd/ze
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
       - name: L2TP PPP appliance proof
-        run: sudo -E env "PATH=$PATH" "XDG_CACHE_HOME=$HOME/.cache" ./le deployment gokrazy-l2tp-ppp-test
+        run: sudo -E env "PATH=$PATH" "XDG_CACHE_HOME=$HOME/.cache" ./le test deployment gokrazy-l2tp-ppp-test
       - name: PPPoE against accel-ppp
         if: ${{ !cancelled() }}
         env:
@@ -206,10 +206,10 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "accel-ppp ppp iproute2 iputils-ping kmod"
           timeout 600s
-          command 'bin/ze-le-linux-amd64 le qemu pppoe-accel-test'
+          command 'bin/ze-le-linux-amd64 le test qemu pppoe-accel-test'
       - name: PPPoE functional suite
         if: ${{ !cancelled() }}
         env:
@@ -217,10 +217,10 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "nftables iproute2 libcap kmod"
           timeout 1200s
-          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le qemu pppoe-test'
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu pppoe-test'
       - name: ASPA plugin namespace subset
         if: ${{ !cancelled() }}
         env:
@@ -228,10 +228,10 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "nftables iproute2 libcap kmod"
           timeout 1200s
-          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le qemu netns-test suites plugin'
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu netns-test suites plugin'
       - name: Traffic-usage eBPF proof
         if: ${{ !cancelled() }}
         env:
@@ -239,7 +239,7 @@ jobs:
           ZE_QEMU_CPUS: "3"
           ZE_QEMU_BOOT_TIMEOUT: "300"
         run: >-
-          ./le qemu run kernel tmp/kernel/build/vmlinuz
+          ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "iproute2 kmod"
           timeout 600s
           command 'go test -tags integration -count=1 -timeout 180s -run "TestProgram_|TestAttachTCX_CountsTraffic|TestMetricsScrape" ./internal/plugins/trafficusage/...'

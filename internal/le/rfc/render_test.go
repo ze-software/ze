@@ -251,7 +251,7 @@ func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T
 		"internal/le/interoplab/bgp/scenario_test.go": "// " + rfcTagMarker + " RFC9999-2-1 positive\n" +
 			"// " + rfcTagMarker + " RFC9999-2-1 negative\n",
 		".github/workflows/nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\n" +
-			"jobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
+			"jobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
 	})
 	shard := RenderShards(in)["rfc9999"]
 	if !strings.Contains(shard, "**nightly-only**") {

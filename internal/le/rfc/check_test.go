@@ -578,7 +578,7 @@ const (
 )
 var Gating = []string{suiteParse, suiteUi}
 `
-	suites, err := functionalSuitesFromGo(source, "HEAD:internal/le/functional/suites.go")
+	suites, err := functionalSuitesFromGo(source, "HEAD:internal/le/test/functional/suites.go")
 	if err != nil {
 		t.Fatalf("parsing the suite source: %v", err)
 	}

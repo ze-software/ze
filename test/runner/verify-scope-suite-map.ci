@@ -10,7 +10,7 @@
 # fixture is not an instrumented run's observation, and treating it as one would
 # be a scenario that passes against a map nobody ever produced. What a suite
 # reached is asserted by the reduction's own tests
-# (`internal/le/functional/reach_test.go`).
+# (`internal/le/test/functional/reach_test.go`).
 #
 # The three widening branches are what carry the safety argument, so each one is
 # a scenario of its own. A package the map never recorded, a package a commit

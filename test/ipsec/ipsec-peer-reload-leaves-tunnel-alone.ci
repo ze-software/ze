@@ -47,7 +47,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: peer-a programs real XFRM state, so this SKIPs
 # on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root in the QEMU
-# VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes the suite.
+# VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go executes the suite.
 
 option=needs-linux:caps=net-admin
 # Serialize against every other real-XFRM ipsec test. `ip xfrm state` and

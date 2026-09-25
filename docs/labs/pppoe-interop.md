@@ -97,7 +97,7 @@ two network namespaces joined by a veth. Invoking the guest action on the
 host does not boot a VM. This proof covers the client role only. The Docker
 suite carries both roles.
 
-<!-- source: internal/le/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
+<!-- source: internal/le/test/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
 
 ## Scenarios
 

@@ -33,7 +33,7 @@ import (
 
 const (
 	// Action is the native action identity served by this callable runner.
-	Action = "integration/interop-radius"
+	Action = "test integration/interop-radius"
 
 	// serverImage is pinned to an exact tag. A moving tag changes what these
 	// scenarios mean with no ze change, and the failure then looks like a ze

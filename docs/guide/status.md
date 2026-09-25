@@ -94,7 +94,7 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 
 Unit tests run with the race detector enabled (`-race`). Functional, browser, and compatibility suites do not currently use the race detector.
 <!-- source: internal/le/test/unit/actions.go -- Actions -->
-<!-- source: internal/le/functional/actions.go -- Actions -->
+<!-- source: internal/le/test/functional/actions.go -- Actions -->
 <!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 <!-- source: internal/le/go/lint/actions.go -- Actions -->
 

@@ -247,7 +247,7 @@ func TestTheGoDirectiveIsTheOnlyDeclaration(t *testing.T) {
 // PREVENTS: a caller that DOWNLOADS a toolchain building a go.dev URL for
 // go1.27, which that server does not publish, from a read that looked like it
 // succeeded. The QEMU harness reads this to name the tarball the guest unpacks
-// (internal/le/qemu, Run.setupCommand).
+// (internal/le/test/qemu, Run.setupCommand).
 func TestTheGoDirectiveIsReadAsAReleaseOnlyWhenItCarriesAPatch(t *testing.T) {
 	release, err := declaredRelease("module x\n\ngo 1.27.4\n")
 	if err != nil {

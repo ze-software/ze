@@ -23,8 +23,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/leroot"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 // The three execution tiers.
@@ -155,26 +155,26 @@ type Carrier struct {
 type interopTree struct{ name, prefix, action string }
 
 var interopTrees = [...]interopTree{
-	{"interop-bgp", "internal/le/interoplab/bgp/", "integration/interop"},
-	{"interop-ipsec", "internal/le/interoplab/ipsec/", "integration/interop-ipsec"},
-	{"interop-l2tp", "internal/le/interoplab/l2tp/", "deployment/docker-l2tp-ppp-test"},
-	{"interop-radius", "internal/le/interoplab/radius/", "integration/interop-radius"},
-	{"interop-pppoe", "internal/le/interoplab/pppoe/", "deployment/docker-pppoe-accel-test"},
+	{"interop-bgp", "internal/le/interoplab/bgp/", "test integration/interop"},
+	{"interop-ipsec", "internal/le/interoplab/ipsec/", "test integration/interop-ipsec"},
+	{"interop-l2tp", "internal/le/interoplab/l2tp/", "test deployment/docker-l2tp-ppp-test"},
+	{"interop-radius", "internal/le/interoplab/radius/", "test integration/interop-radius"},
+	{"interop-pppoe", "internal/le/interoplab/pppoe/", "test deployment/docker-pppoe-accel-test"},
 }
 
 var legacyInteropTrees = [...]interopTree{
-	{"interop-bgp", "test/interop/scenarios/", "integration/interop"},
-	{"interop-ipsec", "test/interop-ipsec/", "integration/interop-ipsec"},
-	{"interop-l2tp", "test/interop-l2tp/", "deployment/docker-l2tp-ppp-test"},
-	{"interop-pppoe", "test/interop-pppoe/", "deployment/docker-pppoe-accel-test"},
+	{"interop-bgp", "test/interop/scenarios/", "test integration/interop"},
+	{"interop-ipsec", "test/interop-ipsec/", "test integration/interop-ipsec"},
+	{"interop-l2tp", "test/interop-l2tp/", "test deployment/docker-l2tp-ppp-test"},
+	{"interop-pppoe", "test/interop-pppoe/", "test deployment/docker-pppoe-accel-test"},
 }
 
 // FunctionalSuites answers the suites `./le functional` runs.
 //
 // The answer comes from the functional area's read-only catalog. RFC evidence
 // classification therefore consumes the same run list as the native runner
-// without importing or parsing internal/le/functional/actions.go.
-func FunctionalSuites() []string { return functional.GatingNames() }
+// without importing or parsing internal/le/test/functional/actions.go.
+func FunctionalSuites() []string { return testfunctional.GatingNames() }
 
 // suiteCarriers answers one verify-tier row per suite, so the prefix carries
 // the execution claim.
@@ -289,7 +289,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// tagged .ci out of a run suite or into the gitignored incubator.
 	// `gating` and not the bare name: the bare name lists the suites and runs
 	// none of them. The verb runs exactly the population these rows are built
-	// from, because FunctionalSuites is functional.GatingNames.
+	// from, because FunctionalSuites is testfunctional.GatingNames.
 	out = append(out, suiteCarriers(kindFunctional, ciSuffix, "ci",
 		"./le functional gating", "./le verify current mode full (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it

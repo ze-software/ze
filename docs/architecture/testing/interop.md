@@ -22,8 +22,8 @@ This page is the infrastructure it is owed against.
 | PPPoE (Ze as client) | Docker: accel-ppp | `test/interop-pppoe/` | `./le deployment docker-pppoe-accel-test` |
 | RADIUS (admin login: PAP, CHAP, EAP, Filter-Id) | Docker: FreeRADIUS | `test/interop-radius/scenarios/` | `./le integration interop-radius` |
 
-<!-- source: internal/le/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
-<!-- source: internal/le/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
+<!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec and interop-radius verbs -->
+<!-- source: internal/le/test/deployment/actions.go -- l2tp-test, l2tp-ppp-test, docker-pppoe-accel-test verbs -->
 
 Every suite discovers its scenarios the same way. `Discover`
 (`internal/le/interoplab/discover.go`) reads the scenario directory, keeps the
@@ -150,9 +150,9 @@ the container, where its explicit `ze.conf` and database tree live together.
 The root daemon cannot use a database directory beneath a mount owned by another
 user. A scenario's disable-and-restart check recopies the new input into the
 same private directory before each start.
-<!-- source: internal/le/deployment/l2tppppinputs.go -- writeInputs -->
-<!-- source: internal/le/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
-<!-- source: internal/le/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
+<!-- source: internal/le/test/deployment/l2tppppinputs.go -- writeInputs -->
+<!-- source: internal/le/test/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
+<!-- source: internal/le/test/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
 
 After the native L2TP PPP proof has negotiated IPCP and carried traffic, it
 injects an LCP Configure-Request from the peer namespace into the existing
@@ -173,7 +173,7 @@ the peer leaves first and the proof requires another route withdrawal and
 ordinary kernel cleanup. Injection uses Python 3's standard-library raw IPv4
 socket and requires `CAP_NET_RAW` in addition to the namespace/PPP privileges.
 The boundary JSON and peer log remain in the scratch directory on failure.
-<!-- source: internal/le/deployment/l2tpppprestart.go -- assertLCPRestart, awaitL2TPPPPWithdrawal -->
+<!-- source: internal/le/test/deployment/l2tpppprestart.go -- assertLCPRestart, awaitL2TPPPPWithdrawal -->
 
 The credentialed carrier then starts another xl2tpd/pppd peer with a wrong
 secret against the same daemon. It requires a matching CHAP
@@ -181,7 +181,7 @@ Challenge/Response/Failure exchange, a local rejection, and session teardown.
 After the rejection boundary, neither the rejected peer's log nor new Ze
 observations can show network admission. PPP units, L2TP sessions and subscriber
 routes must disappear before the proof stops the rejected peer.
-<!-- source: internal/le/deployment/l2tppppauth.go -- assertWrongSecret, l2tpPPPCHAPRejected, l2tpPPPRejectedState -->
+<!-- source: internal/le/test/deployment/l2tppppauth.go -- assertWrongSecret, l2tpPPPCHAPRejected, l2tpPPPRejectedState -->
 
 ### Scenario Structure
 

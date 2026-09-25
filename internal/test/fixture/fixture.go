@@ -29,7 +29,7 @@ const observerFailure = "ZE-OBSERVER-FAIL"
 // nativeLEBinary answers the native le binary THIS run built, by the same route
 // as uiZEBinary: a bare name on the child PATH, which the functional runner
 // points at the binary set the run compiled. A suite whose fixtures drive le
-// says so in the suite table (Suite.LE, internal/le/functional/suites.go), and
+// says so in the suite table (Suite.LE, internal/le/test/functional/suites.go), and
 // the one build then serves every fixture of that suite.
 //
 // $ZE_REPO_ROOT/bin/le, which the ui and runner fixtures used to stat, is not

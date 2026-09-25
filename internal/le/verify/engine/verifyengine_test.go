@@ -36,8 +36,8 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"test health/check", "site facts/check",
 		"web htmx/check", "verify deps/evidence-vet", "ai hooks/unit",
 		"verify deps/vulnerability", "verify deps/unit-cached",
-		"verify deps/unit-race-changed", "verify deps/alloc", "functional/gating",
-		"functional/exabgp-test",
+		"verify deps/unit-race-changed", "verify deps/alloc", "test functional/gating",
+		"test functional/exabgp-test",
 	}
 	stages := fullStages()
 	if len(stages) != len(want) {

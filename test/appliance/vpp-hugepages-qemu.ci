@@ -1,6 +1,6 @@
 # End-to-end QEMU coverage of the boot-time hugepage reservation (spec-vpp-host-tuning AC-3).
 #
-# Drives internal/le/qemu/hugepages.go, which builds a HOST ze,
+# Drives internal/le/test/qemu/hugepages.go, which builds a HOST ze,
 # inits an appliance whose config carries image.hugepages + image.memory-bytes,
 # builds the gokrazy image (exercising the derived-instance-config kernel-argument
 # path), boots it in QEMU, logs in over SSH, and asserts through the Ze CLI that
@@ -23,6 +23,6 @@
 # the run at 15s on the first KVM-capable host to meet it. An explicit timeout
 # always wins over the derived one, so pin it to the real cost.
 option=timeout:value=900s
-cmd=foreground:seq=1:exec=./le qemu vpp-hugepages-test
+cmd=foreground:seq=1:exec=./le test qemu vpp-hugepages-test
 expect=exit:code=0
 expect=stdout:pattern=VPP-HUGEPAGES-QEMU: (PASS|SKIP)

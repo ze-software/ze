@@ -19,7 +19,7 @@ option=needs-linux:caps=net-admin
 # suite runs there, and test/firewall/firewall-boot-apply.ci is nft-based and
 # carries the same caps marker. Kept together, the two options meant this
 # test ran in NO environment at all: the caps gate skips it everywhere
-# without CAP_NET_ADMIN, and ZE_QEMU=1 (internal/le/qemu/alltests.go)
+# without CAP_NET_ADMIN, and ZE_QEMU=1 (internal/le/test/qemu/alltests.go)
 # skipped it in the one place that has it. It was the only one of 68
 # capability-gated tests carrying that combination.
 option=timeout:value=15s

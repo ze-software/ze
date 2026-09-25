@@ -14,7 +14,7 @@
 # in every default-on gate including ze_bgp, so it could never have detected the
 # non-BGP surface wrongly depending on BGP.
 #
-# Why ze-stripped: internal/le/functional/binaries.go builds it with tags
+# Why ze-stripped: internal/le/test/functional/binaries.go builds it with tags
 # "ze_core ze_ssh", so ze_bgp is off. The runner puts that binary dir first on
 # PATH, which
 # is what lets this reach it by bare name, the same way ze-stripped-surface.ci

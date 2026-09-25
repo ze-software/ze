@@ -99,7 +99,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 
 	// The hugepage proof refuses to boot an arm64 appliance without aarch64 UEFI
 	// firmware, and answers SKIP rather than an error when the file is absent
-	// (errAarch64Firmware, internal/le/qemu/boot.go). Every other tool this run
+	// (errAarch64Firmware, internal/le/test/qemu/boot.go). Every other tool this run
 	// needs already has a stand-in above, so the firmware gets one too: without
 	// it the proof never reaches its assertions on an arm64 host, and the report
 	// carries no `cmdline` because nothing was asked of a kernel.
@@ -756,7 +756,7 @@ func sshpassMain() {
 `
 
 // zeRunDirConfig is the path the container daemon starts from for one scenario
-// input: the producer is vppIface.daemonArgs (internal/le/deployment/vppiface.go),
+// input: the producer is vppIface.daemonArgs (internal/le/test/deployment/vppiface.go),
 // which stages `<file>` under the container-private zeRunDir as
 // /run/ze/<file>/ze.conf so the root daemon owns every ancestor of its store.
 func zeRunDirConfig(file string) string {

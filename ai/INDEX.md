@@ -328,7 +328,6 @@ disagree, the manifest is right and the row is stale.
 | `./le config ports` | `internal/le/config/ports.Answer` | the Go listener-default table and the YANG refine port defaults still agree, service by service |
 | `./le config unread-leaves` | `internal/le/config/unreadleaves.Answer` | which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible |
 | `./le data asn-delegation` | `internal/le/data/asndelegation.Answer` | the shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table |
-| `./le deployment` | `internal/le/deployment.Answer` | ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything |
 | `./le doc check` | `internal/le/doc/check.Answer` | native documentation links, aggregate verification, and templ output checks |
 | `./le doc consistency` | `internal/le/doc/consistency.Answer` | where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes |
 | `./le doc index` | `internal/le/doc/index.Answer` | the two generated doc indexes, ai/DOCS-TO-CODE.md and its reverse ai/CODE-TO-DOCS.md: check either against the tree, or rewrite it |
@@ -336,10 +335,8 @@ disagree, the manifest is right and the row is stale.
 | `./le doc wiring` | `internal/le/doc/wiring.Answer` | the changed-file wiring, documentation, command and inventory gate |
 | `./le doc yang-contract` | `internal/le/doc/yangcontract.Answer` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |
 | `./le evidence` | `internal/le/verify/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
-| `./le functional` | `internal/le/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le go-extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
 | `./le go-version` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
-| `./le integration` | `internal/le/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
@@ -349,7 +346,6 @@ disagree, the manifest is right and the row is stale.
 | `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |
 | `./le plugin imports` | `internal/le/plugin/imports.Answer` | the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it |
 | `./le protocol-skeleton` | `internal/le/rfc/skeletons.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |
-| `./le qemu` | `internal/le/qemu.Answer` | proofs that boot a real appliance image in a virtual machine and ask it what it did |
 | `./le repo arch-map` | `internal/le/repo/archmap.Answer` | the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them |
 | `./le repo changed` | `internal/le/repo/changed.Answer` | what this checkout changed: the test groups it touches, and the packages a scoped verify must cover |
 | `./le repo feature-tags` | `internal/le/repo/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
@@ -371,10 +367,14 @@ disagree, the manifest is right and the row is stale.
 | `./le spec session` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
 | `./le staticcheck-feature-matrix` | `internal/le/go/staticcheck.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
+| `./le test deployment` | `internal/le/test/deployment.Answer` | ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything |
+| `./le test functional` | `internal/le/test/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le test fuzz` | `internal/le/test/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le test health` | `internal/le/test/health.Answer` | the project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated |
+| `./le test integration` | `internal/le/test/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
 | `./le test mutation` | `internal/le/test/mutation.Answer` | combine mutation reports and append their per-package scores to committed history |
 | `./le test netlab` | `internal/le/test/netlab.Answer` | render and validate the netlab daemon integration |
+| `./le test qemu` | `internal/le/test/qemu.Answer` | proofs that boot a real appliance image in a virtual machine and ask it what it did |
 | `./le test sensitivity` | `internal/le/test/sensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
 | `./le test stress-repro` | `internal/le/test/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
 | `./le test unit` | `internal/le/test/unit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
@@ -630,8 +630,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | appliance auth, local admin, bootstrap auth, RBAC | `docs/guide/operator-access-rbac.md`, `ai/digests/aaa-auth.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `./le build-artifacts`, `./le qemu` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/platform-linux.md`, `./le setup install`, `internal/le/setup/`, `.github/dependabot.yml` |
-| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/qemu/`, `internal/install/disk/fault_linux.go`, `./le qemu install-scenarios-test`, `./le qemu install-ventoy-test`, `docs/functional-tests.md` |
-| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/qemu/`, `./le qemu vpp-hugepages-test`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
+| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/test/qemu/`, `internal/install/disk/fault_linux.go`, `./le qemu install-scenarios-test`, `./le qemu install-ventoy-test`, `docs/functional-tests.md` |
+| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/test/qemu/`, `./le qemu vpp-hugepages-test`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/evidence.md`) |
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
@@ -697,7 +697,7 @@ on 2026-08-30, because a lookup is not a rule.
 - **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. They are not identity wrappers.
 - **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
 - **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) is exec'd, supervised, and cleaned up by ze itself; ze is never designed around an OS-level process manager.
-- **Stress tooling is native Go**: `internal/le/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside `ze-test peer --mode inject`. Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le integration stress`.
+- **Stress tooling is native Go**: `internal/le/test/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside `ze-test peer --mode inject`. Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le integration stress`.
 - **CLI dispatch discoverability gaps**: (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape). `ze show` and `ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner. The offline-config half is covered by `ze config show <file> [path...]`. (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:overview`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source. The highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
 
 ### Mistakes that recur, and their corrections

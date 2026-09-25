@@ -8,7 +8,7 @@
 // tests t.Skip rather than fail (e.g. on a developer laptop). They run under the
 // native QEMU all-tests action, which derives its package set from
 // `integration && linux`; the same population is listed in
-// internal/le/qemu/alltests.go.
+// internal/le/test/qemu/alltests.go.
 //
 // They validate spec assumptions A-1 (PPPoE AF_PACKET pattern generalises to
 // 802.3+LLC), A-2 (raw multicast receive of ISO MACs via PACKET_ADD_MEMBERSHIP,

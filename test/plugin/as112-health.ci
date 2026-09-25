@@ -5,7 +5,7 @@
 # healthy and unhealthy exit codes) by proving the RPC WIRING itself: the
 # ze-as112:health wire method is reachable and the YANG command resolves.
 # The service cannot bind the real privileged port 53 in this unprivileged
-# functional-test sandbox (see internal/le/integration/gates.go and its
+# functional-test sandbox (see internal/le/test/integration/gates.go and its
 # `./le integration as112` action for the privileged, real-bind proof), so this
 # test exercises the unhealthy path -- proving the command completes and
 # reports healthy=false, not a dispatch/wiring failure.

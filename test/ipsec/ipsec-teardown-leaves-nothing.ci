@@ -28,7 +28,7 @@
 #
 # Gated option=needs-linux:caps=net-admin: the responder programs real XFRM state, so
 # it SKIPs on a host without CAP_NET_ADMIN (the unprivileged dev box) and runs as root
-# in the QEMU VM, where `fsuite ipsec` in internal/le/qemu/alltests.go executes
+# in the QEMU VM, where `fsuite ipsec` in internal/le/test/qemu/alltests.go executes
 # the suite.
 
 option=needs-linux:caps=net-admin

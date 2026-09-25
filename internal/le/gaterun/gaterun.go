@@ -81,7 +81,7 @@ func StreamTee(argv []string, dir string, environ []string, tally io.Writer) int
 	// cap includes the cap in its OWN argv. There, `timeout` can signal the whole
 	// process group. A deadline here would kill the child but leave its
 	// grandchildren alive. A ze daemon or a tacacs mock would then hold the output
-	// pipe open. internal/le/functional runs every suite under `timeout` to prevent
+	// pipe open. internal/le/test/functional runs every suite under `timeout` to prevent
 	// this failure.
 	//nolint:gosec // argv comes from an area's own table. le is a build-host tool controlled through a developer's argv
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)

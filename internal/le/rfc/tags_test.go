@@ -191,7 +191,7 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 // 206 gated MUSTs across RFC 5880/5881/5883, RFC 5798 and RFC 2131/2132 whose
 // only reachable carrier was `functional-unrun`, because the run list named no
 // suite that boots their subsystem. A suite dropped from
-// internal/le/functional.Gating takes the tier away again, and this test is
+// internal/le/test/functional.Gating takes the tier away again, and this test is
 // what says so.
 func TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier(t *testing.T) {
 	carriers, err := carriers(checkoutRoot(t))

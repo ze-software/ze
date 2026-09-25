@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/lepath"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 // observationRunner runs one tagged unit, with and without a break.
@@ -272,7 +272,7 @@ func (o *observationRunner) attribution(output string) string {
 		// An interop run is SELECTED down to one scenario, by a name read off
 		// the checker and confirmed against test/interop/scenarios/, so nothing
 		// else ran and there is no second failure to confuse this one with. The
-		// `./le integration` summary names the action rather than the scenario,
+		// `./le test integration` summary names the action rather than the scenario,
 		// so there is nothing in the text to match on either. What makes the red
 		// the break's is the clean run that passed minutes earlier over the same
 		// lab, which requireCleanGreen has already demanded.
@@ -390,7 +390,7 @@ func (o *observationRunner) carrierArgv() []string {
 		var tb textbuf.Buffer
 		verb = tb.Str("interop-").Str(protocol).String()
 	}
-	return []string{o.self, "integration", verb}
+	return []string{o.self, "test", "integration", verb}
 }
 
 // coverPackages answers the -coverpkg patterns one clean run instruments: the
@@ -451,7 +451,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // The suite is the wrong unit twice over. It is slow, and it is hostage to
 // every other test in it: `./le functional parse` was already red in this
 // checkout from another session's work, so a suite-wide run could never
-// attribute a red to this one carrier. functional.Prepare builds the isolated
+// attribute a red to this one carrier. testfunctional.Prepare builds the isolated
 // set the suite runner builds, and ze-test takes one test's name in place of
 // the suite's --all.
 //
@@ -478,14 +478,14 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 	// The carrier's own suite decides the set: a ui or runner .ci drives the
 	// native le binary, and a set built without it fails the observation on a
 	// missing binary rather than on the break under test.
-	set, err := functional.Prepare(o.toolchain, label, functional.ExtrasFor(suite))
+	set, err := testfunctional.Prepare(o.toolchain, label, testfunctional.ExtrasFor(suite))
 	if err != nil {
 		return false, "", parseErr(tb.Str("cannot build the isolated binaries one .ci runs ").
 			Str("against: ").Err(err))
 	}
-	defer functional.Release(set)
+	defer testfunctional.Release(set)
 
-	argv := append([]string{filepath.Join(set.Dir, functional.ZeTest)}, selector...)
+	argv := append([]string{filepath.Join(set.Dir, testfunctional.ZeTest)}, selector...)
 	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }
@@ -494,22 +494,22 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 // with the all-tests selector removed so a single named .ci takes its place.
 //
 // The suite itself comes back beside them because it also says which binaries
-// the isolated set needs (functional.ExtrasFor).
-func functionalSuite(name string) (functional.Suite, []string, bool) {
-	for _, suite := range functional.Suites {
+// the isolated set needs (testfunctional.ExtrasFor).
+func functionalSuite(name string) (testfunctional.Suite, []string, bool) {
+	for _, suite := range testfunctional.Suites {
 		if suite.Name != name {
 			continue
 		}
 		argv := make([]string, 0, len(suite.Args))
 		for _, arg := range suite.Args {
-			if arg == functional.AllTests {
+			if arg == testfunctional.AllTests {
 				continue
 			}
 			argv = append(argv, arg)
 		}
 		return suite, argv, true
 	}
-	return functional.Suite{}, nil, false
+	return testfunctional.Suite{}, nil, false
 }
 
 // setGoFlagsOverlay puts the overlay where every Go compile this process starts

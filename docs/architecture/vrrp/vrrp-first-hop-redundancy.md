@@ -350,7 +350,7 @@ state; a tracked route and a health-check script are not implemented.
 
 ## Interop evidence
 
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 `./le qemu vrrp-keepalived-test` runs against keepalived 2.3.1 in a QEMU netns
 lab and covers v3 IPv4 election, node-death failover by priority 0 and by

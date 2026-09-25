@@ -34,7 +34,7 @@
 # (internal/component/l2tp/config.go:41-51). This test needs the real data plane:
 # the probe loads l2tp_ppp, the genl family resolve autoloads l2tp_netlink, and
 # without both there is no kernel session, no PPP, no assigned address, and no
-# accounting record to assert on. internal/le/qemu/guestlabs.go refuses
+# accounting record to assert on. internal/le/test/qemu/guestlabs.go refuses
 # to run with the knob set for the same reason.
 #
 # RFC requirement: RFC2866-4.1-1 positive -- the Accounting-Start reaching the RADIUS

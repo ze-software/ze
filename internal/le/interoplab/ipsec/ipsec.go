@@ -26,7 +26,7 @@ import (
 
 const (
 	// Action is the native action identity served by this callable runner.
-	Action = "integration/interop-ipsec"
+	Action = "test integration/interop-ipsec"
 
 	defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
 	zeImage         = "ze-ipsec-interop"

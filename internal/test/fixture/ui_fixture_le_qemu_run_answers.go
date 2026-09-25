@@ -61,7 +61,7 @@ func leQEMURunAnswers(ctx context.Context) error {
 	// The guest installs the Go release go.mod DECLARES, so the stand-in
 	// checkout has to declare one: Run.plan reads it with
 	// goversion.DeclaredRelease and refuses a go.mod with no `go` directive
-	// (internal/le/qemu/run.go, f26969c5cd, 2026-09-05). The release below is
+	// (internal/le/test/qemu/run.go, f26969c5cd, 2026-09-05). The release below is
 	// deliberately not this repository's, so the assertion further down proves
 	// the plan READ it rather than matching the host by accident. It is
 	// patch-qualified because a toolchain download names a release.
@@ -140,7 +140,7 @@ func leQEMURunAnswers(ctx context.Context) error {
 		return uiLeQemuRunAnswersRunCommand(ctx, work, env, binary, args...)
 	}
 
-	listing := runLE("0", "listing.ndjson", "qemu")
+	listing := runLE("0", "listing.ndjson", "test", "qemu")
 	if listing.code != 0 || !bytes.Contains(listing.stdout, []byte("run")) {
 		return fmt.Errorf("FAIL: qemu listing did not publish run: %q %q", listing.stdout, listing.stderr)
 	}

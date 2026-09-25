@@ -249,11 +249,11 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 			// wrongly. The builddir modules pin a toolchain directive; when the
 			// running Go is older and GOPROXY=off forbids fetching it, go reports
 			// "toolchain not available" and resolves nothing. That is exactly the
-			// QEMU VM, whose Go is installed by internal/le/qemu/run.go. The
+			// QEMU VM, whose Go is installed by internal/le/test/qemu/run.go. The
 			// test still cannot skip its way to a false pass: on a host with the
 			// toolchain it runs in full, and ze-precommit-verify is that host.
 			if strings.Contains(want, "toolchain not available") {
-				t.Skipf("go toolchain pinned by the builddir modules is unavailable offline; run where it is installed, or bump the VM's Go in internal/le/qemu/run.go:\n%s", want)
+				t.Skipf("go toolchain pinned by the builddir modules is unavailable offline; run where it is installed, or bump the VM's Go in internal/le/test/qemu/run.go:\n%s", want)
 			}
 			t.Logf("no baseline for %s: tracked module does not resolve offline: %v\n%s", rel, wantErr, want)
 			continue

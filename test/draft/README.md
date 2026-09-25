@@ -67,7 +67,7 @@ $EDITOR test/draft/plugin/my-new-test.ci
 
 # 2. run it (only drafts are discovered under --draft)
 #    The verb is the suite's own: `bgp plugin`, but bare `ui`, `editor`, `web`.
-#    internal/le/functional/suites.go carries the argv for each suite, and a
+#    internal/le/test/functional/suites.go carries the argv for each suite, and a
 #    runner given a verb it does not know prints usage and EXITS 0.
 ze-test bgp plugin --draft -a
 ze-test bgp plugin --draft --pattern my-new-test

@@ -183,7 +183,7 @@ loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
 against the peer address has two values to compare.
 <!-- source: internal/test/cli/cmd_web.go -- zeTestStartLGServer, zeTestStartLGNoEngineServer, zeTestStartChaosServer, zeTestResolveWebBinaries -->
 <!-- source: internal/test/cli/cmd_lg.go -- cmdLG -->
-<!-- source: internal/le/functional/binaries.go -- alternate chaos build -->
+<!-- source: internal/le/test/functional/binaries.go -- alternate chaos build -->
 
 ### Actions
 
@@ -303,7 +303,7 @@ while an id-driven script reported green for tests it never ran.
 A positional selector matches a record's Nick, Name, or CIFile EXACTLY
 (`indexRecordSelector`), so passing a NAME positionally is as stable as
 `--pattern` and, unlike a substring pattern, cannot widen.
-`internal/le/qemu/netns_linux.go` selects all four of its subsets by name for
+`internal/le/test/qemu/netns_linux.go` selects all four of its subsets by name for
 that reason, and its `assert_named` guard refuses a subset still carrying a
 numeric selector: a nick had already drifted there, with firewall `"17"`
 resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
@@ -336,7 +336,7 @@ worktree and pass in a checkout where a developer had built one
 <!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
 <!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
 <!-- source: internal/test/fixture/fixture.go -- nativeLEBinary -->
-<!-- source: internal/le/functional/binaries.go -- Extras, buildCommands -->
+<!-- source: internal/le/test/functional/binaries.go -- Extras, buildCommands -->
 <!-- source: internal/test/runner/runner_exec_util.go -- zeRepoRootEnv -->
 
 ## Scratch roots
@@ -394,7 +394,7 @@ lines, so the crash site is usually lost.
 burner processes oversubscribe every core while many concurrent copies of one
 suite loop, and it captures the FIRST failure's complete, untruncated output. It
 sets `GOTRACEBACK=all` so a panic dumps every goroutine, reuses the isolated
-binary set `internal/le/functional` prepared during the loaded window, and writes
+binary set `internal/le/test/functional` prepared during the loaded window, and writes
 the capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit 0 means reproduced, 1 not
 reproduced, 2 a setup error.
 
@@ -415,7 +415,7 @@ bytes. An assertion flake exits non-zero with no crash signature, so
 
 A no-build reproduction tests the isolated binary set it was given. After
 changing daemon source, run the owning `./le functional <suite>` action once
-(`internal/le/functional.Prepare` rebuilds the pair) before trusting a verdict:
+(`internal/le/test/functional.Prepare` rebuilds the pair) before trusting a verdict:
 otherwise a fixed bug still reproduces against the stale binary.
 
 ## The must-fail suite

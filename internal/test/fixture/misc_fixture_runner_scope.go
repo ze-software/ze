@@ -317,7 +317,7 @@ func verifyScopeSuiteMapDriver(ctx context.Context, args []string) error {
 
 // suiteMapArtifact is where the map lives inside a checkout. The fixture writes
 // this path because it is the one the tool reads (suiteMapPath,
-// internal/le/functional/suitemap.go).
+// internal/le/test/functional/suitemap.go).
 const suiteMapArtifact = "tmp/ze-suite-map.json"
 
 // checkSuiteMapScenario publishes one change set, asks the real `le functional
@@ -329,7 +329,7 @@ func checkSuiteMapScenario(ctx context.Context, le, repo string, scenario suiteM
 	}
 	environment := suiteMapEnvironment(repo, scopeFile, scenario.skipSuites)
 
-	out, _, code, err := rawCommandStreams(ctx, repo, environment, le, "functional", "select", "|", "json")
+	out, _, code, err := rawCommandStreams(ctx, repo, environment, le, "test", "functional", "select", "|", "json")
 	if err != nil || code != 0 {
 		return fmt.Errorf("%s: le functional select exit=%d: %w %s", scenario.name, code, err, out)
 	}

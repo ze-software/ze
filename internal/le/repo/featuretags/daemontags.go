@@ -10,7 +10,7 @@
 // It lives beside the parser rather than in the tools, because a per-tool
 // literal is a second record of one fact and the record nothing compares
 // drifts. That is measured rather than feared: ze_bgp became a gate and
-// internal/le/deployment/vppevidence.go went on building a ze with no BGP, and
+// internal/le/test/deployment/vppevidence.go went on building a ze with no BGP, and
 // ze_l2tp became a gate on 2026-07-24 with no evidence script updated, so the
 // proof that L2TP works against real kernel modules was silently unavailable
 // for a month.

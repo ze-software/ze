@@ -17,11 +17,11 @@ import (
 	"github.com/ze-software/ze/internal/le/leroot"
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
-	_ "github.com/ze-software/ze/internal/le/deployment"
-	_ "github.com/ze-software/ze/internal/le/integration"
 	"github.com/ze-software/ze/internal/le/leaction"
-	_ "github.com/ze-software/ze/internal/le/qemu"
+	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
+	_ "github.com/ze-software/ze/internal/le/test/integration"
+	_ "github.com/ze-software/ze/internal/le/test/qemu"
 	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verify/deps"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -461,9 +461,9 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	requireEveryJobStatesItsOwnVerdict(t, name)
 	want := []string{
 		"test fuzz/run",
-		"integration/iface", "integration/fib", "integration/firewall",
-		"integration/traffic", "integration/gtsm", "integration/as112",
-		"integration/interop", "integration/interop-ipsec", "integration/interop-radius",
+		"test integration/iface", "test integration/fib", "test integration/firewall",
+		"test integration/traffic", "test integration/gtsm", "test integration/as112",
+		"test integration/interop", "test integration/interop-ipsec", "test integration/interop-radius",
 	}
 	actions := nativeActions(t, name)
 	for _, action := range want {
@@ -471,7 +471,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 			t.Errorf("%s lacks native action %q; found %v", name, action, actions)
 		}
 	}
-	if slices.ContainsFunc(actions, func(action string) bool { return strings.HasPrefix(action, "qemu/") }) {
+	if slices.ContainsFunc(actions, func(action string) bool { return strings.HasPrefix(action, "test qemu/") }) {
 		t.Errorf("%s must leave VM evidence to qemu-nightly.yml: %v", name, actions)
 	}
 	for _, job := range jobBlocks(t, name) {
@@ -499,7 +499,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 		if !strings.Contains(job.body, "actions/cache/restore@v6") || !strings.Contains(job.body, "actions/cache/save@v6") {
 			t.Errorf("%s job %q must restore and save the runtime kernel cache", name, job.name)
 		}
-		if strings.Contains(job.body, "./le qemu run") {
+		if strings.Contains(job.body, "./le test qemu run") {
 			for _, required := range []string{
 				"./le build host-driver",
 				"./ze-host appliance kernel --target runtime --arch amd64",
@@ -512,17 +512,17 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 		}
 	}
 	for _, proof := range []string{
-		"qemu all-tests", "TestLDPInteropFRR", "TestISISInteropFRR",
-		"qemu vrrp-keepalived-test", "deployment gokrazy-l2tp-ppp-test",
-		"qemu pppoe-accel-test", "qemu pppoe-test", "TestAttachTCX_CountsTraffic",
+		"test qemu all-tests", "TestLDPInteropFRR", "TestISISInteropFRR",
+		"test qemu vrrp-keepalived-test", "test deployment gokrazy-l2tp-ppp-test",
+		"test qemu pppoe-accel-test", "test qemu pppoe-test", "TestAttachTCX_CountsTraffic",
 	} {
 		if !strings.Contains(source, proof) {
 			t.Errorf("%s lacks proof %q", name, proof)
 		}
 	}
 	for _, identity := range []string{
-		"qemu/all-tests", "qemu/vrrp-keepalived-test",
-		"qemu/pppoe-accel-test", "qemu/pppoe-test",
+		"test qemu/all-tests", "test qemu/vrrp-keepalived-test",
+		"test qemu/pppoe-accel-test", "test qemu/pppoe-test",
 	} {
 		actionExists(t, identity)
 	}
@@ -530,7 +530,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 
 func TestCapabilityGatedTestsHaveANativeVMHome(t *testing.T) {
 	source := workflowSource(t, "qemu-nightly.yml")
-	if !strings.Contains(source, "ZE_QEMU_LINUX_ONLY=1") || !strings.Contains(source, "qemu all-tests") {
+	if !strings.Contains(source, "ZE_QEMU_LINUX_ONLY=1") || !strings.Contains(source, "test qemu all-tests") {
 		t.Fatal("capability-gated fixtures need the Linux-only native VM run")
 	}
 	root := filepath.Join(repoRoot(t), "test")

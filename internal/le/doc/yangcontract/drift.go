@@ -27,7 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/functional"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 // Drift answers every documentation claim in root that the tree disagrees
@@ -129,7 +129,7 @@ func (c *checker) checkForbiddenDocClaims() []Issue {
 // native owner. An invalid run list returns empty, and both callers turn that
 // into a loud derivation finding rather than a silent pass.
 func functionalGateSuites(_ string) []string {
-	resolved, err := functional.GatingSuites(functional.Gating, functional.Suites)
+	resolved, err := testfunctional.GatingSuites(testfunctional.Gating, testfunctional.Suites)
 	if err != nil {
 		return nil
 	}

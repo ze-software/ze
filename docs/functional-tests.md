@@ -86,7 +86,7 @@ of the module's 646 packages, so no static signal attributes a `.ci` file to a
 package: the map is derived instead, by observing which packages each suite
 reaches when it runs.
 
-`selectSuites` (`internal/le/functional/suitemap.go`) reads
+`selectSuites` (`internal/le/test/functional/suitemap.go`) reads
 `tmp/ze-suite-map.json` and intersects it with the change set. A suite runs when
 the map records it as reaching a changed package, and it also runs when the map
 does not name it at all. Every route that cannot answer widens to every suite:
@@ -94,26 +94,26 @@ an absent or malformed map, a package the map never recorded, a package a commit
 has touched since the recording, and a change-set selector that refused the
 checkout. The full rule and the reason for each branch are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
-<!-- source: internal/le/functional/suitemap.go -- suiteMap, selectSuites, suitesFor -->
+<!-- source: internal/le/test/functional/suitemap.go -- suiteMap, selectSuites, suitesFor -->
 
 `./le functional select` prints the run list a gating run would start for this
 checkout, and runs nothing. It names the suites that run, the suites the map
 ruled out, and the suites `ZE_SKIP_SUITES` left out, and it says which package
 it could not answer for when the run widened.
-<!-- source: internal/le/functional/actions.go -- selectVerb -->
+<!-- source: internal/le/test/functional/actions.go -- selectVerb -->
 
 A gating run under `ZE_COVER=1` WRITES that artifact, and it runs every suite
 whatever the map says: only a run of every gating suite may publish, so a
 recording run that narrowed could never refresh the map. Each suite records into
-its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/functional/run.go`)
+its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/test/functional/run.go`)
 reduces the directory to the packages that suite REACHED: a package it covered
 outside `register.go` and outside every `func init()` body. A suite that records
 nothing is left OUT of the map, so the next reader knows nothing about it and
 runs it. Only a run that ran every gating suite publishes, so neither
 `./le functional encode` nor a run under `ZE_SKIP_SUITES` writes a map naming
 the few suites it happened to run.
-<!-- source: internal/le/functional/reach.go -- reachedPackages, packagesInProfile -->
-<!-- source: internal/le/functional/suitemap.go -- suiteRecording, publish -->
+<!-- source: internal/le/test/functional/reach.go -- reachedPackages, packagesInProfile -->
+<!-- source: internal/le/test/functional/suitemap.go -- suiteRecording, publish -->
 
 `ZE_SKIP_SUITES` outranks the map, and the closing report names each suite it
 left out.
@@ -133,7 +133,7 @@ before presenting work as complete.
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->
 <!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
-<!-- source: internal/le/functional/actions.go -- Answer -->
+<!-- source: internal/le/test/functional/actions.go -- Answer -->
 
 The following shipped test suites are **not in the default release gate** and
 must be run manually:
@@ -156,8 +156,8 @@ Every suite action routes through `internal/le/job`, which runs it now,
 queues it behind a heavy job already in flight, or attaches it to an equivalent
 run. Queue a runner selection with
 `./le job run label <label> command bin/ze-test <suite> <selection>`.
-<!-- source: internal/le/functional/actions.go -- Actions -->
-<!-- source: internal/le/integration/actions.go -- Actions -->
+<!-- source: internal/le/test/functional/actions.go -- Actions -->
+<!-- source: internal/le/test/integration/actions.go -- Actions -->
 
 Clean release-candidate evidence can be run with `./le evidence release-candidate`.
 The action refuses a dirty worktree, clones the repository into an ephemeral
@@ -227,8 +227,8 @@ its workflow job added by hand. The full workflow map is
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: internal/le/verify/evidence/actions.go -- Actions -->
-<!-- source: internal/le/qemu/actions.go -- Actions -->
-<!-- source: internal/le/qemu/alltests.go -- allTestsRun -->
+<!-- source: internal/le/test/qemu/actions.go -- Actions -->
+<!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
 
 ---
 
@@ -286,7 +286,7 @@ ze-test bgp plugin -a                       # 4. now it is real
 **Type the runner's own verb, and read the log rather than the exit code.** Not
 every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
 do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as
-`ze-test ui -a`. `internal/le/functional/suites.go` carries the argv for each
+`ze-test ui -a`. `internal/le/test/functional/suites.go` carries the argv for each
 one, and it is the only place that answers this. A runner given a verb it does
 not know prints its usage and **exits 0**, so `ze-test bgp ui --draft` reads as a
 pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
@@ -391,7 +391,7 @@ which kills leaked `ze` daemons and mock servers with it.
 | `ZE_SUITE_TIMEOUT_PLUGIN` | `1500s` | The `plugin` suite's own budget |
 | `ZE_SUITE_KILL_AFTER` | `10s` | How long after SIGTERM the group gets SIGKILL |
 | `ZE_SUITE_WARN_PERCENT` | `80` | The percentage of the budget that makes a green suite print a warning |
-| `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it to the packages the suite reached once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/functional/run.go`). Only a whole `gating` run publishes `tmp/ze-suite-map.json` |
+| `ZE_COVER` | unset | Builds the subjects with `-cover` and gives each suite its own `GOCOVERDIR`, then reduces it to the packages the suite reached once the suite ends. It applies to a single suite and to `gating` alike, because both take the directory from one producer (`suiteCoverage`, `internal/le/test/functional/run.go`). Only a whole `gating` run publishes `tmp/ze-suite-map.json` |
 
 Override any of them on the command line:
 
@@ -417,7 +417,7 @@ rounded up to the whole minute. The kill then lands at 1.75x the measurement,
 which is a wedged suite and not a busy box.
 
 Adding a suite to that family is one line: a `budgetDefaults` entry in
-`internal/le/functional/budget.go`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
+`internal/le/test/functional/budget.go`. Setting `ZE_SUITE_TIMEOUT_<SUITE>` in
 the environment gives any suite one with no edit at all, because the variable
 name is derived from the suite's name.
 
@@ -453,8 +453,8 @@ nothing about the product. The same expiry lands in
 
 A budget that is raised and never watched creeps back to its cap, so the
 warning exists to make the creep visible while the suite is still green.
-<!-- source: internal/le/functional/actions.go -- Answer -->
-<!-- source: internal/le/functional/actions.go -- Answer -->
+<!-- source: internal/le/test/functional/actions.go -- Answer -->
+<!-- source: internal/le/test/functional/actions.go -- Answer -->
 
 ---
 
@@ -507,7 +507,7 @@ native integration actions supply the required build tags:
 |---------|------|-----|----------------|
 | `./le integration stress-web` | `TestWebConcurrentEditStress` | `stress` | Concurrent editor sessions mutate and commit one config under the race detector |
 | `./le integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 128 managed clients authenticate and synchronize against the real listener |
-<!-- source: internal/le/integration/gates.go -- Table -->
+<!-- source: internal/le/test/integration/gates.go -- Table -->
 
 The BGP route stress harness is a native integration action. It creates two
 network namespaces, starts Ze or BIRD, and drives the exact five-scenario
@@ -523,8 +523,8 @@ STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress
 The registry covers four bulk route counts from 100,000 to 1,000,000, sequential
 IPv4 and IPv6 peers, ten flap cycles followed by a final injection, the BIRD
 baseline, and the 1,000,000-route CPU, heap, and goroutine profile run.
-<!-- source: internal/le/integration/stress.go -- native scenario registry and runner -->
-<!-- source: internal/le/integration/stressbird.go -- BIRD baseline runner -->
+<!-- source: internal/le/test/integration/stress.go -- native scenario registry and runner -->
+<!-- source: internal/le/test/integration/stressbird.go -- BIRD baseline runner -->
 
 ### netlab template render check (`./le netlab render-check`, out of `./le verify current mode full`)
 
@@ -576,7 +576,7 @@ the Docker DUT matrix uses the native Go runner:
 Linux, then run as root inside `./le qemu all-tests`. CAP_NET_ADMIN and real
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
-<!-- source: internal/le/qemu/alltests.go -- allTestsRun -->
+<!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
 <!-- source: internal/test/runner/record_parse.go -- capability gate -->
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
@@ -659,7 +659,7 @@ carry `option=needs-linux:caps=net-admin,net-raw`; the fixture bodies are
 <!-- source: internal/test/fixture/plugin_fixture_show_mtu.go -- showMTUOversized, showMTUIKEProbe, showMTUIKEProbeRow -->
 
 The `traffic` suite is enrolled
-in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and
+in `allTestsRun.Run` in `internal/le/test/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
@@ -676,8 +676,8 @@ the SSH session carrying the run lives, and a nat prerouting chain installed
 there cut that session on 2026-09-05. Each row of `vmSuites` now states the
 namespace its tests run in, and a row that states none is refused before the
 run starts.
-<!-- source: internal/le/qemu/netns.go -- networkNamespace, verifyNamespaces -->
-<!-- source: internal/le/qemu/alltests.go -- vmSuites -->
+<!-- source: internal/le/test/qemu/netns.go -- networkNamespace, verifyNamespaces -->
+<!-- source: internal/le/test/qemu/alltests.go -- vmSuites -->
 
 Dropping a whole suite to `-p 1` is not always the right tool. When only a
 *cluster* of tests inside a large suite contends, they declare
@@ -781,8 +781,8 @@ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite
 
 | Suite | Source of `-p` | Value |
 |-------|----------------|-------|
-| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`internal/le/functional.Parallel`) | derived from the host: the core count, floored at 8 |
-| `reload`, `managed` | the native suite table in `internal/le/functional/suites.go` | 1. They share the kernel routing table |
+| `plugin`, `encode` | `ZE_PLUGIN_PARALLEL`, `ZE_ENCODE_PARALLEL` (`internal/le/test/functional.Parallel`) | derived from the host: the core count, floored at 8 |
+| `reload`, `managed` | the native suite table in `internal/le/test/functional/suites.go` | 1. They share the kernel routing table |
 | `vpp` | the command's own default | 1 |
 | the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
 | the 22 `registerCIRoot` suites | `runner.DefaultSuiteConcurrency` | 2x the core count, floored at 8 |
@@ -844,7 +844,7 @@ still sizes itself for all 32 cores, so four `plugin` runs at `-p 32` start 128
 tests at once on 32 cores. Closing that gap means the derivation reads the slot
 count, and no code does that today.
 
-<!-- source: internal/le/functional/budget.go -- Parallel, cores, ParallelFloor -->
+<!-- source: internal/le/test/functional/budget.go -- Parallel, cores, ParallelFloor -->
 <!-- source: internal/le/job/job.go -- defaultSlots -->
 <!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv, TestBudgetEnv, ChildTestBudget -->
 <!-- source: internal/test/fixture/budget.go -- WaitBudget, WaitAttempts -->
@@ -874,7 +874,7 @@ a prerequisite, not a hint: the links it names (`eth0`, `eth1`, `nbma0`, `ptmp0`
 are provisioned inside the throwaway namespace and must never be created on a real
 host, so off netns mode the test is SKIPped with a reason naming these targets.
 That covers the 8 `test/ospf`, 3 `test/ospfv3` and 1 `test/policy` tests listed in
-`allTestsRun.Run` in `internal/le/qemu/alltests.go`; they carry `needs-linux` as well and use
+`allTestsRun.Run` in `internal/le/test/qemu/alltests.go`; they carry `needs-linux` as well and use
 the same registered QEMU action path.
 
 <!-- source: internal/test/runner/caps.go -- applyNetnsLinkGate, skipReasonNetnsLink -->
@@ -897,7 +897,7 @@ processes are stopped.
 <!-- source: internal/test/runner/netns_linux.go -- enterTestNetns, testNetnsName -->
 <!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace -->
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated -->
-<!-- source: internal/le/qemu/actions.go -- Actions -->
+<!-- source: internal/le/test/qemu/actions.go -- Actions -->
 
 ### In-process integration tests (feeds that can't cross the plugin boundary)
 
@@ -942,8 +942,8 @@ derives its config and database directory from its executable path. The runner
 prepends the isolated directory to `PATH`, so `.ci` fixtures continue to invoke
 the canonical bare names.
 
-<!-- source: internal/le/functional/binaries.go -- Prepare, Release, buildCommands -->
-<!-- source: internal/le/functional/suites.go -- Suite.Chaos, Suite.LE -->
+<!-- source: internal/le/test/functional/binaries.go -- Prepare, Release, buildCommands -->
+<!-- source: internal/le/test/functional/suites.go -- Suite.Chaos, Suite.LE -->
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
@@ -1545,7 +1545,7 @@ so it needs no DPDK, vfio, root, or Python helper.
 Real-daemon evidence uses `./le deployment vpp-test`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
 `./le deployment vpp-iface-test` covers GRE and WireGuard interface behavior.
-<!-- source: internal/le/deployment/actions.go -- Actions -->
+<!-- source: internal/le/test/deployment/actions.go -- Actions -->
 
 ### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
 
@@ -1623,8 +1623,8 @@ non-zero.
 <!-- source: internal/test/cli/register.go -- install CI root -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
-<!-- source: internal/le/functional/actions.go -- Actions -->
-<!-- source: internal/le/qemu/actions.go -- Actions -->
+<!-- source: internal/le/test/functional/actions.go -- Actions -->
+<!-- source: internal/le/test/qemu/actions.go -- Actions -->
 
 ### IS-IS Tests (`test/isis/`)
 
@@ -2722,7 +2722,7 @@ drives ze through the API line protocol that module writes. The release is
 pinned in `exaBGPPythonPackage`, because a new release can change the
 healthcheck's option set or its announce line, which changes what the case
 drives.
-<!-- source: internal/le/functional/exabgp.go -- exaBGPCommands, exaBGPPythonPackage and exaBGPReport.Text -->
+<!-- source: internal/le/test/functional/exabgp.go -- exaBGPCommands, exaBGPPythonPackage and exaBGPReport.Text -->
 
 ---
 
@@ -3069,7 +3069,7 @@ materializes the verified runtime kernel from its durable cache or builds it
 through `internal/appliance/kernelbuilder`. The proof then builds a temporary
 gokrazy image, boots it under QEMU, drives a real `xl2tpd` and `pppd` LAC, and
 checks PPP/IPCP state, dataplane reachability, and route withdrawal.
-<!-- source: internal/le/deployment/actions.go -- Actions -->
+<!-- source: internal/le/test/deployment/actions.go -- Actions -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/component/l2tp/kernel_linux.go -- probeKernelModules -->
 
@@ -3133,7 +3133,7 @@ from the user entry point: a daemon started with an unparsable
 
 ### L2TP scale tests
 
-Scale tests (`internal/le/deployment/l2tpscale.go`) validate Ze's L2TP control plane at
+Scale tests (`internal/le/test/deployment/l2tpscale.go`) validate Ze's L2TP control plane at
 2000 concurrent sessions across 10 tunnels. They run on loopback (no
 root, no Docker, no kernel modules) and measure session establishment
 rate, RADIUS round-trip handling, pool allocation correctness, and
@@ -3158,7 +3158,7 @@ ze-test l2tp-scale --help
 | Slow RADIUS | `checkL2TPScaleSlowRADIUS` | Sessions established under 500ms RADIUS delay |
 
 <!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->
-<!-- source: internal/le/deployment/l2tpscale.go -- native scale registry and runner -->
+<!-- source: internal/le/test/deployment/l2tpscale.go -- native scale registry and runner -->
 
 ---
 

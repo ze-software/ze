@@ -74,7 +74,7 @@ misleading message. Each is a general trap.
   answered in 10 seconds under KVM. The rewritten one prints the last SSH error
   verbatim.
 
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 

@@ -239,7 +239,7 @@ happened.
    so when nothing changed this is instant. Catches logic regressions everywhere.
 4. **Changed-group pass**: uses the test-only `CGO_ENABLED=1 go test -race`
    path on Linux and Darwin. Its test binaries are never release/build evidence.
-5. **Functional tests** from `internal/le/functional/catalog.go`
+5. **Functional tests** from `internal/le/test/functional/catalog.go`
 6. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.

@@ -28,10 +28,10 @@ import (
 // forked by ze: under the per-test netns launch mode ze is dropped to an
 // ordinary uid (runOrchestrated, internal/test/runner/runner_exec.go) and only
 // the ze and ze-stripped copies are given cap_net_bind_service
-// (prepareNetnsBinaries, internal/le/qemu/netns_linux.go), so the fixture would
+// (prepareNetnsBinaries, internal/le/test/qemu/netns_linux.go), so the fixture would
 // inherit the uid without the capability and the bind would fail EACCES. The
 // `plugin` suite declares Namespace: guestRoot (vmSuites,
-// internal/le/qemu/alltests.go), which is what keeps that out of reach. A
+// internal/le/test/qemu/alltests.go), which is what keeps that out of reach. A
 // scenario moved to a per-test-namespace suite needs the port seam instead.
 const dnsStubAddress = "127.0.0.1:53"
 

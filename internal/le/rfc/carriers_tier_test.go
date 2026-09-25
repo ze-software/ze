@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/functional"
+	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
 // narrowingSuiteMap is a VALID suite map that records one gating suite.
@@ -47,7 +47,7 @@ const minimalWorkflow = "name: fixture\non:\n  push:\njobs:\n  none:\n    runs-o
 // map would answer that one suite's row and no other, so every other gating
 // suite losing its verify row is what this test would catch.
 func TestFunctionalTierIsUnchangedBySelection(t *testing.T) {
-	gating := functional.GatingNames()
+	gating := testfunctional.GatingNames()
 	if len(gating) < 2 {
 		t.Fatalf("the gating list holds %d suite(s), so a map naming one narrows nothing", len(gating))
 	}

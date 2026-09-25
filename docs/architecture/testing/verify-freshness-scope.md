@@ -73,7 +73,7 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/repo/
 
 The change-set selection above answers which PACKAGES a change reaches. The suite map answers the other half: which packages each functional suite REACHED when it last ran. A gating run consults it before it builds anything, so the denominator every progress line reads and the suites the loop starts are one decision.
 
-The map is a derived artifact at `tmp/ze-suite-map.json`, rewritten by a recording run and never committed. It lives beside the other verification artifacts rather than in a session scratch directory, because the run that records it and the run that reads it are two sessions. `suiteMap` (`internal/le/functional/suitemap.go`) holds two fields. `head` is the commit the recording ran at, which a reader needs to ask which files moved since. `reached` names, for each suite, every package that suite reached, spelled the way the change-set selector spells one (`./internal/component/ssh`), so neither side normalizes the other.
+The map is a derived artifact at `tmp/ze-suite-map.json`, rewritten by a recording run and never committed. It lives beside the other verification artifacts rather than in a session scratch directory, because the run that records it and the run that reads it are two sessions. `suiteMap` (`internal/le/test/functional/suitemap.go`) holds two fields. `head` is the commit the recording ran at, which a reader needs to ask which files moved since. `reached` names, for each suite, every package that suite reached, spelled the way the change-set selector spells one (`./internal/component/ssh`), so neither side normalizes the other.
 
 **Every route that cannot answer WIDENS to every suite.** The file is under `tmp/`, which several sessions share, so a malformed map must widen and must never narrow. `readSuiteMap` refuses rather than answering thinly, and the caller's response to each refusal is the same widening:
 
@@ -111,11 +111,11 @@ A caller cannot mistake a widening for an empty selection. `suiteSelection` carr
 
 The touched-package test is deliberately per-package rather than per-tree. The stale-map risk this bounds is a suite that newly reaches a package, and a run that widened on any commit at all would widen on every commit this shared checkout takes, which is the same as having no map.
 
-`packageOf` (`internal/le/functional/suitemap.go`) spells a touched path the way the change-set selector spells a package, so the two sides compare directly. Any file counts, not only a `.go` one: a package whose testdata moved is a package whose recorded reach was observed on another tree.
+`packageOf` (`internal/le/test/functional/suitemap.go`) spells a touched path the way the change-set selector spells a package, so the two sides compare directly. Any file counts, not only a `.go` one: a package whose testdata moved is a package whose recorded reach was observed on another tree.
 
 ### Reading the run list before the run
 
-`le functional select` prints the run list a gating run would start for this checkout, and runs nothing. It is what an operator reads when a run started fewer suites than they expected, and it is the run's own decision rather than a second derivation of one: `planRun` (`internal/le/functional/suitemap.go`) produces the plan, `le functional select` prints it, and `runGating` executes it.
+`le functional select` prints the run list a gating run would start for this checkout, and runs nothing. It is what an operator reads when a run started fewer suites than they expected, and it is the run's own decision rather than a second derivation of one: `planRun` (`internal/le/test/functional/suitemap.go`) produces the plan, `le functional select` prints it, and `runGating` executes it.
 
 The answer places every gating suite in exactly one of three states, so a suite cannot go missing unnoticed.
 
@@ -125,13 +125,13 @@ The answer places every gating suite in exactly one of three states, so a suite 
 | `ruled-out` | The map records it, and it reached none of the changed packages |
 | `skipped` | `ZE_SKIP_SUITES` names it. It outranks the map |
 
-<!-- source: internal/le/functional/actions.go -- selectVerb -->
+<!-- source: internal/le/test/functional/actions.go -- selectVerb -->
 
 ### What a suite REACHED
 
-A gating run under `ZE_COVER=1` records the map. The subjects are built `-cover`, each suite runs with its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/functional/run.go`) reduces that directory once the suite ends.
+A gating run under `ZE_COVER=1` records the map. The subjects are built `-cover`, each suite runs with its own `GOCOVERDIR`, and `reduceCoverage` (`internal/le/test/functional/run.go`) reduces that directory once the suite ends.
 
-**A package is REACHED when the suite covered one block that is neither in `register.go` nor inside a `func init()` body.** Every other covered block is what any process runs on any start, because Ze registers its components by running each package's `init()`. Counting every covered block answers "which packages does this binary link", and the spec measured both definitions over the same profiles: the three-suite intersection is 443 packages of 646 counting executions and 126 counting reaches, and `ze show version` alone counts 435 against 115. `packagesInProfile` (`internal/le/functional/reach.go`) reads the `go tool covdata textfmt` profile and asks `go/ast` for the line range of every `func init()` a covered file declares.
+**A package is REACHED when the suite covered one block that is neither in `register.go` nor inside a `func init()` body.** Every other covered block is what any process runs on any start, because Ze registers its components by running each package's `init()`. Counting every covered block answers "which packages does this binary link", and the spec measured both definitions over the same profiles: the three-suite intersection is 443 packages of 646 counting executions and 126 counting reaches, and `ze show version` alone counts 435 against 115. `packagesInProfile` (`internal/le/test/functional/reach.go`) reads the `go tool covdata textfmt` profile and asks `go/ast` for the line range of every `func init()` a covered file declares.
 
 Every uncertainty in the reduction WIDENS. A file that will not parse contributes its blocks, so its package reads as reached and the suite runs on a change to it. A profile row the reduction cannot read is a refusal rather than a skipped line, because a silently shorter set is a map that narrows more. A suite that FAILED records what it reached before it failed, and a recorded set is therefore a lower bound: a package the run missed is one the map cannot answer for, so the suite runs on a change to it.
 
@@ -149,15 +149,15 @@ The raw coverage directory is removed as soon as it is reduced, and the text pro
 
 **An omitted suite and an empty recorded set are different answers, and only one of them is writable.** Omitted means "this run learned nothing about that suite", which widens. An empty set read back would mean "this suite covers nothing", which would skip that suite for ever, and `readSuiteMap` refuses one for that reason. `editor`, `web`, `runner` and `policy` record nothing on every run: the first three run the harness rather than an instrumented `ze`, and `policy` skips its tests unprivileged. They are omitted every time, and they always run.
 
-**Only a whole gating run may write the artifact**, because a suite the map does not name always runs while a suite it does name can be ruled out. A map written by a run that covered one suite would declare the other 27 unknown and narrow on the one. `publish` (`internal/le/functional/suitemap.go`) loops over `Gating` rather than over what the run recorded, so a partial run is refused rather than trusted.
+**Only a whole gating run may write the artifact**, because a suite the map does not name always runs while a suite it does name can be ruled out. A map written by a run that covered one suite would declare the other 27 unknown and narrow on the one. `publish` (`internal/le/test/functional/suitemap.go`) loops over `Gating` rather than over what the run recorded, so a partial run is refused rather than trusted.
 
 The recorded `head` is the commit read BEFORE the first suite starts, which is the tree the binaries were compiled from. A full run takes an hour on a checkout several sessions share, so the commit can move under it. Reading it at the end would claim the map describes a tree no suite ran; naming the earlier commit is the conservative direction, because a reader treats every package touched since as unknown and widens. `job.Head` answers `unknown` on a tree Git cannot describe, and that publishes no map.
 
 The map is published through a temporary file in the same directory and one rename, so a session reading `tmp/` meets the old map or the new one and never a half-written one.
 
-<!-- source: internal/le/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, suitesFor, touchedSince, planRun, gatingRunList, suiteRecording, publish -->
-<!-- source: internal/le/functional/reach.go -- reachedPackages, packagesInProfile, initLineRanges -->
-<!-- source: internal/le/functional/run.go -- runGating, reduceCoverage, publishSuiteMap -->
+<!-- source: internal/le/test/functional/suitemap.go -- suiteMap, readSuiteMap, suiteSelection, selectSuites, suitesFor, touchedSince, planRun, gatingRunList, suiteRecording, publish -->
+<!-- source: internal/le/test/functional/reach.go -- reachedPackages, packagesInProfile, initLineRanges -->
+<!-- source: internal/le/test/functional/run.go -- runGating, reduceCoverage, publishSuiteMap -->
 
 ## Native stage execution
 

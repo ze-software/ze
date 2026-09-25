@@ -744,7 +744,7 @@ func (a *Admission) stream(argv []string, dir string, environ []string, logFile 
 	// context.Background has no deadline. A job that needs a wall-clock cap
 	// carries the cap in its OWN argv. There, `timeout` can signal the complete
 	// process group. A deadline here would kill the child but leave its
-	// grandchildren holding the log pipe open. internal/le/functional runs every
+	// grandchildren holding the log pipe open. internal/le/test/functional runs every
 	// suite under `timeout` to prevent that failure.
 	//nolint:gosec // argv is what the caller asked to run; le is a build-host tool driven by a developer's argv
 	cmd := exec.CommandContext(context.Background(), argv[0], argv[1:]...)

@@ -674,7 +674,7 @@ type SweepPolicy int
 
 const (
 	// StopAtFirstFailure runs nothing after a failure. This is the policy of
-	// internal/le/functional/actions.go. It exists for the pair
+	// internal/le/test/functional/actions.go. It exists for the pair
 	// `docker-exec-selftest` and `docker-exec-check`. The selftest proves that
 	// the scan's verdicts fire. A scan after a failed selftest would report
 	// findings from a checker just shown to be broken.

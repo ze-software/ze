@@ -33,7 +33,7 @@
 # KERNEL STATE THIS TEST OWNS: the device zemacsel0, the MAC 02:00:00:00:be:11
 # and the address block 198.51.100.128/28. No other file under test/ puts any of
 # them in a kernel. The per-test /28 matters because the plugin suite runs 8-wide
-# in ONE namespace (ZE_PLUGIN_PARALLEL, internal/le/functional/budget.go).
+# in ONE namespace (ZE_PLUGIN_PARALLEL, internal/le/test/functional/budget.go).
 option=needs-linux:caps=net-admin
 option=timeout:value=30s
 

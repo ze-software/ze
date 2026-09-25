@@ -55,6 +55,8 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"test sensitivity/check":           "test-sensitivity-check.log",
 		"test weakened/check":              "test-weakened-check.log",
 		"test health/check":                "test-health-check.log",
+		"test functional/gating":           "test-functional-gating.log",
+		"test functional/exabgp-test":      "test-functional-exabgp-test.log",
 	}
 
 	seen := 0

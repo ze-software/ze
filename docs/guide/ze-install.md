@@ -801,7 +801,7 @@ ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof qemu install
 through `ze appliance iso`, boots it, verifies the embedded image is written
 without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
 in with the embedded ZeFS credentials.
-<!-- source: internal/le/qemu/actions.go -- Actions -->
+<!-- source: internal/le/test/qemu/actions.go -- Actions -->
 
 ```bash
 ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-iso-test
@@ -810,7 +810,7 @@ ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-iso-test
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable
 installer kernel, UEFI firmware, `grub-mkstandalone`/`grub2-mkstandalone`,
 `xorriso`, or image-build tooling is unavailable.
-<!-- source: internal/le/qemu/actions.go -- Answer -->
+<!-- source: internal/le/test/qemu/actions.go -- Answer -->
 
 The test self-skips (does not fail) when `ZE_INSTALL_KERNEL` is unset or a
 container runtime / `qemu-system-*` is unavailable, because there is no safe

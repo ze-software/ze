@@ -1,6 +1,6 @@
 # Running Development Commands
 
-<!-- source: internal/le/gotoolchain, internal/le/repo/changed, internal/le/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
+<!-- source: internal/le/gotoolchain, internal/le/repo/changed, internal/le/test/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
 
 How the `./le` action surface, the session scratch tree, and the Bash guard
 behave. The obligations that follow from this page are `ai/rules/commands.md`.
@@ -109,7 +109,7 @@ every other component and over all of `internal/le`, `internal/appliance`,
 ## A functional suite is not the runner binary
 
 `./le functional <suite>` builds an isolated bare-named binary pair into the
-session scratch directory (`internal/le/functional/binaries.go`). The daemon
+session scratch directory (`internal/le/test/functional/binaries.go`). The daemon
 carries the test-only tag set, and the suite runs with `ZE_TEST_NO_BUILD=1`,
 `ZE_BIN` and `ZE_TEST_BIN` pointing at that pair (`BinarySet.Environment`).
 

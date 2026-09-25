@@ -58,7 +58,7 @@ const selftestWorkflow = `on:
 jobs:
   audit:
     steps:
-      - run: ./le integration interop
+      - run: ./le test integration interop
 `
 
 // selftestSummary is the fixture summary every selftest reads: two gated rows
@@ -340,7 +340,7 @@ const (
 )
 var Gating = []string{suiteParse, suiteUI}
 `
-	suites, parseErr := functionalSuitesFromGo(suiteSource, "HEAD:internal/le/functional/suites.go")
+	suites, parseErr := functionalSuitesFromGo(suiteSource, "HEAD:internal/le/test/functional/suites.go")
 	if parseErr != nil {
 		return nil, parseErr
 	}

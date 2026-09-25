@@ -23,11 +23,11 @@
 
 **A tight loop MAY be used while iterating, and the full pass MUST be the one that reports the result**, because it is the only form that covers the whole population. The entry points and the population each one covers are `docs/architecture/testing/qemu-integration.md`.
 
-**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le qemu run kernel <vmlinuz> command "<command>"` owns the Alpine image, the QEMU process, the bounded waits, SSH execution and cleanup; `Run.assertRuntimeKernel` (`internal/le/qemu/run_exec.go`) then refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
+**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le qemu run kernel <vmlinuz> command "<command>"` owns the Alpine image, the QEMU process, the bounded waits, SSH execution and cleanup; `Run.assertRuntimeKernel` (`internal/le/test/qemu/run_exec.go`) then refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
 
 "The stock kernel has the needed feature" is not an exception. A failure to load the supplied kernel can leave the ISO kernel running, so checking the staged file on the host proves nothing, and the verdict would describe Alpine's kernel while reading as a verdict about Ze.
 
-`internal/le/qemu/run.go` owns the boot plan and `internal/le/qemu/alltests.go` owns the functional-suite and integration-package populations. You MUST update those Go producers together when the VM contract changes. The VM's own contract is `docs/architecture/testing/qemu-integration.md`.
+`internal/le/test/qemu/run.go` owns the boot plan and `internal/le/test/qemu/alltests.go` owns the functional-suite and integration-package populations. You MUST update those Go producers together when the VM contract changes. The VM's own contract is `docs/architecture/testing/qemu-integration.md`.
 
 ## How to Write a QEMU Integration Test
 
@@ -37,7 +37,7 @@
 
 **A test whose prerequisite is absent MUST call `t.Skip`, never `t.Fatal`.** One test file runs in environments with different capabilities, and a fatal there reports a broken product for a missing capability. The worked example is `docs/architecture/testing/qemu-integration.md`.
 
-**A new integration package MUST be added to `integrationPackages` in `internal/le/qemu/alltests.go`.** `./le qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
+**A new integration package MUST be added to `integrationPackages` in `internal/le/test/qemu/alltests.go`.** `./le qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
 
 **A probe that asserts on a counter sitting behind state written for a remote
 peer MUST send its traffic over an egress that really carries it, and MUST carry

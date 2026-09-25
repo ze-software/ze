@@ -16,7 +16,7 @@
 # compiled out while internal/component/pki/yang stays always-on: the schema
 # still has the root, and nothing in the binary claims it. That is the operator
 # situation the check exists for. It needs the stripped binary, which the native
-# ui suite builds in internal/le/functional/binaries.go.
+# ui suite builds in internal/le/test/functional/binaries.go.
 #
 # The native fixture starts ze-stripped as a direct child. It inherits the shim
 # directory in PATH, so the stripped product binary resolves there.

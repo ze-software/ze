@@ -293,7 +293,7 @@ that stopped early must not read as a file that broke no rule.
 | Family list missing entries in DESIGN.md | Add the missing entries; the script lists which |
 | `.ci` test count claim wrong | Update the count or phrase it as an approximate dated claim |
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
-| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/functional/catalog.go` |
+| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/test/functional/catalog.go` |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
 | Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check verify` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
@@ -307,7 +307,7 @@ that stopped early must not read as a file that broke no rule.
 `internal/le/doc/yangcontract.Answer` imports `internal/component/plugin/all` so all
 plugins register themselves, then queries `registry.All()` and
 `registry.FamilyMap()`. It walks the `.ci` files and reads the native functional
-suite catalog from `internal/le/functional`. It compares those facts with
+suite catalog from `internal/le/test/functional`. It compares those facts with
 claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`,
 `docs/features.md`, and `docs/functional-tests.md`.
 

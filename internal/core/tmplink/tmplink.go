@@ -6,7 +6,7 @@
 // One declaration, for the reason internal/core/diskspace exists. `le scratch
 // migrate` (internal/le/scratch) MOVES these directories out of a real tmp and
 // leaves a symlink behind. Two launchers then hand the guest the checkout over
-// 9p, where that symlink stays a symlink: `le qemu run` (internal/le/qemu) and
+// 9p, where that symlink stays a symlink: `le qemu run` (internal/le/test/qemu) and
 // `ze appliance kernel --builder qemu` (internal/appliance/kernelbuilder). A
 // guest that follows it reaches a path only the host has, so each launcher
 // exports the link's target and mounts it at the same absolute path inside the

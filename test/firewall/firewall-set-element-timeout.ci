@@ -11,7 +11,7 @@
 #
 # Requires CAP_NET_ADMIN.
 #
-# EXCLUDED from the internal/le/qemu/netns_linux.go host-safe subset, so this
+# EXCLUDED from the internal/le/test/qemu/netns_linux.go host-safe subset, so this
 #
 # The old reason -- "nft set-element-timeout ops CRASH the Alpine QEMU minimal
 # kernel" -- is FALSE. Measured on 2026-08-24 on stock 6.12.13-0-virt: the set

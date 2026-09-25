@@ -77,7 +77,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 		return runQEMUInstallCommand(ctx, work, runEnv, binary, args...)
 	}
 
-	listing := runQEMUInstallCommand(ctx, work, runEnv, binary, "qemu")
+	listing := runQEMUInstallCommand(ctx, work, runEnv, binary, areaQEMU)
 	if listing.startErr != nil {
 		return fmt.Errorf("FAIL: qemu listing failed: %w", listing.startErr)
 	}

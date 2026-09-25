@@ -205,7 +205,7 @@ func (su *selfUpdater) run(ctx context.Context) {
 
 // envRunningVersion lets a functional test drive the updater on an unstamped
 // daemon. The suite's DUT build carries no version ldflags on purpose (`ze
-// show version` prints "ze dev", internal/le/functional/binaries.go), and
+// show version` prints "ze dev", internal/le/test/functional/binaries.go), and
 // isNewer refuses every comparison against "dev", so without this override
 // no event is ever recorded and the history consumer cannot be observed.
 const envRunningVersion = "ze.test.update.running.version"
