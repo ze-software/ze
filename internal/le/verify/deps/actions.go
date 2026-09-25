@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 type actionRunner func(context.Context, string, string) (Report, int)

@@ -13,7 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // admittingRunner stands in for the `le test <suite>` child: each invocation

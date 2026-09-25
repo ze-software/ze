@@ -25,7 +25,7 @@ import (
 	"unicode"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // generatedHeader opens every file this tool writes. It names the native

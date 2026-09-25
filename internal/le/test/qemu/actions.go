@@ -4,7 +4,7 @@
 // Detail: install.go -- the four import-linked installer proofs
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // THE AREA IS THE GATE-NAME FAMILY, not its former script directory.
 // `ze-qemu-vpp-hugepages-test` begins ze-qemu-. leaction removes `ze-<area>-`
@@ -27,8 +27,8 @@ import (
 	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // The run and install actions share these keywords, and the code that reads an

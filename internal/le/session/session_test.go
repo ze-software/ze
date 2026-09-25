@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 func TestConfigOverrideRecognizesDottedEnvironmentSpellings(t *testing.T) {

@@ -30,7 +30,7 @@ this page names but that registry does not hold is a defect in this page.
 | JSON dispatch and shared scratch identity | `internal/le/hookruntime/runtime.go` |
 
 Session identity resolution and dated session paths are canonical in
-`internal/le/lepath/session.go`. Test weakening is judged by
+`internal/le/le/path/session.go`. Test weakening is judged by
 `internal/le/test/weakened`, journal rows by `internal/le/spec/journal`, and spec session
 state by `internal/le/spec`. The hook runtime calls those packages
 in-process rather than launching a second implementation.

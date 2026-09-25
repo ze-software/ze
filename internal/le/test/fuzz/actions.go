@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the fuzz area, as one command
 //
 // actions.go is the Python area, ported. The dispatch, the listing, the help
-// line and the two refusals live in internal/le/leaction. What stays here is the
+// line and the two refusals live in internal/le/le/action. What stays here is the
 // TABLE, and the four knobs the Make recipe passed as flags.
 //
 // THE KNOBS ARE ENVIRONMENT, not values typed after a keyword. `make
@@ -15,9 +15,9 @@ package testfuzz
 
 import (
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as.

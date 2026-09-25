@@ -7,7 +7,7 @@
 // keeps one check's rows, `| count` says how many. The report also renders
 // ITSELF (Text), because a severity list is what a person reads here and the
 // engine would render rows as a table. That rendering is the default and
-// nothing more: the data is the same either way (internal/le/leroot, Prose).
+// nothing more: the data is the same either way (internal/le/le/root, Prose).
 
 package docconsistency
 

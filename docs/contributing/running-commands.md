@@ -1,6 +1,6 @@
 # Running Development Commands
 
-<!-- source: internal/le/gotoolchain, internal/le/repo/changed, internal/le/test/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
+<!-- source: internal/le/go/toolchain, internal/le/repo/changed, internal/le/test/functional, internal/le/session, internal/le/job, internal/le/hookruntime, internal/le/verify, internal/le/scratch -->
 
 How the `./le` action surface, the session scratch tree, and the Bash guard
 behave. The obligations that follow from this page are `ai/rules/commands.md`.
@@ -51,9 +51,9 @@ without one hands it to the child, so `./le job run label x command echo
 A shape rule cannot replace the four words. A table-less area publishes no
 grammar, so le cannot tell its own option from one you forward to a child.
 
-<!-- source: internal/le/leroot/manifest.go -- Manifest -->
-<!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->
-<!-- source: internal/le/leaction/leaction.go -- parameterForm, parseArguments -->
+<!-- source: internal/le/le/root/manifest.go -- Manifest -->
+<!-- source: internal/le/le/root/dispatch.go -- Dispatch, helpTrailing -->
+<!-- source: internal/le/le/action/leaction.go -- parameterForm, parseArguments -->
 
 An area that hand-rolls its own dispatch registers no table. The manifest then
 carries its description and not its grammar, and `--help` answers its node page.
@@ -70,7 +70,7 @@ a question and the area's own parser owns the line. That is what `command
 ## A bare `go test` is not `./le test unit`
 
 Ze compiles features out behind build tags (`//go:build ze_isis`, `ze_ospf`,
-`ze_ldp`, `ze_rsvpte`, `ze_web`, `ze_ssh`, and the rest). `internal/le/gotoolchain`
+`ze_ldp`, `ze_rsvpte`, `ze_web`, `ze_ssh`, and the rest). `internal/le/go/toolchain`
 derives the feature set from `feature-gates.txt` and passes it to every native
 unit and verification action. Omit those tags and the plugins never register, so
 their validators, listeners and schema vanish, and unrelated tests fail.
@@ -225,7 +225,7 @@ an age timer, not by a hook. The directory outlives the session, so a log writte
 today is there tomorrow. `./le session reap` removes only session directories
 whose owners are provably gone. Artifacts that are already session-keyed, and the
 shared-by-design ones (`tmp/ze-verify.*`, and the durable Go build cache
-`internal/le/gotoolchain` assigns), stay where they are.
+`internal/le/go/toolchain` assigns), stay where they are.
 
 ## When the storage stalls
 
@@ -309,7 +309,7 @@ lint     /path/to/checkout/tmp/golangci-lint-cache  freed 9.5G, free 43.7G
 ```
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
-`Overrides` (`internal/le/gotoolchain/gotoolchain.go`) points GOCACHE there, and
+`Overrides` (`internal/le/go/toolchain/gotoolchain.go`) points GOCACHE there, and
 `gotoolchain.GoCache` names it. The AMBIENT cache is the one a bare `go build`
 writes outside le. The action asks `go env GOCACHE` for that path with the
 inherited override removed, so a checkout whose default already IS the checkout
@@ -337,7 +337,7 @@ and the worktree's own `tmp/verify` is where the run writes the stage logs it
 copies out afterwards.
 
 Without that link `Overrides` resolves GOCACHE to `<worktree>/cache/go-cache`
-(`internal/le/gotoolchain/gotoolchain.go`), so each run compiled from cold into a
+(`internal/le/go/toolchain/gotoolchain.go`), so each run compiled from cold into a
 private cache and deleted it unread. Two worktrees measured on 2026-09-03 held
 7.4 GiB and 6.7 GiB of private cache against a 0.6 GiB source tree, which is
 about 90 percent of each worktree, rebuilt once per run.
@@ -535,7 +535,7 @@ full` does NOT block on the first: only its lint stage does.
 
 `ZE_RUN_SLOTS` (`SlotsKey`) sets the slot count. It defaults to one slot per core
 share this machine holds (`defaultSlots`, `internal/le/job/job.go`), which is four
-on the 32-core development box, because `internal/le/gotoolchain` already caps each
+on the 32-core development box, because `internal/le/go/toolchain` already caps each
 job at a quarter of the cores (`CoresPerJob`, which is the same number it uses for
 `GOMAXPROCS` and for the linter's `-j`).
 
@@ -556,7 +556,7 @@ Everything after the `command` keyword is the child's argv, and `job` passes it
 through unchanged (`parseRun`, `internal/le/job/answer.go`; `Admission.Run`,
 `internal/le/job/job.go`). The DISPATCHER reads the line first. It answers a
 trailing `help`, `--help`, `-h` or `-help` with a usage page, and it does not
-run the child (`asksForUsage`, `internal/le/leroot/dispatch.go`). Every other
+run the child (`asksForUsage`, `internal/le/le/root/dispatch.go`). Every other
 option travels on, so `command echo -html=cover.out` reaches the child.
 
 The command adds no build tags, no `-race`, no

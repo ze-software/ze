@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // probeChain is a toolchain with no manifest behind it, for the argv tests.

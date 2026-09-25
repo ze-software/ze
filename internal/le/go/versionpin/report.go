@@ -8,7 +8,7 @@
 // compared, which is structured data: `| json` feeds a script and
 // `| match go-minor-mismatch` keeps one reason. The report also renders ITSELF
 // (Text), because a person reading a failing gate wants the page rather than a
-// table (internal/le/leroot, Prose).
+// table (internal/le/le/root, Prose).
 
 package goversionpin
 

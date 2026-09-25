@@ -207,7 +207,7 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		// The page's SECTIONS are the status-derived CATEGORY, never the release
 		// BUCKET. The two were one field until 6fb9cd8814 (2026-09-05) split
 		// them: `bucket` is now the directory the spec sits in (after,
-		// immediate, pre-release, internal/le/spec/specpath) and `category` is
+		// immediate, pre-release, internal/le/spec/path) and `category` is
 		// the backlog / idea / other split the sections print
 		// (specstatus.Category). Reading the section off `bucket` asks the
 		// wrong record for the answer.

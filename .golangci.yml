@@ -10,7 +10,7 @@ run:
   # away, which is the most expensive way to fail.
   timeout: 30m
   # The worker cap is not static YAML. `./le verify-lint run` passes `-j` from
-  # internal/le/gotoolchain, which assigns one quarter of the machine's cores.
+  # internal/le/go/toolchain, which assigns one quarter of the machine's cores.
   #
   # The former `concurrency: 8` matched one 32-core host and consumed half of a
   # 16-core development machine. The shared job admission calculation depends
@@ -20,7 +20,7 @@ run:
   #
   # A hardcoded number cannot follow the machine. Do not put one back.
   #
-  # internal/le/gotoolchain also sets GOMEMLIMIT to one eighth of host memory,
+  # internal/le/go/toolchain also sets GOMEMLIMIT to one eighth of host memory,
   # with a floor, because golangci-lint v2.10.1 has no memory setting. The
   # `ZE_LINT_MEMLIMIT` environment variable overrides it when a run needs a
   # measured exception.

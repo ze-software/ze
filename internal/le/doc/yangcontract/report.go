@@ -4,7 +4,7 @@
 //
 // report.go holds what `le doc yang-contract` ANSWERS, apart from what produced it.
 // Each action has one payload, and each payload renders itself for a person
-// (internal/le/leroot, Prose) while staying structured data for `| json`, `| yaml`
+// (internal/le/le/root, Prose) while staying structured data for `| json`, `| yaml`
 // and `| table`.
 //
 // The renderings reproduce what the scripts printed, line for line, because a

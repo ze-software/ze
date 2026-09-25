@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 func TestHostDriverRegistersAndRefusesAnArgument(t *testing.T) {

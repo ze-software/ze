@@ -7,7 +7,7 @@
 // Each also renders ITSELF (Text), because the two scripts these replace print
 // a walk rather than a table, and the walk is what a person reads. That
 // rendering is the default and nothing more: the data is the same either way
-// (internal/le/leroot, Prose).
+// (internal/le/le/root, Prose).
 //
 // The renderings here are BYTE-IDENTICAL to what the scripts print. No color is
 // involved on either side, so unlike the consistency port there is no palette

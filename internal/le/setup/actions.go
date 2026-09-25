@@ -1,7 +1,7 @@
 // Design: docs/guide/developer-setup.md -- the setup area as one command
 //
 // actions.go contains the ported Python setup area. The dispatch, help line,
-// and two refusals are in internal/le/leaction. Only the TABLE remains here.
+// and two refusals are in internal/le/le/action. Only the TABLE remains here.
 //
 // SEVEN ACTIONS REPLACE TWO FLAGS, THE CLAUDE SERVER BOOTSTRAP, THE
 // GENERATED-PROTO PIPELINE, AND THE LOCAL WEB SERVER. The first three actions
@@ -27,8 +27,8 @@
 package setup
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as.

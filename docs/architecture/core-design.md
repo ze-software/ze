@@ -43,11 +43,11 @@ functions, which register product roots such as `env`, `interface` and `schema`
 in the same process. What `le` MUST NOT do is serve one of those as its own, and
 the path is what keeps them apart rather than a second ownership table: every
 `le` tool registers at the canonical `le <tool>` local-data path,
-`internal/le/leroot/dispatch.go` resolves only that path, and `leroot.Owns` asks
+`internal/le/le/root/dispatch.go` resolves only that path, and `leroot.Owns` asks
 the registry for it. So `le interface` is an unknown command, not `ze`'s
 interface editor.
 <!-- source: cmd/ze/ze_le_personality_test.go -- TestNormalZeLinksNoInternalLe -->
-<!-- source: internal/le/leroot/leroot.go -- Owns, CommandPath -->
+<!-- source: internal/le/le/root/leroot.go -- Owns, CommandPath -->
 
 To add a repository tool, add one package under `internal/le/`, register its
 area through `leroot.Register`, and add one blank import to
@@ -88,11 +88,11 @@ registered. The exit code is 0, as for a bare `le`. A word after the token that
 names no member, as in `le spec nosuch`, is a mistake: it is refused with the
 members it could have been, and exit 1. A first word that holds no members is
 `unknown command`, exit 1.
-<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->
+<!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
 **A retired name runs as the command that replaced it.** The subject-first
 rename (`plan/spec-le-subject-first-command-tree.md`) moves every le command to
-`le <subject> <action>`. `internal/le/leroot/retired.go` declares the rename map
+`le <subject> <action>`. `internal/le/le/root/retired.go` declares the rename map
 once: each row maps a retired command, or one retired action of a command, to
 the command and action that replace it, and a second table lists the retired
 programs, build tags, harness file names and harness variables. When argv starts
@@ -106,7 +106,7 @@ handler with no line. A retired name is never registered, so it is absent from
 reads the same map and lists every tracked line that still names an old form;
 it exits 0 while the rename runs. Phase 3 of that spec deletes the rewrite and
 turns the report into a gate.
-<!-- source: internal/le/leroot/retired.go -- Renames -->
+<!-- source: internal/le/le/root/retired.go -- Renames -->
 <!-- source: internal/le/doc/check/retired.go -- sweepRetired -->
 
 Registration also states which of five groups the area belongs to, and help
@@ -133,8 +133,8 @@ still lists what its program holds. Everywhere else, a help word that asks a
 question never reaches the handler,
 because a single-action area answers a bare invocation by RUNNING its gate, so
 rendering help through the handler would scan the tree or start a build.
-<!-- source: internal/le/leroot/dispatch.go -- asksForUsage -->
-<!-- source: internal/le/leaction/leaction.go -- TrailingWordIsValue -->
+<!-- source: internal/le/le/root/dispatch.go -- asksForUsage -->
+<!-- source: internal/le/le/action/leaction.go -- TrailingWordIsValue -->
 
 **The area's own table decides which help word is a question and which is
 data.** A help word that a declared keyword introduced is the value the operator
@@ -299,11 +299,11 @@ under the `testdata/` directory of the Go package that owns them.
 <!-- source: internal/le/test/unit/groups.go -- allGroups -->
 <!-- source: internal/le/rfc/check.go -- Check -->
 <!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
-<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, helpTrailing, helpNode -->
-<!-- source: internal/le/leroot/manifest.go -- Manifest, Text -->
-<!-- source: internal/le/leaction/leaction.go -- IsHelpArg, actionUsage -->
-<!-- source: internal/le/leroot/leroot.go -- Register, RegisterActions -->
-<!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
+<!-- source: internal/le/le/root/dispatch.go -- Commands, Dispatch, helpTrailing, helpNode -->
+<!-- source: internal/le/le/root/manifest.go -- Manifest, Text -->
+<!-- source: internal/le/le/action/leaction.go -- IsHelpArg, actionUsage -->
+<!-- source: internal/le/le/root/leroot.go -- Register, RegisterActions -->
+<!-- source: internal/le/le/root/group.go -- Group, GroupTitle -->
 <!-- source: internal/le/derived/derived.go -- Artifact, Register, All, EnsureAll -->
 <!-- source: cmd/ze/ze_le_register.go -->
 

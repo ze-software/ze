@@ -5,8 +5,8 @@
 package specjournal
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 const journalWhy = "every problem class in plan/journal/ with 2+ occurrences, its row count and the span between first and last date. Prints nothing when every class has one row"

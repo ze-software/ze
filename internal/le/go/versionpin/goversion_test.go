@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // declared is the minor version every fixture tree is judged against. The

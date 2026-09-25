@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // VALIDATES: The RFC selftest runs every declared in-process fixture stage.

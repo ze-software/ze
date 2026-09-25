@@ -9,7 +9,7 @@
 #
 # THIS FILE IS THE ONE PLACE A GATE IS DECLARED, and it has two readers.
 # internal/le/repo/featuretags is the Go one, and every Go consumer derives from it:
-#   - internal/le/gotoolchain derives the default daemon and test build tags
+#   - internal/le/go/toolchain derives the default daemon and test build tags
 #   - internal/test/runner.TestBuildTags adds the functional-test personality
 #   - internal/le/plugin/imports gates each package and its YANG package
 #   - internal/le/arch/tier proves no always-on package imports a gated package

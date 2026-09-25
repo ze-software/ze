@@ -16,24 +16,24 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
 // their tests. They name every old form by necessity, so they are not callers.
-// Every `internal/le/leroot/retired*.go` file is one too, listed or not: that
+// Every `internal/le/le/root/retired*.go` file is one too, listed or not: that
 // is the alias and its tests, which Phase 3 deletes with the map.
 var retiredDeclarations = [...]string{
-	"internal/le/leroot/retired.go",
-	"internal/le/leroot/retired_test.go",
-	"internal/le/leroot/retired_dispatch_test.go",
+	"internal/le/le/root/retired.go",
+	"internal/le/le/root/retired_test.go",
+	"internal/le/le/root/retired_dispatch_test.go",
 	"internal/le/doc/check/retired.go",
 	"internal/le/doc/check/retired_test.go",
 }
 
 // retiredAliasPrefix is the path prefix of the alias implementation and its
 // tests in leroot.
-const retiredAliasPrefix = "internal/le/leroot/retired"
+const retiredAliasPrefix = "internal/le/le/root/retired"
 
 // retiredRecord is one path the sweep skips because it records history: what
 // a command was called on the day the record was written (owner decision,

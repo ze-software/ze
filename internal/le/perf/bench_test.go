@@ -17,8 +17,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
 

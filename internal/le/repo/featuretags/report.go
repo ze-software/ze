@@ -4,7 +4,7 @@
 //
 // Each answer carries one row set, so `| json` feeds a script, `| match
 // golangci` keeps one file and `| count` says how many are stale. Each also
-// renders ITSELF as a native actionable verdict (internal/le/leroot, Prose).
+// renders ITSELF as a native actionable verdict (internal/le/le/root, Prose).
 
 package repofeaturetags
 

@@ -8,8 +8,8 @@ package rfc
 import (
 	"errors"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // actions is the whole command surface.

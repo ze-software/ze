@@ -376,7 +376,7 @@ packages that no longer exist.
 2. Add one action to that package's table and register its area through
    `leroot.Register`. A related check joins an existing area rather than opening
    another root name.
-3. Register the action with `internal/le/leroot` and expose it as
+3. Register the action with `internal/le/le/root` and expose it as
    `./le <area> <action>`.
 4. Add the callable action to `internal/le/doc/wiring` when changed files should
    trigger it during pre-commit verification.

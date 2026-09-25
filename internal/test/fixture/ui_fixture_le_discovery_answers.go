@@ -296,7 +296,7 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	}
 	// Both are GRAMMAR refusals, and leaction answers 2 for every one of them:
 	// the parse failure is reported and returned as 2 by Area.Answer, pinned by
-	// its own test (internal/le/leaction/leaction_test.go). 1 is what a gate
+	// its own test (internal/le/le/action/leaction_test.go). 1 is what a gate
 	// that ran and failed answers, which is the fact these two must not be
 	// confused with.
 	if got := runLE("", "doc wiring", "somefile.go").code; got != 2 {

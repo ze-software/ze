@@ -3,7 +3,7 @@
 // Related: report.go -- what each verb answers
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // THE THREE MODES BECOME THREE VERBS. This design fixes the fail-open behavior.
 // The shell half selects its mode with a `case` over $1. It has no default
@@ -17,8 +17,8 @@
 package aisync
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 var actions = leaction.New(area,

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )

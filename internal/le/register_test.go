@@ -15,8 +15,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 const leImportPrefix = "github.com/ze-software/ze/internal/le/"

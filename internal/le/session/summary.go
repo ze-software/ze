@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 const summaryGitTimeout = 60 * time.Second

@@ -15,8 +15,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // hostFacts points admitRun at a checkout and a child for one test, clears any

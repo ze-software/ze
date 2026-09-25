@@ -38,7 +38,7 @@ const (
 // internal/le/test/deployment declares an Outcome of the same shape for its scenarios.
 // The two are NOT shared yet. This migration uses the same rule that it applied
 // to its action tables. The third area that needs this shape lifts it into
-// internal/le/leroot. It does not write a third.
+// internal/le/le/root. It does not write a third.
 type Verdict uint8
 
 const (

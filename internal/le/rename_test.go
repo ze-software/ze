@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // TestEveryNewNameResolvesToItsArea reads the rename map in leroot, the one

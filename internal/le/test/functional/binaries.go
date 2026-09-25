@@ -43,7 +43,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/runner"
 )

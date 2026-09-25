@@ -96,7 +96,7 @@ type Report struct {
 // Text renders the verdict for a person. It ends in a newline.
 //
 // This is the Prose rendering leroot uses for the bare command, and every pipe
-// operator bypasses it (internal/le/leroot, Prose).
+// operator bypasses it (internal/le/le/root, Prose).
 func (r Report) Text() string {
 	var tb textbuf.Buffer
 	tb.Str(r.File).Str(" at ").Str(r.Commit[:min(len(r.Commit), shaShown)]).Str(": ")

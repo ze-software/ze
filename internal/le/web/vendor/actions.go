@@ -7,7 +7,7 @@
 // WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction, which six tool packages share. What stays here is the
+// internal/le/le/action, which six tool packages share. What stays here is the
 // TABLE, because the table is the only part of an area that is about vendored
 // web assets.
 //
@@ -19,7 +19,7 @@
 package webvendor
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

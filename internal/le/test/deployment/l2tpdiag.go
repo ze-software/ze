@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 const (

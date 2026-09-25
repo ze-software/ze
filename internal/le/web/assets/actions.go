@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the web assets area, as one command
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // Three actions, and only one of them writes. `pages` is the script's --json
 // mode: it answers the derived sets and touches nothing, because a test asks
@@ -10,8 +10,8 @@
 package webassets
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

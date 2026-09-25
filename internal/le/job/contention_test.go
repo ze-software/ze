@@ -31,8 +31,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // helperMarker separates this test binary's own arguments from the ones that

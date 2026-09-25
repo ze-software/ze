@@ -11,7 +11,7 @@
 // registrations the daemon runs, never from a regular expression over source.
 // That import is allowed in exactly this direction
 // (docs/architecture/core-design.md): le may link ze to introspect it, ze
-// never links le, and le never RUNS a product command (internal/le/leroot/dispatch.go).
+// never links le, and le never RUNS a product command (internal/le/le/root/dispatch.go).
 //
 // EVERY NUMBER HERE IS A COUNT OF WHAT THE WALK SAW, so a walk that ends early
 // lowers a published count with nothing said, under a header claiming the
@@ -42,8 +42,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // generatedLayout is the timestamp the page carries. Minute resolution, UTC,

@@ -3,7 +3,7 @@ package all
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 	yangglue "github.com/ze-software/ze/internal/le/yang/glue"
 )
 

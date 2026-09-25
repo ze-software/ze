@@ -21,8 +21,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // ifacePkg is the owning import path every package fixture calls into, and

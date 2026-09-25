@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	functionalRunCommand    = "ze-test local-data-coverage"
+	functionalRunCommand    = "le test local-data-coverage"
 	functionalTimeoutOption = "option=timeout:value=45s"
 	functionalTimeout       = "45s"
 )
@@ -89,7 +89,7 @@ func TestCompiledScenarioEvidenceCannotBeSpoofedOrWeakened(t *testing.T) {
 		{name: "missing evidence", text: strings.Replace(valid, first, "", 1)},
 		{name: "duplicate evidence", text: strings.Replace(valid, first, first+first, 1)},
 		{name: "shorter-prefix evidence", text: strings.Replace(valid, localdatacoverage.Marker("show config history"), localdatacoverage.Marker("show config"), 1)},
-		{name: "wrong helper", text: strings.Replace(valid, functionalRunCommand, "ze-test text-plugin", 1)},
+		{name: "wrong helper", text: strings.Replace(valid, functionalRunCommand, "le test text-plugin", 1)},
 		{name: "interpreted payload", text: "tmpfs=payload:terminator=END\nfake\nEND\n" + valid},
 		{name: "missing completion", text: strings.Replace(valid, completion, "", 1)},
 		{
@@ -348,7 +348,7 @@ func TestProductionLocalDataCommandsSkipTestdataAndLERootAdapter(t *testing.T) {
 	for _, dir := range []string{
 		filepath.Join(root, "cmd"),
 		filepath.Join(root, "cmd", "testdata", "malformed"),
-		filepath.Join(root, "internal", "le", "leroot"),
+		filepath.Join(root, "internal", "le", "le", "root"),
 		filepath.Join(root, "pkg"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -363,7 +363,7 @@ func TestProductionLocalDataCommandsSkipTestdataAndLERootAdapter(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "cmd", "testdata", "malformed", "broken.go"), []byte("package malformed\nfunc {"), 0o600); err != nil {
 		t.Fatalf("write malformed testdata fixture: %v", err)
 	}
-	adapterPath := filepath.Join(root, "internal", "le", "leroot", "leroot.go")
+	adapterPath := filepath.Join(root, "internal", "le", "le", "root", "leroot.go")
 	if err := os.WriteFile(adapterPath, []byte("package leroot\nfunc Register(name string) {\n"+
 		"registry.MustRegisterLocalData(CommandPath(name))\n}\n"), 0o600); err != nil {
 		t.Fatalf("write leroot adapter fixture: %v", err)
@@ -393,7 +393,7 @@ func TestLERootLocalDataAdapterExclusionIsExact(t *testing.T) {
 	}{
 		{
 			name:     "exact leroot adapter",
-			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			path:     filepath.Join("internal", "le", "le", "root", "leroot.go"),
 			argument: commandPath(1),
 			want:     true,
 		},
@@ -404,12 +404,12 @@ func TestLERootLocalDataAdapterExclusionIsExact(t *testing.T) {
 		},
 		{
 			name:     "other dynamic expression in leroot",
-			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			path:     filepath.Join("internal", "le", "le", "root", "leroot.go"),
 			argument: &ast.Ident{Name: "path"},
 		},
 		{
 			name: "different command path argument",
-			path: filepath.Join("internal", "le", "leroot", "leroot.go"),
+			path: filepath.Join("internal", "le", "le", "root", "leroot.go"),
 			argument: &ast.CallExpr{
 				Fun:  &ast.Ident{Name: "CommandPath"},
 				Args: []ast.Expr{&ast.Ident{Name: "other"}},
@@ -417,7 +417,7 @@ func TestLERootLocalDataAdapterExclusionIsExact(t *testing.T) {
 		},
 		{
 			name:     "different command path arity",
-			path:     filepath.Join("internal", "le", "leroot", "leroot.go"),
+			path:     filepath.Join("internal", "le", "le", "root", "leroot.go"),
 			argument: commandPath(2),
 		},
 	}
@@ -516,7 +516,7 @@ func collectLocalDataRegistrations(t *testing.T, root, path string, commands map
 }
 
 func isLERootLocalDataAdapter(relative string, argument ast.Expr) bool {
-	if filepath.ToSlash(relative) != "internal/le/leroot/leroot.go" {
+	if filepath.ToSlash(relative) != "internal/le/le/root/leroot.go" {
 		return false
 	}
 	call, ok := argument.(*ast.CallExpr)

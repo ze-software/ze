@@ -358,7 +358,7 @@ every one of them under `./le --name x`.
 line naming `le test <name>`, then answers as `./le test <name> <argv>`. A bare
 `./le test harness`, or one whose next word names no member of `test`, is not
 rewritten.
-<!-- source: internal/le/leroot/retired.go -- retiredRewrite, namespaceMember -->
+<!-- source: internal/le/le/root/retired.go -- retiredRewrite, namespaceMember -->
 
 `$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
 `.gitignore` excludes `bin/` and no verification job writes `ze` there. A

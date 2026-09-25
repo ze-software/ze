@@ -14,7 +14,7 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // name is the root command, and the word a developer types.
@@ -108,7 +108,7 @@ func parseRun(args []string) (runArgs, bool) {
 
 // actions is what a bare `le job` answers: the one thing this command does,
 // as data. It is the shape every le area answers to the same question
-// (internal/le/leaction, List), so a reader who has seen one has seen this.
+// (internal/le/le/action, List), so a reader who has seen one has seen this.
 func actions() leaction.List {
 	return leaction.List{
 		Area: name,

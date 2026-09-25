@@ -2,7 +2,7 @@
 //
 // Overview: tier.go -- the import audit the two gate actions read
 //
-// actions.go ports the Python area. internal/le/leaction owns dispatch, listing,
+// actions.go ports the Python area. internal/le/le/action owns dispatch, listing,
 // help, and refusals. This file keeps the TABLE and the four checkout actions.
 //
 // Check, report, and write-baseline are explicit native actions. `| json`
@@ -14,8 +14,8 @@ package archtier
 import (
 	"os"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

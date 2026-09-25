@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // fixtureTree writes a checkout the derivation can read and answers its root.

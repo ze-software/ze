@@ -8,7 +8,7 @@
 // script, `| match skipped` keeps the weeks nothing was done to, `| count` says
 // how many weeks the run looked at. The report also renders ITSELF (Text),
 // because what an operator reads before publishing is the message text, and the
-// engine would render the rows as a table (internal/le/leroot, Prose).
+// engine would render the rows as a table (internal/le/le/root, Prose).
 
 package weekly
 

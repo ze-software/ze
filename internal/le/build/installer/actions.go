@@ -10,7 +10,7 @@ package buildinstaller
 
 import (
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 const area = "build installer"

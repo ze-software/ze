@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 type recordedCall struct {

@@ -8,7 +8,7 @@
 // rendered, `| count` says how many sites there are, and `| match internal/`
 // keeps one tree's. The slice also renders ITSELF (Text), because a violation
 // list with the remedy under it is what a person needs here and the engine
-// would render the rows as a table (internal/le/leroot, Prose).
+// would render the rows as a table (internal/le/le/root, Prose).
 
 package archifaceresolution
 

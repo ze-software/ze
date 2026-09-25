@@ -1,7 +1,7 @@
 // Related: gaterun.go -- the environment handoff these tests drive
 //
 // VALIDATES: Stream's doc comment states, "a child inherits nothing this does
-// not hand it". This behavior makes internal/le/gotoolchain the ONE statement of
+// not hand it". This behavior makes internal/le/go/toolchain the ONE statement of
 // what a gate runs under.
 // PREVENTS: These tests prevent a gate from using the developer's ambient
 // environment. A GOCACHE outside the checkout causes Unix-socket tests to fail

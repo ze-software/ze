@@ -23,8 +23,8 @@ import (
 	"testing"
 
 	_ "github.com/ze-software/ze/internal/le"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // commandWordsMax mirrors the dispatcher's bound: a command is at most two

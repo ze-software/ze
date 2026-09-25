@@ -22,7 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // vendorFiles is every source the sync's tables name, with the content the
@@ -672,7 +672,7 @@ func TestAnUnknownActionIsRefusedApartFromAFailure(t *testing.T) {
 // VALIDATES: the bare command lists its actions, and the listing says which one
 // writes. The native action table carries that fact and the shared renderer
 // prints `writes` or `checks` beside the reason
-// (`List.Text` in `internal/le/leaction`).
+// (`List.Text` in `internal/le/le/action`).
 // PREVENTS: a writing tool that reads like a check. A developer picking an
 // action out of a listing has one place to learn that one of the three changes
 // the tree, and it must not be a comment.

@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/spec"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 var (

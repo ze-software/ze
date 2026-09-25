@@ -142,7 +142,7 @@ func globTree(root, pattern string) ([]string, error) {
 func gitLines(root string, args ...string) ([]string, error) {
 	argv := append([]string{"-c", "core.quotePath=false"}, args...)
 	// context.Background: no cancellation source exists for a build-host git
-	// query. The action contract accepts no arguments (internal/le/leaction,
+	// query. The action contract accepts no arguments (internal/le/le/action,
 	// Action.Answer).
 	cmd := exec.CommandContext(context.Background(), "git", argv...) // #nosec G204 -- this package's own fixed argument lists
 	cmd.Dir = root

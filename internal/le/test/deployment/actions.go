@@ -6,7 +6,7 @@
 // Detail: l2tpdiag.go -- the two gateless native L2TP diagnostics
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // The gate names are the family: ze-deployment-l2tp-test, -vpp-test,
 // -vpp-iface-test and the rest all begin ze-deployment-, so each verb is that
@@ -19,8 +19,8 @@ import (
 
 	interopl2tp "github.com/ze-software/ze/internal/le/interoplab/l2tp"
 	interoppppoe "github.com/ze-software/ze/internal/le/interoplab/pppoe"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

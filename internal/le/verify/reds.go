@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 )

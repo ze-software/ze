@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 const platformVetManifest = "ze_bgp\tBGP\n"

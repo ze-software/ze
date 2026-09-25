@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // name is the word this command is typed as, and ceilingKeyword is the one

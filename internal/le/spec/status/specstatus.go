@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // Category names. The split separates committed backlog (work someone chose to
@@ -36,7 +36,7 @@ import (
 //
 // A category is derived from a spec's STATUS. It is not the release bucket,
 // which is derived from the directory the spec sits in and is declared once in
-// internal/le/spec/specpath.
+// internal/le/spec/path.
 const (
 	Backlog = "backlog" // committed work: design / ready / in-progress / verification
 	Idea    = "idea"    // idea capture: skeleton stubs

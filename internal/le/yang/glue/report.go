@@ -5,7 +5,7 @@
 // Each answer carries one row set, so `| json` feeds a script, `| match embed`
 // keeps one half of the pair and `| count` says how many. Each also renders
 // ITSELF, because the script printed a verdict rather than a table and the
-// verdict is what a person reads (internal/le/leroot, Prose).
+// verdict is what a person reads (internal/le/le/root, Prose).
 //
 // The rendering is the script's, word for word, with one deliberate change: a
 // stale file is named RELATIVE to the tree rather than by its absolute path.

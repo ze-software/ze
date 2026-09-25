@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	clicatalog "github.com/ze-software/ze/internal/le/cli/catalog"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // VALIDATES: the four local commands Collect declares by hand carry the path,

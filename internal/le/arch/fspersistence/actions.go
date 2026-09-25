@@ -1,15 +1,15 @@
 // Design: docs/architecture/core-design.md -- the fs-persistence area, as one command
 //
 // actions.go is the Python area, ported. The dispatch, the listing, the help
-// line and the two refusals live in internal/le/leaction. What stays here is the
+// line and the two refusals live in internal/le/le/action. What stays here is the
 // TABLE, because the table is the only part of an area that is about where
 // daemon state is persisted.
 
 package archfspersistence
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

@@ -3,7 +3,7 @@
 // Detail: scope.go and selector.go -- the scoped change-set selection
 //
 // actions.go is the table. The dispatch, listing, help line and refusals are
-// internal/le/leaction, which every ported area shares.
+// internal/le/le/action, which every ported area shares.
 //
 // `scope` is the native change-set selector. Its values follow closed keywords
 // so every free-form token has a declared meaning.
@@ -11,8 +11,8 @@
 package repochanged
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 var actions = leaction.New(area,

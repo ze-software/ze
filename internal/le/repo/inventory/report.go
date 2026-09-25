@@ -115,7 +115,7 @@ func (inv Inventory) coveredRPCs() int {
 // ends in a newline.
 //
 // This is the Prose rendering leroot uses for the bare command, and every pipe
-// operator bypasses it (internal/le/leroot, Prose). It carries no color: the page
+// operator bypasses it (internal/le/le/root, Prose). It carries no color: the page
 // is pasted into documents, and the script printed none.
 func (inv Inventory) Text() string {
 	var tb textbuf.Buffer

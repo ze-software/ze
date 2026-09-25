@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the data asn-delegation area, as one command
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // ONE action, and it writes. This generator's input is the network rather than
 // the tree, so there is nothing for a check twin to compare a checkout against
@@ -15,8 +15,8 @@ import (
 	"context"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as.

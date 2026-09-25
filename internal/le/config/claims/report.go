@@ -6,7 +6,7 @@
 // structured data an operator can act on: `| json` feeds a script and `| yaml`
 // reads it. The report also renders ITSELF (Text), because the gate's page is
 // what a person reads here and the engine would render it as a table
-// (internal/le/leroot, Prose).
+// (internal/le/le/root, Prose).
 
 package configclaims
 

@@ -8,7 +8,7 @@ package verifystatus
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 

@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the feature-tags area, as one command
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // runCheck and runWrite are where the tree is found and a failure becomes an
 // exit code. Check and Write take the tree as an argument instead, so a test
@@ -10,8 +10,8 @@
 package repofeaturetags
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

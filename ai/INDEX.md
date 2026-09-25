@@ -290,7 +290,7 @@ all render it.
 
 **`./le '|' json` is the authority.** It answers the manifest, which names every
 registered area, its group and its description
-(`internal/le/leroot/manifest.go`, `Manifest`). An area that registered an
+(`internal/le/le/root/manifest.go`, `Manifest`). An area that registered an
 action table also carries each action, with its verb, its purpose, its write
 flag and its keyword grammar. `./le` with no argument prints the same manifest
 as the root help page, on stdout, and exits 0. `./le <area> <verb> --help`

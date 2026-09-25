@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // selftestStage is one independent concern of the in-process fixture suite.

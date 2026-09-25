@@ -15,7 +15,7 @@ import (
 	cliownership "github.com/ze-software/ze/internal/le/cli/ownership"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"

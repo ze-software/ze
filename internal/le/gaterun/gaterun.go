@@ -10,7 +10,7 @@
 // CGO_ENABLED, and GOTOOLCHAIN. The reader observed the command during execution.
 // Separate functions let an area run a command without this environment or
 // reader-visible output. This occurred in three Python areas before
-// gateapp.default_environment existed (internal/le/leaction/leaction.go).
+// gateapp.default_environment existed (internal/le/le/action/leaction.go).
 //
 // The package streams output instead of capturing it. A suite runs for minutes,
 // and a reader needs immediate output. Therefore, the child inherits this

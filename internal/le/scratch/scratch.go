@@ -168,7 +168,7 @@ func (m *Manager) Ensure(repointCache bool) (Report, int) {
 // EnsureCache creates or repairs the cache link alone and leaves tmp untouched.
 //
 // A detached verify worktree needs this entry point rather than Ensure. GOCACHE
-// resolves to <root>/cache/go-cache (internal/le/gotoolchain, GoCache), so a
+// resolves to <root>/cache/go-cache (internal/le/go/toolchain, GoCache), so a
 // worktree with no cache link builds a private Go build cache from cold, which
 // measured 7.4 GiB on 2026-09-03 against a 0.6 GiB source tree. The cache target
 // is per-USER and ignores the root (cacheTarget), so the link reaches the same

@@ -78,8 +78,8 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // The registry's paths, all relative to the checkout root. They are relative
@@ -321,7 +321,7 @@ func NewIn(root string) (*Admission, error) {
 // reads only the canonical spelling. Therefore, a session that exports
 // ZE_VERIFY_MAX_LOCK_AGE would otherwise receive the default. The file
 // ai/rules/git-safety.md instructs readers to increase that name, so it must
-// remain effective. internal/le/gotoolchain reads its two aliases in the same way.
+// remain effective. internal/le/go/toolchain reads its two aliases in the same way.
 //
 // A value that is not a number produces zero instead of the default. Zero is
 // outside the permitted range, so Validate rejects and identifies it. An

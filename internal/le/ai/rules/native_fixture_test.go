@@ -35,7 +35,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// decides exactly what it decided before, which is what the digest pins.
 	//
 	// Updated 2026-09-05: the task corpus and the spec selector read every
-	// release bucket through internal/le/spec/specpath rather than plan/ alone,
+	// release bucket through internal/le/spec/path rather than plan/ alone,
 	// so the router now measures the whole population.
 	// Updated 2026-09-13: 73861cc6c5 published this area's grammar. The three
 	// value-carrying parameters of `coverage-report` state leaction.Optional,

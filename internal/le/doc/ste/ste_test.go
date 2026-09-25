@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // findingDetails answers each finding's detail string. Cases use it when they
@@ -636,7 +636,7 @@ func TestTheGrowthRowsAreOrderedByHabitNumber(t *testing.T) {
 // without an invocation. NOT AC-8, which is about REQUIREDNESS: `file` here is
 // Optional, so this body would not redden if requiredness started being
 // enforced. AC-8 is held by TestARequiredKeywordIsPublishedRatherThanNewlyEnforced
-// (internal/le/leaction/leaction_test.go), and the spec's TDD table says so.
+// (internal/le/le/action/leaction_test.go), and the spec's TDD table says so.
 // PREVENTS: `check` published as a zero-argument action while Answer read
 // `file <path>` behind the dispatcher, which made `le doc ste check --help` print
 // a usage line naming no keyword at all (review round 5).

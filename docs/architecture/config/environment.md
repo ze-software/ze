@@ -193,7 +193,7 @@ are gone, and the rename map lists each as retired with no replacement.
 product setting.
 
 <!-- source: internal/test/runner/runner.go -- NoBuild -->
-<!-- source: internal/le/leroot/retired.go -- retirements -->
+<!-- source: internal/le/le/root/retired.go -- retirements -->
 
 ---
 

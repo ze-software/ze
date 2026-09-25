@@ -664,7 +664,7 @@ func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
 		t.Fatalf("a help word reached the handler with %#v", got)
 	}
 
-	want := "usage: le test qemu run command <command> [timeout <duration>]" +
+	want := "usage: le qemu run command <command> [timeout <duration>]" +
 		" [share <path>]... [keep-alive] [| json | yaml | table]\n" +
 		"  boot a guest\n"
 	if page != want {
@@ -800,7 +800,7 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 	if got != nil {
 		t.Errorf("a help word at a keyword position ran the action with %#v", got)
 	}
-	if !strings.HasPrefix(page, "usage: le test qemu run") {
+	if !strings.HasPrefix(page, "usage: le qemu run") {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
@@ -836,7 +836,7 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 		if got != nil {
 			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
 		}
-		if !strings.HasPrefix(page, "usage: le test qemu run") {
+		if !strings.HasPrefix(page, "usage: le qemu run") {
 			t.Errorf("%s in a value slot printed %q", flag, page)
 		}
 	}

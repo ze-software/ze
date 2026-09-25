@@ -4,7 +4,7 @@ package commit
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // The prepared-commit payload renders itself. Text has a pointer receiver, so

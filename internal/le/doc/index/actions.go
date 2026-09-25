@@ -7,15 +7,15 @@
 // plan/spec-le-subject-first-command-tree.md).
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE.
+// internal/le/le/action. What stays here is the TABLE.
 
 package docindex
 
 import (
 	"errors"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

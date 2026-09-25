@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // TestAnswerForwardsWordsAndExitCode drives the real dispatcher over a probe

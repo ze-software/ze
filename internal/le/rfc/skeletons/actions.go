@@ -5,13 +5,13 @@
 // rfc skeletons report` selects one action out of the table below.
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE.
+// internal/le/le/action. What stays here is the TABLE.
 
 package rfcskeletons
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

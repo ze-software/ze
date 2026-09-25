@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // repoRoot answers this checkout, which is the only tree carrying the command

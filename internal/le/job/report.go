@@ -48,7 +48,7 @@ type Report struct {
 // line would add output that the shell half never wrote to every wrapped
 // recipe in the repository. The payload remains structured, so
 // `le job run ... | json` still returns the report. Therefore, this is a Prose
-// rendering with no text instead of a nil payload (internal/le/leroot, Prose).
+// rendering with no text instead of a nil payload (internal/le/le/root, Prose).
 //
 // A quiet run wrote that output to a file instead, so its reader has seen
 // nothing yet. The summary is then the whole of what reaches the terminal:

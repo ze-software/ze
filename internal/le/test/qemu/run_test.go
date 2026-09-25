@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // VALIDATES: qemu publishes the exact host and guest action population.

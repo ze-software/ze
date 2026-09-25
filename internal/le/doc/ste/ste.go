@@ -36,7 +36,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // The four writing surfaces INSIDE this repository. The website and the wiki

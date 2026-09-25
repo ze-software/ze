@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	repoinventory "github.com/ze-software/ze/internal/le/repo/inventory"
 )
 

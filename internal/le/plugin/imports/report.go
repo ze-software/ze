@@ -4,7 +4,7 @@
 //
 // Each answer carries one row set -- the generated files -- so `| json` feeds a
 // script and `| count` says how many the run compared. Each also renders ITSELF
-// as a native actionable verdict (internal/le/leroot, Prose).
+// as a native actionable verdict (internal/le/le/root, Prose).
 //
 // A file is named RELATIVE to the tree, which keeps the diagnostic reusable
 // across checkouts and keeps `| json` consistent with the default rendering

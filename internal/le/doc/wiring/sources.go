@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // wiringTarget is the one selected check implemented directly by this package.

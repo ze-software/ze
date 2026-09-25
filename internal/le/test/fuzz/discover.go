@@ -31,7 +31,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // The budget kept from the historic hand-list: a short stage suitable for

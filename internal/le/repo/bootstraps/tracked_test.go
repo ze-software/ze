@@ -16,14 +16,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 const registerGo = `package le
 
 import (
 	"os"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	_ "github.com/ze-software/ze/internal/le/alpha"
 	_ "github.com/ze-software/ze/internal/le/beta"
 )

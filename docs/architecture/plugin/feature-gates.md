@@ -43,7 +43,7 @@ answer, and `TestOnlyOneShellFileParsesTheFeatureManifest` refuses a third.
 
 | Consumer | Role | Mechanism |
 |----------|------|-----------|
-| `internal/le/gotoolchain` | Feature tags for native builds and tests | `repofeaturetags.DaemonTags` |
+| `internal/le/go/toolchain` | Feature tags for native builds and tests | `repofeaturetags.DaemonTags` |
 | `internal/test/runner` `TestBuildTags` | Tags for the functional-test daemon | `repofeaturetags.DaemonTags` |
 | `internal/le/plugin/imports` | Gated composition imports | `repofeaturetags.Gates` |
 | `internal/le/arch/tier` | Disable-able package import checks | `repofeaturetags.Gates` |

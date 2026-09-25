@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 type closureAction uint8

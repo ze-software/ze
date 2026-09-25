@@ -67,7 +67,7 @@ while the non-default `ze_le` build companion imports `internal/le/register.go`
 and exposes its inventory under `ze le`. Shipped builds do not enable `ze_le`.
 
 <!-- source: cmd/ze/ze_le_register.go -->
-<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->
+<!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
 ---
 

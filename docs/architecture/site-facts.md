@@ -93,7 +93,7 @@ nothing in that file says where the number came from.
 3. Write the result to a committed file, with a category and a source sentence
    per fact, so a reader can re-derive a number by hand.
 4. Register a `<area> update` action with `Writes: true` and a `<area> check`
-   action without it (`internal/le/leaction`).
+   action without it (`internal/le/le/action`).
 5. Warn on a dirty tree before writing.
 6. Add the check as a stage of `./le verify`, so it runs where every other
    generated-file gate runs.

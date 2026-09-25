@@ -9,7 +9,7 @@
 // registrations the daemon runs. That import is allowed in exactly this
 // direction (docs/architecture/core-design.md): le may link ze to
 // introspect it, ze never links le, and le never RUNS a product command
-// (internal/le/leroot/dispatch.go).
+// (internal/le/le/root/dispatch.go).
 //
 // The tool answers Commands (report.go) rather than printing one. That is what
 // lets `| json` feed a script and `| match show` keep one verb's rows, and it
@@ -33,7 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // dashboardPath is the one command reached through neither an RPC nor a

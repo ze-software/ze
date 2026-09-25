@@ -318,7 +318,7 @@ func leSTEAnswers(ctx context.Context) error {
 	// A value with no keyword before it is a GRAMMAR refusal, and every grammar
 	// refusal in le answers 2: leaction.Area.Answer reports the parse failure
 	// and returns 2, which its own test pins for {"run", "unknown"}
-	// (internal/le/leaction/leaction_test.go). 1 is reserved for a gate that ran
+	// (internal/le/le/action/leaction_test.go). 1 is reserved for a gate that ran
 	// and failed, which is the distinction the refusal above rests on too.
 	unknown := le("doc", "ste", "check", "docs/guide/quickstart.md")
 	if unknown.code != 2 || unknown.err == nil {

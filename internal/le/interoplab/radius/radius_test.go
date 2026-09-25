@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // bothShape is what an Access-Request would look like if the credential builder

@@ -2,12 +2,12 @@
 //
 // actions.go carries the TABLE, because the table is the only part of an area
 // that is about the Go version. The dispatch, the listing, the help line and the
-// two refusals live in internal/le/leaction.
+// two refusals live in internal/le/le/action.
 
 package goversionpin
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // area is the name this command is typed as.

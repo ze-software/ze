@@ -4,7 +4,7 @@
 //
 // actions.go is the TABLE, and the two exit conventions the area answers with.
 // Dispatch, the listing, the help line and the refusals live in
-// internal/le/leaction.
+// internal/le/le/action.
 //
 // The three codes stay apart: 0 for a tree that copies nothing, 1 for one that
 // does, and 2 for a run the gate could not make -- a registry that did not
@@ -21,8 +21,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 

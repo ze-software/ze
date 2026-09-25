@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 

@@ -41,7 +41,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/population"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"

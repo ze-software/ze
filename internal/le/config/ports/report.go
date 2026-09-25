@@ -6,7 +6,7 @@
 // The answer is the drift list plus the count of services it compared, which is
 // structured data: `| json` feeds a script, `| match port-mismatch` keeps one
 // reason. The report also renders ITSELF (Text), because the gate's page is
-// what a person reads here (internal/le/leroot, Prose).
+// what a person reads here (internal/le/le/root, Prose).
 
 package configports
 

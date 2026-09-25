@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // surfaceOnce builds the command surface once per test binary. Building it

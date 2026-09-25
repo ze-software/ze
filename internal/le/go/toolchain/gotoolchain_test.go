@@ -2,7 +2,7 @@
 // port corrected.
 //
 // VALIDATES: spec-le-is-a-ze-binary AC-11. For the same checkout, this package
-// derives the same argv and environment as internal/le/gotoolchain/gotoolchain.go.
+// derives the same argv and environment as internal/le/go/toolchain/gotoolchain.go.
 // PREVENTS: These tests prevent a test run against a SMALLER product than the
 // one that ships. The Python implementation returns an empty feature tuple for
 // an unreadable manifest and for a manifest that declares no ze_ tag. In both
@@ -351,7 +351,7 @@ func TestALanguageVersionGoDirectiveYieldsNoPin(t *testing.T) {
 // script runs before any Go binary exists, so it keeps its literal and this
 // test is what holds the pair together.
 func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
 		t.Fatalf("resolve repository root: %v", err)
 	}

@@ -8,7 +8,7 @@
 // `| count` says how many violations there are, and `| match root-not-allowlisted`
 // keeps one kind. The slice also renders ITSELF (Text), because a violation
 // list with a verdict under it is what a person reads here
-// (internal/le/leroot, Prose).
+// (internal/le/le/root, Prose).
 
 package cliownership
 

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // captureStderr runs fn with os.Stderr redirected, and answers what fn wrote.

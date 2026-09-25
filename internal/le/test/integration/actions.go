@@ -2,7 +2,7 @@
 // Overview: gates.go -- the table every row here is derived from
 //
 // actions.go defines this area's action table.
-// internal/le/leaction supplies the shared dispatch, listing, help line, and two refusals.
+// internal/le/le/action supplies the shared dispatch, listing, help line, and two refusals.
 // This file specifies the area's different behavior.
 //
 // This area has no aggregate run, and bare `le test integration` refuses one.
@@ -19,12 +19,12 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
 	interopradius "github.com/ze-software/ze/internal/le/interoplab/radius"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // table builds this invocation's action table. The toolchain is resolved once
@@ -118,7 +118,7 @@ func Answer(args []string) (any, int) {
 	}
 
 	// RunEveryAction returns the complete list instead of one problem per invocation.
-	// The caller still receives the first failed gate's exit code (internal/le/leaction, Sweep).
+	// The caller still receives the first failed gate's exit code (internal/le/le/action, Sweep).
 	return table(tc).AnswerOrSweep(args, leaction.RunEveryAction)
 }
 

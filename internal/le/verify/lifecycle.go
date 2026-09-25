@@ -487,7 +487,7 @@ func defeatedCode(current int, err error) int {
 // cache and answers the line that reports what it did.
 //
 // Without the link the toolchain override resolves GOCACHE to
-// <worktree>/cache/go-cache (internal/le/gotoolchain, GoCache and Overrides),
+// <worktree>/cache/go-cache (internal/le/go/toolchain, GoCache and Overrides),
 // so every run compiles from cold into a private cache, measured at 7.4 GiB on
 // 2026-09-03, and then deletes it unread. The link is an optimization and never
 // a correctness input, so a cache that cannot be linked is REPORTED and the run

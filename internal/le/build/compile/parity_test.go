@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 const (

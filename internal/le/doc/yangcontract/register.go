@@ -9,7 +9,7 @@ package docyangcontract
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 func init() {
@@ -34,7 +34,7 @@ func init() {
 	//
 	// The shape is per ROOT rather than per action: leroot.Run hands the engine
 	// the command NAME, so a per-action declaration would never be looked up
-	// (internal/le/leroot, Run).
+	// (internal/le/le/root, Run).
 	leroot.RegisterShape(area, command.ShapeDoc)
 
 	// The census counts all three gates as ported from here, in the same init()

@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/test-health.md -- one ledger shard per commit session
 // Related: ledger.go -- the row grammar every shard shares.
-// Related: internal/le/lepath/commitsession.go -- the identity a shard is named after.
+// Related: internal/le/le/path/commitsession.go -- the identity a shard is named after.
 package testweakened
 
 import (
@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // WeakenedDir is the per-session ledger directory. A session writes its rows

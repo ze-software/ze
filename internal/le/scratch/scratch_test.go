@@ -12,7 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // VALIDATES: tmp and cache targets use the producer's exact environment and checkout formulas.

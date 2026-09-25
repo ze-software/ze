@@ -6,14 +6,14 @@
 // retired Make target, the reason `--list` printed, and whether it WRITES.
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE, because the table is the only
+// internal/le/le/action. What stays here is the TABLE, because the table is the only
 // part of an area that is about the architecture lists.
 
 package repoarchmap
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

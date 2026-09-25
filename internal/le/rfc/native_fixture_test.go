@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestNativeImplementationFixture replaces the retired cross-runtime oracle.

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/test/harnesstool"
 	"github.com/ze-software/ze/internal/test/cli"
 	"github.com/ze-software/ze/internal/test/runner"

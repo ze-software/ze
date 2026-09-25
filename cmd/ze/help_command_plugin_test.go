@@ -11,7 +11,7 @@
 //
 // The file is tagged ze_bgp because bgp-rpki and bgp-adj-rib-in are behind that
 // gate. The normal unit run carries every feature tag
-// (internal/le/gotoolchain, Toolchain.TestTags).
+// (internal/le/go/toolchain, Toolchain.TestTags).
 
 package main
 

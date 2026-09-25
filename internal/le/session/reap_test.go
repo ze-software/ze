@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestReapDryAcceptsKeywordAndEnvironment(t *testing.T) {

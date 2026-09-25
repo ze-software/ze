@@ -41,7 +41,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // cleanTimeout bounds one `go clean -cache` run. The measurement on

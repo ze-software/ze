@@ -2,12 +2,12 @@
 // Overview: platformvet.go -- the shared runner for both cross-target actions
 //
 // actions.go owns the two gate rows and their sweep behavior. The dispatch,
-// listing, help line, and refusal text come from internal/le/leaction.
+// listing, help line, and refusal text come from internal/le/le/action.
 package govetplatforms
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 const area = "go vet-platforms"

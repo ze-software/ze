@@ -50,7 +50,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/go/versionpin"
 	_ "github.com/ze-software/ze/internal/le/go/vetplatforms"
 	_ "github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	_ "github.com/ze-software/ze/internal/le/mrt"
 	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/plugin/boundary"

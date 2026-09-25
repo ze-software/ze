@@ -13,7 +13,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 func walkLeGo(t *testing.T, visit func(rel string, body string)) {

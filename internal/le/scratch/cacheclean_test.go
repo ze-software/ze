@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // errWriterRace is what `go clean -cache` returns when a concurrent build

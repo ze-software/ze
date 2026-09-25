@@ -14,7 +14,7 @@
 // the selector.
 //
 // Tagged ze_vrrp because `show vrrp interface` is behind that gate. The normal
-// unit run carries every feature tag (internal/le/gotoolchain,
+// unit run carries every feature tag (internal/le/go/toolchain,
 // Toolchain.TestTags).
 
 package main

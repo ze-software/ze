@@ -14,10 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/test/integration"

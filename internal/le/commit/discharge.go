@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 	"github.com/ze-software/ze/internal/le/rfc"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // The four ways a debt row's obligation is met. Three are DERIVED from git on

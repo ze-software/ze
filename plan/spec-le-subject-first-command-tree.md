@@ -62,7 +62,7 @@ the main thread, not by this spec's implementation.
 
 ### The rename map (one declaration)
 
-The map is declared ONCE, in Go, in `internal/le/leroot` (see Key Design
+The map is declared ONCE, in Go, in `internal/le/le/root` (see Key Design
 Decisions). Phase 1 registers the command aliases from it, the Phase 2 report
 reads it, and the Phase 3 gate reads it. No other surface lists old names.
 
@@ -284,6 +284,20 @@ generated on demand (`internal/le/discoveryindex/sources.go`), so "stale" means
 the working-tree file differs from the rendering. A missing file is generated,
 as `Check` does today for `ai/DOCS-TO-CODE.md`.
 
+#### Shared-prefix library packages (owner rule, 2026-09-25)
+
+Folders under `internal/le` whose names share a start go under one parent.
+These library packages register no command, so `le/` is not a command
+namespace. Each package keeps its name, which already reads as area+member.
+
+| Old directory | New directory | Package name |
+|---------------|---------------|--------------|
+| `internal/le/gotoolchain` | `internal/le/go/toolchain` | `gotoolchain` |
+| `internal/le/leaction` | `internal/le/le/action` | `leaction` |
+| `internal/le/lepath` | `internal/le/le/path` | `lepath` |
+| `internal/le/leroot` | `internal/le/le/root` | `leroot` |
+| `internal/le/spec/specpath` | `internal/le/spec/path` | `specpath` |
+
 ### The harness under D-8 (owner decision, 2026-09-25)
 
 Every point below was read at the producer on 2026-09-25. The harness has 30
@@ -304,8 +318,8 @@ a daemon spawns (mocks, `engine-steps`, `record-plugin`, `peer`, `fixture`).
 |----------|-----------------|
 | Why the harness cannot link today | `registerRoot` (`internal/test/cli/dispatch.go`) calls `registry.MustRegisterRootHandler`, which panics on a duplicate. Root `bgp` is also registered by `internal/component/bgp/cli`, and a `ze_le` build links the ze roots. `TestLeRegistersOneRootAndNoToolRoots` (`internal/le/register_test.go`) also refuses any le command that is also a root |
 | What replaces it | one le package per harness command, at the directory `directoryFor` predicts: `internal/le/test/<name without hyphens>/register.go` (`test/radiusmock`, `test/rtrmock`, ...; the three wire suites and the scale test are the areas `test/wire` and `test/scale`, and the vpp stub is a member of `test/vpp`, see the D-8 amendment below). Each calls `leroot.Register` with `GroupSuite`, `leroot.RegisterShape` and `leroot.RegisterForwarding`. Its `Answer` calls the harness handler with the words after `test <name>` and answers the handler's exit code |
-| Why forwarding | `RegisterForwarding` (`internal/le/leroot/leroot.go`) makes the dispatcher hand a trailing help word to the program, so `le test bgp --help` prints the harness's own help. A forwarding area registers no action table and is exempt from `areasWithoutAnActionTable` (`internal/le/actions_test.go`). `internal/le/mrt` is the precedent |
-| Word count | `commandWordsMax = 2` (`internal/le/leroot/dispatch.go`): `test peer` is the two words, and every later word reaches the handler |
+| Why forwarding | `RegisterForwarding` (`internal/le/le/root/leroot.go`) makes the dispatcher hand a trailing help word to the program, so `le test bgp --help` prints the harness's own help. A forwarding area registers no action table and is exempt from `areasWithoutAnActionTable` (`internal/le/actions_test.go`). `internal/le/mrt` is the precedent |
+| Word count | `commandWordsMax = 2` (`internal/le/le/root/dispatch.go`): `test peer` is the two words, and every later word reaches the handler |
 | Where the handlers stay | in `internal/test/cli` and its packages. The unexported `cmd*` handlers become exported. `registerRoot`, `registerCIRoot` and the `init` of `register.go` are deleted, so no package under `internal/test` registers a global root. Each suite package declares its own `CIRunnerConfig` (name, test directory, description, detail, default parallelism) |
 | Shared glue | one library package with no `register.go` (for example `internal/le/test/harnesstool`) holds the adapter from a harness handler to a forwarding le area, so each per-command `register.go` is one call |
 | The ze binary | unchanged. A normal `ze` build imports no `internal/le` package (`docs/architecture/system-architecture.md`), and after D-8 `internal/test/cli` registers no root, so the ze roots are the same set before and after (AC-33) |
@@ -467,7 +481,7 @@ because G-2 asks that no tracked file name an old name.
   → Constraint: `MustRegister` does not filter on a `ze.` prefix, so `le.test.bin` registers. Lookup normalizes case and separators, so `LE_TEST_BIN` and `le.test.bin` are one variable.
   → Constraint: `Get(key)` resolves an alias to its canonical key, reads the canonical spelling, and reads the alias spelling ONLY when the CALLER passed the alias key. `warnDeprecated` fires on the canonical entry's `Deprecated` field. So an `Aliases` entry on `le.test.bin` does NOT make an environment that sets only `ZE_TEST_BIN` visible to `Get("le.test.bin")`. See Key Design Decisions.
 - [ ] `spec-le-command-namespaces` - the previous rename; closed 2026-09-24 as superseded by this spec, file removed
-  → Constraint: `commandWordsMax = 2` (`internal/le/leroot/dispatch.go`): a command is at most two words after `le`. Every new name here has two words or fewer, and `./le test harness bgp ...` resolves `test harness` and hands `bgp ...` to the tool.
+  → Constraint: `commandWordsMax = 2` (`internal/le/le/root/dispatch.go`): a command is at most two words after `le`. Every new name here has two words or fewer, and `./le test harness bgp ...` resolves `test harness` and hands `bgp ...` to the tool.
   → Constraint: `TestNoMemberShadowsItsNamespaceRootVerb` refuses a member whose name is a verb of its namespace root. Checked for this map: `verify` (worktree, current, reds, list) against `evidence`; `site` against `terminal-demo`; `rfc` against `skeletons`; `repo` (check, tree-check, generate, generated-check) against its nine members; `spec` (current, claim, release, state, review, wip, model) against citation, roadmap, status and journal. No clash.
   → Decision: this spec REVERSES three recorded decisions of that spec: "The test-* family is not split", "docvalid and docs-to-code are left alone", and AC-14 "every stage writes the same log file name". The owner's 2026-09-24 approval is the authority. `leNamespaceExempt` (`internal/le/cligrammar/cligrammar.go`) carries the test-* and go-* reasoning in its comment and becomes empty.
 - [ ] `plan/spec-le-builds-every-personality.md` - Status `skeleton`
@@ -486,8 +500,8 @@ because G-2 asks that no tracked file name an old name.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/leroot/leroot.go` - `Register(name, group, answer, meta)` records the group and registers a LocalData handler at `le <name>`. `RegisterActions` records the action table. A name is registered once.
-- [ ] `internal/le/leroot/dispatch.go` - `resolve` offers at most `commandWordsMax` (2) words to `registry.LookupLocalData`, and the longest match wins. `members` lists a namespace from `Commands()`. `Dispatch` answers a bare namespace token with its members and exit 1.
+- [ ] `internal/le/le/root/leroot.go` - `Register(name, group, answer, meta)` records the group and registers a LocalData handler at `le <name>`. `RegisterActions` records the action table. A name is registered once.
+- [ ] `internal/le/le/root/dispatch.go` - `resolve` offers at most `commandWordsMax` (2) words to `registry.LookupLocalData`, and the longest match wins. `members` lists a namespace from `Commands()`. `Dispatch` answers a bare namespace token with its members and exit 1.
 - [ ] `internal/le/register.go` - blank-imports every area once, then its own `init` registers the root `le`. Its `init` runs after the `init` of every imported package.
 - [ ] `internal/le/group_test.go` - `directoryFor` (a space is a level, a hyphen is removed), `TestEveryCommandIsFoundAtThePathItsNamePredicts`, `TestNoRegisteredLeCommandExceedsTwoWords`, `TestNoMemberShadowsItsNamespaceRootVerb`, `TestEveryCommandRegistersItsOwnAnswerShape`.
 - [ ] `internal/le/cligrammar/cligrammar.go` - feeder 4 scans registered roots from Go source against a `floor.Roots` count. Feeder 6 checks the hyphenated le names, with `leNamespaceExempt` holding test-* and go-extract/go-version.
@@ -516,9 +530,9 @@ because G-2 asks that no tracked file name an old name.
 - [ ] `internal/le/weekly/answer.go` - `channels` holds the publication channel name `ze-test`, which is not the binary.
 - [ ] `le` (root launcher) - `check_name`, `--name`, the platform fallback directory.
 - [ ] `internal/test/cli/register.go`, `dispatch.go` (2026-09-25) - 30 `registerRoot` tools and 24 `registerCIRoot` suites; `registerRoot` is the only `registry.MustRegisterRootHandler` call under `internal/test`
-- [ ] `internal/le/leroot/leroot.go` `RegisterForwarding`, `Forwards`; `internal/le/mrt/register.go` - the forwarding precedent
+- [ ] `internal/le/le/root/leroot.go` `RegisterForwarding`, `Forwards`; `internal/le/mrt/register.go` - the forwarding precedent
 - [ ] `internal/le/register_test.go` `TestLeRegistersOneRootAndNoToolRoots`; `internal/le/group_test.go` `registeringDirectories`; `internal/le/actions_test.go` (forwarding areas exempt from `areasWithoutAnActionTable`)
-- [ ] `internal/le/leroot/retired.go` `retiredRewrite` - rewrites only when `LookupCommand(best.Command)` is non-nil, so a row whose new words are a namespace (`test`) never rewrites today
+- [ ] `internal/le/le/root/retired.go` `retiredRewrite` - rewrites only when `LookupCommand(best.Command)` is non-nil, so a row whose new words are a namespace (`test`) never rewrites today
 - [ ] `internal/le/test/fixture/actions.go` and `internal/test/fixture/fixture.go` `Run`, `Register`, `refuseRepoRoot` - the two fixture producers (D-8 point 2)
 - [ ] `internal/test/harnessbin/harnessbin.go` - `Name`, `RetiredName`, the four harness keys, `TestBin`, `NoBuild`, `LinkRetired`; imported by 21 files
 - [ ] `internal/test/runner/runner.go` (`NewRunner`, `Build`, `setupBinShims`, `verifyPrebuilt`, `repositoryAnchoredBinary`, `testHelperBuildTags`), `runner_exec.go` (exec-head switch), `parsing.go` `resolveParseExec`
@@ -590,7 +604,7 @@ because G-2 asks that no tracked file name an old name.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An alias registered from the `init` of `internal/le/register.go` sees every new name, because that `init` runs after all blank imports | Go init order; `internal/le/register.go` already registers root `le` there | the alias of a name whose area has not registered misroutes | `TestEveryRetiredNameRunsItsNewCommand` over the full map | confirmed, moot (Phase 1a): no alias is registered. `leroot.Dispatch` reads the map through `retiredRewrite` (`internal/le/leroot/retired.go`) at call time, after every `init`, and rewrites only when the row's new command is registered, so `internal/le/register.go` needs no change |
+| A-1 | An alias registered from the `init` of `internal/le/register.go` sees every new name, because that `init` runs after all blank imports | Go init order; `internal/le/register.go` already registers root `le` there | the alias of a name whose area has not registered misroutes | `TestEveryRetiredNameRunsItsNewCommand` over the full map | confirmed, moot (Phase 1a): no alias is registered. `leroot.Dispatch` reads the map through `retiredRewrite` (`internal/le/le/root/retired.go`) at call time, after every `init`, and rewrites only when the row's new command is registered, so `internal/le/register.go` needs no change |
 | A-2 | A directory named `go` under `internal/le` builds. Only a package NAMED `go` is illegal, and no `register.go` lives at `internal/le/go` | Go spec: `go` is a keyword; directory names are free | the `go` family needs another directory | `go build ./internal/le/go/...` in Phase 1 | unvalidated |
 | A-3 | `internal/test/cli` cannot be imported into `internal/le` | root `bgp` is registered by `internal/component/bgp/cli/register.go` and by `internal/test/cli/register.go`; `MustRegisterRootHandler` panics on a duplicate (`internal/component/command/registry/registry.go`) | an in-process harness would be simpler | read of both registrations, 2026-09-24 | validated as stated, SUPERSEDED by D-8: the clash comes from the harness registering global roots (`registerRoot`, `internal/test/cli/dispatch.go`), the only root registration under `internal/test` (grep 2026-09-25); D-8 removes it, and the harness links into `le` |
 | A-9 | Once `registerRoot` is gone, linking `internal/test/cli` into a `ze_le` build registers no duplicate global name | grep 2026-09-25 of every `internal/test` package that `internal/test/cli` imports: the only global registrations are the roots in `dispatch.go` and the env key `ze.test.bgp.port` in `cmd_peer.go`, which no other package registers (`reactor_peers.go` only reads it by its constant) | le panics at init | `TestLeRegistersOneRootAndNoToolRoots` and a start of `bin/le` after Phase 1d | unvalidated |
@@ -635,7 +649,7 @@ because G-2 asks that no tracked file name an old name.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le <new words>` for every map row | → | the `Answer` of the moved area | `TestEveryNewNameResolvesToItsArea` in `internal/le/rename_test.go` |
-| `./le <old words>` in Phases 1 and 2 | → | the alias handler in `internal/le/leroot/retired.go` | `TestEveryRetiredNameRunsItsNewCommand` in `internal/le/leroot/retired_test.go` |
+| `./le <old words>` in Phases 1 and 2 | → | the alias handler in `internal/le/le/root/retired.go` | `TestEveryRetiredNameRunsItsNewCommand` in `internal/le/le/root/retired_test.go` |
 | ~~`./le test harness bgp --list`~~ SUPERSEDED by D-8 | → | ~~the exec of `bin/le-test` in `internal/le/test/harness`~~ | ~~`TestHarnessExecsLeTestWithTheTrailingArgv`~~ replaced by `TestEveryHarnessCommandForwards` |
 | ~~`ZE_TEST_BIN` or `LE_TEST_BIN` in a runner environment~~ SUPERSEDED by D-8 | → | ~~the resolver of `le.test.bin`~~ | ~~`TestHarnessVariablesReadBothNames`~~ replaced by `TestRunnerUsesItsOwnExecutable` |
 | `./le chaos run --help` | → | the `internal/chaos/orchestrator` CLI entry | `TestChaosRunReachesTheOrchestrator` in `internal/le/chaos/run/run_test.go` |
@@ -651,13 +665,13 @@ because G-2 asks that no tracked file name an old name.
 | `./le --name test`, `./le --name test-linux-amd64` | → | `check_name` in the launcher `le` | `TestLeLauncherRefusesHarnessNames` in `cmd/ze/root_launcher_test.go` (AC-28; Phases 1 and 2 only, deleted in Phase 3 by D-8) |
 | `./le doc index check`, `./le doc index write` | → | `internal/le/doc/index` | `TestDocIndexCheckCoversBothFilesAndAnchors` in `internal/le/doc/index/index_test.go` (AC-29) |
 | ~~a harness build in the Phase 3 tree~~ SUPERSEDED by D-8 (AC-30 superseded by AC-43) | → | ~~`TestBuildTags` and `cmd/ze/le_test_register.go`~~ | ~~`TestHarnessTagIsLeTest`~~ replaced by `TestRetiredCommandSweepFindsTheHarnessTag` |
-| `./le go`, `./le test`, `./le spec` | → | `leroot.Dispatch` answering a bare namespace token | `TestBareNamespaceTokenListsItsMembers` in `internal/le/leroot/namespace_test.go` (AC-31, existing) |
+| `./le go`, `./le test`, `./le spec` | → | `leroot.Dispatch` answering a bare namespace token | `TestBareNamespaceTokenListsItsMembers` in `internal/le/le/root/namespace_test.go` (AC-31, existing) |
 | `./le test <name> <args>` for each of the 54 harness names | → | the forwarding area in `internal/le/test/<dir>`, then the harness handler in `internal/test/cli` | `TestEveryHarnessCommandForwards` in `internal/le/harness_test.go` (AC-32, AC-34) |
 | `./le test bgp --help` | → | `RegisterForwarding`, then the harness's own help | `TestEveryHarnessCommandForwards` in `internal/le/harness_test.go` (AC-32) |
 | a `ze_le` build that links `internal/test/cli` | → | `registry.LookupRoot` over every harness name | `TestLeRegistersOneRootAndNoToolRoots` in `internal/le/register_test.go` (existing, AC-33) |
 | a `ze_core ze_distro` build of `ze` | → | the root registry | `TestZeRootsUnchangedByTheHarness` in `cmd/ze/dispatch_test.go` (AC-33) |
 | `./le test fixture ipsec/error-notify-no-loop`, `./le test fixture dynamic` | → | `fixture.Run` in `internal/test/fixture` | `TestFixtureCarriesTheStreamDrivers` in `internal/test/fixture/fixture_test.go` (AC-35) |
-| `./le test harness peer <args>` in Phases 1 and 2 | → | `retiredRewrite` in `internal/le/leroot/retired.go` | `TestRetiredHarnessWordsReachTheToolArea` in `internal/le/leroot/retired_test.go` (AC-36) |
+| `./le test harness peer <args>` in Phases 1 and 2 | → | `retiredRewrite` in `internal/le/le/root/retired.go` | `TestRetiredHarnessWordsReachTheToolArea` in `internal/le/le/root/retired_test.go` (AC-36) |
 | a `.ci` step `exec=le test peer ...`, and the retired heads | → | the exec-head resolution in `internal/test/runner/runner_exec.go` and `parsing.go` | `TestRunnerUsesItsOwnExecutable`, `TestRunnerShimsResolveLeToItself` in `internal/test/runner/harness_env_test.go` (AC-37) |
 | `./le test functional <suite>` | → | the binary set in `internal/le/test/functional/binaries.go` | `TestBinarySetBuildsLeNotAHarness` in `internal/le/test/functional/binaries_test.go` (AC-38) |
 | a BGP interop scenario that runs `interop-bgp process` | → | the linuxle build in `internal/le/interoplab/bgp/run.go`, `prepare.go`, `test/interop/Dockerfile.ze` | `TestInteropBuildsLinuxLe` in `internal/le/interoplab/bgp/run_test.go` and one interop scenario run (AC-39) |
@@ -722,9 +736,9 @@ because G-2 asks that no tracked file name an old name.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestEveryNewNameResolvesToItsArea` | `internal/le/rename_test.go` | AC-1, AC-2: every new name of every map row is registered and resolves | |
-| `TestEveryRetiredNameRunsItsNewCommand` | `internal/le/leroot/retired_test.go` | AC-3, AC-4, AC-5: the stderr line, the same payload under `| json`, the same code | |
-| `TestRetiredNamesAreNotInTheManifest` | `internal/le/leroot/retired_test.go` | AC-2 | |
-| `TestRenameMapRowsAreDisjoint` | `internal/le/leroot/retired_test.go` | no old words are also a new name; no two rows share old words | |
+| `TestEveryRetiredNameRunsItsNewCommand` | `internal/le/le/root/retired_test.go` | AC-3, AC-4, AC-5: the stderr line, the same payload under `| json`, the same code | |
+| `TestRetiredNamesAreNotInTheManifest` | `internal/le/le/root/retired_test.go` | AC-2 | |
+| `TestRenameMapRowsAreDisjoint` | `internal/le/le/root/retired_test.go` | no old words are also a new name; no two rows share old words | |
 | `TestEveryCommandIsFoundAtThePathItsNamePredicts` (updated) | `internal/le/group_test.go` | AC-6: aliases are not commands | |
 | SUPERSEDED by D-8: `TestHarnessExecsLeTestWithTheTrailingArgv` | `internal/le/test/harness/harness_test.go` | AC-7 and the exit code passthrough | |
 | SUPERSEDED by D-8: `TestHarnessBuildUsesFeatureTags` | `internal/le/test/harness/harness_test.go` | AC-7: tags from `featuretags` | |
@@ -745,12 +759,12 @@ because G-2 asks that no tracked file name an old name.
 | `TestLeLauncherRefusesHarnessNames` | `cmd/ze/root_launcher_test.go` | AC-28: `test` and `test-linux-amd64` exit 2 and name the artifact; a valid other name still builds | |
 | `TestDocIndexCheckCoversBothFilesAndAnchors` | `internal/le/doc/index/index_test.go` | AC-29: a stale `ai/DOCS-TO-CODE.md`, a stale `ai/CODE-TO-DOCS.md` and an unresolved anchor each fail `check`; `write` regenerates both files | |
 | SUPERSEDED by D-8: `TestHarnessTagIsLeTest` | `internal/test/runner/runner_test.go` | AC-30: `TestBuildTags` starts with `le_test` and holds no `ze_test` | |
-| `TestBareNamespaceTokenListsItsMembers` (existing, updated) | `internal/le/leroot/namespace_test.go` | AC-31: members listed with descriptions, exit 0 (changed from 1); an unknown first word answers `unknown command` and exit 1 | |
+| `TestBareNamespaceTokenListsItsMembers` (existing, updated) | `internal/le/le/root/namespace_test.go` | AC-31: members listed with descriptions, exit 0 (changed from 1); an unknown first word answers `unknown command` and exit 1 | |
 | `TestRetiredCommandSweepHonorsDeclaredExceptions` (extended) | `internal/le/doc/check/retired_test.go` | AC-15, AC-16: `zetest` and the environment spelling `ze_test_bgp_port` are not matches of the tag `ze_test` | |
 | `TestEveryHarnessCommandForwards` | `internal/le/harness_test.go` | AC-32, AC-34: every harness name resolves to a forwarding area at its predicted directory; a stand-in handler receives the trailing words and its exit code comes back; a trailing help word reaches the handler; the bare `test` listing holds every name | |
 | `TestZeRootsUnchangedByTheHarness` | `cmd/ze/dispatch_test.go` | AC-33: the root set of a `ze` build holds no harness name and equals the recorded set | |
 | `TestFixtureCarriesTheStreamDrivers` | `internal/test/fixture/fixture_test.go` | AC-35: `dynamic` and `watchdog` are registered drivers with the lines and pauses of `internal/le/test/fixture/actions_test.go`, moved; the bare listing holds both | |
-| `TestRetiredHarnessWordsReachTheToolArea` | `internal/le/leroot/retired_test.go` | AC-36: `test harness peer x` rewrites to `test peer x` with the stderr line; `test harness nosuch` is not rewritten | |
+| `TestRetiredHarnessWordsReachTheToolArea` | `internal/le/le/root/retired_test.go` | AC-36: `test harness peer x` rewrites to `test peer x` with the stderr line; `test harness nosuch` is not rewritten | |
 | `TestRunnerUsesItsOwnExecutable` | `internal/test/runner/harness_env_test.go` | AC-37: exec heads `le`, the retired harness heads and `ze-peer` resolve to the runner's executable with the inserted words, in run and parse steps; no harness is built | |
 | `TestRunnerShimsResolveLeToItself` | `internal/test/runner/harness_env_test.go` | AC-37: the shim directory holds `le` linked to the runner's executable and the retired shell shims; the child environment has no `ZE_LE_BUILD_NAME`; `le test <harness area>` runs in the work directory | |
 | `TestBinarySetBuildsLeNotAHarness` | `internal/le/test/functional/binaries_test.go` | AC-38 | |
@@ -779,7 +793,7 @@ because G-2 asks that no tracked file name an old name.
 N-A: tooling. The interop suites run as regression proof that the harness rename reaches the container (AC-8).
 
 ## Files to Modify
-- `internal/le/leroot/dispatch.go`, `leroot.go` - the alias dispatch entry; aliases hidden from `Commands()`; `Dispatch` answers a bare namespace token with exit 0 (AC-31)
+- `internal/le/le/root/dispatch.go`, `leroot.go` - the alias dispatch entry; aliases hidden from `Commands()`; `Dispatch` answers a bare namespace token with exit 0 (AC-31)
 - `internal/le/register.go` - new import paths; alias registration after all areas
 - every package in the rename map - moved to its new directory, registration name changed
 - `internal/le/verify/engine/stages.go`, `run.go` - stage names; the `stageLogPath` comment that pins the old file name
@@ -815,13 +829,13 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 - `.ci` files under `test/` that exec `ze-test` or `ze-chaos` - Phase 2
 - `ai/INSTRUCTIONS.md` (canonical for `AGENTS.md`), `ai/INDEX.md`, `ai/rules/*.md`, `ai/rules/points/**`, `ai/skills/*.md` (canonical for `.claude/skills`), `ai/agents/*`, `.claude/rules/*.md` - Phase 2
 - `docs/**` that names an old command, program or variable - in the commit that moves the family where the page describes it, else Phase 2
-- D-8 (Phase 1d): `internal/test/cli/register.go` and `dispatch.go` (`registerRoot`, `registerCIRoot` deleted; the `cmd*` handlers exported); `internal/test/fixture/fixture.go` (the `dynamic` and `watchdog` drivers registered); `internal/le/test/fixture/*` (becomes the forwarding registration of the harness `fixture`); `internal/test/runner/runner.go`, `runner_exec.go`, `parsing.go`, `failure_group.go` (own-executable resolution, shims, `ZE_LE_BUILD_NAME` dropped, no harness build, `le.test.no.build` registered here); `internal/test/cli/cmd_bgp.go`, `cmd_web.go`; `internal/le/test/functional/binaries.go`, `suites.go`, `exabgp.go`, `run.go`; `internal/le/test/qemu/run.go`, `netns_linux.go`, `guest_linux.go`, `alltests.go`, `run_exec.go`; `internal/le/test/stressrepro/run.go`, `process.go`; `internal/le/test/integration/stress.go`, `stressbird.go`; `internal/le/test/deployment/vppevidence.go`, `l2tpscale.go`; `internal/le/site/terminaldemo/actions.go`, `scenarios*.go`, `validate_runtime.go`; `internal/le/interoplab/bgp/run.go`, `names.go`, `prepare.go`; `test/interop/Dockerfile.ze`, `.gitignore`, `.dockerignore`; `internal/le/hookruntime/bash.go`; `internal/le/leroot/retired.go` (rows and the resolve check of `retiredRewrite`); `internal/le/doc/check/retired.go`; `internal/le/repo/compiles/matrix.go`, `internal/le/go/lint/matrix.go`, `internal/le/cli/ownership/commandownership.go`; `internal/le/register.go` (the new imports); `.github/workflows/qemu-nightly.yml`; `internal/test/fixture/ui_fixture_le_evidence_vpp_answers.go` and the fixtures that exec the harness
+- D-8 (Phase 1d): `internal/test/cli/register.go` and `dispatch.go` (`registerRoot`, `registerCIRoot` deleted; the `cmd*` handlers exported); `internal/test/fixture/fixture.go` (the `dynamic` and `watchdog` drivers registered); `internal/le/test/fixture/*` (becomes the forwarding registration of the harness `fixture`); `internal/test/runner/runner.go`, `runner_exec.go`, `parsing.go`, `failure_group.go` (own-executable resolution, shims, `ZE_LE_BUILD_NAME` dropped, no harness build, `le.test.no.build` registered here); `internal/test/cli/cmd_bgp.go`, `cmd_web.go`; `internal/le/test/functional/binaries.go`, `suites.go`, `exabgp.go`, `run.go`; `internal/le/test/qemu/run.go`, `netns_linux.go`, `guest_linux.go`, `alltests.go`, `run_exec.go`; `internal/le/test/stressrepro/run.go`, `process.go`; `internal/le/test/integration/stress.go`, `stressbird.go`; `internal/le/test/deployment/vppevidence.go`, `l2tpscale.go`; `internal/le/site/terminaldemo/actions.go`, `scenarios*.go`, `validate_runtime.go`; `internal/le/interoplab/bgp/run.go`, `names.go`, `prepare.go`; `test/interop/Dockerfile.ze`, `.gitignore`, `.dockerignore`; `internal/le/hookruntime/bash.go`; `internal/le/le/root/retired.go` (rows and the resolve check of `retiredRewrite`); `internal/le/doc/check/retired.go`; `internal/le/repo/compiles/matrix.go`, `internal/le/go/lint/matrix.go`, `internal/le/cli/ownership/commandownership.go`; `internal/le/register.go` (the new imports); `.github/workflows/qemu-nightly.yml`; `internal/test/fixture/ui_fixture_le_evidence_vpp_answers.go` and the fixtures that exec the harness
 - D-8 pages, in the same commit as the code: `docs/architecture/testing/ci-format.md`, `runner-architecture.md`, `interop.md`, `qemu-integration.md`, `docs/functional-tests.md`, `docs/architecture/system-architecture.md` "Build personalities" (no harness personality), `docs/architecture/config/environment.md` (the dropped variables), `ai/INDEX.md` "Dev Tools", `ai/INSTRUCTIONS.md` Programs table
 - D-8 (Phase 3): `cmd/ze/ze_test_register.go` deleted; `cmd/ze/main.go` tag comment; the runner's retired heads and shims; the retired variable entries; `check_name` in the launcher `le` and `cmd/ze/root_launcher_test.go`
 
 ## Files to Create
-- `internal/le/leroot/retired.go` - the rename map and the alias handler
-- `internal/le/leroot/retired_test.go`
+- `internal/le/le/root/retired.go` - the rename map and the alias handler
+- `internal/le/le/root/retired_test.go`
 - `internal/le/rename_test.go`
 - `internal/le/test/harness/register.go`, `harness.go`, `harness_test.go`
 - `internal/le/chaos/run/register.go`, `run_test.go`
@@ -840,7 +854,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 | YANG schema (new RPCs/config) | N-A | le commands are LocalData handlers, not YANG RPCs |
 | YANG validation constraints | N-A | no YANG |
 | YANG custom validators | N-A | no YANG |
-| CLI commands/flags | Yes | every package in the rename map; `internal/le/leroot/retired.go` |
+| CLI commands/flags | Yes | every package in the rename map; `internal/le/le/root/retired.go` |
 | CLI grammar (keyword before value) | Yes | subject-first names; `./le cli grammar` feeder 6 with `leNamespaceExempt` empty |
 | Editor autocomplete | N-A | le has no editor completion |
 | Functional test for new RPC/API | Yes | `internal/test/fixture/ui_fixture_le_subject_first_dispatch.go`; the edited `.ci` files |
@@ -876,14 +890,14 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 |----------|--------|
 | Where does an agent look first? | `ai/INDEX.md` "Dev Tools", which states subject-first naming and names `./le '|' json` as the inventory |
 | What rule prevents regression? | `ai/INDEX.md` "Add a development tool" step 1 (subject-first; a space is a directory level) and `TestEveryCommandIsFoundAtThePathItsNamePredicts` |
-| What registry prevents drift? | the le command registry (the manifest); the rename map in `internal/le/leroot/retired.go` for old names |
+| What registry prevents drift? | the le command registry (the manifest); the rename map in `internal/le/le/root/retired.go` for old names |
 | What verification proves it? | `./le doc check retired-commands` as a full-mode verify stage; `./le cli grammar` |
 
 ## Implementation Steps
 
 1. **Phase 1a: Wiring** -- the map, the alias handler, the retired-name report
    - Tests: `TestEveryRetiredNameRunsItsNewCommand`, `TestRetiredNamesAreNotInTheManifest`, `TestRenameMapRowsAreDisjoint`, `TestRetiredCommandSweepFindsAnInjectedName`
-   - Files: `internal/le/leroot/retired.go`, `internal/le/register.go`, `internal/le/doc/check/retired.go`
+   - Files: `internal/le/le/root/retired.go`, `internal/le/register.go`, `internal/le/doc/check/retired.go`
    - Verify: an old name with no new registration fails its test by name
 2. **Phase 1b: Move one family at a time** -- `repo`, `arch`, `cli`, `config`, `doc`, `web`, `ai`, `rfc`, `spec`, `verify`, `go`, `site`, `data`, `build`, `test`, `chaos`. For each family: move the packages, change the registered names, update the blank imports and the stage table, and edit the pages that describe the family in the same commit
    - Tests: `TestEveryNewNameResolvesToItsArea`, `TestEveryCommandIsFoundAtThePathItsNamePredicts`, the tests of the moved packages
@@ -950,7 +964,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The rename map is a Go table in `internal/le/leroot/retired.go`: rows of old words to new words, program names, file names and variable keys | a data file; aliases declared in each package | one declaration read by the alias layer, the report and the gate (`ai/rules/principles.md`); `leroot` already owns name resolution; a per-package alias scatters the list the gate needs |
+| The rename map is a Go table in `internal/le/le/root/retired.go`: rows of old words to new words, program names, file names and variable keys | a data file; aliases declared in each package | one declaration read by the alias layer, the report and the gate (`ai/rules/principles.md`); `leroot` already owns name resolution; a per-package alias scatters the list the gate needs |
 | An alias rewrites leading words and dispatches again | register each old name with the new handler | re-dispatch handles renames, merges (`verify lock` to `job`) and verb splits (`build-artifacts`) with one mechanism, and cannot drift from the group, actions or shape of the new command |
 | Aliases are hidden from `Commands()` and the manifest | list them with a "renamed" description | the help screen then teaches only the new names, and the directory and floor tests see only real commands |
 | An alias prints one stderr line | silent aliases | the line is how Phase 2 finds callers that a text search cannot see (Go argv slices, CI logs) |

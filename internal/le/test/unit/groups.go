@@ -12,7 +12,7 @@ package testunit
 import (
 	"runtime"
 
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // Area is the root command that owns the six groups.

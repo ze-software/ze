@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // TestChaosRunReachesTheOrchestrator drives `le chaos run --config-only` through

@@ -3,7 +3,7 @@
 // Related: report.go -- what the verb answers
 //
 // actions.go defines the action table.
-// internal/le/leaction supplies the shared dispatch, listing, help line, and every refusal.
+// internal/le/le/action supplies the shared dispatch, listing, help line, and every refusal.
 //
 // This area has one verb with a keyword before its value.
 // `le worktree update` updates the current checkout.
@@ -23,8 +23,8 @@ import (
 	"errors"
 	"os"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // errUsage is what a keyword this verb does not take is refused with.

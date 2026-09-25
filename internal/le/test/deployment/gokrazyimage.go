@@ -29,7 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // ZePackage is the Go package gokrazy is asked to put in the image. It is the

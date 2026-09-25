@@ -12,7 +12,7 @@
 // migration census.
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction. What stays here is the TABLE, because the table is the only
+// internal/le/le/action. What stays here is the TABLE, because the table is the only
 // part of an area that is about the rule corpus.
 //
 // The table contains the eleven `ze-rules-*` gates and one hook-facing action.
@@ -26,8 +26,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )

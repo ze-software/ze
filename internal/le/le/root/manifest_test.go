@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // manifestProbeRoots is a fixed command set: one command in each of two groups,

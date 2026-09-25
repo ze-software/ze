@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )

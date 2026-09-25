@@ -3,7 +3,7 @@
 // Related: bench.go -- the three verbs that execute a benchmark
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
-// refusals are internal/le/leaction, which every ported area shares.
+// refusals are internal/le/le/action, which every ported area shares.
 //
 // The area is perf. Two verbs read the checkout and answer at once, three run
 // the benchmark chain in bench.go, and three run the benchmark program in
@@ -13,8 +13,8 @@
 package perf
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 	perfcli "github.com/ze-software/ze/internal/perf/cli"
 )
 

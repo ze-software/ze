@@ -34,7 +34,7 @@ func TestRootFindsTheCheckoutFromInsideIt(t *testing.T) {
 	}
 }
 
-// TestRootPrefersTheEnvironment pins the contract internal/le/lepath/lepath.go states:
+// TestRootPrefersTheEnvironment pins the contract internal/le/le/path/lepath.go states:
 // ZE_REPO_ROOT wins, because the environment knows about a container mount, a
 // worktree or a fixture that the filesystem walk cannot see.
 func TestRootPrefersTheEnvironment(t *testing.T) {

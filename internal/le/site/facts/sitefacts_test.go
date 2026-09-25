@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // fixtureModule is the go.mod every fixture carries, because the derivation

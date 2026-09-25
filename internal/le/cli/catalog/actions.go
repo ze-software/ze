@@ -5,7 +5,7 @@
 // keyword position.
 package clicatalog
 
-import "github.com/ze-software/ze/internal/le/leaction"
+import "github.com/ze-software/ze/internal/le/le/action"
 
 const area = "cli catalog"
 

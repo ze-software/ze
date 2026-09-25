@@ -7,7 +7,7 @@
 // wrapping one: `| json` renders the array the script's --json rendered, and
 // `| count` says how many. Each slice also renders ITSELF (Text), because a
 // violation list with the remedy under it is what a person reads here
-// (internal/le/leroot, Prose).
+// (internal/le/le/root, Prose).
 
 package configcoercion
 

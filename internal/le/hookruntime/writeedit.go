@@ -15,8 +15,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
-	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/spec/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 

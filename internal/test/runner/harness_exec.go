@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // The exec heads the runner answers with its own executable. Every harness

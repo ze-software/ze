@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/grammar"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // writeTree writes a tree from a path-to-body map and answers its root.

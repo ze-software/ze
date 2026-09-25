@@ -350,7 +350,7 @@ func (l List) Text() string {
 //
 // The grammar is rendered from the LISTING rather than from the action table,
 // so the dispatcher renders the same two lines from the listing an area
-// registered, without calling that area's handler (internal/le/leroot).
+// registered, without calling that area's handler (internal/le/le/root).
 func (l List) UsageText(verb string) (string, bool) {
 	for _, row := range l.Actions {
 		if row.Verb != verb {
@@ -404,7 +404,7 @@ func (l List) UsageText(verb string) (string, bool) {
 //
 // The dispatcher asks it before it renders usage. A help word in a value slot
 // then reaches the handler, and the work the operator asked for runs
-// (internal/le/leroot).
+// (internal/le/le/root).
 func (l List) TrailingWordIsValue(args []string) bool {
 	if len(args) == 0 {
 		return false
@@ -727,7 +727,7 @@ const (
 	// findings from a checker just shown to be broken.
 	StopAtFirstFailure SweepPolicy = iota
 	// RunEveryAction runs the whole selection and names every failure. It is
-	// what internal/le/leaction/leaction.go does, because the point of a sweep is to hand
+	// what internal/le/le/action/leaction.go does, because the point of a sweep is to hand
 	// back the whole list rather than one problem per invocation.
 	RunEveryAction
 )

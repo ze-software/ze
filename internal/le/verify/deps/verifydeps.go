@@ -25,7 +25,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/go/toolchain"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 	"github.com/ze-software/ze/internal/perf"

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // R-1 (spec-le-is-a-ze-binary): the tests these replace drove a COMPILED

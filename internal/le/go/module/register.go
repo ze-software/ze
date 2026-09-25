@@ -4,7 +4,7 @@ package gomodule
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // Both reports render themselves. Text has a pointer receiver, so each action

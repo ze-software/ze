@@ -8,7 +8,7 @@ package testinteropbgp
 import (
 	"github.com/ze-software/ze/internal/component/command"
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 	"github.com/ze-software/ze/internal/le/test/harnesstool"
 )
 

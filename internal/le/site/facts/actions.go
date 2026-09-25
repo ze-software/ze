@@ -7,7 +7,7 @@
 // in silence.
 //
 // The dispatch, the listing, the help line and the two refusals live in
-// internal/le/leaction, which every tool package shares. What stays here is the
+// internal/le/le/action, which every tool package shares. What stays here is the
 // TABLE, because the table is the only part of an area that is about the
 // facts the website publishes.
 //
@@ -17,8 +17,8 @@ package sitefacts
 
 import (
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/leaction"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as.
@@ -26,7 +26,7 @@ const area = "site facts"
 
 // actions is the whole command surface. Each action carries its retired target
 // identity for the migration census, and leaction derives the native verb
-// (internal/le/leaction, Area.verbOf).
+// (internal/le/le/action, Area.verbOf).
 var actions = leaction.New(area,
 	leaction.Action{Verb: "update", Why: "derive the published numbers about this repository and write website/data/repo-facts.json, the file the site build reads instead of walking this tree",
 		Writes: true,

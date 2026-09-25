@@ -18,7 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
-	"github.com/ze-software/ze/internal/le/spec/specpath"
+	"github.com/ze-software/ze/internal/le/spec/path"
 )
 
 const baselineRel = "internal/le/doc/check/testdata/doc_citation_baseline.txt"

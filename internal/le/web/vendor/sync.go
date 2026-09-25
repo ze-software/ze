@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // consumerCopyMode is the permission a consumer copy is written with. The copies

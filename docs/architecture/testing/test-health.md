@@ -134,7 +134,7 @@ The ledger is a directory, and each session writes one file in it:
 `test/weakened/<session>.md`, where `<session>` is the eight hex characters
 `./le commit session` prints. That is the same identity that names your commit
 script, your commit message and your verification-debt shard, and
-`internal/le/lepath.CommitSession` is the only thing that derives it.
+`internal/le/le/path.CommitSession` is the only thing that derives it.
 
 Two authors therefore never resolve to one path, so neither can replace the
 other's rows. Assembling the population is the GATE's job: the commit gate reads

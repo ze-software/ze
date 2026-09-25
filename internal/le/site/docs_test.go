@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestDocsDestinationPrefersAnExactMappingOverAPrefix pins the ORDER the two

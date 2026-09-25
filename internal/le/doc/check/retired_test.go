@@ -118,10 +118,10 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 	// that is too narrow making Phase 2 rewrite history.
 	const line = "./le test-unit all\n"
 	files := map[string]string{
-		"plan/spec-other.md":                  line,
-		"internal/le/leroot/retired_extra.go": line,
+		"plan/spec-other.md":                   line,
+		"internal/le/le/root/retired_extra.go": line,
 	}
-	skipped := []string{"internal/le/leroot/retired_extra.go"}
+	skipped := []string{"internal/le/le/root/retired_extra.go"}
 	for _, record := range retiredRecords {
 		path := record.path
 		if strings.HasSuffix(path, "/") {
@@ -284,7 +284,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"docs/architecture/testing/qemu-integration.md": "nft list table inet ze_test\n",
 		"docs/metrics.md":                               "ze_chaos_peers_total\n//go:build zetest\nZE_TEST_BGP_PORT=1790 ze_test_bgp_port\nwhile tier holds\n./le test-unitx\n",
 		"docs/elsewhere.md":                             "exec=ze-test bgp\n",
-		"internal/le/leroot/retired.go":                 "{Retired: \"test-unit\"} ze-chaos ze_test\n",
+		"internal/le/le/root/retired.go":                "{Retired: \"test-unit\"} ze-chaos ze_test\n",
 		"vendor/example.com/x/ze_test.txt":              "ze-chaos ze_test\n",
 	})
 
@@ -297,7 +297,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"internal/component/firewall/validate_test.go",
 		"docs/architecture/testing/qemu-integration.md",
 		"docs/metrics.md",
-		"internal/le/leroot/retired.go",
+		"internal/le/le/root/retired.go",
 		"vendor/example.com/x/ze_test.txt",
 	} {
 		if found := retiredLinesOf(report, file); len(found) != 0 {

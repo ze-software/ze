@@ -1,14 +1,14 @@
 // Design: docs/architecture/core-design.md -- the port-defaults area, as one command
 //
 // actions.go is the Python area, ported. The dispatch, the listing, the help
-// line and the two refusals live in internal/le/leaction. What stays here is the
+// line and the two refusals live in internal/le/le/action. What stays here is the
 // TABLE, because the table is the only part of an area that is about listener
 // port defaults.
 
 package configports
 
 import (
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes

@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // selftestCase is one synthetic comparison and what it must answer.

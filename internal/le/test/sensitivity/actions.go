@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/test-health.md -- the test-sensitivity area, as one command
 //
 // actions.go is the Python area, ported. The dispatch, the listing, the help
-// line and the two refusals live in internal/le/leaction. What stays here is the
+// line and the two refusals live in internal/le/le/action. What stays here is the
 // TABLE, because the table is the only part of an area that is about tests that
 // cannot go red.
 //
@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/le/le/action"
 )
 
 // area is the name this command is typed as, and the prefix leaction removes
