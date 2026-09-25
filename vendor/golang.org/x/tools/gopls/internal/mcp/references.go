@@ -62,7 +62,7 @@ func formatReferences(ctx context.Context, snapshot *cache.Snapshot, refs []prot
 		} else {
 			continue
 		}
-		fmt.Fprintf(&builder, "The reference is located on line %v, which has content `%s`\n", r.Range.Start.Line+1, lineContent)
+		fmt.Fprintf(&builder, "The reference is located on line %v, which has content `%s`\n", r.Range.Start.Line, lineContent)
 		builder.WriteString("\n")
 	}
 	return textResult(builder.String()), nil

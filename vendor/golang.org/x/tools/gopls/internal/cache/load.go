@@ -243,7 +243,7 @@ func (s *Snapshot) load(ctx context.Context, allowNetwork AllowNetwork, scopes .
 			continue
 		}
 		// Skip test main packages.
-		if isTestMain(pkg) {
+		if isTestMain(pkg, s.view.folder.Env.GOCACHE) {
 			continue
 		}
 		// Skip filtered packages. They may be added anyway if they're
@@ -452,13 +452,6 @@ func buildMetadata(updates map[PackageID]*metadata.Package, loadDir string, stan
 		for _, filename := range src {
 			*dst = append(*dst, protocol.URIFromPath(filename))
 		}
-	}
-	// Copy SFiles to AsmFiles.
-	for _, filename := range pkg.OtherFiles {
-		if !strings.HasSuffix(filename, ".s") {
-			continue
-		}
-		mp.AsmFiles = append(mp.AsmFiles, protocol.URIFromPath(filename))
 	}
 	copyURIs(&mp.CompiledGoFiles, pkg.CompiledGoFiles)
 	copyURIs(&mp.GoFiles, pkg.GoFiles)
@@ -808,31 +801,21 @@ checkURIs:
 	return true
 }
 
-func isTestMain(pkg *packages.Package) bool {
+func isTestMain(pkg *packages.Package, gocache string) bool {
 	// Test mains must have an import path that ends with ".test".
 	if !strings.HasSuffix(pkg.PkgPath, ".test") {
 		return false
 	}
-	// Real package paths may also end in ".test", so keep checking the
-	// synthetic test main shape below.
+	// Test main packages are always named "main".
 	if pkg.Name != "main" {
 		return false
 	}
-	if len(pkg.GoFiles) == 0 {
+	// Test mains always have exactly one GoFile that is in the build cache.
+	if len(pkg.GoFiles) > 1 {
 		return false
 	}
-	if pkg.Dir == "" {
+	if !pathutil.InDir(gocache, pkg.GoFiles[0]) {
 		return false
-	}
-	// A synthetic test main package has the Dir of the package under test,
-	// but its generated GoFiles live elsewhere. We avoid relying on the
-	// heuristic that test mains always have exactly one GoFile in GOCACHE,
-	// as that may not be the case for users of GOCACHEPROG, or for future
-	// implementations of go test.
-	for _, goFile := range pkg.GoFiles {
-		if pathutil.InDir(pkg.Dir, goFile) {
-			return false
-		}
 	}
 	return true
 }

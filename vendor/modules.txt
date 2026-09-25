@@ -17,14 +17,14 @@ charm.land/bubbletea/v2
 # charm.land/lipgloss/v2 v2.0.6
 ## explicit; go 1.25.0
 charm.land/lipgloss/v2
-# charm.land/log/v2 v2.0.0
+# charm.land/log/v2 v2.0.1
 ## explicit; go 1.25.8
 charm.land/log/v2
 # charm.land/ssh v0.4.3
 ## explicit; go 1.25.0
 charm.land/ssh
-# charm.land/wish/v2 v2.0.3
-## explicit; go 1.25.12
+# charm.land/wish/v2 v2.0.4
+## explicit; go 1.26.8
 charm.land/wish/v2
 charm.land/wish/v2/activeterm
 charm.land/wish/v2/bubbletea
@@ -256,7 +256,7 @@ github.com/charmbracelet/colorprofile
 # github.com/charmbracelet/keygen v0.5.4
 ## explicit; go 1.24.0
 github.com/charmbracelet/keygen
-# github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886
+# github.com/charmbracelet/ultraviolet v0.0.0-20260906173415-0277a179edd9
 ## explicit; go 1.25.0
 github.com/charmbracelet/ultraviolet
 # github.com/charmbracelet/x/ansi v0.11.8
@@ -376,7 +376,7 @@ github.com/ftrvxmtrx/fd
 # github.com/fzipp/gocyclo v0.6.0
 ## explicit; go 1.18
 github.com/fzipp/gocyclo
-# github.com/gaissmai/bart v0.29.0
+# github.com/gaissmai/bart v0.30.0
 ## explicit; go 1.24.0
 github.com/gaissmai/bart
 github.com/gaissmai/bart/internal/allot
@@ -888,7 +888,7 @@ github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.27
+# github.com/mattn/go-runewidth v0.0.30
 ## explicit; go 1.23
 github.com/mattn/go-runewidth
 # github.com/mdlayher/genetlink v1.4.0
@@ -899,11 +899,11 @@ github.com/mdlayher/genetlink
 github.com/mdlayher/netlink
 github.com/mdlayher/netlink/nlenc
 github.com/mdlayher/netlink/nltest
-# github.com/mdlayher/packet v1.1.2
-## explicit; go 1.20
+# github.com/mdlayher/packet v1.2.0
+## explicit; go 1.26.0
 github.com/mdlayher/packet
-# github.com/mdlayher/socket v0.6.0
-## explicit; go 1.25.0
+# github.com/mdlayher/socket v0.7.0
+## explicit; go 1.26.0
 github.com/mdlayher/socket
 # github.com/mgechev/revive v1.15.0
 ## explicit; go 1.25.0
@@ -1010,8 +1010,8 @@ github.com/pierrec/lz4/v4/internal/lz4block
 github.com/pierrec/lz4/v4/internal/lz4errors
 github.com/pierrec/lz4/v4/internal/lz4stream
 github.com/pierrec/lz4/v4/internal/xxh32
-# github.com/pires/go-proxyproto v0.12.0
-## explicit; go 1.25
+# github.com/pires/go-proxyproto v0.15.0
+## explicit; go 1.25.0
 github.com/pires/go-proxyproto
 # github.com/prometheus/client_golang v1.24.1
 ## explicit; go 1.25.0
@@ -1027,7 +1027,7 @@ github.com/prometheus/client_golang/prometheus/testutil/promlint/validations
 # github.com/prometheus/client_model v0.6.2
 ## explicit; go 1.22.0
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.70.1
+# github.com/prometheus/common v0.71.0
 ## explicit; go 1.25.0
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
@@ -1254,7 +1254,7 @@ github.com/vishvananda/netns
 # github.com/xen0n/gosmopolitan v1.3.0
 ## explicit; go 1.23.0
 github.com/xen0n/gosmopolitan
-# github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+# github.com/xo/terminfo v1.0.0
 ## explicit; go 1.19
 github.com/xo/terminfo
 # github.com/yagipy/maintidx v1.0.0
@@ -1271,7 +1271,7 @@ github.com/ykadowak/zerologlint
 # github.com/yosida95/uritemplate/v3 v3.0.2
 ## explicit; go 1.14
 github.com/yosida95/uritemplate/v3
-# github.com/yuin/goldmark v1.8.5
+# github.com/yuin/goldmark v1.8.6
 ## explicit; go 1.22
 github.com/yuin/goldmark
 github.com/yuin/goldmark/ast
@@ -1353,7 +1353,7 @@ go.uber.org/zap/zapcore
 # go.yaml.in/yaml/v3 v3.0.5
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.56.0
+# golang.org/x/crypto v0.57.0
 ## explicit; go 1.26.0
 golang.org/x/crypto/argon2
 golang.org/x/crypto/bcrypt
@@ -1374,8 +1374,8 @@ golang.org/x/crypto/ssh/knownhosts
 # golang.org/x/crypto/x509roots/fallback v0.0.0-20260630172432-7626c5025624
 ## explicit; go 1.25.0
 golang.org/x/crypto/x509roots/fallback/bundle
-# golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-## explicit; go 1.25.0
+# golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
+## explicit; go 1.26.0
 golang.org/x/exp/slices
 golang.org/x/exp/slog
 golang.org/x/exp/slog/internal
@@ -1383,15 +1383,15 @@ golang.org/x/exp/slog/internal/buffer
 # golang.org/x/exp/typeparams v0.0.0-20260812173653-3d80eb74bc5b
 ## explicit; go 1.25.0
 golang.org/x/exp/typeparams
-# golang.org/x/mod v0.40.0
-## explicit; go 1.25.0
+# golang.org/x/mod v0.41.0
+## explicit; go 1.26.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
 golang.org/x/mod/sumdb/dirhash
-# golang.org/x/net v0.58.0
-## explicit; go 1.25.0
+# golang.org/x/net v0.59.0
+## explicit; go 1.26.0
 golang.org/x/net/bpf
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -1411,18 +1411,18 @@ golang.org/x/net/trace
 ## explicit; go 1.25.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.22.0
-## explicit; go 1.25.0
+# golang.org/x/sync v0.23.0
+## explicit; go 1.26.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.47.0
-## explicit; go 1.25.0
+# golang.org/x/sys v0.48.0
+## explicit; go 1.26.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5
-## explicit; go 1.25.0
+# golang.org/x/telemetry v0.0.0-20260908163034-4bcc4b2ee518
+## explicit; go 1.26.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
 golang.org/x/telemetry/internal/config
@@ -1432,11 +1432,11 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-# golang.org/x/term v0.45.0
-## explicit; go 1.25.0
+# golang.org/x/term v0.46.0
+## explicit; go 1.26.0
 golang.org/x/term
-# golang.org/x/text v0.41.0
-## explicit; go 1.25.0
+# golang.org/x/text v0.42.0
+## explicit; go 1.26.0
 golang.org/x/text/cases
 golang.org/x/text/feature/plural
 golang.org/x/text/internal
@@ -1458,8 +1458,8 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/unicode/runenames
 golang.org/x/text/width
-# golang.org/x/tools v0.49.0
-## explicit; go 1.25.0
+# golang.org/x/tools v0.50.0
+## explicit; go 1.26.0
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/passes/appends
@@ -1566,7 +1566,6 @@ golang.org/x/tools/internal/jsonrpc2_v2
 golang.org/x/tools/internal/modindex
 golang.org/x/tools/internal/moreiters
 golang.org/x/tools/internal/moremaps
-golang.org/x/tools/internal/moreslices
 golang.org/x/tools/internal/packagepath
 golang.org/x/tools/internal/packagesinternal
 golang.org/x/tools/internal/pkgbits
@@ -1579,8 +1578,8 @@ golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/typesinternal/typeindex
 golang.org/x/tools/internal/versions
 golang.org/x/tools/refactor/satisfy
-# golang.org/x/tools/gopls v0.0.0-20260827201838-8471f958f05f
-## explicit; go 1.27.0
+# golang.org/x/tools/gopls v0.23.0
+## explicit; go 1.26.0
 golang.org/x/tools/gopls
 golang.org/x/tools/gopls/internal/analysis/deprecated
 golang.org/x/tools/gopls/internal/analysis/embeddirective
@@ -1592,7 +1591,6 @@ golang.org/x/tools/gopls/internal/analysis/infertypeargs
 golang.org/x/tools/gopls/internal/analysis/maprange
 golang.org/x/tools/gopls/internal/analysis/nonewvars
 golang.org/x/tools/gopls/internal/analysis/noresultvalues
-golang.org/x/tools/gopls/internal/analysis/ptrtoerror
 golang.org/x/tools/gopls/internal/analysis/recursiveiter
 golang.org/x/tools/gopls/internal/analysis/simplifycompositelit
 golang.org/x/tools/gopls/internal/analysis/simplifyrange
@@ -1639,6 +1637,7 @@ golang.org/x/tools/gopls/internal/settings
 golang.org/x/tools/gopls/internal/telemetry
 golang.org/x/tools/gopls/internal/template
 golang.org/x/tools/gopls/internal/test/integration/fake/glob
+golang.org/x/tools/gopls/internal/tool
 golang.org/x/tools/gopls/internal/util/asm
 golang.org/x/tools/gopls/internal/util/browser
 golang.org/x/tools/gopls/internal/util/bug
@@ -1651,6 +1650,9 @@ golang.org/x/tools/gopls/internal/util/goversion
 golang.org/x/tools/gopls/internal/util/immutable
 golang.org/x/tools/gopls/internal/util/lru
 golang.org/x/tools/gopls/internal/util/memoize
+golang.org/x/tools/gopls/internal/util/moremaps
+golang.org/x/tools/gopls/internal/util/moreslices
+golang.org/x/tools/gopls/internal/util/morestrings
 golang.org/x/tools/gopls/internal/util/pathutil
 golang.org/x/tools/gopls/internal/util/persistent
 golang.org/x/tools/gopls/internal/util/safetoken
@@ -1663,8 +1665,8 @@ golang.org/x/tools/gopls/internal/vulncheck/osv
 golang.org/x/tools/gopls/internal/vulncheck/scan
 golang.org/x/tools/gopls/internal/vulncheck/semver
 golang.org/x/tools/gopls/internal/work
-# golang.org/x/vuln v1.7.0
-## explicit; go 1.25.0
+# golang.org/x/vuln v1.8.0
+## explicit; go 1.26.0
 golang.org/x/vuln/cmd/govulncheck
 golang.org/x/vuln/internal
 golang.org/x/vuln/internal/buildinfo
@@ -1702,7 +1704,7 @@ golang.zx2c4.com/wireguard/wgctrl/wgtypes
 # google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800
 ## explicit; go 1.25.0
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.83.2
+# google.golang.org/grpc v1.84.0
 ## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
