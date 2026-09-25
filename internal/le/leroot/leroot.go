@@ -202,6 +202,40 @@ var forwardingAreas struct {
 	byName map[string]bool
 }
 
+// RegisterAdmitted records an area whose run takes a slot through the job
+// registry (internal/le/job) before it works: a test runner that starts ze
+// daemons by the dozen. The answer does the admitting. This mark is what a
+// reader outside the area consults, so the pretool hook reads the area as
+// heavy from its registration rather than from a list of names.
+//
+// An area that runs inside a test, a helper tool, MUST NOT register: the suite
+// that started it already holds the slot, and a second wait would queue the
+// helper behind its own parent.
+func RegisterAdmitted(name string) {
+	admittedAreas.Lock()
+	defer admittedAreas.Unlock()
+	if admittedAreas.byName == nil {
+		admittedAreas.byName = make(map[string]bool, 32)
+	}
+	admittedAreas.byName[name] = true
+}
+
+// Admits reports whether an area registered its run as admitted through the
+// job registry (RegisterAdmitted).
+func Admits(name string) bool {
+	admittedAreas.RLock()
+	defer admittedAreas.RUnlock()
+	return admittedAreas.byName[name]
+}
+
+// admittedAreas holds every area that registered as admitted. Registration
+// runs in init() and the hook reads it on any goroutine, so the set is guarded.
+// Safe for concurrent use.
+var admittedAreas struct {
+	sync.RWMutex
+	byName map[string]bool
+}
+
 // CommandPath answers the canonical local-data path for one le tool.
 func CommandPath(name string) string {
 	var tb textbuf.Buffer

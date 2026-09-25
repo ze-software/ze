@@ -40,6 +40,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/population"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
@@ -761,7 +762,10 @@ func (a *allTestsRun) shim() error {
 	// The harness is this run's own le. A suite runs as `le test <suite>`
 	// through this link, and the runner under it links `le` into its children's
 	// PATH the same way.
-	_, err := guestLeLink(a.BinDir)
+	if _, err := guestLeLink(a.BinDir); err != nil {
+		return err
+	}
+	_, err := guestJobParent(a.BinDir)
 	return err
 }
 
@@ -778,6 +782,8 @@ func (a *allTestsRun) environment() []string {
 	environ = setEnv(environ, inVMKey, "1")
 	environ = setEnv(environ, repoRootKey, a.Workspace)
 	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, zeName))
+	// Every suite runs inside the slot the host's run holds (guestJobParent).
+	environ = setEnv(environ, job.ParentVariable, filepath.Join(a.BinDir, guestJobParentName))
 	if a.LinuxOnly {
 		environ = setEnv(environ, linuxOnlyKey, linuxOnlyValue)
 	}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -18,7 +19,10 @@ import (
 
 	"github.com/anmitsu/go-shlex"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/job"
+	"github.com/ze-software/ze/internal/le/leaction"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
@@ -128,6 +132,9 @@ type runDependencies struct {
 	cpuCount int
 	pid      int
 	burners  func(context.Context, int) func()
+	// progress receives a copy of the capture log: the held slot's registry
+	// log, or nil when the run holds no slot of its own.
+	progress io.Writer
 }
 
 func realDependencies() runDependencies {
@@ -136,11 +143,90 @@ func realDependencies() runDependencies {
 	}
 }
 
-// runAt installs signal cancellation and runs the reproducer in root.
-func runAt(root string, opts Options) (Report, int) {
+// runAt installs signal cancellation and runs the reproducer in root under
+// admission. args are the words that followed the command name, which the job
+// registry fingerprints.
+func runAt(root string, args []string, opts Options) (Report, int) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	return run(ctx, root, opts, realDependencies())
+	return admitRun(ctx, root, args, opts, realDependencies())
+}
+
+// admitLabel is the job registry label a stress run holds its slot under.
+const admitLabel = "test-stress-repro"
+
+// admitRun holds ONE job registry slot for the whole stress run, so its N
+// parallel children run inside it.
+//
+// Every child is the same `le test <suite> ...` over the same tree, and a runner
+// admits itself (harnesstool.RunnerAnswer). Without a parent slot, child 1 would
+// claim and children 2..N would attach to its verdict or queue behind it: N
+// requested repetitions would collapse into one. Naming the claimed entry as the
+// job parent makes every child answer KindInside and run for real.
+//
+// The run never attaches (MayAttach is false): a stress run is a sample, and
+// another run's verdict says nothing about this run's iterations.
+func admitRun(ctx context.Context, root string, args []string, opts Options, deps runDependencies) (Report, int) {
+	base := Report{Suite: opts.Suite, Test: opts.Test, Iterations: opts.Iterations, Race: opts.Race}
+	admission, err := job.NewIn(root)
+	if err != nil {
+		return setupFailure(base, fmt.Errorf("job admission: %w", err))
+	}
+	admission.MayAttach = false
+
+	argv := make([]string, 0, 3+len(args))
+	argv = append(argv, "le")
+	argv = append(argv, strings.Fields(area)...)
+	argv = append(argv, args...)
+	ticket, err := admission.Admit(admitLabel, argv)
+	if err != nil {
+		return setupFailure(base, fmt.Errorf("job admission: %w", err))
+	}
+
+	switch ticket.Kind {
+	case job.KindInside:
+		// A parent already holds the slot and is named in the environment
+		// every child inherits.
+		return run(ctx, root, opts, deps)
+	case job.KindClaimed:
+		return runClaimed(ctx, root, opts, deps, ticket)
+	case job.KindUnspecified, job.KindAttached, job.KindUnadmitted:
+	}
+	panic("BUG: a stress run that may not attach was answered a ticket of kind " + ticket.Kind.String())
+}
+
+// runClaimed runs the stress run in the slot the ticket claimed and releases it
+// with the run's code.
+//
+// The entry is named as the job parent for the run's duration, then restored,
+// so every child `le test <suite>` runs inside this slot. The capture log is
+// teed to the slot's log, because the registry breaker reads that growth as
+// liveness. The log grows once per completed invocation, so a silence lasts at
+// most one invocation timeout.
+func runClaimed(ctx context.Context, root string, opts Options, deps runDependencies, ticket *job.Ticket) (Report, int) {
+	base := Report{Suite: opts.Suite, Test: opts.Test, Iterations: opts.Iterations, Race: opts.Race}
+
+	//nolint:gosec // this run's own registry log, named from a validated label
+	progress, err := os.OpenFile(filepath.Join(root, filepath.FromSlash(ticket.Log)),
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		ticket.Release(2)
+		return setupFailure(base, fmt.Errorf("open job log: %w", err))
+	}
+	defer func() { _ = progress.Close() }()
+
+	previous := env.Get(job.ParentKey)
+	if err := env.Set(job.ParentKey, filepath.Join(root, filepath.FromSlash(ticket.Entry))); err != nil {
+		ticket.Release(2)
+		return setupFailure(base, fmt.Errorf("name the job parent: %w", err))
+	}
+	deps.progress = progress
+	report, code := run(ctx, root, opts, deps)
+	if err := env.Set(job.ParentKey, previous); err != nil {
+		leaction.ReportError(fmt.Errorf("restore %s: %w", job.ParentKey, err))
+	}
+	ticket.Release(code)
+	return report, code
 }
 
 func run(ctx context.Context, root string, opts Options, deps runDependencies) (Report, int) {
@@ -198,11 +284,15 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 		return setupFailure(report, err)
 	}
 
-	log, err := os.Create(report.Log)
+	captureFile, err := os.Create(report.Log)
 	if err != nil {
 		return setupFailure(report, fmt.Errorf("create capture log: %w", err))
 	}
-	defer func() { _ = log.Close() }()
+	defer func() { _ = captureFile.Close() }()
+	var log io.Writer = captureFile
+	if deps.progress != nil {
+		log = io.MultiWriter(captureFile, deps.progress)
+	}
 	_, _ = fmt.Fprintf(log, "stress-repro %s %s\nburners=%d parallel=%d race=%t ncpu=%d\n",
 		opts.Suite, stamp, burnerCount, parallel, opts.Race, deps.cpuCount)
 
@@ -255,7 +345,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 			}
 			_, _ = fmt.Fprintf(log, "\n===== invocation %d exit=%d %s =====\n", report.Completed, result.code, label)
 			if hit {
-				_, _ = log.WriteString(result.output)
+				_, _ = io.WriteString(log, result.output)
 				report.Reproduced = true
 				report.Exit = result.code
 				report.Signature = signature
@@ -264,7 +354,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 				}
 				cancelBatch()
 			} else {
-				_, _ = log.WriteString(outputTail(result.output, 500) + "\n")
+				_, _ = io.WriteString(log, outputTail(result.output, 500)+"\n")
 			}
 		}
 		cancelBatch()

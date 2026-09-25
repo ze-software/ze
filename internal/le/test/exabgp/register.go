@@ -16,7 +16,7 @@ import (
 const name = "test exabgp"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdExabgp), harnesstool.Meta("Run predecessor encoding tests"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.RunnerAnswer(name, cli.CmdExabgp), harnesstool.Meta("Run predecessor encoding tests"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

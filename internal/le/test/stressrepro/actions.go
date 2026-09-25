@@ -82,7 +82,7 @@ func Answer(args []string) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return runAt(root, opts)
+	return runAt(root, args, opts)
 }
 
 func parseOptions(args []string) (Options, error) {

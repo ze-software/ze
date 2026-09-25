@@ -75,3 +75,24 @@ func guestLeLink(dir string) (string, error) {
 	}
 	return link, nil
 }
+
+// guestJobParentName is the file, in the guest's binary directory, that stands
+// in for the host job holding this guest's slot.
+const guestJobParentName = "host-job"
+
+// guestJobParent writes the stand-in parent entry into dir and answers the
+// environment entry that names it (job.ParentVariable).
+//
+// A runner command (`le test <suite>`) admits its run through the job
+// registry of the checkout it finds, and the guest finds the host's checkout
+// at /workspace. The guest MUST NOT take a slot there: the host's run already
+// holds one, and the registry judges a holder by a process id the other
+// machine cannot see, so each side would reap the other's entry. Named as the
+// parent, the entry makes every suite run inside the host's slot (AC-45).
+func guestJobParent(dir string) (string, error) {
+	path := filepath.Join(dir, guestJobParentName)
+	if err := os.WriteFile(path, []byte("LABEL=qemu (held by the host)\n"), 0o644); err != nil { //nolint:gosec // read by the credential-dropped test group
+		return "", err
+	}
+	return job.ParentVariable + "=" + path, nil
+}

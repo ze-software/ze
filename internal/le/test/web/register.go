@@ -16,7 +16,7 @@ import (
 const name = "test web"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdWeb), harnesstool.Meta("Run web browser functional tests (.wb files)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.RunnerAnswer(name, cli.CmdWeb), harnesstool.Meta("Run web browser functional tests (.wb files)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

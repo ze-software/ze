@@ -513,9 +513,23 @@ refused before the job starts.
 
 Parallel verify runs share the build cache, the ports, and the test binaries. An
 admitted job runs now, queues behind the jobs already in flight, or attaches to an
-equivalent run. Two actions admit themselves today, `./le go lint run` and
-`./le job run`; anything else is admitted by typing it after
-`./le job run label <label> command`. The rest of the heavy population joins in
+equivalent run. The actions that admit themselves today are `./le go lint run`,
+`./le job run`, and every harness RUNNER under `le test`: the 24 suites plus
+`bgp`, `editor`, `exabgp`, `vpp` and `web`. A runner takes the slot, then runs
+itself again as a child inside it, so the slot's log grows with the run's output
+(`RunnerAnswer`, `internal/le/test/harnesstool/harnesstool.go`). A harness HELPER
+tool (`peer`, `rpki`, a mock, `fixture`) never admits, because the suite that
+started it already holds the slot. `./le test stress-repro` holds ONE slot for
+its whole run and names it as the parent of its parallel `le test <suite>`
+children, so each repetition runs inside that slot rather than attaching to the
+first child's verdict (`admitRun`, `internal/le/test/stressrepro/run.go`). With
+no checkout, in a container, a runner runs unadmitted. A QEMU guest names a stand-in for the host's slot as its
+parent (`guestJobParent`, `internal/le/test/qemu/guestle.go`), because the guest
+sees the host's registry through `/workspace` but not the host's processes. The
+pretool hook reads a runner as heavy for the lossy-pipe refusal, and a helper as
+light, from the same registration (`leroot.Admits`). Anything else is admitted by
+typing it after `./le job run label <label> command`. The rest of the heavy
+population joins in
 `plan/spec-native-action-job-admission.md`, so a second `./le verify current mode
 full` does NOT block on the first: only its lint stage does.
 

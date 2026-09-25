@@ -16,7 +16,7 @@ import (
 const name = "test editor"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdEditor), harnesstool.Meta("Run editor functional tests (.et files)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.RunnerAnswer(name, cli.CmdEditor), harnesstool.Meta("Run editor functional tests (.et files)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

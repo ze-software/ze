@@ -16,7 +16,7 @@ import (
 const name = "test vpp"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdVpp), harnesstool.Meta("Run VPP stub-backed functional tests (test/vpp/*.ci)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.RunnerAnswer(name, cli.CmdVpp), harnesstool.Meta("Run VPP stub-backed functional tests (test/vpp/*.ci)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

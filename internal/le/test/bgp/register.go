@@ -16,7 +16,7 @@ import (
 const name = "test bgp"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdBgp), harnesstool.Meta("Run BGP functional tests (encoding, plugin, decoding, parsing)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.RunnerAnswer(name, cli.CmdBgp), harnesstool.Meta("Run BGP functional tests (encoding, plugin, decoding, parsing)"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

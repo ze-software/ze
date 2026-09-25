@@ -14,6 +14,14 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/leroot"
+
+	// The four harness commands the heaviness test reads: two runners
+	// that admit, two helper tools that do not.
+	_ "github.com/ze-software/ze/internal/le/test/bgp"
+	_ "github.com/ze-software/ze/internal/le/test/ospf"
+	_ "github.com/ze-software/ze/internal/le/test/peer"
+	_ "github.com/ze-software/ze/internal/le/test/rpki"
 )
 
 // TestGovernedWriteCatchesEveryInPlaceFlagSpelling drives the pretool-bash hook
@@ -453,6 +461,42 @@ func TestBashHookReadsNoHarnessFile(t *testing.T) {
 	for _, command := range []string{"./le test functional", "./le test unit", "./le test"} {
 		if commandExpensive(commandSegments(command)[0]) {
 			t.Errorf("the listing %q is read as expensive", command)
+		}
+	}
+}
+
+// TestBashHookReadsHarnessSuitesAsHeavy proves the lossy-pipe refusal reads a
+// harness runner as heavy and a helper tool as light, from the registration
+// alone: `test bgp` and `test ospf` register their run as admitted
+// (harnesstool.RunnerAnswer, SuiteAnswer), `test peer` and `test rpki` do not.
+// It drives bashLossyPipe, the hook's own entry point, over the command text.
+//
+// VALIDATES: AC-45, the hook half.
+// PREVENTS: a suite piped through grep judged by its truncated output, or a
+// helper tool's output refused as if it were a suite run.
+func TestBashHookReadsHarnessSuitesAsHeavy(t *testing.T) {
+	refused := func(command string) bool {
+		return bashLossyPipe(context{input: map[string]any{"command": command}}) != nil
+	}
+	for _, name := range []string{"bgp", "ospf"} {
+		if !leroot.Admits("test " + name) {
+			t.Fatalf("test %s is not registered as admitted", name)
+		}
+		command := "./le test " + name + " plugin 42 | grep x"
+		if !refused(command) {
+			t.Errorf("%q was not refused: a runner area is heavy", command)
+		}
+	}
+	for _, name := range []string{"peer", "rpki"} {
+		if leroot.Admits("test " + name) {
+			t.Fatalf("test %s, a helper tool, is registered as admitted", name)
+		}
+		if !leroot.Forwards("test " + name) {
+			t.Fatalf("test %s is not registered, so this case proves nothing", name)
+		}
+		command := "./le test " + name + " --help | grep x"
+		if refused(command) {
+			t.Errorf("%q was refused: a helper tool is not heavy", command)
 		}
 	}
 }

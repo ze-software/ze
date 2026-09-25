@@ -661,23 +661,40 @@ func (a *Admission) Run(label string, argv []string, dir string, environ []strin
 		// A claimed slot is the rest of this function.
 	}
 
+	report.Code = a.RunClaimed(ticket, argv, dir, environ)
+	return report, report.Code
+}
+
+// RunClaimed runs the child in the slot a KindClaimed ticket holds, tees its
+// output to the ticket's log, and releases the slot with the child's code.
+//
+// It is the half of Run after admission, for a caller that admits with Admit
+// itself because it answers KindInside in-process: a command that re-runs
+// itself as the child, which finds the entry this function names and runs
+// inside it rather than queueing behind its own parent.
+//
+// The ticket MUST be KindClaimed and MUST NOT be released by the caller: this
+// function releases it.
+func (a *Admission) RunClaimed(ticket *Ticket, argv []string, dir string, environ []string) int {
+	if ticket == nil || ticket.Kind != KindClaimed {
+		a.note("error: a job ran in a slot it did not claim")
+		return gaterun.CannotStart
+	}
+
 	logFile, err := os.OpenFile(a.abs(ticket.Log), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // this job's own registry log, named from a validated label
 	if err != nil {
 		ticket.Release(gaterun.CannotStart)
 		a.note(errorLine(err))
-		report.Code = gaterun.CannotStart
-		return report, report.Code
+		return gaterun.CannotStart
 	}
 
-	a.reportPrevious(label)
+	a.reportPrevious(ticket.Label)
 	code := a.stream(argv, a.runDir(dir), a.childEnviron(environ, ticket), logFile)
 	if err := logFile.Close(); err != nil {
 		a.note(errorLine(err))
 	}
 	ticket.Release(code)
-
-	report.Code = code
-	return report, code
+	return code
 }
 
 // runDir answers where the child runs: what the caller named, or the checkout
@@ -701,10 +718,10 @@ func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
 	}
 
 	var tb textbuf.Buffer
-	named := tb.Str(parentVariable).Byte('=').Str(a.abs(ticket.Entry)).String()
+	named := tb.Str(ParentVariable).Byte('=').Str(a.abs(ticket.Entry)).String()
 
 	tb.Reset()
-	inherited := tb.Str(parentVariable).Byte('=').String()
+	inherited := tb.Str(ParentVariable).Byte('=').String()
 
 	out := make([]string, 0, len(environ)+1)
 	for _, pair := range environ {
@@ -716,10 +733,11 @@ func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
 	return append(out, named)
 }
 
-// parentVariable is the environment spelling of ParentKey. The child is
+// ParentVariable is the environment spelling of ParentKey. The child is
 // another program rather than a Ze process, so it reads the variable rather
-// than the registry key.
-const parentVariable = "ZE_RUN_JOB"
+// than the registry key. A caller that hands a child an environment on
+// another machine (a QEMU guest) names the parent under this spelling.
+const ParentVariable = "ZE_RUN_JOB"
 
 // stream runs the child with its output going to this job's stdout and, when
 // there is one, to its log as well.

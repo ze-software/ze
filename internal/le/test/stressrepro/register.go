@@ -13,6 +13,9 @@ import (
 )
 
 func init() {
+	// The run holds one job slot for all its children (admitRun), so the
+	// pretool hook reads it as heavy.
+	leroot.RegisterAdmitted(area)
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
 		ShortHelp: "reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure",
 		Mode:      "offline",

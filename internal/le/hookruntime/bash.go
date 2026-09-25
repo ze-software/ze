@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/leroot"
 )
 
 var (
@@ -332,7 +333,11 @@ func beforeRedirection(words []string) []string {
 // `le test <suite>` is the subject-first spelling of the suite areas, so the
 // word after `test` is read as the area: `test unit` is `test-unit`. No
 // harness binary exists (plan/spec-le-subject-first-command-tree.md, D-8), so
-// no file name is read as the functional runner.
+// no file name is read as the functional runner. A harness command under
+// `test` is heavy when its registration says its run is admitted
+// (leroot.Admits): `le test bgp` and `le test ospf` run the functional runner,
+// while `le test peer` and `le test rpki` are helper tools a test starts
+// (AC-45). The hook runs inside le, so every registration is linked.
 //
 // `le go lint` is the subject-first name of `le verify lint`, so it runs the
 // linter and is heavy. The old spellings `verify lint`, `functional`,
@@ -348,6 +353,9 @@ func heavyArea(words []string) bool {
 		return len(rest) > 0 && rest[0] == "lint"
 	}
 	if area == "test" && len(rest) > 0 {
+		if leroot.Admits("test " + rest[0]) {
+			return true
+		}
 		area, rest = rest[0], rest[1:]
 		if area == "unit" {
 			area = "test-unit"

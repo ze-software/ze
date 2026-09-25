@@ -215,6 +215,13 @@ func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string
 		gaterun.Note("link the guest le into " + netnsCapDir + ": " + err.Error())
 		return 1
 	}
+	// The suite runs inside the slot the host's run holds (guestJobParent).
+	parent, err := guestJobParent(netnsCapDir)
+	if err != nil {
+		gaterun.Note("name the host job inside " + netnsCapDir + ": " + err.Error())
+		return 1
+	}
+	environ = append(environ, parent)
 	argv := make([]string, 2, len(suiteArgs)+len(ids)+4)
 	argv[0] = harness
 	argv[1] = leTestWord
