@@ -73,7 +73,7 @@ func TestSeqPersistWriteLoad(t *testing.T) {
 
 // VALIDATES: NewSeqPersister (the production constructor) is a best-effort
 // no-op when no store exists: it never errors and starts from zero.
-// PREVENTS: a missing database.zefs wedging session setup.
+// PREVENTS: a missing store wedging session setup.
 func TestSeqPersistNoStore(t *testing.T) {
 	// No store registered (filesystem-fallback mode): writes no-op,
 	// reads return not-found, construction still succeeds.

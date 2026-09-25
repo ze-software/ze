@@ -129,7 +129,7 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 
 	// The store is per test. ze derives its config directory from its own binary
 	// unless this says otherwise, so without it every concurrent daemon in the
-	// suite shares one database.zefs and one certificate authority.
+	// suite shares one database store and one certificate authority.
 	want := "ze.config.dir=/work/ze-exabgp-native-7"
 	if !slices.Contains(got, want) {
 		t.Fatalf("environment does not carry %q: %v", want, got)

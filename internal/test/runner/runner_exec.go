@@ -133,7 +133,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Every test runs its children in a directory of its own, whether or not it
 	// declares tmpfs files. A child given no directory inherits the runner's,
 	// which is the repository root `./le` runs from, and a ze daemon started
-	// there writes database.zefs, daemon.log, its rendered config, its host keys
+	// there writes its database store, daemon.log, its rendered config, its host keys
 	// and its rollback/ and crash/ trees into the checkout. 1503 of 1789 .ci
 	// files declare no tmpfs block, so that was the common case rather than the
 	// rare one. See plan/journal/test-artifacts-land-in-the-repository-root.md.

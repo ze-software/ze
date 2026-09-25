@@ -838,7 +838,7 @@ func exaBGPClientConfig(ctx context.Context, test *exabgpTestEntry, zeBinary str
 	// A DIRECTORY per test, not just a file. ze derives its config directory
 	// from its own binary unless ze.config.dir says otherwise
 	// (internal/core/paths.DefaultConfigDir), so every concurrent daemon in this
-	// suite shared one database.zefs and one certificate authority. That is what
+	// suite shared one database store and one certificate authority. That is what
 	// made the suite answer between 9 and 13 passes for an unchanged tree:
 	// api-rib and api-rr-rib pass alone and deliver nothing under load.
 	//

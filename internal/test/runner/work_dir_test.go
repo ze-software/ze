@@ -1,7 +1,7 @@
 // VALIDATES: every .ci step runs in a directory of its own, and only a
 // repository-anchored tool keeps the repository root.
 // PREVENTS: the runner handing a child no working directory, so it inherits the
-// one `./le` was started in. A ze daemon started there writes database.zefs,
+// one `./le` was started in. A ze daemon started there writes its database store,
 // daemon.log, its rendered config, its host keys and its rollback/ and crash/
 // trees into the checkout, where they show as untracked files beside real work.
 // 1503 of 1789 .ci files declare no tmpfs block, so that was the common case.

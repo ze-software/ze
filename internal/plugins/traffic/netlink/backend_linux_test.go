@@ -777,7 +777,7 @@ func TestApplyRefusesWithoutPersistence(t *testing.T) {
 // VALIDATES: a corrupt or version-mismatched blob under the tc-snapshot key is
 // rejected by loadTCSnapshots, so backend startup surfaces the error instead of
 // silently discarding restore state.
-// PREVENTS: a garbled database.zefs blob being read as an empty snapshot set,
+// PREVENTS: a garbled snapshot value being read as an empty snapshot set,
 // which would strand the original qdisc unrestorable.
 func TestLoadTCSnapshotsRejectsCorruptAndVersion(t *testing.T) {
 	registerSnapshotStore(t)
@@ -800,7 +800,7 @@ func TestLoadTCSnapshotsRejectsCorruptAndVersion(t *testing.T) {
 
 // VALIDATES: an unregistered store yields an empty snapshot set without error,
 // preserving best-effort restore semantics.
-// PREVENTS: a missing database.zefs failing backend startup.
+// PREVENTS: a missing store failing backend startup.
 func TestLoadTCSnapshotsAbsentStore(t *testing.T) {
 	statestore.SetStore(nil) // filesystem-fallback: no blob store registered
 

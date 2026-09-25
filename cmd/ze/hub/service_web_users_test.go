@@ -45,7 +45,7 @@ func setAPIConfigDir(t *testing.T, dir string) {
 // following request invalidates the session. That is a login loop on the one
 // account that exists to recover a box.
 func TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable(t *testing.T) {
-	// No database.zefs here, so any second read of the power user fails. This is
+	// No store here, so any second read of the power user fails. This is
 	// the divergence being removed, made total: the caller has the credentials
 	// and the web server cannot get them for itself.
 	setAPIConfigDir(t, t.TempDir())

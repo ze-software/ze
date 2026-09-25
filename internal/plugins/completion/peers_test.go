@@ -3,7 +3,6 @@ package completion
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -11,17 +10,17 @@ import (
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // seedZefs writes a store with a super-admin entry so credential resolution gets
 // past the store and reaches the password step, which is what this test targets.
 func seedZefs(t *testing.T, dir string) {
 	t.Helper()
-	store, err := zefs.Create(filepath.Join(dir, "database.zefs"))
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	for k, v := range map[string]string{
 		"meta/ssh/10.0.0.1/2222/username": "admin",

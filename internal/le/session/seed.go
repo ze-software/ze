@@ -58,17 +58,32 @@ func seedStore(root, binary string, streams streams) (seedReport, int, error) {
 	})
 }
 
+// seedStoreWithOps seeds the session store in two ze runs. `ze init --seed`
+// writes a blob artifact and skips interface discovery, so a session daemon
+// never adopts the development host's interfaces. `ze init --from` then
+// imports that artifact into the live `database` tree and retires it, which is
+// the path an appliance takes at first boot. The blob is never the store: ze
+// refuses to open a config directory that holds one, so a blob found here is
+// reported with its repair and never counted as an existing store.
 func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedReport, int, error) {
 	sessionDir, err := validateSessionBinary(binary)
 	if err != nil {
 		return seedReport{}, 1, err
 	}
 	etcRel := filepath.Join(sessionDir, "etc", "ze")
-	databaseRel := filepath.Join(etcRel, "database.zefs")
+	store := sessionStore{
+		root:    root,
+		binary:  binary,
+		treeRel: filepath.Join(etcRel, "database"),
+		blobRel: filepath.Join(etcRel, "database.zefs"),
+	}
 	passwordRel := filepath.Join(etcRel, ".dev-password")
-	report := seedReport{Database: filepath.ToSlash(databaseRel), Password: filepath.ToSlash(passwordRel), User: "admin"}
-	database := filepath.Join(root, databaseRel)
-	if pathExists(database) {
+	report := seedReport{Database: filepath.ToSlash(store.treeRel), Password: filepath.ToSlash(passwordRel), User: "admin"}
+	exists, err := store.exists()
+	if err != nil {
+		return report, 1, err
+	}
+	if exists {
 		report.Existing = true
 		return report, 0, nil
 	}
@@ -95,23 +110,33 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 			return report, 1, fmt.Errorf("cannot create seed lock %s: %w", filepath.ToSlash(lockRel), err)
 		}
 		report.Waited = true
+		// The holder's own blob sits in the directory between its two ze
+		// runs, so only the published tree with no blob ends the wait.
 		for range ops.waits {
-			if pathExists(database) {
+			if store.published() {
 				report.Existing = true
 				return report, 0, nil
 			}
 			ops.sleep(seedWaitStep)
 		}
-		if pathExists(database) {
+		exists, err := store.exists()
+		if err != nil {
+			return report, 1, err
+		}
+		if exists {
 			report.Existing = true
 			return report, 0, nil
 		}
-		return report, 1, fmt.Errorf("another build holds %s and %s never appeared; remove the lock if no build is running", filepath.ToSlash(lockRel), filepath.ToSlash(databaseRel))
+		return report, 1, fmt.Errorf("another build holds %s and %s never appeared; remove the lock if no build is running", filepath.ToSlash(lockRel), report.Database)
 	}
 	defer func() {
 		_ = os.Remove(lock) //nolint:errcheck // a stale empty lock is reported by the next bounded waiter
 	}()
-	if pathExists(database) {
+	exists, err = store.exists()
+	if err != nil {
+		return report, 1, err
+	}
+	if exists {
 		report.Existing = true
 		return report, 0, nil
 	}
@@ -123,24 +148,66 @@ func seedStoreWithOps(root, binary string, streams streams, ops seedOps) (seedRe
 	}
 	name := filepath.Base(sessionDir)
 	stdin := strings.NewReader(strings.Join([]string{report.User, password, "127.0.0.1", "2222", name, ""}, "\n"))
-	code, startErr := ops.run([]string{binary, "init", "--seed"}, job.ProcessIO{
-		Dir: root, Environ: ops.environ, Stdin: stdin, Stdout: streams.Out, Stderr: streams.Err,
-	})
-	report.ChildCode = code
-	if startErr != nil {
-		return report, 1, fmt.Errorf("ze init failed for %s: %w", filepath.ToSlash(databaseRel), startErr)
+	blob := filepath.ToSlash(store.blobRel)
+	steps := []struct {
+		argv    []string
+		stdin   io.Reader
+		madeRel string
+	}{
+		{argv: []string{binary, "init", "--seed"}, stdin: stdin, madeRel: store.blobRel},
+		{argv: []string{binary, "init", "--from", blob}, madeRel: store.treeRel},
 	}
-	if code != 0 {
-		return report, 1, fmt.Errorf("ze init failed for %s", filepath.ToSlash(databaseRel))
+	for _, step := range steps {
+		command := strings.Join(step.argv[1:], " ")
+		code, startErr := ops.run(step.argv, job.ProcessIO{
+			Dir: root, Environ: ops.environ, Stdin: step.stdin, Stdout: streams.Out, Stderr: streams.Err,
+		})
+		report.ChildCode = code
+		if startErr != nil {
+			return report, 1, fmt.Errorf("ze %s failed for %s: %w", command, report.Database, startErr)
+		}
+		if code != 0 {
+			return report, 1, fmt.Errorf("ze %s failed for %s", command, report.Database)
+		}
+		if !pathExists(filepath.Join(root, step.madeRel)) {
+			return report, 1, fmt.Errorf("ze %s reported success and %s does not exist", command, filepath.ToSlash(step.madeRel))
+		}
 	}
-	if !pathExists(database) {
-		return report, 1, fmt.Errorf("ze init reported success and %s does not exist", filepath.ToSlash(databaseRel))
+	// The import retires the blob; one still in place would refuse every open.
+	if _, err := store.exists(); err != nil {
+		return report, 1, err
 	}
 	report.Seeded = true
 	if streams.Out != nil {
 		fmt.Fprintf(streams.Out, "session store seeded: %s (user %s, password in %s)\n", report.Database, report.User, report.Password) //nolint:errcheck // CLI progress output
 	}
 	return report, 0, nil
+}
+
+// sessionStore names the live tree and the blob artifact of one session's
+// config directory, both relative to the checkout root.
+type sessionStore struct {
+	root    string
+	binary  string
+	treeRel string
+	blobRel string
+}
+
+// exists reports whether the live tree is present. A blob in the config
+// directory is an error whether or not the tree is present: ze refuses to open
+// the store while it sits there, so neither state is a store a session daemon
+// can start from.
+func (s sessionStore) exists() (bool, error) {
+	if pathExists(filepath.Join(s.root, s.blobRel)) {
+		blob := filepath.ToSlash(s.blobRel)
+		return false, fmt.Errorf("blob artifact %s is not a live store and ze refuses to open %s beside it; run %s init --from %s", blob, filepath.ToSlash(s.treeRel), s.binary, blob)
+	}
+	return pathExists(filepath.Join(s.root, s.treeRel)), nil
+}
+
+// published reports whether the live tree is present with no blob beside it.
+func (s sessionStore) published() bool {
+	return pathExists(filepath.Join(s.root, s.treeRel)) && !pathExists(filepath.Join(s.root, s.blobRel))
 }
 
 func validateSessionBinary(binary string) (string, error) {

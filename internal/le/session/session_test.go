@@ -1,10 +1,12 @@
 // VALIDATES: session store seeding is one-time under concurrent builds, dotted
 // config overrides fail closed, and recovery snapshots preserve every handoff.
-// PREVENTS: two seeders racing on database.zefs or a Stop hook deleting phase state.
+// PREVENTS: two seeders racing on the session store, a database.zefs blob
+// counted as a store ze refuses to open, or a Stop hook deleting phase state.
 package session
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -116,14 +118,15 @@ func TestSeedStorePersistsCredentialsAndExactInitInput(t *testing.T) {
 		sleep:   func(time.Duration) {},
 		waits:   1,
 		run: func(argv []string, processIO job.ProcessIO) (int, error) {
-			gotArgv = append([]string(nil), argv...)
-			content, err := io.ReadAll(processIO.Stdin)
-			if err != nil {
-				return 127, err
+			gotArgv = append(gotArgv, strings.Join(argv, " "))
+			if processIO.Stdin != nil {
+				content, err := io.ReadAll(processIO.Stdin)
+				if err != nil {
+					return 127, err
+				}
+				gotInput += string(content)
 			}
-			gotInput = string(content)
-			database := filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze", "database.zefs")
-			return 0, os.WriteFile(database, []byte("seeded"), 0o600)
+			return fakeInit(root, argv)
 		},
 	}
 	report, code, err := seedStoreWithOps(root, binary, streams{Out: io.Discard, Err: io.Discard}, ops)
@@ -132,7 +135,8 @@ func TestSeedStorePersistsCredentialsAndExactInitInput(t *testing.T) {
 	}
 	password := strings.Repeat("ab", 24)
 	wantInput := "admin\n" + password + "\n127.0.0.1\n2222\n2026-08-27-fixture\n"
-	if strings.Join(gotArgv, " ") != binary+" init --seed" || gotInput != wantInput {
+	wantArgv := binary + " init --seed|" + binary + " init --from tmp/session/2026-08-27-fixture/etc/ze/database.zefs"
+	if strings.Join(gotArgv, "|") != wantArgv || gotInput != wantInput {
 		t.Fatalf("init argv %q input %q", gotArgv, gotInput)
 	}
 	passwordPath := filepath.Join(root, filepath.FromSlash(report.Password))
@@ -175,16 +179,14 @@ func TestConcurrentSeedStoreRunsOneSeederAndBothObserveTheDatabase(t *testing.T)
 	release := make(chan struct{})
 	var waitOnce sync.Once
 	var calls atomic.Int32
-	run := func(_ []string, _ job.ProcessIO) (int, error) {
-		if calls.Add(1) == 1 {
-			close(started)
+	run := func(argv []string, _ job.ProcessIO) (int, error) {
+		if argv[len(argv)-1] == "--seed" {
+			if calls.Add(1) == 1 {
+				close(started)
+			}
+			<-release
 		}
-		<-release
-		database := filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze", "database.zefs")
-		if err := os.WriteFile(database, []byte("seeded"), 0o600); err != nil {
-			return 127, err
-		}
-		return 0, nil
+		return fakeInit(root, argv)
 	}
 	ops := seedOps{
 		environ: []string{"HOME=/home/test"},
@@ -232,6 +234,99 @@ func TestConcurrentSeedStoreRunsOneSeederAndBothObserveTheDatabase(t *testing.T)
 	}
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("password mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+// fakeInit stands in for the two ze runs of the session seeder: `init --seed`
+// writes the blob artifact, and `init --from` publishes the tree and retires
+// the blob, as storage.ImportBlob does.
+func fakeInit(root string, argv []string) (int, error) {
+	etc := filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze")
+	blob := filepath.Join(etc, "database.zefs")
+	switch strings.Join(argv[1:], " ") {
+	case "init --seed":
+		return 0, os.WriteFile(blob, []byte("seeded"), 0o600)
+	case "init --from tmp/session/2026-08-27-fixture/etc/ze/database.zefs":
+		if err := os.Mkdir(filepath.Join(etc, "database"), 0o700); err != nil {
+			return 127, err
+		}
+		return 0, os.Rename(blob, blob+".replaced-fixture")
+	}
+	return 127, fmt.Errorf("unexpected ze argv %q", argv)
+}
+
+// sessionFixture creates the session binary and returns its root-relative path.
+func sessionFixture(t *testing.T, root string) string {
+	t.Helper()
+	binary := filepath.ToSlash(filepath.Join("tmp", "session", "2026-08-27-fixture", "bin", "ze"))
+	binaryPath := filepath.Join(root, filepath.FromSlash(binary))
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(binaryPath, []byte("fixture"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return binary
+}
+
+// VALIDATES: a database.zefs blob in the session config directory is refused
+// with the `ze init --from` repair, with or without a tree beside it.
+// PREVENTS: the seeder reporting "existing" for a store `ze start` refuses to
+// open, which is what a development box still holding a pre-cutover blob had.
+func TestSeedStoreRefusesABlobInTheConfigDirectory(t *testing.T) {
+	for _, withTree := range []bool{false, true} {
+		root := t.TempDir()
+		binary := sessionFixture(t, root)
+		etc := filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze")
+		if err := os.WriteFile(filepath.Join(etc, "database.zefs"), []byte("old"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if withTree {
+			if err := os.Mkdir(filepath.Join(etc, "database"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		report, code, err := seedStoreWithOps(root, binary, streams{}, seedOps{
+			environ: []string{"HOME=/home/test"},
+			random:  bytes.NewReader(bytes.Repeat([]byte{0xab}, 24)),
+			sleep:   func(time.Duration) {},
+			run: func([]string, job.ProcessIO) (int, error) {
+				t.Fatal("a blob in the config directory ran the seeder")
+				return 1, nil
+			},
+			waits: 1,
+		})
+		want := binary + " init --from tmp/session/2026-08-27-fixture/etc/ze/database.zefs"
+		if err == nil || code != 1 || report.Existing || !strings.Contains(err.Error(), want) {
+			t.Fatalf("tree %v: seed = %#v, code %d, err %v; want refusal naming %q", withTree, report, code, err, want)
+		}
+	}
+}
+
+// VALIDATES: a seed whose import leaves the blob in place fails.
+// PREVENTS: reporting a store as seeded while the blob beside it makes ze
+// refuse to open it.
+func TestSeedStoreFailsWhenTheImportLeavesTheBlob(t *testing.T) {
+	root := t.TempDir()
+	binary := sessionFixture(t, root)
+	etc := filepath.Join(root, "tmp", "session", "2026-08-27-fixture", "etc", "ze")
+	report, code, err := seedStoreWithOps(root, binary, streams{}, seedOps{
+		environ: []string{"HOME=/home/test"},
+		random:  bytes.NewReader(bytes.Repeat([]byte{0xab}, 24)),
+		sleep:   func(time.Duration) {},
+		run: func(argv []string, _ job.ProcessIO) (int, error) {
+			if argv[len(argv)-1] == "--seed" {
+				return 0, os.WriteFile(filepath.Join(etc, "database.zefs"), []byte("seeded"), 0o600)
+			}
+			return 0, os.Mkdir(filepath.Join(etc, "database"), 0o700)
+		},
+		waits: 1,
+	})
+	if err == nil || code != 1 || report.Seeded || !strings.Contains(err.Error(), "init --from") {
+		t.Fatalf("seed = %#v, code %d, err %v; want failure naming init --from", report, code, err)
 	}
 }
 

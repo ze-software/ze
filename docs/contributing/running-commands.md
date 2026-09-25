@@ -419,11 +419,16 @@ date only on a miss. Recomputing from today's date would move a session's
 directory at midnight and orphan the binaries it is running.
 
 The session-local `etc/ze` is seeded once by
-`./le session seed-store binary <session-bin>/ze`. `SeedStore`
+`./le session seed-store binary <session-bin>/ze`. `seedStore`
 (`internal/le/session/seed.go`) validates that the binary belongs to the current
 session directory. Credentials are generated per session: user `admin`, and a
 random password at `<session-dir>/etc/ze/.dev-password`, mode 0600. A later seed
 preserves the existing store and does not rotate the credentials.
+The seeder runs `ze init --seed`, which writes a `database.zefs` artifact and
+skips interface discovery on the development host. It then runs
+`ze init --from` to import that artifact into the live `etc/ze/database` tree.
+A `database.zefs` that is still in `etc/ze` stops the seed with the
+`ze init --from` repair, because ze refuses to open a store beside a blob.
 
 ## Verify logs
 

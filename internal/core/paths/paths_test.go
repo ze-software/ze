@@ -74,8 +74,8 @@ func setConfigDirEnv(t *testing.T, value string) {
 }
 
 // VALIDATES: ze.config.dir overrides binary-relative resolution.
-// PREVENTS: `ze data check` opening <prefix>/etc/ze/database.zefs while `ze init`
-// writes $ZE_CONFIG_DIR/database.zefs. The override is registered in this package
+// PREVENTS: `ze data check` opening <prefix>/etc/ze/database while `ze init`
+// writes $ZE_CONFIG_DIR/database. The override is registered in this package
 // but DefaultConfigDir never read it, so `ze data` resolved a store nobody wrote.
 func TestDefaultConfigDir_EnvOverride(t *testing.T) {
 	setConfigDirEnv(t, "/custom/config")

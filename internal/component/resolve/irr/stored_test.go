@@ -150,9 +150,9 @@ func TestAnUnreadableSeedAnswersNoTable(t *testing.T) {
 }
 
 // VALIDATES: the host reads the managed store read-only while another handle
-// holds the same file open (spec assumption A-2).
+// holds the same store open (spec assumption A-2).
 // PREVENTS: `ze resolve rir` on the host answering from the seed alone because
-// the running daemon holds database.zefs.
+// the running daemon holds the store.
 func TestTheHostReadsTheStoreWhileItIsHeldOpen(t *testing.T) {
 	path := t.TempDir()
 	held, err := storage.Create(path)
