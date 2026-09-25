@@ -485,13 +485,12 @@ type rtrTLSHandshakeGate struct {
 }
 
 // rtrTLSPeer owns one bounded accept worker. The caller MUST call stop to close
-// its listener and active connection and join that worker before reading results.
-// Its connection lifecycle is safe for concurrent stop calls.
+// its listener and join that worker before reading results. stop is safe for
+// concurrent use.
 type rtrTLSPeer struct {
 	port          uint16
 	listener      net.Listener
 	mu            sync.Mutex
-	conn          net.Conn
 	closed        bool
 	done          chan struct{}
 	once          sync.Once
@@ -520,16 +519,21 @@ func startRTRTLSPeer(t *testing.T, config *tls.Config) *rtrTLSPeer {
 	return peer
 }
 
-// stop MUST be called after starting a peer; it closes its sockets and joins the
-// worker. Repeated calls return the same observations after that join.
+// stop MUST be called after starting a peer; it closes the listener and joins
+// the worker. Repeated calls return the same observations after that join.
+//
+// stop never closes the connection in flight, because that would overwrite the
+// observation the caller is about to read. The router closes its socket before
+// syncOnce returns, but under TLS 1.3 its handshake ends when it has SENT its
+// Finished, so the cache can still be reading that Finished here. Closing now
+// turned a completed one-way handshake into "use of closed network connection".
+// The exchange instead ends on the router's close, or at the per-connection
+// deadline in exchange, which assertRTRTLSRefused reports as a failure.
 func (p *rtrTLSPeer) stop() []rtrTLSObservation {
 	p.once.Do(func() {
 		p.mu.Lock()
 		p.closed = true
 		p.listener.Close() //nolint:errcheck // Closing the owned listener wakes Accept; no I/O is pending on it afterward.
-		if p.conn != nil {
-			p.conn.Close() //nolint:errcheck // Closing the owned connection wakes the worker; its I/O result is recorded.
-		}
 		p.mu.Unlock()
 		<-p.done
 	})
@@ -551,13 +555,9 @@ func (p *rtrTLSPeer) serve(config *tls.Config) {
 			conn.Close() //nolint:errcheck // Cleanup won the race with Accept.
 			return
 		}
-		p.conn = conn
 		p.mu.Unlock()
 		p.observed = append(p.observed, p.exchange(conn, config))
 		conn.Close() //nolint:errcheck // The exchange result has already recorded any I/O failure.
-		p.mu.Lock()
-		p.conn = nil
-		p.mu.Unlock()
 	}
 }
 
