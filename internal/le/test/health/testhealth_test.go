@@ -825,7 +825,7 @@ func TestTestHealthAnswersWithNoRenderedLedgerPresent(t *testing.T) {
 
 	// The other half: no file in this package names the rendered page, so the
 	// answer above cannot have come from one.
-	for _, name := range packageGoFiles(t, filepath.Join(root, "internal", "le", "testhealth")) {
+	for _, name := range packageGoFiles(t, filepath.Join(root, "internal", "le", "test", "health")) {
 		body, readErr := os.ReadFile(name) // #nosec G304 -- a source file of this package
 		if readErr != nil {
 			t.Fatalf("reading %s: %v", name, readErr)
