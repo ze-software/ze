@@ -176,7 +176,7 @@ fails validation gets `invalid uri`, and one that resolves to nothing gets
 
 ## Testing
 
-`le-test mcp` provides a functional test client with `wait-established`
+`le test mcp` provides a functional test client with `wait-established`
 synchronization for CI pipelines. It also provides a `probe-*` directive family,
 which drives deliberately-malformed requests at the conformance surface (header
 mismatch, unsupported version, malformed `_meta`, GET and DELETE).

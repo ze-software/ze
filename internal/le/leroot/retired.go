@@ -139,6 +139,22 @@ var renames = []Rename{
 	{Retired: "test-health", Command: "test health"},
 	{Retired: "test-sensitivity", Command: "test sensitivity"},
 	{Retired: "test-weakened", Command: "test weakened"},
+	// The hyphenated harness names whose left word was another test member
+	// (`le cli grammar` R9): the wire suites and the scale test became areas
+	// whose first word picks the member. Each is listed under `test` and under
+	// the retired `test harness` namespace, which cannot resolve them itself.
+	{Retired: "test isis-wire", Command: "test wire", Action: "isis"},
+	{Retired: "test ospf-wire", Command: "test wire", Action: "ospf"},
+	{Retired: "test l2tp-wire", Command: "test wire", Action: "l2tp"},
+	{Retired: "test l2tp-scale", Command: "test scale", Action: "l2tp"},
+	{Retired: "test static-http", Command: "test httpd"},
+	{Retired: "test vpp-stub", Command: "test vpp", Action: "stub"},
+	{Retired: "test harness isis-wire", Command: "test wire", Action: "isis"},
+	{Retired: "test harness ospf-wire", Command: "test wire", Action: "ospf"},
+	{Retired: "test harness l2tp-wire", Command: "test wire", Action: "l2tp"},
+	{Retired: "test harness l2tp-scale", Command: "test scale", Action: "l2tp"},
+	{Retired: "test harness static-http", Command: "test httpd"},
+	{Retired: "test harness vpp-stub", Command: "test vpp", Action: "stub"},
 	{Retired: "test-chaos", Command: "chaos selftest"},
 	{Retired: "perf-bench", Command: "perf"},
 	{Retired: "perf-bench", RetiredAction: "suggestion-report", Command: "perf", Action: "suggest"},

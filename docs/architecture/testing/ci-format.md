@@ -89,7 +89,7 @@ The verify debugging protocol identifies a functional failure with:
 
 | Field | Source | Purpose |
 |-------|--------|---------|
-| Suite label | `le-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le test functional` |
+| Suite label | `le test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le test functional` |
 | Test id | One-based decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
 | Run number | `N/TOTAL` printed by `--list` and per-test result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
@@ -145,7 +145,7 @@ Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `
 The pair is LEASED when the test starts, not when the suite discovers it
 (`runner.LeaseTestPorts`, `internal/test/runner/ports.go`). Discovery numbers the
 Nth test of every suite from the same base, so the preference alone collides
-whenever two le-test processes run at once; the lease takes a machine-wide
+whenever two le test processes run at once; the lease takes a machine-wide
 advisory lock in `$TMPDIR/ze-test-port-locks` and probes the pair, and a test
 whose preferred pair is locked or occupied gets one from 25000-32759 instead. A
 hardcoded number in a `.ci` file takes part in neither step, which is why the
@@ -250,7 +250,7 @@ fixture rewriting that bare name still edits the source the daemon reads.
 Further distinct blocks use `daemon-2/ze-<block>.conf`, `daemon-3/…`, each
 with its own sibling `database/`. Reusing a block reuses its directory.
 Numbered directories distinguish even block names that sanitise identically.
-Wrapped launches such as `le-test fail-syscall … -- ze -` retain real stdin
+Wrapped launches such as `le test fail-syscall … -- ze -` retain real stdin
 and receive an isolated `ze.config.dir` by the same allocation rule.
 Explicit file paths remain authoritative; the runner does not choose a backend.
 <!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
@@ -384,7 +384,7 @@ option=<type>:key=value[:key=value...]
 | Type | Keys | Description |
 |------|------|-------------|
 | `file` | `path=<name>` | Config file to use |
-| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `le-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
+| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `le test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | The number of TCP connections the peer serves. It is a BOUND, never a witness: the count says how many connections happened and not who caused them. A peer that closes when its expectations are met makes ze dial again on its retry timer, so `value=2` is reached by a daemon that did nothing. To assert that the DAEMON dropped and restarted a session, add `option=linger`, which makes the peer incapable of causing the second connection. |
@@ -740,7 +740,7 @@ process. Three limits apply:
 - An unbalanced quote fails the test with `unclosed quote in ...`.
 - No shell runs, so `|`, `>` and `$HOME` are ordinary characters inside an
   argument. The runner expands `$PORT` and `$PORT2` and nothing else, and
-  `le-test fixture` expands the environment in its own arguments.
+  `le test fixture` expands the environment in its own arguments.
 
 One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
@@ -780,7 +780,7 @@ protocol stall.
 stderr, and it starts no later step until the text appears:
 
 ```
-cmd=background:seq=1:exec=le-test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
+cmd=background:seq=1:exec=le test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 ```
@@ -972,7 +972,7 @@ readiness handshake is armed only for Ze daemons.
 
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C...
-cmd=foreground:seq=1:exec=le-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=le test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
 
@@ -1677,7 +1677,7 @@ reporting.
 | Function | Purpose |
 |----------|---------|
 | `fixture.Register(name, driver)` | Register one compiled fixture command |
-| `fixture.Run(args)` | Dispatch `le-test fixture <name> [args...]` |
+| `fixture.Run(args)` | Dispatch `le test fixture <name> [args...]` |
 | `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
 | `observeConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle. It is unexported, so only a fixture in this package calls it |
 | `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
@@ -1758,7 +1758,7 @@ instead of an embedded Python observer. The runner serializes the parsed steps
 to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
 config directory of every further daemon, because a plugin runs in its daemon's
 config directory; the `.ci` declares the executor as an
-external plugin (`run "le-test engine-steps ./engine-steps.json"`), which runs
+external plugin (`run "le test engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
 
@@ -1999,7 +1999,7 @@ never opened.
 ### A scaffolding ze-peer is signaled at teardown
 
 A sink, echo or inject `ze-peer` never ends itself: its accept loop runs until its
-context is cancelled, and `le-test peer` maps SIGTERM to that cancel. The runner
+context is cancelled, and `le test peer` maps SIGTERM to that cancel. The runner
 sends that SIGTERM at teardown, after the last step and before the barrier that
 collects peer output. The peer exits with status 0 and its capture is complete, so
 a `.ci` author needs no teardown directive and must not add one.

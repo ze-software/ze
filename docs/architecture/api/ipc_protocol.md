@@ -672,7 +672,7 @@ empty yields self-describing objects and the head says `map`. Which of the two a
 walk produces is the handler's, and whether that walk streams at all is still
 the encoder's, decided from the record count.
 
-The declaring producer in the tree is `le-test record-plugin`, whose
+The declaring producer in the tree is `le test record-plugin`, whose
 `show test records table` answers the same data its `show test records object`
 answers and differs only in the schema. `test/plugin/stream-answer-renders-table.ci`
 compares the two documents an operator receives, which is what says the names on

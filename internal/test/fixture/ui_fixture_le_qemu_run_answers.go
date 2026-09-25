@@ -71,6 +71,17 @@ func leQEMURunAnswers(ctx context.Context) error {
 	if err := os.WriteFile(filepath.Join(fixtureRoot, "feature-gates.txt"), []byte("ze_core internal/core\n"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: write fixture feature gates: %w", err)
 	}
+	// `le test qemu run` cross-builds a linux le from ./cmd/ze of the checkout
+	// before it boots (buildGuestLe, internal/le/test/qemu/guestle.go), so the
+	// stand-in checkout carries a main package there. What the guest runs is
+	// the stand-in qemu's business, so an empty main is enough.
+	standInMain := filepath.Join(fixtureRoot, "cmd", "ze")
+	if err := os.MkdirAll(standInMain, 0o750); err != nil {
+		return fmt.Errorf("FAIL: create fixture cmd/ze: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(standInMain, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
+		return fmt.Errorf("FAIL: write fixture cmd/ze: %w", err)
+	}
 
 	arm := runtime.GOARCH == archARM64
 	arch := "x86_64"

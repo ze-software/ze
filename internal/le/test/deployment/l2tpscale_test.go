@@ -132,7 +132,7 @@ func TestL2TPScaleSessionTimeoutDefaultsAndOverrides(t *testing.T) {
 // Method: a recorder that answers its own executable, and the argv of the first
 // simulator command; then a recorder that cannot answer it.
 //
-// VALIDATES: the simulator runs as `<own executable> test l2tp-scale ...`
+// VALIDATES: the simulator runs as `<own executable> test scale l2tp ...`
 // (AC-41), and a runner that cannot name its own file fails before it runs
 // anything.
 func TestL2TPScaleRunsItsOwnExecutable(t *testing.T) {
@@ -141,8 +141,8 @@ func TestL2TPScaleRunsItsOwnExecutable(t *testing.T) {
 	if len(system.commands) == 0 {
 		t.Fatalf("no simulator command ran: %s", report.Failure)
 	}
-	if argv := system.commands[0].argv; len(argv) < 3 || argv[0] != "/fixture/le" || argv[1] != "test" || argv[2] != "l2tp-scale" {
-		t.Fatalf("the simulator argv is %q, want /fixture/le test l2tp-scale ...", argv)
+	if argv := system.commands[0].argv; len(argv) < 4 || argv[0] != "/fixture/le" || argv[1] != "test" || argv[2] != "scale" || argv[3] != "l2tp" {
+		t.Fatalf("the simulator argv is %q, want /fixture/le test scale l2tp ...", argv)
 	}
 
 	broken := newL2TPScaleRecorder()

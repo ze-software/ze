@@ -128,7 +128,7 @@ func vppWorkPaths(prefix string) (string, string, string, error) {
 }
 
 func startVPPStub(ctx context.Context, socket, log string, deadline int) (*fixtureProcess, error) {
-	return startFixtureProcess(ctx, os.Environ(), "", "le", "test", "vpp-stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
+	return startFixtureProcess(ctx, os.Environ(), "", "le", "test", "vpp", "stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
 }
 
 func startVPPPeer(ctx context.Context, port int, script string) (*fixtureProcess, error) {

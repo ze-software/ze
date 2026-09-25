@@ -68,7 +68,7 @@ line per test plus periodic progress.
 | `test/traffic/` | `./le test harness traffic [--all|--start N|N...]` | `./le test functional traffic` |
 | `test/flow-export/` | `./le test harness flow-export [--all|--start N|N...]` | `./le test functional flow-export` |
 | `test/vpp/` | `./le test harness vpp [--all|--start N|N...]` | `./le test functional vpp` |
-| `test/l2tp-wire/` | `./le test harness l2tp-wire [--all|--start N|N...]` | `./le test functional l2tp-wire` |
+| `test/l2tp-wire/` | `./le test wire l2tp [--all|--start N|N...]` | `./le test functional l2tp-wire` |
 | `test/exabgp-compat/` | `./le test harness exabgp [--all|--start N|N...]` | `./le test functional exabgp-test` |
 
 Gated suites (in `./le test functional gating`): encode, plugin, parse, decode, reload,

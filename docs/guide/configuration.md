@@ -1118,7 +1118,7 @@ example `reconnect never` beside `idle-timeout 30`.
 
 Ze can write every message a peer sends to a file, together with the config
 operations applied while the capture runs. Replay the file on a developer
-machine with `le-test replay <file>` to drive the same state machine over the
+machine with `le test replay <file>` to drive the same state machine over the
 same input. Capture is off by default. Turn it on for one peer when you need to
 reproduce a session bug, and turn it off again.
 
@@ -3519,11 +3519,11 @@ startup uses the tree beside the file, with no `ze.config.dir` pin.
 The native restart fixture performs an NTP exchange with its own loopback UDP
 server, then restarts Ze without a server and checks the restored system clock.
 It changes the clock and therefore belongs in a disposable QEMU guest. With
-the guest's `ze` and `le-test` binaries on `PATH`, its explicit action from a
+the guest's `ze` and `le test` binaries on `PATH`, its explicit action from a
 scratch directory is:
 
 ```sh
-ZE_STORAGE_CLOCK_TEST=1 le-test fixture storage/consumer-restart ntp
+ZE_STORAGE_CLOCK_TEST=1 le test fixture storage/consumer-restart ntp
 ```
 
 The fixture refuses to run without that opt-in. Its suite carrier,

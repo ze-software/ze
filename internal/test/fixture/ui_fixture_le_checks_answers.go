@@ -372,12 +372,12 @@ func runLEChecksAnswers(ctx context.Context) error {
 		return leChecksFailf("the gate saw %d commands and %d emitters", commandsKnown, emittersChecked)
 	}
 
-	leafResult, err := runLE(nil, "yang leaf-mentions", "report", "|", "json")
+	leafResult, err := runLE(nil, "config unread-leaves", "report", "|", "json")
 	if err != nil {
 		return err
 	}
 	if leafResult.code != 0 {
-		return leChecksFailf("`le config unread-leaves report | json` exited %d", leafResult.code)
+		return leChecksFailf("`le config unread-leaves report | json` exited %d: %s", leafResult.code, leafResult.stderr)
 	}
 	leafValue, err := leChecksJSON(leafResult.stdout)
 	if err != nil {

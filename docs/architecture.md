@@ -201,7 +201,7 @@ Selected routes move through a shared route-decision pipeline:
 | `le chaos run` | Chaos testing orchestrator: fault injection, scheduling |
 | `le perf` | Performance benchmarking: UPDATE throughput tracking |
 | `le mrt` | MRT/RIB analysis: attributes, communities, density, dump |
-| `le-test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
+| `le test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
 <!-- source: cmd/ze/main.go -- ze binary entry point -->
 
 ## Source Layout

@@ -81,19 +81,19 @@ Each `test/` subdirectory has its own runner and format:
 
 | Directory | What it tests | Runner |
 |-----------|---------------|--------|
-| `test/encode/` | BGP wire encoding | `le-test bgp encode` |
-| `test/decode/` | Wire decoding | `le-test bgp decode` |
-| `test/parse/` | Config parsing (valid/invalid) | `le-test bgp parse` |
-| `test/plugin/` | Plugin behavior | `le-test bgp plugin` |
-| `test/reload/` | Config reload | `le-test bgp reload` |
-| `test/ui/` | CLI completion | `le-test ui` |
-| `test/editor/` | TUI editor (`.et` files) | `le-test editor` |
-| `test/managed/` | Managed config | `le-test managed` |
-| `test/web/` | Web UI | `le-test web` |
-| `test/l2tp/` | L2TP daemon | `le-test l2tp` |
-| `test/firewall/` | Firewall | `le-test firewall` |
-| `test/policy/` | Policy routing | `le-test policy` |
-| `test/exabgp-compat/` | ExaBGP compatibility | `le-test exabgp` |
+| `test/encode/` | BGP wire encoding | `le test bgp encode` |
+| `test/decode/` | Wire decoding | `le test bgp decode` |
+| `test/parse/` | Config parsing (valid/invalid) | `le test bgp parse` |
+| `test/plugin/` | Plugin behavior | `le test bgp plugin` |
+| `test/reload/` | Config reload | `le test bgp reload` |
+| `test/ui/` | CLI completion | `le test ui` |
+| `test/editor/` | TUI editor (`.et` files) | `le test editor` |
+| `test/managed/` | Managed config | `le test managed` |
+| `test/web/` | Web UI | `le test web` |
+| `test/l2tp/` | L2TP daemon | `le test l2tp` |
+| `test/firewall/` | Firewall | `le test firewall` |
+| `test/policy/` | Policy routing | `le test policy` |
+| `test/exabgp-compat/` | ExaBGP compatibility | `le test exabgp` |
 
 Run a single test by one-based ID or exact name, list the available IDs, or
 resume from the last printed ID after an interrupted run. Queue the runner
@@ -101,12 +101,12 @@ through `./le job run label <label> command <argv...>` to use the same admission
 as a full suite.
 
 ```sh
-./le job run label plugin-42 command bin/le-test bgp plugin 42          # test id 42
-./le job run label encode-list command bin/le-test bgp encode --list    # list N/TOTAL, id, and name
-./le job run label plugin-from-42 command bin/le-test bgp plugin --start 42  # id 42 and every later test
-./le job run label editor-7 command bin/le-test editor 7                # editor test id 7
-./le job run label editor-nav command bin/le-test editor -p nav         # editor tests matching "nav"
-./le job run label exabgp-from-20 command bin/le-test exabgp --start 20 # resume ExaBGP compatibility
+./le job run label plugin-42 command bin/le test bgp plugin 42          # test id 42
+./le job run label encode-list command bin/le test bgp encode --list    # list N/TOTAL, id, and name
+./le job run label plugin-from-42 command bin/le test bgp plugin --start 42  # id 42 and every later test
+./le job run label editor-7 command bin/le test editor 7                # editor test id 7
+./le job run label editor-nav command bin/le test editor -p nav         # editor tests matching "nav"
+./le job run label exabgp-from-20 command bin/le test exabgp --start 20 # resume ExaBGP compatibility
 ```
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
@@ -459,7 +459,7 @@ FAIL	github.com/ze-software/ze/internal/core/bgp/attribute	0.003s
 
 ### Functional test failures
 
-`le-test` prints a summary at the end of each suite. Look for the test name
+`le test` prints a summary at the end of each suite. Look for the test name
 and the expectation that failed:
 
 ```
@@ -538,12 +538,12 @@ Reproducing a load-dependent flake is
 |--------------|-----|
 | Check my setup | `./le verify current mode full` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
-| Run one functional test | `./le job run label plugin-42 command bin/le-test bgp plugin 42` |
+| Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
 | Run the pre-commit check | `./le verify current mode full` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
-| List functional tests | `./le job run label encode-list command bin/le-test bgp encode --list` |
+| List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |
 | Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le test fuzz run` |
 | Run all fuzz targets | `./le test fuzz run` |
 | Check the commit compiles | `./le repo compiles check` |

@@ -18,7 +18,7 @@ func TestCISubcommandPrintsHeaderAndTopLevelRerunHints(t *testing.T) {
 
 	var display bytes.Buffer
 	r.Display().SetOutput(&display)
-	ConfigureCIRunnerOutput(r, "ui")
+	configureCIRunnerOutput(r, "ui")
 	if !strings.Contains(display.String(), "ui") {
 		t.Fatalf("missing suite header:\n%s", display.String())
 	}

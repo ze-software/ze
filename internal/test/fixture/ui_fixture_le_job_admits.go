@@ -127,7 +127,7 @@ func leJobAdmits(ctx context.Context) error {
 	codedEnv := uiLeJobAdmitsWithEnv(environment, leJobAdmitsHelperEnv, "coded")
 	coded := runLE(ctx, codedEnv,
 		"job", "run", "label", "ui-coded", "command",
-		testBinary, "fixture", "ui/le-job-admits",
+		testBinary, "test", "fixture", "ui/le-job-admits",
 	)
 	if coded.exitCode != 3 {
 		return fmt.Errorf("a job that exited 3 answered %d: %s", coded.exitCode, coded.stderr)
@@ -136,7 +136,7 @@ func leJobAdmits(ctx context.Context) error {
 	sharedEnv := uiLeJobAdmitsWithEnv(environment, leJobAdmitsHelperEnv, "shared")
 	holder := exec.CommandContext(ctx, binary, //nolint:gosec // the fixture chooses the program and its arguments
 		"job", "run", "label", "ui-shared", "command",
-		testBinary, "fixture", "ui/le-job-admits",
+		testBinary, "test", "fixture", "ui/le-job-admits",
 	)
 	holder.Dir = scratch
 	holder.Env = sharedEnv
@@ -174,7 +174,7 @@ func leJobAdmits(ctx context.Context) error {
 
 	follower := runLE(ctx, sharedEnv,
 		"job", "run", "label", "ui-shared", "command",
-		testBinary, "fixture", "ui/le-job-admits",
+		testBinary, "test", "fixture", "ui/le-job-admits",
 	)
 
 	holderWait := make(chan error, 1)
@@ -232,7 +232,7 @@ func leJobAdmits(ctx context.Context) error {
 	successEnv := uiLeJobAdmitsWithEnv(environment, leJobAdmitsHelperEnv, "success")
 	escaped := runLE(ctx, successEnv,
 		"job", "run", "label", "../escape", "command",
-		testBinary, "fixture", "ui/le-job-admits",
+		testBinary, "test", "fixture", "ui/le-job-admits",
 	)
 	if escaped.exitCode == 0 {
 		return errors.New("a label that is not a path component was accepted")

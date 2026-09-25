@@ -217,12 +217,12 @@ Use the built-in test peer to accept any BGP session:
 
 ```bash
 # Terminal 1: start a sink peer (accepts sessions, replies keepalive)
-bin/le-test peer --mode sink --port 1179 --asn 65001
+bin/le test peer --mode sink --port 1179 --asn 65001
 
 # Terminal 2: start ze with config pointing to localhost:1179
 ./ze start example-local.conf
 ```
-<!-- source: internal/test/cli/cmd_peer.go -- le-test peer command -->
+<!-- source: internal/test/cli/cmd_peer.go -- le test peer command -->
 
 Where `example-local.conf` is the config above with the peer's `connection`
 block pointed at the local sink, so ze dials `127.0.0.1:1179` instead of

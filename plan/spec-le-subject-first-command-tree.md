@@ -303,13 +303,34 @@ a daemon spawns (mocks, `engine-steps`, `record-plugin`, `peer`, `fixture`).
 | Question | Answer, read at |
 |----------|-----------------|
 | Why the harness cannot link today | `registerRoot` (`internal/test/cli/dispatch.go`) calls `registry.MustRegisterRootHandler`, which panics on a duplicate. Root `bgp` is also registered by `internal/component/bgp/cli`, and a `ze_le` build links the ze roots. `TestLeRegistersOneRootAndNoToolRoots` (`internal/le/register_test.go`) also refuses any le command that is also a root |
-| What replaces it | one le package per harness command, at the directory `directoryFor` predicts: `internal/le/test/<name without hyphens>/register.go` (`test/l2tpscale`, `test/isiswire`, `test/vppstub`, ...). Each calls `leroot.Register` with `GroupSuite`, `leroot.RegisterShape` and `leroot.RegisterForwarding`. Its `Answer` calls the harness handler with the words after `test <name>` and answers the handler's exit code |
+| What replaces it | one le package per harness command, at the directory `directoryFor` predicts: `internal/le/test/<name without hyphens>/register.go` (`test/radiusmock`, `test/rtrmock`, ...; the three wire suites and the scale test are the areas `test/wire` and `test/scale`, and the vpp stub is a member of `test/vpp`, see the D-8 amendment below). Each calls `leroot.Register` with `GroupSuite`, `leroot.RegisterShape` and `leroot.RegisterForwarding`. Its `Answer` calls the harness handler with the words after `test <name>` and answers the handler's exit code |
 | Why forwarding | `RegisterForwarding` (`internal/le/leroot/leroot.go`) makes the dispatcher hand a trailing help word to the program, so `le test bgp --help` prints the harness's own help. A forwarding area registers no action table and is exempt from `areasWithoutAnActionTable` (`internal/le/actions_test.go`). `internal/le/mrt` is the precedent |
 | Word count | `commandWordsMax = 2` (`internal/le/leroot/dispatch.go`): `test peer` is the two words, and every later word reaches the handler |
 | Where the handlers stay | in `internal/test/cli` and its packages. The unexported `cmd*` handlers become exported. `registerRoot`, `registerCIRoot` and the `init` of `register.go` are deleted, so no package under `internal/test` registers a global root. Each suite package declares its own `CIRunnerConfig` (name, test directory, description, detail, default parallelism) |
 | Shared glue | one library package with no `register.go` (for example `internal/le/test/harnesstool`) holds the adapter from a harness handler to a forwarding le area, so each per-command `register.go` is one call |
 | The ze binary | unchanged. A normal `ze` build imports no `internal/le` package (`docs/architecture/system-architecture.md`), and after D-8 `internal/test/cli` registers no root, so the ze roots are the same set before and after (AC-33) |
 | Import cost | `internal/le` already links ten `internal/test` packages, among them `runner`, `peer`, `harnessbin` and `perfrunner` (`go list -deps -tags ze_le ./internal/le`, 2026-09-25). D-8 adds `internal/test/cli`, `fixture`, `failsyscall`, `mock/*`, `sim` and `localdatacoverage`. The build time is AC-44 |
+
+**D-8 amendment (main-thread decision, 2026-09-25): six hyphenated names become
+areas or single words.** `le cli grammar` rule R9 refuses an le name whose left
+segment is another member of the same namespace, and `test isis`, `test ospf`,
+`test l2tp`, `test static` and `test vpp` are suites. So `test isis-wire`,
+`test ospf-wire`, `test l2tp-wire`, `test l2tp-scale`, `test static-http` and
+`test vpp-stub`, which the tables above list, failed R9. An exemption in
+`leNamespaceExempt` is refused because AC-19 requires that list to be empty.
+
+| Old name | New name | Package |
+|----------|----------|---------|
+| `test isis-wire`, `test ospf-wire`, `test l2tp-wire` | ONE forwarding area `test wire`, whose first word picks the suite: `le test wire isis\|ospf\|l2tp ...`. Each suite keeps its test directory and its own `CIRunnerConfig`. `le test wire` alone lists the three | `internal/le/test/wire` |
+| `test l2tp-scale` | the area `test scale`, whose first word picks the scale test: `le test scale l2tp ...`, so a later scale test adds one member | `internal/le/test/scale` |
+| `test static-http` | `test httpd`: a static HTTP server, unrelated to the static suite | `internal/le/test/httpd` |
+| `test vpp-stub` | `test vpp stub` (owner correction, 2026-09-25, replacing an interim `test vppstub`). `commandWordsMax = 2`, so `le test vpp stub ...` reaches the `test vpp` area, whose answer hands a first word `stub` to the stub handler (`cli.CmdVPPStub`) without admission, and every other form to the suite (`cli.CmdVpp`) with admission. The bare `test vpp` help lists `stub` | `internal/le/test/vpp` |
+
+The area members are `harnesstool.AreaMember` rows handled by `harnesstool.Area`.
+The rename map carries one row for each old name under `test` and under the
+retired `test harness` namespace. The functional suite names
+(`./le test functional isis-wire`) and the deployment action
+`l2tp-scale-test` are le verbs, not harness names, and do not change.
 
 Rejected alternative: one bridge package that loops over a harness table and
 registers every name. It keeps `internal/test/cli/register.go` as a central list
@@ -340,7 +361,7 @@ No caller runs it there.
 |-----------------|----------------------------|------------|
 | `fixture` | `fixture` | merged (point 2) |
 | `harness` | none | deleted in Phase 1d; its words become a retired row |
-| unit, functional, integration, deployment, qemu, fuzz, health, mutation, netlab, sensitivity, stress-repro, weakened | none | no clash. The directories `test/l2tpscale`, `test/isiswire`, `test/ospfwire`, `test/l2tpwire`, `test/flowexport`, `test/vppstub` and `test/interopbgp` meet no existing directory |
+| unit, functional, integration, deployment, qemu, fuzz, health, mutation, netlab, sensitivity, stress-repro, weakened | none | no clash. The directories `test/wire`, `test/scale`, `test/httpd`, `test/flowexport` and `test/interopbgp` meet no existing directory (the first three per the D-8 amendment) |
 
 `le test functional ui` and `le test ui` both reach suite `ui`. They are not one
 command: `test functional` builds an isolated binary set from the tree and runs
@@ -362,7 +383,7 @@ copies it, never under `bin/le-*`, which is launcher territory.
 | QEMU guests (`internal/le/test/qemu`: `run.go` `qemuTestBin`, `netns_linux.go`, `guest_linux.go` `guestTestBinKey`, the shim map in `alltests.go`) | the host passes the guest-arch harness file (default under `bin/`, or `le.qemu.test.bin`) and the guest reads it as `LE_TEST_BIN` | the host builds a linuxle `le` for `qemuGuestArch()` under `tmp/` of the checkout the guest mounts at `/workspace`, and the guest runs it as `le test <suite>` with `LE_TEST_NO_BUILD=1` and `ZE_BIN`. `.github/workflows/qemu-nightly.yml` builds no harness | yes: guest `ze` and `le` |
 | VPP evidence (`internal/le/test/deployment/vppevidence.go`) | `vppTestRel` builds the harness under `tmp/evidence/bin/` with `ze_test`; the container runs it beside the daemon from `/src/` | a linuxle `le` for `v.Goarch` under `tmp/evidence/bin/`, run as `le test peer ...`; the docker stand-in in `internal/test/fixture/ui_fixture_le_evidence_vpp_answers.go` follows | yes |
 | terminal demo (`internal/le/site/terminaldemo`) | the `binaries-build-ze-test` action builds a linux harness (`buildCommand` with `testBinary`); `scenarios.go` starts harness peers by the retired name | the linux `le` that `binaries-build-ze` already builds (A-4) runs `le test peer ...`; the `binaries-build-ze-test` action is deleted | yes |
-| l2tp scale (`internal/le/test/deployment/l2tpscale.go`) | runs on the host; `findL2TPScaleBinary` looks in `bin/`, then `LE_TEST_BINARY`, then the retired `ZE_TEST_BINARY` | execs its own executable with `test l2tp-scale ...`; there is no path to find, so both variables go | host only |
+| l2tp scale (`internal/le/test/deployment/l2tpscale.go`) | runs on the host; `findL2TPScaleBinary` looks in `bin/`, then `LE_TEST_BINARY`, then the retired `ZE_TEST_BINARY` | execs its own executable with `test scale l2tp ...` (was `test l2tp-scale`, see the D-8 amendment); there is no path to find, so both variables go | host only |
 
 #### 5. The functional runner
 
@@ -412,6 +433,7 @@ An approval of that interim form does not cover D-8.
 | Kind | Old | New |
 |------|-----|-----|
 | command | `test harness` | `test` (the rewritten words plus the next argument must resolve to a registered command, AC-36) |
+| command | `test isis-wire`, `test ospf-wire`, `test l2tp-wire`, `test l2tp-scale`, `test static-http`, `test vpp-stub`, each also under `test harness` | `test wire isis`, `test wire ospf`, `test wire l2tp`, `test scale l2tp`, `test httpd`, `test vpp stub` (D-8 amendment, R9) |
 | program | the interim harness binary (`le-` spelling) | `le test` |
 | program | the original harness binary (`ze-` spelling) | `le test` (was `le test harness`) |
 | program | `ze-peer` (runner exec head only) | `le test peer`, under reading A of the owner question below |
@@ -687,7 +709,7 @@ because G-2 asks that no tracked file name an old name.
 | AC-38 | `./le test functional <suite>` | the binary set holds `ze`, `ze-stripped` and an `le` built from the tree under test, and no harness binary; the suite runs as `<set>/le test <suite>` with `LE_TEST_NO_BUILD=1` and `ZE_BIN`; `Extras.LE` and `Suite.LE` are gone |
 | AC-39 | an interop run of the BGP image | the runner builds a linux `le` with `linuxle` at `test/interop/le-linux`; the image holds `/usr/local/bin/ze` and `/usr/local/bin/le`, plus the retired harness names as shell shims in Phases 1 and 2 only; containers start with entrypoint `le` and command `test interop-bgp ...`; one scenario that runs `interop-bgp process` passes |
 | AC-40 | `./le test qemu <suite>` | the host builds a linux `le` with `linuxle` for `qemuGuestArch()` under `tmp/` of the mounted checkout; the guest runs it as `le test <suite>`; no reader of `le.qemu.test.bin`, `ze.qemu.test.bin` or a guest `LE_TEST_BIN` remains; `.github/workflows/qemu-nightly.yml` builds no harness |
-| AC-41 | VPP evidence, a terminal-demo build, and `./le test deployment l2tp-scale-test` | VPP evidence builds a linux `le` with `linuxle` and runs `le test peer` beside the daemon; the terminal demo has no `binaries-build-ze-test` action and its scenarios start `le test peer`; l2tp scale execs its own executable with `test l2tp-scale` and reads neither `LE_TEST_BINARY` nor `ZE_TEST_BINARY` |
+| AC-41 | VPP evidence, a terminal-demo build, and `./le test deployment l2tp-scale-test` | VPP evidence builds a linux `le` with `linuxle` and runs `le test peer` beside the daemon; the terminal demo has no `binaries-build-ze-test` action and its scenarios start `le test peer`; l2tp scale execs its own executable with `test scale l2tp` and reads neither `LE_TEST_BINARY` nor `ZE_TEST_BINARY` |
 | AC-42 | the env registry after Phase 1d, and after Phase 3 | after 1d, no reader of `le.test.bin`, `le.qemu.test.bin` or `le.test.binary` exists and `internal/test/harnessbin` is gone; `le.test.no.build` is registered in `internal/test/runner` and still skips the `ze` build. After Phase 3 none of `le.test.bin`, `ze.test.bin`, `le.qemu.test.bin`, `ze.qemu.test.bin`, `le.test.binary`, `ze.test.binary` or `ze.test.no.build` is registered |
 | AC-43 | the Phase 3 tree | no build tag `ze_test` and no `le_test` anywhere under `cmd/`, `internal/`, `.github/`, the Dockerfiles or `feature-gates.txt` (`zetest` unchanged); no builder writes a harness binary under either name; `./le test harness` answers `unknown command`; the runner has no retired exec head and no shim; the hook has no harness-file admission; the launcher accepts `--name test` again |
 | AC-44 | a cold build of `bin/le` before and after Phase 1d, and `./le arch tier check` after it | both build times and the linux `le` size before and after are recorded in this spec with the machine named; `./le arch tier check` is green with `internal/le` importing `internal/test/cli` |

@@ -10,6 +10,7 @@ package hostload
 import (
 	"context"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ type Load struct {
 
 // Contended returns true when system load suggests CPU starvation.
 // The threshold is load-avg-1 > CPUs (fully loaded) AND at least one
-// concurrent ze or go-test process besides the caller.
+// concurrent `le test` or go-test process besides the caller.
 func (l Load) Contended() bool {
 	return l.LoadAvg1 > float64(l.CPUs) && (l.ZeProcs > 1 || l.GoTestProcs > 0)
 }
@@ -51,9 +52,54 @@ func Snapshot() Load {
 		CPUs: runtime.NumCPU(),
 	}
 	l.LoadAvg1 = readLoadAvg1()
-	l.ZeProcs = processCount("le-test")
+	l.ZeProcs = harnessProcessCount()
 	l.GoTestProcs = processCount("\\.test")
 	return l
+}
+
+// harnessProcessCount counts the running test-harness processes: every
+// `le test <name>` command, the runner that called Snapshot among them.
+//
+// The harness has no binary of its own (`le test <name>` is an ordinary le
+// command), so the process name reads `le` for every le command and only the
+// argument list tells the harness apart. `ps -eo args=` prints it on macOS and
+// Linux alike. A failed sample answers 0, as Snapshot documents.
+func harnessProcessCount() int {
+	lines, err := processArguments()
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, line := range lines {
+		if isHarnessCommand(line) {
+			count++
+		}
+	}
+	return count
+}
+
+// processArguments answers the argument list of every process, one per entry.
+func processArguments() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), procTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ps", "-eo", "args=").Output()
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
+}
+
+// isHarnessCommand answers whether one `ps` argument list is an `le test`
+// command: the program's base name is `le` and its first argument is `test`.
+func isHarnessCommand(args string) bool {
+	fields := strings.Fields(args)
+	if len(fields) < 2 {
+		return false
+	}
+	if filepath.Base(fields[0]) != "le" {
+		return false
+	}
+	return fields[1] == "test"
 }
 
 // processCount counts processes whose comm field matches pattern.

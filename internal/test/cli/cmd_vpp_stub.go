@@ -54,10 +54,10 @@ type vppStubState struct {
 	loopbackIndex uint32
 }
 
-// CmdVPPStub is the harness command `le test vpp-stub`, registered by
-// internal/le/test/vppstub. It answers the process exit code.
+// CmdVPPStub is the harness command `le test vpp stub`, registered by
+// internal/le/test/vpp. It answers the process exit code.
 func CmdVPPStub(args []string) int {
-	flags := flag.NewFlagSet("vpp-stub", flag.ContinueOnError)
+	flags := flag.NewFlagSet("vpp stub", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	socketPath := flags.String("socket", "", "Unix socket path")
 	logPath := flags.String("log", "", "JSONL log path")
@@ -68,11 +68,11 @@ func CmdVPPStub(args []string) int {
 		return 2
 	}
 	if *socketPath == "" || *logPath == "" || flags.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "vpp-stub: --socket and --log are required")
+		fmt.Fprintln(os.Stderr, "vpp stub: --socket and --log are required")
 		return 2
 	}
 	if err := runVPPStub(*socketPath, *logPath, time.Duration(*deadlineSeconds*float64(time.Second)), *verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "vpp-stub: %v\n", err)
+		fmt.Fprintf(os.Stderr, "vpp stub: %v\n", err)
 		return 1
 	}
 	return 0
@@ -144,7 +144,7 @@ func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool
 	defer state.log.Close()                        //nolint:errcheck // shutdown cleanup
 	go func() { <-ctx.Done(); listener.Close() }() //nolint:errcheck // unblocks Accept on shutdown
 	if verbose {
-		fmt.Fprintf(os.Stderr, "vpp-stub: listening on %s (log=%s, deadline=%s)\n", socketPath, logPath, deadline)
+		fmt.Fprintf(os.Stderr, "vpp stub: listening on %s (log=%s, deadline=%s)\n", socketPath, logPath, deadline)
 	}
 	for {
 		connection, err := listener.Accept()
@@ -155,7 +155,7 @@ func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool
 			return err
 		}
 		if err := serveVPPClient(state, connection); err != nil && verbose {
-			fmt.Fprintf(os.Stderr, "vpp-stub: client error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "vpp stub: client error: %v\n", err)
 		}
 		connection.Close() //nolint:errcheck // per-connection cleanup
 	}
@@ -173,7 +173,7 @@ func (state *vppStubState) writeLog(name string, context uint32, fields map[stri
 		return err
 	}
 	if state.verbose {
-		fmt.Fprintf(os.Stderr, "vpp-stub: %s %v\n", name, fields)
+		fmt.Fprintf(os.Stderr, "vpp stub: %s %v\n", name, fields)
 	}
 	return nil
 }

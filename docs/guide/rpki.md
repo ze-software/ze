@@ -553,10 +553,10 @@ Routes retain their received attributes and normalized AS_PATH. When ASPA data c
 
 ### Testing ASPA
 
-The `le-test rtr-mock` command supports ASPA records with the `--aspa` flag:
+The `le test rtr-mock` command supports ASPA records with the `--aspa` flag:
 
 ```
-le-test rtr-mock --port 3323 \
+le test rtr-mock --port 3323 \
     --vrp 10.0.0.0/8,24,65001 \
     --aspa 64502:64501 \
     --aspa 64501:64500
@@ -566,10 +566,10 @@ The format is `customer:provider1,provider2,...` (repeatable). When ASPA records
 
 ## Testing RPKI Locally
 
-The `le-test rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:
+The `le test rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:
 
 ```
-le-test rpki --port 3323
+le test rpki --port 3323
 ```
 
 Validation states are predictable (for routes from AS 65001 with default flags):

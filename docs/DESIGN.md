@@ -881,10 +881,10 @@ expect=exit:code=0
 
 | Test Category | Location | Runner |
 |---------------|----------|--------|
-| Encoding | `test/encode/` | `le-test bgp encode` |
-| Decoding | `test/decode/` | `le-test bgp decode` |
-| Config parsing | `test/parse/` | `le-test bgp parse` |
-| Plugin behavior | `test/plugin/` | `le-test bgp plugin` |
+| Encoding | `test/encode/` | `le test bgp encode` |
+| Decoding | `test/decode/` | `le test bgp decode` |
+| Config parsing | `test/parse/` | `le test bgp parse` |
+| Plugin behavior | `test/plugin/` | `le test bgp plugin` |
 | ExaBGP compat | `test/exabgp/` | `./le test functional exabgp-test` |
 | Integration | `test/integration/` | `./le test functional gating` |
 | Unit tests | `internal/**/*_test.go` | `./le test unit bgp` and the other native groups |
@@ -937,8 +937,8 @@ runs on schedule.
 
 | Tool | Purpose |
 |------|---------|
-| `le-test` | Functional test runner (`--list`, `--all`, by index) |
-| `le-test peer` | BGP test peer (`--sink`, `--echo`, `--port`, `--asn`) |
+| `le test` | Functional test runner (`--list`, `--all`, by index) |
+| `le test peer` | BGP test peer (`--sink`, `--echo`, `--port`, `--asn`) |
 
 ---
 

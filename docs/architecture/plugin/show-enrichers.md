@@ -34,7 +34,7 @@ non-register file.
 <!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
 
 **Testing uses both a Go plugin and a compiled `.ci` fixture.** The Go
-`fakeenrich` package guards the in-process path. The `le-test fixture` process
+`fakeenrich` package guards the in-process path. The `le test fixture` process
 exercises the external SDK path end to end. Either alone leaves one path
 unproven.
 <!-- source: internal/test/fixture/plugin_fixture_06.go -- fixture06EnricherExternalChecker -->

@@ -311,7 +311,7 @@ session where neither side negotiated ADD-PATH keeps its zero-copy forward.
 ### Protocol event capture and replay
 
 A peer writes every message it receives to a bounded JSONL file, together with
-the config operations applied while the capture runs. `le-test replay <file>`
+the config operations applied while the capture runs. `le test replay <file>`
 feeds the file back through the same read path with an injected clock.
 
 The tee sits on the complete wire message in both read paths, before message
@@ -327,7 +327,7 @@ whether an enabled peer's capture directory is usable
 (`doctor-bgp-capture-directory`).
 
 ```bash
-le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
+le test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
 ```
 
 <!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->

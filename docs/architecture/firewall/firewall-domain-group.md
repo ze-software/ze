@@ -121,7 +121,7 @@ until the first update resolves the group, which is the cold start these files
 walk through.
 
 All three serialize on `option=exclusive:group=dns-stub-port-53`. Their fixture
-serves the `le-test dns` stub in process on port 53, which `system name-server`
+serves the `le test dns` stub in process on port 53, which `system name-server`
 reaches because that leaf is an address and carries no port.
 <!-- source: internal/test/fixture/netfilter_fixture_domain_group.go -- domainGroupUpdate, domainGroupClear, domainGroupShow -->
 

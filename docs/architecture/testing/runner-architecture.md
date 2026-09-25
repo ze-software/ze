@@ -172,8 +172,8 @@ of them has to start that one.
 | `kind` | What the harness starts | Scheme | Ports |
 |--------|-------------------------|--------|-------|
 | `web` | `ze start --web <port> --web-only` | `https` | 1 |
-| `lg` | `le-test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
-| `lg-no-engine` | `le-test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
+| `lg` | `le test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
+| `lg-no-engine` | `le test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `ze-chaos --in-process --web :<port>` | `http` | 1 |
 
 The looking glass gets a peer because its pages read `show bgp`: without
@@ -183,7 +183,7 @@ test asks for it, beside the `ze` binary the run is using.
 
 `lg-no-engine` exists because no configuration reaches the engine-unavailable
 state: the looking glass dispatches in process, so a daemon with no BGP still
-answers an empty peer list. `le-test lg` builds the REAL server through
+answers an empty peer list. `le test lg` builds the REAL server through
 `lg.NewLGServer` and injects one failing dispatcher, which is the only part that
 is not production code. The two ends of the `lg` daemon peer carry different
 loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
@@ -396,7 +396,7 @@ still uses the system temp directory.
 
 ## Timing baseline and auto-timeout
 
-`le-test` saves per-test timing to `tmp/test-timings.json` as a rolling EMA with
+`le test` saves per-test timing to `tmp/test-timings.json` as a rolling EMA with
 alpha 0.3. After three samples the baseline drives two things:
 
 - **Auto-timeout.** The per-test timeout is `min(global, max(5s, 5 x baseline avg))`.
@@ -415,7 +415,7 @@ pollute the EMA.
 
 On a loaded machine the failure index is headed
 `VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. That means load
-exceeded the CPU count with concurrent `le-test` or `go test` processes.
+exceeded the CPU count with concurrent `le test <name>` or `go test` processes. The harness count reads each process's argument list (`le` with `test` as its first argument), because the harness has no binary name of its own.
 
 - A `near_timeout` kind says the test consumed over 80% of its timeout without
   the context deadline firing. That is CPU starvation, not a bug. Rerun it on a
@@ -450,7 +450,7 @@ reproduced, 2 a setup error.
 ```
 
 The suite selector and `test` selector are both split on whitespace, so a
-sub-suite and a multi-token selector reach `le-test` exactly as typed by hand.
+sub-suite and a multi-token selector reach `le test` exactly as typed by hand.
 
 By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)
 counts as a reproduction, and everything else is discarded down to the last 500
@@ -509,7 +509,7 @@ runner called the failure callback only under `-v` or verify mode, so a normal
 reports when `rec.StepTrace` is non-empty, and `Report.printStepTraces` prints
 every selected test's trace under `-v`. That last half was untrue for the `.ci`
 runner until 2026-09-07: `RunOptions.Verbose` was carried from the command line
-and read by nothing, so `le-test <suite> -v` over a green suite printed no more
+and read by nothing, so `le test <suite> -v` over a green suite printed no more
 than a bare run.
 
 The first step of each command is what the runner RAN: the argv it built, and

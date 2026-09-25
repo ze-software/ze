@@ -287,7 +287,7 @@ installed with the parent's subnet prefix, and a small set of `arp_ignore`,
 IP while letting the macvlan answer with the virtual MAC. This mirrors what
 keepalived's `use_vmac` does, and ze restores the sysctls it changed when the
 last group on an interface goes away. This behaviour is verified against
-keepalived under QEMU (`le-test`'s VRRP interop lab).
+keepalived under QEMU (`le test`'s VRRP interop lab).
 
 If Ze cannot read or set a required sysctl, the group does not start. It attempts
 to restore shared settings changed by that setup and reports both setup and

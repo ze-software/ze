@@ -41,7 +41,7 @@ var _ = env.MustRegister(env.EnvEntry{
 })
 
 // l2tpScaleZeEnv is the environment spelling that locates ze when bin/ holds
-// none. The simulator needs no variable: it is `le test l2tp-scale`, run from
+// none. The simulator needs no variable: it is `le test scale l2tp`, run from
 // this process's own executable.
 const l2tpScaleZeEnv = "ZE_BINARY"
 
@@ -50,7 +50,7 @@ type l2tpScaleRunOptions struct {
 	Scenario string
 }
 
-// L2TPScaleResult is the exact JSON contract emitted by le test l2tp-scale.
+// L2TPScaleResult is the exact JSON contract emitted by le test scale l2tp.
 type L2TPScaleResult struct {
 	TunnelsRequested  int           `json:"tunnels-requested"`
 	TunnelsUp         int           `json:"tunnels-up"`
@@ -296,7 +296,7 @@ func runL2TPScaleScenario(
 	}
 
 	argv := []string{
-		harness, "test", "l2tp-scale",
+		harness, "test", "scale", "l2tp",
 		"--target", fmt.Sprintf("127.0.0.1:%d", port),
 		"--tunnels", strconv.Itoa(scenario.tunnels),
 		"--sessions", strconv.Itoa(scenario.sessions),
@@ -312,11 +312,11 @@ func runL2TPScaleScenario(
 	report.ResultBytes = command.stdout
 	report.ErrorBytes = command.stderr
 	if runErr != nil {
-		report.Failure = "run le-test l2tp-scale: " + runErr.Error()
+		report.Failure = "run le test scale l2tp: " + runErr.Error()
 		return report
 	}
 	if len(bytes.TrimSpace(command.stdout)) == 0 {
-		report.Failure = "no result from le-test l2tp-scale"
+		report.Failure = "no result from le test scale l2tp"
 		return report
 	}
 	var result L2TPScaleResult
@@ -481,7 +481,7 @@ type l2tpScaleProcess interface {
 
 type l2tpScaleSystem interface {
 	// Executable answers the file of the running le, which runs the simulator
-	// as `le test l2tp-scale`.
+	// as `le test scale l2tp`.
 	Executable() (string, error)
 	FileExists(path string) bool
 	Getenv(key string) string

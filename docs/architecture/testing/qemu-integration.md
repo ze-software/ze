@@ -403,7 +403,7 @@ tracer is in the path and the refused call is charged to the daemon's own CPU
 time.
 
 ```
-cmd=background:seq=1:exec=le-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
+cmd=background:seq=1:exec=le test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
 ```
 
 | Keyword | Meaning |

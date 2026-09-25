@@ -209,9 +209,9 @@ var Suites = []Suite{
 		Name: suiteAppliance, Args: []string{"appliance", allTests},
 		Why: "the appliance CLI: build, iso, list, serial-login",
 	},
-	{Name: suiteL2tpWire, Args: []string{"l2tp-wire", allTests}, Why: "L2TP wire level"},
-	{Name: suiteIsisWire, Args: []string{"isis-wire", allTests}, Why: "IS-IS wire-level decode"},
-	{Name: suiteOspfWire, Args: []string{"ospf-wire", allTests}, Why: "OSPFv2 wire-level decode"},
+	{Name: suiteL2tpWire, Args: []string{"wire", "l2tp", allTests}, Why: "L2TP wire level"},
+	{Name: suiteIsisWire, Args: []string{"wire", "isis", allTests}, Why: "IS-IS wire-level decode"},
+	{Name: suiteOspfWire, Args: []string{"wire", "ospf", allTests}, Why: "OSPFv2 wire-level decode"},
 	{
 		Name: suiteRunner, Args: []string{"runner", allTests},
 		Why: "the test-runner primitives (test/runner/*.ci). Host-safe: it spawns only" +

@@ -223,7 +223,7 @@ func plugin16StartVPP(ctx context.Context) (run *plugin16VPPRun, stop func(), er
 	if err != nil {
 		return nil, nil, err
 	}
-	stub := exec.CommandContext(ctx, executable, "test", "vpp-stub", "--socket", socketPath, "--log", requestLog, "--deadline", "120") //nolint:gosec // the fixture chooses the program and its arguments
+	stub := exec.CommandContext(ctx, executable, "test", "vpp", "stub", "--socket", socketPath, "--log", requestLog, "--deadline", "120") //nolint:gosec // the fixture chooses the program and its arguments
 	stub.Stdout = io.Discard
 	stub.Stderr = io.Discard
 	stubDone, err := plugin16StartProcess(stub)

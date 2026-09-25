@@ -64,7 +64,7 @@ therefore unreachable as the last word of such an area's line.
 
 Any OTHER option reaches such an area, because the dispatcher cannot read it as
 a question and the area's own parser owns the line. That is what `command
-<argv...>` means: `./le job run label encode-list command bin/le-test bgp encode
+<argv...>` means: `./le job run label encode-list command bin/le test bgp encode
 --list` hands `--list` to the child.
 
 ## A bare `go test` is not `./le test unit`
@@ -114,7 +114,7 @@ carries the test-only tag set, and the suite runs with `LE_TEST_NO_BUILD=1`,
 and `ZE_BIN` pointing at that set, as `<set>/le test <suite>`
 (`BinarySet.Environment`).
 
-Running a `le-test` binary directly skips all of that. The runner can then
+Running `le test` directly skips all of that. The runner can then
 rebuild a daemon without the test-only surface, so a fixture times out for a
 build-population reason and the failure looks like the code under test. The
 `--server` and `--client` hints the runner prints on failure inherit the same

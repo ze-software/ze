@@ -760,7 +760,7 @@ use the mutant route inside the value that the initializer returns
 | Route | The break | The runner |
 |---|---|---|
 | `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
-| `revert` on a `.ci` | the producing function's body replaced by a halt | `le-test <suite> <name>`, ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay |
+| `revert` on a `.ci` | the producing function's body replaced by a halt | `le test <suite> <name>`, ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay |
 | `revert` on an interop checker | the same | `./le test integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
 
 Adding `report <path>` to `./le rfc discriminate` turns it into a PROPOSER: it

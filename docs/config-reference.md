@@ -459,7 +459,7 @@ than scoring it, so no number stands in for the absence.
 
 A peer can write every inbound message to a bounded JSONL file as raw wire
 bytes, together with the config operations applied while the capture runs.
-`le-test replay <file>` drives the same read path over the same input with an
+`le test replay <file>` drives the same read path over the same input with an
 injected clock. Capture is a diagnostic aid, so leave it off in steady state.
 
 ```

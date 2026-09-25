@@ -38,7 +38,7 @@ to repair from the installer, never a reason to open the console.
 
 - argv[0] detection sits in `ze_core_dispatch.go` `binarySetup`, not in
   `main.go`. `main.go` carries no build tag, so the check would fire for every
-  binary personality, including le-test and ze-chaos.
+  binary personality, including le test and ze-chaos.
 - `DontStartOnBoot` (exit 125 when `GOKRAZY_FIRST_START=1`) is inlined rather
   than imported. `github.com/gokrazy/gokrazy` is not vendored in the main
   module, and vendoring it for a three-line function pollutes the dependency

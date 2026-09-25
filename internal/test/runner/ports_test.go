@@ -12,9 +12,9 @@ import (
 // PREVENTS: Test failures due to port conflicts.
 func TestFindFreePortRange(t *testing.T) {
 	// Find a range of 5 ports starting from a high port
-	start, err := FindFreePortRange(50000, 5)
+	start, err := findFreePortRange(50000, 5)
 	if err != nil {
-		t.Fatalf("FindFreePortRange failed: %v", err)
+		t.Fatalf("findFreePortRange failed: %v", err)
 	}
 
 	if start < 50000 {
@@ -38,9 +38,9 @@ func TestFindFreePortRange(t *testing.T) {
 // PREVENTS: Full-suite flakes where one category probes a free range, releases
 // it, and another category chooses the same ports before the first has finished.
 func TestReservePortsExcludesHeldRange(t *testing.T) {
-	base, err := FindFreePortRange(53000, 4)
+	base, err := findFreePortRange(53000, 4)
 	if err != nil {
-		t.Fatalf("FindFreePortRange: %v", err)
+		t.Fatalf("findFreePortRange: %v", err)
 	}
 
 	first, _, err := ReservePorts(base, 2)
@@ -89,9 +89,9 @@ func TestReservePortsLeavesTCPPortsBindable(t *testing.T) {
 // PREVENTS: False positives on port availability.
 func TestAllocatePorts(t *testing.T) {
 	// Allocate from a high base port that should be free
-	pr, shifted, err := AllocatePorts(51000, 3)
+	pr, shifted, err := allocatePorts(51000, 3)
 	if err != nil {
-		t.Fatalf("AllocatePorts failed: %v", err)
+		t.Fatalf("allocatePorts failed: %v", err)
 	}
 
 	if pr.Count != 3 {
@@ -118,9 +118,9 @@ func TestAllocatePorts(t *testing.T) {
 // other suite; a second le test process on the same box handed 1848 out again
 // and one of the two died with "bind: address already in use".
 func TestLeaseTestPortsRefusesToHandTwoTestsOnePort(t *testing.T) {
-	preferred, err := FindFreePortRange(53200, TestPortSpan)
+	preferred, err := findFreePortRange(53200, TestPortSpan)
 	if err != nil {
-		t.Fatalf("FindFreePortRange: %v", err)
+		t.Fatalf("findFreePortRange: %v", err)
 	}
 
 	first, err := LeaseTestPorts(preferred)
@@ -158,9 +158,9 @@ func TestLeaseTestPortsRefusesToHandTwoTestsOnePort(t *testing.T) {
 // PREVENTS: Reporting a port as this test's and then failing at bind, which is
 // how the class reads in a suite log ("peer did not start listening within 5s").
 func TestLeaseTestPortsMovesOffAPortSomethingIsListeningOn(t *testing.T) {
-	preferred, err := FindFreePortRange(53400, TestPortSpan)
+	preferred, err := findFreePortRange(53400, TestPortSpan)
 	if err != nil {
-		t.Fatalf("FindFreePortRange: %v", err)
+		t.Fatalf("findFreePortRange: %v", err)
 	}
 
 	squatter, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", preferred+1)) //nolint:noctx // test code
@@ -209,12 +209,12 @@ func TestCheckPortAvailable(t *testing.T) {
 	defer func() { _ = ln.Close() }()
 
 	// Port should be unavailable
-	if CheckPortAvailable(52000) {
+	if checkPortAvailable(52000) {
 		t.Error("expected port 52000 to be unavailable")
 	}
 
 	// A different high port should be available
-	if !CheckPortAvailable(52999) {
+	if !checkPortAvailable(52999) {
 		t.Log("Port 52999 also in use, skipping availability check")
 	}
 }

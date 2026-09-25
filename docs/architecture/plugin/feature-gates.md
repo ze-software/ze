@@ -209,7 +209,7 @@ Two traps appear only at this scale:
   `cmd/ze/dispatch_bgp.go` carries `//go:build ze_core && ze_bgp`, because
   `ze_core` selects the CLI dispatch personality and only the CLI registration
   belongs to it. The two were one file until 2026-09-03, and the wider gate left
-  the seams unfilled in every non-`ze_core` binary: the `le-test` harness
+  the seams unfilled in every non-`ze_core` binary: the `le test` harness
   (`ze_test` plus the feature tags) drives the config editor in-process, so
   `infra.ValidateBGPPeers` answered nil there and an editor `.et` asserting a
   refused commit could not pass. A test binary that links its own composition

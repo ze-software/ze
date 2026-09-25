@@ -129,7 +129,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 		return err
 	}
 
-	ConfigureCIRunnerOutput(r, cfg.Name)
+	configureCIRunnerOutput(r, cfg.Name)
 
 	opts := &runner.RunOptions{
 		Timeout:  15 * time.Second,
@@ -147,7 +147,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	return nil
 }
 
-func ConfigureCIRunnerOutput(r *runner.Runner, suite string) {
+func configureCIRunnerOutput(r *runner.Runner, suite string) {
 	r.Display().SetLabel(suite)
 	r.Report().SetLabel(suite)
 	r.Display().Header()

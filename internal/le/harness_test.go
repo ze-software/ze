@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/le/test/harnesstool"
 	"github.com/ze-software/ze/internal/test/cli"
 	"github.com/ze-software/ze/internal/test/runner"
 )
@@ -125,10 +126,15 @@ func TestNoHarnessPackageRegistersARoot(t *testing.T) {
 const draftDirName = runner.DraftDirName
 
 // suiteReached reports whether test/<name> is run by some harness command:
-// the suite command `le test <name>`, whose name equals its directory, or a
-// big runner that walks it as a subcommand (cli.BigRunnerCIDirs).
+// the suite command `le test <name>`, whose name equals its directory, a
+// member of an area that runs it under another name (harnesstool.AreaSuiteDirs,
+// `le test wire isis` for test/isis-wire), or a big runner that walks it as a
+// subcommand (cli.BigRunnerCIDirs).
 func suiteReached(name string) bool {
 	if leroot.LookupCommand("test "+name) != nil {
+		return true
+	}
+	if slices.Contains(harnesstool.AreaSuiteDirs(), name) {
 		return true
 	}
 	return slices.Contains(cli.BigRunnerCIDirs(), name)

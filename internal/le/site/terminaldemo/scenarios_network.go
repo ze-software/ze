@@ -394,7 +394,7 @@ func runTraffic(action string, output io.Writer) error {
 		}
 	case commandStart:
 		env := scenarioEnv(id, demoPassword)
-		httpPID, err := startCommand(demoHarness, []string{demoHarnessWord, "static-http", flagBind, "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
+		httpPID, err := startCommand(demoHarness, []string{demoHarnessWord, "httpd", flagBind, "10.77.0.1:8080", "--directory", demoDir(id)}, env, filepath.Join(state, "http.log"))
 		if err != nil {
 			return err
 		}

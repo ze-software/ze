@@ -41,7 +41,7 @@ any binary download. After stopping both the daemon and manifest server, the
 fixture starts a fresh daemon and compares the event returned by
 `show system update history`, including its original timestamp.
 The explicit native action is
-`le-test fixture storage/consumer-restart history`, from a scratch directory
+`le test fixture storage/consumer-restart history`, from a scratch directory
 with the selected `ze` on `PATH`. The updater refuses every upgrade comparison
 for `dev` and `unknown`, and the suite's daemon is an unstamped development
 build, so the fixture sets `ze.test.update.running.version`

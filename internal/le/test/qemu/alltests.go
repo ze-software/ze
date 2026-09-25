@@ -241,9 +241,9 @@ var vmSuites = []vmSuite{
 		Why: "its tests validate config through `ze config validate` and open no socket, so they" +
 			" need neither a namespace of their own nor the guest's privileges",
 	},
-	{Name: "l2tp-wire", Args: []string{"l2tp-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
-	{Name: "isis-wire", Args: []string{"isis-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
-	{Name: "ospf-wire", Args: []string{"ospf-wire", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "l2tp-wire", Args: []string{"wire", "l2tp", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "isis-wire", Args: []string{"wire", "isis", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
+	{Name: "ospf-wire", Args: []string{"wire", "ospf", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{
 		Name: "traffic", Args: []string{"traffic", allTests}, Concurrency: serial, Namespace: guestRoot,
 		Why: "the needs-linux qdisc tests mutate shared kernel qdisc state on eth0, which is the" +

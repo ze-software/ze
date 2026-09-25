@@ -361,7 +361,7 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 `source=local` means RADIUS was unreachable (or unconfigured) and the local
 bcrypt user accepted the credentials.
 
-<!-- source: internal/test/mock/radius/radius.go -- le-test radius-mock for .ci tests -->
+<!-- source: internal/test/mock/radius/radius.go -- le test radius-mock for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->

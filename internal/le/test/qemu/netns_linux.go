@@ -197,14 +197,14 @@ func hostNFTTables(ctx context.Context) (string, error) {
 
 func runNetnsSuite(ctx context.Context, binaries netnsBinaries, suiteName string, ids []string) int {
 	environ := withGuestEnv(os.Environ(), map[string]string{
-		noBuildKey:      "1",
-		inVMKey:         "1",
-		zeBinKey:        filepath.Join(netnsCapDir, "ze"),
-		strippedBinKey:  filepath.Join(netnsCapDir, "ze-stripped"),
-		netnsModeKey:    netnsModeValue,
-		netnsUIDKey:     netnsUID,
-		netnsGIDKey:     netnsUID,
-		netnsConfigKey:  netnsStateDir,
+		noBuildKey:     "1",
+		inVMKey:        "1",
+		zeBinKey:       filepath.Join(netnsCapDir, "ze"),
+		strippedBinKey: filepath.Join(netnsCapDir, "ze-stripped"),
+		netnsModeKey:   netnsModeValue,
+		netnsUIDKey:    netnsUID,
+		netnsGIDKey:    netnsUID,
+		netnsConfigKey: netnsStateDir,
 	})
 	suiteArgs := []string{suiteName} // PPPoE is not in the functional registry.
 	if suite, ok := testfunctional.SuiteNamed(suiteName); ok {

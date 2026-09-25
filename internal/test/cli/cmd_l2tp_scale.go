@@ -22,7 +22,7 @@ import (
 )
 
 func CmdL2tpScale(args []string) int {
-	fs := flag.NewFlagSet("l2tp-scale", flag.ExitOnError)
+	fs := flag.NewFlagSet("scale l2tp", flag.ExitOnError)
 
 	var (
 		target      string
@@ -47,7 +47,7 @@ func CmdL2tpScale(args []string) int {
 	fs.BoolVar(&jsonOutput, "json", false, "output results as JSON")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: le test l2tp-scale [options]
+		fmt.Fprintf(os.Stderr, `Usage: le test scale l2tp [options]
 
 L2TP control-plane scale test. Starts a mock RADIUS server, then
 simulates multiple LAC tunnels with many sessions each.

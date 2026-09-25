@@ -179,7 +179,7 @@ At first enrollment, do not place the session into service until `show bgp irr` 
 
 ## Local demonstration
 
-The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with `ze config set`, then starts Ze against `le-test irr`, a deterministic local whois server. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.
+The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with `ze config set`, then starts Ze against `le test irr`, a deterministic local whois server. Its `AS-TEST` object contains `10.0.0.0/24` but not `192.168.0.0/24`. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.
 
 <!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
 <!-- source: demos/terminal/irr-filter/ze.conf -- baseline BGP configuration without IRR filtering -->

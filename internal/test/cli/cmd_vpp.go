@@ -186,6 +186,9 @@ Options:
   -v, --verbose       Show output for each test
   -q, --quiet         Minimal output
   -s, --save DIR      Save logs to directory
+Subcommands:
+  stub [options]      Run the GoVPP Unix-socket stub a VPP test starts
+                      (le test vpp stub --help)
 
 Examples:
   le test vpp -l

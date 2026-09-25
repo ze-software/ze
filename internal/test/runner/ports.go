@@ -52,9 +52,9 @@ func (p *PortReservation) Release() {
 	p.files = nil
 }
 
-// FindFreePortRange finds N consecutive free ports starting from base.
+// findFreePortRange finds N consecutive free ports starting from base.
 // Returns the starting port of the free range.
-func FindFreePortRange(base, count int) (int, error) {
+func findFreePortRange(base, count int) (int, error) {
 	const maxPort = 65000
 	const step = 100 // Jump in larger steps for efficiency
 
@@ -94,9 +94,9 @@ func isPortRangeFree(start, count int) bool {
 	return true
 }
 
-// AllocatePorts tries to allocate a port range, falling back if base is occupied.
+// allocatePorts tries to allocate a port range, falling back if base is occupied.
 // Returns the actual range and whether it was shifted from base.
-func AllocatePorts(base, count int) (PortRange, bool, error) {
+func allocatePorts(base, count int) (PortRange, bool, error) {
 	reservation, shifted, err := ReservePorts(base, count)
 	if err != nil {
 		return PortRange{}, false, err
@@ -171,8 +171,8 @@ func LeaseTestPorts(preferred int) (*PortReservation, error) {
 	return nil, fmt.Errorf("%w: %d-%d", errNoLeasablePortPair, leasePortBase, leasePortLimit-1)
 }
 
-// CheckPortAvailable checks if a single port is available.
-func CheckPortAvailable(port int) bool {
+// checkPortAvailable checks if a single port is available.
+func checkPortAvailable(port int) bool {
 	ln, err := net.Listen("tcp", textbuf.StrInt("127.0.0.1:", int64(port))) //nolint:noctx // port probing, no context needed
 	if err != nil {
 		return false
