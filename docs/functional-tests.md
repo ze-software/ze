@@ -343,7 +343,7 @@ and name, plus periodic progress while tests are still running.
 
 | Suite | Command | Files | How it works |
 |-------|---------|-------|--------------|
-| Encode | `le test bgp encode` | `test/encode/*.ci` | Builds Ze and `ze-peer`, starts peers, then checks BGP wire output from configured routes. |
+| Encode | `le test bgp encode` | `test/encode/*.ci` | Builds Ze and `le test peer`, starts peers, then checks BGP wire output from configured routes. |
 | Plugin | `le test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, decoded storage keys, or exported files. |
 | Parse | `le test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
 | Decode | `le test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
@@ -1444,12 +1444,12 @@ destination peer with `expect=bgp:...` or another deterministic wire-visible
 signal.
 
 A two-peer setup by itself is not evidence. If no forwarding-capable plugin is
-loaded, a destination `ze-peer` may establish while no egress filter ever runs.
+loaded, a destination `le test peer` may establish while no egress filter ever runs.
 Those files must be marked `partial` or `blocked` instead of claiming full wire
 coverage.
 
-There is also a known single-`ze-peer` multi-IP timing limitation for some
-multi-destination scenarios. When a test needs one `ze-peer` process to keep
+There is also a known single-`le test peer` multi-IP timing limitation for some
+multi-destination scenarios. When a test needs one `le test peer` process to keep
 multiple local-IP sessions alive long enough for deterministic wire assertions
 and that timing remains flaky, the file should name that exact blocker and stay
 `partial`/`blocked` until the fixture support exists.
@@ -2032,15 +2032,15 @@ Test directives belong to one of two scopes:
 | Scope | Consumer | Placement |
 |-------|----------|-----------|
 | Test runner | The `le test` process itself (seeds `proc.Env`, drives orchestration) | File level, outside any `stdin=...` block |
-| `ze-peer` stdin | The `ze-peer` subprocess reading its stdin at runtime | Inside the `stdin=peer:terminator=X` block |
+| `le test peer` stdin | The `le test peer` subprocess reading its stdin at runtime | Inside the `stdin=peer:terminator=X` block |
 
-Which directives are valid inside a `stdin=peer:` block is not listed here. `ze-peer`'s own parser is the definition of that set, `ClaimLine` (`internal/test/peer/expect.go`) is the function that answers it, and the runner's peer-block guard reads that answer rather than a second list (`internal/test/runner/peer_contract.go`). A list beside it drifts, and it did: it omitted `option=asn`, `option=bind`, `option=linger`, `option=silent`, `option=await_eor` and `reject=bgp`, and it named `option=timeout`, which the test runner consumes rather than `ze-peer`. The directives and their keys are documented in `docs/architecture/testing/ci-format.md`.
+Which directives are valid inside a `stdin=peer:` block is not listed here. `le test peer`'s own parser is the definition of that set, `ClaimLine` (`internal/test/peer/expect.go`) is the function that answers it, and the runner's peer-block guard reads that answer rather than a second list (`internal/test/runner/peer_contract.go`). A list beside it drifts, and it did: it omitted `option=asn`, `option=bind`, `option=linger`, `option=silent`, `option=await_eor` and `reject=bgp`, and it named `option=timeout`, which the test runner consumes rather than `le test peer`. The directives and their keys are documented in `docs/architecture/testing/ci-format.md`.
 
-A directive `ze-peer` claims must stay in-block, so the subprocess receives it. A directive the RUNNER consumes must stay outside, so the runner sees it.
+A directive `le test peer` claims must stay in-block, so the subprocess receives it. A directive the RUNNER consumes must stay outside, so the runner sees it.
 
-`option=conn_map:value=router-id` sorts each accepted connection batch by the BGP router ID in OPEN. `option=conn_map:value=remote-ip` sorts each batch by the TCP source address, which stays stable when reload tests intentionally change router IDs. With `conn_map`, `option=tcp_connections:value=N` is the batch size; if expectations remain after one batch, `ze-peer` accepts another batch and continues with the next `conn=N` rules.
+`option=conn_map:value=router-id` sorts each accepted connection batch by the BGP router ID in OPEN. `option=conn_map:value=remote-ip` sorts each batch by the TCP source address, which stays stable when reload tests intentionally change router IDs. With `conn_map`, `option=tcp_connections:value=N` is the batch size; if expectations remain after one batch, `le test peer` accepts another batch and continues with the next `conn=N` rules.
 
-**`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`ze-peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `ze-peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/le test <suite> -list` time with an error naming the exact directive and pointing at this section.
+**`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`le test peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `le test peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/le test <suite> -list` time with an error naming the exact directive and pointing at this section.
 
 <!-- source: internal/test/runner/record_parse.go — parseAndAdd peer-block loop -->
 

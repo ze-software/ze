@@ -122,7 +122,7 @@ component-edge direction check is not already planned:
 
 | Finding | Severity | Note |
 |---------|----------|------|
-| H6 no component→component / component→plugins dependency-direction gate | HIGH | Triple-confirmed at the time by the retired `dep_audit.py`. Its current producer is `internal/le/tier/gates.go`, reached through `./le arch tier check`. Verify umbrella scope before adding a child spec. |
+| H6 no component→component / component→plugins dependency-direction gate | HIGH | Triple-confirmed at the time by the retired `dep_audit.py`. Its current producer is `internal/le/arch/tier/gates.go`, reached through `./le arch tier check`. Verify umbrella scope before adding a child spec. |
 | bfd → diag functional edge breaks removal invariant | MEDIUM | Becomes a tracked baseline row once the component-edge gate lands; fix = invert the seam to `bfd/api` atomic.Pointer. |
 | config → bgp coupling; editor engine in `cli`; sysrib → rib global setter; web → feature-component imports; BGP spelling in the generic plugin framework; MRT hand-wired in hub; protocol validators hardcoded in central config; `internal/core/diagnostic` mis-tiered + yang_glue regen | MEDIUM | All facets of the component-boundary domain the umbrella owns. Route as umbrella child specs. |
 

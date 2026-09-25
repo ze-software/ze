@@ -23,7 +23,7 @@ func init() {
 		ShortHelp: "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 	})
 

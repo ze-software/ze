@@ -13,7 +13,7 @@
 // cmd/ze/ze_core_dispatch.go's direct blank import (the same way firewall/iface/
 // l2tp cli are), so it must NOT also be discovered into plugin/all. The ze-test
 // binary imports plugin/all (for editor tests) and separately registers a
-// `ze-test traffic` SUITE root; a second `traffic` tool root pulled in through
+// `le test traffic` SUITE root; a second `traffic` tool root pulled in through
 // plugin/all would panic on duplicate registration. Keeping the tool out of
 // plugin/all leaves exactly one `traffic` root per binary.
 package cli

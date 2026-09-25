@@ -11,7 +11,7 @@ propagation benchmark runs.
 ## Symptoms
 
 ```
-ze-perf run | dut=172.31.0.2:179 (AS 65000) | routes=100000 | ...
+le perf send | dut=172.31.0.2:179 (AS 65000) | routes=100000 | ...
 iteration 1/4 (warmup)
 error: iteration 1/4 (warmup): connecting receiver: dialing 172.31.0.2:1791:
   dial tcp 172.31.0.11:0->172.31.0.2:1791: i/o timeout

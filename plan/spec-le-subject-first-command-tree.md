@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 2/5 |
+| Phase | 3/5 |
 | Handoff | - |
 | Updated | 2026-09-25 |
 
@@ -914,6 +914,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 6. **Phase 3: Removal** -- delete the aliases, the old programs (`cmd/ze-gok`, `cmd/ze-terminal-pty`, `cmd/ze-perf-run`), the build tags `ze_chaos`, `ze_analyze` and `ze_perf` with their register files, `binarySuffixRoot`, the `ze-test` hard link, `bin/ze-perf`, `bin/ze-perf-linux`, `ZE_PERF_BIN`, the old variable entries and their fallback reads; rename the build tag `ze_test` to `le_test` (D-6) in `cmd/ze/ze_test_register.go` (renamed `le_test_register.go`), `TestBuildTags`, the le builders, the matrices, the workflows and the Dockerfiles, leaving `zetest` alone; turn the report into the gating `check` verb and add it to the full verify stage list; lower `floor.Roots` by the deleted roots
    - Tests: `TestRetiredCommandSweepFindsAnInjectedName` moves from report to gate; every old name answers `unknown command`; `TestHarnessTagIsLeTest`
    - Verify: AC-16, AC-17, AC-19, AC-23, AC-30 (superseded by AC-43)
+   - Status 2026-09-25, package a (aliases and the gate): the rewrite (`retiredRewrite`, `namespaceMember`, `noteRetired`) is deleted from `leroot.Dispatch`; the rename map moved to `internal/le/doc/check/retirednames.go`, read only by the sweep; `./le doc check retired-commands` is a bare gating verb (the `report` keyword is retired) and a full verify stage after `doc check links`; `floor.Roots` 20 to 17; the hook guards for the harness binary (`rawZeTest`, the `bin/ze-test` arm of `expensivePipe`, seven parity fixtures) are deleted and the digests re-sealed. A retired ACTION of a live command (`verify lock`, `verify lint`, `repo tracked-build`, `repo tracked-le`) answers `no such action` and exit 2 from that command's table, not `unknown command` and 1: AC-17's wording for those four rows is an open owner decision. The gate is RED on the tree until package b and the remaining callers land.
    - D-8 amendment: the `ze_test` tag is DELETED, not renamed; also delete the runner's retired exec heads and shims, the retired harness variable entries, `cmd/ze/ze_test_register.go` and the D-3 launcher refusal. Verify AC-42 (Phase 3 half), AC-43, AC-46
 
 ### Critical Review Checklist

@@ -19,7 +19,7 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-const helperUsage = "usage: le-test interop-bgp <process|speaker|bmp-collector|exabgp-api|exabgp-server> ..."
+const helperUsage = "usage: le test interop-bgp <process|speaker|bmp-collector|exabgp-api|exabgp-server> ..."
 
 // Helper runs the compiled personalities used by test/interop scenarios.
 func Helper(args []string) int {

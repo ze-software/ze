@@ -121,7 +121,7 @@ block when `StepTrace` is non-empty.
 
 Most directives use `conn=N` and `seq=N` to identify message ordering:
 
-- **conn** (connection): 1-based TCP connection index. Each `ze-peer` instance
+- **conn** (connection): 1-based TCP connection index. Each `le test peer` instance
   manages one TCP connection. Multi-peer tests use `conn=1` for the first peer,
   `conn=2` for the second, etc. The maximum is set by `option=tcp_connections:value=N`.
 - **seq** (sequence): 1-based message sequence within a connection. `seq=1` is the
@@ -137,7 +137,7 @@ content, `option=env` values, and URLs:
 
 | Variable | Meaning |
 |----------|---------|
-| `$PORT` | BGP peer port (leased by the runner, used by `ze-peer --port $PORT`) |
+| `$PORT` | BGP peer port (leased by the runner, used by `le test peer --port $PORT`) |
 | `$PORT2` | Secondary port, `$PORT`+1 (web UI, looking glass, plugin acceptor) |
 
 Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `http=` URLs.
@@ -263,7 +263,7 @@ otherwise, and `test/ui/bgp-decode-stdin-hex.ci` failed with
 
 ### What a ze-peer block may carry
 
-A block handed to `ze-peer` (named on a `cmd=...:exec=le test peer ...:stdin=<name>`
+A block handed to `le test peer` (named on a `cmd=...:exec=le test peer ...:stdin=<name>`
 line) is read first by ze-peer and then by the test runner. The block named
 `peer` is validated by the same rules even with no such line, because a `.ci`
 with no `cmd=` at all feeds its `expect=` lines to ze-peer by another route. **A line neither of them
@@ -272,7 +272,7 @@ directive.
 
 | Line | Read by |
 |------|---------|
-| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`) | ze-peer |
+| `expect=bgp`, `reject=bgp`, `action=*`, and the peer's own `option=` (`asn`, `bind`, `tcp_connections`, `conn_map`, `open`, `update`, `linger`, `silent`, `await_eor`, `established-file`) | le test peer |
 | `expect=json`, `expect=stderr`, `expect=syslog`, `reject=stderr`, `reject=stdout`, `reject=syslog` | the test runner, where the line stands |
 | `cmd=api` | nobody. It documents the command that produced the expected bytes |
 | `option=timeout` | the test runner parses it, and **adopts it only when the file declares none.** Its scope is the whole test, not this peer, so a file-level value always wins. 450 tracked peer blocks carry one. Write the one that governs outside the block |
@@ -495,7 +495,7 @@ were never dispatched in any test.
 | Restart Time | 300 seconds, longer than any functional test runs |
 | Long-Lived Stale Time | 600 seconds |
 | Max Paths | 65535, which bounds nothing |
-| Software version (code 75) | `ze-peer`. It has no option, because no session decision turns on it: `capability.Parse` holds no code-75 arm and the only reader is the offline `ze bgp decode` |
+| Software version (code 75) | `le test peer`. It has no option, because no session decision turns on it: `capability.Parse` holds no code-75 arm and the only reader is the offline `ze bgp decode` |
 | Families, for all three capabilities | the families ze-peer's own OPEN advertises, read from its Multiprotocol capabilities. An OPEN carrying none is an `ipv4/unicast` speaker (RFC 4760 Section 8) |
 
 Two refusals fail the file rather than dropping a line in silence:
@@ -504,7 +504,7 @@ Two refusals fail the file rather than dropping a line in silence:
   stated octets would win, and the typed line would be read, validated and then
   lost.
 - Stating a fact for a capability **ze does not offer**. The capability SET
-  ze-peer sends mirrors ze's, so the value would have no place to go. Configure
+  le test peer sends mirrors ze's, so the value would have no place to go. Configure
   ze to offer the capability, or drop the option.
 
 <!-- source: internal/test/peer/expect.go -- parseOpenHoldTime, parseGracefulRestartDecl, parseLLGRDecl, parsePathsLimitDecl -->
@@ -746,12 +746,13 @@ One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
 
 The first word selects the program. `ze` is the daemon under test, and
-`le-test` is the harness the runner itself runs as. The retired name `ze-test`
-reaches the same harness until the retired names are removed. `ze-peer` is
-`le-test peer`. A name that the suite compiled into its temporary directory
+`le test <name>` runs the harness, which is the runner's own executable. A
+retired harness name (`le-test`, `ze-test`, `ze-peer`) is no head of the
+runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
+A name that the suite compiled into its temporary directory
 runs from there: the chaos suites compile `le`, so `exec=le chaos run ...`
 runs that build. Any other name is found on `PATH`. A shim directory on the
-child's `PATH` holds `ze`, `le-test` and `ze-test`, so a plugin `run "le-test ..."`
+child's `PATH` holds `ze` and `le`, so a plugin `run "le test ..."`
 line in a config reaches the same binaries.
 
 **Provenance:** until 2026-09-02 the `.ci` runner split the value on whitespace
@@ -781,7 +782,7 @@ stderr, and it starts no later step until the text appears:
 
 ```
 cmd=background:seq=1:exec=le test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
-cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 ```
 
@@ -988,7 +989,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 peer test-peer { remote { ip 127.0.0.1; } ... }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
@@ -1010,8 +1011,8 @@ stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 EOF_DEST
 
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 ```
 
@@ -1032,7 +1033,7 @@ once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.
 
 The check reads the three places a fixture names an address it binds. One is
-`ze-peer --bind <ip>` on a `cmd=` line. The second is `connection { local { ip
+`le test peer --bind <ip>` on a `cmd=` line. The second is `connection { local { ip
 <addr> } }` in the config the fixture embeds: Ze sends from that address and
 listens on it when `accept` is true, so the host must carry it too. The third is
 `local-address <addr>;` in an ExaBGP-syntax config the exabgp-compat suite keeps
@@ -1618,7 +1619,7 @@ populated data (e.g., routes injected by an async plugin).
 ### Example
 
 ```
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 
 # Wait until routes are available before checking graph output
@@ -1694,7 +1695,7 @@ failed, so the daemon's exit code does not prove the observer's assertion. A
 failing observer returns an error, which `fixture.Run` hands to
 `fixture.ReportFailure`.
 
-**A fixture-driven `.ci` needs no `bgp` block and no `ze-peer` to get a daemon
+**A fixture-driven `.ci` needs no `bgp` block and no `le test peer` to get a daemon
 that stops.** `request shutdown` reaches a reactorless daemon through the
 shutdown callback the daemon wires beside its plugin server, before any plugin
 can dispatch, so a BFD-only or DHCP-only configuration stops on the fixture's
@@ -1933,9 +1934,9 @@ Different components consume different line types:
 | `reject=stderr:`, `reject=syslog:` | Test runner (negative expectations) |
 | `http=get:`, `http=post:` | Test runner (HTTP assertion checks) |
 | `http=wait:` | Test runner (HTTP readiness polls) |
-| `expect=bgp:` | ze-peer |
-| `action=notification:`, `action=send:` | ze-peer |
-| `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
+| `expect=bgp:` | le test peer |
+| `action=notification:`, `action=send:` | le test peer |
+| `action=rewrite:`, `action=sighup:`, `action=sigterm:` | le test peer (reload/signal tests) |
 <!-- source: internal/test/peer/expect.go -- ConsumesLine, the ze-peer-consumed set -->
 <!-- source: internal/test/runner/record.go -- Record, State -->
 
@@ -1944,10 +1945,10 @@ Lines not recognized by a consumer are ignored.
 ### A check-mode peer block MUST declare a ze-peer-consumed expectation
 
 **The consumer split above is load-bearing, not trivia.** Only the four
-ze-peer rows reach ze-peer. Everything else -- including `expect=json` --
+le test peer rows reach le test peer. Everything else -- including `expect=json` --
 is validated by the test runner from its own copy of the messages.
 
-A check-mode `ze-peer` with no consumed directive has nothing to check, so it
+A check-mode `le test peer` with no consumed directive has nothing to check, so it
 prints `no test data available to test against` and exits 1 **before binding a
 listening socket**. ze then dials a dead port, gets connection refused, and backs
 off 5->10->20->40s. That looks exactly like a BGP establishment stall and cost a
@@ -1965,7 +1966,7 @@ binding a listening socket and the test can only pass vacuously.
 | Want | Do |
 |------|----|
 | Assert the wire exchange | Add `expect=bgp:conn=N:seq=N:hex=...` (or an `action=send/notification/rewrite/close/sighup/sigterm`) to the peer block |
-| A peer that is only a dial target for ze (routes injected through an external process plugin, assertions made by that plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
+| A peer that is only a dial target for ze (routes injected through an external process plugin, assertions made by that plugin or `http=`) | Run it as `le test peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
 
 `expect=json` still works, but only **in addition to** a consumed directive: it
 cannot make the peer listen.
@@ -1998,7 +1999,7 @@ never opened.
 
 ### A scaffolding ze-peer is signaled at teardown
 
-A sink, echo or inject `ze-peer` never ends itself: its accept loop runs until its
+A sink, echo or inject `le test peer` never ends itself: its accept loop runs until its
 context is cancelled, and `le test peer` maps SIGTERM to that cancel. The runner
 sends that SIGTERM at teardown, after the last step and before the barrier that
 collects peer output. The peer exits with status 0 and its capture is complete, so

@@ -107,8 +107,8 @@ const (
 	suiteDhcp       = "dhcp"
 )
 
-// allTests is the le-test flag that selects every .ci of a suite, and bgpVerb
-// is the le-test subcommand the four BGP suites run under.
+// allTests is the le test flag that selects every .ci of a suite, and bgpVerb
+// is the le test subcommand the four BGP suites run under.
 const (
 	allTests = "--all"
 	bgpVerb  = "bgp"

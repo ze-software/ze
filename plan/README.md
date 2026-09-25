@@ -98,5 +98,5 @@ a `Work Inherited From a Deferral Row` heading.
 - `/ze-status` shows a cross-project attention view (statuses, buckets, stalls).
 - `/ze-spec` creates or evolves a spec; `/ze-implement` executes one;
   `/ze-review` runs the completion gate.
-- Each session records its spec with `./le spec session claim spec <stem>`
+- Each session records its spec with `./le spec claim spec <stem>`
   (see `ai/rules/planning.md`).

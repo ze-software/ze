@@ -289,9 +289,8 @@ rib, role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 | Binary | Purpose |
 |--------|---------|
 | `ze` | Network OS: bgp, cli, config, hub, iface, exabgp migrate, plugin, schema, signal, completion |
-| `le-test` | Functional test harness (`bin/le-test`, `bin/le-test-linux-<arch>`): bgp, editor, peer, mcp, web, rpki, managed. A person runs it as `./le test harness <root> <args>` |
+| `le` | Development launcher. It carries the functional test harness (`./le test <name>`), the chaos orchestrator (`./le chaos run`), UPDATE throughput benchmarks (`./le perf`), MRT/RIB analysis (`./le mrt`) and the gokrazy image build (`./le build gokrazy`) |
 | `ze-installer`, `ze-serial-shell` | Target binaries: see "Binary naming convention" below |
-| `le` | Developer launcher. `./le chaos run` (chaos orchestrator), `./le perf` (UPDATE throughput benchmarks), `./le mrt` (MRT/RIB analysis) and `./le build gokrazy` (gokrazy image build) replace the standalone developer builds, which are removed in Phase 3 of `plan/spec-le-subject-first-command-tree.md` |
 
 ### Binary naming convention
 
@@ -328,7 +327,7 @@ never to the build of the host tool that runs it.
 | Plugin SDK (external API) | `pkg/plugin/`, `pkg/ze/` |
 | Core leaf packages | `internal/core/` (events, family, env, diagnostic, metrics, clock, textbuf, ...) |
 | Appliance | `internal/appliance/` (gokrazy image, installer, updater) |
-| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`, `ze_setup`, `ze_distro`, `ze_appliance`; and `ze_le`, which adds le's development commands under `ze le` and is never set by a shipped build) |
+| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_setup`, `ze_distro`, `ze_appliance`; and `ze_le`, which adds le's development commands under `ze le` and is never set by a shipped build) |
 | Tests | `test/` (.ci), `*_test.go` |
 
 ## Before You...

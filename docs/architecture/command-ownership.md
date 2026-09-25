@@ -134,7 +134,7 @@ each line:
 | Reason | How it is recognised | Example |
 |--------|----------------------|---------|
 | The package reaches `plugin/all` | computed from the import graph | `internal/component/config/yang/cli`, `internal/plugins/completion` |
-| Another composition root owns it | the `codegen:skip` marker and its reason | `internal/perf/cli` under `//go:build ze_perf` |
+| Another composition root owns it | the `codegen:skip` marker and its reason | `internal/perf/cli`, which only le links |
 | The package IS a composition root | its directory is named `all` | `internal/component/aaa/all` |
 
 ## YANG Container Merge

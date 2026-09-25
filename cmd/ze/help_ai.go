@@ -586,7 +586,7 @@ func printRecipes(rw *helpfmt.RenderWriter) {
 	rw.Line("    ze cli -c \"request peer 10.0.0.1 teardown\"")
 	rw.Line("")
 	rw.Line("  Test without a real peer:")
-	rw.Line("    ze-test peer --mode sink --port 1179 --asn 65001")
+	rw.Line("    le test peer --mode sink --port 1179 --asn 65001")
 	rw.Line("")
 }
 

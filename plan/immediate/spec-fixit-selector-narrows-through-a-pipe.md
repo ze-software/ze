@@ -114,7 +114,7 @@ whole, and then left alone.
 - [ ] `internal/component/bgp/plugins/cmd/peer/peer.go` - `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs`; `registerAliases` declares `summary` and `peers` on `show bgp` and an empty alias set on every child; six RPC registrations carry `RequiresSelector: true`.
 - [ ] `internal/component/bgp/plugins/cmd/rib/rib.go` - `registerPipeFilters` declares `peer`, `family`, `prefix`, `path`, `community`, `match`, `count`, `first`, `last`, `histogram`, `graph` on `show bgp rib`, with `received` and `advertised` as `Leading`.
 - [ ] `internal/component/config/retired.go` - `retiredKeywords` and `RetiredKeywordHint` are CONFIG parser machinery. The map keys are config field names and the hint is appended to an unknown-field parse error. Nothing in it reaches the command tree.
-- [ ] `test/ui/alias-summary.ci` - the functional-test shape for a pipe alias: a `le-test fixture ui/<name>` invocation asserting exit 0 and `OK` on stdout.
+- [ ] `test/ui/alias-summary.ci` - the functional-test shape for a pipe alias: a `le test fixture ui/<name>` invocation asserting exit 0 and `OK` on stdout.
 
 **Behavior to preserve:**
 - The peer selector vocabulary: an address, a peer name, an AS pattern such as `as65001`, a glob, a comma-separated list, or `*`. `peersel.ParseDefault` reads it and this spec does not change it.

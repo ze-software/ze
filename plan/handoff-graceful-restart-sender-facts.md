@@ -100,6 +100,6 @@ The handoff prescribed the following command and forced-break experiment.
 They are historical instructions, not a current result; a resuming investigation
 must select the current entry point and preserve the same discrimination:
 
-    ./le job run label grcheck command ./bin/ze-test bgp plugin --pattern gr-peer -v
+    ./le job run label grcheck command ./le test bgp plugin --pattern gr-peer -v
 
 and confirm the recorded break still discriminates by making `handleStructuredState` return immediately: the four new `.ci` must go red while `gr-mark-stale` stays green. That contrast is the whole evidence, and it is the thing to re-establish before trusting any later change to this area.

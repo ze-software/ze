@@ -550,10 +550,10 @@ type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
-	// lePath is this runner's own executable, so a `cmd=...:exec=le ...` line,
-	// and a retired harness head, runs the le that runs the suite and never a
-	// PATH lookup: the gate's bin directory is not on PATH, and the generic
-	// runner (runner_exec.go) resolves the same heads to the same file. Empty
+	// lePath is this runner's own executable, so a `cmd=...:exec=le ...` line
+	// runs the le that runs the suite and never a PATH lookup: the gate's bin
+	// directory is not on PATH, and the generic runner (runner_exec.go)
+	// resolves the same head to the same file. Empty
 	// when the process cannot name its own file, and resolveParseExec then
 	// refuses the line.
 	lePath string
@@ -584,33 +584,27 @@ func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunne
 
 // resolveParseExec maps the binary name at the head of an exec= line to the
 // path the runner holds for it. `ze` is the daemon under test and `le` is the
-// runner itself; every other head is left for a PATH lookup. Until Phase 3 the
-// retired harness heads reach the runner too, with the words they stand for
-// (leHeadWords): `le-test` and `ze-test` run `le test`, `ze-peer` runs
-// `le test peer`.
+// runner itself; every other head is left for a PATH lookup, so a retired
+// harness name fails there.
 func resolveParseExec(cmdLine, zePath, lePath string) (string, error) {
 	head, rest, _ := strings.Cut(cmdLine, " ")
 	if head == binNameZe {
-		return joinExec(zePath, nil, rest), nil
+		return joinExec(zePath, rest), nil
 	}
-	words, isLE := leHeadWords(head)
-	if !isLE {
+	if head != binNameLE {
 		return cmdLine, nil
 	}
 	if lePath == "" {
 		return "", errors.New("exec names " + head + " and the runner does not know its own executable")
 	}
-	return joinExec(lePath, words, rest), nil
+	return joinExec(lePath, rest), nil
 }
 
-// joinExec answers an exec line: the binary path, the words it stands for,
-// then the authored rest of the line.
-func joinExec(path string, words []string, rest string) string {
+// joinExec answers an exec line: the binary path, then the authored rest of
+// the line.
+func joinExec(path, rest string) string {
 	var tb textbuf.Buffer
 	tb.Str(path)
-	for _, word := range words {
-		tb.Byte(' ').Str(word)
-	}
 	if rest != "" {
 		tb.Byte(' ').Str(rest)
 	}

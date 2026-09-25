@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
-// Overview: actions.go -- the three documentation verifier actions.
+// Overview: actions.go -- the four documentation verifier actions.
 
 package doccheck
 
@@ -11,7 +11,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "native documentation links, aggregate verification, and templ output checks",
+		ShortHelp: "native documentation links, aggregate verification, templ output, and retired-name checks",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
 		SubsFunc:  Subs,

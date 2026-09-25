@@ -22,27 +22,27 @@ Use this page when `./le verify current mode full` fails, when a test needs to b
 <tbody>
 <tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le go lint run</code> or the printed validation target.</td></tr>
 <tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
-<tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>bin/le-test &lt;suite&gt; NAME -v</code></td></tr>
+<tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>./le test &lt;suite&gt; NAME -v</code></td></tr>
 <tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>
 </tbody>
 </table>
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verify/lock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. Heavy-job admission in `internal/le/job/job.go` (`./le job run`) prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
 
 ## Reading the failure
 
 Start with the first failing group. It tells you the stage, summary, related files, and rerun command. If the failure came from a functional transcript, rerun exactly that test with `-v`. If it came from a Go package, rerun one test or one package before rerunning a group target.
 
 ```bash
-bin/le-test bgp plugin 42 -v
+./le test bgp plugin 42 -v
 go test -race -run TestName ./internal/component/bgp/...
 ```
 
 If the rerun prints a temporary directory, keep it only when you need the artifacts. If the test is Linux-only, go straight to QEMU rather than trying to make Darwin behave like Linux.
 
 ```bash
-ZE_TEST_KEEP_TMP=1 bin/le-test bgp plugin 42 -v
-./le test qemu run command 'bin/le-test-linux-arm64 bgp plugin 79 -v' keep-alive
+ZE_TEST_KEEP_TMP=1 ./le test bgp plugin 42 -v
+./le test qemu run command 'le test bgp plugin 79 -v' keep-alive
 ```
 
 ## Trace output
@@ -64,9 +64,9 @@ Ze logging is controlled per subsystem through environment variables. Enable the
 <table>
 <thead><tr><th>Surface</th><th>Example</th></tr></thead>
 <tbody>
-<tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug bin/le-test bgp plugin NAME -v</code></td></tr>
-<tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug bin/le-test bgp plugin NAME -v</code></td></tr>
-<tr><td>Config parsing</td><td><code>ze.log.config=debug bin/le-test bgp parse NAME -v</code></td></tr>
+<tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug ./le test bgp plugin NAME -v</code></td></tr>
+<tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug ./le test bgp plugin NAME -v</code></td></tr>
+<tr><td>Config parsing</td><td><code>ze.log.config=debug ./le test bgp parse NAME -v</code></td></tr>
 <tr><td>Linux diagnosis</td><td><code>./le test qemu run command '...' keep-alive</code>, then inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, and temp files.</td></tr>
 </tbody>
 </table>

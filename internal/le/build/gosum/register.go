@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 	})
 

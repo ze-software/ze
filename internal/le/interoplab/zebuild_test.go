@@ -68,7 +68,7 @@ func outputOf(t *testing.T, command processCommand) string {
 }
 
 // VALIDATES: every binary a lab declares gets its own cross-compile, with its own tag base and its own output path.
-// PREVENTS: a lab that declares two personalities shipping an image with one of them, which is how a scenario meets "le-test: not found".
+// PREVENTS: a lab that declares two personalities shipping an image with one of them, which is how a scenario meets "le test: not found".
 func TestPreflightBuildsEveryDeclaredBinary(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {

@@ -524,7 +524,7 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 // <argv...>` means: the words after the keyword are the child's. The four
 // spellings still stop before the area.
 // PREVENTS: the help guard swallowing `le job run label encode-list command
-// bin/ze-test bgp encode --list`, the recipe docs/contributing/testing.md
+// ./le test bgp encode --list`, the recipe docs/contributing/testing.md
 // prints. It also prevents `le job run label x command echo -html=cover.out`
 // answering 0 with the page and no child, which review round 4 measured. An
 // option that only LOOKS like a help request is a child's option. A table-less

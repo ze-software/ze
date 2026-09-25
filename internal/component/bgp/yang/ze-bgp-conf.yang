@@ -1152,7 +1152,7 @@ module ze-bgp-conf {
         container capture {
             description "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes
                 with arrival metadata. The file also carries the config operations applied while the capture runs.
-                Replay the file on a developer machine with 'ze-test replay <file>', which drives the same state
+                Replay the file on a developer machine with 'le test replay <file>', which drives the same state
                 machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file
                 holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no
                 local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is

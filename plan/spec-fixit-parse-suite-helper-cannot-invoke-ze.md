@@ -82,7 +82,7 @@ them out of step.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `./le test functional parse`, or `bin/le-test parse <selector>`, over a `.ci` whose
+- `./le test functional parse`, or `./le test parse <selector>`, over a `.ci` whose
   `tmpfs=` helper script calls `ze`.
 
 ### Transformation Path

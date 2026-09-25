@@ -20,7 +20,7 @@ Extend the native VPP binary-API emulator at
 `internal/test/cli/cmd_vpp_stub.go` and its compiled drivers at
 `internal/test/fixture/misc_fixture_vpp.go`, with the `test/vpp/*.ci` coverage
 needed for the full VPP request surface. The Python helper was retired on
-2026-08-28; `le-test vpp-stub` is the current emulator. No Python helper is to be
+2026-08-28; `le test vpp stub` is the current emulator. No Python helper is to be
 restored.
 
 The approved 2026-07-10 goal was complete, correct VPP support. This spec keeps
@@ -60,7 +60,7 @@ obligations.
 
 ## Current Behavior (MANDATORY)
 
-Source read on 2026-09-19: `startVPPStub` launches `le-test vpp-stub` with a
+Source read on 2026-09-19: `startVPPStub` launches `le test vpp stub` with a
 socket, JSONL log and deadline. `newVPPStubState` derives negotiated message
 names and CRCs from the registered govpp API and assigns sorted IDs.
 `handle` explicitly handles session setup, route add, MPLS, route lookup,
@@ -190,7 +190,7 @@ A vanished file name alone cannot discharge its behaviour.
 
 ### Entry Point
 `./le test functional vpp` runs `test/vpp/*.ci`; compiled fixtures start Ze, peers
-where needed, and `le-test vpp-stub`. A parity check compares production request
+where needed, and `le test vpp stub`. A parity check compares production request
 construction against explicit emulator handling.
 
 ### Transformation Path

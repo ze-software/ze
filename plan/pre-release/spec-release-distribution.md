@@ -37,7 +37,7 @@ Included:
 - Signed GitHub tag verification, protected-main reachability, and exact candidate identity through trusted release dispatch.
 
 Excluded:
-- `ze-setup`, `ze-appliance`, `ze-stripped`, `le-test`, `le chaos run`, `le perf`, `le mrt`, standalone installer binaries, appliance images, installer kernels/initrds, ISOs, and containers.
+- `ze-setup`, `ze-appliance`, `ze-stripped`, `le test`, `le chaos run`, `le perf`, `le mrt`, standalone installer binaries, appliance images, installer kernels/initrds, ISOs, and containers.
 - Homebrew, Snap, Flatpak, APK, Windows, macOS, FreeBSD, and source packages.
 - Replacing the existing `ze update-serve` command or publishing a project-operated self-update feed.
 - A general-purpose package hosting application or always-running web service.
@@ -840,10 +840,10 @@ The test symbols above describe required release-policy behaviour, not existing 
 
 | Exact command/test | Location | End-user/operator scenario | Status |
 |--------------------|----------|----------------------------|--------|
-| Install-suite action invoking `bin/le-test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
+| Install-suite action invoking `./le test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
 | same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
-| `./le test functional ui` (`bin/le-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
+| `./le test functional ui` (`./le test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
 | Planned repository-bootstrap test action | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
 | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `internal/le/` | Full DEB container/native-manager lifecycle | |
 | `effective-package-install.py --family deb --distro ubuntu-24.04 --arch amd64 --profile full` | same | Ubuntu DEB policy/lifecycle | |

@@ -258,9 +258,10 @@ func TestParseExecResolvesBothBinaries(t *testing.T) {
 		{"ze config cat key", zePath + " config cat key"},
 		{"ze", zePath},
 		{"le test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
-		{"le-test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
-		{"ze-test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
-		{"ze-peer --mode sink", lePath + " test peer --mode sink"},
+		{"le test peer --mode sink", lePath + " test peer --mode sink"},
+		{"le-test fixture storage/empty-tree", "le-test fixture storage/empty-tree"},
+		{"ze-test fixture storage/empty-tree", "ze-test fixture storage/empty-tree"},
+		{"ze-peer --mode sink", "ze-peer --mode sink"},
 		{"le", lePath},
 		{"cat test.conf", "cat test.conf"},
 		{"zebra route", "zebra route"},
@@ -274,7 +275,7 @@ func TestParseExecResolvesBothBinaries(t *testing.T) {
 			t.Errorf("%q resolved to %q, want %q", tc.exec, got, tc.want)
 		}
 	}
-	if _, err := resolveParseExec("le-test fixture x", zePath, ""); err == nil {
-		t.Fatal("an unknown own executable must refuse the le-test line, not fall back to PATH")
+	if _, err := resolveParseExec("le test fixture x", zePath, ""); err == nil {
+		t.Fatal("an unknown own executable must refuse the le line, not fall back to PATH")
 	}
 }

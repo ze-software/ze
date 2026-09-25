@@ -66,7 +66,7 @@ type WBAuthUser struct {
 // WBServer names the server a test drives. Ze serves three htmx interfaces from
 // three different programs, and a browser proof of one of them has to start
 // that one: the web UI is `ze start --web --web-only`, the looking glass is a
-// listener of the `ze` daemon, and the chaos dashboard is `ze-chaos`.
+// listener of the `ze` daemon, and the chaos dashboard is `le chaos run`.
 type WBServer string
 
 const (
@@ -75,10 +75,10 @@ const (
 	// WBServerLG is the looking glass. Its pages read `show bgp`, so
 	// the harness gives it a daemon with a peer rather than a bare listener.
 	WBServerLG WBServer = "lg"
-	// WBServerChaos is the chaos dashboard, served by ze-chaos.
+	// WBServerChaos is the chaos dashboard, served by le chaos run.
 	WBServerChaos WBServer = "chaos"
 	// WBServerLGNoEngine is the looking glass with an engine that always
-	// fails, served by `ze-test lg`. A daemon cannot be asked for that state:
+	// fails, served by `le test lg`. A daemon cannot be asked for that state:
 	// the looking glass dispatches in process, so a daemon with no BGP still
 	// answers an empty peer list rather than an error.
 	WBServerLGNoEngine WBServer = "lg-no-engine"

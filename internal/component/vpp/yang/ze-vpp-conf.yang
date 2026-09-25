@@ -34,7 +34,7 @@ module ze-vpp-conf {
             description "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or
                 bind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to
                 api-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the
-                `ze-test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.";
+                `le test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.";
             ze:help "Let an external supervisor own the VPP process, false by default.";
         }
 

@@ -305,7 +305,7 @@ func TestACarrierFixtureBlockIsNotTestedBehavior(t *testing.T) {
 		"EOF_PROBE\n"
 	compiled := head +
 		"tmpfs=probe.run:mode=755:terminator=EOF_PROBE\n" +
-		"run \"ze-test fixture plugin/probe\"\n" +
+		"run \"le test fixture plugin/probe\"\n" +
 		"EOF_PROBE\n"
 
 	if tags := ChangedTags("test/plugin/probe.ci", embedded, compiled); len(tags) != 0 {

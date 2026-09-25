@@ -17,12 +17,12 @@ import (
 // resolves.
 //
 // A cross-built checkout holds a host binary and a guest binary of the SAME
-// name side by side. Under QEMU, /workspace/bin carries a darwin `ze-test`
-// beside `ze-test-linux-arm64`, and the daemon runs as the latter, so
+// name side by side. Under QEMU, /workspace/bin carries a darwin harness
+// binary beside its linux-arm64 build, and the daemon runs as the latter, so
 // plugin.EngineBinDir answers /workspace/bin. Putting that directory FIRST made a
-// plugin's `run "ze-test fixture ..."` resolve to the darwin binary, which the
-// guest shell reads as a script and reports as
-// `/workspace/bin/ze-test: line 1: syntax error: unexpected "("`.
+// plugin's harness `run` line resolve to the darwin binary, which the guest
+// shell reads as a script and reports as
+// `line 1: syntax error: unexpected "("`.
 // The test runner already puts a shim directory holding the right binary at
 // the head of the child's PATH (setupBinShims, internal/test/runner/runner.go);
 // the prepend was the only reason that shim lost.

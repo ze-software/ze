@@ -131,7 +131,7 @@ artifact boundary and can seed it from the current complete Pages checkout.
 - **Command surfaces.** Three producers in `internal/le/site` publish them from
   the live JSON catalog. `commands.go` writes the CLI reference and the
   operator guide, `equivalentdetail.go` the command-equivalent detail pages, and
-  `derived.go` the `llms.txt` command lines. `internal/le/docvalid` renders no
+  `derived.go` the `llms.txt` command lines. `internal/le/doc/yangcontract` renders no
   published page. Its unexported `renderCommandSurfaces` emits the contract
   fixture, and the documentation drift gate compares each published page against
   it.
@@ -219,7 +219,7 @@ artifact boundary and can seed it from the current complete Pages checkout.
   `rfc.Finding`, the parts each check held before it formatted its line.
 - **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
-  `go test ./internal/le/docvalid -run CommandSurface` exercises native command
+  `go test ./internal/le/doc/yangcontract -run CommandSurface` exercises native command
   rendering and drift detection.
 
 ### Markdown to HTML contract

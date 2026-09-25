@@ -109,7 +109,7 @@ func TestASuiteThatExecutedNoTestIsAFailureEvenWhenItExitsZero(t *testing.T) {
 	silent := &recorder{}
 	run.Run = func(argv, environ []string, _ io.Writer) int {
 		// Every child answers 0 and prints no summary line, which is what
-		// `le-test <suite> --all` does when its selection is empty.
+		// `le test <suite> --all` does when its selection is empty.
 		return silent.run(argv, environ, nil)
 	}
 

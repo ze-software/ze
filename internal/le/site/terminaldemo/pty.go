@@ -109,8 +109,7 @@ var errPTYHelp = errors.New("help requested")
 
 // RunPTY drives either a checked-in terminal tape or a legacy command list.
 // It is the `pty` action of `le site terminal-demo`, which the demo renderer
-// container runs through a linux le (entrypoint.go), and the implementation
-// behind cmd/ze-terminal-pty until that program is removed.
+// container runs through a linux le (entrypoint.go).
 func RunPTY(args []string, stdout, stderr io.Writer) int {
 	options, err := parsePTYOptions(args)
 	if errors.Is(err, errPTYHelp) {

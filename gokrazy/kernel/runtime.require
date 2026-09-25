@@ -105,7 +105,7 @@ CONFIG_NF_CT_NETLINK
 CONFIG_PSTORE
 CONFIG_PSTORE_RAM
 
-# Seccomp, which `ze-test fail-syscall` (internal/test/failsyscall) needs to
+# Seccomp, which `le test fail-syscall` (internal/test/failsyscall) needs to
 # hold one socket in a failing state while a test measures the daemon's own
 # CPU. Both arrive from the base defconfig rather than from a runtime.config
 # request, so nothing else in this tree would notice a defconfig that stopped

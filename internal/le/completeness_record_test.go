@@ -446,11 +446,11 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-chaos-build",
-		Reason: "absorbed: testfunctional.Prepare builds ze-chaos under ze_chaos and ze_bgp when an invocation needs it (internal/le/test/functional/binaries.go, buildCommands)",
+		Reason: "absorbed: the orchestrator runs inside le as `le chaos run` (internal/le/chaos/run), so no chaos binary is built",
 	},
 	{
 		Target: "ze-analyze-build",
-		Reason: "the subject is one Go toolchain command: `go build -tags ze_analyze ./cmd/ze`, with no repository logic between the developer and the tool",
+		Reason: "absorbed: MRT analysis runs inside le as `le mrt` (internal/le/mrt), so no analysis binary is built",
 	},
 	{
 		Target: "ze-appliance-build",
@@ -458,7 +458,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-perf-build",
-		Reason: "the subject is one Go toolchain command: `go build -tags 'ze_perf ze_bgp' ./cmd/ze`, with no repository logic between the developer and the tool",
+		Reason: "absorbed: the benchmark runs inside le as `le perf` (internal/le/perf), so no perf binary is built",
 	},
 	{
 		Target: "ze-cadence-daily-run",

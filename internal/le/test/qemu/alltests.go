@@ -118,7 +118,7 @@ const (
 	linuxOnlySelection = "needs-linux"
 )
 
-// bgpVerb is the le-test subcommand the four BGP suites run under. It is the
+// bgpVerb is the le test subcommand the four BGP suites run under. It is the
 // same word internal/le/test/functional spells for the same reason.
 const bgpVerb = "bgp"
 
@@ -127,7 +127,7 @@ const bgpVerb = "bgp"
 // the feature manifest's, and the installer phase carries the initrd's own.
 const tagsFlag = "-tags"
 
-// allTests is the le-test flag that selects every .ci of a suite. It is the
+// allTests is the le test flag that selects every .ci of a suite. It is the
 // same word internal/le/test/functional spells for the same reason.
 const allTests = "--all"
 
@@ -733,7 +733,7 @@ func (a *allTestsRun) workspacePath(path string) string {
 // The directory is TRAVERSABLE BY EVERY USER, not only by root. A suite in the
 // per-test network namespace runs ze as an ordinary user, ze relays a plugin
 // through `le test` on this PATH, and a 0750 root-owned directory answers that
-// exec with `/bin/sh: le-test: Permission denied`. The plugin then never
+// exec with `/bin/sh: le test: Permission denied`. The plugin then never
 // starts and the test times out on a symptom that names neither the directory
 // nor the user: measured on 2026-09-05, 18 test/ospf tests timed out that way.
 // The links point into the read-only checkout, so a wider directory exposes

@@ -490,7 +490,7 @@ func TestACyclingOrSkippedCommandOwnerIsNotGenerated(t *testing.T) {
 			"func init() {\n\tregistry.MustRegisterRootHandler(\"completion\", run, registry.Meta{})\n}\n")
 	// Declared out: another composition root owns it.
 	write(t, root, "internal/perf/cli/register.go",
-		"// codegen:skip -- the ze-perf personality wires this.\n\npackage cli\n\n"+
+		"// codegen:skip -- the le perf personality wires this.\n\npackage cli\n\n"+
 			"func init() {\n\tregistry.MustRegisterRootHandler(\"perf\", run, registry.Meta{})\n}\n")
 
 	found, err := derive(root)

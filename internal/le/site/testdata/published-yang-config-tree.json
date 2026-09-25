@@ -1099,7 +1099,7 @@
                 ]
               }
             ],
-            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
             "kind": "container",
             "name": "capture",
             "short-help": "Protocol event capture for this peer.",
@@ -1723,7 +1723,7 @@
                     ]
                   }
                 ],
-                "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+                "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
                 "kind": "container",
                 "name": "capture",
                 "short-help": "Protocol event capture for this peer.",
@@ -5063,7 +5063,7 @@
                 ]
               }
             ],
-            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'ze-test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
+            "description": "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes\nwith arrival metadata. The file also carries the config operations applied while the capture runs.\nReplay the file on a developer machine with 'le test replay \u003cfile\u003e', which drives the same state\nmachine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file\nholds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no\nlocal secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is\nredacted. Handle a capture file the way you handle a routing-table dump.",
             "kind": "container",
             "name": "capture",
             "short-help": "Protocol event capture for this peer.",
@@ -28396,7 +28396,7 @@
         "type": "boolean"
       },
       {
-        "description": "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or\nbind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to\napi-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the\n`ze-test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.",
+        "description": "When this leaf is true, Ze does not exec or supervise the VPP process, generate startup.conf, or\nbind DPDK NICs. The external supervisor owns all of that. Ze only connects through GoVPP to\napi-socket. Use this leaf for systemd-managed VPP, for a container sidecar deployment, or for the\n`le test vpp` stub harness. The default is false, where Ze owns the VPP lifecycle.",
         "kind": "leaf",
         "name": "external",
         "short-help": "Let an external supervisor own the VPP process, false by default.",

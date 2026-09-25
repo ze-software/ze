@@ -27,7 +27,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"go staticcheck/check/part/5/of/6",
 		"go staticcheck/check/part/6/of/6",
 		"repo compiles/check", "go vet-platforms/darwin/freebsd", "doc wiring",
-		"doc check/verify", "doc check/links", "repo/tree-check",
+		"doc check/verify", "doc check/links", "doc check/retired-commands", "repo/tree-check",
 		"plugin imports/check", "plugin declarations/check", "arch enumeration/check",
 		"yang glue/check", "repo feature-tags/check",
 		"doc check/templ-output", "web vendor/check", "web assets/check",

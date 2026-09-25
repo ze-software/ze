@@ -2,7 +2,7 @@
 // Detail: links.go -- path, citation, suppression, and baseline checks.
 // Detail: register.go -- root registration and answer shape.
 //
-// Package doccheck owns the three documentation actions that the verifier runs
+// Package doccheck owns the four documentation actions that the verifier runs
 // directly. The links action owns its scan. Verify and templ-output call the Go
 // packages that already own those compositions.
 
@@ -23,10 +23,7 @@ const area = "doc check"
 type action struct {
 	verb string
 	why  string
-	// keyword is the one word the action requires after its verb. An action
-	// with none takes no value at all.
-	keyword string
-	run     func(string) (any, int)
+	run  func(string) (any, int)
 }
 
 var actions = [...]action{
@@ -46,10 +43,9 @@ var actions = [...]action{
 		run:  docwiring.TemplOutput,
 	},
 	{
-		verb:    "retired-commands",
-		why:     "report: every tracked line that still names a form the subject-first rename retires",
-		keyword: "report",
-		run:     runRetiredReport,
+		verb: "retired-commands",
+		why:  "no tracked line names a form the subject-first rename retired",
+		run:  runRetiredCheck,
 	},
 }
 
@@ -121,22 +117,13 @@ func Answer(args []string) (any, int) {
 	return nil, 2
 }
 
-// refuseActionWords reports whether the words after a verb are not the ones
-// the action takes, and says why on stderr: an action with a keyword requires
-// exactly that word, and one without takes nothing.
+// refuseActionWords reports whether any word follows the verb, and says why
+// on stderr: every action takes no value.
 func refuseActionWords(one action, words []string) bool {
-	if one.keyword == "" {
-		if len(words) == 0 {
-			return false
-		}
-		fmt.Fprintf(os.Stderr, "error: %s takes no value: %s\n", one.verb, words[0]) //nolint:errcheck // CLI output
-		return true
-	}
-	if len(words) == 1 && words[0] == one.keyword {
+	if len(words) == 0 {
 		return false
 	}
-	fmt.Fprintf(os.Stderr, "error: %s needs the keyword %s and nothing else, got %q\n", //nolint:errcheck // CLI output
-		one.verb, one.keyword, strings.Join(words, " "))
+	fmt.Fprintf(os.Stderr, "error: %s takes no value: %s\n", one.verb, words[0]) //nolint:errcheck // CLI output
 	return true
 }
 

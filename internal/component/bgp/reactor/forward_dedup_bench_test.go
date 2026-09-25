@@ -13,7 +13,7 @@ import (
 // spread over g policy groups.
 //
 // It exists because the repository's other measurement cannot answer the
-// question. ze-perf-bench is a single-peer convergence run with almost no
+// question. `le perf run` is a single-peer convergence run with almost no
 // fan-out, so forwardUpdateCore and everything under it are absent from a
 // 300-node profile: a change that halves per-destination forwarding cost shows
 // up there as nothing at all. This benchmark is the only evidence for or against

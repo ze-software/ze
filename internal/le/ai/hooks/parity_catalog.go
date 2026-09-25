@@ -7,7 +7,7 @@ package aihooks
 // the former producer and is part of the structured answer contract.
 var parityCatalog = [...]parityTable{
 	{
-		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 82, judge: bashCode,
+		key: "BASH_GOLDEN", name: "bash-dispatcher-golden", expected: 75, judge: bashCode,
 		fixtures: []parityFixture{
 			{name: "cat /tmp/x", expectedCode: 2},
 			{name: "cat tmp/x", expectedCode: 0},
@@ -25,15 +25,10 @@ var parityCatalog = [...]parityTable{
 			{name: "git log --oneline | tail -3", expectedCode: 0},
 			{name: "go test ./... | head -50", expectedCode: 2},
 			{name: "go test ./... 2>&1 | tee tmp/t.log", expectedCode: 2},
-			{name: "bin/ze-test bgp plugin | grep FAIL", expectedCode: 2},
 			{name: "git status | grep foo; ./le ai rules index-update", expectedCode: 0},
 			{name: "ls | head; go test ./... | grep FAIL", expectedCode: 2},
 			{name: "go test ./... 2>&1 |\n  grep -c FAIL", expectedCode: 2},
 			{name: "./le verify current mode full \\\n  | tail -40", expectedCode: 2},
-			{name: "./bin/ze-test bgp plugin | grep FAIL", expectedCode: 2},
-			{name: "tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL", expectedCode: 2},
-			{name: "/home/u/ze/tmp/session/2026-08-10-abc123/bin/ze-test bgp plugin | grep FAIL", expectedCode: 2},
-			{name: "tmp/session/abc123/bin/ze-test bgp plugin | grep FAIL", expectedCode: 0},
 			{name: "ze le ai hooks unit | tail -25", expectedCode: 2},
 			{name: "./le spec wip | head -5", expectedCode: 0},
 			{name: "git diff internal/le/hookcheck/fixtures.go | head -60", expectedCode: 0},
@@ -83,11 +78,9 @@ var parityCatalog = [...]parityTable{
 			{name: "cat > tmp/out.log <<'EOF'\nhello\nEOF", expectedCode: 2},
 			{name: "./le test unit core", expectedCode: 0},
 			{name: "./le repo changed scope", expectedCode: 0},
-			{name: "./le test qemu run command 'bin/ze-test-linux-arm64 bgp parse 91 -v'", expectedCode: 0},
 			{name: "golangci-lint config verify", expectedCode: 0},
 			{name: "go test ./internal/core/env", expectedCode: 2},
 			{name: "golangci-lint run ./...", expectedCode: 2},
-			{name: "bin/ze-test bgp plugin", expectedCode: 2},
 			{name: "./le commit no-such-action", expectedCode: 2},
 			{name: "ZE_ADMIT_RAW=\"bisecting one 2s case\" go test -run TestX ./internal/core/env", expectedCode: 0},
 			{name: "./le job run label gotest command go test ./internal/core/env", expectedCode: 0},

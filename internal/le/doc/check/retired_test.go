@@ -1,10 +1,16 @@
 package doccheck
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+// commandWordsMax is the dispatcher's bound: a command is at most two words
+// after `le` (TestDispatchBoundsTheLookupAtTwoWords in leroot pins it). A row
+// naming a longer new command names nothing a caller can run.
+const commandWordsMax = 2
 
 // retiredFound reports whether the row whose old form is old lists file:line.
 func retiredFound(report RetiredReport, old, file string, line int) bool {
@@ -111,17 +117,23 @@ func TestRetiredCommandSweepFindsAnInjectedName(t *testing.T) {
 }
 
 func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
-	// VALIDATES: every declared historical record, and every leroot alias
-	// file, is skipped, while the same old name in an ordinary file beside
-	// them is still found.
+	// VALIDATES: every declared historical record and every declaration file
+	// is skipped, while the same old name in an ordinary file beside them is
+	// still found. A file beside the leroot tests is ordinary: the alias that
+	// once lived under internal/le/le/root/retired* is gone, and so is the
+	// prefix that excused it.
 	// PREVENTS: an exclusion that is too wide hiding a live caller, and one
-	// that is too narrow making Phase 2 rewrite history.
+	// that is too narrow making a rewrite falsify history.
 	const line = "./le test-unit all\n"
 	files := map[string]string{
 		"plan/spec-other.md":                   line,
 		"internal/le/le/root/retired_extra.go": line,
 	}
-	skipped := []string{"internal/le/le/root/retired_extra.go"}
+	var skipped []string
+	for _, path := range retiredDeclarations {
+		files[path] = line
+		skipped = append(skipped, path)
+	}
 	for _, record := range retiredRecords {
 		path := record.path
 		if strings.HasSuffix(path, "/") {
@@ -137,9 +149,10 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !retiredFound(report, "le test-unit", "plan/spec-other.md", 1) {
-		t.Errorf("plan/spec-other.md:1 is not listed; the file matched %v",
-			retiredLinesOf(report, "plan/spec-other.md"))
+	for _, path := range []string{"plan/spec-other.md", "internal/le/le/root/retired_extra.go"} {
+		if !retiredFound(report, "le test-unit", path, 1) {
+			t.Errorf("%s:1 is not listed; the file matched %v", path, retiredLinesOf(report, path))
+		}
 	}
 	for _, path := range skipped {
 		if lines := retiredLinesOf(report, path); len(lines) != 0 {
@@ -149,8 +162,9 @@ func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
 }
 
 func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
-	// VALIDATES: a declared word that contains the harness name (the skill,
-	// the EAP identity, the old make target) is not a match, and the harness
+	// VALIDATES: a declared word that contains a retired name (the skill,
+	// the EAP identity, the old make target, the chaos MCP server name, the
+	// pkg/ze external test package) is not a match, and the harness
 	// name beside it on the same line still is.
 	// PREVENTS: a declared word hiding a live caller on its line.
 	root := fixtureRepository(t, map[string]string{
@@ -158,6 +172,8 @@ func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 			"run /ze-test first",
 			"identity ze-test-client",
 			"make ze-test-all",
+			"contains=ze-chaos-mcp",
+			"package ze_test",
 			"run /ze-test && ze-test peer",
 		}, "\n") + "\n",
 	})
@@ -167,13 +183,13 @@ func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for line := 1; line <= 3; line++ {
-		if retiredFound(report, "ze-test", "docs/words.md", line) {
-			t.Errorf("docs/words.md:%d holds only a declared word, and the report lists it", line)
+	for _, found := range retiredLinesOf(report, "docs/words.md") {
+		if !strings.HasSuffix(found, "@6") {
+			t.Errorf("docs/words.md lists %s, and that line holds only a declared word", found)
 		}
 	}
-	if !retiredFound(report, "ze-test", "docs/words.md", 4) {
-		t.Errorf("docs/words.md:4 names the harness beside a declared word, and the report misses it")
+	if !retiredFound(report, "ze-test", "docs/words.md", 6) {
+		t.Errorf("docs/words.md:6 names the harness beside a declared word, and the report misses it")
 	}
 }
 
@@ -242,9 +258,23 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 	// PREVENTS: an exception that hides nothing (a dead row) or that hides the
 	// spelling in every file. A new exception with no sample line fails here.
 	samples := map[string]string{
-		"ze-test":  "exec=ze-test bgp plugin",
-		"ze_test":  "//go:build ze_test",
-		"le rules": "./le rules index-update",
+		"ze-test":                     "exec=ze-test bgp plugin",
+		"ze_test":                     "//go:build ze_test",
+		"le rules":                    "./le rules index-update",
+		"le repository tracked-build": "./le repository tracked-build check",
+		"le repository":               "./le repository generate",
+		"le qemu":                     "./le qemu run",
+		"ze-terminal-pty":             "go build -o bin/ze-terminal-pty ./cmd/ze-terminal-pty",
+		"le.test.bin":                 "LE_TEST_BIN=/stale/harness",
+		"ze.test.bin":                 "ZE_TEST_BIN=/stale/harness",
+		"le.qemu.test.bin":            "LE_QEMU_TEST_BIN=/stale/harness",
+		"ze.qemu.test.bin":            "ZE_QEMU_TEST_BIN=/stale/harness",
+		"le-test":                     "exec=le-test bgp plugin",
+		"bin/le-test":                 "run bin/le-test ospf",
+		"ze-perf":                     "ze-perf report results.json",
+		"ze-perf-run":                 "go run ./cmd/ze-perf-run --build",
+		"ze-analyze":                  "bin/ze-analyze density",
+		"ze-chaos":                    "exec=ze-chaos --quiet",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
@@ -284,7 +314,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"docs/architecture/testing/qemu-integration.md": "nft list table inet ze_test\n",
 		"docs/metrics.md":                               "ze_chaos_peers_total\n//go:build zetest\nZE_TEST_BGP_PORT=1790 ze_test_bgp_port\nwhile tier holds\n./le test-unitx\n",
 		"docs/elsewhere.md":                             "exec=ze-test bgp\n",
-		"internal/le/le/root/retired.go":                "{Retired: \"test-unit\"} ze-chaos ze_test\n",
+		"internal/le/doc/check/retirednames.go":         "{Retired: \"test-unit\"} ze-chaos ze_test\n",
 		"vendor/example.com/x/ze_test.txt":              "ze-chaos ze_test\n",
 	})
 
@@ -297,7 +327,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"internal/component/firewall/validate_test.go",
 		"docs/architecture/testing/qemu-integration.md",
 		"docs/metrics.md",
-		"internal/le/le/root/retired.go",
+		"internal/le/doc/check/retirednames.go",
 		"vendor/example.com/x/ze_test.txt",
 	} {
 		if found := retiredLinesOf(report, file); len(found) != 0 {
@@ -306,5 +336,85 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 	}
 	if !retiredFound(report, "ze-test", "docs/elsewhere.md", 1) {
 		t.Error("the ze-test exception of internal/le/weekly/answer.go hid the harness name in another file")
+	}
+}
+
+// TestRenameMapRowsAreDisjoint checks the shape of the rename map the gate
+// reads: every row names both sides, no two rows retire one word sequence, and
+// no old word sequence starts a new invocation.
+func TestRenameMapRowsAreDisjoint(t *testing.T) {
+	rows := Renames()
+	seen := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		old := strings.Join(row.Old(), " ")
+		if row.Retired == "" || row.Command == "" {
+			t.Errorf("row %+v names no retired command or no new command", row)
+			continue
+		}
+		if words := len(strings.Fields(row.Command)); words > commandWordsMax {
+			t.Errorf("row `le %s`: the new command `le %s` has %d words, the dispatcher reads %d", old, row.Command, words, commandWordsMax)
+		}
+		if seen[old] {
+			t.Errorf("two rows retire `le %s`", old)
+		}
+		seen[old] = true
+
+		// An old word sequence that starts a new invocation would make the
+		// gate refuse a caller who already typed the new name.
+		for _, other := range rows {
+			fresh := other.New()
+			if len(row.Old()) > len(fresh) {
+				continue
+			}
+			if slices.Equal(fresh[:len(row.Old())], row.Old()) {
+				t.Errorf("row `le %s` captures the new name `le %s`", old, strings.Join(fresh, " "))
+			}
+		}
+	}
+
+	names := make(map[string]bool, len(Retirements()))
+	for _, retired := range Retirements() {
+		if retired.Kind == RetiredKindUnspecified {
+			t.Errorf("retired name %q declares no kind", retired.Old)
+		}
+		if retired.Replacement == "" {
+			t.Errorf("retired name %q names no replacement", retired.Old)
+		}
+		if names[retired.Old] {
+			t.Errorf("two rows retire %q", retired.Old)
+		}
+		names[retired.Old] = true
+	}
+}
+
+func TestRetiredCommandGateGoesRedOnAnInjectedName(t *testing.T) {
+	// VALIDATES: AC-16. `le doc check retired-commands` answers 1 when an
+	// ordinary file names an old form, names that file and line, and answers
+	// 0 on a tree that names none.
+	// PREVENTS: a gate that reports a caller and still passes, which is what
+	// the sweep was through Phases 1 and 2.
+	dirty := fixtureRepository(t, map[string]string{
+		"docs/guide.md": "Read the guide.\nThen run `./le test-unit all`.\n",
+	})
+	answer, code := runRetiredCheck(dirty)
+	if code != 1 {
+		t.Fatalf("an injected old name answered %d, want 1", code)
+	}
+	report, ok := answer.(RetiredReport)
+	if !ok {
+		t.Fatalf("the gate answered %T, want RetiredReport", answer)
+	}
+	if !retiredFound(report, "le test-unit", "docs/guide.md", 2) {
+		t.Errorf("docs/guide.md:2 is not listed; the file matched %v", retiredLinesOf(report, "docs/guide.md"))
+	}
+	if !strings.Contains(report.Text(), "  docs/guide.md:2\n") {
+		t.Errorf("the rendered report does not name the file and line:\n%s", report.Text())
+	}
+
+	clean := fixtureRepository(t, map[string]string{
+		"docs/guide.md": "Then run `./le test unit all`.\n",
+	})
+	if _, code := runRetiredCheck(clean); code != 0 {
+		t.Errorf("a tree naming only new forms answered %d, want 0", code)
 	}
 }

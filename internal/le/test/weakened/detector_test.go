@@ -28,7 +28,7 @@ func TestDetectIgnoresEmbeddedHeredocBodyReplacedByFixtureRun(t *testing.T) {
 		"EOF_FIX\n"
 	newText := "cmd=foreground:seq=1:exec=ze -:stdin=cfg\n" +
 		"expect=exit:code=0\n" +
-		"run \"le-test fixture plugin/foo\"\n"
+		"run \"le test fixture plugin/foo\"\n"
 
 	verdict := detect(oldText, newText, "test/plugin/foo.ci")
 	if len(verdict.blocking) != 0 || len(verdict.advisory) != 0 {

@@ -200,8 +200,8 @@ type BGPBootstrap struct {
 	CLIPlugins []string        // plugin instance names from the config
 	ConfigData []byte          // captured config bytes (stdin fallback)
 	Store      storage.Storage // blob/file config store
-	ChaosSeed  int64           // ze-chaos fault-injection seed (0 = off)
-	ChaosRate  float64         // ze-chaos fault rate
+	ChaosSeed  int64           // le chaos run fault-injection seed (0 = off)
+	ChaosRate  float64         // le chaos run fault rate
 
 	HealthPeerCallback PeerLifecycleCallback // health-revert peer observer
 	// MRT message/peer bridges are NOT fields here: MRT self-registers them via

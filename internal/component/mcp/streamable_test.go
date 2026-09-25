@@ -780,12 +780,12 @@ func TestProviderModeAuthenticatesLikeEveryOtherPath(t *testing.T) {
 }
 
 // TestProviderModeUnauthenticatedByConfigStillServes is the other half of D-2.
-// ze-chaos sets Provider with no Token and no AuthMode. Auth-mode inference
+// le chaos run sets Provider with no Token and no AuthMode. Auth-mode inference
 // therefore selects none, and every request succeeds with a zero Identity.
 //
-// VALIDATES: running ze-chaos through the uniform per-request auth path is
+// VALIDATES: running le chaos run through the uniform per-request auth path is
 // observably identical to the deleted bypass.
-// PREVENTS: the cutover breaking ze-chaos by turning "unauthenticated by
+// PREVENTS: the cutover breaking le chaos run by turning "unauthenticated by
 // configuration" into a rejection.
 func TestProviderModeUnauthenticatedByConfigStillServes(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Provider: fakeProvider{}})

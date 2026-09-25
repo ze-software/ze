@@ -22,7 +22,7 @@ func init() {
 		ShortHelp: "what this checkout changed: the test groups it touches, and the packages a scoped verify must cover",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which verbs exist (actions.go, Subs).

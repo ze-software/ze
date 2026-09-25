@@ -23,7 +23,7 @@ produces the two closure commits.
 
 ## The commits to review
 
-Ten, in order. `./le repository tracked-build check` was run and passed after
+Ten, in order. `./le repo compiles check` was run and passed after
 every one that carried Go.
 
 | SHA | Subject |

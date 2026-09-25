@@ -122,7 +122,7 @@ cleared one to the next reader.
 Each carries a `stale-index-ok` reason of the same shape: the commit added no
 package, `ai/PACKAGE-MAP.md` was unmodified in the tree, and it was stale
 against packages other sessions had committed that day. Running
-`./le discovery-index update` inside one of those commits would have swept other
+`./le repo package-map update` inside one of those commits would have swept other
 sessions' package additions into it, which is why it was not done.
 
 The right clear for these is a single regeneration of `ai/PACKAGE-MAP.md` on a

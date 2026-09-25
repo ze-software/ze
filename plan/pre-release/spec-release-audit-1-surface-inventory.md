@@ -152,7 +152,7 @@ Inventory data enters from code and tests:
 | Aggregate import -> plugin registry | generated blank imports run `init()` registration | `internal/component/plugin/all/all.go`, `all_test.go` |
 | Config schema -> runtime config | YANG modules loaded by schema registrations | `internal/**/yang/register.go`, config tests |
 | HTTP route -> handler | direct route registration in hub/server code | web/API/LG/MCP route files |
-| Test target -> test directory | Make target invokes `bin/le-test` or scripts | `internal/le/functional/suites.go`, `internal/le/evidence/evidence.go` |
+| Test target -> test directory | Make target invokes `./le test` or scripts | `internal/le/functional/suites.go`, `internal/le/evidence/evidence.go` |
 
 ### Integration Points
 
@@ -178,7 +178,7 @@ Inventory data enters from code and tests:
 | Surface | Source | Evidence | Owner Audit | Inventory Status |
 |---------|--------|----------|-------------|------------------|
 | `ze` | `cmd/ze/` | `./le verify current mode full`, `test/ui`, `test/plugin`, `test/web`, `test/install` | config/CLI, web/API, plugins | Inventory started |
-| `le-test` | `cmd/ze/` | all functional and evidence targets | surface inventory, test evidence | Inventory started |
+| `le test` | `cmd/ze/` | all functional and evidence targets | surface inventory, test evidence | Inventory started |
 | `le perf` | `internal/le/perf/` | `./le perf record`, `test/perf` | resilience/security, release evidence | Inventory started |
 | `le mrt` | `internal/le/mrt/` | unit/tests to be verified | docs/onboarding or protocol | Needs child audit row |
 | `le chaos run` | `internal/le/chaos/run/` | `./le chaos selftest unit`, `test/chaos-web` | resilience/security | Inventory started |
@@ -376,7 +376,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 2. **Phase: Online command inventory** - diff YANG `ze:command` and API RPC methods against `pluginserver.RegisterRPCs` registrations.
 3. **Phase: Plugin and schema inventory** - diff aggregate imports, registry names, expected plugin tests, config roots, and YANG modules.
 4. **Phase: Network route inventory** - enumerate web, LG, REST, gRPC, MCP, SSH routes/listeners and map tests.
-5. **Phase: Evidence inventory** - map every `test/` directory to `le-test`, Make targets, `./le verify current mode full`, `ze-evidence-release-verify`, or explicit non-release disposition.
+5. **Phase: Evidence inventory** - map every `test/` directory to `le test`, Make targets, `./le verify current mode full`, `ze-evidence-release-verify`, or explicit non-release disposition.
 6. **Phase: Finding triage** - classify findings and route to child audits.
 
 ### Critical Review Checklist

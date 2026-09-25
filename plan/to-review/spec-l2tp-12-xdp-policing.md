@@ -83,7 +83,7 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 ### Architecture Docs
 - [ ] `ai/patterns/plugin.md` -- plugin file structure
   -> Constraint: register.go with init(), atomic logger, RunXxxPlugin(conn), CLIHandler closure
-  -> Constraint: run `./le repository generate` after creating plugin to update all.go
+  -> Constraint: run `./le repo generate` after creating plugin to update all.go
 - [ ] `ai/rules/plugins.md` -- plugin design rules
   -> Constraint: plugin name hyphen-form (l2tp-policing); YANG required for plugins with config
   -> Constraint: proximity principle: all code in `internal/plugins/l2tppolicing/`
@@ -328,7 +328,7 @@ unavailable.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan -- check what exists |
 | 3. Implement (TDD) | Implementation phases below |
 | 4. /ze-review gate | Review Gate section |
-| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le go lint run && ./le test unit  && ./le test functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -375,11 +375,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Phase: documentation + functional tests**
    - Tests: `test-l2tp-policing-config`
    - Files: `test/plugin/l2tp-policing-config.ci`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`
-   - Verify: `./le functional` passes
+   - Verify: `./le test functional` passes
 
-8. **Phase: ./le repository generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
+8. **Phase: ./le repo generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
    - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
-   - Verify: `./le repository generate`, `./le verify lint run` pass; `git diff go.mod` is empty unless a version bump was justified
+   - Verify: `./le repo generate`, `./le go lint run` pass; `git diff go.mod` is empty unless a version bump was justified
 
 9. **Full verification** -- `./le verify current mode full`
 10. **Complete spec** -- Fill audit tables, write learned summary

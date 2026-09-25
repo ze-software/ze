@@ -207,8 +207,7 @@ func streamCommand(action string, argv []string, dir string, environ []string) i
 // is rendered by the le running this command, so no host benchmark program is
 // built or looked up.
 func measureDUTs(run suite) int {
-	runner := perfrunner.New(run.Root, os.Stdout, os.Stderr)
-	runner.Reporter = []string{run.Self, area, reportVerb}
+	runner := perfrunner.New(run.Root, []string{run.Self, area, reportVerb}, os.Stdout, os.Stderr)
 	runner.LinuxTags = run.LinuxTags
 	return runner.Execute(run.Steps, run.DUTs)
 }

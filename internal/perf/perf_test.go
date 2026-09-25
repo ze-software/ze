@@ -262,7 +262,7 @@ func TestRunSmallBenchmark(t *testing.T) {
 	<-fwdDone
 }
 
-// VALIDATES: AC-3 "ze-perf run with unreachable DUT exits non-zero with error."
+// VALIDATES: AC-3 "le perf send with unreachable DUT exits non-zero with error."
 // PREVENTS: RunBenchmark hangs or panics when DUT is unreachable.
 func TestBenchmarkUnreachableDUT(t *testing.T) {
 

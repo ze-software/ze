@@ -25,7 +25,10 @@ const allVerb = "all"
 
 const (
 	chaosPackages = "./internal/chaos/..."
-	chaosCLITags  = "ze_core ze_bgp ze_chaos"
+	chaosCLITags  = "ze_core ze_bgp"
+	// chaosCLIPackage is the `le chaos run` entry, whose tests drive the
+	// orchestrator's command line through the command a developer types.
+	chaosCLIPackage = "./internal/le/chaos/run"
 )
 
 type commandKind uint8
@@ -58,7 +61,7 @@ func (g Action) Argv(tc gotoolchain.Toolchain) []string {
 		return tc.GoTest(gotoolchain.TestOptions{Race: true}, chaosPackages)
 	case commandCLI:
 		return []string{
-			"go", "test", "-timeout", tc.Timeout, "-tags", chaosCLITags, "./cmd/ze",
+			"go", "test", "-timeout", tc.Timeout, "-tags", chaosCLITags, chaosCLIPackage,
 		}
 	case commandUnspecified:
 		panic("BUG: chaosselftest.Action has no command kind")
@@ -112,8 +115,8 @@ func Table() []Action {
 		},
 		{
 			Verb: "cli-unit",
-			Why: "the orchestrator's CLI surface, which only a ze_chaos build compiles;" +
-				" the default tag set excludes it and reports nothing",
+			Why: "the orchestrator's CLI surface, driven through `le chaos run`;" +
+				" chaosPackages holds the orchestrator but not the le entry",
 			kind: commandCLI,
 		},
 	}

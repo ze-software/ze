@@ -13,6 +13,10 @@ import (
 	"testing"
 )
 
+// testReporter is the report argv the tests hand New: the le that `le perf run`
+// passes, spelled as a developer types it.
+var testReporter = []string{"le", "perf", "report"}
+
 func TestGenerateToFileNeverDestroysTheExistingReport(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "report.html")
 	if err := os.WriteFile(destination, []byte("OLD\n"), 0o600); err != nil {
@@ -71,7 +75,7 @@ func TestUnmeasuredDUTsReportsPartialFleetRuns(t *testing.T) {
 
 func TestConfigOverlayWinsPerFileWithoutReplacingDefaults(t *testing.T) {
 	root := t.TempDir()
-	runner := New(root, io.Discard, io.Discard)
+	runner := New(root, testReporter, io.Discard, io.Discard)
 	overlay := filepath.Join(root, "overlay")
 	if err := os.MkdirAll(overlay, 0o750); err != nil {
 		t.Fatal(err)
@@ -102,7 +106,7 @@ type fakeCall struct {
 // bin/ze-perf path.
 func TestPerfRunnerMountsLinuxLe(t *testing.T) {
 	root := t.TempDir()
-	runner := New(root, io.Discard, io.Discard)
+	runner := New(root, testReporter, io.Discard, io.Discard)
 	runner.LinuxTags = "ze_le ze_bgp"
 	var calls []fakeCall
 	runner.Run = func(_ context.Context, _, _ io.Writer, _ string, env, argv []string) error {
@@ -159,7 +163,7 @@ func TestPerfRunnerMountsLinuxLe(t *testing.T) {
 // TestPerfRunnerRefusesALinuxBuildWithoutTags keeps a caller that forgot the
 // tags from building a featureless le that answers "unknown command".
 func TestPerfRunnerRefusesALinuxBuildWithoutTags(t *testing.T) {
-	runner := New(t.TempDir(), io.Discard, io.Discard)
+	runner := New(t.TempDir(), testReporter, io.Discard, io.Discard)
 	runner.Run = func(context.Context, io.Writer, io.Writer, string, []string, []string) error {
 		t.Fatal("the runner built with no tags")
 		return nil
@@ -172,7 +176,7 @@ func TestPerfRunnerRefusesALinuxBuildWithoutTags(t *testing.T) {
 // TestExecuteRefusesARunWithNoStep keeps an empty step selection from
 // answering success over no work.
 func TestExecuteRefusesARunWithNoStep(t *testing.T) {
-	runner := New(t.TempDir(), io.Discard, io.Discard)
+	runner := New(t.TempDir(), testReporter, io.Discard, io.Discard)
 	if code := runner.Execute(Steps{}, nil); code != 2 {
 		t.Fatalf("Execute(no step) = %d, want 2", code)
 	}

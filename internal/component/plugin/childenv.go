@@ -43,8 +43,8 @@ func EngineBinDir() string {
 // still finds ze when it is not installed system-wide, and it MUST NOT come
 // first, because a cross-built checkout holds a host binary and a guest binary
 // of the same name side by side. Under QEMU the engine runs as
-// bin/ze-linux-arm64 next to a darwin bin/ze-test, and putting that directory
-// first made every `run "ze-test ..."` in test/ resolve to the darwin binary,
+// bin/ze-linux-arm64 next to a darwin harness binary, and putting that
+// directory first made every harness `run` line in test/ resolve to the darwin binary,
 // which the guest shell reads as a script.
 func ChildPathEnv(binDir, inherited string) string {
 	if binDir == "" {

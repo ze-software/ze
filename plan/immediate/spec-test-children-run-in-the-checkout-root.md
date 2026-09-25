@@ -27,7 +27,7 @@ inventory below is the September 7 design baseline.
 Fifteen spawn sites in `internal/test/runner` and `internal/test/cli` start a
 child process without setting the command's working directory. A child with no
 directory inherits the harness's own, which is the checkout root that `./le` and
-`le-test` are started from. Eight of the fifteen start a DAEMON.
+`le test` are started from. Eight of the fifteen start a DAEMON.
 
 A `ze` daemon started in the checkout writes `database.zefs`, its rendered
 config, its host keys, and its `rollback/` and `crash/` trees into the repository
@@ -39,7 +39,7 @@ The repair is already declared. `Record.WorkDir`
 (`internal/test/runner/record.go`) is "the directory every child of this test
 runs in", `childWorkingDirectory` (`internal/test/runner/runner.go`) applies it
 per binary, and `runOrchestrated` (`internal/test/runner/runner_exec.go`) gives
-it to the peer child and the client child. Three runners and the `le-test` CLI
+it to the peer child and the client child. Three runners and the `le test` CLI
 never took that route. `refuseRepoRoot` (`internal/test/fixture/fixture.go`) is
 the only guard, it lives on the child side of the fixture entry point, and it
 covers none of the fifteen.
@@ -64,13 +64,13 @@ daemon.
 | 3 | `internal/test/runner/parsing.go` | `(*parsingRunner).runLegacyTest` | `ze config validate -q` (positive arm) | No |
 | 4 | `internal/test/runner/runner_validate.go` | `(*Runner).decodeToEnvelope` | `ze bgp decode --json` | No |
 | 5 | `internal/test/cli/cmd_bgp.go` | `zeTestRunClientOnly` | `ze server <config>` | Yes |
-| 6 | `internal/test/cli/cmd_web.go` | `zeTestStartLGServer` | `le-test peer --mode sink` | Yes |
+| 6 | `internal/test/cli/cmd_web.go` | `zeTestStartLGServer` | `le test peer --mode sink` | Yes |
 | 7 | `internal/test/cli/cmd_web.go` | `zeTestStartLGServer` | `ze -`, the looking glass | Yes |
-| 8 | `internal/test/cli/cmd_web.go` | `zeTestStartLGNoEngineServer` | `le-test lg --listen` | Yes |
+| 8 | `internal/test/cli/cmd_web.go` | `zeTestStartLGNoEngineServer` | `le test lg --listen` | Yes |
 | 9 | `internal/test/cli/cmd_web.go` | `zeTestStartChaosServer` | `le chaos run --in-process --web` | Yes |
 | 10 | `internal/test/cli/cmd_web.go` | `zeTestStartWebServer` | `ze start --web --web-only` | Yes |
 | 11 | `internal/test/cli/cmd_web.go` | `zeTestCloseAllBrowserSessions` | `agent-browser close --all` | No |
-| 12 | `internal/test/cli/cmd_exabgp.go` | `runExaBGPServerForeground` | `le-test interop-bgp exabgp-server` | Yes |
+| 12 | `internal/test/cli/cmd_exabgp.go` | `runExaBGPServerForeground` | `le test interop-bgp exabgp-server` | Yes |
 | 13 | `internal/test/cli/cmd_exabgp.go` | `runExaBGPClientForeground` | `ze start <config>` | Yes |
 | 14 | `internal/test/cli/cmd_exabgp.go` | `migrateExaBGPConfig` | `ze exabgp migrate` | No |
 | 15 | `internal/test/cli/cmd_exabgp_process.go` | `startExaProcess` | `ze start <config>`, and the ExaBGP server | Yes |
@@ -92,7 +92,7 @@ directory. `runOrchestrated` names `rec.WorkDir` for both its children.
 - [ ] `docs/architecture/testing/runner-architecture.md` - the "Scratch roots" section declares where per-run and per-test working directories go
   → Decision: per-run and per-test working directories live under `sessionpath.DefaultScratchRoot()` when a session is active, and under the system temp directory off-session. A directory this spec creates takes the same root and adds no second rule.
   → Constraint: the section carries source anchors naming `internal/test/sessionpath` and `internal/test/runner/runner.go`. A change to which directory a child runs in makes it wrong, so its edit lands in the same work.
-- [ ] `docs/functional-tests.md` - the operator-facing account of what `le-test` runs and where it writes
+- [ ] `docs/functional-tests.md` - the operator-facing account of what `le test` runs and where it writes
   → Constraint: `ai/CODE-TO-DOCS.md` anchors this page from `cmd_web.go`, `cmd_exabgp.go`, `cmd_bgp.go`, `decoding.go` and `parsing.go`, so it is named in the Documentation checklist rather than assumed unaffected.
 - [ ] `ai/rules/principles.md` - one declaration, derived everywhere else
   → Decision: the fact "a harness child runs in a directory of its own, and only a repository-anchored tool keeps the checkout root" is already declared once, in `childWorkingDirectory` and `repositoryAnchoredBinary`. The repair promotes that declaration rather than writing a second one per site.
@@ -133,7 +133,7 @@ directory. `runOrchestrated` names `rec.WorkDir` for both its children.
 - [ ] `internal/le/repository/repository.go` - `Run` composes five checks in one slice of steps. A sixth is an edit to that central enumeration.
 
 **Behavior to preserve:**
-- Every path an operator or a fixture passes keeps the meaning it has today. The `--save` directory of `le-test exabgp`, the `.ci` file argument, and the config path of `ze server` each resolve against the same place after the change as before.
+- Every path an operator or a fixture passes keeps the meaning it has today. The `--save` directory of `le test exabgp`, the `.ci` file argument, and the config path of `ze server` each resolve against the same place after the change as before.
 - `TmpfsTempDir` keeps its narrower meaning. Three consumers read it as "did the record declare files", and a directory that is always set answers a different question.
 - The five `go build` children, and the `./le` and `go test` steps, keep the checkout root, which `repositoryAnchoredBinary` already decides.
 - `(*zeTestWebServer).stop` keeps killing the children before it removes the directory.
@@ -145,7 +145,7 @@ directory. `runOrchestrated` names `rec.WorkDir` for both its children.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- An operator or an agent runs `./le verify`, `./le test functional`, `le-test bgp`, `le-test web`, `le-test parse` or `le-test exabgp`. The shell's working directory is the checkout root, because `./le` is a path in it.
+- An operator or an agent runs `./le verify`, `./le test functional`, `le test bgp`, `le test web`, `le test parse` or `le test exabgp`. The shell's working directory is the checkout root, because `./le` is a path in it.
 
 ### Transformation Path
 1. The harness process starts with the checkout root as its working directory.
@@ -196,10 +196,10 @@ without one.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A path that resolved against the checkout root today resolves elsewhere, and a test fails with "file not found" rather than with the real reason | The parse, decode, ExaBGP or web suite goes red at a path error on the first run after the change | Make every path argument absolute in the same edit that names the directory. The five sites that carry one are 2, 3, 5, 12 and 14, and the implementation steps name them |
-| R-2 | The operator's `--save` value of `le-test exabgp` is relative, and the change redirects the operator's own output into a scratch directory | An operator reports that `--save out` writes nothing to `./out` | Resolve `--save` against the harness's own working directory BEFORE the spawn, so the flag keeps its meaning, and pin it with a unit test over the argument builder |
+| R-2 | The operator's `--save` value of `le test exabgp` is relative, and the change redirects the operator's own output into a scratch directory | An operator reports that `--save out` writes nothing to `./out` | Resolve `--save` against the harness's own working directory BEFORE the spawn, so the flag keeps its meaning, and pin it with a unit test over the argument builder |
 | R-3 | The lint passes vacuously because it found no spawn site, after an import alias, a build tag, or a package move | Nothing. That is what makes it a risk | Resolve `os/exec` by import path, and carry a floor on the number of call sites the walk found. A stale floor is a visible red; an evaded walk is not |
 | R-4 | A test that today finds a file an earlier run left in the checkout root stops finding it, and goes red | A web or ExaBGP test fails only after the change, at a missing-file assertion | That test was passing on a cross-run artifact, which is the defect this spec exists to remove. Fix the test to declare the file it needs. Do not restore the shared directory |
-| R-5 | Sites 8 and 9 gain a directory and its removal, and a child that outlives the stop path writes into a directory that is gone | A `le chaos run` or `le-test lg` child logs a write error after the test ends | `(*zeTestWebServer).stop` kills the children before it removes the directory, which is the order sites 6, 7 and 10 already use |
+| R-5 | Sites 8 and 9 gain a directory and its removal, and a child that outlives the stop path writes into a directory that is gone | A `le chaos run` or `le test lg` child logs a write error after the test ends | `(*zeTestWebServer).stop` kills the children before it removes the directory, which is the order sites 6, 7 and 10 already use |
 | R-6 | A directory created off-session lands in the system temp directory and is never removed, because `./le session reap` only knows session roots | An unowned temp directory per run | Each creator answers its own remover, and every caller defers it, which is what `runOrchestrated` already does |
 | R-7 | The suite-scoped directory for sites 1, 12 and 14 outlives a killed run | A directory under the session scratch root carrying `workDirPrefix` and no owner | The prefix names what made it, which is why `workDirPrefix` exists, and `./le session reap` removes an abandoned session root |
 
@@ -209,14 +209,14 @@ without one.
 |----------|--------|
 | What breaks if this is wrong? | The functional suites. No shipped code path is touched: every changed source file is under `internal/test/`, which no `ze` build tag compiles into the daemon. The failure mode is a red suite, never a wrong route or a dropped session |
 | How is it reverted? | A single commit revert. Nothing is persisted, no config migrates, and no peer sees anything |
-| Who else touches this path? | Every session that runs `./le verify` or `le-test`. `runner_exec.go` was changed for this class on 2026-08-28, and this spec changes it again only to delete the inline directory creation |
+| Who else touches this path? | Every session that runs `./le verify` or `le test`. `runner_exec.go` was changed for this class on 2026-08-28, and this spec changes it again only to delete the inline directory creation |
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `le-test exabgp <nick>` starts its client daemon | → | `startExaProcess` (`internal/test/cli/cmd_exabgp_process.go`) | `TestExaProcessRunsInTheDirectoryItIsGiven` |
-| `le-test parse <nick>` runs a legacy `.conf` test | → | `(*parsingRunner).runLegacyTest` (`internal/test/runner/parsing.go`) | `TestLegacyParseChildRunsOutsideTheCheckout` |
+| `le test exabgp <nick>` starts its client daemon | → | `startExaProcess` (`internal/test/cli/cmd_exabgp_process.go`) | `TestExaProcessRunsInTheDirectoryItIsGiven` |
+| `le test parse <nick>` runs a legacy `.conf` test | → | `(*parsingRunner).runLegacyTest` (`internal/test/runner/parsing.go`) | `TestLegacyParseChildRunsOutsideTheCheckout` |
 | A developer adds a sixteenth spawn site to either package | → | the syntax-tree walk over `internal/test/runner` and `internal/test/cli` | `TestEveryHarnessSpawnNamesItsDirectory` |
 | A caller asks the constructor for a command with no directory | → | the constructor's refusal | `TestChildCommandRefusesAnEmptyDirectoryAndTheCheckoutRoot` |
 | A `.ci` step starts a `ze` daemon during a suite run | → | the repository root's untracked set | `harness-root-clean` (`test/plugin/harness-root-clean.ci`) |
@@ -232,7 +232,7 @@ without one.
 | AC-5 | A source walk over the non-test files of `internal/test/runner` and `internal/test/cli` finds an `os/exec` command call outside the constructor's own file | The lint names that file and the enclosing function, and fails |
 | AC-6 | The same source walk finds fewer call sites than its recorded floor | The lint fails, and its message states that the walk found less than it should and is no longer trustworthy |
 | AC-7 | The source walk reads a file that imports `os/exec` under an alias | The alias is resolved from the import declaration, and the call is still found |
-| AC-8 | `le-test exabgp` runs with a relative `--save` value | The saved logs appear under that path, relative to the directory the operator ran the command in, exactly as before the change |
+| AC-8 | `le test exabgp` runs with a relative `--save` value | The saved logs appear under that path, relative to the directory the operator ran the command in, exactly as before the change |
 | AC-9 | The functional suite runs from a clean checkout | `git status --porcelain` over the repository root reports the same set of paths before and after the run |
 | AC-10 | Each of the fifteen sites in the site table is read after the change | Each names a directory, and the five that pass a path argument (sites 2, 3, 5, 12, 14) make that path absolute before the spawn |
 | AC-11 | `internal/test/runner` is read after the change | The record work directory is created through the shared maker. No second creation of a directory carrying `workDirPrefix` remains in the package |
@@ -243,7 +243,7 @@ without one.
 |---|-----------|--------------------|-----------------------|
 | 1 | An agent runs the functional suite in a shared checkout and reads `git status` afterwards | `./le test functional` → suite runner → spawn site → child in its own directory → repository root untouched | `harness-root-clean` |
 | 2 | A developer adds a spawn site to `internal/test/cli` and forgets the directory | `go test ./internal/test/runner/` → syntax-tree walk → the new file and function are named | `TestEveryHarnessSpawnNamesItsDirectory` |
-| 3 | An operator reruns one ExaBGP test with `--save out` to read the BGP logs | `le-test exabgp <nick> --save out` → argument builder makes the path absolute → the server writes under the operator's `./out` | `TestExaBGPServerArgsKeepARelativeSaveDirectory` |
+| 3 | An operator reruns one ExaBGP test with `--save out` to read the BGP logs | `le test exabgp <nick> --save out` → argument builder makes the path absolute → the server writes under the operator's `./out` | `TestExaBGPServerArgsKeepARelativeSaveDirectory` |
 
 ## 🧪 TDD Test Plan
 
@@ -352,7 +352,7 @@ inherited.
 | YANG schema (new RPCs/config) | N-A | No config surface changes. The feature is internal to the test harness |
 | YANG validation constraints | N-A | No leaf is added |
 | YANG custom validators | N-A | No leaf is added |
-| CLI commands/flags | N-A | No flag is added or changed. `le-test exabgp --save` keeps its exact meaning, which is what AC-8 pins |
+| CLI commands/flags | N-A | No flag is added or changed. `le test exabgp --save` keeps its exact meaning, which is what AC-8 pins |
 | CLI grammar (keyword before value) | N-A | No command is added |
 | Editor autocomplete | N-A | No leaf is added |
 | Functional test for new RPC/API | Yes | `test/plugin/harness-root-clean.ci` |
@@ -367,7 +367,7 @@ inherited.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | No operator-visible behavior changes. `docs/features.md` describes the product, and this is harness internals |
 | 2 | Config syntax changed? | No | No parser and no YANG change |
-| 3 | CLI command added/changed? | No | No `ze` or `le-test` flag is added or given a new meaning |
+| 3 | CLI command added/changed? | No | No `ze` or `le test` flag is added or given a new meaning |
 | 4 | API/RPC added/changed? | No | No command handler is touched |
 | 5 | Plugin added/changed? | No | No plugin registers or changes |
 | 6 | Has a user guide page? | No | The harness is documented for contributors, which rows 10 and 12 cover |
@@ -381,7 +381,7 @@ inherited.
 | 14 | Prometheus counters added/changed? | No | No counter is defined |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registry entry changes |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation time: run `./le spec citation anchors spec plan/immediate/spec-test-children-run-in-the-checkout-root.md` and name every page it lists. Known from `ai/CODE-TO-DOCS.md`: `docs/architecture/testing/runner-architecture.md` and `docs/functional-tests.md` are anchored from the files in Files to Modify, and `docs/architecture/testing/ci-format.md` is anchored from `parsing.go`, `decoding.go`, `runner_validate.go` and `cmd_exabgp.go`. `ci-format.md` describes the `.ci` FORMAT, which this spec does not change, so it is named here as unaffected with that reason |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/functional-tests.md` shows `le-test` invocations. Check each against the changed argument handling, in particular any example passing a relative `--save` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/functional-tests.md` shows `le test` invocations. Check each against the changed argument handling, in particular any example passing a relative `--save` |
 
 ## Implementation Steps
 
@@ -456,7 +456,7 @@ inherited.
 |----------|------------------------|-----------|
 | One shared constructor in `internal/test/runner`, used by both packages | Fifteen independent directory assignments | The journal class holds four rows across four dates, and the last repair fixed one route and left three. An edit per site leaves nothing behind that a sixteenth site meets |
 | The constructor lives in `internal/test/runner` | A new leaf package for it | `internal/test/cli` already imports `runner` (`go list -deps`), and `runner` already owns `childWorkingDirectory`, `repositoryAnchoredBinary`, `workDirPrefix` and `Record.WorkDir`. A new package moves the declaration away from the code that holds it |
-| A source-scanning lint test in the package | A sixth check in `./le repo`; extending `refuseRepoRoot` to the product | `./le repo` composes its checks in one central slice, edited for a rule about one package, and it runs less often than `go test`. `refuseRepoRoot` guards the child, and these children are `ze`, `le-test` and `le chaos run`, which a developer legitimately runs from the checkout. The lint runs in the ordinary Go stage and is owned by the package it governs |
+| A source-scanning lint test in the package | A sixth check in `./le repo`; extending `refuseRepoRoot` to the product | `./le repo` composes its checks in one central slice, edited for a rule about one package, and it runs less often than `go test`. `refuseRepoRoot` guards the child, and these children are `ze`, `le test` and `le chaos run`, which a developer legitimately runs from the checkout. The lint runs in the ordinary Go stage and is owned by the package it governs |
 | The lint's scope is `internal/test/runner` and `internal/test/cli` | All of `internal/test/` | `internal/test/fixture` holds roughly 180 spawns whose parent already runs in the per-test directory, which `refuseRepoRoot` proves. Widening the lint forces 180 rewrites that fix nothing. The boundary is which process's working directory is the checkout root, and only these two packages' is |
 | Sites 1, 12 and 14 share one directory per run; sites 2 and 3 get one per test | A per-test directory everywhere | The decode children take no path argument and write no per-test file (A-1), and the decode suite runs thousands of tests. The legacy parse children take a config path and can write beside it, so they get their own |
 | A path argument is made absolute at the site | Letting the new directory resolve it | The path is the caller's, and its meaning must not change. This is the repair `runOrchestrated` already made on 2026-08-28 |
@@ -465,7 +465,7 @@ inherited.
 ## Known Limitations
 - `internal/test/fixture` keeps `refuseRepoRoot` as its only guard, and its own spawns do not route through the constructor. That is deliberate: a fixture driver's working directory is already the per-test directory, and `refuseRepoRoot` fails closed if it ever is not.
 - `internal/test/perfrunner`, `internal/test/localdatacoverage` and `internal/test/golden` each hold one spawn and sit outside the lint's scope. No suite runner starts them from the checkout root. Widening the lint to cover them is a separate decision that needs its own reading of each caller.
-- The `go test` half of this class stays open. A Go test whose working directory is its own package directory still writes daemon state into the source tree, which the 2026-09-03 journal row records under `cmd/ze/hub/`. This spec repairs the `le-test` half. The Go half is named in that row and belongs to a spec of its own.
+- The `go test` half of this class stays open. A Go test whose working directory is its own package directory still writes daemon state into the source tree, which the 2026-09-03 journal row records under `cmd/ze/hub/`. This spec repairs the `le test` half. The Go half is named in that row and belongs to a spec of its own.
 
 ## Checklist
 

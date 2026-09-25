@@ -121,19 +121,22 @@ var (
 	// testweakened that goimports writes because the package clause no longer
 	// matches the directory name. One import line, no hook decision changed.
 	// Re-sealed 2026-09-25 for the same spec, Phase 1c: bash.go admits the
-	// renamed harness. harnessRunner treats le-test and its retired name
-	// ze-test (and their cross-build suffixes) as the functional runner, and
+	// renamed harness. harnessRunner treated the harness binary names (and
+	// their cross-build suffixes) as the functional runner, and
 	// heavyArea reads the subject-first `le test <suite>` spelling, with `test
 	// harness` heavy. Pinned by TestBashHookAdmitsLeTest in bash_test.go.
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: heavyArea in bash.go
 	// treats `le go lint` as heavy (the new name of `verify lint`), and the
 	// parity model in parity.go reads `ai hooks unit` beside `hook-check unit`.
 	// Pinned by TestLossyPipeReadsTheTwoWordArea.
+	// Re-sealed 2026-09-25 for the same spec, Phase 3: heavyArea in bash.go
+	// reads a suite only under `test`, because the retired top-level suite names
+	// answer `unknown command`. Pinned by TestLossyPipeReadsTheTwoWordArea.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xa3, 0xa5, 0x65, 0x07, 0x6d, 0xce, 0x89, 0xd4,
-		0xdf, 0xa5, 0xf0, 0x44, 0x85, 0xf4, 0x40, 0xdc,
-		0x01, 0x4f, 0x44, 0xf4, 0x44, 0xab, 0xaa, 0xab,
-		0x0d, 0x75, 0x9e, 0x82, 0x52, 0x89, 0xdf, 0x36,
+		0x92, 0x4c, 0x6c, 0x97, 0x5a, 0xc9, 0x77, 0x58,
+		0xea, 0x4e, 0x94, 0x87, 0x3d, 0xa0, 0x02, 0x69,
+		0x00, 0x34, 0xe2, 0xe8, 0x52, 0xb6, 0xc3, 0xf6,
+		0xb3, 0xac, 0xb8, 0x3f, 0xf7, 0xfa, 0x15, 0x0a,
 	}
 )
 

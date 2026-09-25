@@ -32,8 +32,7 @@ the renderer's architecture. The file MUST be named `le`, because `cmd/ze`
 selects its personality from its file name. The container records a tape with
 `le site terminal-demo pty --tape <file>`. That action hands its words to the
 PTY recorder, so `./le site terminal-demo pty --help` prints the recorder's own
-options. `cmd/ze-terminal-pty` runs the same recorder until it is removed, and
-no demo build writes it.
+options.
 <!-- source: internal/le/linuxle/linuxle.go -- Argv -->
 <!-- source: internal/le/site/terminaldemo/actions.go -- recorderBuildCommand -->
 <!-- source: internal/le/site/terminaldemo/entrypoint.go -- recorderCommand -->

@@ -288,7 +288,7 @@ writing any of the five is his call.
 - **The session's spec claim is on `spec-gtsm-related-icmp-ttl.md`**, not on the
   RFC 7705 spec it started with. An agent re-claimed it after finding the original
   claim pointed at a path that does not exist, which made the write hooks refuse
-  source edits. Check `./le spec session current` before assuming.
+  source edits. Check `./le spec current` before assuming.
 - **Audit rows 1 to 4 and 6** are unstarted or barely started, as the table above
   says. Row 5 is the OSPF fix, half-done.
 

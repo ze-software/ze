@@ -270,7 +270,7 @@ func TestParseBGPMessage_DamagedUpdateSalvagesAndReports(t *testing.T) {
 	// VALIDATES: an UPDATE whose withdrawn or NLRI field is damaged returns BOTH
 	// the fields that decoded AND the error naming what did not.
 	// PREVENTS: two failures at once. Returning nil threw away every readable
-	// field, so `ze-analyze show` collapsed the whole record to "[parse error]";
+	// field, so `le mrt show` collapsed the whole record to "[parse error]";
 	// and dropping the error let a truncated record render as though it were
 	// complete. Both errors must survive, not just the first: the withdrawn and
 	// NLRI fields are independent and reporting one hides the other.

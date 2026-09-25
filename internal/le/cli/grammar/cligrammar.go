@@ -207,9 +207,11 @@ type Floor struct {
 
 // DefaultFloor is what le passes. The counts on 2026-08-30 were 217 .yang
 // files, 39 roots, 19 terminal-demo definitions, 86 le commands, 4,590 Go
-// sources and 94 resolved flag sets.
+// sources and 94 resolved flag sets. Roots lost three on 2026-09-25, when
+// plan/spec-le-subject-first-command-tree.md Phase 3 retired the ze roots
+// `analyze`, `chaos` and `perf` into le, so its floor fell by the same three.
 var DefaultFloor = Floor{
-	YANGFiles: 100, Roots: 20, DemoScripts: 10, LeRoots: 60,
+	YANGFiles: 100, Roots: 17, DemoScripts: 10, LeRoots: 60,
 	GoFiles: 1000, FlagSets: 40,
 }
 

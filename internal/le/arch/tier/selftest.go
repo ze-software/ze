@@ -336,7 +336,7 @@ func runDisableableCases(root string, edges Edges) []leroot.SelftestResult {
 		{"always-on-importer", "internal/app/use.go", "an always-on direct import of a disableable feature is not flagged", true},
 		{"tag-gated-importer", "cmd/app/svc_widget.go", "a build-tag-gated importer is flagged", false},
 		{"test-importer", "internal/app/use_test.go", "a test importer is flagged", false},
-		{"non-production-importer", "internal/chaos/orchestrator/use.go", "a ze-chaos importer is flagged", false},
+		{"non-production-importer", "internal/chaos/orchestrator/use.go", "a le chaos run importer is flagged", false},
 	}
 
 	results := make([]leroot.SelftestResult, 0, len(cases)+1)

@@ -147,7 +147,7 @@ start, while Echo-Request/Reply recurs throughout the session lifetime.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | Kernel l2tp xmit path has access to the PPP frame content before encapsulation | l2tp_ppp.c calls l2tp_xmit_skb which builds the header around the sk_buff | Cannot inspect PPP protocol field; would need a different hook point | Read l2tp_ppp.c xmit path | unvalidated |
 | A-2 | PPP protocol field is at a fixed offset in the sk_buff at l2tp xmit time | PPP header is 2 bytes (protocol) or 1 byte (compressed) at sk_buff head | Offset calculation would be wrong for compressed protocol fields | Read ppp_generic.c output format | unvalidated |
-| A-3 | Adding a conditional branch per packet on the xmit path has negligible performance impact | Branch is a single byte compare on a per-session bool flag; predicted taken (P=0 path) for most packets | Measurable throughput regression on high-PPS sessions | Benchmark with ze-perf | unvalidated |
+| A-3 | Adding a conditional branch per packet on the xmit path has negligible performance impact | Branch is a single byte compare on a per-session bool flag; predicted taken (P=0 path) for most packets | Measurable throughput regression on high-PPS sessions | Benchmark with le perf | unvalidated |
 | A-4 | linux-l2tp maintainers would accept a new attribute for priority marking | P bit is in the RFC but never exposed by the kernel; this is a legitimate gap | Patch rejected; fall back to Option C | Submit RFC patch to netdev | unvalidated |
 
 ### Risks
@@ -155,7 +155,7 @@ start, while Echo-Request/Reply recurs throughout the session lifetime.
 |----|------|--------------|----------------------|
 | R-1 | Kernel patch takes months to land upstream | Review cycle on netdev list | Use Option C (BPF) as interim; feature-detect attribute availability at runtime |
 | R-2 | PPP protocol field compression (RFC 1661 S5) changes the offset | Compressed protocol is 1 byte for values 0x00-0xFF; LCP=0xC021 is never compressed | Check ppp_generic output format |
-| R-3 | Per-packet PPP inspection measurably impacts throughput | ze-perf benchmark shows >1% regression | Make the inspection conditional on the per-session flag (only enabled for sessions that need CQM) |
+| R-3 | Per-packet PPP inspection measurably impacts throughput | le perf benchmark shows >1% regression | Make the inspection conditional on the per-session flag (only enabled for sessions that need CQM) |
 
 ## Data Flow (MANDATORY)
 

@@ -709,21 +709,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 
-		// Resolve binary path. An `le` head, and until Phase 3 a retired
-		// harness head, runs the runner's own le with the words the head
-		// stands for (leHeadWords). A retired harness head is rewritten to
-		// `le`, so everything below reads one name for the harness. A step
-		// that starts the peer, under either spelling, takes the role name
-		// binNamePeer: the peer's stdin route and port read it.
+		// Resolve binary path. An `le` head runs the runner's own le. A step
+		// that starts the peer takes the role name binNamePeer: the peer's
+		// stdin route and port read it.
 		binName := cmdParts[0]
 		var binPath string
-		var extraArgs []string
-		words, isLE := leHeadWords(binName)
 		switch {
-		case isLE:
+		case binName == binNameLE:
 			binPath = r.lePath
-			extraArgs = words
-			binName = binNameLE
 			if launchesPeer(cmdParts) {
 				binName = binNamePeer
 			}
@@ -739,9 +732,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
-		args := make([]string, 0, len(extraArgs)+len(cmdParts)-1)
-		args = append(args, extraArgs...)
-		args = append(args, cmdParts[1:]...)
+		args := cmdParts[1:]
 
 		// Handle stdin block content
 		var stdinContent []byte
@@ -903,7 +894,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		)
 		proc.Env = append(proc.Env, "ze.config.dir="+configDir)
 		// Only set ze_test_bgp_port for ze and the peer. Other processes
-		// (e.g., ze-chaos --in-process) manage their own port configuration and
+		// (e.g., le chaos run --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
 		if binName == binNameZe || binName == binNamePeer {
 			proc.Env = append(proc.Env, textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)))

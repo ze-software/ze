@@ -6,7 +6,7 @@
 // JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the
 // Streamable HTTP transport (streamable.go). Tools are auto-generated from
 // the command registry, plus a small handcrafted set (ze_execute,
-// ze_reference); a ToolProvider (ze-chaos) can replace the tool surface
+// ze_reference); a ToolProvider (le chaos run) can replace the tool surface
 // entirely via StreamableConfig.Provider.
 package mcp
 
@@ -819,13 +819,13 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 
 // --- Shared tool-dispatch primitives (moved from the deleted legacy
 // handler.go; spec-followup-subsystem AC-9). The Streamable transport and the
-// ze-chaos ToolProvider both build on these. ---
+// le chaos run ToolProvider both build on these. ---
 
 // maxRequestBody limits the size of MCP HTTP request bodies (1 MB).
 const maxRequestBody = 1 << 20
 
 // ToolProvider supplies tool definitions and handles tool calls for an MCP
-// server. ze-chaos implements this with its own tools (chaos_status, ...);
+// server. le chaos run implements this with its own tools (chaos_status, ...);
 // set StreamableConfig.Provider to serve a provider's tools instead of the
 // command-registry surface.
 // ToolResult carries a provider result and its response completion to the MCP

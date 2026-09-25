@@ -35,13 +35,5 @@ COPY test/interop/ze-linux /usr/local/bin/ze
 # The file MUST be named le: cmd/ze selects its personality from the name it
 # was started under.
 COPY test/interop/le-linux /usr/local/bin/le
-# Scenario ze.conf files still run the harness by its two retired names. Each
-# is a shell shim that runs `le test`, until Phase 3 of
-# plan/spec-le-subject-first-command-tree.md removes both.
-RUN for name in le-test ze-test; do \
-      printf '#!/bin/sh\nexec /usr/local/bin/le test "$@"\n' > /usr/local/bin/$name && \
-      chmod 0755 /usr/local/bin/$name; \
-    done
-
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

@@ -94,7 +94,7 @@ func TestServerDiscoverShape(t *testing.T) {
 }
 
 // VALIDATES: in Provider mode server/discover reports the provider's name.
-// PREVENTS: a ze-chaos listener identifying itself as the ze daemon.
+// PREVENTS: a le chaos run listener identifying itself as the ze daemon.
 func TestServerDiscoverProviderName(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Provider: fakeProvider{}})
 	defer cleanup()

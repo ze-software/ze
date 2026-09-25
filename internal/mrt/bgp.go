@@ -243,7 +243,7 @@ func updateSections(body []byte) (withdrawn, attrs, nlri []byte, err error) {
 // parseUpdate decodes an UPDATE body.
 //
 // A damaged withdrawn-routes or NLRI field returns the ParsedUpdate decoded so
-// far ALONGSIDE the error, so a caller that renders a record (ze-analyze show)
+// far ALONGSIDE the error, so a caller that renders a record (le mrt show)
 // can print what survived and mark it damaged, while a caller that needs
 // correctness still sees the failure. Both fields are attempted even when the
 // first fails: they are independent, and reporting only the earlier one would

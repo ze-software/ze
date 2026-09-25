@@ -14,13 +14,6 @@ and congestion handling.
 every subcommand with its description, as data, so `./le mrt '|' json` works.
 le builds itself, so no separate binary is needed.
 
-The standalone `ze-analyze` program runs the same subcommands and keeps working
-until it is removed. Build the old program with:
-
-```
-go build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
-```
-
 ## Quick Start
 
 Download BGP data from public collectors and run an analysis:

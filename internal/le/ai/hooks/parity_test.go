@@ -40,8 +40,8 @@ func TestParityMapsEveryTypedDispatcherRow(t *testing.T) {
 	if !reflect.DeepEqual(population, want) {
 		t.Fatalf("population = %+v, want %+v", population, want)
 	}
-	if len(golden) != 208 {
-		t.Fatalf("dispatcher fixtures = %d, want 208", len(golden))
+	if len(golden) != 201 {
+		t.Fatalf("dispatcher fixtures = %d, want 201", len(golden))
 	}
 	seen := make(map[string]struct{}, len(golden))
 	exitCounts := [3]int{}
@@ -57,8 +57,8 @@ func TestParityMapsEveryTypedDispatcherRow(t *testing.T) {
 		seen[key] = struct{}{}
 		exitCounts[fixture.ExpectedCode]++
 	}
-	if exitCounts != [3]int{73, 9, 126} {
-		t.Fatalf("dispatcher exit populations = %v, want [73 9 126]", exitCounts)
+	if exitCounts != [3]int{71, 9, 121} {
+		t.Fatalf("dispatcher exit populations = %v, want [71 9 121]", exitCounts)
 	}
 	for _, result := range results {
 		if !result.Passed {

@@ -3,7 +3,6 @@ package perfrunner
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -51,9 +50,6 @@ const (
 	dockerLoadFlag  = "--load"
 	dockerQuietFlag = "--quiet"
 )
-
-// perfReport is the ze-perf subcommand that renders a result set.
-const perfReport = "report"
 
 // containerLe is where the sender container finds le. The file name MUST be
 // `le`: cmd/ze selects the personality from the name it was started as
@@ -154,10 +150,10 @@ func generateToFile(ctx context.Context, run CommandRunner, command []string, de
 //
 // The sender inside the container is a linux le, cross-built at LinuxBinary
 // with LinuxTags and mounted at containerLe. Reporter is the argv prefix of
-// the host program that renders the results; `le perf run` sets it to the le
-// that is running, and RunCLI keeps PerfBinary, the retired ze-perf.
+// the host program that renders the results: `le perf run` passes the le that
+// is running.
 type Runner struct {
-	Root, PerfBinary, LinuxBinary, LinuxTags, ConfigOverlay    string
+	Root, LinuxBinary, LinuxTags, ConfigOverlay                string
 	Reporter                                                   []string
 	Routes, Seed, Repeat                                       int
 	NoBuild, PProf, GCTrace                                    bool
@@ -170,8 +166,13 @@ type Runner struct {
 	buildx                                                     bool
 }
 
-func New(root string, stdout, stderr io.Writer) *Runner {
-	perf := envOr("ZE_PERF_BIN", filepath.Join(root, "bin", "ze-perf"))
+// New answers a Runner over the checkout at root. reporter is the argv prefix
+// that renders a result set, for example the running le followed by
+// `perf report`. It MUST NOT be empty: Execute renders every result through it.
+func New(root string, reporter []string, stdout, stderr io.Writer) *Runner {
+	if len(reporter) == 0 {
+		panic("BUG: perfrunner.New needs the argv that renders a result set")
+	}
 	routes, _ := strconv.Atoi(envOr("DUT_ROUTES", "100000"))
 	seed, _ := strconv.Atoi(envOr("DUT_SEED", "42"))
 	repeat, _ := strconv.Atoi(envOr("DUT_REPEAT", "3"))
@@ -182,7 +183,7 @@ func New(root string, stdout, stderr io.Writer) *Runner {
 	// The linux le lives under tmp/, never under bin/: bin/le-<name> is the
 	// launcher's namespace, and a perf artifact there would claim a name.
 	linux := filepath.Join(runDir, "linux-"+runtime.GOARCH, linuxle.Name)
-	return &Runner{Root: root, PerfBinary: perf, Reporter: []string{perf, perfReport}, LinuxBinary: linux, ConfigOverlay: os.Getenv("PERF_CONFIGS_DIR"), Routes: routes, Seed: seed, Repeat: repeat, NoBuild: os.Getenv("NO_BUILD") != "", PProf: os.Getenv("PPROF") != "", GCTrace: os.Getenv("GCTRACE") != "", PProfPort: pprofPort, PProfCPUSeconds: cpu, PProfDir: envOr("PPROF_DIR", filepath.Join(root, "tmp", "perf-run", "pprof")), Stdout: stdout, Stderr: stderr, Run: systemCommand, suffix: suffix, network: "ze-perf-" + suffix, resultsDir: filepath.Join(root, "test", "perf", "results"), runDir: runDir, interopDir: filepath.Join(root, "test", "interop"), configDir: filepath.Join(root, "test", "perf", "configs")}
+	return &Runner{Root: root, Reporter: reporter, LinuxBinary: linux, ConfigOverlay: os.Getenv("PERF_CONFIGS_DIR"), Routes: routes, Seed: seed, Repeat: repeat, NoBuild: os.Getenv("NO_BUILD") != "", PProf: os.Getenv("PPROF") != "", GCTrace: os.Getenv("GCTRACE") != "", PProfPort: pprofPort, PProfCPUSeconds: cpu, PProfDir: envOr("PPROF_DIR", filepath.Join(root, "tmp", "perf-run", "pprof")), Stdout: stdout, Stderr: stderr, Run: systemCommand, suffix: suffix, network: "le-perf-" + suffix, resultsDir: filepath.Join(root, "test", "perf", "results"), runDir: runDir, interopDir: filepath.Join(root, "test", "interop"), configDir: filepath.Join(root, "test", "perf", "configs")}
 }
 
 func (runner *Runner) command(timeout time.Duration, capture bool, args ...string) (string, error) {
@@ -225,7 +226,7 @@ func (runner *Runner) config(name string) string {
 	return filepath.Join(runner.configDir, name)
 }
 func (runner *Runner) containerName(name string) string {
-	return "ze-perf-" + name + "-" + runner.suffix
+	return "le-perf-" + name + "-" + runner.suffix
 }
 
 // buildLinuxBinary cross-builds le for the container by the linuxle recipe, for
@@ -353,7 +354,7 @@ func (runner *Runner) stop(name string) {
 }
 
 func (runner *Runner) runPerf(dut DUT, senderFirst bool) bool {
-	container := "ze-perf-runner-" + runner.suffix
+	container := "le-perf-runner-" + runner.suffix
 	_, err := runner.docker(30*time.Second, false, "run", "-d", "--name", container, "--network", runner.network, "--ip", senderIP, "--cap-add", "NET_ADMIN", "-v", runner.LinuxBinary+":"+containerLe+":ro", "-v", runner.resultsDir+":/results", "alpine:3.21", "sleep", "3600")
 	if err != nil {
 		return false
@@ -427,29 +428,8 @@ func (runner *Runner) cleanup() {
 	for _, dut := range DUTs() {
 		runner.stop(dut.Name)
 	}
-	_, _ = runner.docker(30*time.Second, true, "rm", "-f", "ze-perf-runner-"+runner.suffix)
+	_, _ = runner.docker(30*time.Second, true, "rm", "-f", "le-perf-runner-"+runner.suffix)
 	_, _ = runner.docker(30*time.Second, true, "network", "rm", runner.network)
-}
-
-func (runner *Runner) RunCLI(args []string) int {
-	flags := flag.NewFlagSet("perf-run", flag.ContinueOnError)
-	flags.SetOutput(runner.Stderr)
-	build := flags.Bool("build", false, "build Docker images")
-	test := flags.Bool("test", false, "run benchmarks")
-	if err := flags.Parse(args); err != nil {
-		return 2
-	}
-	if !*build && !*test {
-		_, _ = fmt.Fprintln(runner.Stderr, "at least one of --build or --test is required")
-		return 2
-	}
-	if *test {
-		if info, err := os.Stat(runner.PerfBinary); err != nil || !info.Mode().IsRegular() {
-			_, _ = fmt.Fprintf(runner.Stderr, "error: ze-perf not found at %s. Build it with: go build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze, or run ./le perf run\n", runner.PerfBinary)
-			return 1
-		}
-	}
-	return runner.Execute(Steps{Build: *build, Test: *test}, flags.Args())
 }
 
 // Execute runs the selected steps over the named DUTs, or over every DUT when

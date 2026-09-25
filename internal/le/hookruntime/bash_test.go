@@ -231,7 +231,7 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		{"integration-run", `./le test integration all | tail -5`, true},
 		{"qemu-run", `./le test qemu all | tail -5`, true},
 		{"go-other", `./le go extract symbols | head -5`, false},
-		{"retired-verify-lint", `./le verify lint | grep issues`, true},
+		{"verify-gate", `./le verify worktree | grep issues`, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

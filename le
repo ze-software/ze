@@ -192,13 +192,6 @@ check_name() {
 		echo "le: --name accepts letters, digits, dot, underscore and hyphen, and refuses '..': got '$1'" >&2
 		exit 2
 		;;
-	# bin/le-<name> would sit at the path of a harness artifact: bin/le-test,
-	# or a cross-build bin/le-test-<os>-<arch>. The build would put a directory
-	# where the harness file lives (internal/test/harnessbin).
-	test | test-*)
-		echo "le: --name '$1' is refused: bin/le-$1 is a test harness artifact (le-test)" >&2
-		exit 2
-		;;
 	esac
 }
 

@@ -46,7 +46,7 @@ func TestPeerBlockRefusesUnclaimedDirective(t *testing.T) {
 		"malformed known": "option=timeout",
 		// A value the option does not have is the same silent drop one level
 		// down. inspect-update-message was pinned as ACCEPTED by a runner test
-		// until 2026-08-15; ze-peer has never had a branch for it.
+		// until 2026-08-15; le test peer has never had a branch for it.
 		"unknown update value": "option=update:value=inspect-update-message",
 		"unknown open value":   "option=open:value=send-unknown-capabilty",
 		"asn not a number":     "option=asn:value=abc",
@@ -262,7 +262,7 @@ func TestCIPeerBlockCorpusParses(t *testing.T) {
 		if readErr != nil {
 			return readErr
 		}
-		if !strings.Contains(string(content), "stdin=peer:") && !strings.Contains(string(content), "exec=ze-peer") {
+		if !strings.Contains(string(content), "stdin=peer:") && !strings.Contains(string(content), "exec=le test peer") {
 			return nil
 		}
 		et := NewEncodingTests(filepath.Join("..", "..", ".."))

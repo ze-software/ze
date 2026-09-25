@@ -92,6 +92,10 @@ func fullStages() []Stage {
 		structural("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),
+		// Every caller of a name the subject-first rename retired is rewritten,
+		// so a line naming one again is a regression (AC-16 of
+		// plan/spec-le-subject-first-command-tree.md).
+		stage("doc check", "retired-commands"),
 		stage("repo", "tree-check"),
 		stage("plugin imports", "check"),
 		stage("plugin declarations", "check"),

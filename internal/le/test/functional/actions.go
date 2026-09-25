@@ -198,7 +198,7 @@ func table(s *session) leaction.Area {
 	}
 	rows = append(rows, leaction.Action{
 		Verb:   "exabgp-test",
-		Why:    "build the isolated ze and le-test subjects and run every ExaBGP compatibility case",
+		Why:    "build the isolated ze and le test subjects and run every ExaBGP compatibility case",
 		Answer: s.runExaBGP,
 	})
 	return leaction.New(Area, rows...)

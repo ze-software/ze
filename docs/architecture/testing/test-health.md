@@ -16,18 +16,18 @@ The feature is two things that share collectors but not enforcement.
 | | Ratchets | Report |
 |---|---|---|
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
-| Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
+| Enforced by | `./le test sensitivity check`, stage 10 of `./le verify current mode full` | `./le test health check`, inside `./le repo generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
 | Source | `internal/le/test/sensitivity.Answer` | `internal/le/test/health.Answer` |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
-The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
+The ratchets do NOT depend on the report. `./le test sensitivity check` reads only
 the baseline and the tree, so a stale or wrong report cannot weaken the
 guarantee that you cannot add an inert test or strand a test file.
 
 ## The sensitivity detectors
 
-`./le test-sensitivity check` runs the native AST detectors in
+`./le test sensitivity check` runs the native AST detectors in
 `internal/le/test/sensitivity`. Its `selftest` action proves each detector on
 known-bad fixtures before the live-tree check is trusted.
 
@@ -125,7 +125,7 @@ it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
 | Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
 | Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
 | Source | `internal/le/test/weakened.Answer`, called by both gates |
-| Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
+| Parse gate | `./le test weakened check`, in `./le verify current mode full` both modes |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ### The shard is named after your commit session
@@ -138,12 +138,12 @@ script, your commit message and your verification-debt shard, and
 
 Two authors therefore never resolve to one path, so neither can replace the
 other's rows. Assembling the population is the GATE's job: the commit gate reads
-your shard, `./le test-weakened check` reads every shard and prints whose rows
-are in each, and `./le test-weakened audit` reads the shards each audited commit
+your shard, `./le test weakened check` reads every shard and prints whose rows
+are in each, and `./le test weakened audit` reads the shards each audited commit
 carried. A commit that names another session's shard is refused, because
 carrying it would publish that author's justification under your subject.
 
-`./le test-weakened check` is how you see the population without preparing a
+`./le test weakened check` is how you see the population without preparing a
 commit. It names your shard even when it holds nothing.
 
 The shard holds two columns, under the exact header the parser anchors on:
@@ -218,7 +218,7 @@ move the figures.
 
 ### What is gated, and what is only published
 
-`./le test-health check` compares only the STRUCTURAL facts against the tree: the
+`./le test health check` compares only the STRUCTURAL facts against the tree: the
 orphaned-test-file list, the unproven-RFC list, and every metric's status. Each
 of those changing is an event, and a status flipping to `unknown` means a
 collector stopped measuring, which is the sensor rot the report exists to
@@ -229,14 +229,14 @@ gated. Byte-comparing the whole report charged a regenerate-and-commit to ~60%
 of commits, because every added test moves a denominator, and a check that fires
 that often for cosmetic reasons gets routed around rather than read: the
 "advisory gate permanently red" failure the report is built to expose. The
-counters are refreshed by `./le repository generate` and the page discloses that they may
+counters are refreshed by `./le repo generate` and the page discloses that they may
 lag.
 <!-- source: internal/le/test/health/actions.go -- Answer -->
 
 ### The KPI series
 
-`./le test-health record` appends one row to `test/health/history.ndjson`.
-`./le mutation record-history` maintains the per-package mutation series. Both
+`./le test health record` appends one row to `test/health/history.ndjson`.
+`./le test mutation record-history` maintains the per-package mutation series. Both
 skip an identical sample at the same commit, so trends do not overstate the
 number of runs.
 

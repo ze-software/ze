@@ -455,7 +455,7 @@ func (f *testSinkForwarder) sinkLoop(ctx context.Context, conn net.Conn) {
 
 // testGarbageForwarder is a minimal BGP DUT that accepts two connections,
 // completes the handshake on each, and then writes a byte stream that is not a
-// BGP message to the first one, which is the connection ze-perf receives on.
+// BGP message to the first one, which is the connection le perf receives on.
 //
 // It stands for every way a receiver stops reading the wire it is measuring: a
 // desynchronised stream, a peer that speaks a different framing, a truncated

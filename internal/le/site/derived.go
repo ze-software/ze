@@ -146,7 +146,7 @@ func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str("Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, ").
 		Str("then rerun the gate that should have caught it.\n\n")
 	out.Str("Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, ").
-		Str("`gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le test qemu netns-test`, ").
+		Str("`gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns-test`, ").
 		Str("`./le test integration interop`, `./le verify evidence release-candidate`.\n\n")
 }
 

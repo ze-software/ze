@@ -95,7 +95,7 @@ OSPF and IS-IS are self-contained plugins under `internal/plugins/ospf` and
 | Area | Location | Purpose |
 |------|----------|---------|
 | Main binary | `cmd/ze/` | CLI verbs, daemon startup, install/service/support tooling |
-| Other binaries | Build tags: `ze_perf`, `ze_analyze` | Benchmarks, MRT/RIB analysis. le test is a build-tag variant of cmd/ze. `le chaos run`, `le perf` and `le mrt` are le commands. The old `ze-chaos`, `ze-perf` and `ze-analyze` builds work until they are removed. |
+| Developer tools | Build tag: `ze_le` | The harness is `le test`, part of le. Benchmarks (`le perf`), MRT/RIB analysis (`le mrt`) and the chaos orchestrator (`le chaos run`) are le commands, with no build of their own. |
 | Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
 | BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
 | Plugin owners | `internal/plugins/` | Self-contained feature owners. Command-only plugins provide command schemas and handlers. Full-subsystem plugins also own protocol or service runtimes, configuration, and state. |
@@ -191,7 +191,7 @@ ze schema show <module>       # Show YANG content for a module
 ze schema handlers            # Show handler → module mapping
 
 # Testing
-ze-peer --sink --port 1790    # Run test peer (sink mode)
+le test peer --sink --port 1790    # Run test peer (sink mode)
 le test bgp encode --all      # Run encoding tests
 
 # Utilities

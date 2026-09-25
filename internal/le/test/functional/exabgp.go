@@ -2,7 +2,7 @@
 //
 // The ExaBGP compatibility stage is separate from the ordinary functional suite
 // table. It needs uv to provide Paramiko, but the test population and the DUT are
-// owned by le-test and the functional binary builder respectively.
+// owned by le test and the functional binary builder respectively.
 
 package testfunctional
 
@@ -156,7 +156,7 @@ func (r exaBGPReport) Text() string {
 		Str(" children passed\n").String()
 }
 
-// runExaBGP builds the exact ze and le-test subjects, then runs every ExaBGP
+// runExaBGP builds the exact ze and le test subjects, then runs every ExaBGP
 // compatibility case through uv. A nil runner selects the real process runner.
 // The first failing child supplies both the report code and the returned code.
 func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (

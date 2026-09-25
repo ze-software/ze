@@ -76,7 +76,7 @@ cost-change reselection under AC-13 and backend parity under AC-15.
 | IGP cost comes from Loc-RIB metric | bgp-rib queries sysrib for the IGP metric of the resolved next-hop prefix. No OSPF/IS-IS internal coupling | Loc-RIB Path.Metric is exactly this: the IGP cost for internal next-hops |
 | VRF table wired through BestChangeEntry.TableID | FIB backends use this to program into the correct kernel table or VPP table | Unblocks vrf-0-umbrella FIB programming without changing backend interfaces |
 | Route types: unicast, blackhole, unreachable, prohibit | Static plugin already models blackhole/unreachable. Extend to FIB event so backends handle it | Linux RTN_BLACKHOLE/RTN_UNREACHABLE/RTN_PROHIBIT, VPP drop/unreach adjacencies |
-| Consistent Linux/VPP semantics | Both backends must produce identical forwarding behavior for the same BestChangeEntry | Test via le-test functional comparisons |
+| Consistent Linux/VPP semantics | Both backends must produce identical forwarding behavior for the same BestChangeEntry | Test via le test functional comparisons |
 
 ## Required Reading
 
@@ -372,7 +372,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: sysrib, fibkernel, fibvpp
    - Verify: NH removal cascades to all dependent routes
 
-8. **Functional tests** -- end-to-end with le-test
+8. **Functional tests** -- end-to-end with le test
 9. **Interop tests** -- FRR/BIRD comparison
 10. **RFC refs** -- `// RFC 4271 Section 9.1.2.2 Step 6` comments
 11. **Full verification** -- `./le verify current mode full`

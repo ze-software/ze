@@ -1,6 +1,6 @@
 # Chaos Web Dashboard — Design
 
-Live web dashboard for the chaos orchestrator (`./le chaos run --web <addr>`, or the `ze-chaos` program until it is removed) providing real-time visualization and interactive control of chaos test runs. Uses HTMX + SSE for dynamic updates with all assets embedded in the binary via `go:embed`.
+Live web dashboard for the chaos orchestrator (`./le chaos run --web <addr>`) providing real-time visualization and interactive control of chaos test runs. Uses HTMX + SSE for dynamic updates with all assets embedded in the binary via `go:embed`.
 
 ## Architecture Overview
 
@@ -90,7 +90,7 @@ Three-panel layout designed for desktop monitors. Peer table shows an active set
 
 | Element | Description |
 |---------|-------------|
-| Title | "ze-chaos" with run status badge (RUNNING / COMPLETED / FAILED) |
+| Title | "le chaos run" with run status badge (RUNNING / COMPLETED / FAILED) |
 | Seed | Current seed value, copyable |
 | Elapsed | Running clock (mm:ss or hh:mm:ss) |
 | Peer gauge | "N/M established" with progress bar |

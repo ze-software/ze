@@ -52,7 +52,7 @@ tests measure.
 ## Data Flow
 
 ### Entry Point
-- `le-test fixture runner/verify-shares-one-run` starts two `le verify` processes against a throwaway checkout.
+- `le test fixture runner/verify-shares-one-run` starts two `le verify` processes against a throwaway checkout.
 
 ### Transformation Path
 1. The fixture builds a throwaway git checkout with one commit.

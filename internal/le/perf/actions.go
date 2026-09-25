@@ -32,8 +32,8 @@ const (
 )
 
 // programVerbs maps each verb that runs the benchmark program to the
-// internal/perf/cli subcommand it runs. `send` is the subcommand ze-perf
-// called `run`: `perf run` is the multi-DUT suite, so the one-DUT sender
+// internal/perf/cli subcommand it runs. `send` is the subcommand the retired
+// perf program called `run`: `perf run` is the multi-DUT suite, so the one-DUT sender
 // takes the word for what it does.
 var programVerbs = map[string]string{
 	sendVerb:   "run",
@@ -42,7 +42,7 @@ var programVerbs = map[string]string{
 }
 
 // runParameters is the grammar of `perf run`: the DUT selection of perf-bench
-// run and the step selection that replaced ze-perf-run's --build and --test.
+// run and the step selection that replaced the retired perf-run program's --build and --test.
 var runParameters = []leaction.Parameter{
 	{Keyword: dutKeyword, Value: "names", Requirement: leaction.Optional},
 	{Keyword: stepKeyword, Value: stepBuild + "|" + stepTest, Requirement: leaction.Optional},

@@ -101,7 +101,7 @@ belong in separate future fix work approved after the audit finding is filed.
 ## Current Behavior (MANDATORY)
 
 **Source files and directories read:**
-- [ ] `cmd/` - release binaries currently include `ze`, `le-test`, `le perf`, `le mrt`, and `le chaos run`
+- [ ] `cmd/` - release binaries currently include `ze`, `le test`, `le perf`, `le mrt`, and `le chaos run`
 - [ ] `internal/component/` - ~~35 component directories~~ (stale count; 2026-07-10 recount: 43 directories), including BGP, CLI, config, API, web, LG, SSH, MCP, authz, managed, iface, firewall, L2TP, PPPoE, IPsec, telemetry, and plugin server areas
 - [ ] `internal/plugins/` - ~~22 plugin directories~~ (stale count; 2026-07-10 recount: 63 top-level directories), including connected, static, kernel/FIB, firewall, iface, traffic, sysctl, ntp, DHCP server, TFTP server, image server, L2TP helpers, BFD, and policy route areas
 - [ ] `test/` - ~~32 test directories~~ (stale count; 2026-07-10 recount: 45 directories), including functional, interop, deployment-like, stress, web, editor, install, firewall, traffic, VPP, L2TP, PPPoE, and managed suites
@@ -172,7 +172,7 @@ belong in separate future fix work approved after the audit finding is filed.
 
 | Surface | Current Source | Initial Owner Audit | Notes |
 |---------|----------------|---------------------|-------|
-| Binaries | `cmd/` | `release-audit-1-surface-inventory` | `ze`, `le-test`, `le perf`, `le mrt`, `le chaos run` |
+| Binaries | `cmd/` | `release-audit-1-surface-inventory` | `ze`, `le test`, `le perf`, `le mrt`, `le chaos run` |
 | Core components | `internal/component/` | `release-audit-1-surface-inventory` | ~~35 directories observed~~ (2026-07-10: 43) |
 | External/internal plugins | `internal/plugins/` | `release-audit-5-plugins-rib` | ~~22 directories observed~~ (2026-07-10: 63 top-level) |
 | BGP component plugins | `internal/component/bgp/plugins/` | `release-audit-2-bgp-protocol` and `release-audit-5-plugins-rib` | Includes command, filter, RIB, route-server, GR, RPKI, BMP, watchdog-style surfaces |

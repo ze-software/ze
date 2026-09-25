@@ -1052,7 +1052,7 @@ This is not zero-copy in the kernel-bypass sense that Rust with `bytes::Bytes` o
 ## Repository Layout
 
 ```
-cmd/ze/                              CLI binary and subcommands (ze_core base, ze_test/ze_chaos/ze_perf/ze_analyze variants)
+cmd/ze/                              CLI binary and subcommands (ze_core base, ze_le developer tools)
 internal/component/bgp/              BGP subsystem (reactor, FSM, wire, message, capability)
 internal/component/bgp/plugins/      Plugin implementations (rib, rs, gr, role, evpn, ...)
 internal/component/bgp/attrpool/     Memory pools (per-attribute-type dedup)

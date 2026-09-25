@@ -337,7 +337,7 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 // func, which every plugin already implements this way for its INTERNAL
 // invocation path).
 //
-// Test-only today: internal/test/cli's `ze-test plugin-external <name>`
+// Test-only today: internal/test/cli's `le test plugin-external <name>`
 // command is the only caller, launching a registered engine plugin's own
 // RunEngine as a genuine external subprocess to prove its
 // IsInternal()-guarded refuse/warn behavior actually fires outside a

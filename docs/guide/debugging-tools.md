@@ -7,7 +7,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 | Tool | Purpose | Usage |
 |------|---------|-------|
 | `ze config dump` | Inspect parsed config | `ze config dump config.conf`, or `ze cli -c "show config dump config.conf \| json"` |
-| `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
+| `le test peer --decode` | Decode BGP messages | `le test peer --decode --sink` |
 | `ze.log.*` | Per-subsystem logging | `ze.log.bgp.routes=debug ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
 | `--server N` / `--client N` | Interactive test debugging | `le test bgp encode --server 1` |
@@ -69,7 +69,7 @@ Decodes raw BGP messages (hex) into human-readable format. Used automatically by
 
 ```bash
 # In ze-peer, show decoded messages
-ze-peer --decode --sink --port 1790
+le test peer --decode --sink --port 1790
 ```
 
 ### Example Output
@@ -301,7 +301,7 @@ le test bgp encode 1
 Run server and client separately to see live output:
 
 ```bash
-# Terminal 1: Start test server (ze-peer)
+# Terminal 1: Start test server (le test peer)
 le test bgp encode --server 1
 
 # Terminal 2: Start test client (zebgp)

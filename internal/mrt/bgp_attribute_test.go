@@ -82,7 +82,7 @@ func TestParseMPReachRIBEntry_Empty(t *testing.T) {
 func TestExtractNextHopRIB_TruncatedMPReach(t *testing.T) {
 	// VALIDATES: next-hop extraction from RIB-entry attributes uses the
 	// abbreviated MP_REACH decoder (RFC 6396 Section 4.3.4).
-	// PREVENTS: `ze-analyze routes` and `show` emitting a wrong or missing
+	// PREVENTS: `le mrt routes` and `show` emitting a wrong or missing
 	// next hop for every IPv6 TABLE_DUMP_V2 RIB entry.
 	nh := netip.MustParseAddr("2001:db8::1").As16()
 	attrs := []mrt.PathAttribute{{Code: 14, Value: truncatedMPReach(nh[:])}}

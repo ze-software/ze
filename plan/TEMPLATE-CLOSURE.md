@@ -100,9 +100,9 @@
      reasoning about code you just wrote.
 
      Record the machine-checked artifact with:
-     ./le spec session review record spec <spec> verdict CLEAN rounds <N> file <path> ...
+     ./le spec review record spec <spec> verdict CLEAN rounds <N> file <path> ...
      Then check the reviewed population with:
-     ./le spec session review check spec <spec> file <path> ...
+     ./le spec review check spec <spec> file <path> ...
      rounds is the pass count and is required; more than five needs
      rounds-reason naming the PRODUCT defect a later round found, AND
      owner-authorised carrying Thomas's word, because more than five passes
@@ -117,8 +117,8 @@
 
 | Field | Value |
 |-------|-------|
-| Artifact | [path printed by `./le spec session review record`] |
-| `./le spec session review check` | [clean / not run] |
+| Artifact | [path printed by `./le spec review record`] |
+| `./le spec review check` | [clean / not run] |
 | Rounds | [N, and for N>5 the product defect that earned each extra round] |
 | Reviewer lenses used | [e.g. logic+wiring, security+edge-cases, feature risk area] |
 

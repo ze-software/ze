@@ -155,15 +155,15 @@ DHCP ranges, and `ai/digests/firewall.md` for the firewall global options.
 
 | What to test | Test format | Directory | Runner |
 |---|---|---|---|
-| Config parses correctly | `.ci` | `test/parse/` | `./le test harness bgp parse` |
-| BGP wire encoding | `.ci` | `test/encode/` | `./le test harness bgp encode` |
-| BGP wire decoding | `.ci` | `test/decode/` | `./le test harness bgp decode` |
-| Reading a pcap back, and the capture ze writes | `.ci` | `test/ui/bgp-decode-pcap-*.ci` | `./le test harness ui` |
-| Plugin behavior / API | `.ci` | `test/plugin/` | `./le test harness bgp plugin` |
-| Config reload via SIGHUP | `.ci` | `test/reload/` | `./le test harness bgp reload` |
-| CLI show/monitor output | `.ci` | `test/ui/` | `./le test harness ui` |
-| Web HTTP endpoints | `.wb` | `test/web/` | `./le test harness web` |
-| Editor TUI interactions | `.et` | `test/editor/` | `./le test harness editor` |
+| Config parses correctly | `.ci` | `test/parse/` | `./le test bgp parse` |
+| BGP wire encoding | `.ci` | `test/encode/` | `./le test bgp encode` |
+| BGP wire decoding | `.ci` | `test/decode/` | `./le test bgp decode` |
+| Reading a pcap back, and the capture ze writes | `.ci` | `test/ui/bgp-decode-pcap-*.ci` | `./le test ui` |
+| Plugin behavior / API | `.ci` | `test/plugin/` | `./le test bgp plugin` |
+| Config reload via SIGHUP | `.ci` | `test/reload/` | `./le test bgp reload` |
+| CLI show/monitor output | `.ci` | `test/ui/` | `./le test ui` |
+| Web HTTP endpoints | `.wb` | `test/web/` | `./le test web` |
+| Editor TUI interactions | `.et` | `test/editor/` | `./le test editor` |
 | Pure logic (no daemon) | `_test.go` | `internal/<pkg>/` | `go test` |
 | Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `./le test qemu all-tests` |
 
@@ -700,7 +700,7 @@ on 2026-08-30, because a lookup is not a rule.
 - **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. They are not identity wrappers.
 - **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
 - **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) is exec'd, supervised, and cleaned up by ze itself; ze is never designed around an OS-level process manager.
-- **Stress tooling is native Go**: `internal/le/test/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside the harness `peer --mode inject` (`./le test harness peer`). Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le test integration stress`.
+- **Stress tooling is native Go**: `internal/le/test/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside the harness `peer --mode inject` (`./le test peer`). Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le test integration stress`.
 - **CLI dispatch discoverability gaps**: (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape). `ze show` and `ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner. The offline-config half is covered by `ze config show <file> [path...]`. (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:overview`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source. The highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
 
 ### Mistakes that recur, and their corrections

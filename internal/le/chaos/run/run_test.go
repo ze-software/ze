@@ -1,7 +1,7 @@
 // VALIDATES: `le chaos run <options>` reaches the chaos orchestrator's command
 // line with the options unchanged.
 // PREVENTS: an le command that registers and answers, while the orchestrator
-// ze-chaos ran is never called.
+// is never called.
 
 package chaosrun
 

@@ -1,12 +1,13 @@
 // Design: docs/architecture/core-design.md -- native documentation verifier actions
 // Related: repository.go -- the tracked-file walk this sweep shares with links
-// Related: ../../leroot/retired.go -- the rename map the sweep reads
+// Related: retirednames.go -- the rename map the sweep reads
 //
 // The retired-name sweep finds every tracked line that still names a form the
 // subject-first rename retires (plan/spec-le-subject-first-command-tree.md).
-// It reads the one rename map leroot declares and holds no list of its own.
-// Through Phases 1 and 2 it is a report that exits 0, and Phase 2 rewrites what
-// it finds. Phase 3 makes it the gate.
+// It reads the one rename map retirednames.go declares and holds no list of its
+// own. It is a gate: a line that names an old form outside the declared
+// records and exceptions makes it exit 1, and it runs as a stage of the full
+// verify (internal/le/verify/engine/stages.go).
 
 package doccheck
 
@@ -16,24 +17,19 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/root"
 )
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
 // their tests. They name every old form by necessity, so they are not callers.
-// Every `internal/le/le/root/retired*.go` file is one too, listed or not: that
-// is the alias and its tests, which Phase 3 deletes with the map.
+// The two leroot tests name old forms to prove each one answers `unknown
+// command`.
 var retiredDeclarations = [...]string{
-	"internal/le/le/root/retired.go",
-	"internal/le/le/root/retired_test.go",
-	"internal/le/le/root/retired_dispatch_test.go",
+	"internal/le/doc/check/retirednames.go",
 	"internal/le/doc/check/retired.go",
 	"internal/le/doc/check/retired_test.go",
+	"internal/le/le/root/retired_test.go",
+	"internal/le/le/root/retired_dispatch_test.go",
 }
-
-// retiredAliasPrefix is the path prefix of the alias implementation and its
-// tests in leroot.
-const retiredAliasPrefix = "internal/le/le/root/retired"
 
 // retiredRecord is one path the sweep skips because it records history: what
 // a command was called on the day the record was written (owner decision,
@@ -57,7 +53,19 @@ var retiredRecords = [...]retiredRecord{
 	{path: "website/changes/posts/", why: "published change posts are the owner's authored prose"},
 	{path: "website/changes/discord/2026-08-03-weekly.md", why: "a published weekly update"},
 	{path: "website/talks/", why: "published talks record the commands of their day"},
-	{path: "plan/known-failures/RESOLVED.md", why: "resolved failures record the command that failed"},
+	{path: "plan/known-failures/", why: "known-failure shards record the command that failed on the day it failed"},
+	{
+		path: "internal/le/doc/check/testdata/doc_citation_baseline.txt",
+		why:  "the link gate's baseline lists the dead paths that historical records already carried",
+	},
+	{
+		path: "internal/le/verify/engine/testdata/",
+		why:  "captured verify logs are parser fixtures that carry the harness output of their day",
+	},
+	{
+		path: "internal/le/completeness_record_test.go",
+		why:  "the Makefile migration record names each retired target and the recipe it ran",
+	},
 	{
 		path: "plan/spec-le-subject-first-command-tree.md",
 		why:  "the spec of this rename names every old form in order to retire it",
@@ -79,7 +87,13 @@ type retiredException struct {
 // channel.
 const discordChannelWhy = "the Discord channel named ze-test, not the harness binary"
 
+// retiredHookNegativeWhy is the reason of the hook test that proves a text
+// search naming a retired harness binary is not refused as a raw test run.
+const retiredHookNegativeWhy = "the hook test feeds the retired name to prove the deleted harness admission refuses nothing"
+
 var retiredExceptions = [...]retiredException{
+	{file: "internal/le/hookruntime/bash_test.go", old: "ze-test", why: retiredHookNegativeWhy},
+	{file: "internal/le/hookruntime/bash_test.go", old: "le-test", why: retiredHookNegativeWhy},
 	{
 		file: "internal/le/weekly/answer.go",
 		old:  "ze-test",
@@ -120,7 +134,148 @@ var retiredExceptions = [...]retiredException{
 		old:  "ze-test",
 		why:  "the skill named ze-test, not the harness binary",
 	},
+	{
+		file: retiredDebtFile,
+		old:  "le repository tracked-build",
+		why:  "the command text of debt rows written before the rename, which the ledger still reads",
+	},
+	{
+		file: retiredDebtFile,
+		old:  "le repository",
+		why:  "the command text of debt rows written before the rename, which the ledger still reads",
+	},
+	{
+		file: retiredLedgerTestFile,
+		old:  "le repository tracked-build",
+		why:  "a debt row written before the rename, to prove the ledger still reads it",
+	},
+	{
+		file: retiredLedgerTestFile,
+		old:  "le repository",
+		why:  "a debt row written before the rename, to prove the ledger still reads it",
+	},
+	{
+		file: "internal/le/le/action/leaction_test.go",
+		old:  "le qemu",
+		why:  "the usage line of a fixture area named qemu, not the qemu command",
+	},
+	{
+		file: "internal/le/site/terminaldemo/terminaldemo_test.go",
+		old:  "ze-terminal-pty",
+		why:  "a test that proves the demo build no longer builds or runs the retired recorder",
+	},
+	{
+		file: retiredGuestLeTestFile,
+		old:  retiredLeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredGuestLeTestFile,
+		old:  retiredZeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredGuestLeTestFile,
+		old:  "le.qemu.test.bin",
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredGuestLeTestFile,
+		old:  "ze.qemu.test.bin",
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredQEMUKnobsTestFile,
+		old:  retiredLeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredQEMUKnobsTestFile,
+		old:  retiredZeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredStressReproTestFile,
+		old:  retiredLeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredStressReproTestFile,
+		old:  retiredZeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: "internal/le/test/functional/exabgp_test.go",
+		old:  retiredLeTestBin,
+		why:  retiredVariableIgnoredWhy,
+	},
+	{
+		file: retiredHostLoadTestFile,
+		old:  "le-test",
+		why:  retiredHarnessRefusedWhy,
+	},
+	{
+		file: retiredHostLoadTestFile,
+		old:  "bin/le-test",
+		why:  retiredHarnessRefusedWhy,
+	},
+	{
+		file: "cmd/ze/login_test.go",
+		old:  "le-test",
+		why:  retiredHarnessRefusedWhy,
+	},
+	{
+		file: retiredPerfTestFile,
+		old:  "ze-perf",
+		why:  retiredParityWhy,
+	},
+	{
+		file: retiredPerfTestFile,
+		old:  "ze-perf-run",
+		why:  retiredParityWhy,
+	},
+	{
+		file: "internal/le/perf/bench_test.go",
+		old:  "ze-perf",
+		why:  retiredParityWhy,
+	},
+	{
+		file: "internal/le/mrt/mrt_test.go",
+		old:  "ze-analyze",
+		why:  retiredParityWhy,
+	},
+	{
+		file: "internal/le/chaos/run/run_test.go",
+		old:  "ze-chaos",
+		why:  retiredParityWhy,
+	},
 }
+
+// Files that declare more than one exception, and the variable names that
+// several of them declare.
+const (
+	retiredLeTestBin           = "le.test.bin"
+	retiredZeTestBin           = "ze.test.bin"
+	retiredDebtFile            = "internal/le/commit/debt.go"
+	retiredLedgerTestFile      = "internal/le/commit/ledger_test.go"
+	retiredGuestLeTestFile     = "internal/le/test/qemu/guestle_run_test.go"
+	retiredQEMUKnobsTestFile   = "internal/le/test/qemu/alltests_knobs_test.go"
+	retiredStressReproTestFile = "internal/le/test/stressrepro/stressrepro_test.go"
+	retiredHostLoadTestFile    = "internal/core/hostload/hostload_test.go"
+	retiredPerfTestFile        = "internal/le/perf/perf_test.go"
+)
+
+// retiredVariableIgnoredWhy is the reason shared by the tests that export a
+// retired variable to prove nothing reads it.
+const retiredVariableIgnoredWhy = "a test that exports the retired variable to prove nothing reads it"
+
+// retiredHarnessRefusedWhy is the reason shared by the tests that feed the
+// retired harness name to a matcher to prove it no longer matches.
+const retiredHarnessRefusedWhy = "a test sample that proves the retired harness name no longer matches"
+
+// retiredParityWhy is the reason shared by the tests that prove an le command
+// does what the retired program did (AC-25).
+const retiredParityWhy = "a parity test that names the retired program the le command replaced"
 
 // retiredWord is one spelling that contains a retired name and names something
 // else wherever it appears. The sweep blanks it out of a line before matching.
@@ -143,6 +298,14 @@ var retiredWords = [...]retiredWord{
 		match: regexp.MustCompile(`ze-test-all(?:$|[^A-Za-z0-9_-])`),
 		why:   "the retired make target ze-test-all, not the harness binary",
 	},
+	{
+		match: regexp.MustCompile(`ze-chaos-mcp(?:$|[^A-Za-z0-9_-])`),
+		why:   "the MCP server name ze-chaos-mcp that the chaos orchestrator reports, not the program",
+	},
+	{
+		match: regexp.MustCompile(`(^|\s)package ze_test(?:$|\s)`),
+		why:   "the external test package of pkg/ze, which Go names ze_test, not the build tag",
+	},
 }
 
 // retiredMasked answers the line with every declared word blanked out, byte
@@ -164,9 +327,6 @@ func retiredExcluded(rel string) bool {
 		return true
 	}
 	if slices.Contains(retiredDeclarations[:], rel) {
-		return true
-	}
-	if strings.HasPrefix(rel, retiredAliasPrefix) && strings.HasSuffix(rel, ".go") {
 		return true
 	}
 	for _, record := range retiredRecords {
@@ -240,7 +400,7 @@ const (
 // commandPattern compiles the forms a caller names a retired command in:
 // `le <old>` after any path or program prefix (`./le`, `ze le`,
 // `$CLAUDE_PROJECT_DIR/le`), and a Go argv built from literals, `"le", "<w1>"`.
-func commandPattern(row leroot.Rename) retiredPattern {
+func commandPattern(row Rename) retiredPattern {
 	old := row.Old()
 	quoted := make([]string, 0, len(old))
 	longest := ""
@@ -268,12 +428,12 @@ func commandPattern(row leroot.Rename) retiredPattern {
 
 // namePattern compiles the form a retired program, build tag, file or
 // variable is written in.
-func namePattern(retired leroot.Retirement) retiredPattern {
+func namePattern(retired Retirement) retiredPattern {
 	var tb textbuf.Buffer
 	switch retired.Kind {
-	case leroot.RetiredTag:
+	case RetiredTag:
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
-	case leroot.RetiredVariable:
+	case RetiredVariable:
 		// A key is read as `ze.test.bin`, `ZE_TEST_BIN` or `ze-test-bin`, in
 		// any case: the env registry treats them as one variable.
 		parts := strings.Split(retired.Old, ".")
@@ -281,14 +441,14 @@ func namePattern(retired leroot.Retirement) retiredPattern {
 			parts[index] = regexp.QuoteMeta(part)
 		}
 		tb.Str(`(?i)(?:^|[^a-z0-9])`).Join(parts, `[._-]`).Str(`(?:$|[^a-z0-9])`)
-	case leroot.RetiredFile:
+	case RetiredFile:
 		// A name that ends in a separator is a prefix: `bin/ze-test-linux-`
 		// takes every architecture after it.
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old))
 		if !strings.HasSuffix(retired.Old, "-") {
 			tb.Str(edgeAfterName)
 		}
-	case leroot.RetiredProgram:
+	case RetiredProgram:
 		if retired.ProgramPositionOnly {
 			programPosition(&tb, regexp.QuoteMeta(retired.Old))
 			break
@@ -296,8 +456,8 @@ func namePattern(retired leroot.Retirement) retiredPattern {
 		// A program name continues into its file names, `ze-test-linux-amd64`
 		// among them, so only a letter or digit ends the match.
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
-	case leroot.RetiredKindUnspecified:
-		panic("BUG: doccheck.namePattern: a retired name declares no kind; see leroot.retirements")
+	case RetiredKindUnspecified:
+		panic("BUG: doccheck.namePattern: a retired name declares no kind; see retirements")
 	}
 	return retiredPattern{
 		kind:        retired.Kind.String(),
@@ -348,10 +508,10 @@ func programPosition(tb *textbuf.Buffer, name string) {
 }
 
 // retiredPatterns compiles the whole rename map, commands first, in the order
-// leroot declares it.
+// retirednames.go declares it.
 func retiredPatterns() []retiredPattern {
-	rows := leroot.Renames()
-	names := leroot.Retirements()
+	rows := Renames()
+	names := Retirements()
 	patterns := make([]retiredPattern, 0, len(rows)+len(names))
 	for _, row := range rows {
 		patterns = append(patterns, commandPattern(row))
@@ -376,7 +536,7 @@ type RetiredRow struct {
 	Matches     []RetiredMatch `json:"matches"`
 }
 
-// RetiredReport is the answer of `le doc check retired-commands report`: every
+// RetiredReport is the answer of `le doc check retired-commands`: every
 // row of the rename map, with the lines that still name it.
 type RetiredReport struct {
 	Rows       []RetiredRow `json:"rows"`
@@ -477,17 +637,21 @@ func sweepRetired(root string) (RetiredReport, error) {
 	return report, nil
 }
 
-// runRetiredReport is the `report` form of `le doc check retired-commands`. It
-// is not a gate through Phases 1 and 2, so a caller it finds is data and the
-// code is 0. A file it could not read makes the answer incomplete, and that is
-// said with 2 rather than hidden in a green report.
-func runRetiredReport(root string) (any, int) {
+// runRetiredCheck is `le doc check retired-commands`, the gate AC-16 of
+// plan/spec-le-subject-first-command-tree.md names. Every line that still
+// names a retired form makes it answer 1, and the report names each file and
+// line. A file it could not read makes the answer incomplete, and that is said
+// with 2 rather than hidden behind a verdict the sweep cannot support.
+func runRetiredCheck(root string) (any, int) {
 	report, err := sweepRetired(root)
 	if err != nil {
 		return errorReport{Error: err.Error()}, 2
 	}
 	if len(report.Unreadable) != 0 {
 		return report, 2
+	}
+	if report.Lines != 0 {
+		return report, 1
 	}
 	return report, 0
 }

@@ -192,7 +192,7 @@ func init() {
 
 ### Binary Personality Registration
 
-Binary personalities (the `le-test` harness, and the chaos, perf and MRT developer builds that `./le chaos run`, `./le perf` and `./le mrt` replace in Phase 3) are separate binaries
+Binary personalities (the chaos, perf and MRT developer builds that `./le chaos run`, `./le perf` and `./le mrt` replace in Phase 3) are separate binaries
 built from `cmd/ze/` with build tags. Each personality's domain code lives in
 `internal/`, self-registers via `init()`, and the cmd/ze file is a build-tagged
 blank import.
@@ -216,9 +216,8 @@ handler with the CLI command registry. `dispatchMain()` in `dispatch.go` uses
 - Set `binarySetup` when the feature self-registers via init() (unnecessary)
 - Use build tags on `internal/` packages (tags gate binary composition via blank imports, not library availability)
 
-**Existing gap:** the `le-test` harness uses a local map in `cmd/ze/ze_test_register.go` instead
-of `subdispatch.Dispatcher`. Mock server domain code is in `cmd/ze/ze_test_*.go`
-instead of `internal/test/mock/`. `spec-cmd-reorg` addresses this.
+The test harness is no personality: le registers each harness command under
+`le test` (`internal/le/test/`).
 
 ### Doctor Check Registry
 

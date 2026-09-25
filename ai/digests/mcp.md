@@ -369,7 +369,7 @@ package.
   becomes a `key value` pair appended to the CLI command string. Values containing
   newlines/tabs are rejected before they reach the dispatcher (`tools.go`).
 - **No stdio transport exists.** "stdio/HTTP" is a common MCP transport pairing elsewhere. But
-  Ze's MCP server only speaks the Streamable HTTP profile. `./le test harness mcp` (a separate test client
+  Ze's MCP server only speaks the Streamable HTTP profile. `./le test mcp` (a separate test client
   under `internal/test/cli/`) is an HTTP client, not a stdio bridge.
 - **Command dispatch is shared, not MCP-private.** `mcpDispatch` reaches the exact same
   `pluginserver.Dispatcher.Dispatch` the CLI/SSH/web surfaces call, tagged only by
@@ -408,7 +408,7 @@ package.
 ## See also
 - `docs/architecture/mcp/overview.md`: protocol profile, transport shape, headers, per-request
   metadata, capability negotiation, result envelope, error codes
-- `docs/guide/mcp/overview.md`: operator-facing config, auth modes, tool reference, `./le test harness
+- `docs/guide/mcp/overview.md`: operator-facing config, auth modes, tool reference, `./le test
   mcp` usage
 - `docs/guide/mcp/elicitation.md`: the Multi Round-Trip round trip, the form-mode precondition,
   the retry shape, and why no `requestState` is issued

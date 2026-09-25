@@ -1,6 +1,6 @@
-//go:build ze_chaos
+// Design: docs/guide/chaos-testing.md -- the orchestrator options reached through le chaos run
 
-package main
+package chaosrun
 
 import (
 	"context"
@@ -14,26 +14,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
-// chaosRun runs the chaos orchestrator the way `ze chaos ...` runs it: through
-// the root handler internal/chaos/orchestrator registers, which ze_chaos_run.go
-// imports for its init().
-//
-// It does not call orchestrator.CLIRun directly. Going through the registry is
-// the stronger assertion, because it proves the registration that `ze chaos`
-// depends on is present in this build: register.go carries the ze_chaos tag, so
-// a build without it has no root. A direct call once stopped compiling when the
-// entry was unexported, and NOTHING said so, because no lint pass and no test run
-// had ever selected the `ze_chaos` build
-// (plan/journal/gate-excludes-part-of-its-population.md).
+// chaosRun runs the chaos orchestrator the way `le chaos run ...` runs it:
+// through Answer, the entry this package registers, so each test proves the
+// command a developer types and not only the orchestrator behind it.
 func chaosRun(t *testing.T, args []string) int {
 	t.Helper()
-	handler := registry.LookupRoot("chaos")
-	require.NotNil(t, handler, "the ze_chaos build registers no `chaos` root handler")
-	return handler(nil, args)
+	_, code := Answer(args)
+	return code
 }
 
 // TestConfigOnly verifies that --config-only writes config to stdout and exits 0.

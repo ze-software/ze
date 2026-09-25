@@ -277,7 +277,7 @@ so: the file it landed in is the one whose entry point the assertion reaches.
 
 ## Files to Create
 - `test/plugin/bgp-local-as-options.ci` - LANDED (commit 43de0a5f8). The four outbound configurations in ONE run: one UPDATE, four receivers whose config differs only in `local-options`, and four byte-level frames. This replaces the three separate files this spec first named, and it is stronger than they would have been: `no-prepend` and `replace-as` are compared against each other inside a single forward, so the collapse cannot come back as a shared expectation edit.
-- `test/plugin/bgp-local-as-inbound-untouched.ci` - inbound AS_PATH preserved toward an iBGP neighbor, globally configured ASN toward a native eBGP neighbor. Written, NOT yet executed: `le-test` could not be rebuilt with its fixture because `internal/component/bgp/plugins/cmd/commit` did not compile in the working tree on 2026-09-05. The file names the command that runs it.
+- `test/plugin/bgp-local-as-inbound-untouched.ci` - inbound AS_PATH preserved toward an iBGP neighbor, globally configured ASN toward a native eBGP neighbor. Written, NOT yet executed: `le test` could not be rebuilt with its fixture because `internal/component/bgp/plugins/cmd/commit` did not compile in the working tree on 2026-09-05. The file names the command that runs it.
 - `internal/test/fixture/plugin_fixture_04.go` - the `plugin/bgp-local-as-inbound-untouched` fixture registration, three peers.
 
 ### Integration Checklist

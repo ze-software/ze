@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which action WRITES (actions.go, Subs).

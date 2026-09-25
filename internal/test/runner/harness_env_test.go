@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // captureStderr runs fn with os.Stderr redirected, and answers what fn wrote.
@@ -89,15 +89,15 @@ func TestNoBuildReadsBothNames(t *testing.T) {
 	}
 }
 
-// TestRunnerUsesItsOwnExecutable proves every `le` exec head, and each retired
-// harness head, runs the runner's own executable with the words the head
-// stands for (AC-37), and that no harness variable redirects it.
+// TestRunnerUsesItsOwnExecutable proves every `le` exec head runs the runner's
+// own executable (AC-37), that no harness variable redirects it, and that no
+// retired harness head reaches it (AC-43).
 //
 // Method: NewRunner with a stale LE_TEST_BIN exported, then read lePath and
-// resolve each head through leHeadWords, the resolver both the run steps and
-// the parse steps call.
+// resolve each head through resolveParseExec.
 //
-// VALIDATES: AC-37, heads `le`, `le-test`, `ze-test` and `ze-peer`.
+// VALIDATES: AC-37, the head `le`; AC-43, heads `le-test`, `ze-test` and
+// `ze-peer` are left to a PATH lookup.
 // PREVENTS: a .ci step reaching whichever `le` a PATH lookup finds, or a
 // harness binary named by a variable that no longer exists.
 func TestRunnerUsesItsOwnExecutable(t *testing.T) {
@@ -118,31 +118,25 @@ func TestRunnerUsesItsOwnExecutable(t *testing.T) {
 		t.Errorf("runner le path %q, want its own executable %q", r.lePath, own)
 	}
 
-	for head, want := range map[string]string{"le": "", "le-test": "test", "ze-test": "test", "ze-peer": "test peer"} {
-		words, isLE := leHeadWords(head)
-		if !isLE {
-			t.Errorf("head %q is not answered by the runner's le", head)
-			continue
-		}
-		if got := strings.Join(words, " "); got != want {
-			t.Errorf("head %q inserts %q, want %q", head, got, want)
-		}
+	if got, err := resolveParseExec("le test peer --mode sink", "/bin/ze", own); err != nil || got != own+" test peer --mode sink" {
+		t.Errorf("head le resolved to %q (%v), want the runner's own executable", got, err)
 	}
-	for _, head := range []string{"ze", "lean", "sh", "./le"} {
-		if _, isLE := leHeadWords(head); isLE {
-			t.Errorf("head %q must not run the runner's le", head)
+	for _, head := range []string{"le-test", "ze-test", "ze-peer", "lean", "sh", "./le"} {
+		line := head + " bgp"
+		if got, err := resolveParseExec(line, "/bin/ze", own); err != nil || got != line {
+			t.Errorf("head %q resolved to %q (%v), want it left for a PATH lookup", head, got, err)
 		}
 	}
 }
 
 // TestRunnerShimsResolveLeToItself proves the child PATH directory holds `le`
-// linked to the runner's executable and the retired names as shell shims that
-// exec it, that no child environment carries ZE_LE_BUILD_NAME, and that
+// linked to the runner's executable and no retired harness name, that no child
+// environment carries ZE_LE_BUILD_NAME, and that
 // `le test <harness command>` runs in the work directory while any other `le`
 // head keeps the repository root (AC-37).
 //
 // Method: setupBinShims on a runner whose le is a stand-in script that prints
-// its arguments, run each retired shim, and read what reached the stand-in.
+// its arguments, run the `le` link, and read what reached the stand-in.
 // A forwarding `test` command is registered so leHarnessArea has one to find.
 //
 // VALIDATES: AC-37, the shims, the dropped variable and the working directory.
@@ -162,13 +156,16 @@ func TestRunnerShimsResolveLeToItself(t *testing.T) {
 	if err != nil || target != standIn {
 		t.Fatalf("le shim links to %q (%v), want %q", target, err, standIn)
 	}
-	for head, want := range map[string]string{"le-test": "test bgp --list", "ze-test": "test bgp --list", "ze-peer": "test peer bgp --list"} {
-		out, err := runShim(filepath.Join(r.binShimDir, head), "bgp", "--list")
-		if err != nil {
-			t.Fatalf("run shim %s: %v", head, err)
-		}
-		if got := strings.TrimSpace(out); got != want {
-			t.Errorf("shim %s answered %q, want %q", head, got, want)
+	out, err := runShim(filepath.Join(r.binShimDir, "le"), "test", "bgp", "--list")
+	if err != nil {
+		t.Fatalf("run the le link: %v", err)
+	}
+	if got := strings.TrimSpace(out); got != "test bgp --list" {
+		t.Errorf("the le link answered %q, want %q", got, "test bgp --list")
+	}
+	for _, head := range []string{"le-test", "ze-test", "ze-peer"} {
+		if _, statErr := os.Lstat(filepath.Join(r.binShimDir, head)); !os.IsNotExist(statErr) {
+			t.Errorf("the child PATH directory holds the retired name %s (%v)", head, statErr)
 		}
 	}
 

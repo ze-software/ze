@@ -48,7 +48,7 @@ explicitly-configured ones. Verified from the daemon's own log:
   `--plugin ze.bgp-role --plugin ze.bgp-adj-rib-in`, likewise auto-loads `bgp-rs`.
 
 Reproduce the plugin set with
-`ze_log_plugin_server=debug LE_TEST_NO_BUILD=1 ZE_BIN=... LE_TEST_BIN=... le-test bgp plugin --save <dir> --pattern <name>`
+`ze_log_plugin_server=debug LE_TEST_NO_BUILD=1 ZE_BIN=... LE_TEST_BIN=... le test bgp plugin --save <dir> --pattern <name>`
 then grep `<dir>/*/client-stderr.log` for `startup tiers computed`. **Never infer
 the loaded plugin set from the `.ci` file.**
 

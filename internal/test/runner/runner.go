@@ -258,8 +258,8 @@ func (r *Runner) Cleanup() {
 }
 
 // setupBinShims creates a directory of the bare names a test child resolves:
-// symlinks to the ze this run resolved and to the runner's own le, and shell
-// shims for the retired harness names. It is the ONLY directory the runner prepends to
+// symlinks to the ze this run resolved and to the runner's own le. It is the
+// ONLY directory the runner prepends to
 // a test child's PATH.
 //
 // Putting filepath.Dir(r.zePath) there instead -- which is what the runner did
@@ -297,21 +297,6 @@ func (r *Runner) setupBinShims() error {
 		}
 		if err := os.Symlink(abs, link); err != nil {
 			return fmt.Errorf("link %s -> %s: %w", link, abs, err)
-		}
-	}
-	// The retired harness names are shell scripts, not links: each stands for
-	// `le` plus words, and a link cannot add a word. They exec the `le` link
-	// above, whose name selects the le personality (cmd/ze/dispatch.go).
-	for head, words := range retiredHeads {
-		var tb textbuf.Buffer
-		tb.Str("#!/bin/sh\nexec ").Str(shellQuote(filepath.Join(dir, binNameLE)))
-		for _, word := range words {
-			tb.Byte(' ').Str(word)
-		}
-		tb.Str(" \"$@\"\n")
-		shim := filepath.Join(dir, head)
-		if err := os.WriteFile(shim, []byte(tb.String()), 0o750); err != nil { //nolint:gosec // an executable shim in this run's private directory
-			return fmt.Errorf("write shim %s: %w", shim, err)
 		}
 	}
 	r.binShimDir = dir
@@ -400,7 +385,7 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build extra binaries (e.g., ze-chaos for chaos-web tests).
+	// Build extra binaries (e.g., le chaos run for chaos-web tests).
 	for name, spec := range r.extraBinaries {
 		outPath := filepath.Join(r.tmpDir, name)
 		buildArgs := []string{"build"}
@@ -428,7 +413,7 @@ func (r *Runner) Build(ctx context.Context) error {
 
 // verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the ze the
 // runner would otherwise build already exists, rather than building them. Extra
-// binaries (e.g. ze-chaos) are not supported in this mode and must be built
+// binaries (e.g. le chaos run) are not supported in this mode and must be built
 // normally.
 func (r *Runner) verifyPrebuilt() error {
 	r.display.buildStatus(true, nil)

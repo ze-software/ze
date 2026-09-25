@@ -1,35 +1,23 @@
 // VALIDATES: every row of the rename map, against the registry le really
-// composes. Each retired name runs as a registered new command (AC-3, AC-4,
-// AC-5), no retired command stays in the manifest (AC-2), and the rows cannot
-// shadow one another or a new name.
-// PREVENTS: a row pointing at a command no family registers, which would
-// strand every caller of the old name once its family moves. A retired name
-// left listed beside its replacement. A row whose old words capture an
-// invocation of a new command.
+// composes. Each retired name answers `unknown command` and exit 1 through
+// Dispatch (AC-17), and no retired command stays in the manifest (AC-2).
+// PREVENTS: an old name that still runs, whether through a surviving alias or
+// through a command registered under the retired spelling.
 //
 // This file is an external test package so it can link internal/le, the
 // composition root, which imports leroot and every area. The package's own
 // tests register probes and see no area.
-//
-// Until Phase 1b of plan/spec-le-subject-first-command-tree.md moves a family,
-// its rows fail here BY NAME: the new command is not registered, and the old
-// one is still in the manifest.
 package leroot_test
 
 import (
 	"os"
-	"slices"
 	"strings"
 	"testing"
 
 	_ "github.com/ze-software/ze/internal/le"
-	"github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/doc/check"
 	"github.com/ze-software/ze/internal/le/le/root"
 )
-
-// commandWordsMax mirrors the dispatcher's bound: a command is at most two
-// words after `le` (TestDispatchBoundsTheLookupAtTwoWords pins the original).
-const commandWordsMax = 2
 
 // streams runs fn with stdout and stderr redirected, and answers both. Each
 // pipe is drained on its own goroutine, so a page longer than the pipe buffer
@@ -73,87 +61,46 @@ func streams(t *testing.T, fn func()) (stdout, stderr string) {
 	return collectOut(), collectErr()
 }
 
-func TestEveryRetiredNameRunsItsNewCommand(t *testing.T) {
-	for _, row := range leroot.Renames() {
-		old := strings.Join(row.Old(), " ")
-		fresh := strings.Join(row.New(), " ")
-		t.Run(old, func(t *testing.T) {
-			// A namespace row (`test harness` to `test`) rewrites only when the
-			// next word names a member, so the probe carries one.
-			var member []string
-			if leroot.LookupCommand(row.Command) == nil {
-				first := firstMember(row.Command)
-				if first == "" {
-					t.Fatalf("row `le %s` -> `le %s`: `le %s` is neither a registered command nor a namespace", old, fresh, row.Command)
+// TestEveryRetiredNameAnswersUnknownCommand drives every row of the rename map
+// through Dispatch, as a caller typing the old words would, and proves AC-17:
+// the old name is refused with no rename line and runs nothing. The refusal
+// depends on what the old words now meet.
+//
+//   - A word le does not register answers `unknown command` and exit 1.
+//   - A first word that is now a namespace (`spec session`, `test harness`)
+//     is refused as a word that names no member of it, exit 1.
+//   - A retired ACTION of a command that is still registered (`verify lock`,
+//     `repo tracked-build`) reaches that command's closed action table, which
+//     refuses the verb with `no such action` and exit 2 before any work runs
+//     (leaction.Area.refuseVerb).
+func TestEveryRetiredNameAnswersUnknownCommand(t *testing.T) {
+	for _, row := range doccheck.Renames() {
+		old := row.Old()
+		t.Run(strings.Join(old, " "), func(t *testing.T) {
+			code := 0
+			_, stderr := streams(t, func() { code = leroot.Dispatch("le", old) })
+			if strings.Contains(stderr, "is renamed") {
+				t.Errorf("wrote a rename line, so an alias survives:\n%s", stderr)
+			}
+			if leroot.LookupCommand(strings.Join(old, " ")) != nil {
+				t.Fatalf("the retired command `le %s` is still registered", strings.Join(old, " "))
+			}
+			if len(old) > 1 && leroot.LookupCommand(old[0]) != nil {
+				refusal := "error: no such action in " + old[0] + ": " + old[1]
+				if code != 2 || !strings.Contains(stderr, refusal) {
+					t.Errorf("answered %d with\n%s\nwant 2 and %q", code, stderr, refusal)
 				}
-				member = []string{first}
-				old += " " + first
-				fresh += " " + first
+				return
 			}
-			if row.Action != "" {
-				list, declared := leroot.ActionsOf(row.Command)
-				if declared && !slices.ContainsFunc(list.Actions, func(r leaction.Row) bool { return r.Verb == row.Action }) {
-					t.Fatalf("row `le %s` -> `le %s`: `le %s` declares no action %q", old, fresh, row.Command, row.Action)
-				}
+			if code != 1 {
+				t.Errorf("answered %d, want 1", code)
 			}
-
-			// A trailing option asks for usage, which no handler answers, so
-			// the probe runs no command's work (leroot.asksForUsage). It still
-			// takes the whole dispatch path the old name takes.
-			oldArgs := append(append(row.Old(), member...), "--help")
-			newArgs := append(append(row.New(), member...), "--help")
-			oldCode, newCode := 0, 0
-			oldOut, oldErr := streams(t, func() { oldCode = leroot.Dispatch("le", oldArgs) })
-			newOut, newErr := streams(t, func() { newCode = leroot.Dispatch("le", newArgs) })
-
-			if oldCode != newCode {
-				t.Errorf("row `le %s`: answered %d, want the %d of `le %s`", old, oldCode, newCode, fresh)
-			}
-			if oldOut != newOut {
-				t.Errorf("row `le %s`: wrote\n%q\nto stdout, want what `le %s` wrote:\n%q", old, oldOut, fresh, newOut)
-			}
-			line := "warning: le " + old + " is renamed: run le " + fresh + "\n"
-			if oldErr != line+newErr {
-				t.Errorf("row `le %s`: wrote\n%q\nto stderr, want %q then what `le %s` wrote:\n%q", old, oldErr, line, fresh, newErr)
+			refused := strings.Contains(stderr, "unknown command: "+old[0]) ||
+				strings.Contains(stderr, "error: "+old[0]+" is a namespace; it needs one of:")
+			if !refused {
+				t.Errorf("the refusal names neither an unknown command nor a namespace member:\n%s", stderr)
 			}
 		})
-	}
-}
-
-// firstMember answers the first registered member of namespace, without the
-// namespace word, or "" when namespace holds no member.
-func firstMember(namespace string) string {
-	for _, command := range leroot.Commands() {
-		if member, ok := strings.CutPrefix(command.Name, namespace+" "); ok {
-			return member
-		}
-	}
-	return ""
-}
-
-// TestRetiredHarnessWordsReachTheToolArea proves AC-36: `le test harness peer`
-// answers as `le test peer` after the one stderr line, while a bare
-// `le test harness`, or one followed by a word that names no member of `test`,
-// is not rewritten and writes no rename line, because `test` alone is a
-// namespace and no command.
-func TestRetiredHarnessWordsReachTheToolArea(t *testing.T) {
-	code := 0
-	_, stderr := streams(t, func() { code = leroot.Dispatch("le", []string{"test", "harness", "peer", "--help"}) })
-	if !strings.HasPrefix(stderr, "warning: le test harness peer is renamed: run le test peer\n") {
-		t.Errorf("`le test harness peer --help` wrote no rename line naming `le test peer`:\n%s", stderr)
-	}
-	if code != 0 {
-		t.Errorf("`le test harness peer --help` answered %d, want 0", code)
-	}
-
-	for _, argv := range [][]string{{"test", "harness"}, {"test", "harness", "zzprobe"}} {
-		_, stderr = streams(t, func() { code = leroot.Dispatch("le", argv) })
-		if strings.Contains(stderr, "is renamed") {
-			t.Errorf("`le %s` was rewritten, want no rewrite:\n%s", strings.Join(argv, " "), stderr)
-		}
-		if code == 0 {
-			t.Errorf("`le %s` answered 0, want a refusal", strings.Join(argv, " "))
-		}
 	}
 }
 
@@ -164,7 +111,7 @@ func TestRetiredNamesAreNotInTheManifest(t *testing.T) {
 	}
 
 	reported := make(map[string]bool, 64)
-	for _, row := range leroot.Renames() {
+	for _, row := range doccheck.Renames() {
 		if reported[row.Retired] {
 			continue
 		}
@@ -175,58 +122,12 @@ func TestRetiredNamesAreNotInTheManifest(t *testing.T) {
 	}
 }
 
-func TestRenameMapRowsAreDisjoint(t *testing.T) {
-	rows := leroot.Renames()
-	seen := make(map[string]bool, len(rows))
-	for _, row := range rows {
-		old := strings.Join(row.Old(), " ")
-		if row.Retired == "" || row.Command == "" {
-			t.Errorf("row %+v names no retired command or no new command", row)
-			continue
-		}
-		if words := len(strings.Fields(row.Command)); words > commandWordsMax {
-			t.Errorf("row `le %s`: the new command `le %s` has %d words, the dispatcher reads %d", old, row.Command, words, commandWordsMax)
-		}
-		if seen[old] {
-			t.Errorf("two rows retire `le %s`", old)
-		}
-		seen[old] = true
-
-		// An old word sequence that starts a new invocation would rewrite a
-		// caller who already typed the new name.
-		for _, other := range rows {
-			fresh := other.New()
-			if len(row.Old()) > len(fresh) {
-				continue
-			}
-			if slices.Equal(fresh[:len(row.Old())], row.Old()) {
-				t.Errorf("row `le %s` captures the new name `le %s`", old, strings.Join(fresh, " "))
-			}
-		}
-	}
-
-	names := make(map[string]bool, len(leroot.Retirements()))
-	for _, retired := range leroot.Retirements() {
-		if retired.Kind == leroot.RetiredKindUnspecified {
-			t.Errorf("retired name %q declares no kind", retired.Old)
-		}
-		if retired.Replacement == "" {
-			t.Errorf("retired name %q names no replacement", retired.Old)
-		}
-		if names[retired.Old] {
-			t.Errorf("two rows retire %q", retired.Old)
-		}
-		names[retired.Old] = true
-	}
-}
-
-// TestSpecIsANamespaceAndSpecSessionRunsItsMembers pins the one family whose
-// retired command became a namespace rather than a command. `spec session`
-// flattened into `spec`, so the bare `le spec` asks what the namespace holds
-// (AC-31) and a bare `spec session`, which answered the claimed spec, runs
-// `spec current`. It drives the real registry through Dispatch, because the
-// generic row test above probes with `--help` and never runs a handler.
-func TestSpecIsANamespaceAndSpecSessionRunsItsMembers(t *testing.T) {
+// TestSpecIsANamespace pins the one family whose retired command became a
+// namespace rather than a command. `spec session` flattened into `spec`, so
+// the bare `le spec` asks what the namespace holds (AC-31), and a word that
+// names no member is refused. The retired `spec session` rows are refused by
+// the row test above.
+func TestSpecIsANamespace(t *testing.T) {
 	code := 0
 	stdout, stderr := streams(t, func() { code = leroot.Dispatch("le", []string{"spec"}) })
 	if code != 0 {
@@ -245,31 +146,5 @@ func TestSpecIsANamespaceAndSpecSessionRunsItsMembers(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "is a namespace") {
 		t.Errorf("`le spec nope` was not refused as a namespace member:\n%s", stderr)
-	}
-
-	// warning is the one stderr line: it names the words the rename row
-	// matched, not the whole line the caller typed.
-	for _, row := range []struct {
-		old, fresh []string
-		warning    string
-	}{
-		{[]string{"spec", "session"}, []string{"spec", "current"},
-			"warning: le spec session is renamed: run le spec current\n"},
-		{[]string{"spec", "session", "current"}, []string{"spec", "current"},
-			"warning: le spec session current is renamed: run le spec current\n"},
-		{[]string{"spec", "session", "state", "current"}, []string{"spec", "state", "current"},
-			"warning: le spec session state is renamed: run le spec state\n"},
-	} {
-		old := strings.Join(row.old, " ")
-		fresh := strings.Join(row.fresh, " ")
-		oldCode, newCode := 0, 0
-		oldOut, oldErr := streams(t, func() { oldCode = leroot.Dispatch("le", row.old) })
-		newOut, newErr := streams(t, func() { newCode = leroot.Dispatch("le", row.fresh) })
-		if oldCode != newCode || oldOut != newOut {
-			t.Errorf("`le %s` answered (%d, %q), want what `le %s` answered (%d, %q)", old, oldCode, oldOut, fresh, newCode, newOut)
-		}
-		if oldErr != row.warning+newErr {
-			t.Errorf("`le %s` wrote %q to stderr, want %q then %q", old, oldErr, row.warning, newErr)
-		}
 	}
 }

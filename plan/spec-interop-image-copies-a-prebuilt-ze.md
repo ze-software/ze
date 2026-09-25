@@ -90,7 +90,7 @@ prose, and that is covered above.
   libc, which is why `test/interop-radius/ze-linux` runs on `alpine:3.21`
   today.
 - The bgp lab needs TWO binaries in its image, not one: scenarios invoke
-  `le-test interop-bgp process ...` from inside the container.
+  `le test interop-bgp process ...` from inside the container.
 
 ## Current Behavior (MANDATORY)
 
@@ -99,7 +99,7 @@ prose, and that is covered above.
   reads `ServerArchitecture`, and calls `stageBinaries`. That function uses the
   pinned toolchain with Linux and the daemon architecture; `stageBinary` derives
   feature tags from the declared base and runs `go build` for each output.
-- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `le-test`;
+- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `le test`;
   `suiteFor` installs `StageBinaries` as `Preflight` and declares the image
   without a `ZE_FEATURES` build argument.
 - `internal/le/interoplab/lab.go`: `Suite.Run` runs `Preflight` before image preparation.
@@ -177,7 +177,7 @@ in `.github/workflows/evidence-nightly.yml`.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `CGO_ENABLED=0` makes the binary independent of the container's libc | `Toolchain.Overrides` sets it by default; `test/interop-radius/Dockerfile.ze` runs such a binary on `alpine:3.21` today | the image execs and fails on musl | the converted lab starts a container and its ready probe passes | unvalidated |
 | A-2 | `docker version --format '{{.Server.Arch}}'` returns a Go `GOARCH` spelling (`amd64`, `arm64`) | Docker reports the daemon architecture in Go's own naming | `go build` refuses an unknown `GOARCH`, loudly, before any image is built | a unit test over the parser plus one real run on this workstation | unvalidated |
-| A-3 | The image needs both `ze` and `le-test` | the current Dockerfile copies `/le-test` into the image, and 14 scenario `ze.conf` files `run "le-test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
+| A-3 | The image needs both `ze` and `le test` | the current Dockerfile copies `/le-test` into the image, and 14 scenario `ze.conf` files `run "le test interop-bgp process ..."` | scenarios fail with "not found" | `TestBGPPreflightDeclaresBothPersonalities` and a real scenario run | unvalidated |
 | A-4 | Removing the builder stage leaves the Go-version gate with carriers | `docker/Dockerfile`, `docker/Dockerfile.lab`, `internal/le/interoplab/l2tp/radiusmock/Dockerfile` and `tools/kernel-builder/Dockerfile` still copy the module, and `Result.judgeGoSource` counts Go string literals as carriers too | `goversion` errors with "the walk judged no build carrier" | `./le verify current mode full`, which runs the gate | unvalidated |
 | A-5 | The nightly runners still pass: they already build `bin/le` with Go, so the host toolchain is present | every interop step in `.github/workflows/evidence-nightly.yml` runs a `./le` action | five nightly jobs go red | read the workflow's setup steps; then one nightly cycle | unvalidated |
 
@@ -216,7 +216,7 @@ in `.github/workflows/evidence-nightly.yml`.
 | AC-2 | `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop` on this 31G workstation, run once | reaches a scenario verdict. Three attempts before this change produced three OOM kills and no verdict |
 | AC-3 | the image build step of AC-2 | its wall time is recorded, beside the 40m39s and 2m48s the page publishes today, and the page's paragraph is rewritten to the new shape |
 | AC-4 | the preflight `go build` of AC-2, measured with `/usr/bin/time -v` | its peak resident set is recorded. This is the number that replaces an unmeasurable in-container compiler |
-| AC-5 | a container from the built image | `ze` and `le-test` both run inside it, and the scenario's ready probe passes, on an `alpine:3.21` (musl) base |
+| AC-5 | a container from the built image | `ze` and `le test` both run inside it, and the scenario's ready probe passes, on an `alpine:3.21` (musl) base |
 | AC-6 | a Docker daemon whose architecture the preflight cannot read | the run fails before any image is built, with a message naming what it asked and what it got. It never guesses a `GOARCH` |
 | AC-7 | `./le rfc discriminate-record` re-run for `RFC1997-Well-1` | observes the green, applies the working-tree break, observes a red that names the interop unit, and writes a record `./le rfc check` accepts |
 | AC-8 | All five lab preflights and the shared producer | `StageBinaries` / `stageBinaries` / `stageBinary` in `internal/le/interoplab/zebuild.go` provide the one build path; no lab-local `buildZe` copy remains, and IPsec and RADIUS both call the shared path |
@@ -294,7 +294,7 @@ already exist. The implemented `LabBinary` declaration is:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `Name` | string | what the binary is called in a message, for example `ze` or `le-test` |
+| `Name` | string | what the binary is called in a message, for example `ze` or `le test` |
 | `Base` | string | the personality's base tags; `stageBinary` derives the full tags through `featuretags.DaemonBuildTags` |
 | `Output` | string | the repository-relative staging path, inside the build context and admitted by `.dockerignore` |
 

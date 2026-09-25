@@ -6,7 +6,7 @@ bin/
 # interop image build: >10 minutes, exceeding the native interoplab Docker
 # build deadline (internal/le/interoplab/docker.go, dockerBuildTimeoutDefault) and
 # saturating the host. Nothing in any Dockerfile reads it. The evidence-nightly
-# workflow now runs `./le integration interop`; a context this size would also
+# workflow now runs `./le test integration interop`; a context this size would also
 # make the nightly job a permanent red.
 cache/
 docs/

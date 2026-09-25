@@ -95,7 +95,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
     <pre><code>go test -race -run TestName ./internal/component/config/...
 FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le test fuzz run
 go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
-bin/le-test bgp plugin 42 -v</code></pre>
+./le test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
     <h3>Handoff gate</h3>

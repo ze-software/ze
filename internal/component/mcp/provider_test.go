@@ -8,7 +8,7 @@ import (
 )
 
 // fakeProvider implements ToolProvider with a single custom tool, mirroring
-// the ze-chaos chaosmcp.Provider shape.
+// the le chaos run chaosmcp.Provider shape.
 type fakeProvider struct{}
 
 func (fakeProvider) ServerName() string { return "fake-chaos-mcp" }
@@ -31,7 +31,7 @@ func (fakeProvider) CallTool(name string, _ json.RawMessage) map[string]any {
 }
 
 // TestStreamableProviderServesToolsAndCalls verifies the Provider path used by
-// ze-chaos: server/discover reports the provider's server name, and
+// le chaos run: server/discover reports the provider's server name, and
 // tools/list + tools/call serve the provider's surface. Every POST is
 // self-contained -- headers plus `_meta`, no handshake and no session id, which
 // is exactly what the chaos .ci http=post checks can express.

@@ -200,7 +200,7 @@ type Config struct {
 
 	// Standalone selects self-hosting mode: the reactor creates and owns its own
 	// plugin server, runs its own signal handler, and starts peers inline. Used by
-	// the ze-chaos in-process simulation and the integration harness.
+	// the le chaos run in-process simulation and the integration harness.
 	// When false (the default, production), the reactor is borrow-only:
 	// the hub injects its server via SetPluginServer before start, and starting
 	// without an injected server is an error rather than a silent self-host.
@@ -1328,7 +1328,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 
 		// Arm the startup convergence hold here too. This is the SELF-HOSTING
-		// start (ze-chaos, the integration harness), which never reaches
+		// start (le chaos run, the integration harness), which never reaches
 		// StartPeers, so arming only there left `bgp update-delay` accepted by
 		// the config and silently doing nothing on this path. arm is idempotent
 		// and refuses a second call, so the two sites cannot both arm one

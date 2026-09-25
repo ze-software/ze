@@ -212,7 +212,7 @@ Selected routes move through a shared route-decision pipeline:
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`) |
+| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_setup`, `ze_distro`, `ze_appliance`, `ze_le`) |
 | Public SDKs | `pkg/plugin/sdk/`, `pkg/plugin/rpc/`, `pkg/zefs/` |
 | Tests | `test/` (.ci files), `*_test.go` |
 <!-- source: cmd/ -- program binaries -->

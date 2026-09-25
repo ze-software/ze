@@ -866,9 +866,9 @@ needs, and the bgp lab declares two, because its scenarios also run the harness
 from inside the container: a linux `le` built by `internal/le/linuxle`
 (`linuxle.Base`), staged at `test/interop/le-linux` and copied to
 `/usr/local/bin/le`. Harness peers start with entrypoint `le` and a command that
-begins `test` (`le test interop-bgp speaker ...`). Scenario `ze.conf` files that
-still run the retired names `le-test` or `ze-test` reach two shell shims in the
-image that exec `le test`, until Phase 3 removes them.
+begins `test` (`le test interop-bgp speaker ...`). The image holds no program
+under a retired harness name, so a scenario `ze.conf` that still runs one fails
+to start it.
 
 Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03

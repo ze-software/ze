@@ -131,7 +131,7 @@ func TestCIStdinZePeerHonorsDeclaredMode(t *testing.T) {
 // keeps piping. le test and the helper scripts have always piped, by accident of
 // the two guards naming only ze and ze-peer, and the corpus depends on it.
 func TestCIStdinPipesForEveryOtherBinary(t *testing.T) {
-	for _, bin := range []string{binNameZeTest, "sh", "./script.sh"} {
+	for _, bin := range []string{binNameLE, "sh", "./script.sh"} {
 		t.Run(bin, func(t *testing.T) {
 			route, idx := routeStdinBlock(bin, []string{"engine-steps", "-"})
 			if route != stdinRoutePipe {

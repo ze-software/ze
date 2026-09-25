@@ -19,7 +19,7 @@ func init() {
 		// is written by another program on this machine.
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		Subs:    "root <path> | project <slug> | cap <n> | top <n> | session <prefix>",
 	})

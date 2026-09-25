@@ -6,9 +6,8 @@ including Ze.
 
 <!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-`le perf send`, `le perf report` and `le perf track` run what `ze-perf run`,
-`ze-perf report` and `ze-perf track` run. The separate `ze-perf` binary keeps
-working until it is removed. Every word after the verb reaches the program
+`le perf send` runs one benchmark against a DUT, `le perf report` compares
+result files, and `le perf track` follows the history. Every word after the verb reaches the program
 unchanged, and the program's exit code is le's.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 
@@ -153,12 +152,6 @@ the report as `le perf report`. The terminal-demo recorder container runs a
 linux `le` built by the same recipe (`docs/contributing/gh-pages.md`).
 <!-- source: internal/test/perfrunner/run.go -- Execute -->
 <!-- source: internal/le/linuxle/linuxle.go -- Tags -->
-
-`go run ./cmd/ze-perf-run --build --test [<dut>...]` drives the same runner
-until it is removed. It still renders the report with `bin/ze-perf`, which
-`ZE_PERF_BIN` can move.
-<!-- source: cmd/ze-perf-run/main.go -- main -->
-<!-- source: internal/test/perfrunner/run.go -- RunCLI -->
 
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 

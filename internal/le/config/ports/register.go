@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "the Go listener-default table and the YANG refine port defaults still agree, service by service",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which action WRITES (actions.go, Subs).

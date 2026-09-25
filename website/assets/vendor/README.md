@@ -41,7 +41,7 @@ Both files come from `dist/bundle/` of that tarball, unmodified.
   driver. The site passes a plain `.cast` path, so neither driver is selected.
 - `innerHTML` is written twice, once with a template string from the bundle and
   once with a fixed SVG path chosen by a `switch`. Neither takes recording data.
-- The recordings are produced by `internal/le/terminaldemo` from tapes in this
+- The recordings are produced by `internal/le/site/terminaldemo` from tapes in this
   repository, then checked against the digest in the artifact manifest before
   a page can embed one. The player is the only code that reads a cast.
 

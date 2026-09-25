@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which action WRITES (actions.go, Subs).

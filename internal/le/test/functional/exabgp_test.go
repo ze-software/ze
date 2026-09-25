@@ -252,7 +252,7 @@ func TestRunExaBGPFailsBeforeChildrenWhenPopulationCannotBeDerived(t *testing.T)
 }
 
 // VALIDATES: the caller's context reaches the first and every subsequent child.
-// PREVENTS: compiler, uv, or le-test processes outliving worktree verification.
+// PREVENTS: compiler, uv, or le test processes outliving worktree verification.
 func TestRunExaBGPPassesCallerContextToEveryChild(t *testing.T) {
 	root := exaBGPFixture(t)
 	ctx, cancel := context.WithCancel(t.Context())

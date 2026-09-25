@@ -92,7 +92,7 @@ flagged by the user across sessions. Occurrence count lives in
 **The `pkg/` blind spot, and how to count a family (2026-08-22,
 spec-record-answers-1-sdk-path).** A move from `internal/` to `pkg/` is a one-way
 door. It also moves the symbol OUT of the gate below.
-`checkCrossPackageWiring` in `internal/le/repository/wiring.go` collects symbols only
+`checkCrossPackageWiring` in `internal/le/repo/wiring.go` collects symbols only
 from changed files under `internal/` and `cmd/`. So a `pkg/` export is unwired
 where it is most expensive and least checked. One such move made three symbols
 public and two had no caller: `CheckRowArity`, which only its own package called,
@@ -204,8 +204,8 @@ does not use it.
 from the PARSER side, not from the leaf.
 
 `./le repository check` now carries `checkNumberParseSites`
-(`internal/le/repository/numberparse.go`). It reports a 32-bit text-to-integer
-parse in any product file that `internal/le/repository/numberparse-allowlist.txt`
+(`internal/le/repo/numberparse.go`). It reports a 32-bit text-to-integer
+parse in any product file that `internal/le/repo/numberparse-allowlist.txt`
 does not justify. It sees a NEW parse. It cannot see an old one that was always
 meant to be `asn.Parse`. The per-parser enumeration in the spec is the evidence
 for that older population.
@@ -856,7 +856,7 @@ paths the list never named keep the old behavior, and no gate goes red.
 **Cause.** Ze resolves a typed command from THREE registries: the builtin RPCs,
 the plugin names, and the local handlers `registry.MustRegisterLocal` owns
 (`internal/component/bgp/cli/register.go`). `collect`
-(the retired `scripts/inventory/commands.go` (current producer: `internal/le/command/list/commandlist.go`)) walks `AllBuiltinRPCs` and the streaming
+(the retired `scripts/inventory/commands.go` (current producer: `internal/le/cli/list/commandlist.go`)) walks `AllBuiltinRPCs` and the streaming
 prefixes, which is the first of the three. A verification tool blind to two
 thirds of the population answers "complete" about the third it can see.
 
@@ -1122,7 +1122,7 @@ corrupted the shared log file).
 2. Before invoking `./le verify current mode full`, `git status` and confirm
    only expected files appear as modified.
 3. Only one `./le verify current mode full*` may run at a time across the tree;
-   `internal/le/verify/lock` enforces this via `flock`.
+   `internal/le/job` enforces this via `flock`.
 
 **Recover if you hit it.** `git stash` is forbidden (see
 memory rule `feedback_parallel_sessions_no_stash`). Identify which

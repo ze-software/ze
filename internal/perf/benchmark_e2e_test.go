@@ -176,7 +176,7 @@ func TestBenchmarkEndToEnd(t *testing.T) {
 	cancel()
 }
 
-// VALIDATES: AC-18 "ze-perf run --repeat 1 against forwarder: repeat=1, repeat-kept=1, convergence-stddev-ms=0."
+// VALIDATES: AC-18 "le perf send --repeat 1 against forwarder: repeat=1, repeat-kept=1, convergence-stddev-ms=0."
 // PREVENTS: Single-iteration edge case produces invalid stddev.
 func TestBenchmarkSingleIteration(t *testing.T) {
 
@@ -247,7 +247,7 @@ func TestBenchmarkSingleIteration(t *testing.T) {
 	cancel()
 }
 
-// VALIDATES: AC-20 "ze-perf run --repeat 3 --iter-delay 0: all 3 complete, iter-delay-ms=0."
+// VALIDATES: AC-20 "le perf send --repeat 3 --iter-delay 0: all 3 complete, iter-delay-ms=0."
 // PREVENTS: Zero iter-delay causes errors or incomplete iterations.
 func TestBenchmarkIterDelayZero(t *testing.T) {
 
@@ -314,7 +314,7 @@ func TestBenchmarkIterDelayZero(t *testing.T) {
 	cancel()
 }
 
-// VALIDATES: AC-21 "ze-perf run --repeat 2 --iter-delay: wall-clock time includes delay."
+// VALIDATES: AC-21 "le perf send --repeat 2 --iter-delay: wall-clock time includes delay."
 // PREVENTS: Iter-delay parameter ignored or not applied between iterations.
 func TestBenchmarkIterDelayTiming(t *testing.T) {
 

@@ -16,7 +16,7 @@
 // codegen:skip -- the `isis` root is wired into the ze CLI by
 // cmd/ze/dispatch_isis.go's direct blank import (ze_core && ze_isis), so it must
 // NOT also be discovered into plugin/all. internal/test/cli imports plugin/all
-// (for editor tests) and separately registers a `ze-test isis` SUITE root; a
+// (for editor tests) and separately registers a `le test isis` SUITE root; a
 // second `isis` tool root pulled in through plugin/all would panic on duplicate
 // registration under the ze_isis tag. One `isis` root per binary.
 

@@ -489,7 +489,7 @@ func (r *taskRegistry) deleteLocked(id, identity string) {
 //
 //   - none and bearer both authenticate to the anonymous identity. Every
 //     caller therefore collapses onto one key, and the bound is a hard cap.
-//     This is the default for `ze --mcp` and for ze-chaos, and it is the
+//     This is the default for `ze --mcp` and for le chaos run, and it is the
 //     deployment where the unbounded growth was reachable.
 //
 //   - bearer-list is bounded by the operator's configured identity list.

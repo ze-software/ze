@@ -721,10 +721,11 @@ func compositionRootImporters(root, module string) (map[string]bool, error) {
 // package is wired somewhere else. That marker carries two reasons today, and
 // each names a binary the generated import would break:
 //
-//   - another composition root owns it. The ze_setup, ze_distro, ze_analyze and
-//     ze_perf personalities each wire their command packages from a build-tagged
-//     file under cmd/ze, and the universal all.go carries no tag to keep them
-//     apart, so naming one there links that personality into every build.
+//   - another composition root owns it. The ze_setup and ze_distro personalities
+//     each wire their command packages from a build-tagged file under cmd/ze, and
+//     le wires its tool packages from internal/le/register.go. The universal
+//     all.go carries no tag to keep them apart, so naming one there links that
+//     personality into every build.
 //   - a second binary registers the same ROOT NAME. ze-test blank-imports
 //     plugin/all and registers its own suite roots with MustRegisterRootHandler,
 //     which panics on a duplicate, so a generated import of the owner of `bgp`,

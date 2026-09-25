@@ -20,12 +20,10 @@
 package cliownership
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -33,8 +31,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // name is the word this command is typed as. The retired Make target used the
@@ -236,13 +234,6 @@ func checkOwnersAreCmdZeFree(s *scan) (Findings, error) {
 func checkRootHandlersAreInternal(s *scan) (Findings, error) {
 	var out Findings
 	err := s.goFilesUnder("cmd/ze", func(path, relative string) error {
-		variant, tagErr := hasVariantBuildTag(path)
-		if tagErr != nil {
-			return tagErr
-		}
-		if variant {
-			return nil
-		}
 		return s.forEachRegistryCall(path, func(method string, call *ast.CallExpr) {
 			if method != "RegisterRootHandler" && method != "MustRegisterRootHandler" {
 				return
@@ -389,30 +380,6 @@ func (s *scan) registerRootNames(path string) ([]string, error) {
 		}
 	})
 	return names, err
-}
-
-// hasVariantBuildTag reports whether a Go file starts with a build tag
-// for a binary variant (ze_chaos) that is exempt from the
-// ownership check because its handlers are test/tool infrastructure.
-func hasVariantBuildTag(path string) (bool, error) {
-	file, err := os.Open(path) //nolint:gosec // the path comes from this tool's own walk
-	if err != nil {
-		return false, err
-	}
-	defer file.Close() //nolint:errcheck // read-only
-
-	buf := make([]byte, 512)
-	read, err := file.Read(buf)
-	if err != nil && read == 0 {
-		// A file too short to hold a build tag carries none. Any other read
-		// failure is a file the gate could not judge.
-		if errors.Is(err, io.EOF) {
-			return false, nil
-		}
-		return false, err
-	}
-	header := string(buf[:read])
-	return strings.Contains(header, "//go:build ze_chaos"), nil
 }
 
 // forEachRegistryCall invokes fn for every call whose selector package is

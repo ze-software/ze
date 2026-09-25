@@ -114,7 +114,7 @@ The initial conclusion was that raw execution coverage could not attribute
 suites usefully. The later reached-package experiment discounted registration
 and superseded that conclusion.
 Two further findings, either of which would have blocked it alone. Four suites
-record NOTHING: `editor` runs inside the `le-test` harness, `web` writes a meta
+record NOTHING: `editor` runs inside the `le test` harness, `web` writes a meta
 file and no counters, `runner` tests the harness, and `policy` skips
 unprivileged. And the instrumented binary is not behaviourally equivalent under
 load: back to back on one tree, `plugin` gave 628/628 clean against 626/628

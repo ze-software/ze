@@ -398,16 +398,16 @@ See `ai/patterns/registration.md` "Subcommand Dispatch" section for the full tem
 
 Existing examples: `cmd/ze/install/dispatch.go`, `cmd/ze/uninstall/dispatch.go`.
 
-### Binary personalities (the `le-test` harness and the developer builds)
+### Binary personalities (the developer builds)
 
 Binary personalities are build-tagged variants of `cmd/ze/`. Their domain code
 belongs in `internal/`, not in `cmd/ze/`. The cmd/ze file is a build-tagged
 blank import only:
 
 ```go
-//go:build ze_analyze
+//go:build ze_le
 package main
-import _ "github.com/ze-software/ze/internal/analyze"
+import _ "github.com/ze-software/ze/internal/le"
 ```
 
 See `ai/patterns/registration.md` "Binary Personality Registration" section.

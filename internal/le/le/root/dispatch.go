@@ -132,14 +132,6 @@ func Dispatch(program string, args []string) int {
 	if own, _ := splitChain(args); len(own) == 0 {
 		return Run("", func([]string) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
 	}
-	// A retired name runs as the command that replaced it, after one stderr
-	// line that names the new words (retired.go). The rewritten argv then takes
-	// the path every other invocation takes, so the new command's output, pipe
-	// chain and exit code are the answer, and the alias owns none of its own.
-	if rewritten, row, retired := retiredRewrite(args); retired {
-		noteRetired(program, row)
-		args = rewritten
-	}
 	if isHelpArg(args[0]) {
 		if len(args) == 1 {
 			Usage(program)
@@ -218,7 +210,7 @@ func helpAsked(program string, words []string) int {
 // Every other option reaches the area. Where the area declared a table, its
 // parser refuses the option by name and answers 2 (leaction.parseArguments).
 // Where it declared none, the dispatcher has no grammar to read, so the area's
-// own parser decides. `le job run label x command bin/ze-test bgp encode
+// own parser decides. `le job run label x command ./le test bgp encode
 // --list` hands `--list` to the child, which is what `command <argv...>` means,
 // and so does `command echo -html=cover.out`.
 //

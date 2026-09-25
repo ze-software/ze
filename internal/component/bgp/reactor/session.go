@@ -778,7 +778,7 @@ func (s *Session) setSendCtxID(ctxID bgpctx.ContextID) {
 
 // SetMessageCallback installs the per-message delivery callback. Peer assigns
 // the same field directly in runOnce; this is the exported seam for a harness
-// that drives a session without a Peer, which is what `ze-test replay` does
+// that drives a session without a Peer, which is what `le test replay` does
 // (internal/test/cli/cmd_replay.go). Set it before the read loop starts.
 func (s *Session) SetMessageCallback(cb MessageCallback) {
 	s.onMessageReceived = cb

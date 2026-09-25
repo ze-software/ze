@@ -140,7 +140,7 @@ func TestBGPRemovedAtReloadLeavesTheHubPluginServerRunning(t *testing.T) {
 // VALIDATES: spec-fixit-shutdown-waits-out-a-deadlock -- the guard is on OWNERSHIP,
 // not on the call site. A standalone reactor builds its own plugin server
 // (startAPIServer, the !externalServer branch) and cleanup is its only stop: the
-// ze-chaos in-process runner (internal/chaos/inprocess/runner.go) ends its simulation
+// le chaos run in-process runner (internal/chaos/inprocess/runner.go) ends its simulation
 // with reactorCancel plus Reactor.Wait and nothing else ever stops that server.
 //
 // PREVENTS: fixing the cycle by deleting the calls instead of guarding them, which

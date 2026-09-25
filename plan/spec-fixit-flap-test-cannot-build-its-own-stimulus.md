@@ -68,7 +68,7 @@ went unfalsifiable. A run that did not overlap would have ended with
 recipe is now in `docs/architecture/testing/qemu-integration.md`: `le test qemu
 all-tests` is a GUEST action, the Alpine guest needs `packages "coreutils
 iproute2"` or BusyBox `timeout` and `ip` defeat it, the binaries need canonical
-names, and a single test is `le-test bgp plugin iface-link-flap-during-commit`.
+names, and a single test is `le test bgp plugin iface-link-flap-during-commit`.
 
 The following account preserves the retraction and later repair sequence.
 
@@ -250,7 +250,7 @@ was questioned.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- `le-test bgp plugin iface-link-flap-during-commit` inside the supported Linux/QEMU environment.
+- `le test bgp plugin iface-link-flap-during-commit` inside the supported Linux/QEMU environment.
 
 ### Transformation Path
 1. The fixture sends SIGHUP and observes the apply-start counter.

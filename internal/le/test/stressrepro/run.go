@@ -331,7 +331,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 			}
 			if result.err != nil && !errors.Is(result.err, context.Canceled) && !errors.Is(result.err, context.DeadlineExceeded) {
 				_, _ = fmt.Fprintf(log, "\n===== invocation %d SETUP ERROR =====\n%s\n", report.Completed, result.err)
-				report.SetupError = "could not run le-test: " + result.err.Error()
+				report.SetupError = "could not run le test: " + result.err.Error()
 				cancelBatch()
 				continue
 			}

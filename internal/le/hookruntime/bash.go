@@ -339,10 +339,9 @@ func beforeRedirection(words []string) []string {
 // while `le test peer` and `le test rpki` are helper tools a test starts
 // (AC-45). The hook runs inside le, so every registration is linked.
 //
-// `le go lint` is the subject-first name of `le verify lint`, so it runs the
-// linter and is heavy. The old spellings `verify lint`, `functional`,
-// `integration`, `qemu` and `test-unit` stay heavy until the retired names are
-// removed.
+// `le go lint` runs the linter and is heavy. The retired top-level suite
+// names answer `unknown command` since Phase 3 of that spec, so a suite is
+// heavy only under `test`.
 func heavyArea(words []string) bool {
 	words = beforeRedirection(words)
 	if len(words) == 0 {
@@ -352,22 +351,23 @@ func heavyArea(words []string) bool {
 	if area == "go" {
 		return len(rest) > 0 && rest[0] == "lint"
 	}
-	if area == "test" && len(rest) > 0 {
-		if leroot.Admits("test " + rest[0]) {
-			return true
+	if area == "verify" {
+		if len(rest) > 0 && oneOf(rest[0], "status", "summary") {
+			return false
 		}
-		area, rest = rest[0], rest[1:]
-		if area == "unit" {
-			area = "test-unit"
-		}
+		return true
 	}
-	if len(rest) == 0 && oneOf(area, "functional", "test-unit") {
+	if area != "test" || len(rest) == 0 {
 		return false
 	}
-	if len(rest) > 0 && area == "verify" && oneOf(rest[0], "status", "summary") {
+	if leroot.Admits("test " + rest[0]) {
+		return true
+	}
+	suite, verbs := rest[0], rest[1:]
+	if len(verbs) == 0 && oneOf(suite, "functional", "unit") {
 		return false
 	}
-	return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit")
+	return oneOf(suite, "functional", "integration", "qemu", "unit")
 }
 
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log

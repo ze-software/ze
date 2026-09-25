@@ -18,6 +18,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
 	"github.com/ze-software/ze/internal/le/le/action"
+	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/test/integration"
@@ -274,9 +275,9 @@ func TestEveryWorkflowNativeActionExists(t *testing.T) {
 func TestNativeActionExtractorHandlesWorkflowCommands(t *testing.T) {
 	source := "run: sudo -E env PATH=$PATH ./le test integration iface && ./le verify deps vulnerability\n" +
 		"# ./le test integration absent-action\n"
-	// integration is one word and verify deps is two, so the same line proves
-	// both readings: the extractor asks the registry rather than counting words.
-	want := []string{"integration/iface", "verify deps/vulnerability"}
+	// Both areas are two words, so the extractor must ask the registry where
+	// each area ends rather than take the first word as the area.
+	want := []string{"test integration/iface", "verify deps/vulnerability"}
 	if got := nativeActionsIn(stripComments(source)); !slices.Equal(got, want) {
 		t.Fatalf("actions = %v, want %v", got, want)
 	}
@@ -567,7 +568,7 @@ func TestPerfNightlyRemainsScheduledAndNative(t *testing.T) {
 	const name = "perf-nightly.yml"
 	requireScheduledOnly(t, name)
 	source := workflowSource(t, name)
-	for _, required := range []string{"go build -tags ze_perf", "bin/ze-perf track --check"} {
+	for _, required := range []string{"./le perf track --check test/perf/history/ze.ndjson"} {
 		if !strings.Contains(source, required) {
 			t.Errorf("%s lacks %q", name, required)
 		}

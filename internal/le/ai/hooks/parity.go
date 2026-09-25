@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	bashRowsExpected          = 82
+	bashRowsExpected          = 75
 	writeEditRowsExpected     = 92
 	weakeningRowsExpected     = 10
 	postWriteEditRowsExpected = 24
@@ -25,18 +25,20 @@ const (
 // the bash fixtures name the subject-first commands (`ai rules index-update`,
 // `ai hooks unit`, `spec wip`, `test unit`, `repo changed`, `test qemu`). Same
 // rows, same expected codes.
+// Re-sealed 2026-09-25 for the same spec, Phase 3: the seven bash fixtures that
+// ran or named the deleted harness binary `bin/ze-test` are gone with the
+// rawZeTest guard and the harness alternative of expensivePipe. 82 rows are 75.
 var parityCatalogDigest = [sha256.Size]byte{
-	0x51, 0x7b, 0x31, 0x6f, 0x2c, 0xec, 0x15, 0x64,
-	0x00, 0xab, 0x0f, 0x75, 0x6e, 0x67, 0x12, 0xc3,
-	0xc2, 0xd3, 0xea, 0x75, 0x97, 0x90, 0xcc, 0xce,
-	0x59, 0x82, 0x6e, 0x01, 0x5b, 0x14, 0xaf, 0x0e,
+	0x1f, 0xee, 0x8a, 0xd3, 0x00, 0xa1, 0xc2, 0x21,
+	0x9a, 0xc9, 0xf0, 0xe0, 0x8d, 0xb3, 0x3b, 0x4b,
+	0x25, 0xe3, 0x7b, 0x86, 0x2a, 0x35, 0x0d, 0x4d,
+	0xe8, 0xab, 0x6e, 0x2f, 0x41, 0xa8, 0xba, 0x0b,
 }
 
 var (
 	expensivePipe = regexp.MustCompile(
 		`(?s)(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?` +
 			`(?:go\s+test\b|(?:\./)?le\s+verify(?:\s|$)|` +
-			`(?:(?:\./)?bin/ze-test|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test)\b|` +
 			`(?:(?:\./)?bin/ze|ze)\s+le\s+(?:hook-check|ai\s+hooks)\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
 	)
 	// cheapVerifyArea names the le areas that live under the `verify` word and
@@ -46,7 +48,6 @@ var (
 	cheapVerifyArea = regexp.MustCompile(`(?:\./)?\ble\s+verify\s+(?:status|summary)\b`)
 	rawGoTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?go\s+test\b`)
 	rawLint         = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?golangci-lint\s+run\b`)
-	rawZeTest       = regexp.MustCompile(`(?:^|[;&\n])\s*(?:timeout\s+\S+\s+)?(?:(?:\./)?bin/ze-test(?:-linux-[^\s/]*)?|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test(?:-linux-[^\s/]*)?)\b`)
 	rootScratch     = regexp.MustCompile(`(?:>|>>|\btee\s+)(?:\s*)(?:\./|@PROJECT@/)?tmp/([^/\s'"]+)(?:\s|['"]|$)`)
 	boundedTimeout  = regexp.MustCompile(`^timeout\s+(?:-k\s+\S+\s+)?\d`)
 	waitLoopPattern = regexp.MustCompile(`\b(?:while|until)\s+`)
@@ -178,8 +179,7 @@ func rawJob(command string) bool {
 	if strings.Contains(command, "ZE_ADMIT_RAW=\"") && !strings.Contains(command, "ZE_ADMIT_RAW=\"\"") {
 		return false
 	}
-	return rawGoTest.MatchString(command) || rawLint.MatchString(command) ||
-		rawZeTest.MatchString(command)
+	return rawGoTest.MatchString(command) || rawLint.MatchString(command)
 }
 
 func unboundedWait(command string) bool {

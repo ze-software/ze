@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "benchmark BGP against every DUT, track the history, and suggest a run when data-plane code changed",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section:  registry.SectionTest,
 		SubsFunc: Subs,
 	})

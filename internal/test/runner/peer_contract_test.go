@@ -43,7 +43,7 @@ func peerContractCI(t *testing.T, exec, block string) string {
 func TestParseAndAdd_CheckPeerWithOnlyJSONExpectRejected(t *testing.T) {
 	ResetNickCounter()
 
-	ciFile := peerContractCI(t, "ze-peer --port $PORT",
+	ciFile := peerContractCI(t, "le test peer --port $PORT",
 		"option=timeout:value=5s\n"+
 			`expect=json:conn=1:seq=1:json={ "type": "update" }`+"\n")
 
@@ -69,7 +69,7 @@ func TestParseAndAdd_CheckPeerWithOnlyJSONExpectRejected(t *testing.T) {
 func TestParseAndAdd_CheckPeerWithNoExpectAtAllRejected(t *testing.T) {
 	ResetNickCounter()
 
-	ciFile := peerContractCI(t, "ze-peer --port $PORT",
+	ciFile := peerContractCI(t, "le test peer --port $PORT",
 		"option=timeout:value=5s\noption=asn:value=65533\n")
 
 	et := NewEncodingTests(filepath.Dir(ciFile))
@@ -86,7 +86,7 @@ func TestParseAndAdd_CheckPeerWithNoExpectAtAllRejected(t *testing.T) {
 func TestParseAndAdd_CheckPeerWithBGPExpectAccepted(t *testing.T) {
 	ResetNickCounter()
 
-	ciFile := peerContractCI(t, "ze-peer --port $PORT",
+	ciFile := peerContractCI(t, "le test peer --port $PORT",
 		"option=timeout:value=5s\n"+
 			"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304\n"+
 			`expect=json:conn=1:seq=1:json={ "type": "keepalive" }`+"\n")
@@ -104,7 +104,7 @@ func TestParseAndAdd_CheckPeerWithBGPExpectAccepted(t *testing.T) {
 func TestParseAndAdd_CheckPeerWithActionSendAccepted(t *testing.T) {
 	ResetNickCounter()
 
-	ciFile := peerContractCI(t, "ze-peer --port $PORT",
+	ciFile := peerContractCI(t, "le test peer --port $PORT",
 		"action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304\n")
 
 	et := NewEncodingTests(filepath.Dir(ciFile))
@@ -122,7 +122,7 @@ func TestParseAndAdd_CheckPeerWithActionSendAccepted(t *testing.T) {
 func TestParseAndAdd_SinkPeerWithoutExpectAccepted(t *testing.T) {
 	ResetNickCounter()
 
-	ciFile := peerContractCI(t, "ze-peer --bind 127.0.0.2 --mode sink --port $PORT",
+	ciFile := peerContractCI(t, "le test peer --bind 127.0.0.2 --mode sink --port $PORT",
 		"option=tcp_connections:value=1\n")
 
 	et := NewEncodingTests(filepath.Dir(ciFile))
@@ -140,15 +140,15 @@ func TestZePeerExecMode(t *testing.T) {
 		exec string
 		want peer.Mode
 	}{
-		{"default is check", "ze-peer --port $PORT", peer.ModeCheck},
+		{"default is check", "le test peer --port $PORT", peer.ModeCheck},
 		{"le test peer default is check", "le test peer --port $PORT", peer.ModeCheck},
 		{"le test peer sink", "le test peer --mode sink --port $PORT", peer.ModeSink},
-		{"explicit check", "ze-peer --mode check --port $PORT", peer.ModeCheck},
-		{"sink", "ze-peer --bind 127.0.0.2 --mode sink --port $PORT", peer.ModeSink},
-		{"equals form", "ze-peer --mode=sink --port $PORT", peer.ModeSink},
-		{"echo", "ze-peer --mode echo --port $PORT", peer.ModeEcho},
-		{"inject", "ze-peer --mode inject --port $PORT --inject-count 5", peer.ModeInject},
-		{"trailing --mode with no value defaults to check", "ze-peer --port $PORT --mode", peer.ModeCheck},
+		{"explicit check", "le test peer --mode check --port $PORT", peer.ModeCheck},
+		{"sink", "le test peer --bind 127.0.0.2 --mode sink --port $PORT", peer.ModeSink},
+		{"equals form", "le test peer --mode=sink --port $PORT", peer.ModeSink},
+		{"echo", "le test peer --mode echo --port $PORT", peer.ModeEcho},
+		{"inject", "le test peer --mode inject --port $PORT --inject-count 5", peer.ModeInject},
+		{"trailing --mode with no value defaults to check", "le test peer --port $PORT --mode", peer.ModeCheck},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -159,10 +159,10 @@ func TestZePeerExecMode(t *testing.T) {
 
 // TestIsPeerExec verifies peer detection matches on the command words, so a
 // helper script whose arguments mention the peer is not mistaken for one, and
-// that `le test peer` and the retired head `ze-peer` are one role.
+// that the retired head `ze-peer` no longer takes the peer role (AC-43).
 func TestIsPeerExec(t *testing.T) {
 	assert.True(t, isPeerExec("le test peer --port 1790"))
-	assert.True(t, isPeerExec("ze-peer --port 1790"))
+	assert.False(t, isPeerExec("ze-peer --port 1790"))
 	assert.False(t, isPeerExec("ze bgp server -"))
 	assert.False(t, isPeerExec("fixture-driver --wait-for ze-peer"))
 	assert.False(t, isPeerExec("fixture-driver --wait-for le test peer"))
@@ -234,15 +234,15 @@ func TestHasCheckPeer(t *testing.T) {
 		want bool
 	}{
 		{"no peer", []RunCommand{{Exec: "ze bgp server -"}}, false},
-		{"check peer", []RunCommand{{Exec: "ze-peer --port $PORT"}}, true},
-		{"echo peer only", []RunCommand{{Exec: "ze-peer --port $PORT --mode echo"}}, false},
-		{"sink peer only", []RunCommand{{Exec: "ze-peer --mode sink --port $PORT"}}, false},
-		{"inject peer only", []RunCommand{{Exec: "ze-peer --mode inject --port $PORT"}}, false},
+		{"check peer", []RunCommand{{Exec: "le test peer --port $PORT"}}, true},
+		{"echo peer only", []RunCommand{{Exec: "le test peer --port $PORT --mode echo"}}, false},
+		{"sink peer only", []RunCommand{{Exec: "le test peer --mode sink --port $PORT"}}, false},
+		{"inject peer only", []RunCommand{{Exec: "le test peer --mode inject --port $PORT"}}, false},
 		{
 			name: "sink plus check peer",
 			cmds: []RunCommand{
-				{Exec: "ze-peer --bind 127.0.0.2 --mode sink --port $PORT"},
-				{Exec: "ze-peer --port $PORT"},
+				{Exec: "le test peer --bind 127.0.0.2 --mode sink --port $PORT"},
+				{Exec: "le test peer --port $PORT"},
 			},
 			want: true,
 		},
@@ -437,9 +437,9 @@ func TestPeerVerdictRequiresAllCheckPeers(t *testing.T) {
 // and turn a healthy test red.
 func TestCountCheckPeers(t *testing.T) {
 	cmds := []*RunCommand{
-		{Exec: "ze-peer --port $PORT"},
-		{Exec: "ze-peer --mode sink --port $PORT"},
-		{Exec: "ze-peer --mode=check --port $PORT"},
+		{Exec: "le test peer --port $PORT"},
+		{Exec: "le test peer --mode sink --port $PORT"},
+		{Exec: "le test peer --mode=check --port $PORT"},
 		{Exec: "ze --web 8080 x.conf"},
 	}
 	assert.Equal(t, 2, countCheckPeers(cmds))

@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "publish the weekly update to Discord; the bare command shows what would be sent",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		Subs:    "source, dir, channel, confirm, force, resume-from, date-stamp",
 	})

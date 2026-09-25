@@ -13,9 +13,7 @@ Ze includes a chaos testing mode that injects faults during operation to verify 
 ./le chaos run --seed 42 --peers 4 --duration 30s
 ```
 
-`./le chaos run <options>` takes every option the `ze-chaos` program takes and
-behaves the same way. The old `ze-chaos` program keeps working until it is
-removed. A help word after `./le chaos run` reaches the orchestrator, which
+`./le chaos run <options>` runs the chaos orchestrator. A help word after `./le chaos run` reaches the orchestrator, which
 prints its own option list.
 <!-- source: internal/le/chaos/run/run.go -- Answer -->
 
@@ -211,9 +209,8 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 | Command | Description |
 |---------|-------------|
 | `./le chaos selftest unit` | Run chaos simulator unit tests |
-| `./le chaos selftest cli-unit` | Run reduced-tag CLI tests |
+| `./le chaos selftest cli-unit` | Run the orchestrator's command-line tests through `le chaos run` |
 | `./le chaos run <options>` | Run the chaos orchestrator |
-| `go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze` | Build the old `ze-chaos` program, kept until it is removed |
 
 ## When to Use
 

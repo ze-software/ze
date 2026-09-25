@@ -2,8 +2,7 @@
 // Related: register.go -- the registration of this command
 
 // Package chaosrun is `le chaos run`, the chaos orchestrator of
-// internal/chaos/orchestrator. The ze-chaos program runs the same orchestrator
-// until it is removed.
+// internal/chaos/orchestrator.
 package chaosrun
 
 import "github.com/ze-software/ze/internal/chaos/orchestrator"

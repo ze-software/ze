@@ -56,7 +56,7 @@ var (
 	// Phase 7 once promotion or rejection is final. See spec-web-2-operator-workbench.
 	//
 	// PHASE 4 DEFAULT FLIP (PENDING): change Default below from "finder" to
-	// "workbench" only after `bin/ze-test web -p workbench-bgp-change-verify`
+	// "workbench" only after `./le test web -p workbench-bgp-change-verify`
 	// passes every Promotion Criteria threshold. Until that verification, the default stays.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui-mode", Type: valueTypeString, Default: "finder", Description: "Web UI mode: finder (default) or workbench (experimental)"})
 

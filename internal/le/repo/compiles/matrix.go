@@ -60,9 +60,7 @@ const (
 // working -- the daemon, the functional runner, the appliance image, the two
 // setup binaries, and the installer initrd.
 //
-// Deliberately NOT included: `ze_chaos ze_bgp`, `ze_perf ze_bgp`, `ze_analyze`
-// and `ze_core ze_ssh` (bin/ze-stripped). The first three are developer tools
-// whose dispatch imports nothing the daemon flavor misses; the fourth differs
+// Deliberately NOT included: `ze_core ze_ssh` (bin/ze-stripped), which differs
 // from `distro` only through `!ze_*` negations. A row costs about 3 seconds --
 // add one rather than widening an existing row, if this class appears there.
 var buildMatrix = Matrix{

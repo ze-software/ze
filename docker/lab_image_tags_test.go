@@ -115,7 +115,7 @@ func TestLabImageRecipesUseTheDefaultFeatureSet(t *testing.T) {
 	}
 
 	// test/interop/Dockerfile.ze is not in that set and must not be: it compiles
-	// nothing. `./le integration interop` cross-compiles both binaries through
+	// nothing. `./le test integration interop` cross-compiles both binaries through
 	// internal/le/featuretags and the recipe copies them, so its feature set is
 	// derived by the Go reader before the image build starts. The row asserting an
 	// inline awk here could never pass, and said nothing about the image when it

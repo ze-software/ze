@@ -81,7 +81,7 @@ evidence must not be reported as a successful test run either.
 
 ### Transformation Path
 
-1. `realProcessRunner.Invoke` starts the selected le-test command.
+1. `realProcessRunner.Invoke` starts the selected le test command.
 2. The suite execution boundary produces positive dispatch evidence through
    a channel the parent can distinguish from fixture output. Design must
    establish whether a suitable existing marker can be reused.
@@ -93,13 +93,13 @@ evidence must not be reported as a successful test run either.
 
 | Boundary | Contract | Evidence owed |
 |----------|----------|---------------|
-| le-test dispatch -> reproducer | Positive evidence comes from dispatch, not a quoted fixture assertion | Producer and non-spoofing argument at design time |
+| le test dispatch -> reproducer | Positive evidence comes from dispatch, not a quoted fixture assertion | Producer and non-spoofing argument at design time |
 | Child output -> diagnostic report | Preserve the output even when no suite dispatched | Captured invalid invocation |
 | Parallel invocation -> verdict | Each invocation carries its own dispatch state | Later invocation completes first |
 
 ### Integration Points
 
-The existing stress-repro process runner and le-test suite entry points own
+The existing stress-repro process runner and le test suite entry points own
 this flow. No daemon behaviour or new test-file directive is required.
 
 ### Architectural Verification
@@ -127,14 +127,14 @@ ordinal alone cannot answer whether a suite dispatched.
 
 ## Blast Radius
 
-`internal/le/stressrepro/` and, if needed, the existing le-test dispatch or
+`internal/le/stressrepro/` and, if needed, the existing le test dispatch or
 execution reporting boundary. No product or wire behaviour change.
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | Feature Code | Required proof |
 |-------------|--------------|----------------|
-| Invalid current le-test invocation through stress-repro | Dispatch check before reproduction verdict | No dispatch marker, nonzero exit, no REPRODUCED |
+| Invalid current le test invocation through stress-repro | Dispatch check before reproduction verdict | No dispatch marker, nonzero exit, no REPRODUCED |
 | Dispatched failing fixture that quotes help text | Existing crash/any-failure verdict after dispatch check | Genuine failure remains eligible |
 
 ## Acceptance Criteria
@@ -172,7 +172,7 @@ the classifier; a fabricated unit result alone does not.
 
 - `internal/le/stressrepro/run.go` and its existing tests.
 - `internal/le/stressrepro/process.go` if the evidence channel requires it.
-- The existing le-test dispatch/reporting producer selected during design.
+- The existing le test dispatch/reporting producer selected during design.
 - `docs/functional-tests.md` if the tool's documented result contract changes.
 
 ## Files to Create

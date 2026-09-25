@@ -19,7 +19,7 @@ func init() {
 		ShortHelp: "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers the perf root under it for the same reason.
 		Section: registry.SectionTest,
 	})
 

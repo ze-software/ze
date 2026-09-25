@@ -336,12 +336,12 @@ These four have no file yet. Routing stalls on them until one exists.
 | `841-doc-drift-parser-claims.md` | C | `ai/rules/repo-maintenance.md` | "Stale parser claims can be semantically wrong while all source anchor paths still exist, so source-anchor validation is necessary but not sufficient." |
 | `845-plugin-self-containment.md` | C | `docs/architecture/command-ownership.md` | "The pki export '.ci' was passing **falsely**: a broad 'try/except' swallowed" |
 | `846-bgp-decode-encode-ownership.md` | C | `docs/architecture/command-ownership.md` | "Drop it and decode/encode silently vanish from help" |
-| `847-rules-index-generator.md` | C | `ai/rules/repo-maintenance.md` | "'CLAUDE.md'/'AGENTS.md' are git-ignored generated artifacts: edit 'ai/INSTRUCTIONS.md' and run './le repository generate'; they never appear in 'git st" |
+| `847-rules-index-generator.md` | C | `ai/rules/repo-maintenance.md` | "'CLAUDE.md'/'AGENTS.md' are git-ignored generated artifacts: edit 'ai/INSTRUCTIONS.md' and run './le repo generate'; they never appear in 'git st" |
 | `848-command-surface-ownership.md` | C | `docs/architecture/command-ownership.md` | "**cmd/ze tests share one process registry.** Never call 'ResetForTest()' from a 'cmd/ze'" |
 | `852-cmd-to-plugin.md` | C | `ai/rules/plugins.md` | "any 'register.go' under 'internal/plugins/' without 'codegen:skip' gets added to 'plugin/all'" |
 | `855-clear-command-ownership.md` | B | `docs/architecture/command-ownership.md` | "**Full handler+schema move, not schema-only.** Moving only schema would leave the central package importing 'ike/engine' and depending on hub injectio" |
 | `857-ze-setup-appliance-binary.md` | B | `ai/rules/architecture.md` | "Documentation uses 'bin/ze-setup' in all examples, not bare 'ze'. The appliance commands do not exist in the 'ze' binary, so examples must be honest a" |
-| `861-ze-test-build-tags.md` | C | `ai/rules/architecture.md` | "Every new source file added to 'cmd/ze/' that imports daemon-only packages MUST have '//go:build !ze_test' or the ze-test binary will bloat." |
+| `861-ze-test-build-tags.md` | C | `ai/rules/architecture.md` | "Every new source file added to 'cmd/ze/' that imports daemon-only packages MUST have '//go:build !ze_test' or the le test binary will bloat." |
 | `862-ze-chaos-build-tags.md` | A | `ai/rules/architecture.md` | "Every new build-tag variant of cmd/ze must add '&& !ze_<name>' to all existing exclusion tags." |
 | `864-cmd-reorg.md` | C | `ai/rules/architecture.md` | "**Import cycles kill flat package placement.**" |
 | `865-gomu-mutation-testing.md` | B | `plan/learned/DESIGN-HISTORY.md` | "Chose gomu over go-mutesting: go-mutesting has zero parallelism, making it unusable at Ze's scale" |
@@ -427,7 +427,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1121-negative-test-must-fail-for-its-reason.md` | C | `ai/rules/testing.md` | "A negative test must fail for the reason it claims." |
 | `1123-rib-arch-6-rs-fastpath-consumer.md` | A | `ai/digests/rib.md` | "AddRef under the RIB write lock, process off-lock in a worker." |
 | `1125-rib-arch-5-bmp-locrib.md` | C | `ai/rules/testing.md` | "**The decoder could not round-trip its own Loc-RIB Peer Up.**" |
-| `1128-rib-arch-umbrella-closure.md` | C | `plan/learned/HOOK-FRICTION.md` | "**A core-package change pulls its whole reverse-dep closure into './le changed scope',**" |
+| `1128-rib-arch-umbrella-closure.md` | C | `plan/learned/HOOK-FRICTION.md` | "**A core-package change pulls its whole reverse-dep closure into './le repo changed scope',**" |
 | `1129-dns-resolver.md` | A | `ai/rules/config.md` | "New YANG modules that define containers under 'environment' must be explicitly loaded in" |
 | `1130-update-groups.md` | C | `ai/digests/bgp-reactor.md` | "The original 'single-threaded reactor' assumption was wrong for these lifecycle callbacks." |
 | `1131-plugin-tls-hardening.md` | B | `ai/digests/plugin-transport.md` | "Kept 'InsecureSkipVerify: true' even with fingerprint pinning, because Go's TLS requires it to skip chain validation when using self-signed certs; 'Ve" |
@@ -475,7 +475,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1191-fixit-plugin-event-subscription.md` | A | `ai/digests/plugin-transport.md` | "**EventTypeID is GLOBAL, not per-namespace**" |
 | `1194-fixit-private-asn-leak-deferred-nil-api-fail-open.md` | C | `ai/rules/testing.md` | "**Trap for the next agent:** 'reactorLogger()' warns are NOT capturable via" |
 | `1195-fixit-supply-chain-hardening.md` | C | `ai/rules/repo-maintenance.md` | "Do not trust spec file paths for a 'fresh area': verify the package exists before" |
-| `1197-fixit-agent-tooling-misleads.md` | C | `plan/learned/HOOK-FRICTION.md` | "'./le verify lint run --help' REGENERATES 'ai/LEARNED-FULL-INDEX.md'" |
+| `1197-fixit-agent-tooling-misleads.md` | C | `plan/learned/HOOK-FRICTION.md` | "'./le go lint run --help' REGENERATES 'ai/LEARNED-FULL-INDEX.md'" |
 | `1198-fixit-perf-alloc-ci-gate.md` | A | `ai/rules/performance.md` | "**allocs/op is the stable column; B/op is not.**" |
 | `1200-fixit-mgmt-listener-auth-guard.md` | A | `docs/architecture/hub-architecture.md` | "Non-loopback classification must fail closed on UNPARSEABLE hosts, not just on" |
 | `1205-fixit-show-ping-serial-pacing.md` | C | `ai/rules/testing.md` | "**Fake-clock test trap: RTT timestamp races a post-inject clock advance.**" |

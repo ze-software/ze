@@ -23,7 +23,7 @@ of `./le verify current mode full`, which holds no slot while it runs
 twenty-six stages.
 
 The goal is that the admitted population is again a CRITERION rather than a
-list: an action that starts a Go test binary, the `le-test` runner,
+list: an action that starts a Go test binary, the `le test` runner,
 `golangci-lint`, `govulncheck`, Docker, or QEMU is admitted, and a check proves
 no action reaches those tools around admission.
 
@@ -60,7 +60,7 @@ no action reaches those tools around admission.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- An `./le <area> <action>` invocation that starts a Go test binary, `le-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU.
+- An `./le <area> <action>` invocation that starts a Go test binary, `le test`, `golangci-lint`, `govulncheck`, Docker, or QEMU.
 
 ### Transformation Path
 1. The action resolves the checkout root and builds an `Admission` (`job.NewIn`).
@@ -122,7 +122,7 @@ no action reaches those tools around admission.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Any registered action that starts a Go test binary, `le-test`, `golangci-lint`, `govulncheck`, Docker, or QEMU | It takes a ticket before it starts that tool, and releases it with its own verdict |
+| AC-1 | Any registered action that starts a Go test binary, `le test`, `golangci-lint`, `govulncheck`, Docker, or QEMU | It takes a ticket before it starts that tool, and releases it with its own verdict |
 | AC-2 | A stage of an admitted run | It runs inside the parent's slot and never queues behind it |
 | AC-3 | An action added later that reaches a heavy tool with no ticket | A check names it, by action, and fails |
 | AC-4 | Two sessions asking for the same heavy action on the same tree | One runs and the other attaches, as `./le go lint run` already does |

@@ -153,7 +153,7 @@ only inside `register.go`. Three unrelated commands recorded 426, 426 and 424,
 with a union of 428.
 
 **A-2 is broken.** `editor` (166 tests, all passing) records nothing, because
-the `.et` editor runs inside `le-test`, which is the harness rather than the
+the `.et` editor runs inside `le test`, which is the harness rather than the
 subject. `web` records a meta file and zero counters over 97 tests. `runner`
 tests the harness. `policy` skips all 6 tests unprivileged. `childEnv`
 (`internal/test/runner/runner_exec_util.go`) does carry the variable, but a

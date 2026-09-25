@@ -15,7 +15,7 @@ import (
 func init() {
 	leroot.Register(name, leroot.GroupSuite, Answer, registry.Meta{
 		ShortHelp: "run the chaos orchestrator against ze, FRR or BIRD: `le chaos run [options]`",
-		Description: "Takes every option the ze-chaos program takes, for example " +
+		Description: "Takes the orchestrator's options, for example " +
 			"`--seed 42 --peers 4 --duration 30s`, `--config-only`, or `--in-process --web :8080`. " +
 			"A help word asks le, so docs/guide/chaos-testing.md shows the options in use.",
 		Mode:    "offline",

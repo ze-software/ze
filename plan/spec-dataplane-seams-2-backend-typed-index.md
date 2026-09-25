@@ -217,9 +217,9 @@ evidence rather than assuming it.
 | new: backend mismatch is refused | `test/static/*.ci` | Asking for a VPP index under a kernel backend fails with a message naming both, and programs nothing | |
 
 These VPP cases now use native fixture drivers:
-`test/vpp/vpp-fib-route.ci` invokes `le-test fixture vpp/vpp-fib-route`,
+`test/vpp/vpp-fib-route.ci` invokes `le test fixture vpp/vpp-fib-route`,
 and `startVPPStub` in `internal/test/fixture/misc_fixture_vpp.go` starts
-`le-test vpp-stub`. Design the missing backend-mismatch evidence on the
+`le test vpp stub`. Design the missing backend-mismatch evidence on the
 current fixture and backend seams. If a required operation is absent, name
 that operation in `plan/spec-finish-vpp-stub.md` before treating it as a
 dependency. Do not restore the retired Python helper. AC-1 through AC-5

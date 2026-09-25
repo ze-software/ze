@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "does le still work when built from what git holds, rather than from the working tree",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 	})
 

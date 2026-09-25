@@ -1,4 +1,4 @@
-### `le-test bgp plugin` forward-overflow-two-tier -- one failure on 2026-08-08, NOT reproduced since
+### `le test bgp plugin` forward-overflow-two-tier -- one failure on 2026-08-08, NOT reproduced since
 
 Observed ONCE, during the repair of GitHub Actions run 31225029268, and not one
 of that run's own failures. The symptom was an `ordered:` needle against a
@@ -18,7 +18,7 @@ been legitimate, and the spec said so itself.
 |---------|-------|
 | Tool | the retired `scripts/dev/stress-repro.py "bgp plugin" --test forward-overflow-two-tier --any-failure` (current producer: `internal/le/stressrepro/run.go`) |
 | Invocations | 80 |
-| Concurrent `le-test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
+| Concurrent `le test` processes | 8 (tool default, `max(2, NCPU//2)`, NOT chosen) |
 | CPU/GC burners | 32 (tool default, `2*NCPU`, NOT chosen) |
 | `ZE_PLUGIN_PARALLEL` | **never set.** See "What the attempt did NOT do" |
 | Run alone (no burners, no concurrency) | **never run** |
@@ -38,7 +38,7 @@ point of the shard, so it is stated before the result is used.
 **`ZE_PLUGIN_PARALLEL` was never raised, and the reason first recorded here was
 wrong.** `--parallel` is a DIFFERENT knob: its own help calls it "concurrent
 invocations per round", and it is the `max_workers` of the `ThreadPoolExecutor`
-that launches whole `le-test` processes. Plugin-level parallelism inside one
+that launches whole `le test` processes. Plugin-level parallelism inside one
 runner was never raised, which is what the spec's Task asked for.
 
 An earlier draft of this shard said `run_once` (the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`))
@@ -127,7 +127,7 @@ two entries are not new ideas, they are the spec's own conditions, still unrun.
 
 1. With `ZE_PLUGIN_PARALLEL` well above the core count. This is the setting the
    spec named and the attempt never set. `stress-repro.py` cannot set it, so
-   export it around the runner, or run `le-test` directly.
+   export it around the runner, or run `le test` directly.
 2. Alone: one invocation, no burners, no concurrency. The Task asked for the
    isolated case and no run answers it.
 3. Against the COMMITTED variant of the `.ci`, which is the fixture that actually

@@ -70,19 +70,20 @@ func TestAnOwnerImportingCmdZeIsAFinding(t *testing.T) {
 }
 
 // VALIDATES: a root handler registered from cmd/ze is a finding unless the root
-// is allowlisted, and a variant build tag exempts the file.
+// is allowlisted. No build tag exempts the file: the ze_chaos variant that once
+// did is gone, and le registers the chaos command through its own owner.
 // PREVENTS: an owner-backed command registered centrally, which is invariant 2.
 func TestARootHandlerInCmdZeIsAFindingUnlessExempt(t *testing.T) {
 	cases := map[string]struct {
 		body string
 		want int
 	}{
-		"an unallowlisted root": {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
-		"an allowlisted root":   {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"version\", nil, m) }\n", 0},
-		"the alias spelling":    {"package main\n\nfunc f() { cmdregistry.RegisterRootHandler(\"bgp\", nil, m) }\n", 1},
-		"a retired ze_test tag": {"//go:build ze_test\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
-		"a ze_chaos variant":    {"//go:build ze_chaos\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
-		"another package":       {"package main\n\nfunc f() { other.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
+		"an unallowlisted root":  {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
+		"an allowlisted root":    {"package main\n\nfunc f() { registry.MustRegisterRootHandler(\"version\", nil, m) }\n", 0},
+		"the alias spelling":     {"package main\n\nfunc f() { cmdregistry.RegisterRootHandler(\"bgp\", nil, m) }\n", 1},
+		"a retired ze_test tag":  {"//go:build ze_test\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
+		"a retired ze_chaos tag": {"//go:build ze_chaos\n\npackage main\n\nfunc f() { registry.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 1},
+		"another package":        {"package main\n\nfunc f() { other.MustRegisterRootHandler(\"bgp\", nil, m) }\n", 0},
 	}
 
 	for name, tc := range cases {

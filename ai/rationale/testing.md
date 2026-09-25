@@ -36,5 +36,5 @@ result := peer.Run(ctx)
 
 ```bash
 ze exabgp plugin /path/to/exabgp-plugin.py
-ze-peer --port 1790 ../5.0/qa/encoding/api-announce.msg
+le test peer --port 1790 ../5.0/qa/encoding/api-announce.msg
 ```

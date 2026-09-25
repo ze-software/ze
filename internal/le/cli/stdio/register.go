@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "every command that takes a filename routes it through the helper that resolves \"-\", so an operator can always pipe into and out of one",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which action WRITES (actions.go, Subs).

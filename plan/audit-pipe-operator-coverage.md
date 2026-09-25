@@ -453,12 +453,12 @@ generated: see 8.2.
 
 `ze help ai --json` and the MCP surface carry no pipe metadata at all. The REST
 `/api/v1/commands` and its generated OpenAPI, the gRPC `DescribeCommand`, and
-gNMI carry none either. `./le command list` walks `AllBuiltinRPCs` plus the
+gNMI carry none either. `./le cli list` walks `AllBuiltinRPCs` plus the
 streaming prefixes and reports no pipe data and no plugin or local command.
 
 ### 8.2 The wiki is already generated, and it is still wrong
 
-`./le wiki-catalog update` pipes `ze help command --json` through
+`./le cli catalog update` pipes `ze help command --json` through
 the retired `scripts/dev/gen_wiki_commands.py` (current producer: `internal/le/wikicatalog/render.go`) into `../wiki/command-catalog.md`. The
 machinery the owner wants exists.
 
@@ -570,7 +570,7 @@ because the head is written by the producer on every answer.
 
 ### 9.5 The page is generated, and a gate fails when the product and the page disagree
 
-`./le wiki-catalog update` already generates the wiki catalog from
+`./le cli catalog update` already generates the wiki catalog from
 `ze help command --json`. The work is to make the JSON carry the answer and the
 generator carry none of it.
 
@@ -594,7 +594,7 @@ copy of the problem this section exists to end.
 The population is the 465 paths of `plan/audit-command-pipe-vs-subcommand.md`,
 re-derived here only for the local registry (46 production paths from
 `MustRegisterLocal` and `MustRegisterLocalMeta` literals outside `_test.go`).
-`./le command list` was not used, for the reason that audit records.
+`./le cli list` was not used, for the reason that audit records.
 
 A `ze` binary was built from this tree with the repository's feature tags and
 driven two ways. `ze pipe` ran the operator chain over fixed JSON with no daemon,

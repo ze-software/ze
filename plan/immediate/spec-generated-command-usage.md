@@ -1044,7 +1044,7 @@ verdict clean, 9 files pinned, `./le spec review check` exits 0.
 ### Run 2
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
-| - | No BLOCKER and no ISSUE. The dispatcher package, the command, yang, docvalid, cmd/ze, show, iface, wikicatalog and site packages are green, and `le-test fixture ui/cli-verb-daemon-dispatch` exits 0 | - | - |
+| - | No BLOCKER and no ISSUE. The dispatcher package, the command, yang, docvalid, cmd/ze, show, iface, wikicatalog and site packages are green, and `le test fixture ui/cli-verb-daemon-dispatch` exits 0 | - | - |
 
 ### What the review verified against source
 

@@ -128,7 +128,7 @@ func TestOnlyACompositionRootIsARegistrationImporter(t *testing.T) {
 		{"cmd/ze/setup_features_distro.go", true},
 		{"internal/component/plugin/all/helper.go", false},
 		{"internal/component/other/all/all_ze_isis.go", false},
-		{"cmd/ze-test/ze_core_dispatch.go", false},
+		{"cmd/ze-installer/ze_core_dispatch.go", false},
 		{"internal/plugins/log/register.go", false},
 		{"cmd/ze/setup.go", false},
 	}

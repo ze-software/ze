@@ -642,7 +642,7 @@ shared and changing it mid-session would race other live sessions.
 ### F10: `stress-repro.py` was broken for every sub-suite, and said so as "reproduced"
 
 **Friction:** `ai/rules/testing.md` sends you to
-the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`) for exactly the failure class this session was
+the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/test/stressrepro/run.go`) for exactly the failure class this session was
 working. Three defects, in descending cost:
 
 1. It appended `-v` AFTER the test selector. The suite runners parse
@@ -675,7 +675,7 @@ stale binary until you rebuild.
 flakes" paragraph, and the stale-`bin/ze` warning; `ai/INDEX.md`'s tool row
 gains the same three facts, since that is where an agent looks first.
 
-**Proposed fix:** DONE for all three defects in the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`)
+**Proposed fix:** DONE for all three defects in the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/test/stressrepro/run.go`)
 (`-v` before the selector, `shlex.split` on both suite and selector,
 `--any-failure`). The tool still cannot tell a runner usage error from a product
 failure; a cheap improvement would be to treat a first-invocation non-zero exit
@@ -784,7 +784,7 @@ and re-tested, and the daemon was run by hand against the extracted config (wher
 it emitted the awaited line immediately). All of them were innocent.
 
 The mechanism: the functional suites are NOT meant to be launched by running the
-runner binary. the retired `mk/test-functional.mk` (current producer: `internal/le/functional/suites.go`) builds ISOLATED, BARE-NAMED binaries
+runner binary. the retired `mk/test-functional.mk` (current producer: `internal/le/test/functional/suites.go`) builds ISOLATED, BARE-NAMED binaries
 into `$(ZE_ALT_BIN)` -- and the daemon it builds carries the `zetest` build tag
 (`ze_core ze_distro ze_setup zetest ...`), which the ordinary `go build -o bin/ze ./cmd/ze` daemon
 does not. `:145` then runs the suite as
@@ -1329,7 +1329,7 @@ gate reads and drops this class of false positive.
 
 **Status: FIXED** in commit `0a5de3eb3`.
 
-**Trigger.** `check_frozen_verbs` (the retired `scripts/dev/ste_check.py`, current: `internal/le/ste/ste.go`) scans with
+**Trigger.** `check_frozen_verbs` (the retired `scripts/dev/ste_check.py`, current: `internal/le/doc/ste/ste.go`) scans with
 `GERUND_CLAUSE`, which is
 `\b(before|after|while|without|when)\s+([a-z]+ing)\b`. The second group accepts
 any lowercase word that ends in `ing`, so a pronoun after one of the five
@@ -1349,13 +1349,13 @@ better, so the cost was small. But a reader who trusts the finding learns the
 wrong rule. And a gate that is wrong twice in one file teaches its readers to
 skip it.
 
-**Why the fix waited.** the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`) was untracked at the time, and
+**Why the fix waited.** the retired `scripts/dev/ste_check.py` (current producer: `internal/le/doc/ste/ste.go`) was untracked at the time, and
 a concurrent session was editing it. `ai/rules/never-destroy-work.md` outranks
 the STE rule's own "fix the tool" instruction, so the defect was filed rather
 than patched. Three agents hit it independently in one rewrite, which is the
 recurrence signal, not a single unlucky sentence.
 
-**The fix.** `NOT_GERUND` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) holds the indefinite
+**The fix.** `NOT_GERUND` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/doc/ste/ste.go`)) holds the indefinite
 pronouns and the common `-ing` nouns that are not verb forms.
 `check_frozen_verbs` skips a match whose second group is in that set. A denylist
 is the right shape, because the `-ing` ending carries no information about
@@ -1369,7 +1369,7 @@ gerund clauses are still reported, so the fix cannot decay into a no-op.
 
 **Status: FIXED** in commit `f8751a908`.
 
-**Trigger.** `ABBREVIATIONS` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) contained `No.`,
+**Trigger.** `ABBREVIATIONS` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/doc/ste/ste.go`)) contained `No.`,
 together with `Dr.`, `Fig.`, `Mr.`, `Ms.`, `approx.`, `e.g.`, `etc.`, `i.e.` and
 `vs.`. `sentences()` held every dot in that tuple unconditionally.
 
@@ -1381,7 +1381,7 @@ finding. The fix was to move the quotation into its own paragraph, which is
 better STE anyway.
 
 **The fix.** `No.` and `Fig.` abbreviate only in front of the number they label,
-so `NUMBERED_ABBREVIATION` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) holds their dot only
+so `NUMBERED_ABBREVIATION` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/doc/ste/ste.go`)) holds their dot only
 when a digit follows. The other eight entries stay unconditional. Two tests pin
 both directions: `No. 5` stays one sentence, and `answered Yes/No. Every Yes
 names a file` is two.
@@ -1542,7 +1542,7 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 
 ## `stress-repro.py` silently falls back to stale `bin/ze-test` and calls it a REPRODUCTION
 
-**Date:** 2026-08-01. **Tool:** the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/stressrepro/run.go`).
+**Date:** 2026-08-01. **Tool:** the retired `scripts/dev/stress-repro.py` (current producer: `internal/le/test/stressrepro/run.go`).
 
 **What happened.** Proving a new `.ci` under load with
 `stress-repro.py "bgp plugin --draft" --test 1 --any-failure` reported
@@ -1781,7 +1781,7 @@ other met the same refusal from the Bash side when it tried to delete its own
 draft. Both reached a correct result and both paid for it, which is what makes
 this recurrence rather than bad luck: the workaround below is now being
 rediscovered faster than it is being fixed. The producer is
-`proposedRFCChanges` (`internal/le/testweakened/proposed.go`), which reads the
+`proposedRFCChanges` (`internal/le/test/weakened/proposed.go`), which reads the
 WORKING-TREE text as the protected version; `revisionText` in the same package
 already reads a file at a revision, so the fix named below has its helper
 waiting for it.

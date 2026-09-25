@@ -717,8 +717,8 @@ func sendWithdrawals(conn net.Conn, sender *Sender, prefixes []netip.Prefix, bat
 
 // connectBGP establishes a BGP TCP connection.
 //
-// When passiveListen is false, ze-perf dials out to remoteAddr from localAddr.
-// When passiveListen is true, ze-perf listens on localAddr:179 and waits for
+// When passiveListen is false, le perf dials out to remoteAddr from localAddr.
+// When passiveListen is true, le perf listens on localAddr:179 and waits for
 // the DUT to initiate the session. This matches the CLI flag semantics and
 // avoids opening a competing outbound connection that can trigger collision
 // handling in implementations that actively connect to their peers.

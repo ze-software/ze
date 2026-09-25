@@ -207,4 +207,4 @@ Avoid (hype / internal / em dash):
    Later inventory edits never change the approved body or the archive.
    If the preview text changes, including an automatic date stamp, obtain
    approval again. Implementation verification uses dry runs only and sends
-   nothing, including to `le-test`.
+   nothing, including to `le test`.

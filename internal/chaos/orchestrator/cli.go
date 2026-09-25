@@ -60,9 +60,8 @@ var (
 )
 
 // CLIRun is the chaos orchestrator's command line: it parses the flags in args,
-// runs the scenario, and answers the process exit code. Two entries call it:
-// `le chaos run` (internal/le/chaos/run), and the `chaos` root handler that
-// register.go registers for the le chaos run program under the ze_chaos build tag.
+// runs the scenario, and answers the process exit code. `le chaos run`
+// (internal/le/chaos/run) is its one entry.
 func CLIRun(args []string) int {
 	fs := flag.NewFlagSet("le chaos run", flag.ContinueOnError)
 

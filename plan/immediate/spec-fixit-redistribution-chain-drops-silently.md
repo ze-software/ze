@@ -272,7 +272,7 @@ commit could carry them. Two of the five need no driver registration:
 `redistribute-unknown-source-refused` declares no `plugin` block at all, and
 `redistribute-no-block-peer-route-reaches-rib` runs its twin's driver on
 purpose. `fixture.Run` (`internal/test/fixture/fixture.go`) keys the dispatch on
-the name in `le-test fixture <name>`, never on the scenario file name, so
+the name in `le test fixture <name>`, never on the scenario file name, so
 `internal/test/fixture/plugin_fixture_12.go` owes exactly the three
 registrations it already carries.
 

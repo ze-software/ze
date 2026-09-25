@@ -512,14 +512,14 @@ func TestParseCmdExec(t *testing.T) {
 		{
 			name: "basic_exec",
 			mode: "background",
-			line: "cmd=background:seq=1:exec=ze-chaos --quiet",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --quiet"},
+			line: "cmd=background:seq=1:exec=le chaos run --quiet",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "le chaos run --quiet"},
 		},
 		{
 			name: "exec_with_colon_port",
 			mode: "background",
-			line: "cmd=background:seq=1:exec=ze-chaos --web :8000 --quiet",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --web :8000 --quiet"},
+			line: "cmd=background:seq=1:exec=le chaos run --web :8000 --quiet",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "le chaos run --web :8000 --quiet"},
 		},
 		{
 			name: "exec_with_stdin",
@@ -536,8 +536,8 @@ func TestParseCmdExec(t *testing.T) {
 		{
 			name: "exec_with_colon_and_stdin",
 			mode: "background",
-			line: "cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --duration 10s:stdin=data",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --in-process --web :$PORT --duration 10s", Stdin: "data"},
+			line: "cmd=background:seq=1:exec=le chaos run --in-process --web :$PORT --duration 10s:stdin=data",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "le chaos run --in-process --web :$PORT --duration 10s", Stdin: "data"},
 		},
 		{
 			name:    "missing_seq",

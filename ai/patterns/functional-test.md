@@ -45,31 +45,31 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 
 ## Runner Commands
 
-All `./le test harness` suites use the same selection contract after the suite name:
+All `./le test` suites use the same selection contract after the suite name:
 `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`.
 `--list` prints `N/TOTAL id name` with one-based ids; runs print one completion
 line per test plus periodic progress.
 
 | Directory | Runner command | Native action |
 |-----------|----------------|---------------|
-| `test/encode/` | `./le test harness bgp encode [--all|--start N|N...]` | `./le test functional encode` |
-| `test/plugin/` | `./le test harness bgp plugin [--all|--start N|N...]` | `./le test functional plugin` |
-| `test/decode/` | `./le test harness bgp decode [--all|--start N|N...]` | `./le test functional decode` |
-| `test/parse/` | `./le test harness bgp parse [--all|--start N|N...]` | `./le test functional parse` |
-| `test/reload/` | `./le test harness bgp reload [--all|--start N|N...]` | `./le test functional reload` |
-| `test/ui/` | `./le test harness ui [--all|--start N|N...]` | `./le test functional ui` |
-| `test/editor/` | `./le test harness editor [--all|--start N|N...]` | `./le test functional editor` |
-| `test/web/` | `./le test harness web [--all|--start N|N...]` | `./le test functional web` |
-| `test/managed/` | `./le test harness managed [--all|--start N|N...]` | `./le test functional managed` |
-| `test/l2tp/` | `./le test harness l2tp [--all|--start N|N...]` | `./le test functional l2tp` |
-| `test/firewall/` | `./le test harness firewall [--all|--start N|N...]` | `./le test functional firewall` |
-| `test/policy/` | `./le test harness policy [--all|--start N|N...]` | `./le test functional policy` |
-| `test/static/` | `./le test harness static [--all|--start N|N...]` | `./le test functional static` |
-| `test/traffic/` | `./le test harness traffic [--all|--start N|N...]` | `./le test functional traffic` |
-| `test/flow-export/` | `./le test harness flow-export [--all|--start N|N...]` | `./le test functional flow-export` |
-| `test/vpp/` | `./le test harness vpp [--all|--start N|N...]` | `./le test functional vpp` |
+| `test/encode/` | `./le test bgp encode [--all|--start N|N...]` | `./le test functional encode` |
+| `test/plugin/` | `./le test bgp plugin [--all|--start N|N...]` | `./le test functional plugin` |
+| `test/decode/` | `./le test bgp decode [--all|--start N|N...]` | `./le test functional decode` |
+| `test/parse/` | `./le test bgp parse [--all|--start N|N...]` | `./le test functional parse` |
+| `test/reload/` | `./le test bgp reload [--all|--start N|N...]` | `./le test functional reload` |
+| `test/ui/` | `./le test ui [--all|--start N|N...]` | `./le test functional ui` |
+| `test/editor/` | `./le test editor [--all|--start N|N...]` | `./le test functional editor` |
+| `test/web/` | `./le test web [--all|--start N|N...]` | `./le test functional web` |
+| `test/managed/` | `./le test managed [--all|--start N|N...]` | `./le test functional managed` |
+| `test/l2tp/` | `./le test l2tp [--all|--start N|N...]` | `./le test functional l2tp` |
+| `test/firewall/` | `./le test firewall [--all|--start N|N...]` | `./le test functional firewall` |
+| `test/policy/` | `./le test policy [--all|--start N|N...]` | `./le test functional policy` |
+| `test/static/` | `./le test static [--all|--start N|N...]` | `./le test functional static` |
+| `test/traffic/` | `./le test traffic [--all|--start N|N...]` | `./le test functional traffic` |
+| `test/flow-export/` | `./le test flow-export [--all|--start N|N...]` | `./le test functional flow-export` |
+| `test/vpp/` | `./le test vpp [--all|--start N|N...]` | `./le test functional vpp` |
 | `test/l2tp-wire/` | `./le test wire l2tp [--all|--start N|N...]` | `./le test functional l2tp-wire` |
-| `test/exabgp-compat/` | `./le test harness exabgp [--all|--start N|N...]` | `./le test functional exabgp-test` |
+| `test/exabgp-compat/` | `./le test exabgp [--all|--start N|N...]` | `./le test functional exabgp-test` |
 
 Gated suites (in `./le test functional gating`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
@@ -181,7 +181,7 @@ expect=json:json=<expected-json>
 
 The block is PIPED, and the `-` reaches the command as written. Two forms take
 the block as a FILE instead: a `ze` daemon launch whose `-` IS the config
-argument, and a `ze-peer` line carrying no `-`. Both are in
+argument, and a `le test peer` line carrying no `-`. Both are in
 `docs/architecture/testing/ci-format.md`, "Where the block goes".
 
 ## Key Syntax Reference
@@ -213,7 +213,7 @@ argument, and a `ze-peer` line carrying no `-`. Both are in
 
 A line in a ze-peer stdin block that neither ze-peer nor the runner acts on
 fails the file at parse time (`docs/architecture/testing/ci-format.md`, "What a
-ze-peer block may carry"). `option=env` is refused there and belongs outside.
+le test peer block may carry"). `option=env` is refused there and belongs outside.
 
 ### HTTP Checks
 

@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 	})
 

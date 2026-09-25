@@ -405,9 +405,9 @@ directory, under bare names, so a sibling session cannot overwrite the binary
 under test. Ask the owning action for the path rather than writing `bin/ze`.
 
 The directory carries the session id, so the file name does not. That is what
-keeps argv[0] personality dispatch working (`binarySuffixRoot`,
-`cmd/ze/dispatch.go`, reads the segment after the last `-`) and lets a `.ci` test
-exec `ze` by bare name off one PATH entry. A binary's location also decides where
+keeps argv[0] personality dispatch working (`defaultDispatch`,
+`cmd/ze/dispatch.go`, looks the base name up as a root, so a file named `le` runs
+le) and lets a `.ci` test exec `ze` by bare name off one PATH entry. A binary's location also decides where
 `ze` resolves its config and database (`ConfigDirFromBinary`,
 `internal/core/paths/paths.go`), so a session's `ze` reads `<session-dir>/etc/ze`
 and the repository's `etc/ze` belongs to the human alone.

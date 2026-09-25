@@ -19,7 +19,7 @@ handler change."
 
 | Phase | State |
 |-------|-------|
-| 1 probe | DONE. A-6 is answered: `internal/test/fixture/ui_fixture_cli_announce.go` exists, and one fixture starts a daemon over ephemeral SSH plus a `ze-peer`. AC-6 and AC-7 do NOT have to split |
+| 1 probe | DONE. A-6 is answered: `internal/test/fixture/ui_fixture_cli_announce.go` exists, and one fixture starts a daemon over ephemeral SSH plus a `le test peer`. AC-6 and AC-7 do NOT have to split |
 | 2 renderer | edits present in `usage.go`, `ze-extensions.yang`, `ze-cli-announce-cmd.yang` |
 | 3 completion and help | edits present in `completer.go`, `help.go`, and both test files |
 | 4 parser | edits present in `announce.go` and `announce_test.go` |
@@ -170,7 +170,7 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 - `modifierNames` and `usageKindNames` (`internal/component/command/usage.go`): the two single declarations a new word joins.
 - `matchChildren` (`internal/component/command/completer.go`) and `listedChildNames` (`internal/component/command/help.go`): both special-case `ModifierChoice` today and both owe a decision for the new value.
 - `errFlowspecActionExtraTokens` (`internal/component/bgp/plugins/cmd/announce/announce.go`): the existing precedent for the error the default arm should answer, so the parser fix reuses a shape rather than inventing one.
-- `startFixtureProcess` and `Poll` (`internal/test/fixture/`): the helpers that start `le-test peer` and a daemon, already used separately and combined for the first time here.
+- `startFixtureProcess` and `Poll` (`internal/test/fixture/`): the helpers that start `le test peer` and a daemon, already used separately and combined for the first time here.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -190,7 +190,7 @@ Steps 2 and 4 are the two halves that disagree. They share no code, which is why
 | A-2 | Nesting the three action containers does not disturb `component_parity_test.go` | `augmentedContainerNames` parses the FLOWSPEC augment file, and the action containers live in the ANNOUNCE module | The parity guard goes red or, worse, silently reads a smaller set | Run that test before and after the YANG change | unvalidated |
 | A-3 | No stored artifact holds a serialized usage grammar that a new `UsageKind` word would fail to round-trip | Traced every hop. `internal/le/wikicatalog` is typed as `[]command.UsageToken`, so `UsageKind.UnmarshalJSON` runs on the live bytes, but producer and consumer share `usageKindNames`, so one table gains one row. `internal/le/site/catalog.go` and `internal/le/docvalid/command_surfaces.go` both carry `Kind` as a plain string. No golden file and no `testdata/` holds a grammar | Nothing. The rework risk is one table row and two republished sibling artifacts | Re-run `./le doc yang-contract` after the renderer change | confirmed |
 | A-4 | A `.ci` can drive `ze announce` as argv against a live daemon | BROKEN, and known so before implementation. The daemon publishes its ephemeral SSH address at start into the file named by `ZE_SSH_EPHEMERAL`, so only a Go fixture can read it and set `ZE_SSH_HOST` and `ZE_SSH_PORT` on the client. `option=env` is static, and no `.ci` in `test/ui/` or `test/plugin/` sets `ZE_SSH_*` | The argv-level coverage needs a Go fixture, which is now in Files to Create rather than discovered mid-implementation | `internal/test/fixture/ui_fixture_cli_verb_daemon_dispatch.go` is the working precedent | broken |
-| A-6 | A single fixture can start a daemon over SSH AND a `ze-peer`, so one test proves argv reaches the wire | No precedent found. `runCLIVerbDaemonDispatch` writes its own config and starts the daemon itself, so a `.ci`-launched `ze-peer --port $PORT` is not in that config | The argv proof and the wire proof split into two tests: argv reaches the handler, and the handler reaches the wire. That is weaker than one end-to-end chain and must be stated as such rather than papered over | Write the fixture as a draft under `test/draft/` first and see whether the peer can be started from it | unvalidated |
+| A-6 | A single fixture can start a daemon over SSH AND a `le test peer`, so one test proves argv reaches the wire | No precedent found. `runCLIVerbDaemonDispatch` writes its own config and starts the daemon itself, so a `.ci`-launched `le test peer --port $PORT` is not in that config | The argv proof and the wire proof split into two tests: argv reaches the handler, and the handler reaches the wire. That is weaker than one end-to-end chain and must be stated as such rather than papered over | Write the fixture as a draft under `test/draft/` first and see whether the peer can be started from it | unvalidated |
 | A-5 | Refusing an unclaimed trailing token breaks no existing caller | This spec refuses more input than before, and no `.ci` exercises any announce form | A caller somewhere passes a trailing token that works by accident today | Grep every `.ci`, `.et` and unit test for announce invocations, then run the unit suite | unvalidated |
 
 ### Risks
@@ -274,7 +274,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| N-A | N-A | N-A | No wire-visible change. The FlowSpec NLRI and the extended community this spec announces are byte-identical to what the same operator input produces today; only which inputs are ACCEPTED changes. `ai/rules/interop-and-goal-validation.md` permits the omission for a change with no wire-visible difference, and `ze-peer` asserts the bytes in the functional rows above | |
+| N-A | N-A | N-A | No wire-visible change. The FlowSpec NLRI and the extended community this spec announces are byte-identical to what the same operator input produces today; only which inputs are ACCEPTED changes. `ai/rules/interop-and-goal-validation.md` permits the omission for a change with no wire-visible difference, and `le test peer` asserts the bytes in the functional rows above | |
 
 ## Files to Modify
 
@@ -294,7 +294,7 @@ The parser fix adds no numeric field. `rate-limit`'s bytes-per-second and `for`'
 
 ## Files to Create
 
-- `internal/test/fixture/ui_fixture_cli_announce.go` - the joint fixture: a daemon over ephemeral SSH plus a `ze-peer`, driving `ze announce` as argv
+- `internal/test/fixture/ui_fixture_cli_announce.go` - the joint fixture: a daemon over ephemeral SSH plus a `le test peer`, driving `ze announce` as argv
 - `test/ui/test-announce-forms-state-their-action.ci` - the offline usage-line proof
 - `test/ui/send-unicast-reaches-the-wire.ci` - the fixture shim
 - `test/ui/send-withdraw-by-tag.ci` - the fixture shim

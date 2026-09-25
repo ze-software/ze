@@ -153,7 +153,7 @@ func forkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 		}
 	}
 
-	tmpFile, err := os.CreateTemp("", "ze-chaos-*.conf")
+	tmpFile, err := os.CreateTemp("", "le-chaos-*.conf")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp config: %w", err)
 	}

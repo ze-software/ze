@@ -37,9 +37,9 @@ place and hope verify does not run.
 ## Step 2 — Run it as a draft
 
 ```
-./le test harness bgp plugin --draft -a
-./le test harness bgp plugin --draft --pattern <name>
-./le test harness <suite> --draft -a          # every suite takes --draft
+./le test bgp plugin --draft -a
+./le test bgp plugin --draft --pattern <name>
+./le test <suite> --draft -a          # every suite takes --draft
 ```
 
 `--draft` swaps the discovery root from `test/<suite>` to
@@ -104,7 +104,7 @@ evidence is thrown away.
 
 ```
 mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci
-./le test harness <suite> -a
+./le test <suite> -a
 ```
 
 A plain move: the draft is untracked, so the destination just appears as a new

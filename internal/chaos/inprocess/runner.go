@@ -180,7 +180,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	})
 
 	// Create temp directory for API socket to avoid conflicts.
-	tmpDir, err := os.MkdirTemp("", "ze-chaos-inprocess-*")
+	tmpDir, err := os.MkdirTemp("", "le-chaos-inprocess-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}

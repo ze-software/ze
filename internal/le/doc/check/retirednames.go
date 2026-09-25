@@ -1,33 +1,29 @@
-// Design: docs/architecture/core-design.md -- how a program dispatches le's commands
-// Related: dispatch.go -- the loop that rewrites a retired name before it resolves
+// Design: docs/architecture/core-design.md -- native documentation verifier actions
+// Related: retired.go -- the sweep that reads this map and gates on what it finds
 //
 // This file is the ONE declaration of every name the subject-first rename
-// retires (plan/spec-le-subject-first-command-tree.md): the le commands, the
+// retired (plan/spec-le-subject-first-command-tree.md): the le commands, the
 // programs folded into le, the build tags, the harness file names and the
-// harness variables. Dispatch reads it to run a retired command as its new
-// one, and `le doc check retired-commands` reads it to find the callers that
-// still name an old form. No other surface lists an old name.
+// harness variables. `le doc check retired-commands` reads it to find the
+// callers that still name an old form. No other surface lists an old name.
 //
-// The rewrite is a time-bounded exception to ai/rules/no-layering.md, approved
-// by the owner on 2026-09-24: peer sessions call the old names while the rename
-// lands. Phase 3 of that spec deletes the rewrite, and the sweep becomes a gate.
+// Dispatch does not read it. The old names ran as their new commands while
+// the rename landed, and Phase 3 deleted that rewrite, so an old name answers
+// `unknown command` like any other word le does not register.
 
-package leroot
+package doccheck
 
 import (
-	"os"
 	"slices"
 	"strings"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Rename is one retired le command, or one retired action of a command, and
 // the command that answers it now.
 //
-// A row is a word sequence: Retired then RetiredAction is what a caller typed,
-// and Command then Action is what runs instead, followed by the caller's own
-// remaining words. One shape covers a rename (`test-unit` to `test unit`), a
+// A row is a word sequence: Retired then RetiredAction is what a caller
+// typed, and Command then Action is what a caller types now, followed by the
+// same remaining words. One shape covers a rename (`test-unit` to `test unit`), a
 // merge (`verify lock` to `job`) and a verb split (`build-artifacts
 // installer-arm64` to `build installer arm64`).
 type Rename struct {
@@ -55,8 +51,7 @@ func (r Rename) New() []string {
 	return append(words, strings.Fields(r.Action)...)
 }
 
-// renames is the command half of the rename map. Dispatch reads it on every
-// invocation, so a test that swaps it MUST restore it before it returns.
+// renames is the command half of the rename map.
 //
 //nolint:goconst // a row reads whole: a constant per repeated word hides which command a row names
 var renames = []Rename{
@@ -261,83 +256,4 @@ var retirements = []Retirement{
 // Retirements answers a copy of the non-command half of the rename map.
 func Retirements() []Retirement {
 	return slices.Clone(retirements)
-}
-
-// retiredRewrite answers the argv a retired command now runs as, and the row
-// that rewrote it. It answers false when argv names no retired command, or
-// when the command that replaces it is not registered yet: until a family
-// moves, its old name still runs its own handler, so a peer session calling
-// it keeps working.
-//
-// A row whose new words name a namespace rather than a command (`test harness`
-// to `test`) is accepted only when those words plus the caller's next word
-// resolve to a registered command (namespaceMember). A bare `test harness`, or
-// one followed by a word that names no member, is not rewritten.
-//
-// The longest matching row wins, so `docs-to-code check` takes its own row
-// over the row for `docs-to-code`.
-func retiredRewrite(args []string) ([]string, Rename, bool) {
-	own, _ := splitChain(args)
-	var best Rename
-	bestWords := 0
-	for _, row := range renames {
-		old := row.Old()
-		if len(old) <= bestWords {
-			continue
-		}
-		if len(own) < len(old) {
-			continue
-		}
-		if !slices.Equal(own[:len(old)], old) {
-			continue
-		}
-		best = row
-		bestWords = len(old)
-	}
-	if bestWords == 0 {
-		return nil, Rename{}, false
-	}
-	if LookupCommand(best.Command) == nil && !namespaceMember(best, own[bestWords:]) {
-		return nil, Rename{}, false
-	}
-
-	fresh := best.New()
-	rewritten := make([]string, 0, len(fresh)+len(args)-bestWords)
-	rewritten = append(rewritten, fresh...)
-	rewritten = append(rewritten, args[bestWords:]...)
-	if LookupCommand(best.Command) != nil {
-		return rewritten, best, true
-	}
-	// A namespace row answers the row as the caller met it, member included,
-	// so the stderr line names the command that runs: `le test peer`, never
-	// the bare namespace `le test`.
-	shown := best
-	shown.RetiredAction = own[bestWords]
-	shown.Action = own[bestWords]
-	return rewritten, shown, true
-}
-
-// namespaceMember reports whether row's new command is a namespace and the
-// first of the caller's remaining words names one of its registered members.
-// A row that also names an Action places its own words after the namespace,
-// so it is never a namespace row.
-func namespaceMember(row Rename, rest []string) bool {
-	if row.Action != "" {
-		return false
-	}
-	if len(rest) == 0 {
-		return false
-	}
-	var tb textbuf.Buffer
-	return LookupCommand(tb.Str(row.Command).Byte(' ').Str(rest[0]).String()) != nil
-}
-
-// noteRetired writes the one stderr line a retired name owes: the words the
-// caller typed and the words that replace them. Phase 2 of the rename finds
-// callers a text search cannot see by this line, in CI logs and test output.
-func noteRetired(program string, row Rename) {
-	var tb textbuf.Buffer
-	tb.Str("warning: ").Str(program).Byte(' ').Join(row.Old(), " ").
-		Str(" is renamed: run ").Str(program).Byte(' ').Join(row.New(), " ").Byte('\n')
-	os.Stderr.WriteString(tb.String()) //nolint:errcheck // CLI output
 }

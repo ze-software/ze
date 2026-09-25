@@ -93,8 +93,8 @@ func TestParseCmdExecName(t *testing.T) {
 		},
 		{
 			name: "exec_with_colon_and_name",
-			line: "cmd=background:seq=1:exec=ze-chaos --web :8000:name=chaos",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --web :8000", Name: "chaos"},
+			line: "cmd=background:seq=1:exec=le chaos run --web :8000:name=chaos",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "le chaos run --web :8000", Name: "chaos"},
 		},
 		{
 			name: "no_name_is_empty",

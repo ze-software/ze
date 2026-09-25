@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 **The gap.** The `prefix { count installed; }` mode is proven only against the
-`ze-peer` harness. `test/interop/scenarios/bgp-max-prefix-cease-frr` and
+`le test peer` harness. `test/interop/scenarios/bgp-max-prefix-cease-frr` and
 `test/interop/scenarios/bgp-max-prefix-per-family-frr` exercise a real FRR peer
 against the DEFAULT mode alone: each `ze.conf` writes a `prefix { maximum N; }`
 stanza and neither writes `count installed`, so no interop scenario configures

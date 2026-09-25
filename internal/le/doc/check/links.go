@@ -81,6 +81,14 @@ func citationExcludes() []string {
 		"plan/journal/",
 		"plan/verification-debt/",
 		"plan/known-failures/",
+		// Closed-spec summaries, audits and session handoffs are records of the
+		// same kind: each states what the tree held on the day it was written.
+		// The learned INDEXES under plan/learned/ stay policed, as markdown
+		// corpus files (markdownGlobs), whatever this prefix says.
+		"plan/learned/",
+		"plan/audits/",
+		"plan/audit-",
+		"plan/handoff-",
 		// The two test ledgers are records of the same kind, and they are the
 		// only ones that live outside plan/. A weakened row exists to name a
 		// test that was DELETED and the spec that deleted it, so a path inside

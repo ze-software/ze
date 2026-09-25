@@ -16,7 +16,7 @@ func init() {
 		ShortHelp: "every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
-		// internal/perf/cli registers ze-perf under it for the same reason.
+		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about which action WRITES (actions.go, Subs).

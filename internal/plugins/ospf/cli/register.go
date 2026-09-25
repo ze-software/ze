@@ -12,7 +12,7 @@
 // codegen:skip -- the `ospf` root is wired into the ze CLI by
 // cmd/ze/dispatch_ospf.go's direct blank import (ze_core && ze_ospf), so it must
 // NOT also be discovered into plugin/all. internal/test/cli imports plugin/all
-// (for editor tests) and separately registers a `ze-test ospf` SUITE root; a
+// (for editor tests) and separately registers a `le test ospf` SUITE root; a
 // second `ospf` tool root pulled in through plugin/all would panic on duplicate
 // registration under the ze_ospf tag. One `ospf` root per binary.
 

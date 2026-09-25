@@ -84,8 +84,8 @@ on a full pipe.
 ## Flavors and why each names a file
 
 Six build-tag flavors are compiled, at about 45s warm against a 25-minute
-`./le verify current mode full`. `ze_chaos`, `ze_perf`, `ze_analyze` and `ze_core ze_ssh` are
-dropped as developer tools or near-duplicates. Each flavor builds `./...`
+`./le verify current mode full`. `ze_core ze_ssh` is dropped as a
+near-duplicate of `distro`. Each flavor builds `./...`
 rather than its own main package: it costs 1.8s more and type-checks every
 package the tag set selects, not only the ones a binary imports.
 

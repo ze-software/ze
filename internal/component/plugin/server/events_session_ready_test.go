@@ -92,7 +92,7 @@ func TestDeclaresSessionReadyResolvesTheProcessAlias(t *testing.T) {
 func TestDeclaresSessionReadyReadsTheStageOneDeclaration(t *testing.T) {
 	s := sessionReadyTestServer()
 
-	external := runningProcess(s, "external-reporter", "ze-test fixture plugin/initial-sync-barrier-raw")
+	external := runningProcess(s, "external-reporter", "le test fixture plugin/initial-sync-barrier-raw")
 	assert.False(t, s.declaresSessionReady("external-reporter"),
 		"an external process that declared nothing is not waited for")
 

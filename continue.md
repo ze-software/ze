@@ -38,7 +38,7 @@ the pattern worth budgeting for: the gate is defect-finding, not paperwork.
 Everything below this heading is the record of how it got there, kept because the
 Phase 6 finding outlives the spec. What replaced its one outstanding item was
 spec-failing-socket-proof-needs-a-non-ptrace-injection-point, closed on
-2026-09-11: `./le test harness fail-syscall` (`internal/test/failsyscall`) fails one named
+2026-09-11: `./le test fail-syscall` (`internal/test/failsyscall`) fails one named
 syscall through a classic seccomp filter and then execs the daemon, so nothing
 traces it and the failing call is charged to the daemon's own CPU.
 
@@ -89,7 +89,7 @@ path, not a benchmark nobody reads.
 state leaves CPU low while the log and the counter show it. The spec calls it
 `subscriber-reader-failing-socket`. `test/qemu/` does not exist, so find the right <!-- doc-links: ignore (the sentence's own subject: no such suite directory exists, which is why the next step is to pick one) -->
 suite directory, and add the name to `netnsSelections` in
-`internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
+`internal/le/test/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
 refuses a named test with no file but never notices a file nobody named, which is how
 two `netns-link` tests under `test/plugin/` came to run nowhere.
 
@@ -414,7 +414,7 @@ of what was asked for.
    failing state leaves CPU low while the log line and the counter show the failure.
    The spec calls it `subscriber-reader-failing-socket`. `test/qemu/` does not exist, <!-- doc-links: ignore (the sentence's own subject: no such suite directory exists, which is why the next step is to pick one) -->
    so pick the suite directory from what does, and add the name to `netnsSelections`
-   in `internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
+   in `internal/le/test/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
    refuses a named test with no file, but never notices a file nobody named, which is
    how two `netns-link` tests under `test/plugin/` came to run nowhere at all.
 2. **Then `/ze-close`**, on Opus 5 in a context that did not write the code.

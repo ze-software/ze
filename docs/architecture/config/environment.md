@@ -186,14 +186,15 @@ line.
 |----------|------------------|---------|-------------|
 | `le.test.no.build` | `ze.test.no.build` | false | Skip the runner's in-process `ze` build and require a pre-built `ze`. Registered in `internal/test/runner` |
 
-`le.test.bin`, `le.qemu.test.bin`, `le.test.binary` and their `ze.` spellings
-are gone, and the rename map lists each as retired with no replacement.
+The harness binary-path variables are gone: the runner, l2tp scale and the
+QEMU action each run or build their own `le`. The rename map lists each retired
+key, so `le doc check retired-commands` refuses a line that names one.
 
 `ze.test.bgp.port` keeps its `ze.` key: the daemon reads it too, so it is a
 product setting.
 
 <!-- source: internal/test/runner/runner.go -- NoBuild -->
-<!-- source: internal/le/le/root/retired.go -- retirements -->
+<!-- source: internal/le/doc/check/retirednames.go -- retirements -->
 
 ---
 

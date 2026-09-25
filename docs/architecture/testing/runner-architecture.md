@@ -50,7 +50,7 @@ scheduler in `runExaBGPSelected`.
 
 | Wrapper or scheduler | Example suites | Per-test execution |
 |---------|--------|--------------------|
-| `.ci` `Runner` | encode, plugin, reload, chaos, ui, managed, policy, firewall, l2tp, l2tp-wire, install, static, traffic, flow-export, vpp | `Runner.runTest` spawns `ze` or `ze-peer` and applies expectations |
+| `.ci` `Runner` | encode, plugin, reload, chaos, ui, managed, policy, firewall, l2tp, l2tp-wire, install, static, traffic, flow-export, vpp | `Runner.runTest` spawns `ze` or `le test peer` and applies expectations |
 | Direct `parallelRunner[T]` use | bgp decode, bgp parse, editor (`.et`), web (`.wb`) | Suite-specific functions run `DecodingTest`, `ParsingTest`, `EditorTest`, or `zeTestWebTest` |
 | Bespoke scheduler | ExaBGP predecessor suite | `runExaBGPSelected` schedules parallel and serial batches |
 
@@ -174,10 +174,10 @@ of them has to start that one.
 | `web` | `ze start --web <port> --web-only` | `https` | 1 |
 | `lg` | `le test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
 | `lg-no-engine` | `le test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
-| `chaos` | `ze-chaos --in-process --web :<port>` | `http` | 1 |
+| `chaos` | `le chaos run --in-process --web :<port>` | `http` | 1 |
 
 The looking glass gets a peer because its pages read `show bgp`: without
-one, every assertion would run against an empty table. `ze-chaos` is a second
+one, every assertion would run against an empty table. `le chaos run` is a second
 compile of `cmd/ze` under different tags, so it is built only when a selected
 test asks for it, beside the `ze` binary the run is using.
 
@@ -327,12 +327,13 @@ executable (`os.Executable`) answers every harness exec.
 |-----------------|------|
 | `ze` | the `ze` this run built |
 | `le` | the runner's own executable, with the authored words |
-| `le-test`, `ze-test` (retired until Phase 3) | the runner's own executable, with `test` inserted |
-| `ze-peer` (retired until Phase 3) | the runner's own executable, with `test peer` inserted |
 | anything else | an extra binary of this run, else a PATH lookup |
 
+A retired harness name (`le-test`, `ze-test`, `ze-peer`) falls in the last row.
+No program answers to it, so the step fails at the lookup.
+
 The parse steps resolve the same heads the same way (`resolveParseExec`).
-A step whose words are `le test peer`, or the retired head `ze-peer`, takes the
+A step whose words are `le test peer` takes the
 peer role (`launchesPeer`, `internal/test/runner/harness_exec.go`): its stdin
 block goes to the peer as an expect file, it receives the leased BGP port, the
 peer contract (`peer_contract.go`) validates its block, and a check-mode peer's
@@ -343,8 +344,7 @@ forwarding commands are the harness commands. Every other `le` head keeps the
 repository root, as `./le` and `go` do.
 
 The runner prepends a shim directory to every child's PATH. It holds `ze` and
-`le` as symlinks to the two binaries above, and the three retired names as
-two-line shell scripts that exec that `le` with the inserted words. So
+`le` as symlinks to the two binaries above, and nothing else. So
 `exec.LookPath`, `exec.Command("ze", ...)`, and a plugin `run` string that
 starts `le test engine-steps` name the binaries this run uses. The shim exists
 because a cross-compiled binary carries its target in the file name. One
@@ -353,12 +353,6 @@ directory holding two architectures once gave the QEMU guest the host's `ze`.
 No child environment carries `ZE_LE_BUILD_NAME`: a child reached through the
 `le` link is not the named build file, and `refuseWrongBuildName` would refuse
 every one of them under `./le --name x`.
-
-`./le test harness <name> <argv>` is a retired spelling: it prints one stderr
-line naming `le test <name>`, then answers as `./le test <name> <argv>`. A bare
-`./le test harness`, or one whose next word names no member of `test`, is not
-rewritten.
-<!-- source: internal/le/le/root/retired.go -- retiredRewrite, namespaceMember -->
 
 `$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
 `.gitignore` excludes `bin/` and no verification job writes `ze` there. A

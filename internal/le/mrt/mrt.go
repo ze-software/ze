@@ -1,8 +1,7 @@
 // Design: docs/guide/mrt-analysis.md -- the MRT analysis commands
 // Related: register.go -- the registration of this command
 
-// Package mrt is `le mrt`, the MRT analysis commands of internal/analyze. The
-// ze-analyze program runs the same subcommands until it is removed.
+// Package mrt is `le mrt`, the MRT analysis commands of internal/analyze.
 package mrt
 
 import (

@@ -73,7 +73,7 @@ sleeps remain. Skeleton written 2026-07-15 alongside `spec-fixit-sleeps-cli-harn
 ## Current Behavior (MANDATORY)
 
 `test/traffic/traffic-boot-qdisc-tc.ci` starts a background daemon, runs
-`le-test fixture traffic/traffic-boot-qdisc-tc`, then reads `tc qdisc show`.
+`le test fixture traffic/traffic-boot-qdisc-tc`, then reads `tc qdisc show`.
 Its fixture is a 2.5s timer. `trafficReloadQdisc` reads the qdisc before and after
 SIGHUP, but reaches each read after a fixed hold. Both remain in the original
 Linux-gated population.
@@ -167,7 +167,7 @@ or asserting a reload result.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `.ci` runner to native fixture | `le-test fixture` | source read only |
+| `.ci` runner to native fixture | `le test fixture` | source read only |
 | fixture to daemon | readiness and reload completion | current inventory and runtime proof owed |
 | fixture to Linux kernel | tc/nft readback | current inventory and runtime proof owed |
 | host to Linux/QEMU | a route that includes each consumer without skipping it | runtime proof owed |

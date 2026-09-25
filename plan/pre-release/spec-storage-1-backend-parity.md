@@ -834,7 +834,7 @@ Preserved binaries and counterfactual inputs remain available for the next phase
 
 ### Snapshot 3 (2026-09-17, end of session 98052e33)
 - Second full check on `8fb5fe2957`: 20 groups (from 40). Fixed in the commit after this line: the parse
-  runner resolves `exec=le-test` to its own binary (`internal/test/runner/parsing.go`), `cli-config-reload-flag`
+  runner resolves `exec=le test` to its own binary (`internal/test/runner/parsing.go`), `cli-config-reload-flag`
   reads through `config show`, the site header/manifest goldens follow the new nav wording, the features table
   rows folded, the domain TTL test waits on the scheduler. Rows for the load stalls (271/272, 3/3 pass alone).
 - Residual reds, none this spec's: `le-*-answers` fixtures (rows), `display-fill-completion` hang (row),
