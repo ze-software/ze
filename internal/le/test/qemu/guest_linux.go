@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -99,7 +100,7 @@ const pingCommand = "ping"
 const (
 	guestConfigDirKey  = "ZE_CONFIG_DIR"
 	guestEvidenceZeKey = "ZE_EVIDENCE_ZE_BINARY"
-	guestTestBinKey    = "ZE_TEST_BIN"
+	guestTestBinKey    = harnessbin.EnvTestBin
 )
 
 var execLookPath = exec.LookPath

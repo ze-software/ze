@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 type realProcessRunner struct{}
@@ -39,8 +41,8 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	defer cancel()
 	env := append([]string(nil), os.Environ()...)
 	env = setEnvironment(env, "ze.bin", spec.zeBin)
-	env = setEnvironment(env, "ze.test.bin", spec.testBin)
-	env = setEnvironment(env, "ZE_TEST_NO_BUILD", "1")
+	env = setEnvironment(env, harnessbin.EnvTestBin, spec.testBin)
+	env = setEnvironment(env, harnessbin.EnvNoBuild, "1")
 	env = setEnvironment(env, "GOTRACEBACK", "all")
 	if spec.extraTags != "" {
 		env = setEnvironment(env, "ze.tags", spec.extraTags)

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
@@ -191,9 +192,11 @@ func (f *fakeRunner) count() int {
 
 func stressTree(t *testing.T) string {
 	t.Helper()
-	for _, key := range []string{"ze.bin", "ZE_BIN", "ze.test.bin", "ZE_TEST_BIN"} {
+	for _, key := range []string{"ze.bin", "ZE_BIN", "ze.test.bin", "ZE_TEST_BIN", "le.test.bin", "LE_TEST_BIN"} {
 		t.Setenv(key, "")
 	}
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatal(err)
@@ -491,7 +494,9 @@ func TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun(t *testing.T) {
 
 	absent := filepath.Join(t.TempDir(), "no-such-binary")
 	t.Setenv("ZE_BIN", absent)
-	t.Setenv("ZE_TEST_BIN", absent)
+	t.Setenv("LE_TEST_BIN", absent)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	payload, code := Answer([]string{runAction, "suite", "-help"})
 	if code != 2 {
 		t.Errorf("Answer(run suite -help) = %d, want 2", code)

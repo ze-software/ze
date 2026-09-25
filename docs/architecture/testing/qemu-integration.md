@@ -167,8 +167,10 @@ the runtime-kernel guest:
 ```
 
 This uses the architecture-qualified guest binaries selected by the existing
-`ZE_QEMU_BIN`, `ZE_QEMU_STRIPPED_BIN` and `ZE_QEMU_TEST_BIN` overrides or their
-defaults. A native prerequisite skip is not evidence for this subset.
+`ZE_QEMU_BIN`, `ZE_QEMU_STRIPPED_BIN` and `LE_QEMU_TEST_BIN` overrides or their
+defaults. The harness default is `bin/le-test-linux-<guest arch>`, derived from
+`QEMU_GOARCH` or the host architecture by `qemuTestBin`, its only reader. The
+retired spelling `ZE_QEMU_TEST_BIN` is still read, with a deprecation line. A native prerequisite skip is not evidence for this subset.
 
 <!-- source: internal/le/test/qemu/netns.go -- the namespace table's producer and the capability preparation -->
 <!-- source: internal/le/test/qemu/alltests.go -- vmSuites, the Namespace of each row -->

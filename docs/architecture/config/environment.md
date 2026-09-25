@@ -172,6 +172,28 @@ writes it via `config.ApplyEnvConfig` when the operator sets
 | `ze.test.bgp.port` | 179 | ENV | BGP TCP port (ze-test peer + ze-test harness; private) |
 | `ze.bfd.test-parallel` | false | ENV | BFD parallel test mode (private) |
 
+### Harness variables
+
+The test harness `le-test` owns three variables under the `le.` prefix. The
+`ze.` spelling of each is retired. Until the le rename completes, both
+spellings are read: the `LE_` value wins, and a value read from the `ZE_`
+spelling prints one deprecation line that names the `LE_` spelling. The two
+spellings are two registered entries, because `env.Get` reads an alias spelling
+only when the caller passes the alias key. `harnessbin.Setting` is the one
+resolver.
+
+| Variable | Retired spelling | Default | Description |
+|----------|------------------|---------|-------------|
+| `le.test.bin` | `ze.test.bin` | `bin/le-test` | The harness binary the runner, `le test harness` and a stress repro run |
+| `le.test.no.build` | `ze.test.no.build` | false | Skip the in-process build and require pre-built binaries |
+| `le.qemu.test.bin` | `ze.qemu.test.bin` | `bin/le-test-linux-<guest arch>` | The harness cross-build a QEMU guest runs; the host forwards it into the guest as `LE_TEST_BIN` |
+
+`ze.test.bgp.port` keeps its `ze.` key: the daemon reads it too, so it is a
+product setting.
+
+<!-- source: internal/test/harnessbin/harnessbin.go -- Setting, answering -->
+<!-- source: internal/le/test/qemu/run.go -- qemuTestBin -->
+
 ---
 
 ## Boolean Values

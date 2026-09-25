@@ -4,15 +4,14 @@
 //
 // bench.go holds the three verbs that EXECUTE a benchmark, apart from the nudge
 // that only reads the checkout. Each one is a chain, and the chain is what the
-// retired Make targets carried: build the host ze-perf, measure the DUTs under
-// Docker, append each result to the committed NDJSON history, and check the
-// history for a regression.
+// retired Make targets carried: measure the DUTs under Docker, append each
+// result to the committed NDJSON history, and check the history for a
+// regression.
 //
-// The host program is built at bin/ze-perf, which is where the multi-DUT runner
-// looks for it, where .github/workflows/perf-nightly.yml runs the regression
-// check from, and what docs/guide/benchmarking.md tells a developer to build.
-// The runner cross-builds its own bin/ze-perf-linux for the container.
-package perfbench
+// No standalone benchmark program is built. The runner cross-builds a linux le
+// for the sender container, and the le running this command renders the report
+// and runs the regression check as `le perf report` and `le perf track`.
+package perf
 
 import (
 	"bytes"
@@ -21,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 
@@ -30,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/perf"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
@@ -44,9 +43,16 @@ const (
 
 	// dutKeyword selects the DUTs a run measures.
 	dutKeyword = "dut"
+	// stepKeyword selects one step of a run: stepBuild or stepTest.
+	stepKeyword = "step"
+	// stepBuild builds the DUT images and measures nothing.
+	stepBuild = "build"
+	// stepTest measures with the images that exist.
+	stepTest = "test"
 
-	// perfTags selects the ze-perf program out of the one cmd/ze codebase.
-	perfTags = "ze_perf ze_bgp"
+	// leTagBase is the personality tag of the linux le the sender container
+	// runs. Every feature gate follows it, as in the launcher's own build.
+	leTagBase = "ze_le"
 
 	// resultsDir is where the runner writes one <dut>.json per measured DUT.
 	// It is a build output and .gitignore excludes it.
@@ -58,12 +64,11 @@ const (
 	// zeDUT is the device under test the release evidence gate measures.
 	zeDUT = "ze"
 
-	// buildAction, measureAction and checkAction are the headings a person
-	// watching a run reads. gaterun.Run announces the two it runs; the
-	// measurement runs in this process, so its heading is announced here.
-	buildAction   = "perf-bench build"
-	measureAction = "perf-bench measure"
-	checkAction   = "perf-bench regression check"
+	// measureAction and checkAction are the headings a person watching a run
+	// reads. gaterun.Run announces the check; the measurement runs in this
+	// process, so its heading is announced here.
+	measureAction = "perf measure"
+	checkAction   = "perf regression check"
 
 	// jsonSuffix and ndjsonSuffix name the result and history file types.
 	jsonSuffix   = ".json"
@@ -79,6 +84,8 @@ type RunReport struct {
 	// Benchmarked names the DUTs the run measured. It is empty when the run
 	// asked for every DUT the runner knows.
 	Benchmarked []string `json:"benchmarked,omitempty"`
+	// Built says the run built the DUT images and stopped there.
+	Built bool `json:"built,omitempty"`
 	// Appended names the history files the run added a result line to.
 	Appended []string `json:"appended,omitempty"`
 	// Checked is the history file the regression check read.
@@ -103,7 +110,10 @@ func (r RunReport) Text() string {
 		return ""
 	}
 	var tb textbuf.Buffer
-	tb.Str("perf-bench ").Str(r.Action).Str(": ")
+	tb.Str("perf ").Str(r.Action).Str(": ")
+	if r.Built {
+		return tb.Str("built the DUT images; measured and recorded nothing\n").String()
+	}
 	if len(r.Benchmarked) > 0 {
 		tb.Str("measured ").Join(r.Benchmarked, ", ").Str("; ")
 	}
@@ -120,7 +130,6 @@ func (r RunReport) Text() string {
 // program under it, because the program has already written its own diagnosis
 // to this terminal.
 var (
-	errBuild      = errors.New("the ze-perf build failed")
 	errMeasure    = errors.New("the Docker benchmark failed")
 	errRegression = errors.New("the committed history shows a regression")
 )
@@ -134,18 +143,31 @@ func markerError(marker Report) error {
 }
 
 // commandStep runs one command with the child on this terminal and answers its
-// exit code. The compiler and the regression check both go through it.
+// exit code. The regression check goes through it.
 type commandStep func(action string, argv []string, dir string, environ []string) int
 
+// suite is one call of the multi-DUT runner: the steps, the DUTs, and the two
+// programs the runner needs, the le that renders the report and the tags of
+// the linux le it cross-builds for the sender container.
+type suite struct {
+	Root      string
+	Self      string
+	LinuxTags string
+	Steps     perfrunner.Steps
+	DUTs      []string
+}
+
 // measureStep runs the multi-DUT Docker benchmark and answers its exit code.
-// perfBinary is the host program the runner reports with.
-type measureStep func(root, perfBinary string, args []string) int
+type measureStep func(run suite) int
 
 // Bench is one benchmark chain over a checkout. The two process seams are
 // fields so a package test pins what each verb runs without Docker, a compiler,
-// or minutes of machine time.
+// or minutes of machine time. Self is the le running this command, which
+// answers `perf report` and `perf track` for the chain.
 type Bench struct {
 	Root      string
+	Self      string
+	LinuxTags string
 	Toolchain gotoolchain.Toolchain
 	Command   commandStep
 	Measure   measureStep
@@ -161,7 +183,22 @@ func newBench() (*Bench, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Bench{Root: root, Toolchain: toolchain, Command: streamCommand, Measure: measureDUTs}, nil
+	self, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	tags, err := repofeaturetags.DaemonBuildTags(root, leTagBase)
+	if err != nil {
+		return nil, err
+	}
+	return &Bench{
+		Root:      root,
+		Self:      self,
+		LinuxTags: tags,
+		Toolchain: toolchain,
+		Command:   streamCommand,
+		Measure:   measureDUTs,
+	}, nil
 }
 
 // streamCommand runs one command with the child on this terminal.
@@ -170,46 +207,26 @@ func streamCommand(action string, argv []string, dir string, environ []string) i
 	return code
 }
 
-// measureDUTs runs the multi-DUT Docker benchmark in this process.
-//
-// PerfBinary is set rather than left to the runner's own ZE_PERF_BIN lookup:
-// the chain has just built that file, and the program it reports with must be
-// the program it built.
-func measureDUTs(root, perfBinary string, args []string) int {
-	runner := perfrunner.New(root, os.Stdout, os.Stderr)
-	runner.PerfBinary = perfBinary
-	return runner.RunCLI(args)
+// measureDUTs runs the multi-DUT Docker benchmark in this process. The report
+// is rendered by the le running this command, so no host benchmark program is
+// built or looked up.
+func measureDUTs(run suite) int {
+	runner := perfrunner.New(run.Root, os.Stdout, os.Stderr)
+	runner.Reporter = []string{run.Self, area, reportVerb}
+	runner.LinuxTags = run.LinuxTags
+	return runner.Execute(run.Steps, run.DUTs)
 }
 
-// perfBinary answers the host benchmark program's path in this checkout.
-func (b *Bench) perfBinary() string { return filepath.Join(b.Root, "bin", "ze-perf") }
-
-// buildArgv answers the compiler invocation that produces the host ze-perf.
-// It is the retired `$(ZEBIN_PERF)` recipe, whose one command was
-// `CGO_ENABLED=0 go build -tags 'ze_perf ze_bgp' -o bin/ze-perf ./cmd/ze`.
-func (b *Bench) buildArgv() []string {
-	return []string{"go", "build", "-tags", perfTags, "-o", b.perfBinary(), "./cmd/ze"}
-}
-
-// buildEnvOptions pins the host platform. An inherited GOOS or GOARCH names an
-// appliance target, and a target-architecture ze-perf cannot run the report
-// this chain asks it for.
-func buildEnvOptions() gotoolchain.EnvOptions {
-	return gotoolchain.EnvOptions{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH}
-}
-
-// measureArgs answers the runner's own command line for these DUTs. `--build`
-// makes the Docker images, `--test` measures, and the retired ze-perf-bench
-// recipe passed both.
-func measureArgs(duts []string) []string {
-	return append([]string{"--build", "--test"}, duts...)
+// suite answers the runner call for these steps and DUTs over this checkout.
+func (b *Bench) suite(steps perfrunner.Steps, duts []string) suite {
+	return suite{Root: b.Root, Self: b.Self, LinuxTags: b.LinuxTags, Steps: steps, DUTs: duts}
 }
 
 // checkArgv answers the regression check over the ze DUT's committed history.
 // That is the one series the release gate and .github/workflows/perf-nightly.yml
 // both judge: the other DUTs are the comparison, not the subject.
 func (b *Bench) checkArgv() []string {
-	return []string{b.perfBinary(), "track", "--check", b.historyFile(zeDUT)}
+	return []string{b.Self, area, trackVerb, "--check", b.historyFile(zeDUT)}
 }
 
 // historyFile answers one DUT's committed NDJSON history.
@@ -227,18 +244,19 @@ func fail(action string, code int, err error) (RunReport, int) {
 	return RunReport{Action: action, Error: err.Error(), Writes: true, Code: code}, code
 }
 
-// Run builds the benchmark program, measures the named DUTs, and records the
-// marker that clears the nudge. An empty list measures every DUT.
-func (b *Bench) Run(duts []string) (RunReport, int) {
+// Run runs the selected steps over the named DUTs. An empty list selects every
+// DUT. A run that measured records the marker that clears the nudge; a run
+// that only built the images records nothing, because nothing was measured.
+func (b *Bench) Run(steps perfrunner.Steps, duts []string) (RunReport, int) {
 	if err := validateDUTs(duts); err != nil {
 		return fail(runVerb, 1, err)
 	}
-	if code := b.buildPerf(); code != 0 {
-		return fail(runVerb, code, errBuild)
-	}
 	gaterun.Announce(measureAction)
-	if code := b.Measure(b.Root, b.perfBinary(), measureArgs(duts)); code != 0 {
+	if code := b.Measure(b.suite(steps, duts)); code != 0 {
 		return fail(runVerb, code, errMeasure)
+	}
+	if !steps.Test {
+		return RunReport{Action: runVerb, Built: true, Writes: true}, 0
 	}
 	marker, code := b.runner().Record()
 	if code != 0 {
@@ -269,7 +287,7 @@ func (b *Bench) HistoryRecord() (RunReport, int) {
 // history, and fails when that history shows a regression. It is the release
 // evidence gate the retired ze-evidence-perf-record target carried.
 func (b *Bench) EvidenceRecord() (RunReport, int) {
-	if report, code := b.Run([]string{zeDUT}); code != 0 {
+	if report, code := b.Run(bothSteps(), []string{zeDUT}); code != 0 {
 		report.Action = evidenceVerb
 		return report, code
 	}
@@ -295,10 +313,26 @@ func (b *Bench) EvidenceRecord() (RunReport, int) {
 	}, 0
 }
 
-// buildPerf compiles the host benchmark program.
-func (b *Bench) buildPerf() int {
-	options := buildEnvOptions()
-	return b.Command(buildAction, b.buildArgv(), b.Root, b.Toolchain.Environment(options))
+// bothSteps is a run with no step keyword: build the images, then measure.
+func bothSteps() perfrunner.Steps { return perfrunner.Steps{Build: true, Test: true} }
+
+// stepsOf reads the step keyword. No keyword runs both steps. Any value other
+// than stepBuild or stepTest is refused, naming the value, because running
+// both steps on a typo would spend minutes of Docker on work nobody asked for.
+func stepsOf(args leaction.Arguments) (perfrunner.Steps, error) {
+	if !args.Has(stepKeyword) {
+		return bothSteps(), nil
+	}
+	value := args.One(stepKeyword)
+	switch value {
+	case stepBuild:
+		return perfrunner.Steps{Build: true}, nil
+	case stepTest:
+		return perfrunner.Steps{Test: true}, nil
+	}
+	var tb textbuf.Buffer
+	return perfrunner.Steps{}, errors.New(tb.Str("step ").Quoted(value).
+		Str(" is not a step of perf run; use ").Str(stepBuild).Str(" or ").Str(stepTest).String())
 }
 
 // resultFile answers one DUT's result from the last measurement.
@@ -319,7 +353,7 @@ func (b *Bench) results() ([]string, error) {
 		return nil, err
 	}
 	if len(found) == 0 {
-		return nil, fmt.Errorf("no benchmark result in %s: run `le perf-bench run` first", dir)
+		return nil, fmt.Errorf("no benchmark result in %s: run `le perf run` first", dir)
 	}
 	slices.Sort(found)
 	return found, nil

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const defaultFRRImage = "quay.io/frrouting/frr:10.3.1"
@@ -38,7 +39,7 @@ const defaultPMACCTImage = "pmacct/pmbmpd:latest"
 func LabBinaries() []interoplab.LabBinary {
 	return []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop/ze-linux"},
-		{Name: "ze-test", Base: "ze_test", Output: "test/interop/ze-test-linux"},
+		{Name: harnessbin.Name, Base: "ze_test", Output: "test/interop/le-test-linux"},
 	}
 }
 

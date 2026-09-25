@@ -1,17 +1,15 @@
-// Design: docs/architecture/system-architecture.md -- ze-analyze root handler registration
+// Design: docs/architecture/system-architecture.md -- MRT analysis subcommand registration
+// Related: root.go -- the `analyze` root the ze-analyze program registers
 
-// codegen:skip -- the ze_analyze personality wires this, from cmd/ze/ze_analyze_register.go
-// under //go:build ze_analyze. The universal composition root carries no tag, so naming it
-// there would link the MRT analysis commands into the ze daemon as well.
+// codegen:skip -- two entries link this package: `le mrt` (internal/le/mrt), and the
+// ze_analyze personality from cmd/ze/ze_analyze_register.go. The universal composition
+// root carries no tag, so naming it there would link the MRT analysis commands into the
+// ze daemon as well.
 
 package analyze
 
 import (
-	"fmt"
-
-	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/subdispatch"
-	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
 func init() {
@@ -32,17 +30,4 @@ func init() {
 	Register("show", runShow, subdispatch.SubMeta{Desc: "Human-readable MRT record dump (like bgpdump)"})
 	Register("routes", runRoutes, subdispatch.SubMeta{Desc: "Extract prefix table as JSON (prefix, next-hop, AS path, communities)"})
 	Register("serve", runServe, subdispatch.SubMeta{Desc: "Serve MRT file contents over BGP to connecting peers"})
-
-	registry.MustRegisterRootHandler("analyze", func(_ *registry.RuntimeContext, args []string) int {
-		if len(args) == 1 && (args[0] == "--version" || args[0] == "-V") {
-			fmt.Println(zeversion.Short())
-			return 0
-		}
-		return Dispatch(args)
-	}, registry.Meta{
-		ShortHelp: "BGP MRT analysis tools",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subcommands,
-	})
 }

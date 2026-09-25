@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -62,22 +61,12 @@ type netnsBinaries struct {
 	Test     string
 }
 
-func qemuGuestArch() string {
-	if named := os.Getenv("QEMU_GOARCH"); named != "" {
-		return named
-	}
-	if runtime.GOARCH == ArchARM64 {
-		return ArchARM64
-	}
-	return ArchAMD64
-}
-
 func netnsGuestBinaries() netnsBinaries {
 	arch := qemuGuestArch()
 	return netnsBinaries{
 		Ze:       settingFromEnv("ZE_QEMU_BIN", filepath.Join("bin", "ze-linux-"+arch)),
 		Stripped: settingFromEnv("ZE_QEMU_STRIPPED_BIN", filepath.Join("bin", "ze-stripped-linux-"+arch)),
-		Test:     settingFromEnv("ZE_QEMU_TEST_BIN", filepath.Join("bin", "ze-test-linux-"+arch)),
+		Test:     qemuTestBin(),
 	}
 }
 

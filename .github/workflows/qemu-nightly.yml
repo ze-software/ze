@@ -57,7 +57,8 @@ jobs:
           FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/ze-test-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/le-test-linux-amd64 ./cmd/ze
+          ln -f bin/le-test-linux-amd64 bin/ze-test-linux-amd64
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
       - name: Run every Linux-only functional test in the VM
         env:
@@ -70,7 +71,7 @@ jobs:
           kernel tmp/kernel/build/vmlinuz
           packages "coreutils nftables iproute2 iputils-ping kmod iptables libcap e2fsprogs e2fsprogs-extra"
           timeout 5400s
-          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_TEST_BIN=bin/ze-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le test qemu all-tests'
+          command 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN=bin/ze-linux-amd64 ZE_STRIPPED_BIN=bin/ze-stripped-linux-amd64 LE_TEST_BIN=bin/le-test-linux-amd64 ZE_QEMU_SKIP_SUITES=web ZE_QEMU_PARALLEL=2 bin/ze-le-linux-amd64 le test qemu all-tests'
 
   protocol-labs:
     runs-on: ubuntu-latest
@@ -195,7 +196,8 @@ jobs:
           FEATURES='ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web'
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_core zetest ze_distro ze_setup $FEATURES" -o bin/ze-linux-amd64 ./cmd/ze
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags 'ze_core' -o bin/ze-stripped-linux-amd64 ./cmd/ze
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/ze-test-linux-amd64 ./cmd/ze
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_test $FEATURES" -o bin/le-test-linux-amd64 ./cmd/ze
+          ln -f bin/le-test-linux-amd64 bin/ze-test-linux-amd64
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags "ze_le $FEATURES" -o bin/ze-le-linux-amd64 ./cmd/ze
       - name: L2TP PPP appliance proof
         run: sudo -E env "PATH=$PATH" "XDG_CACHE_HOME=$HOME/.cache" ./le test deployment gokrazy-l2tp-ppp-test
@@ -220,7 +222,7 @@ jobs:
           ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "nftables iproute2 libcap kmod"
           timeout 1200s
-          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu pppoe-test'
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 LE_QEMU_TEST_BIN=bin/le-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu pppoe-test'
       - name: ASPA plugin namespace subset
         if: ${{ !cancelled() }}
         env:
@@ -231,7 +233,7 @@ jobs:
           ./le test qemu run kernel tmp/kernel/build/vmlinuz
           packages "nftables iproute2 libcap kmod"
           timeout 1200s
-          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 ZE_QEMU_TEST_BIN=bin/ze-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu netns-test suites plugin'
+          command 'ZE_QEMU_BIN=bin/ze-linux-amd64 ZE_QEMU_STRIPPED_BIN=bin/ze-stripped-linux-amd64 LE_QEMU_TEST_BIN=bin/le-test-linux-amd64 bin/ze-le-linux-amd64 le test qemu netns-test suites plugin'
       - name: Traffic-usage eBPF proof
         if: ${{ !cancelled() }}
         env:

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/peer"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -496,7 +497,8 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 }
 
 func buildZe(ctx context.Context, baseDir string) (string, error) {
-	// "ze.bin" and "ze.test.no.build" are registered in internal/test/runner.
+	// "ze.bin" is registered in internal/test/runner, and le.test.no.build in
+	// internal/test/harnessbin.
 	// BinDir is <baseDir>/bin off-session and this session's private bin/ under
 	// an AI session, so this build cannot overwrite a sibling session's ze while
 	// that session is running tests against it (same reasoning as runner.NewRunner).
@@ -507,7 +509,7 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 		}
 		zePath = v
 	}
-	if env.IsEnabled("ze.test.no.build") {
+	if harnessbin.NoBuild() {
 		_, err := os.Stat(zePath)
 		if err == nil {
 			return zePath, nil

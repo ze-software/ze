@@ -485,7 +485,7 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 	}
 	defer testfunctional.Release(set)
 
-	argv := append([]string{filepath.Join(set.Dir, testfunctional.ZeTest)}, selector...)
+	argv := append([]string{filepath.Join(set.Dir, testfunctional.LETest)}, selector...)
 	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }

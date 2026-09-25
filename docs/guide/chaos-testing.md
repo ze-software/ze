@@ -6,12 +6,19 @@ Ze includes a chaos testing mode that injects faults during operation to verify 
 
 ```bash
 # Run the native chaos unit suites.
-./le test-chaos unit
-./le test-chaos cli-unit
+./le chaos selftest unit
+./le chaos selftest cli-unit
 
-# Build the chaos command.
-go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
+# Run the chaos orchestrator. le builds itself; no separate binary is needed.
+./le chaos run --seed 42 --peers 4 --duration 30s
 ```
+
+`./le chaos run <options>` takes every option the `ze-chaos` program takes and
+behaves the same way. The examples below still spell the program name: `ze-chaos`
+keeps working until it is removed, and each `ze-chaos <options>` line runs the same
+as `./le chaos run <options>`. A help word after `./le chaos run` shows le's page
+for the command, so the options are the ones shown on this page.
+<!-- source: internal/le/chaos/run/run.go -- Answer -->
 
 ## Flags
 
@@ -25,7 +32,7 @@ go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 
 ## ze-chaos Tool
 
-The `ze-chaos` tool is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
+The `ze-chaos` tool, run as `./le chaos run`, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
 
 ![ze-chaos dashboard](img/ze-chaos-dashboard.png)
 
@@ -197,9 +204,10 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 
 | Command | Description |
 |---------|-------------|
-| `./le test-chaos unit` | Run chaos simulator unit tests |
-| `./le test-chaos cli-unit` | Run reduced-tag CLI tests |
-| `go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze` | Build the chaos command |
+| `./le chaos selftest unit` | Run chaos simulator unit tests |
+| `./le chaos selftest cli-unit` | Run reduced-tag CLI tests |
+| `./le chaos run <options>` | Run the chaos orchestrator |
+| `go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze` | Build the old `ze-chaos` program, kept until it is removed |
 
 ## When to Use
 

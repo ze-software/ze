@@ -280,7 +280,7 @@ func TestUISuiteBoundsNativeToolBuilds(t *testing.T) {
 		if suite.Name != suiteUi {
 			continue
 		}
-		want := []string{ZeTest, "ui", allTests, "-p", "8"}
+		want := []string{LETest, "ui", allTests, "-p", "8"}
 		if got := suite.Command(); !slices.Equal(got, want) {
 			t.Fatalf("UI suite command = %v, want %v", got, want)
 		}

@@ -22,12 +22,13 @@ import (
 // the root handler internal/chaos/orchestrator registers, which ze_chaos_run.go
 // imports for its init().
 //
-// It used to call orchestrator.CLIRun directly. That function is `cLIRun` now,
-// unexported, so this file stopped compiling. NOTHING said so: no lint pass and
-// no test run had ever selected the `ze_chaos` build
-// (plan/journal/gate-excludes-part-of-its-population.md). Going through the
-// registry is also the stronger assertion, because it proves the registration
-// that `ze chaos` depends on is present in this build.
+// It does not call orchestrator.CLIRun directly. Going through the registry is
+// the stronger assertion, because it proves the registration that `ze chaos`
+// depends on is present in this build: register.go carries the ze_chaos tag, so
+// a build without it has no root. A direct call once stopped compiling when the
+// entry was unexported, and NOTHING said so, because no lint pass and no test run
+// had ever selected the `ze_chaos` build
+// (plan/journal/gate-excludes-part-of-its-population.md).
 func chaosRun(t *testing.T, args []string) int {
 	t.Helper()
 	handler := registry.LookupRoot("chaos")

@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 var crashSignatures = []string{
@@ -172,7 +173,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 	report.Log = filepath.Join(outDir, slug+"-"+stamp+".log")
 
 	zeBin := binaryFromEnvironment(root, "ze.bin", "ze")
-	testBin := binaryFromEnvironment(root, "ze.test.bin", "ze-test")
+	testBin := harnessBinary(root)
 	var raceBin string
 	if opts.Race {
 		tags, tagErr := raceTags(root, opts.Tags)
@@ -306,6 +307,20 @@ func binaryFromEnvironment(root, key, name string) string {
 		}
 	}
 	return filepath.Join(root, "bin", name)
+}
+
+// harnessBinary answers the harness a repro drives: le.test.bin or its retired
+// spelling, through the one resolver in harnessbin, else bin/le-test.
+func harnessBinary(root string) string {
+	named := harnessbin.TestBin()
+	if named == "" {
+		return filepath.Join(root, "bin", harnessbin.Name)
+	}
+	absolute, err := filepath.Abs(named)
+	if err != nil {
+		return named
+	}
+	return absolute
 }
 
 // raceBase is the personality a race repro compiles, before the gates

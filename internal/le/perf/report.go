@@ -1,13 +1,13 @@
 // Design: docs/architecture/core-design.md -- what the perf nudge answers
-// Overview: perfbench.go -- what produces this
+// Overview: nudge.go -- what produces this
 //
-// report.go holds what `le perf-bench` ANSWERS, apart from what produced it.
+// report.go holds what `le perf suggest` and `le perf record` ANSWER, apart from what produced it.
 //
 // The payload exposes four facts that a reader must not infer.
 // It gives the comparison commit, its source, the uncovered files, and any checkout read error.
 // One key contains rows, so row operators act on the files.
 
-package perfbench
+package perf
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
@@ -63,7 +63,7 @@ func (r Report) Text() string {
 		tb.Str("  ... and ").Int(int64(unnamed)).Str(" more\n")
 	}
 
-	tb.Str("  After the Docker perf run, record it: ./le perf-bench record\n")
+	tb.Str("  After the Docker perf run, record it: ./le perf record\n")
 	tb.Str("  This is advisory -- it never blocks a build.\n")
 	return tb.String()
 }

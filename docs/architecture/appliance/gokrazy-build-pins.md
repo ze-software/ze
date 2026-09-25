@@ -92,11 +92,12 @@ counts needed their own map. 64 pages would otherwise report as 65536.
 
 ## Why a module cache is checked in
 
-`gok` (`cmd/ze-gok`, wrapping `github.com/gokrazy/tools`) compiles every
+`gok` (`./le build gokrazy`, wrapping `github.com/gokrazy/tools`) compiles every
 appliance package in module mode and fetches with `go get`. It has no vendor
 support: a `vendor/` tree in a builddir is ignored. The system and kernel
 modules resolve through `gokrazy/modcache/`, with `GOMODCACHE` set by
-`cmd/ze-gok/main.go`. Ze's prepared build module binds its dependencies to the
+`buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). The old `ze-gok`
+program (`cmd/ze-gok`) sets it the same way until it is removed. Ze's prepared build module binds its dependencies to the
 canonical root vendor tree as described below.
 
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
@@ -109,7 +110,7 @@ selection takes the maximum. A Dependabot alert on a `go.mod` under
 `gokrazy/modcache/` is therefore almost always a stale vendored upstream
 manifest rather than the real dependency graph.
 
-<!-- source: cmd/ze-gok/main.go -- GOMODCACHE and the -modcacherw GOFLAGS append -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run: GOMODCACHE and the -modcacherw GOFLAGS append -->
 <!-- source: gokrazy/modcache/.gitignore -- the init-source whitelist -->
 
 ### Binding the appliance to vendored product sources
@@ -210,8 +211,8 @@ Go's default cache permissions leave directories `r-x`, which makes git unable
 to delete or overwrite modcache files on a later checkout or rebase. Anything
 that downloads into `gokrazy/modcache/` carries `-modcacherw`
 (`GOFLAGS=-modcacherw`). `ze appliance build` sets it through `ensureModcacheRW`
-(`internal/appliance/cmd_build.go`) and `ze-gok` sets it in
-`cmd/ze-gok/main.go`. Keep the flag when running `go mod download` by hand. A
+(`internal/appliance/cmd_build.go`) and `./le build gokrazy` sets it in
+`buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). Keep the flag when running `go mod download` by hand. A
 cache written before the flag existed needs a one-time
 `chmod -R u+w gokrazy/modcache`.
 

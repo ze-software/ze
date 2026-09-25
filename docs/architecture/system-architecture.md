@@ -51,6 +51,15 @@ after the command has answered. It prints one stderr line when a file git holds
 unmodified is newer.
 <!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 
+The same selection lets `le` run inside a container. The perf runner
+cross-builds `le` for linux with `CGO_ENABLED=0` and the tags of the launcher's
+build, and mounts it at `/usr/local/bin/le` in the sender container, where
+`le perf send` measures the DUT. The file is named `le`, so it selects root
+`le`. The container starts with no launcher environment, so
+`ZE_LE_BUILD_NAME` is unset and `refuseWrongBuildName` answers 0.
+<!-- source: internal/test/perfrunner/run.go -- buildLinuxBinary -->
+<!-- source: internal/test/perfrunner/run.go -- runPerf -->
+
 
 Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal `ze` build imports no `internal/le` package,

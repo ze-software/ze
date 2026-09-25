@@ -299,7 +299,7 @@ func runGokInProcess(args []string) error {
 	// and does not force offline, so a module missing from the builddir/modcache
 	// would silently resolve to a NEWER version than the pins choose. off makes
 	// that a loud failure instead. Explicit GOPROXY wins (ze-gokrazy-deps-download is a
-	// separate, network-using target). Mirrors cmd/ze-gok/main.go.
+	// separate, network-using target). Mirrors buildgokrazy.Run (internal/le/build/gokrazy).
 	if os.Getenv("GOPROXY") == "" {
 		if setErr := os.Setenv("GOPROXY", "off"); setErr != nil {
 			return fmt.Errorf("set GOPROXY: %w", setErr)

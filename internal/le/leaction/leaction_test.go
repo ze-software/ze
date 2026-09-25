@@ -902,3 +902,48 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 		t.Error("the keyword after the bare word was not parsed")
 	}
 }
+
+// TestForwardingActionHandsItsWordsOverVerbatim checks the third answer form:
+// the words after the verb reach the action unparsed, options included, the
+// row publishes that it forwards them, and a forwarding action that also
+// declares parameters is refused at registration.
+func TestForwardingActionHandsItsWordsOverVerbatim(t *testing.T) {
+	var got []string
+	area := New("probe", Action{
+		Verb: "send",
+		Why:  "forward the rest of the line",
+		AnswerWords: func(words []string) (any, int) {
+			got = words
+			return nil, 7
+		},
+	})
+	words := []string{"--dut-addr", "10.0.0.1", "free", "-x"}
+	if _, code := area.Answer(append([]string{"send"}, words...)); code != 7 {
+		t.Fatalf("the forwarding action answered %d, want its own 7", code)
+	}
+	if !slices.Equal(got, words) {
+		t.Fatalf("the action received %q, want %q", got, words)
+	}
+	if !area.TakesArguments("send") {
+		t.Error("a sweep would read the forwarded words as verbs")
+	}
+	rows := area.Actions().Actions
+	if len(rows) != 1 || !rows[0].Forwards {
+		t.Fatalf("the row does not publish that it forwards: %+v", rows)
+	}
+	if usage, _ := area.Actions().UsageText("send"); !strings.Contains(usage, "<words>...") {
+		t.Errorf("the usage does not say the verb takes words: %q", usage)
+	}
+
+	defer func() {
+		if recover() == nil {
+			t.Error("New accepted a forwarding action that declares parameters")
+		}
+	}()
+	New("probe", Action{
+		Verb:        "send",
+		Why:         "forward",
+		Parameters:  []Parameter{{Keyword: "dut", Value: "name", Requirement: Optional}},
+		AnswerWords: func([]string) (any, int) { return nil, 0 },
+	})
+}

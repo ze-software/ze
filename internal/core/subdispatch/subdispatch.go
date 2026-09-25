@@ -68,6 +68,24 @@ func (d *Dispatcher) Subcommands() string {
 	return textbuf.Join(d.targetNames(), ", ")
 }
 
+// Target is one registered subcommand: the word typed and its one-line
+// description.
+type Target struct {
+	Name string `json:"name"`
+	Desc string `json:"description"`
+}
+
+// Targets answers every registered subcommand, sorted by name, so a caller that
+// lists them states the registry rather than a copy of it.
+func (d *Dispatcher) Targets() []Target {
+	names := d.targetNames()
+	targets := make([]Target, 0, len(names))
+	for _, name := range names {
+		targets = append(targets, Target{Name: name, Desc: d.metas[name].Desc})
+	}
+	return targets
+}
+
 func (d *Dispatcher) targetNames() []string {
 	names := make([]string, 0, len(d.handlers))
 	for k := range d.handlers {

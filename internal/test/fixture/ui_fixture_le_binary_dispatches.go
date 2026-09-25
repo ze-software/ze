@@ -94,36 +94,36 @@ func leBinaryDispatches(ctx context.Context) error {
 		return uiLeBinaryDispatchesFailf("le --help exited %d", usage.exitCode)
 	}
 	usageText := usage.stderr + usage.stdout
-	for _, command := range []string{"perf-bench", "doc index", "ai tokens"} {
+	for _, command := range []string{"perf", "doc index", "ai tokens"} {
 		if !strings.Contains(usageText, command) {
 			return uiLeBinaryDispatchesFailf("le --help does not list the %s command", command)
 		}
 	}
 
 	// The performance nudge is advisory and must never block the build.
-	listing, err := le("perf-bench", "|", "json")
+	listing, err := le("perf", "|", "json")
 	if err != nil {
 		return err
 	}
 	if listing.exitCode != 0 {
-		return uiLeBinaryDispatchesFailf("`le perf-bench | json` exited %d", listing.exitCode)
+		return uiLeBinaryDispatchesFailf("`le perf | json` exited %d", listing.exitCode)
 	}
 	listingPayload, err := decodeObject(listing.stdout)
 	if err != nil {
-		return uiLeBinaryDispatchesFailf("decode `le perf-bench | json`: %v", err)
+		return uiLeBinaryDispatchesFailf("decode `le perf | json`: %v", err)
 	}
 	verbs, err := actionVerbs(listingPayload)
 	if err != nil {
 		return err
 	}
-	if _, ok := verbs["suggestion-report"]; !ok {
-		return uiLeBinaryDispatchesFailf("the perf-bench area lost suggestion-report: %v", sortedSet(verbs))
+	if _, ok := verbs["suggest"]; !ok {
+		return uiLeBinaryDispatchesFailf("the perf area lost suggest: %v", sortedSet(verbs))
 	}
 	if _, ok := verbs["record"]; !ok {
-		return uiLeBinaryDispatchesFailf("the perf-bench area lists no record verb: %v", sortedSet(verbs))
+		return uiLeBinaryDispatchesFailf("the perf area lists no record verb: %v", sortedSet(verbs))
 	}
 
-	nudge, err := le("perf-bench", "suggestion-report", "|", "json")
+	nudge, err := le("perf", "suggest", "|", "json")
 	if err != nil {
 		return err
 	}

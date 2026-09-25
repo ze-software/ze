@@ -1,7 +1,7 @@
 # Ze image for the general BGP interop lab.
 #
 # It expects two pre-built linux binaries, at test/interop/ze-linux and
-# test/interop/ze-test-linux, which `./le integration interop` cross-compiles
+# test/interop/le-test-linux, which `./le test integration interop` cross-compiles
 # before it builds this image (internal/le/interoplab/zebuild.go, StageBinaries,
 # declared by internal/le/interoplab/bgp/run.go, LabBinaries). A bare
 # `docker build -f test/interop/Dockerfile.ze .` on a clean checkout fails at
@@ -31,7 +31,10 @@ FROM alpine:3.21
 RUN apk add --no-cache tini nftables iproute2
 
 COPY test/interop/ze-linux /usr/local/bin/ze
-COPY test/interop/ze-test-linux /usr/local/bin/ze-test
+COPY test/interop/le-test-linux /usr/local/bin/le-test
+# The harness is le-test. Scenarios that still exec its retired name ze-test
+# reach the same file through this hard link, until the le rename removes it.
+RUN ln /usr/local/bin/le-test /usr/local/bin/ze-test
 
 # tini ensures proper signal handling (SIGTERM → ze process).
 ENTRYPOINT ["tini", "--", "ze"]

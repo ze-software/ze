@@ -3,7 +3,7 @@
 // One package, one register.go, one init(). Adding a tool to le is this file
 // plus a blank import in internal/le/register.go, and nothing else.
 
-package perfbench
+package perf
 
 import (
 	"github.com/ze-software/ze/internal/component/command"
@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "suggest a perf run when BGP data-plane code changed since the last one",
+		ShortHelp: "benchmark BGP against every DUT, track the history, and suggest a run when data-plane code changed",
 		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.

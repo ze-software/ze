@@ -50,10 +50,15 @@ plus `xorriso`.
 `ze appliance iso` checks those tools before it stages an ISO.
 <!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
 
-The vendored gokrazy command lives at `cmd/ze-gok`; the appliance builder calls
-it in process. No separate gokrazy installation or first-party script is
-required.
+The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
+`ze appliance build` calls it directly. A developer runs it with
+`./le build gokrazy <gok args>`, which uses the checked-in module cache, forbids
+network module lookups, and builds `overwrite` from a prepared copy of the
+instance under `tmp/`. The `ze-gok` program (`cmd/ze-gok`) holds the same code and
+keeps working until it is removed. No separate gokrazy installation or
+first-party script is required.
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
+<!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
 
 ## First-time setup
 
@@ -363,7 +368,8 @@ cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox
   main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
   _gokrazy/                 # renamed busybox extrafiles per arch
 cmd/ze-gok/
-  main.go                   # vendored gokrazy command wrapper
+  main.go                   # old program name for `le build gokrazy`, removed later
+internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command wrapper
 ```
 
 The gok source is vendored under `vendor/github.com/gokrazy/`. The small

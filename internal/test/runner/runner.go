@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
@@ -29,18 +30,18 @@ var logger = slogutil.LazyLogger("test.runner")
 const envTypeString = "string"
 
 // Test-runner env vars (also read by internal/test/cli, which imports this package).
+// The harness variables le.test.bin and le.test.no.build are registered in
+// internal/test/harnessbin, which resolves their retired ze. spellings.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.tags", Type: envTypeString, Description: "Extra Go build tags for test builds (comma or space separated)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: envTypeString, Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.bin", Type: envTypeString, Description: "Pre-built ze-test binary path for the test runner (absolute or repo-relative)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.no.build", Type: "bool", Description: "Skip the in-process go build and require pre-built test binaries"})
 )
 
 // Names of the binaries the runner builds, shims, and execs.
 const (
 	binNameZe     = "ze"
 	binNameZePeer = "ze-peer"
-	binNameZeTest = "ze-test"
+	binNameZeTest = "ze-test" // the harness as a .ci execs it; the file is harnessbin.Name
 )
 
 // TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
@@ -210,8 +211,8 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		}
 		zePath = v
 	}
-	testBinPath := filepath.Join(binDir, binNameZeTest)
-	if v := env.Get("ze.test.bin"); v != "" {
+	testBinPath := filepath.Join(binDir, harnessbin.Name)
+	if v := harnessbin.TestBin(); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
 		}
@@ -354,7 +355,7 @@ func (r *Runner) childWorkingDirectory(binName string, rec *Record) string {
 // VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
 // on a fast host, instead of compiling the whole tree inside the VM.
 func (r *Runner) Build(ctx context.Context) error {
-	if env.IsEnabled("ze.test.no.build") {
+	if harnessbin.NoBuild() {
 		return r.verifyPrebuilt()
 	}
 
@@ -389,6 +390,14 @@ func (r *Runner) Build(ctx context.Context) error {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze-test: %w", err)
+	}
+	// Callers still exec the harness by its retired name, so a build of the
+	// default file writes that name beside it (harnessbin.LinkRetired).
+	if filepath.Base(r.testPath) == harnessbin.Name {
+		if _, err := harnessbin.LinkRetired(r.testPath); err != nil {
+			r.display.buildStatus(false, err)
+			return fmt.Errorf("link %s: %w", harnessbin.RetiredName, err)
+		}
 	}
 
 	// Build extra binaries (e.g., ze-chaos for chaos-web tests).
@@ -439,13 +448,13 @@ func (r *Runner) verifyPrebuilt() error {
 	//
 	// An explicit ZE_BIN/ZE_TEST_BIN is exempt: it names ONE binary, so a miss
 	// there must fail loudly rather than silently run a different build.
-	if env.Get("ze.bin") == "" && env.Get("ze.test.bin") == "" {
+	if env.Get("ze.bin") == "" && harnessbin.TestBin() == "" {
 		_, zeErr := os.Stat(r.zePath)
 		_, testErr := os.Stat(r.testPath)
 		if zeErr != nil || testErr != nil {
-			if dir := sessionpath.FindPrebuiltDir(r.baseDir, binNameZe, binNameZeTest); dir != "" {
+			if dir := sessionpath.FindPrebuiltDir(r.baseDir, binNameZe, harnessbin.Name); dir != "" {
 				r.zePath = filepath.Join(dir, binNameZe)
-				r.testPath = filepath.Join(dir, binNameZeTest)
+				r.testPath = filepath.Join(dir, harnessbin.Name)
 			}
 		}
 	}

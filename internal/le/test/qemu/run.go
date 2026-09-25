@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/tmplink"
 	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
 	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -79,7 +80,10 @@ const (
 	runBootKey    = "ze.qemu.boot.timeout"
 	runSSHPortKey = "ze.qemu.ssh.port"
 	runBinaryKey  = "ze.qemu.bin"
-	runTestBinKey = "ze.qemu.test.bin"
+	runTestBinKey = "le.qemu.test.bin"
+	// runRetiredTestBinKey is the spelling le.qemu.test.bin replaces. It is
+	// read when the new key is unset, and warns once (harnessbin.Setting).
+	runRetiredTestBinKey = "ze.qemu.test.bin"
 )
 
 func runSetting(key, fallback, description string) env.EnvEntry {
@@ -99,9 +103,37 @@ var (
 		"the host port forwarded to the QEMU guest SSH server")
 	runBinaryEntry = runSetting(runBinaryKey, "bin/ze-linux-arm64",
 		"the guest ze binary used in keep-alive instructions")
-	runTestBinEntry = runSetting(runTestBinKey, "bin/ze-test-linux-arm64",
-		"the guest ze-test binary used in keep-alive instructions")
+	// runTestBinEntry has no registered default: the default follows the guest
+	// architecture, so qemuTestBin derives it and is the only reader.
+	runTestBinEntry = runSetting(runTestBinKey, "",
+		"the guest le-test binary; default bin/le-test-linux-<guest arch>")
+	_ = env.MustRegister(env.EnvEntry{
+		Key: runRetiredTestBinKey, Type: envTypeString, Private: true, Deprecated: "LE_QEMU_TEST_BIN",
+		Description: "retired spelling of le.qemu.test.bin, read when le.qemu.test.bin is unset",
+	})
 )
+
+// qemuGuestArch answers the architecture of the QEMU guest: QEMU_GOARCH when a
+// caller names one, else the host's, because the guest runs without emulation.
+func qemuGuestArch() string {
+	if named := os.Getenv("QEMU_GOARCH"); named != "" {
+		return named
+	}
+	if runtime.GOARCH == ArchARM64 {
+		return ArchARM64
+	}
+	return ArchAMD64
+}
+
+// qemuTestBin answers the harness binary the guest runs: le.qemu.test.bin, or
+// its retired spelling, else the cross-build for the guest architecture. It is
+// the only reader of the variable, so the variable has one default.
+func qemuTestBin() string {
+	if named := harnessbin.Setting(runTestBinKey, runRetiredTestBinKey); named != "" {
+		return named
+	}
+	return filepath.Join("bin", harnessbin.Name+"-linux-"+qemuGuestArch())
+}
 
 // RunOptions is the invocation after the closed keyword grammar is parsed.
 type RunOptions struct {

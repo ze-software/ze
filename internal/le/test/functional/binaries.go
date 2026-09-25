@@ -45,6 +45,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 var (
@@ -92,7 +93,7 @@ type BinarySet struct {
 }
 
 // zeTestPath is the harness binary a suite is run through.
-func (b BinarySet) zeTestPath() string { return filepath.Join(b.Dir, ZeTest) }
+func (b BinarySet) zeTestPath() string { return filepath.Join(b.Dir, LETest) }
 
 // Environment is the Go environment plus what freezes the runner against this
 // set. A canonical run adds nothing.
@@ -104,10 +105,10 @@ func (b BinarySet) Environment(tc gotoolchain.Toolchain) []string {
 	// Append instead of replace because os/exec uses the last duplicate key.
 	// gotoolchain.Environment uses the same rule for its inherited environment overrides.
 	var tb textbuf.Buffer
-	base = append(base, "ZE_TEST_NO_BUILD=1",
+	base = append(base, harnessbin.EnvNoBuild+"=1",
 		tb.Str("ZE_BIN=").Str(filepath.Join(b.Dir, "ze")).String())
 	tb.Reset()
-	return append(base, tb.Str("ZE_TEST_BIN=").Str(b.zeTestPath()).String())
+	return append(base, tb.Str(harnessbin.EnvTestBin).Byte('=').Str(b.zeTestPath()).String())
 }
 
 // scratchDir answers this session's own directory, or tmp when ZE_SCRATCH_DIR
@@ -234,7 +235,7 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][
 		build(cover, tagString(tc, dutTags...), "ze"),
 		build(cover, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
 		// NOT instrumented: ze-test is the harness, not the subject.
-		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), ZeTest),
+		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), LETest),
 	}
 	if extras.Chaos {
 		commands = append(commands, build(nil, tagString(tc, "ze_chaos", "ze_bgp"), "ze-chaos"))
@@ -328,6 +329,14 @@ func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, 
 			}
 			return BinarySet{}, ErrBuildFailed
 		}
+	}
+	// A .ci still execs the harness by its retired name, so the set carries
+	// that name too, as a hard link to the one file.
+	if _, err := harnessbin.LinkRetired(filepath.Join(binaries, LETest)); err != nil {
+		if remove {
+			removeTree(root)
+		}
+		return BinarySet{}, err
 	}
 	return BinarySet{Dir: binaries, Remove: remove}, nil
 }

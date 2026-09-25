@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 var (
@@ -293,7 +294,7 @@ func commandExpensive(segment string) bool {
 	if base == "go" {
 		return len(tokens) > 1 && oneOf(tokens[1], "test", "build", "vet", "run")
 	}
-	if base == "golangci-lint" || base == "ze-test" || strings.HasPrefix(base, "ze-test-") {
+	if base == "golangci-lint" || harnessRunner(base) {
 		return true
 	}
 	if base == "le" {
@@ -328,18 +329,44 @@ func beforeRedirection(words []string) []string {
 // `le test-unit` print a listing and the run needs `gating` or `all`. `le
 // verify` still runs the gate on its bare name, which is why the exemption
 // names the two areas rather than the shape.
+//
+// `le test <suite>` is the subject-first spelling of the suite areas, so the
+// word after `test` is read as the area: `test unit` is `test-unit`, and `test
+// harness` runs the harness, building it first when it is absent.
 func heavyArea(words []string) bool {
 	words = beforeRedirection(words)
 	if len(words) == 0 {
 		return false
 	}
-	if len(words) == 1 && oneOf(words[0], "functional", "test-unit") {
+	area, rest := words[0], words[1:]
+	if area == "test" && len(rest) > 0 {
+		area, rest = rest[0], rest[1:]
+		if area == "harness" {
+			return true
+		}
+		if area == "unit" {
+			area = "test-unit"
+		}
+	}
+	if len(rest) == 0 && oneOf(area, "functional", "test-unit") {
 		return false
 	}
-	if len(words) > 1 && words[0] == "verify" && oneOf(words[1], "status", "summary") {
+	if len(rest) > 0 && area == "verify" && oneOf(rest[0], "status", "summary") {
 		return false
 	}
-	return oneOf(words[0], "verify", "functional", "integration", "qemu", "test-unit")
+	return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit")
+}
+
+// harnessRunner reports whether a program's base name is the functional test
+// harness: le-test, its retired name ze-test, or a cross-build of either such
+// as le-test-linux-arm64.
+func harnessRunner(base string) bool {
+	for _, name := range []string{harnessbin.Name, harnessbin.RetiredName} {
+		if base == name || strings.HasPrefix(base, name+"-") {
+			return true
+		}
+	}
+	return false
 }
 
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
@@ -432,7 +459,7 @@ func rawHeavy(segment string) (string, string) {
 		}
 		return "`golangci-lint`", admittedCommand("lint", tokens)
 	}
-	if base == "ze-test" || strings.HasPrefix(base, "ze-test-") {
+	if harnessRunner(base) {
 		suite := "<suite>"
 		positional := make([]string, 0, 2)
 		for _, token := range tokens[1:] {

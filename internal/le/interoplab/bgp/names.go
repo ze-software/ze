@@ -3,6 +3,8 @@
 // Related: checkers.go, check_extras.go -- the scenario tables that read them.
 package bgp
 
+import "github.com/ze-software/ze/internal/test/harnessbin"
+
 // Peers. A name is the container's role in a scenario lab. It is the
 // PeerConfig name, the stem of the container name, and the peer argument that
 // Exec, Query, Logs, Pause, and Unpause take.
@@ -29,7 +31,7 @@ const (
 	cmdGoBGP     = "gobgp"
 	cmdCat       = "cat"
 	cmdIptables  = "iptables"
-	zeTestBinary = "ze-test"
+	zeTestBinary = harnessbin.Name
 )
 
 // signalTERM is the graceful-shutdown signal an opSignal step sends a peer. It

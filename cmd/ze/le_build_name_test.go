@@ -119,3 +119,33 @@ func captureBuildNameStderr(t *testing.T, run func()) string {
 	}
 	return message
 }
+
+// TestPerfSendAnswersWithoutLauncherEnv pins AC-27 of
+// plan/spec-le-subject-first-command-tree.md: the perf sender container runs a
+// file named le with no launcher environment, so ZE_LE_BUILD_NAME is unset.
+// The guard must let it through and the name must select the le root, or
+// `le perf send` answers nothing inside the container.
+func TestPerfSendAnswersWithoutLauncherEnv(t *testing.T) {
+	t.Setenv("ZE_LE_BUILD_NAME", "")
+	if err := os.Unsetenv("ZE_LE_BUILD_NAME"); err != nil {
+		t.Fatalf("unset: %v", err)
+	}
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	saved := slices.Clone(os.Args)
+	os.Args = []string{"/usr/local/bin/le"}
+	t.Cleanup(func() { os.Args = saved })
+
+	var guard, code int
+	message := captureBuildNameStderr(t, func() {
+		guard = refuseWrongBuildName()
+		code = defaultDispatch([]string{"perf", "send", "--help"})
+	})
+	if guard != 0 {
+		t.Fatalf("refuseWrongBuildName() = %d with no launcher environment (stderr %q)", guard, message)
+	}
+	if code != 0 {
+		t.Fatalf("`le perf send --help` exited %d, want 0 (stderr %q)", code, message)
+	}
+}

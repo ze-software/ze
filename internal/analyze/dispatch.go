@@ -12,3 +12,6 @@ func Register(name string, handler func([]string) int, meta subdispatch.SubMeta)
 
 func Dispatch(args []string) int { return dispatcher.Dispatch(args) }
 func Subcommands() string        { return dispatcher.Subcommands() }
+
+// Targets answers every registered subcommand with its description, sorted by name.
+func Targets() []subdispatch.Target { return dispatcher.Targets() }

@@ -1,25 +1,25 @@
 // Related: bench.go -- the three chains these tests drive from their entry points
 //
 // VALIDATES: the retired ze-perf-bench, ze-perf-history-record and
-// ze-evidence-perf-record chains, as the argv of each step, the order the steps
-// run in, and the history line each result becomes.
-// PREVENTS: a benchmark action that compiles a target-architecture ze-perf, one
-// that measures a DUT the runner does not know, and a history append that puts
-// a file the regression check cannot read into the committed NDJSON.
+// ze-evidence-perf-record chains, as the runner call and argv of each step, the
+// order the steps run in, and the history line each result becomes.
+// PREVENTS: a benchmark action that looks for a host ze-perf, one that measures
+// a DUT the runner does not know, and a history append that puts a file the
+// regression check cannot read into the committed NDJSON.
 
-package perfbench
+package perf
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
+	"github.com/ze-software/ze/internal/test/perfrunner"
 )
 
 const fixturePin = "go1.26.6"
@@ -36,30 +36,31 @@ type step struct {
 // recorder holds the chain a fake run produced.
 type recorder struct {
 	steps    []step
-	measured []string
-	perfBin  string
-	buildRC  int
+	measured suite
 	checkRC  int
 	measRC   int
 }
 
-// build is the compiler seam. The evidence chain sends its regression check
-// through the same seam, so the recorder answers each with its own code.
-func (r *recorder) build(action string, argv []string, dir string, environ []string) int {
+// command is the process seam the evidence chain sends its regression check
+// through.
+func (r *recorder) command(action string, argv []string, dir string, environ []string) int {
 	r.steps = append(r.steps, step{Action: action, Argv: argv, Dir: dir, Environ: environ})
-	if action == checkAction {
-		return r.checkRC
-	}
-	return r.buildRC
+	return r.checkRC
 }
 
 // measure is the Docker benchmark seam.
-func (r *recorder) measure(root, perfBinary string, args []string) int {
-	r.steps = append(r.steps, step{Action: "measure", Argv: args, Dir: root})
-	r.measured = args
-	r.perfBin = perfBinary
+func (r *recorder) measure(run suite) int {
+	r.steps = append(r.steps, step{Action: "measure", Argv: run.DUTs, Dir: run.Root})
+	r.measured = run
 	return r.measRC
 }
+
+// fixtureSelf and fixtureTags stand in for the running le and the tags of the
+// linux le the runner cross-builds.
+const (
+	fixtureSelf = "/repo/bin/le"
+	fixtureTags = "ze_le ze_bgp"
+)
 
 // fixtureBench answers a chain over a throwaway checkout with both process
 // seams recorded.
@@ -69,8 +70,10 @@ func fixtureBench(t *testing.T) (*Bench, *recorder) {
 	rec := &recorder{}
 	bench := &Bench{
 		Root:      root,
+		Self:      fixtureSelf,
+		LinuxTags: fixtureTags,
 		Toolchain: gotoolchain.Toolchain{Root: root, GoToolchain: fixturePin},
-		Command:   rec.build,
+		Command:   rec.command,
 		Measure:   rec.measure,
 	}
 	return bench, rec
@@ -98,82 +101,32 @@ func writeResult(t *testing.T, bench *Bench, dut, body string) {
 	}
 }
 
-// TestBuildArgvIsTheRetiredZePerfBuildRecipe pins the one command the retired
-// $(ZEBIN_PERF) rule ran, and the host platform pin that keeps its output
-// runnable on this machine.
-func TestBuildArgvIsTheRetiredZePerfBuildRecipe(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "checkout")
-	bench := &Bench{Root: root, Toolchain: gotoolchain.Toolchain{Root: root, GoToolchain: fixturePin}}
-
-	want := []string{
-		"go", "build",
-		"-tags", "ze_perf ze_bgp",
-		"-o", filepath.Join(root, "bin", "ze-perf"),
-		"./cmd/ze",
-	}
-	if got := bench.buildArgv(); !reflect.DeepEqual(got, want) {
-		t.Fatalf("build argv = %#v, want %#v", got, want)
-	}
-
-	wantEnvironment := []string{
-		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
-		"CGO_ENABLED=0",
-		"GOTOOLCHAIN=" + fixturePin,
-		"GOOS=" + runtime.GOOS,
-		"GOARCH=" + runtime.GOARCH,
-	}
-	if got := bench.Toolchain.Overrides(buildEnvOptions()); !reflect.DeepEqual(got, wantEnvironment) {
-		t.Fatalf("build environment = %#v, want %#v", got, wantEnvironment)
-	}
-}
-
-// TestMeasureArgsAskTheRunnerToBuildImagesAndTest pins the runner command line
-// the retired ze-perf-bench recipe passed, with and without a DUT selection.
-func TestMeasureArgsAskTheRunnerToBuildImagesAndTest(t *testing.T) {
-	if got := measureArgs(nil); !reflect.DeepEqual(got, []string{"--build", "--test"}) {
-		t.Fatalf("every-DUT args = %#v", got)
-	}
-	if got := measureArgs([]string{"ze", "bird"}); !reflect.DeepEqual(got, []string{"--build", "--test", "ze", "bird"}) {
-		t.Fatalf("selected args = %#v", got)
-	}
-}
-
 // TestCheckArgvReadsTheCommittedHistoryOfOneDUT pins the regression check the
-// release evidence gate and the nightly workflow both run.
+// evidence gate runs: the le running the chain, as `perf track --check`.
 func TestCheckArgvReadsTheCommittedHistoryOfOneDUT(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "checkout")
-	bench := &Bench{Root: root}
-	want := []string{
-		filepath.Join(root, "bin", "ze-perf"),
-		"track", "--check",
-		filepath.Join(root, "test", "perf", "history", "ze.ndjson"),
-	}
+	bench, _ := fixtureBench(t)
+	want := []string{fixtureSelf, "perf", "track", "--check",
+		filepath.Join(bench.Root, "test", "perf", "history", "ze.ndjson")}
 	if got := bench.checkArgv(); !reflect.DeepEqual(got, want) {
-		t.Fatalf("check argv = %#v, want %#v", got, want)
+		t.Fatalf("checkArgv = %#v, want %#v", got, want)
 	}
 }
 
-// TestRunBuildsThenMeasuresThenRecords is the ze-perf-bench chain in order.
-func TestRunBuildsThenMeasuresThenRecords(t *testing.T) {
+// TestRunMeasuresThenRecords is the ze-perf-bench chain in order: one runner
+// call with both steps, the running le as the reporter, then the marker.
+func TestRunMeasuresThenRecords(t *testing.T) {
 	bench, rec := fixtureBench(t)
 
-	report, code := bench.Run([]string{"ze"})
+	report, code := bench.Run(bothSteps(), []string{"ze"})
 	if code != 0 {
 		t.Fatalf("Run answered %d: %s", code, report.Error)
 	}
-	if len(rec.steps) != 2 {
-		t.Fatalf("the chain ran %d steps: %#v", len(rec.steps), rec.steps)
+	if len(rec.steps) != 1 || rec.steps[0].Action != "measure" {
+		t.Fatalf("the chain ran %#v, want the measurement alone", rec.steps)
 	}
-	if rec.steps[0].Action != buildAction || rec.steps[1].Action != "measure" {
-		t.Fatalf("the chain ran %s then %s, want the build then the measurement",
-			rec.steps[0].Action, rec.steps[1].Action)
-	}
-	if !reflect.DeepEqual(rec.measured, []string{"--build", "--test", "ze"}) {
-		t.Fatalf("the runner was asked for %#v", rec.measured)
-	}
-	if rec.perfBin != bench.perfBinary() {
-		t.Fatalf("the runner reports with %q, want the binary the chain built at %q", rec.perfBin, bench.perfBinary())
+	want := suite{Root: bench.Root, Self: fixtureSelf, LinuxTags: fixtureTags, Steps: bothSteps(), DUTs: []string{"ze"}}
+	if !reflect.DeepEqual(rec.measured, want) {
+		t.Fatalf("the runner was asked for %#v, want %#v", rec.measured, want)
 	}
 	if report.Recorded == "" {
 		t.Fatal("the run wrote no marker, so the nudge would still ask for a perf run")
@@ -183,20 +136,44 @@ func TestRunBuildsThenMeasuresThenRecords(t *testing.T) {
 	}
 }
 
-// TestRunStopsWhenTheBuildFails keeps a failed compile from reaching Docker.
-func TestRunStopsWhenTheBuildFails(t *testing.T) {
+// TestRunStopsWhenTheMeasurementFails keeps a failed run, the linux le build
+// included, from writing the marker that clears the nudge.
+func TestRunStopsWhenTheMeasurementFails(t *testing.T) {
 	bench, rec := fixtureBench(t)
-	rec.buildRC = 2
+	rec.measRC = 2
 
-	report, code := bench.Run(nil)
+	report, code := bench.Run(bothSteps(), nil)
 	if code != 2 {
-		t.Fatalf("Run answered %d, want the compiler's own 2", code)
-	}
-	if len(rec.steps) != 1 {
-		t.Fatalf("the chain ran %d steps after a failed build", len(rec.steps))
+		t.Fatalf("Run answered %d, want the runner's own 2", code)
 	}
 	if report.Error == "" || report.Recorded != "" {
-		t.Fatalf("report = %+v, want the build failure and no marker", report)
+		t.Fatalf("report = %+v, want the failure and no marker", report)
+	}
+	if _, err := os.Stat(filepath.Join(bench.Root, filepath.FromSlash(MarkerPath))); err == nil {
+		t.Fatal("a failed run wrote the marker")
+	}
+}
+
+// TestRunBuildOnlyRecordsNothing is `perf run step build`: the images are
+// built, nothing is measured, so no marker is written.
+func TestRunBuildOnlyRecordsNothing(t *testing.T) {
+	bench, rec := fixtureBench(t)
+
+	report, code := bench.Run(perfrunner.Steps{Build: true}, []string{"ze"})
+	if code != 0 {
+		t.Fatalf("Run answered %d: %s", code, report.Error)
+	}
+	if !report.Built || report.Recorded != "" {
+		t.Fatalf("report = %+v, want built and nothing recorded", report)
+	}
+	if rec.measured.Steps != (perfrunner.Steps{Build: true}) {
+		t.Fatalf("the runner was asked for %+v, want the build step alone", rec.measured.Steps)
+	}
+	if _, err := os.Stat(filepath.Join(bench.Root, filepath.FromSlash(MarkerPath))); err == nil {
+		t.Fatal("a build-only run wrote the marker")
+	}
+	if text := report.Text(); !strings.Contains(text, "built") {
+		t.Fatalf("the prose does not say the images were built: %q", text)
 	}
 }
 
@@ -204,7 +181,7 @@ func TestRunStopsWhenTheBuildFails(t *testing.T) {
 func TestRunRefusesADUTTheRunnerDoesNotKnow(t *testing.T) {
 	bench, rec := fixtureBench(t)
 
-	report, code := bench.Run([]string{"zebra"})
+	report, code := bench.Run(bothSteps(), []string{"zebra"})
 	if code != 1 {
 		t.Fatalf("Run answered %d, want 1", code)
 	}
@@ -294,7 +271,7 @@ func TestHistoryRecordRefusesAFileThatIsNotAResult(t *testing.T) {
 }
 
 // TestEvidenceRecordMeasuresZeAppendsAndChecks is the ze-evidence-perf-record
-// chain, whose four steps are the release evidence this gate produces.
+// chain, whose steps are the release evidence this gate produces.
 func TestEvidenceRecordMeasuresZeAppendsAndChecks(t *testing.T) {
 	bench, rec := fixtureBench(t)
 	// The runner writes the result; the fake measurement stands in for it.
@@ -304,17 +281,17 @@ func TestEvidenceRecordMeasuresZeAppendsAndChecks(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("EvidenceRecord answered %d: %s", code, report.Error)
 	}
-	if len(rec.steps) != 3 {
+	if len(rec.steps) != 2 {
 		t.Fatalf("the chain ran %d steps: %#v", len(rec.steps), rec.steps)
 	}
-	if !reflect.DeepEqual(rec.measured, []string{"--build", "--test", zeDUT}) {
-		t.Fatalf("the gate measured %#v, want the ze DUT alone", rec.measured)
+	if !reflect.DeepEqual(rec.measured.DUTs, []string{zeDUT}) || rec.measured.Steps != bothSteps() {
+		t.Fatalf("the gate measured %+v, want both steps over the ze DUT alone", rec.measured)
 	}
-	if rec.steps[2].Action != checkAction {
-		t.Fatalf("the third step is %q, want the regression check", rec.steps[2].Action)
+	if rec.steps[1].Action != checkAction {
+		t.Fatalf("the second step is %q, want the regression check", rec.steps[1].Action)
 	}
-	if !reflect.DeepEqual(rec.steps[2].Argv, bench.checkArgv()) {
-		t.Fatalf("the check ran %#v, want %#v", rec.steps[2].Argv, bench.checkArgv())
+	if !reflect.DeepEqual(rec.steps[1].Argv, bench.checkArgv()) {
+		t.Fatalf("the check ran %#v, want %#v", rec.steps[1].Argv, bench.checkArgv())
 	}
 	if report.Checked != bench.historyFile(zeDUT) || report.Recorded == "" {
 		t.Fatalf("report = %+v, want the history it checked and the marker it wrote", report)
@@ -368,7 +345,7 @@ func TestActionTableDeclaresTheThreeBenchmarkVerbs(t *testing.T) {
 	}
 	// The two verbs that read the checkout stay, because the nudge and its
 	// marker are what every other tool in the repository calls this area for.
-	for _, verb := range []string{"suggestion-report", recordVerb} {
+	for _, verb := range []string{suggestVerb, recordVerb} {
 		if _, ok := rows[verb]; !ok {
 			t.Fatalf("the area lost its %q verb", verb)
 		}

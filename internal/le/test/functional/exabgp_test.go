@@ -95,14 +95,14 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if environment["GOTOOLCHAIN"] != "go1.26.6" {
 		t.Fatalf("GOTOOLCHAIN = %q, want go1.26.6", environment["GOTOOLCHAIN"])
 	}
-	if environment["ZE_TEST_NO_BUILD"] != "1" {
-		t.Fatalf("ZE_TEST_NO_BUILD = %q, want 1", environment["ZE_TEST_NO_BUILD"])
+	if environment["LE_TEST_NO_BUILD"] != "1" {
+		t.Fatalf("LE_TEST_NO_BUILD = %q, want 1", environment["LE_TEST_NO_BUILD"])
 	}
 	if environment["ZE_BIN"] != ze.Artifact {
 		t.Fatalf("ZE_BIN = %q, want %q", environment["ZE_BIN"], ze.Artifact)
 	}
-	if environment["ZE_TEST_BIN"] != zeTest.Artifact {
-		t.Fatalf("ZE_TEST_BIN = %q, want %q", environment["ZE_TEST_BIN"], zeTest.Artifact)
+	if environment["LE_TEST_BIN"] != zeTest.Artifact {
+		t.Fatalf("LE_TEST_BIN = %q, want %q", environment["LE_TEST_BIN"], zeTest.Artifact)
 	}
 	if len(report.Artifacts) != 2 {
 		t.Fatalf("artifacts = %#v, want ze and ze-test", report.Artifacts)

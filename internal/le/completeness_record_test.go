@@ -282,10 +282,10 @@ var portedProducers = []portedProducer{
 	{Target: "ze-installer-build", Area: "build installer", Verb: "amd64", Note: "arm64 carries the second half the target ran"},
 	{Target: "ze-gokrazy-gosum-check", Area: "build gosum"},
 	{Target: "ze-netlab-render-check", Area: "test netlab", Verb: "render-check"},
-	{Target: "ze-perf-suggestion-report", Area: "perf-bench", Verb: "suggestion-report"},
-	{Target: "ze-perf-bench", Area: "perf-bench", Verb: "run", Note: "the action builds bin/ze-perf, drives the multi-DUT runner that test/perf/run.py was ported into (internal/test/perfrunner.Runner.RunCLI), and writes the suggestion marker the target ended on"},
-	{Target: "ze-perf-history-record", Area: "perf-bench", Verb: "history-record", Note: "the recipe's `ze-perf track --append` never existed, so the action appends each result as one compacted line of test/perf/history/<dut>.ndjson, which is what the Python did"},
-	{Target: "ze-evidence-perf-record", Area: "perf-bench", Verb: "evidence-record", Note: "run, append, then `ze-perf track --check` over the history, which is the regression gate the recipe ended on"},
+	{Target: "ze-perf-suggestion-report", Area: "perf", Verb: "suggest"},
+	{Target: "ze-perf-bench", Area: "perf", Verb: "run", Note: "the action drives the multi-DUT runner that test/perf/run.py was ported into (internal/test/perfrunner.Runner.Execute), which cross-builds a linux le for the sender container, and writes the suggestion marker the target ended on"},
+	{Target: "ze-perf-history-record", Area: "perf", Verb: "history-record", Note: "the recipe's `ze-perf track --append` never existed, so the action appends each result as one compacted line of test/perf/history/<dut>.ndjson, which is what the Python did"},
+	{Target: "ze-evidence-perf-record", Area: "perf", Verb: "evidence-record", Note: "run, append, then `le perf track --check` over the history, which is the regression gate the recipe ended on"},
 
 	// The published terminal demonstrations.
 	{Target: "ze-terminal-demo-image-build", Area: "site terminal-demo", Verb: "image-build", Note: "the action reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},

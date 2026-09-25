@@ -25,6 +25,7 @@ test/
 # declarations rather than from a second hand-written record.
 !test/interop/ze-linux
 !test/interop/ze-test-linux
+!test/interop/le-test-linux
 !test/interop-ipsec/ze-linux
 !test/interop-l2tp/ze-linux
 !test/interop-pppoe/ze-linux

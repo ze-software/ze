@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -219,6 +220,10 @@ func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
 			continue
 		}
 		artifactErr := exaBGPCheckArtifact(command.Artifact)
+		// The harness build also writes its retired name (harnessbin.LinkRetired).
+		if artifactErr == nil && filepath.Base(command.Artifact) == LETest {
+			_, artifactErr = harnessbin.LinkRetired(command.Artifact)
+		}
 		if artifactErr == nil {
 			continue
 		}
@@ -307,7 +312,7 @@ func exaBGPCommands(
 				return nil, errors.New("functional artifact owner declared ze more than once")
 			}
 			zeFound = true
-		case ZeTest:
+		case LETest:
 			if zeTestFound {
 				return nil, errors.New("functional artifact owner declared ze-test more than once")
 			}
@@ -334,9 +339,9 @@ func exaBGPCommands(
 	runEnvironment := set.Environment(toolchain)
 	runReportEnvironment := toolchain.Overrides(gotoolchain.EnvOptions{})
 	zePathEnvironment := tb.Reset().Str("ZE_BIN=").Str(filepath.Join(set.Dir, "ze")).String()
-	zeTestPathEnvironment := tb.Reset().Str("ZE_TEST_BIN=").Str(set.zeTestPath()).String()
+	zeTestPathEnvironment := tb.Reset().Str(harnessbin.EnvTestBin).Byte('=').Str(set.zeTestPath()).String()
 	runReportEnvironment = append(runReportEnvironment,
-		"ZE_TEST_NO_BUILD=1",
+		harnessbin.EnvNoBuild+"=1",
 		zePathEnvironment,
 		zeTestPathEnvironment,
 	)

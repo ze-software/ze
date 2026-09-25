@@ -310,8 +310,12 @@ resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
 
 ## Which binaries a fixture reaches
 
-A fixture runs `ze` by bare name. The runner builds its own `ze` and `ze-test`
-into a throwaway directory. It symlinks both under bare names into a shim
+A fixture runs `ze` by bare name. The runner builds its own `ze` and the
+harness into a throwaway directory. The harness file is `le-test`
+(`harnessbin.Name`), and every builder also writes its retired name `ze-test` as
+a hard link, which the `.ci` files exec until the le rename rewrites them.
+`./le test harness <argv>` builds `bin/le-test` under job admission when it is
+absent, then runs it with `<argv>` and answers its exit code. It symlinks both under bare names into a shim
 directory, and prepends that directory to every child's PATH. So
 `exec.LookPath` and `exec.Command("ze", ...)` name the binary this run built.
 The shim exists because a cross-compiled binary carries its target in the file

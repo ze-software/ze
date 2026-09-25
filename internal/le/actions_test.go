@@ -32,8 +32,10 @@ var areasWithoutAnActionTable = []string{
 	"ai digest",
 	"ai tokens",
 	"arch iface-resolution",
+	"build gokrazy",
 	"build gosum",
 	"build host-driver",
+	"chaos run",
 	"cli grammar",
 	"cli list",
 	"cli ownership",
@@ -44,6 +46,7 @@ var areasWithoutAnActionTable = []string{
 	"doc yang-contract",
 	"go extract",
 	"job",
+	"mrt",
 	"repo inventory",
 	"repo tracked-le",
 	"repo working-tree",
@@ -185,6 +188,11 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 // what it declares it takes: probing it would RUN the action, and every probe
 // here is refused before an action body.
 func probesFor(row leaction.Row) [][]string {
+	// A forwarding verb publishes that its words are another program's
+	// command line, so the table refuses none of them and no probe applies.
+	if row.Forwards {
+		return nil
+	}
 	probes := [][]string{
 		{row.Verb, probeWord},
 		{row.Verb, probeWord, probeWord + "-second"},
@@ -275,11 +283,16 @@ func referenceArea(t *testing.T, list leaction.List) leaction.Area {
 			Verb: row.Verb, Why: row.Why, Writes: row.Writes, Alone: row.Alone,
 			Parameters: row.Parameters,
 		}
-		if len(row.Parameters) == 0 {
+		switch {
+		case row.Forwards:
+			action.AnswerWords = func([]string) (any, int) {
+				panic("BUG: le: a probe reached a reference action body")
+			}
+		case len(row.Parameters) == 0:
 			action.Answer = func() (any, int) {
 				panic("BUG: le: a probe reached a reference action body")
 			}
-		} else {
+		default:
 			action.AnswerArgs = func(leaction.Arguments) (any, int) {
 				panic("BUG: le: a probe reached a reference action body")
 			}

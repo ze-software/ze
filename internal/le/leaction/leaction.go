@@ -144,6 +144,12 @@ type Action struct {
 	Answer func() (any, int)
 	// AnswerArgs runs an action after Area validates and parses its parameters.
 	AnswerArgs func(Arguments) (any, int)
+	// AnswerWords runs an action whose words after the verb are the command
+	// line of another program, handed over verbatim. `le perf track --check
+	// <history>` is the benchmark program's own `track --check <history>`. The
+	// table owns no grammar for those words, so it publishes that it forwards
+	// them (Row.Forwards) and refuses none of them; the program does.
+	AnswerWords func(words []string) (any, int)
 }
 
 // Area is one tool package's whole command surface: the name it is typed as,
@@ -163,8 +169,10 @@ func New(name string, actions ...Action) Area {
 		switch {
 		case act.Verb == "":
 			panic("BUG: leaction.New: an action needs a Verb; see the init frame above for the area")
-		case (act.Answer == nil) == (act.AnswerArgs == nil):
-			panic("BUG: leaction.New: an action needs exactly one Answer or AnswerArgs")
+		case answerCount(act) != 1:
+			panic("BUG: leaction.New: an action needs exactly one Answer, AnswerArgs or AnswerWords")
+		case act.AnswerWords != nil && len(act.Parameters) != 0:
+			panic("BUG: leaction.New: a forwarding action declares parameters, and the words it forwards are not its grammar")
 		case act.Answer != nil && len(act.Parameters) != 0:
 			panic("BUG: leaction.New: a zero-argument action declares parameters")
 		case act.AnswerArgs != nil && len(act.Parameters) == 0:
@@ -212,6 +220,21 @@ func New(name string, actions ...Action) Area {
 	return area
 }
 
+// answerCount answers how many of the three answer forms one action sets.
+func answerCount(act Action) int {
+	count := 0
+	if act.Answer != nil {
+		count++
+	}
+	if act.AnswerArgs != nil {
+		count++
+	}
+	if act.AnswerWords != nil {
+		count++
+	}
+	return count
+}
+
 // Name answers the word this area is typed as, which is the root command's
 // name.
 func (a Area) Name() string { return a.name }
@@ -237,13 +260,14 @@ func (a Area) Holds(verb string) bool {
 }
 
 // TakesArguments reports whether the named action declares a closed keyword
-// grammar. An area that sweeps several actions on one command line asks this
-// to tell an action's VALUES from the next action's NAME: `render name term`
-// is one action and two words of grammar, never three actions.
+// grammar or forwards its words. An area that sweeps several actions on one
+// command line asks this to tell an action's VALUES from the next action's
+// NAME: `render name term` is one action and two words of grammar, never three
+// actions.
 func (a Area) TakesArguments(name string) bool {
 	for _, act := range a.actions {
 		if a.verbOf(act) == name {
-			return len(act.Parameters) != 0
+			return len(act.Parameters) != 0 || act.AnswerWords != nil
 		}
 	}
 	return false
@@ -263,6 +287,10 @@ type Row struct {
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
 	Parameters []Parameter `json:"parameters,omitempty"`
+	// Forwards publishes that the words after this verb are another program's
+	// command line (Action.AnswerWords), so no word there is this table's to
+	// refuse.
+	Forwards bool `json:"forwards,omitempty"`
 }
 
 // List is what `le <area>` answers when no action is named. It is the area
@@ -282,6 +310,7 @@ func (a Area) Actions() List {
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			Parameters: slices.Clone(act.Parameters),
+			Forwards:   act.AnswerWords != nil,
 		})
 	}
 	return list
@@ -331,6 +360,9 @@ func (l List) UsageText(verb string) (string, bool) {
 		tb.Str("usage: le ").Str(l.Area).Byte(' ').Str(row.Verb)
 		for _, parameter := range row.Parameters {
 			tb.Byte(' ').Str(parameterForm(parameter))
+		}
+		if row.Forwards {
+			tb.Str(" [<words>...]")
 		}
 		tb.Str(" [| json | yaml | table]").Byte('\n')
 		tb.Str("  ").Str(row.Why).Byte('\n')
@@ -493,6 +525,9 @@ func (a Area) Answer(args []string) (any, int) {
 		// refuses it and answers 2, in this slot and in every earlier one.
 		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
+		}
+		if act.AnswerWords != nil {
+			return act.AnswerWords(args[1:])
 		}
 		if act.AnswerArgs != nil {
 			parsed, err := parseArguments(act.Parameters, args[1:])

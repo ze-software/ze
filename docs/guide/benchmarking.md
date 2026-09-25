@@ -6,6 +6,11 @@ including Ze.
 
 <!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
 
+`le` runs the same three subcommands: `le perf send` is `ze-perf run`, and
+`le perf report` and `le perf track` keep their names. Every word after the
+verb reaches the program unchanged, and the program's exit code is le's.
+<!-- source: internal/le/perf/actions.go -- programVerbs -->
+
 ## Architecture
 
 ```
@@ -114,37 +119,43 @@ The included test runner benchmarks all eight supported implementations in Docke
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 
 ```bash
-# Build the benchmark binary.
-go build -tags ze_perf -o bin/ze-perf ./cmd/ze
-
-# Build all DUT images and run the native benchmark driver.
-go run ./cmd/ze-perf-run --build --test
-
-# Run selected DUTs or override the workload.
-go run ./cmd/ze-perf-run --build --test ze bird rustbgpd
-DUT_ROUTES=10000 DUT_REPEAT=5 go run ./cmd/ze-perf-run --test ze
-```
-<!-- source: cmd/ze-perf-run/main.go -- main -->
-<!-- source: internal/test/perfrunner/run.go -- RunCLI -->
-
-The native action runs the same chain, and it records the run so the perf nudge
-(`./le perf-bench suggestion-report`) stops asking for one:
-
-```bash
-# Build bin/ze-perf, measure every DUT, and record the run.
-./le perf-bench run
+# Build every DUT image, measure every DUT, and record the run.
+./le perf run
 
 # Measure one DUT, or several.
-./le perf-bench run dut ze
-./le perf-bench run dut "ze bird"
+./le perf run dut ze
+./le perf run dut "ze bird rustbgpd"
+
+# Run one step: build the images only, or measure with the images that exist.
+./le perf run step build
+DUT_ROUTES=10000 DUT_REPEAT=5 ./le perf run step test dut ze
 
 # Append the results of the last measurement to the committed NDJSON history.
-./le perf-bench history-record
+./le perf history-record
 
 # The release evidence gate: measure ze, append the result, fail on a regression.
-./le perf-bench evidence-record
+./le perf evidence-record
 ```
-<!-- source: internal/le/perfbench/bench.go -- Bench -->
+<!-- source: internal/le/perf/actions.go -- runParameters -->
+<!-- source: internal/le/perf/bench.go -- Bench -->
+
+A run with no `step` keyword builds the images and measures. `step build`
+records nothing, because it measured nothing. Any other `step` value exits 2
+and names the value. A run that measured records the commit, so the perf nudge
+(`./le perf suggest`) stops asking for one.
+
+The runner builds no host benchmark program. It cross-builds `le` for linux
+with `CGO_ENABLED=0` into `tmp/perf-run/linux-<arch>/le`, and prints how long
+that build took. It mounts the file at `/usr/local/bin/le` in the sender
+container, which runs `le perf send`. The `le` that started the run renders
+the report as `le perf report`.
+<!-- source: internal/test/perfrunner/run.go -- Execute -->
+
+`go run ./cmd/ze-perf-run --build --test [<dut>...]` drives the same runner
+until it is removed. It still renders the report with `bin/ze-perf`, which
+`ZE_PERF_BIN` can move.
+<!-- source: cmd/ze-perf-run/main.go -- main -->
+<!-- source: internal/test/perfrunner/run.go -- RunCLI -->
 
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 

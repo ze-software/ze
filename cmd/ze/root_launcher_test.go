@@ -587,3 +587,61 @@ func formatLauncherRecord(lines []string) string {
 	}
 	return strings.Join(formatted, "\n")
 }
+
+// TestLeLauncherRefusesHarnessNames proves `./le --name` refuses a name whose
+// bin/le-<name> is a harness artifact path, and names the artifact (AC-28).
+//
+// Method: run the launcher over a fixture with a fake go. A harness name exits
+// 2, names bin/le-<name>, and reaches neither go nor exec. A name that only
+// starts with the same letters still builds.
+//
+// VALIDATES: AC-28, D-3: `test` and `test-linux-<arch>` are refused.
+// PREVENTS: a --name build writing a directory at the harness file's path.
+func TestLeLauncherRefusesHarnessNames(t *testing.T) {
+	root := personalityRepoRoot(t)
+	run := func(t *testing.T, name string) (fixture string, stderr string, err error) {
+		t.Helper()
+		fixture = launcherFixture(t, root, "le")
+		writeFakeGo(t, fixture)
+		writeExecutable(t, filepath.Join(fixture, "bin", "le"), sharedStubBinary)
+		cmd := exec.CommandContext(t.Context(), filepath.Join(fixture, "le"), "--name", name, "spec")
+		cmd.Dir = fixture
+		cmd.Env = append(launcherEnv(),
+			"PATH="+filepath.Join(fixture, "fakebin")+string(os.PathListSeparator)+os.Getenv("PATH"),
+			"ZE_GO_RECORD="+filepath.Join(fixture, "go.record"),
+			"ZE_EXEC_RECORD="+filepath.Join(fixture, "exec.record"),
+		)
+		var output strings.Builder
+		cmd.Stderr = &output
+		err = cmd.Run()
+		return fixture, output.String(), err
+	}
+
+	for _, name := range []string{"test", "test-linux-amd64", "test-linux-arm64"} {
+		t.Run(name, func(t *testing.T) {
+			fixture, stderr, err := run(t, name)
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+				t.Fatalf("launcher exit = %v, want the refusal's 2", err)
+			}
+			if want := "bin/le-" + name + " is a test harness artifact"; !strings.Contains(stderr, want) {
+				t.Errorf("refusal message = %q, want it to contain %q", stderr, want)
+			}
+			for _, record := range []string{"go.record", "exec.record"} {
+				if _, statErr := os.Stat(filepath.Join(fixture, record)); !errors.Is(statErr, os.ErrNotExist) {
+					t.Errorf("a refused name still reached %s: %v", record, statErr)
+				}
+			}
+		})
+	}
+
+	t.Run("testbed builds", func(t *testing.T) {
+		fixture, stderr, err := run(t, "testbed")
+		if err != nil {
+			t.Fatalf("launcher exit = %v, stderr %q, want a build", err, stderr)
+		}
+		if _, statErr := os.Stat(filepath.Join(fixture, "go.record")); statErr != nil {
+			t.Errorf("a valid name did not build: %v", statErr)
+		}
+	})
+}

@@ -60,11 +60,11 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: envTypeInt, Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
-// cLIRun is the ze-chaos root handler body. Production entry is the registry
-// closure in register.go (root command "chaos", blank-imported by
-// cmd/ze/ze_chaos_run.go); exported because the ze_chaos-tagged cmd/ze tests
-// drive the full CLI through it directly (same convention as env.Run).
-func cLIRun(args []string) int {
+// CLIRun is the chaos orchestrator's command line: it parses the flags in args,
+// runs the scenario, and answers the process exit code. Two entries call it:
+// `le chaos run` (internal/le/chaos/run), and the `chaos` root handler that
+// register.go registers for the ze-chaos program under the ze_chaos build tag.
+func CLIRun(args []string) int {
 	fs := flag.NewFlagSet("ze-chaos", flag.ContinueOnError)
 
 	// Scenario flags

@@ -7,7 +7,7 @@
 // a kernel that can carry the proof, prepares a gokrazy instance with this
 // proof's own configuration, and builds the image.
 //
-// Every build step is a compiled Go path. The host driver, ze-gok wrapper,
+// Every build step is a compiled Go path. The host driver, `le build gokrazy`,
 // kernel builder, and image database injector are shared with the product
 // appliance commands.
 
@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -102,7 +101,7 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 	if err != nil {
 		return "", err
 	}
-	if err := buildGokrazyImage(ctx, tree, work, parent, arch, image, kernel, progress); err != nil {
+	if err := buildGokrazyImage(ctx, tree, parent, arch, image, kernel, progress); err != nil {
 		return "", err
 	}
 	if err := appliance.InjectDatabase(image, database); err != nil {
@@ -152,26 +151,23 @@ func prepareProofDatabase(
 
 func buildGokrazyImage(
 	ctx context.Context,
-	tree, work, parent, arch, image, kernel string,
+	tree, parent, arch, image, kernel string,
 	progress io.Writer,
 ) error {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
 		return err
 	}
-	tool := filepath.Join(work, "ze-gok")
-	build := exec.CommandContext(ctx, "go", "build", "-mod=vendor", //nolint:gosec // variable flags come from the repository toolchain and package-owned output path
-		"-ldflags", toolchain.LDFlags(), "-o", tool, "./cmd/ze-gok")
-	build.Dir = tree
-	build.Env = toolchain.Environment(gotoolchain.EnvOptions{
-		GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
-	})
-	build.Stdout, build.Stderr = progress, progress
-	if err := build.Run(); err != nil {
-		return fmt.Errorf("build native ze-gok: %w", err)
+	// gok runs in a child le, `le build gokrazy`, rather than in this process:
+	// the child's environment targets the appliance architecture and carries the
+	// kernel package, and gok's packer calls os.Exit on a failed build, which
+	// would end this proof without its report.
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate le for build gokrazy: %w", err)
 	}
 
-	run := exec.CommandContext(ctx, tool, //nolint:gosec // tool is built above from repository source into this proof's work directory
+	run := exec.CommandContext(ctx, self, "build", "gokrazy", //nolint:gosec // self is this le binary, and the argv is this package's own
 		"--parent_dir", parent, "-i", "ze", "overwrite",
 		"--full", image, "--target_storage_bytes", "2147483648")
 	run.Dir = tree

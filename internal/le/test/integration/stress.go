@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const StressAction = "stress"
@@ -323,9 +324,9 @@ func (r *stressRunner) preflight(ctx context.Context) *StressBirdFailure {
 		}
 	}
 
-	peer := filepath.Join(r.base.root, "bin", "ze-test")
+	peer := filepath.Join(r.base.root, "bin", harnessbin.Name)
 	if !r.system.FileExists(peer) {
-		return stressBirdFailure("preflight", gaterun.CannotStart, "bin/ze-test not found at "+peer+"; build ze-test first")
+		return stressBirdFailure("preflight", gaterun.CannotStart, "bin/"+harnessbin.Name+" not found at "+peer+"; build it first: ./le test harness")
 	}
 	r.zeBinary = r.system.Getenv("ZE_BINARY")
 	if r.zeBinary == "" || !r.system.FileExists(r.zeBinary) {
@@ -460,7 +461,7 @@ func (r *stressRunner) startPeer(
 	ctx context.Context,
 	round stressRound,
 ) (stressBirdProcess, *StressBirdFailure) {
-	peerBinary := filepath.Join(r.base.root, "bin", "ze-test")
+	peerBinary := filepath.Join(r.base.root, "bin", harnessbin.Name)
 	argv := r.base.namespaceArgv(
 		r.base.peerNS,
 		peerBinary, "peer", "--mode", "inject", "--dial", stressBirdZeDial,

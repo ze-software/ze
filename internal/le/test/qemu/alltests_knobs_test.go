@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // VALIDATES: the run reads its knobs from the environment the native host
@@ -16,7 +18,9 @@ import (
 func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 	t.Setenv("ZE_BIN", "bin/ze-linux-arm64")
 	t.Setenv("ZE_STRIPPED_BIN", "bin/ze-stripped-linux-arm64")
-	t.Setenv("ZE_TEST_BIN", "bin/ze-test-linux-arm64")
+	t.Setenv("LE_TEST_BIN", "bin/le-test-linux-arm64")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 	t.Setenv("ZE_QEMU_SKIP_SUITES", "web, editor ,,")
 	t.Setenv("ZE_QEMU_PARALLEL", "8")
 	t.Setenv("ZE_QEMU_SUITE_TIMEOUT", "1200s")
@@ -25,7 +29,7 @@ func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 
 	run := newAllTests()
 	if run.ZeBin != "bin/ze-linux-arm64" || run.StrippedBin != "bin/ze-stripped-linux-arm64" ||
-		run.TestBin != "bin/ze-test-linux-arm64" {
+		run.TestBin != "bin/le-test-linux-arm64" {
 		t.Errorf("the binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
 	}
 	if run.Parallel != "8" || run.Timeout != "1200s" {
@@ -45,12 +49,14 @@ func TestTheRunReadsEveryKnobFromTheEnvironment(t *testing.T) {
 // the nightly run even though no action that names the knob changed.
 func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 	for _, key := range []string{
-		"ZE_BIN", "ZE_STRIPPED_BIN", "ZE_TEST_BIN",
+		"ZE_BIN", "ZE_STRIPPED_BIN", "ZE_TEST_BIN", "LE_TEST_BIN",
 		"ZE_QEMU_SKIP_SUITES", "ZE_QEMU_PARALLEL", "ZE_QEMU_SUITE_TIMEOUT",
 		"GOCACHE", "GOMODCACHE",
 	} {
 		t.Setenv(key, "")
 	}
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 
 	run := newAllTests()
 	if run.Workspace != guestWorkspace || run.BinDir != guestBinDir {
@@ -63,7 +69,7 @@ func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 	if len(run.Skip) != 1 || run.Skip[0] != defaultSkip {
 		t.Errorf("the default skip list is %v, want exactly [%s]", run.Skip, defaultSkip)
 	}
-	if run.ZeBin != "bin/ze" || run.StrippedBin != "bin/ze-stripped" || run.TestBin != "bin/ze-test" {
+	if run.ZeBin != "bin/ze" || run.StrippedBin != "bin/ze-stripped" || run.TestBin != "bin/le-test" {
 		t.Errorf("the default binaries are %q, %q and %q", run.ZeBin, run.StrippedBin, run.TestBin)
 	}
 	// The caches have NO default: they are the one pair the host action must

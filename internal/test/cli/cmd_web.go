@@ -22,8 +22,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/internal/test/trace"
@@ -398,7 +398,7 @@ func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error
 		return chaosPath, nil
 	}
 
-	if env.IsEnabled("ze.test.no.build") {
+	if harnessbin.NoBuild() {
 		if dir := sessionpath.FindPrebuiltDir(baseDir, "ze-chaos"); dir != "" {
 			return filepath.Join(dir, "ze-chaos"), nil
 		}

@@ -2260,6 +2260,11 @@ BGP propagation latency benchmark tool. Separate binary from `ze`.
 
 <!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
 
+The development tool `le` runs the three subcommands as `le perf send`,
+`le perf report` and `le perf track`, with the same flags and exit codes.
+`le perf send` is `ze-perf run`.
+<!-- source: internal/le/perf/actions.go -- programVerbs -->
+
 ```
 ze-perf <command> [flags]
 ```
@@ -2952,7 +2957,10 @@ The daemon handles these Unix signals directly:
 
 ## ze-chaos
 
-Chaos monkey for testing Ze BGP route server propagation.
+Chaos monkey for testing Ze BGP route server propagation. Run it as
+`./le chaos run <flags>`, which takes every flag below. The `ze-chaos` program
+keeps working until it is removed, so the examples still spell its name.
+<!-- source: internal/le/chaos/run/run.go -- Answer -->
 
 ### AI Integration Flags
 

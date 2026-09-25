@@ -312,9 +312,11 @@ disagree, the manifest is right and the row is stale.
 | `./le arch fs-persistence` | `internal/le/arch/fspersistence.Answer` | daemon runtime state is persisted through the managed `database/` store, never as a loose file a reimage would drop |
 | `./le arch iface-resolution` | `internal/le/arch/ifaceresolution.Answer` | no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver |
 | `./le arch tier` | `internal/le/arch/tier.Answer` | module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature |
+| `./le build gokrazy` | `internal/le/build/gokrazy.Answer` | run gokrazy's gok with the checked-in module cache, offline, from a prepared instance: `le build gokrazy <gok args>` |
 | `./le build gosum` | `internal/le/build/gosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le build host-driver` | `internal/le/build/hostdriver.Answer` | build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root |
 | `./le build installer` | `internal/le/build/installer.Answer` | cross-build the installer initrd PID 1 for amd64 or arm64 |
+| `./le chaos run` | `internal/le/chaos/run.Answer` | run the chaos orchestrator against ze, FRR or BIRD: `le chaos run [options]` |
 | `./le chaos selftest` | `internal/le/chaos/selftest.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
 | `./le cli catalog` | `internal/le/cli/catalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |
 | `./le cli dispatch` | `internal/le/cli/dispatch.Answer` | every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone |
@@ -340,7 +342,8 @@ disagree, the manifest is right and the row is stale.
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
-| `./le perf-bench` | `internal/le/perfbench.Answer` | suggest a perf run when BGP data-plane code changed since the last one |
+| `./le mrt` | `internal/le/mrt.Answer` | analyze, filter, convert, replay and serve MRT files: `le mrt <subcommand> [options]` |
+| `./le perf` | `internal/le/perf.Answer` | benchmark BGP against every DUT (`run`), run the benchmark program (`send`, `report`, `track`), and suggest a run when data-plane code changed |
 | `./le platform-vet` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
 | `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |

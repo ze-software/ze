@@ -28,7 +28,7 @@
 // files serve a verdict rather than being the point of the command, so both
 // areas are gates.
 //
-// `mutation` exists to hold the score history, so it is rung 1. `perf-bench`
+// `mutation` exists to hold the score history, so it is rung 1. `perf`
 // runs the benchmark, so it stops at rung 2. internal/le/group_test.go checks
 // rungs 1 and 5, and the pre-commit population against rungs 1, 2 and 4.
 

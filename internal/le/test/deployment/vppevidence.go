@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -152,7 +153,10 @@ func (v *VPP) buildBinaries() error {
 	testTags := tb.Str("ze_test").Byte(' ').Join(tags, " ").String()
 	if err := v.runBuild([]string{
 		"build", goBuildTagsArg, testTags, "-o", filepath.Join(v.Tree, vppTestRel(v.Goarch)), "./cmd/ze",
-	}, errors.New("go build ze-test (-tags ze_test ./cmd/ze) failed")); err != nil {
+	}, errors.New("go build le-test (-tags ze_test ./cmd/ze) failed")); err != nil {
+		return err
+	}
+	if _, err := harnessbin.LinkRetired(filepath.Join(v.Tree, vppTestRel(v.Goarch))); err != nil {
 		return err
 	}
 	return v.runBuild([]string{
@@ -273,7 +277,7 @@ func vppCommand(parts ...string) string {
 
 func vppTestRel(goarch string) string {
 	var tb textbuf.Buffer
-	return filepath.Join("tmp", "evidence", "bin", tb.Str("ze-test-linux-").Str(goarch).String())
+	return filepath.Join("tmp", "evidence", "bin", tb.Str(harnessbin.Name).Str("-linux-").Str(goarch).String())
 }
 
 func vppIPsecProbeRel(goarch string) string {

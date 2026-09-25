@@ -1,19 +1,27 @@
 # MRT Analysis
 
-Ze includes `ze-analyze`, a standalone tool for analysing real-world BGP data
+Ze includes `./le mrt`, a development command for analysing real-world BGP data
 from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files
 to extract statistics that inform ze's internal buffer sizing, caching strategies,
 and congestion handling.
 
-<!-- source: internal/analyze/register.go -- ze-analyze CLI entry point -->
+<!-- source: internal/analyze/register.go -- the subcommand registry -->
+<!-- source: internal/le/mrt/mrt.go -- Answer -->
 
-## Building
+## Running
+
+`./le mrt <subcommand> [options]` runs one subcommand. A bare `./le mrt` lists
+every subcommand with its description, as data, so `./le mrt '|' json` works.
+le builds itself, so no separate binary is needed.
+
+The standalone `ze-analyze` program runs the same subcommands and keeps working
+until it is removed. The examples below still spell it: each
+`ze-analyze <subcommand> <options>` line runs the same as
+`./le mrt <subcommand> <options>`. Build the old program with:
 
 ```
 go build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
 ```
-
-This produces `bin/ze-analyze`.
 
 ## Quick Start
 

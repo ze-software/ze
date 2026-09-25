@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -346,12 +347,12 @@ func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
 		}
 	}
 
-	peer := filepath.Join(r.root, "bin", "ze-test")
+	peer := filepath.Join(r.root, "bin", harnessbin.Name)
 	if !r.system.FileExists(peer) {
 		return stressBirdFailure(
 			"preflight", gaterun.CannotStart,
-			message.Reset().Str("bin/ze-test not found at ").Str(peer).
-				Str("; build ze-test first").String(),
+			message.Reset().Str("bin/").Str(harnessbin.Name).Str(" not found at ").Str(peer).
+				Str("; build it first: ./le test harness").String(),
 		)
 	}
 	config := filepath.Join(
@@ -534,7 +535,7 @@ func (r *stressBirdRunner) startPeer(
 	ctx context.Context,
 	round stressBirdRound,
 ) (stressBirdProcess, *StressBirdFailure) {
-	peer := filepath.Join(r.root, "bin", "ze-test")
+	peer := filepath.Join(r.root, "bin", harnessbin.Name)
 	command := stressBirdCommand{
 		argv: r.namespaceArgv(
 			r.peerNS,

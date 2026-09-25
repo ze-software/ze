@@ -412,3 +412,46 @@ func TestAGrepOverTheDirectoryMaterializesTheArtifact(t *testing.T) {
 		t.Errorf("a grep of the directory holding the artifact built nothing: %v", err)
 	}
 }
+
+// TestBashHookAdmitsLeTest proves the pretool hook treats the harness under
+// its new name as the functional runner, as it treats ze-test (AC-11), and
+// that the subject-first `le test <suite>` spellings count as expensive.
+//
+// VALIDATES: AC-11, le-test and le-test-<suffix> need job admission.
+// PREVENTS: the renamed harness reaching the machine unadmitted.
+func TestBashHookAdmitsLeTest(t *testing.T) {
+	refused := func(command string) bool {
+		return bashRawHeavy(context{input: map[string]any{"command": command}}) != nil
+	}
+	for _, command := range []string{
+		"le-test bgp plugin 42",
+		"bin/le-test bgp plugin 42",
+		"bin/le-test-linux-arm64 bgp parse 91",
+		"ze-test bgp plugin 42",
+	} {
+		if !refused(command) {
+			t.Errorf("%q ran raw without job admission", command)
+		}
+	}
+	if refused("./le job run label functional-plugin command bin/le-test bgp plugin 42") {
+		t.Error("an admitted le-test run was refused")
+	}
+
+	for _, command := range []string{
+		"./le test functional gating",
+		"./le test integration interop",
+		"./le test qemu run",
+		"./le test unit all",
+		"./le test harness bgp plugin 42",
+		"bin/le-test bgp plugin 42",
+	} {
+		if !commandExpensive(commandSegments(command)[0]) {
+			t.Errorf("%q is not read as expensive", command)
+		}
+	}
+	for _, command := range []string{"./le test functional", "./le test unit", "./le test"} {
+		if commandExpensive(commandSegments(command)[0]) {
+			t.Errorf("the listing %q is read as expensive", command)
+		}
+	}
+}

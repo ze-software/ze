@@ -1,17 +1,31 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/perfrunner"
 )
 
 func main() {
 	root, err := perfrunner.FindRoot(".")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ze-perf-run: %v\n", err)
-		os.Exit(1)
+		fail(err)
 	}
-	os.Exit(perfrunner.New(root, os.Stdout, os.Stderr).RunCLI(os.Args[1:]))
+	runner := perfrunner.New(root, os.Stdout, os.Stderr)
+	// The sender container runs a linux le, built with the tags the launcher
+	// builds le with, so `le perf send` links the BGP code it measures with.
+	runner.LinuxTags, err = repofeaturetags.DaemonBuildTags(root, "ze_le")
+	if err != nil {
+		fail(err)
+	}
+	os.Exit(runner.RunCLI(os.Args[1:]))
+}
+
+// fail writes one diagnosis line and exits 1.
+func fail(err error) {
+	var tb textbuf.Buffer
+	tb.Str("ze-perf-run: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // pre-exit diagnostic
+	os.Exit(1)
 }

@@ -2,7 +2,7 @@
 // data-plane change that produces no suggestion. Every case here is about that,
 // which is why the git failure paths are driven rather than assumed.
 
-package perfbench
+package perf
 
 import (
 	"encoding/json"

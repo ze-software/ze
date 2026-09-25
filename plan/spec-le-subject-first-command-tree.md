@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1b/5 |
+| Phase | 1c/5 |
 | Handoff | - |
 | Updated | 2026-09-24 |
 
@@ -701,6 +701,7 @@ N-A: tooling. The interop suites run as regression proof that the harness rename
 
 - `le` already links gok, `internal/appliance`, `internal/perf` and `perfrunner`, so most of the cost of "programs into le" is already paid. The measurable delta is chaos, `perf/cli` and `analyze`.
 - Three of the standalone programs are target binaries under another name: the harness, ze-perf (the container sender) and ze-terminal-pty (the demo container). The host-versus-target split in `ai/INSTRUCTIONS.md` decides their fate better than their names do.
+- AC-26 build times, measured 2026-09-25 on the dev host (AMD EPYC 7351, 32 threads, x86_64, `GOOS=linux CGO_ENABLED=0`): the le linux cross-build (`ze_le` plus every feature gate, 133 MB) takes 45.4 s from an empty GOCACHE and 1.1 s warm; the ze-perf-linux build it replaces (`ze_perf ze_bgp`, 36 MB) took 65.4 s from an empty GOCACHE and 1.9 s warm. Each cold figure is one run, taken one after the other on a host other sessions were loading, so the cold pair carries noise; the claim it supports is that the le cross-build costs no more than the build it replaces. The runner prints the le build time on every run (`perfrunner.Runner.buildLinuxBinary`).
 
 ## Key Design Decisions
 

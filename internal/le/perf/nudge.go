@@ -1,9 +1,11 @@
-// Design: docs/architecture/core-design.md -- the perf nudge, as one command
+// Design: docs/architecture/core-design.md -- the perf nudge, two verbs of the perf command
 // Detail: report.go -- what the nudge answers
-// Detail: actions.go -- the two things this area does
+// Detail: actions.go -- the eight verbs of the perf area
 //
-// Package perfbench reports BGP dataplane changes since the last performance run.
-// The command is a nudge, not a gate, and always exits 0.
+// Package perf is the `le perf` command: it benchmarks BGP against every DUT
+// (bench.go), runs the benchmark program (actions.go), and reports BGP dataplane
+// changes since the last performance run. This file holds that report.
+// The report is a nudge, not a gate, and always exits 0.
 // It does not block a build.
 //
 // The performance suite needs Docker and several minutes, so developers do not run it after every edit.
@@ -15,7 +17,7 @@
 //
 // Detection uses the changed-package selector with the last performance run as its baseline.
 // A .go file is uncovered if the working tree or a later commit changed it.
-package perfbench
+package perf
 
 import (
 	"errors"
@@ -29,7 +31,7 @@ import (
 )
 
 // area names the command namespace.
-const area = "perf-bench"
+const area = "perf"
 
 // recordVerb writes the marker after a performance run.
 const recordVerb = "record"

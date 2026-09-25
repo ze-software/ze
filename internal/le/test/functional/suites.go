@@ -15,15 +15,17 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 // Area is the word this command is typed as, and the prefix leaction removes
 // from each gate name to derive its verb.
 const Area = "test functional"
 
-// ZeTest is the name the isolated set carries and every .ci execs by. A suite's
+// LETest is the harness file the isolated set carries. Prepare also writes the
+// retired name ze-test beside it, which every .ci still execs by. A suite's
 // command opens with it, and commandLine swaps in the binary this run built.
-const ZeTest = "ze-test"
+const LETest = harnessbin.Name
 
 // LE is the name the le personality carries in the isolated set. A fixture
 // executes it by that bare name off the child PATH, which the runner points at
@@ -65,7 +67,7 @@ func (s Suite) Rerun() string {
 // this run built. commandLine substitutes it.
 func (s Suite) Command() []string {
 	argv := make([]string, 0, len(s.Args)+3)
-	argv = append(argv, ZeTest)
+	argv = append(argv, LETest)
 	argv = append(argv, s.Args...)
 	if s.Scaled {
 		argv = append(argv, "-p", Parallel(s.Name))
