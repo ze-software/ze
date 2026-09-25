@@ -11,7 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // VALIDATES: each native action has one explicit unique verb and implementation.

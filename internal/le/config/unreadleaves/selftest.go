@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // fixtureYANG is a config module with three leaves: one read as a map key, one

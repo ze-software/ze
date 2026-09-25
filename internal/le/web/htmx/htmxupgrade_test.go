@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // The fixture corpus asks the native scanner about every upstream table entry.

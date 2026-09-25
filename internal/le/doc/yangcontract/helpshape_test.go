@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // shapeModule declares two command nodes whose summaries satisfy every clause of

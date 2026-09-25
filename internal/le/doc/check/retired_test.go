@@ -13,7 +13,7 @@ import (
 const commandWordsMax = 2
 
 // retiredFound reports whether the row whose old form is old lists file:line.
-func retiredFound(report RetiredReport, old, file string, line int) bool {
+func retiredFound(report retiredReport, old, file string, line int) bool {
 	for _, row := range report.Rows {
 		if row.Old != old {
 			continue
@@ -28,7 +28,7 @@ func retiredFound(report RetiredReport, old, file string, line int) bool {
 }
 
 // retiredLinesOf answers every row that lists a line of file, as "old@line".
-func retiredLinesOf(report RetiredReport, file string) []string {
+func retiredLinesOf(report retiredReport, file string) []string {
 	var found []string
 	for _, row := range report.Rows {
 		for _, match := range row.Matches {
@@ -273,13 +273,14 @@ func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
 		"le-test":                     "exec=le-test bgp plugin",
 		"bin/le-test":                 "run bin/le-test ospf",
 		"ze-perf":                     "ze-perf report results.json",
-		"ze-perf-run":                 "go run ./cmd/ze-perf-run --build",
+		"ze-perf-run":                 "go build -o bin/ze-perf-run ./cmd/ze-perf-run",
 		"ze-analyze":                  "bin/ze-analyze density",
 		"ze-chaos":                    "exec=ze-chaos --quiet",
 		"ze_chaos":                    "//go:build ze_chaos",
 		"ze.test.no.build":            "ZE_TEST_NO_BUILD=1",
 		"ze-peer":                     "exec=ze-peer --mode sink",
 		"bin/ze-perf":                 "run bin/ze-perf track --check",
+		"le test-health":              "./le test-health update",
 	}
 	for _, exception := range retiredExceptions {
 		sample, known := samples[exception.old]
@@ -405,9 +406,9 @@ func TestRetiredCommandGateGoesRedOnAnInjectedName(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("an injected old name answered %d, want 1", code)
 	}
-	report, ok := answer.(RetiredReport)
+	report, ok := answer.(retiredReport)
 	if !ok {
-		t.Fatalf("the gate answered %T, want RetiredReport", answer)
+		t.Fatalf("the gate answered %T, want retiredReport", answer)
 	}
 	if !retiredFound(report, "le test-unit", "docs/guide.md", 2) {
 		t.Errorf("docs/guide.md:2 is not listed; the file matched %v", retiredLinesOf(report, "docs/guide.md"))

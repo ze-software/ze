@@ -11,7 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 var (

@@ -15,9 +15,9 @@ package testfuzz
 
 import (
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // area is the name this command is typed as.

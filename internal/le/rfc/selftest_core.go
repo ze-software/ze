@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // The selftest's own fixture identity: one enrolled RFC, its two requirements,

@@ -17,8 +17,8 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 

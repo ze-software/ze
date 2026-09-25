@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // classifyCase is one classification the lens must make. The table covers each

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // checkFixtureTree writes the smallest checkout Check can judge: one enrolled RFC whose

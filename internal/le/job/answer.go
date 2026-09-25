@@ -14,7 +14,7 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // name is the root command, and the word a developer types.

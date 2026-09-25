@@ -3,7 +3,7 @@ package archtier
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestSSHFeatureGateFeedsTierAudit pins the composition declaration the native

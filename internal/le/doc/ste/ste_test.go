@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // findingDetails answers each finding's detail string. Cases use it when they

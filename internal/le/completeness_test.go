@@ -30,7 +30,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // historicalMakeRevision is the last commit that holds the Makefile and mk/.

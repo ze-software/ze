@@ -16,7 +16,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 func TestSuiteCoverageIsSilentUntilZeCoverIsSet(t *testing.T) {

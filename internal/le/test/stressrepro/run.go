@@ -22,7 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 

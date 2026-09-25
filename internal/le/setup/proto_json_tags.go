@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 var protoFieldWithJSONName = regexp.MustCompile(`(?m)^\s*(?:repeated\s+)?[A-Za-z_][A-Za-z0-9_.]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\d+\s*\[\s*json_name\s*=\s*"([^"]+)"\s*\]\s*;\s*$`)

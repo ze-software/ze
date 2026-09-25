@@ -42,7 +42,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // coverageReduceTimeout bounds the go tool invocation for one suite. The

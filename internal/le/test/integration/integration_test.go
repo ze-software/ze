@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // TestTheBareAreaRefusesToRunEverything verifies this area's refusal.

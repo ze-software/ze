@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 func TestOldOptionTableMapsExactlyToKeywords(t *testing.T) {

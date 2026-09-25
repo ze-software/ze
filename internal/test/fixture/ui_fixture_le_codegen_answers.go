@@ -138,7 +138,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	generators := []string{
 		"yang glue",
 		"plugin imports",
-		"feature-tags",
+		"repo feature-tags",
 		"web assets",
 	}
 	for _, name := range generators {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func TestStressBirdRoundsRemainTheBaselineShape(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/spec/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 

@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/action"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 

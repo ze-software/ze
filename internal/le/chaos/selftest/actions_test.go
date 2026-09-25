@@ -15,8 +15,8 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/action"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestMain(m *testing.M) {

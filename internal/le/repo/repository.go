@@ -35,7 +35,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/spec/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // These patterns match the script character for character. Thus, the migration

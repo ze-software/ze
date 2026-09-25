@@ -58,7 +58,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// package moved to internal/le/ai/rules as package airules, registers as
 	// `ai rules`, and names its generator path and its command in the new
 	// words. No decision moved.
-	const want = "efd759864effc0a27be2f23fdf306f70f1c58b92c2d3f903b2d480d4a735fe30"
+	//
+	// Re-sealed 2026-09-25 for the same spec, final pass: goimports names the
+	// moved packages leaction, lepath, leroot and specpath in the import
+	// blocks. Import lines only, no decision moved.
+	const want = "18e7c6acc9a0963dbff24fc93a6bf96966505e869f3c9661b997d1e1f6a343a4"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

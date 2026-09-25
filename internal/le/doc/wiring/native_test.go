@@ -17,7 +17,7 @@ import (
 	"github.com/a-h/templ/cmd/templ/generatecmd"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func nativeGitTree(t *testing.T, files map[string]string) string {

@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
-	"github.com/ze-software/ze/internal/le/spec/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 const learnedDir = "plan/learned"

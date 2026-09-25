@@ -56,7 +56,8 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// a COPY of the binary StageBinaries cross-compiles
 		// (internal/le/interoplab/zebuild.go). The change was reviewed with that
 		// commit and the pin was not carried with it.
-		"Dockerfile.ze":                                      "189e167682ac09a7b6874bc4e3bdf942fcf448dee6cc4974af9a933c8b29dd7c",
+		// Repinned for 4a923c72de: the header comment names `./le test integration`.
+		"Dockerfile.ze":                                      "978c8f06fb7ae72730d0746b3a4b57777defb20b697053dd48b94f158ea22e7b",
 		"Dockerfile.lac":                                     "de2f22de8c1815e8d0d6a37b96d7518d8157b26cd5598fb95c8e4f624909a180",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
 		"vtysh.conf":                                         "dc8aa539965a4cebabbe1a75a53b48ae8471bafe77ce59af22d5352d28da4df6",

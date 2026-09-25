@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // VALIDATES: this checkout passes the ratchet and the scan actually read it.

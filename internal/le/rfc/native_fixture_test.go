@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // TestNativeImplementationFixture replaces the retired cross-runtime oracle.
@@ -318,7 +318,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// Re-sealed 2026-09-24 for 114d7e99b5, which publishes index-update's
 	// pages as one unsynced batch through derived.WriteAtomicAll (write.go).
 	// It is an intended change its commit states.
-	const want = "c322eb46d876a72ba741b5a8ec3d90ee5c47636bdc8d56536bbfd48860576d44"
+	//
+	// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md: the
+	// package's imports and command words moved to the subject-first tree
+	// (2bdd55e01c and the commits before it). No decision moved.
+	const want = "173a18000a8e902b209b07aa0e85a3c8c8fc7b461f68d244f185304e6ed470a6"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

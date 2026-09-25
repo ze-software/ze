@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/spec/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 const (

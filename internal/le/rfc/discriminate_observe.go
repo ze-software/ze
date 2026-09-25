@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/path"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 

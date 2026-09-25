@@ -11,7 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/analyze"
 	"github.com/ze-software/ze/internal/core/subdispatch"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // TestMrtReachesEveryAnalyzeSubcommand drives `le mrt <subcommand> <arg>`

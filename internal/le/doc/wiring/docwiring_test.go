@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestExportedSymbolsReadsEachDeclarationForm(t *testing.T) {

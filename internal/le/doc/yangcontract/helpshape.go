@@ -52,7 +52,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // The rules a summary is held to. Each names one clause of AC-3, and each is

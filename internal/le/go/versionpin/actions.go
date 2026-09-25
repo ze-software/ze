@@ -7,7 +7,7 @@
 package goversionpin
 
 import (
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // area is the name this command is typed as.

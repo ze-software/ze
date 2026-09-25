@@ -28,7 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/tmplink"
 	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 const (

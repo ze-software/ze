@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/action"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // Platform identifies one cross-target vet action. Zero is not a valid target.

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // VALIDATES: each selftest fixture draws exactly the findings it declares.

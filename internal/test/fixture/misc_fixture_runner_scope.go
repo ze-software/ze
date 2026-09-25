@@ -129,7 +129,7 @@ func verifyScopeSelectorDriver(ctx context.Context, args []string) error {
 		if err := os.WriteFile(input, []byte(path+"\n"), 0o600); err != nil {
 			return "", "", -1, err
 		}
-		return rawCommandStreams(ctx, root, env, le, "changed", "scope", "print", printing, "paths-from", input)
+		return rawCommandStreams(ctx, root, env, le, "repo", "changed", "scope", "print", printing, "paths-from", input)
 	}
 	// Both streams: a refusal from le itself prints on stderr and leaves stdout
 	// empty, so reporting stdout alone answered "exit=2" with nothing after it.

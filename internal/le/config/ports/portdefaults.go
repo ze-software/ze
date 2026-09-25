@@ -52,8 +52,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // serviceYANG maps each central listener service (registered in

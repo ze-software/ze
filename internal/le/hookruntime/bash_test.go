@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 
 	// The four harness commands the heaviness test reads: two runners
 	// that admit, two helper tools that do not.

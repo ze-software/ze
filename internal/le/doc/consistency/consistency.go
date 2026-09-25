@@ -34,8 +34,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // fileSizeMax is the ONLY size threshold (ai/rules/go-standards.md, Thomas

@@ -3,7 +3,7 @@ package clicatalog
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/action"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 func TestActionCatalogPinsCheckAndUpdateGrammar(t *testing.T) {

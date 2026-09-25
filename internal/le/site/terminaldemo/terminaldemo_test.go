@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 // VALIDATES: every terminal-demo action keeps its name, reason text, and writes metadata; only the single-demo render takes a value, and pty forwards its words.

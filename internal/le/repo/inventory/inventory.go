@@ -42,8 +42,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // generatedLayout is the timestamp the page carries. Minute resolution, UTC,

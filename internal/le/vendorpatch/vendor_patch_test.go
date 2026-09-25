@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func repoRoot(t *testing.T) string {

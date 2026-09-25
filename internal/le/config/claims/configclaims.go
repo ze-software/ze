@@ -36,7 +36,7 @@ import (
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // name is the word this command is typed as, and the prefix its own messages

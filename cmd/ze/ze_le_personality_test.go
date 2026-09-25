@@ -75,11 +75,11 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 		t.Errorf("help inventories differ:\nle:\n%s\nze le:\n%s", leHelp.stderr, zeHelp.stderr)
 	}
 
-	assertInvocationPair(t, standalone, tagged, 0, nil, []string{"working-tree"})
+	assertInvocationPair(t, standalone, tagged, 0, nil, []string{"repo", "working-tree"})
 	assertInvocationPair(t, standalone, tagged, 1, nil, []string{"no-such-tool"})
-	assertInvocationPair(t, standalone, tagged, 2, nil, []string{"repository", "no-such-action"})
+	assertInvocationPair(t, standalone, tagged, 2, nil, []string{"repo", "no-such-action"})
 
-	direct := invokePersonality(t, tagged, nil, "working-tree")
+	direct := invokePersonality(t, tagged, nil, "repo", "working-tree")
 	if direct.code != 1 || !strings.Contains(direct.stderr, "unknown command") {
 		t.Errorf("tagged ze exposed a direct tool root: code=%d stdout=%q stderr=%q",
 			direct.code, direct.stdout, direct.stderr)
@@ -88,7 +88,7 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 	for _, format := range []string{"json", "yaml", "table"} {
 		t.Run(format, func(t *testing.T) {
 			assertInvocationPair(t, standalone, tagged, 0, nil,
-				[]string{"working-tree", "|", format})
+				[]string{"repo", "working-tree", "|", format})
 		})
 	}
 
@@ -100,7 +100,7 @@ func TestStandaloneLeAndZeLeHaveIdenticalSurface(t *testing.T) {
 	writePersonalityFixture(t, fixture)
 	env := []string{"ZE_REPO_ROOT=" + fixture}
 	assertInvocationPair(t, standalone, tagged, 1, env,
-		[]string{"discovery-index", "update", "|", "json"})
+		[]string{"repo", "package-map", "update", "|", "json"})
 }
 
 // TestLeDispatchesNoProductCommand preserves the standalone boundary: a root

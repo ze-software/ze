@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // fixtureTree writes every selftest fixture into a temporary tree and answers

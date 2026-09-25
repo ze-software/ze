@@ -15,8 +15,8 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // areasWithoutAnActionTable names every registered area that declares no

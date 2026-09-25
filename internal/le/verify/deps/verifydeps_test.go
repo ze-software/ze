@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 )
 
 const testModulePath = "github.com/ze-software/ze"

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // testShell answers a shell with every caller-supplied field set, so a test

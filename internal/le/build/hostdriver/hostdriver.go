@@ -10,7 +10,7 @@ package buildhostdriver
 
 import (
 	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 const name = "build host-driver"

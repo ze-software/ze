@@ -10,7 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func TestAnchorAuditSeparatesDeclaredOwnersFromMentions(t *testing.T) {

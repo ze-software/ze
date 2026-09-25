@@ -33,7 +33,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // dashboardPath is the one command reached through neither an RPC nor a

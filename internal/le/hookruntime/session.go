@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func payloadSessionID(payload Payload) (string, bool) {

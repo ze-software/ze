@@ -18,11 +18,11 @@ import (
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	"github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/spec"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
-	"github.com/ze-software/ze/internal/le/spec/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
 

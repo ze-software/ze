@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/spec/path"
+	specpath "github.com/ze-software/ze/internal/le/spec/path"
 )
 
 // The Markdown constructs that make text stop being a live claim.

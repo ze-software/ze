@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // repositoryRoot answers the checkout these tests read.

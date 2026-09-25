@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/job"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // jobLabel is the name this stage claims in the shared job registry. Every lint

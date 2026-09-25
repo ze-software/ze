@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const registerGo = `package le

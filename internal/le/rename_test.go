@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/doc/check"
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	doccheck "github.com/ze-software/ze/internal/le/doc/check"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // TestEveryNewNameResolvesToItsArea reads the rename map in doccheck, the one

@@ -14,7 +14,7 @@ package goversionpin
 
 import (
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // selftestDeclared is the version every synthetic case is judged against. It is

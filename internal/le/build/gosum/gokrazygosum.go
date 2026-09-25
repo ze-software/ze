@@ -26,8 +26,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/le/root"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // The two paths this gate is about, relative to the tree it judges.
@@ -79,12 +79,12 @@ type entry struct {
 	Version string
 }
 
-// TrackedGosums answers the tracked builddir go.sum paths under tree.
+// trackedGosums answers the tracked builddir go.sum paths under tree.
 //
 // It asks git rather than walking, because the question is what the repository
 // SHIPS. An untracked go.sum left in a builddir by a local build is not part of
 // the image, and this gate has nothing to say about it.
-func TrackedGosums(tree string) ([]string, error) {
+func trackedGosums(tree string) ([]string, error) {
 	// The query is bounded by git itself rather than by a timeout. `git
 	// ls-files` over a checkout is local work with no network and no lock this
 	// process waits behind, and a timeout would turn a slow filesystem into a
@@ -145,7 +145,7 @@ func readGosum(path string) ([]entry, map[entry]string, error) {
 // fact from a tree that holds a conflict, and the caller answers a different
 // exit code for it.
 func Check(tree string) (Report, error) {
-	files, err := TrackedGosums(tree)
+	files, err := trackedGosums(tree)
 	if err != nil {
 		return Report{}, err
 	}

@@ -84,7 +84,8 @@ func TestNativeConfigBytesArePinned(t *testing.T) {
 		// image: it is now an alpine:3.21 base plus one apk add plus a COPY of
 		// the binary StageBinaries cross-compiles
 		// (internal/le/interoplab/zebuild.go).
-		"Dockerfile.ze":    "dc2acc4e0ae9699f068d01e4b8392edf55fbf2a68a1a24d5478b950b7152f55f",
+		// Repinned for 4a923c72de: the header comment names `./le test integration`.
+		"Dockerfile.ze":    "54a8c905d8b39034273744f3c7fbefa3eae5397213917a8402d59fd1893b4a90",
 		"Dockerfile.accel": "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
 		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
 		// pppoe-empty-service-name checker captures the discovery exchange to

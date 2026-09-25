@@ -228,10 +228,10 @@ func TestOnlyAScheduledWorkflowGrantsANightlyTier(t *testing.T) {
 		"push.yml":    "on:\n  push:\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop-ipsec\n",
 	}
 	got := scheduledActionsFrom(sources)
-	if got["integration/interop"] != "nightly.yml" {
+	if got["test integration/interop"] != "nightly.yml" {
 		t.Errorf("a scheduled action is not credited: %v", got)
 	}
-	if _, held := got["integration/interop-ipsec"]; held {
+	if _, held := got["test integration/interop-ipsec"]; held {
 		t.Errorf("a push-only action was credited as nightly: %v", got)
 	}
 }
@@ -243,7 +243,7 @@ func TestTheFirstScheduledWorkflowNamingAnActionIsTheOneRecorded(t *testing.T) {
 		"b-nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
 		"a-nightly.yml": "on:\n  schedule:\n    - cron: '0 4 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
 	}
-	if got := scheduledActionsFrom(sources)["integration/interop"]; got != "a-nightly.yml" {
+	if got := scheduledActionsFrom(sources)["test integration/interop"]; got != "a-nightly.yml" {
 		t.Errorf("the action is credited to %q, want the first workflow in order", got)
 	}
 }
@@ -262,16 +262,18 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 		name, src string
 		want      []string
 	}{
-		{"one action", "run: ./le test integration interop\n", []string{"integration/interop"}},
+		{"one action", "run: ./le test integration interop\n", []string{"test integration/interop"}},
 		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
 		{"a chain", "run: ./le rfc check && ./le doc check verify\n", []string{"rfc/check", "doc check/verify"}},
-		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"tier/check"}},
+		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"arch tier/check"}},
 		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {
-			got := nativeActionsIn(one.src, func(name string) bool { return name == "doc check" })
+			got := nativeActionsIn(one.src, func(name string) bool {
+				return name == "doc check" || name == "test integration" || name == "arch tier"
+			})
 			if !slices.Equal(got, one.want) {
 				t.Fatalf("NativeActionsIn(%q) = %v, want %v", one.src, got, one.want)
 			}

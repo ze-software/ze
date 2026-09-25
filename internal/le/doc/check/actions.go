@@ -15,7 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docwiring "github.com/ze-software/ze/internal/le/doc/wiring"
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const area = "doc check"

@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 )
 
@@ -615,6 +615,39 @@ func stripYAMLComments(src string) string {
 // invocation parse as its one-word fallback.
 func registeredCommand(name string) bool { return leroot.LookupCommand(name) != nil }
 
+// workflowCommand reports whether a whole name is a command a scheduled
+// workflow can credit: a registered le command, or the command of a declared
+// interop tree.
+//
+// The declared trees are part of the answer because this package states their
+// actions itself. A binary that links only part of le, such as the site and rfc
+// test binaries, holds no `test integration` command in its registry, and the
+// registry alone would then read `./le test integration interop` as the
+// `integration` verb of `test`, which matches no tree, so every interop tag
+// would read as run by nobody.
+func workflowCommand(name string) bool {
+	if registeredCommand(name) {
+		return true
+	}
+	for _, tree := range &interopTrees {
+		if interopTreeCommand(tree) == name {
+			return true
+		}
+	}
+	for _, tree := range &legacyInteropTrees {
+		if interopTreeCommand(tree) == name {
+			return true
+		}
+	}
+	return false
+}
+
+// interopTreeCommand answers the command half of a tree's `command/verb` action.
+func interopTreeCommand(tree interopTree) string {
+	command, _, _ := strings.Cut(tree.action, "/")
+	return command
+}
+
 // nativeActionsIn answers every `./le <area> <verb>` action a workflow invokes.
 //
 // It models command lines, not a shell. Chains are split, but substitutions,
@@ -727,7 +760,7 @@ func scheduledActionsFrom(sources map[string]string) map[string]string {
 		if !isScheduled(src) {
 			continue
 		}
-		for _, action := range nativeActionsIn(src, registeredCommand) {
+		for _, action := range nativeActionsIn(src, workflowCommand) {
 			if _, seen := out[action]; !seen {
 				out[action] = name
 			}

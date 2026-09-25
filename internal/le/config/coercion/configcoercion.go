@@ -38,7 +38,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // scanRoot is the tree walked for config.go files. Config parsers live under

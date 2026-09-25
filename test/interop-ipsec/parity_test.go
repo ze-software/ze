@@ -141,7 +141,7 @@ func TestIPsecTreeIsGoOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ipsec.Action != "integration/interop-ipsec" {
+	if ipsec.Action != "test integration/interop-ipsec" {
 		t.Fatalf("native action = %q", ipsec.Action)
 	}
 }

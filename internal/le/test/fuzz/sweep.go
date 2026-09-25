@@ -16,8 +16,8 @@ import (
 	"os/exec"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/action"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
 )
 
 // nameColumn is how wide the target-name column of the listing is. It keeps a

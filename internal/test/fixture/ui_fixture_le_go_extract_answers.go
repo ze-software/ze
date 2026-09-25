@@ -81,7 +81,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	fromCommand, err := runGoExtractCommand(ctx, commandDir, le,
-		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta")
+		"go", "extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta")
 	if err != nil {
 		return fmt.Errorf("FAIL: run le go extract: %w", err)
 	}
@@ -115,7 +115,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	answer, err := runGoExtractCommand(ctx, jsonDir, le,
-		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "json")
+		"go", "extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "json")
 	if err != nil {
 		return fmt.Errorf("FAIL: run `le go extract | json`: %w", err)
 	}
@@ -170,7 +170,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	counted, err := runGoExtractCommand(ctx, countDir, le,
-		"go-extract", "source", "sample.go", "dest", "both.go",
+		"go", "extract", "source", "sample.go", "dest", "both.go",
 		"symbol", "Alpha", "symbol", "Beta", "|", "count")
 	if err != nil {
 		return fmt.Errorf("FAIL: run `le go extract | count`: %w", err)
@@ -187,7 +187,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	asYAML, err := runGoExtractCommand(ctx, yamlDir, le,
-		"go-extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "yaml")
+		"go", "extract", "source", "sample.go", "dest", "beta.go", "symbol", "Beta", "|", "yaml")
 	if err != nil {
 		return fmt.Errorf("FAIL: run `le go extract | yaml`: %w", err)
 	}
@@ -203,9 +203,9 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	refused, err := runGoExtractCommand(ctx, bareDir, le,
-		"go-extract", "sample.go", "beta.go", "Beta")
+		"go", "extract", "sample.go", "beta.go", "Beta")
 	if err != nil {
-		return fmt.Errorf("FAIL: run bare go-extract form: %w", err)
+		return fmt.Errorf("FAIL: run bare go extract form: %w", err)
 	}
 	if refused.code != 1 {
 		return fmt.Errorf("FAIL: a bare positional exited %d, want 1", refused.code)
@@ -226,10 +226,10 @@ func leGoExtractAnswers(ctx context.Context) error {
 		return err
 	}
 	typo, err := runGoExtractCommand(ctx, typoDir, le,
-		"go-extract", "source", "sample.go", "dest", "beta.go",
+		"go", "extract", "source", "sample.go", "dest", "beta.go",
 		"symbol", "Beta", "symbol", "Zeta")
 	if err != nil {
-		return fmt.Errorf("FAIL: run go-extract with an absent symbol: %w", err)
+		return fmt.Errorf("FAIL: run go extract with an absent symbol: %w", err)
 	}
 	if typo.code != 1 {
 		return fmt.Errorf("FAIL: a symbol that is not there exited %d, want 1", typo.code)

@@ -19,12 +19,12 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	interopbgp "github.com/ze-software/ze/internal/le/interoplab/bgp"
 	interopipsec "github.com/ze-software/ze/internal/le/interoplab/ipsec"
 	interopradius "github.com/ze-software/ze/internal/le/interoplab/radius"
-	"github.com/ze-software/ze/internal/le/le/action"
-	"github.com/ze-software/ze/internal/le/le/path"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // table builds this invocation's action table. The toolchain is resolved once

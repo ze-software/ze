@@ -15,8 +15,8 @@ import (
 	"testing"
 
 	_ "github.com/ze-software/ze/internal/le"
-	"github.com/ze-software/ze/internal/le/doc/check"
-	"github.com/ze-software/ze/internal/le/le/root"
+	doccheck "github.com/ze-software/ze/internal/le/doc/check"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // streams runs fn with stdout and stderr redirected, and answers both. Each

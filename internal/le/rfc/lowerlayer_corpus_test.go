@@ -17,7 +17,7 @@ package rfc
 import (
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {

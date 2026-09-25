@@ -78,8 +78,8 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/le/go/toolchain"
-	"github.com/ze-software/ze/internal/le/le/path"
+	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 // The registry's paths, all relative to the checkout root. They are relative

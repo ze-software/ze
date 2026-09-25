@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/le/le/root"
+	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
 // VALIDATES: the grammar of `le go extract` keeps a keyword in front of every

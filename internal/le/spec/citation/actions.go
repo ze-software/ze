@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/le/le/path"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
 const name = "spec citation"
