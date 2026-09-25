@@ -12,7 +12,7 @@ import (
 )
 
 func runCountAttrs(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		fmt.Fprintf(os.Stderr, `ze-analyze count-attrs -- attribute count distribution per route
 
 Processes TABLE_DUMP_V2 RIB entries and counts how many path attributes each
@@ -26,7 +26,7 @@ Examples:
   ze-analyze count-attrs test/internet/latest-bview.gz
   ze-analyze count-attrs test/internet/rib.*.gz
 `)
-		return 1
+		return usageExit(args)
 	}
 
 	counts := make(map[int]int) // attrCount -> frequency

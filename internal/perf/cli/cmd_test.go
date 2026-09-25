@@ -136,3 +136,16 @@ func TestTrackCheckNoRegression(t *testing.T) {
 		t.Errorf("stderr missing 'no regression' message: %s", stderr)
 	}
 }
+
+// VALIDATES: a help word after a subcommand prints that subcommand's flags and
+// answers 0, because the reader asked a question.
+// PREVENTS: `le perf send --help` exiting 1 after printing the help it was asked for.
+func TestSubcommandHelpAnswersZero(t *testing.T) {
+	for _, sub := range []string{"run", "report", "track"} {
+		for _, help := range []string{"-h", "--help"} {
+			if code := Dispatch([]string{sub, help}); code != 0 {
+				t.Errorf("Dispatch(%s %s) exit code = %d, want 0", sub, help, code)
+			}
+		}
+	}
+}

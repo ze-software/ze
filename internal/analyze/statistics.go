@@ -41,9 +41,9 @@ Output:
 `
 
 func runStatistics(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		os.Stderr.WriteString(statisticsUsage) //nolint:errcheck // usage output
-		return 1
+		return usageExit(args)
 	}
 
 	st := &mrtStats{

@@ -350,7 +350,7 @@ func (r *Runner) childWorkingDirectory(binName string, rec *Record) string {
 
 // Build compiles the test binaries.
 //
-// ZE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries
+// LE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries
 // already present at r.zePath / r.testPath. This lets a slow target (e.g. a QEMU
 // VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
 // on a fast host, instead of compiling the whole tree inside the VM.
@@ -426,7 +426,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	return nil
 }
 
-// verifyPrebuilt is the ZE_TEST_NO_BUILD path: it checks that the binaries the
+// verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the binaries the
 // runner would otherwise build already exist, rather than building them. Extra
 // binaries (e.g. ze-chaos) are not supported in this mode and must be built
 // normally.
@@ -437,7 +437,7 @@ func (r *Runner) verifyPrebuilt() error {
 	// binary; reading a binary someone already built clobbers nothing. So when
 	// the session's own bin/ holds nothing, accept a pre-built set from the
 	// shared bin/, where manual and cross-compiles place it. Reporting it
-	// "missing" would break ZE_TEST_NO_BUILD for anyone
+	// "missing" would break LE_TEST_NO_BUILD for anyone
 	// who did exactly what the flag asks.
 	//
 	// Both binaries move together, to ONE directory: .ci tests exec `ze` and
@@ -446,7 +446,7 @@ func (r *Runner) verifyPrebuilt() error {
 	// from another would pass both stat calls and still strand a test on a
 	// sibling binary that is not beside it.
 	//
-	// An explicit ZE_BIN/ZE_TEST_BIN is exempt: it names ONE binary, so a miss
+	// An explicit ZE_BIN/LE_TEST_BIN is exempt: it names ONE binary, so a miss
 	// there must fail loudly rather than silently run a different build.
 	if env.Get("ze.bin") == "" && harnessbin.TestBin() == "" {
 		_, zeErr := os.Stat(r.zePath)
@@ -461,13 +461,13 @@ func (r *Runner) verifyPrebuilt() error {
 
 	for _, p := range []string{r.zePath, r.testPath} {
 		if _, err := os.Stat(p); err != nil {
-			buildErr := fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
+			buildErr := fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
 			r.display.buildStatus(false, buildErr)
 			return buildErr
 		}
 	}
 	if len(r.extraBinaries) > 0 {
-		buildErr := fmt.Errorf("ZE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
+		buildErr := fmt.Errorf("LE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
 		r.display.buildStatus(false, buildErr)
 		return buildErr
 	}

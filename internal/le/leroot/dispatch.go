@@ -223,16 +223,22 @@ func helpAsked(program string, words []string) int {
 // and so does `command echo -html=cover.out`.
 //
 // The area's registered table is what tells a value from a question, so an area
-// that registered one is asked. An area that registered none publishes no
-// grammar, so the dispatcher guards. To run a probe's work is the worse of the
-// two failures, and it is the burn this guard exists to stop. The cost is a
-// value spelled like a help word, unreachable in those areas until spec 2 has
-// each one declare its table.
+// that registered one is asked, and a forwarding row answers that the words
+// after its verb are the program's (leaction.List.TrailingWordIsValue). An area
+// that registered as forwarding (RegisterForwarding) hands every word to its
+// program, the help word included, so the program prints its own help. An area
+// that registered neither publishes no grammar, so the dispatcher guards. To
+// run a probe's work is the worse of the two failures, and it is the burn this
+// guard exists to stop. The cost is a value spelled like a help word,
+// unreachable in those areas until spec 2 has each one declare its table.
 func asksForUsage(name string, args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
 	if !isHelpArg(args[len(args)-1]) {
+		return false
+	}
+	if Forwards(name) {
 		return false
 	}
 	list, declared := ActionsOf(name)

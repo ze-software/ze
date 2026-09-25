@@ -26,6 +26,10 @@ func init() {
 	// output. The document shape is declared so no shape is inherited, and it
 	// renders nothing when the payload is nil.
 	leroot.RegisterShape(name, command.ShapeDoc)
+
+	// Every word after the name is the program's own command line, so a
+	// trailing help word reaches the program and it prints its own help.
+	leroot.RegisterForwarding(name)
 }
 
 // Answer runs gok with args and answers its exit code. The payload is nil

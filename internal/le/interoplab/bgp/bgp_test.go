@@ -50,7 +50,7 @@ func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
 }
 
 // VALIDATES: the bgp lab stages BOTH personalities, the daemon and the test binary, at the paths its Dockerfile copies.
-// PREVENTS: an image with no ze-test, which is what 14 scenario ze.conf files run `ze-test interop-bgp process ...` with.
+// PREVENTS: an image with no le-test, or no ze-test link to it; ze-test is what 14 scenario ze.conf files run `ze-test interop-bgp process ...` with.
 func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	declared := LabBinaries()
 	if len(declared) != 2 {
@@ -59,7 +59,7 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 
 	want := map[string]struct{ base, output string }{
 		"ze":      {base: repofeaturetags.DaemonBase, output: "test/interop/ze-linux"},
-		"ze-test": {base: "ze_test", output: "test/interop/ze-test-linux"},
+		"le-test": {base: "ze_test", output: "test/interop/le-test-linux"},
 	}
 	for _, binary := range declared {
 		expected, named := want[binary.Name]
@@ -92,6 +92,11 @@ func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 		if !strings.Contains(string(body), binary.Output) {
 			t.Errorf("test/interop/Dockerfile.ze copies no %s", binary.Output)
 		}
+	}
+	// The scenario configs still exec the harness by its retired name, so the
+	// image has to answer that name too.
+	if !strings.Contains(string(body), "RUN ln /usr/local/bin/le-test /usr/local/bin/ze-test") {
+		t.Error("test/interop/Dockerfile.ze gives le-test no ze-test link, and the scenarios exec ze-test")
 	}
 }
 
@@ -420,8 +425,8 @@ func TestScenarioPreparerBuildsOrderedPeers(t *testing.T) {
 	if joined := strings.Join(peers[1].Command, " "); !strings.Contains(joined, "interop-bgp speaker --connect 172.31.22.2:179") {
 		t.Fatalf("compiled speaker command did not use selected network: %s", joined)
 	}
-	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "ze-test"}) {
-		t.Fatalf("speaker entrypoint = %v, want compiled ze-test", got)
+	if got := peers[1].Arguments; !slices.Equal(got, []string{"--entrypoint", "le-test"}) {
+		t.Fatalf("speaker entrypoint = %v, want compiled le-test", got)
 	}
 	if len(peers[0].Mounts) != 1 || peers[0].Mounts[0].Target != "/etc/ze/bgp.conf" || !peers[0].Mounts[0].ReadOnly {
 		t.Fatalf("ze mounts = %+v, want only immutable rendered config", peers[0].Mounts)

@@ -184,7 +184,7 @@ func cmdWebMain(args []string) error {
 		cancel()
 	}()
 
-	// Resolve (and, off ZE_TEST_NO_BUILD, build) the DUT through the same helper
+	// Resolve (and, off LE_TEST_NO_BUILD, build) the DUT through the same helper
 	// every other suite uses, so ZE_BIN is honored. Hardcoding <baseDir>/bin/ze
 	// was wrong in BOTH directions: the functional flow builds its isolated set
 	// into tmp/testbin-*/bin and exports ZE_BIN there, never populating
@@ -388,7 +388,7 @@ func zeTestWantsChaos(tests []*zeTestWebTest) bool {
 // a plain run uses this session's bin/. One rule reaches both, and it cannot
 // pick up a stale chaos binary from the other tree.
 //
-// The build is skipped under ZE_TEST_NO_BUILD, the native functional flow's
+// The build is skipped under LE_TEST_NO_BUILD, the native functional flow's
 // promise that the caller built the isolated set already. A miss there is an
 // error rather than a build: building would defeat the isolation the flag gives.
 func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error) {
@@ -403,7 +403,7 @@ func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error
 			return filepath.Join(dir, "ze-chaos"), nil
 		}
 
-		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (unset ZE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
+		return "", fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (unset LE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
 	}
 
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_chaos ze_bgp", "-o", chaosPath, packageZe) //nolint:gosec // paths from internal runner

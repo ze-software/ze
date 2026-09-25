@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/leroot"
+	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 func TestOldOptionTableMapsExactlyToKeywords(t *testing.T) {
@@ -201,7 +202,7 @@ func stressTree(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"ze", "ze-test"} {
+	for _, name := range []string{"ze", harnessbin.Name} {
 		if err := os.WriteFile(filepath.Join(root, "bin", name), []byte("stub"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -395,9 +396,20 @@ func TestCancellationStopsInvocationsAndBurners(t *testing.T) {
 		report, code = run(ctx, root, baseOptions(), deps)
 		close(finished)
 	}()
-	<-fake.started
+	// Both waits are bounded. A run that fails before its first invocation
+	// never signals started, and an unbounded receive then hangs the package
+	// until the go test deadline instead of naming the early return.
+	select {
+	case <-fake.started:
+	case <-finished:
+		t.Fatalf("run returned before any invocation started: report/code = %#v/%d", report, code)
+	}
 	cancel()
-	<-finished
+	select {
+	case <-finished:
+	case <-time.After(30 * time.Second):
+		t.Fatal("run did not return within 30s of cancellation")
+	}
 	if code != 1 || !report.Interrupted || *stops != 1 {
 		t.Fatalf("report/code/stops = %#v/%d/%d", report, code, *stops)
 	}
@@ -441,7 +453,7 @@ func TestRaceBuildFailureAndMissingBinariesAreSetupErrors(t *testing.T) {
 	})
 	t.Run("missing", func(t *testing.T) {
 		root := stressTree(t)
-		if err := os.Remove(filepath.Join(root, "bin", "ze-test")); err != nil {
+		if err := os.Remove(filepath.Join(root, "bin", harnessbin.Name)); err != nil {
 			t.Fatal(err)
 		}
 		fake := &fakeRunner{}

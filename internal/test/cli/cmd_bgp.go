@@ -522,7 +522,7 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 				return filepath.Join(dir, "ze"), nil
 			}
 		}
-		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
+		return "", fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
 	}
 	tags, err := runner.TestBuildTags()
 	if err != nil {

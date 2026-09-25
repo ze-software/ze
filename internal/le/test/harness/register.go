@@ -19,4 +19,8 @@ func init() {
 		Section:   registry.SectionTest,
 	})
 	leroot.RegisterShape(Area, command.ShapeDoc)
+
+	// Every word after the name is the program's own command line, so a
+	// trailing help word reaches the program and it prints its own help.
+	leroot.RegisterForwarding(Area)
 }

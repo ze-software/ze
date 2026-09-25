@@ -11,7 +11,7 @@ import (
 )
 
 func runMRTDump(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		fmt.Fprintf(os.Stderr, `ze-analyze mrt-dump -- dump MRT records as BGP UPDATE hex
 
 Reads MRT files (RIB dumps or BGP4MP updates) and outputs each route as a
@@ -28,7 +28,7 @@ Examples:
   ze-analyze mrt-dump test/internet/latest-bview.gz | head -10
   ze-analyze mrt-dump test/internet/ripe-updates.*.gz | ze bgp decode -
 `)
-		return 1
+		return usageExit(args)
 	}
 
 	var damaged malformedCounter

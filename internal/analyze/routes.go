@@ -43,9 +43,9 @@ type routeRecord struct {
 }
 
 func runRoutes(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		os.Stderr.WriteString(routesUsage) //nolint:errcheck // usage output
-		return 1
+		return usageExit(args)
 	}
 
 	var limit int

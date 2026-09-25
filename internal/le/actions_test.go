@@ -28,14 +28,15 @@ import (
 // registers no table fails the test below, and so does a name on it whose area
 // now registers one. plan/spec-le-every-area-dispatches-through-one-table.md
 // empties it.
+//
+// An area that forwards every word to another program (leroot.RegisterForwarding)
+// is not on it: the program owns that grammar, so no table will replace the row.
 var areasWithoutAnActionTable = []string{
 	"ai digest",
 	"ai tokens",
 	"arch iface-resolution",
-	"build gokrazy",
 	"build gosum",
 	"build host-driver",
-	"chaos run",
 	"cli grammar",
 	"cli list",
 	"cli ownership",
@@ -46,7 +47,6 @@ var areasWithoutAnActionTable = []string{
 	"doc yang-contract",
 	"go extract",
 	"job",
-	"mrt",
 	"repo inventory",
 	"repo tracked-le",
 	"repo working-tree",
@@ -88,6 +88,14 @@ func TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList(t *testing.T) 
 		_, listed := seen[tool.Name]
 		if listed {
 			seen[tool.Name] = true
+		}
+		// A forwarding area hands every word to another program, so the
+		// program owns the grammar and le publishes that it forwards.
+		if leroot.Forwards(tool.Name) {
+			if declared || listed {
+				t.Errorf("area %q forwards its words to a program, so it registers no action table and has no row in areasWithoutAnActionTable", tool.Name)
+			}
+			continue
 		}
 		if declared && listed {
 			t.Errorf("area %q registers an action table, so delete its row from areasWithoutAnActionTable", tool.Name)

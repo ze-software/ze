@@ -122,10 +122,19 @@ action's closed keyword grammar, which the dispatcher renders from the table the
 area registered. An action can instead forward every word after its verb to
 another program verbatim (`leaction.Action.AnswerWords`): its row publishes
 `forwards`, its usage reads `[<words>...]`, and the program refuses what it
-cannot read. `le perf track --check <history>` is one. A help word that asks a
+cannot read. `le perf track --check <history>` is one. An area whose first word
+is already the program's forwards every word after its name
+(`leroot.RegisterForwarding`), and the manifest publishes `forwards` for it:
+`chaos run`, `mrt`, `test harness` and `build gokrazy`. A help word after a
+forwarding verb, or after a forwarding area's name, belongs to the program, so
+`le perf send --help` and `le mrt statistics --help` print the program's own
+help. `le perf --help` still prints le's page, and a bare forwarding area
+still lists what its program holds. Everywhere else, a help word that asks a
 question never reaches the handler,
 because a single-action area answers a bare invocation by RUNNING its gate, so
 rendering help through the handler would scan the tree or start a build.
+<!-- source: internal/le/leroot/dispatch.go -- asksForUsage -->
+<!-- source: internal/le/leaction/leaction.go -- TrailingWordIsValue -->
 
 **The area's own table decides which help word is a question and which is
 data.** A help word that a declared keyword introduced is the value the operator

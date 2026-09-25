@@ -248,6 +248,11 @@ Control:
 	}
 
 	if err := fs.Parse(args); err != nil {
+		// A help word is a question the flag set already answered by printing
+		// its usage, so it is not a failure.
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 1
 	}
 

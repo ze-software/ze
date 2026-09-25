@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -577,5 +578,73 @@ func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) 
 		if !strings.Contains(page, "le "+forwarder) {
 			t.Errorf("a trailing %s printed no page: %q", question, page)
 		}
+	}
+}
+
+// VALIDATES: a help word after a forwarding row's verb, and any help word after
+// a forwarding area's name, reaches the program verbatim, so the program prints
+// its own help. The area and the verb alone still answer le's own page.
+// PREVENTS: `le perf send --help` and `le chaos run --help` printing le's
+// one-line usage, which left the program's flag list unreachable from le.
+func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
+	// A forwarding row: the words after `send` are the program's.
+	var rowWords []string
+	rowCalls := 0
+	area := leaction.New("forwarding-row-probe", leaction.Action{
+		Verb: "send", Why: "hand the words to the sender program",
+		AnswerWords: func(words []string) (any, int) {
+			rowCalls++
+			rowWords = words
+			return nil, 0
+		},
+	})
+	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{
+		ShortHelp: "an area with one forwarding row",
+		Mode:      "offline", Section: registry.SectionTest,
+	})
+	RegisterActions(area.Name(), area.Actions)
+
+	for _, help := range []string{"--help", "-h", "help", "-help"} {
+		rowCalls, rowWords = 0, nil
+		code := Dispatch("le", []string{area.Name(), "send", help})
+		if code != 0 || rowCalls != 1 {
+			t.Fatalf("`send %s` answered %d and reached the program %d time(s), want 0 and once", help, code, rowCalls)
+		}
+		if !slices.Equal(rowWords, []string{help}) {
+			t.Errorf("`send %s` handed the program %q, want [%s]", help, rowWords, help)
+		}
+	}
+	rowCalls = 0
+	page := captureStderr(t, func() { Dispatch("le", []string{area.Name(), "--help"}) })
+	if rowCalls != 0 || !strings.Contains(page, "le "+area.Name()) {
+		t.Errorf("the area's own help word reached the program %d time(s) or printed no le page: %q", rowCalls, page)
+	}
+
+	// A forwarding area: every word after the name is the program's.
+	var areaWords []string
+	areaCalls := 0
+	const forwarder = "forwarding-area-probe"
+	Register(forwarder, GroupSuite, func(args []string) (any, int) {
+		areaCalls++
+		areaWords = args
+		return nil, 0
+	}, registry.Meta{
+		ShortHelp: "an area that forwards every word",
+		Mode:      "offline", Section: registry.SectionTest,
+	})
+	RegisterForwarding(forwarder)
+
+	for _, args := range [][]string{{"--help"}, {"statistics", "--help"}, {"statistics", "-h"}} {
+		areaCalls, areaWords = 0, nil
+		code := Dispatch("le", append([]string{forwarder}, args...))
+		if code != 0 || areaCalls != 1 {
+			t.Fatalf("%v answered %d and reached the program %d time(s), want 0 and once", args, code, areaCalls)
+		}
+		if !slices.Equal(areaWords, args) {
+			t.Errorf("%v handed the program %q, want the words verbatim", args, areaWords)
+		}
+	}
+	if !Forwards(forwarder) || Forwards(area.Name()) {
+		t.Errorf("Forwards answered %v for the forwarding area and %v for the row area, want true and false", Forwards(forwarder), Forwards(area.Name()))
 	}
 }

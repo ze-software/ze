@@ -61,7 +61,7 @@ func newASPathAnalysis() *aspathAnalysis {
 }
 
 func runASPath(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		fmt.Fprintf(os.Stderr, `ze-analyze aspath -- AS_PATH suffix sharing analysis
 
 Analyzes MRT files to measure how much AS_PATH data can be compressed
@@ -78,7 +78,7 @@ Examples:
   ze-analyze aspath test/internet/latest-bview.gz 2>/dev/null | jq .
   ze-analyze aspath test/internet/latest-bview.gz >/dev/null
 `)
-		return 1
+		return usageExit(args)
 	}
 
 	st := newASPathAnalysis()

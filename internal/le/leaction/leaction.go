@@ -393,6 +393,11 @@ func (l List) UsageText(verb string) (string, bool) {
 // than waiting for the next probe
 // (plan/spec-le-every-area-dispatches-through-one-table.md).
 //
+// A forwarding row (Row.Forwards) answers true for every word after its verb:
+// those words are another program's command line, so `perf send --help` asks
+// the benchmark program, which prints its own flags. The verb alone answers
+// false, because no word follows it for the program to read.
+//
 // A verb this listing does not hold answers false. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
 // claim (ai/rules/principles.md).
@@ -405,9 +410,13 @@ func (l List) TrailingWordIsValue(args []string) bool {
 		return false
 	}
 	for _, row := range l.Actions {
-		if row.Verb == args[0] {
-			return trailingIsValue(row.Parameters, args[1:])
+		if row.Verb != args[0] {
+			continue
 		}
+		if row.Forwards {
+			return len(args) > 1
+		}
+		return trailingIsValue(row.Parameters, args[1:])
 	}
 	return false
 }
@@ -516,6 +525,12 @@ func (a Area) Answer(args []string) (any, int) {
 		if verb != args[0] {
 			continue
 		}
+		// A forwarding action owns no grammar for its words, so every word,
+		// a help word included, is the program's: the program prints its own
+		// help, and le's one-line usage never stands in for it.
+		if act.AnswerWords != nil {
+			return act.AnswerWords(args[1:])
+		}
 		// A TRAILING help word asks what this action takes, unless the bare
 		// word is the value a keyword introduced: `new help` is the text `new`
 		// takes. To swallow that line is to answer 0 and run nothing, which no
@@ -525,9 +540,6 @@ func (a Area) Answer(args []string) (any, int) {
 		// refuses it and answers 2, in this slot and in every earlier one.
 		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
-		}
-		if act.AnswerWords != nil {
-			return act.AnswerWords(args[1:])
 		}
 		if act.AnswerArgs != nil {
 			parsed, err := parseArguments(act.Parameters, args[1:])

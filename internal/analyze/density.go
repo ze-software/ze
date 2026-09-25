@@ -73,7 +73,7 @@ func newDensityStats() *densityStats {
 }
 
 func runDensity(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		fmt.Fprintf(os.Stderr, `ze-analyze density -- measure UPDATE message density and burst patterns
 
 Processes BGP4MP records from MRT files to produce two distributions:
@@ -90,7 +90,7 @@ Examples:
   ze-analyze density test/internet/ripe-updates.*.gz
   ze-analyze density test/internet/rv-updates.*.gz
 `)
-		return 1
+		return usageExit(args)
 	}
 
 	st := newDensityStats()

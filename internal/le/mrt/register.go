@@ -23,4 +23,8 @@ func init() {
 	// A bare `le mrt` answers one row per subcommand, so the table shape
 	// renders it and every pipe operator reads the same rows.
 	leroot.RegisterShape(name, command.ShapeTab)
+
+	// Every word after the name is the program's own command line, so a
+	// trailing help word reaches the program and it prints its own help.
+	leroot.RegisterForwarding(name)
 }

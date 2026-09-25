@@ -127,7 +127,7 @@ func newAttrPeerStats() *attrPeerStats {
 }
 
 func runAttributes(args []string) int {
-	if len(args) == 0 {
+	if len(args) == 0 || helpAsked(args) {
 		fmt.Fprintf(os.Stderr, `ze-analyze attributes -- BGP attribute repetition analysis
 
 Analyzes MRT files to measure how often BGP path attributes repeat across routes.
@@ -143,7 +143,7 @@ Examples:
   ze-analyze attributes test/internet/latest-bview.gz 2>/dev/null | jq .
   ze-analyze attributes test/internet/latest-bview.gz >/dev/null
 `)
-		return 1
+		return usageExit(args)
 	}
 
 	st := newAttrAnalysis()

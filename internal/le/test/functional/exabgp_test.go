@@ -64,8 +64,8 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	}
 
 	zeTest := recorder.commands[1]
-	if zeTest.Stage != "build-ze-test" {
-		t.Fatalf("second stage = %q, want build-ze-test", zeTest.Stage)
+	if zeTest.Stage != "build-le-test" {
+		t.Fatalf("second stage = %q, want build-le-test", zeTest.Stage)
 	}
 	if got := argumentAfter(zeTest.Arguments, "-tags"); got != "ze_test ze_exabgp" {
 		t.Fatalf("ze-test tags = %q", got)
@@ -128,7 +128,7 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 		wantCalls int
 	}{
 		{name: "ze build", stage: "build-ze", code: 37, wantCalls: 1},
-		{name: "ze-test build", stage: "build-ze-test", code: 38, wantCalls: 2},
+		{name: "le-test build", stage: "build-le-test", code: 38, wantCalls: 2},
 		// The encoding stage failing stops the run before the api stage, which is
 		// the point of the first-failure contract: three calls, not four.
 		{name: "compatibility subject", stage: "exabgp-encoding", code: 42, wantCalls: 3},

@@ -167,6 +167,41 @@ func setActions(name string, actions func() leaction.List) {
 	actionTables.byName[name] = actions
 }
 
+// RegisterForwarding records an area whose every word after its name is the
+// command line of another program, handed over verbatim: `le mrt statistics
+// --help` is the MRT analyzer's own `statistics --help`. The area owns no
+// grammar for those words, so it registers no action table, and the dispatcher
+// hands a trailing help word to the program rather than answering it with le's
+// page (asksForUsage). The program's help is the real help.
+//
+// It is the area-wide form of a forwarding action row (leaction.Action
+// AnswerWords), for an area whose first word is already the program's. A bare
+// invocation still reaches the handler, which lists what the program holds.
+func RegisterForwarding(name string) {
+	forwardingAreas.Lock()
+	defer forwardingAreas.Unlock()
+	if forwardingAreas.byName == nil {
+		forwardingAreas.byName = make(map[string]bool, 8)
+	}
+	forwardingAreas.byName[name] = true
+}
+
+// Forwards reports whether an area registered itself as forwarding its words to
+// another program (RegisterForwarding).
+func Forwards(name string) bool {
+	forwardingAreas.RLock()
+	defer forwardingAreas.RUnlock()
+	return forwardingAreas.byName[name]
+}
+
+// forwardingAreas holds every area that registered as forwarding. Registration
+// runs in init() and help reads it on any goroutine, so the set is guarded.
+// Safe for concurrent use.
+var forwardingAreas struct {
+	sync.RWMutex
+	byName map[string]bool
+}
+
 // CommandPath answers the canonical local-data path for one le tool.
 func CommandPath(name string) string {
 	var tb textbuf.Buffer

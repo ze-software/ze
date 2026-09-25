@@ -51,6 +51,9 @@ type ManifestArea struct {
 	// key is then absent rather than empty: absent says the area declared
 	// nothing, which is a different fact from an area that declared no action.
 	Actions []leaction.Row `json:"actions,omitempty"`
+	// Forwards says every word after the name is another program's command
+	// line (RegisterForwarding), so the program, not le, reads and refuses it.
+	Forwards bool `json:"forwards,omitempty"`
 }
 
 // manifestOf answers the surface as it stands in the shared registry. It is
@@ -77,6 +80,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		if list, declared := ActionsOf(root.Name); declared {
 			area.Actions = list.Actions
 		}
+		area.Forwards = Forwards(root.Name)
 		manifest.Areas = append(manifest.Areas, area)
 	}
 	return manifest

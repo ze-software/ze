@@ -3,7 +3,7 @@
 // Related: stressScenarioRegistry -- the complete five-scenario registry.
 //
 // stressbird.go owns the BIRD baseline scenario as callable Go. BIRD, birdc, ip,
-// ethtool, ss, and bin/ze-test remain external because they are the systems this
+// ethtool, ss, and bin/le-test remain external because they are the systems this
 // integration gate exercises. No repository-owned Python, Make, sudo, or go-run
 // process sits between the action and this runner.
 package testintegration
