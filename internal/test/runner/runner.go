@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
@@ -29,23 +28,47 @@ var logger = slogutil.LazyLogger("test.runner")
 // envTypeString is the env registry's name for a free-text value.
 const envTypeString = "string"
 
+// envTypeBool is the env registry's name for a true/false value.
+const envTypeBool = "bool"
+
 // Test-runner env vars (also read by internal/test/cli, which imports this package).
-// The harness variables le.test.bin and le.test.no.build are registered in
-// internal/test/harnessbin, which resolves their retired ze. spellings.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.tags", Type: envTypeString, Description: "Extra Go build tags for test builds (comma or space separated)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: envTypeString, Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
 )
 
-// Names of the binaries the runner builds, shims, and execs.
+// The variable that skips the runner's `ze` build. Each key is read under its
+// `le.` spelling first and its retired `ze.` spelling second, until Phase 3 of
+// plan/spec-le-subject-first-command-tree.md removes the retired one.
+//
+// Two registered entries, not an `Aliases` entry: env.Get reads an alias
+// spelling only when the caller passes the alias key, so an alias on
+// `le.test.no.build` would never see an environment that sets only
+// `ZE_TEST_NO_BUILD`. The retired entry carries `Deprecated`, so env.Get prints
+// its one warning the first time a value is read from it.
 const (
-	binNameZe     = "ze"
-	binNameZePeer = "ze-peer"
-	binNameLETest = harnessbin.Name // the harness as a .ci execs it
-	// binNameZeTest is the retired exec name. It still answers until the
-	// retired names are removed (plan/spec-le-subject-first-command-tree.md, Phase 3).
-	binNameZeTest = harnessbin.RetiredName
+	KeyNoBuild        = "le.test.no.build"
+	RetiredKeyNoBuild = "ze.test.no.build"
+	// EnvNoBuild is the spelling a parent process writes for a child.
+	EnvNoBuild = "LE_TEST_NO_BUILD"
 )
+
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: KeyNoBuild, Type: envTypeBool, Description: "Skip the in-process go build of ze and require a pre-built ze"})
+	_ = env.MustRegister(env.EnvEntry{Key: RetiredKeyNoBuild, Type: envTypeBool, Deprecated: EnvNoBuild, Description: "Retired spelling of le.test.no.build, read when le.test.no.build is unset"})
+)
+
+// NoBuild answers whether the runner skips its `ze` build and uses a pre-built
+// ze (le.test.no.build, or its retired ze. spelling when that is unset).
+func NoBuild() bool {
+	if env.Get(KeyNoBuild) != "" {
+		return env.IsEnabled(KeyNoBuild)
+	}
+	return env.IsEnabled(RetiredKeyNoBuild)
+}
+
+// binNameZe is the daemon under test, the one binary the runner builds.
+const binNameZe = "ze"
 
 // TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
 const TestPluginBuildTag = "zetest"
@@ -71,32 +94,6 @@ func TestBuildTags() (string, error) {
 	tags := zeTagsFromEnv()
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
 	tags = append(tags, gates...)
-	return textbuf.Join(tags, ","), nil
-}
-
-// testHelperBuildTags returns the tags for the le-test helper binary, using the
-// same generated feature manifest as the daemon build.
-//
-// The feature-gate tags are NOT optional decoration here. le-test links the
-// engine's own plugin registry so `le-test plugin-external <name>` can run a
-// registered plugin's RunEngine over a real TLS connect-back
-// (internal/test/cli/cmd_plugin_external.go). Registration happens in each
-// plugin package's init(), which a feature gate compiles out: built with a bare
-// `ze_test`, the helper's registry.Lookup misses every gated plugin and the
-// launcher exits 1 with "unknown registered plugin" before the plugin under test
-// can say anything. The daemon, built from TestBuildTags, then reports only a
-// TLS connect-back failure -- so as112-external-refuses and
-// flowexport-external-refuses waited out their await=stderr fence for a refusal
-// that no process was ever alive to emit. Two build recipes for one binary is
-// what drifted; both now derive their feature set from feature-gates.txt.
-func testHelperBuildTags() (string, error) {
-	gates, err := featureGateTags()
-	if err != nil {
-		return "", err
-	}
-
-	tags := append([]string{"ze_test"}, gates...)
-	tags = append(tags, zeTagsFromEnv()...)
 	return textbuf.Join(tags, ","), nil
 }
 
@@ -158,15 +155,15 @@ type RunOptions struct {
 
 // Runner executes encoding tests.
 type Runner struct {
-	tests    *EncodingTests
-	baseDir  string
-	tmpDir   string
-	zePath   string
-	testPath string // le-test binary (used for peer subcommand)
-	display  *Display
-	report   *Report
-	colors   *Colors
-	timings  Timings // rolling timing baseline
+	tests   *EncodingTests
+	baseDir string
+	tmpDir  string
+	zePath  string
+	lePath  string // this process's own le, which answers every harness command
+	display *Display
+	report  *Report
+	colors  *Colors
+	timings Timings // rolling timing baseline
 
 	// concurrency is the resolved number of tests run in parallel for the
 	// current Run. Set at the top of Run; read by runTest to decide whether to
@@ -177,8 +174,8 @@ type Runner struct {
 	// binaries that should be built alongside ze and ze-test.
 	extraBinaries map[string]ExtraBinary
 
-	// binShimDir holds bare-named symlinks (ze, le-test) to the binaries this
-	// run actually resolved. It is what goes on a test child's PATH; see
+	// binShimDir holds the bare names a child resolves on PATH: symlinks for
+	// ze and le, and shell shims for the retired harness names. It is what goes on a test child's PATH; see
 	// setupBinShims for why the binaries' own directory must not.
 	binShimDir string
 }
@@ -201,7 +198,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 
 	colors := NewColors()
 	// Off-session this is <baseDir>/bin, as before. Under a session it is that
-	// session's private bin/, so a direct `le-test` invocation (the chaos
+	// session's private bin/, so a direct `le test <suite>` run (the chaos
 	// targets, ad-hoc runs, ZE_TEST_CANONICAL=1) can no longer rebuild the
 	// shared bin/ze out from under a sibling session mid-test. Build here is
 	// unlocked by design; isolation, not locking, is what makes it safe.
@@ -214,24 +211,21 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		}
 		zePath = v
 	}
-	testBinPath := filepath.Join(binDir, harnessbin.Name)
-	if v := harnessbin.TestBin(); v != "" {
-		if !filepath.IsAbs(v) {
-			v = filepath.Join(baseDir, v)
-		}
-		testBinPath = v
+	lePath, err := ownExecutable()
+	if err != nil {
+		return nil, err
 	}
 
 	return &Runner{
-		tests:    tests,
-		baseDir:  baseDir,
-		tmpDir:   tmpDir,
-		zePath:   zePath,
-		testPath: testBinPath,
-		colors:   colors,
-		display:  NewDisplay(tests.Tests, colors),
-		report:   newReport(colors),
-		timings:  LoadTimings(baseDir),
+		tests:   tests,
+		baseDir: baseDir,
+		tmpDir:  tmpDir,
+		zePath:  zePath,
+		lePath:  lePath,
+		colors:  colors,
+		display: NewDisplay(tests.Tests, colors),
+		report:  newReport(colors),
+		timings: LoadTimings(baseDir),
 	}, nil
 }
 
@@ -263,8 +257,9 @@ func (r *Runner) Cleanup() {
 	}
 }
 
-// setupBinShims creates a directory of bare-named symlinks to the binaries this
-// run resolved, and returns it. It is the ONLY directory the runner prepends to
+// setupBinShims creates a directory of the bare names a test child resolves:
+// symlinks to the ze this run resolved and to the runner's own le, and shell
+// shims for the retired harness names. It is the ONLY directory the runner prepends to
 // a test child's PATH.
 //
 // Putting filepath.Dir(r.zePath) there instead -- which is what the runner did
@@ -291,7 +286,7 @@ func (r *Runner) setupBinShims() error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create bin shim dir: %w", err)
 	}
-	for name, target := range map[string]string{binNameZe: r.zePath, binNameLETest: r.testPath, binNameZeTest: r.testPath} {
+	for name, target := range map[string]string{binNameZe: r.zePath, binNameLE: r.lePath} {
 		abs, err := filepath.Abs(target)
 		if err != nil {
 			return fmt.Errorf("resolve %s binary %q: %w", name, target, err)
@@ -302,6 +297,21 @@ func (r *Runner) setupBinShims() error {
 		}
 		if err := os.Symlink(abs, link); err != nil {
 			return fmt.Errorf("link %s -> %s: %w", link, abs, err)
+		}
+	}
+	// The retired harness names are shell scripts, not links: each stands for
+	// `le` plus words, and a link cannot add a word. They exec the `le` link
+	// above, whose name selects the le personality (cmd/ze/dispatch.go).
+	for head, words := range retiredHeads {
+		var tb textbuf.Buffer
+		tb.Str("#!/bin/sh\nexec ").Str(shellQuote(filepath.Join(dir, binNameLE)))
+		for _, word := range words {
+			tb.Byte(' ').Str(word)
+		}
+		tb.Str(" \"$@\"\n")
+		shim := filepath.Join(dir, head)
+		if err := os.WriteFile(shim, []byte(tb.String()), 0o750); err != nil { //nolint:gosec // an executable shim in this run's private directory
+			return fmt.Errorf("write shim %s: %w", shim, err)
 		}
 	}
 	r.binShimDir = dir
@@ -332,11 +342,19 @@ const workDirPrefix = "ze-work-"
 // repositoryAnchoredBinary answers whether a .ci step's binary resolves its
 // arguments against the repository rather than against the test. `go test`
 // takes ./... package patterns that mean nothing outside the module, and `./le`
-// IS a relative path to the script in the repository root. Every other binary a
-// .ci step names is given the test's own directory, so its runtime files land
-// beside the test.
-func repositoryAnchoredBinary(binName string) bool {
-	return binName == "go" || binName == "le" || binName == "./le"
+// IS a relative path to the script in the repository root. An `le` head is
+// anchored too, except for a harness command (`le test <name>`), which runs in
+// the test's directory as the harness binary did (leHarnessArea). Every other
+// binary a .ci step names is given the test's own directory, so its runtime
+// files land beside the test.
+func repositoryAnchoredBinary(binName string, args []string) bool {
+	switch binName {
+	case "go", "./le":
+		return true
+	case binNameLE:
+		return !leHarnessArea(args)
+	}
+	return false
 }
 
 // childWorkingDirectory answers the directory one .ci step's child runs in.
@@ -344,21 +362,22 @@ func repositoryAnchoredBinary(binName string) bool {
 // A child given no directory inherits the runner's, which is the repository
 // root, and a ze daemon started there writes its runtime state into the
 // checkout (see Record.WorkDir).
-func (r *Runner) childWorkingDirectory(binName string, rec *Record) string {
-	if repositoryAnchoredBinary(binName) {
+func (r *Runner) childWorkingDirectory(binName string, args []string, rec *Record) string {
+	if repositoryAnchoredBinary(binName, args) {
 		return r.baseDir
 	}
 	return rec.WorkDir
 }
 
-// Build compiles the test binaries.
+// Build compiles ze, the one binary a run builds: every harness command is the
+// runner's own le (lePath).
 //
-// LE_TEST_NO_BUILD=1 skips the in-process `go build` and uses pre-built binaries
-// already present at r.zePath / r.testPath. This lets a slow target (e.g. a QEMU
+// LE_TEST_NO_BUILD=1 skips the in-process `go build` and uses a pre-built ze
+// already present at r.zePath. This lets a slow target (e.g. a QEMU
 // VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
 // on a fast host, instead of compiling the whole tree inside the VM.
 func (r *Runner) Build(ctx context.Context) error {
-	if harnessbin.NoBuild() {
+	if NoBuild() {
 		return r.verifyPrebuilt()
 	}
 
@@ -379,28 +398,6 @@ func (r *Runner) Build(ctx context.Context) error {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze: %w", err)
-	}
-
-	// Build le-test (provides peer subcommand, and plugin-external's registry)
-	helperTags, err := testHelperBuildTags()
-	if err != nil {
-		r.display.buildStatus(false, err)
-		return fmt.Errorf("build le-test: %w", err)
-	}
-	cmd = exec.CommandContext(ctx, "go", "build", "-tags", helperTags, "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
-	cmd.Dir = r.baseDir
-	cmd.Env = childEnv("CGO_ENABLED=0")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
-		return fmt.Errorf("build le-test: %w", err)
-	}
-	// Callers still exec the harness by its retired name, so a build of the
-	// default file writes that name beside it (harnessbin.LinkRetired).
-	if filepath.Base(r.testPath) == harnessbin.Name {
-		if _, err := harnessbin.LinkRetired(r.testPath); err != nil {
-			r.display.buildStatus(false, err)
-			return fmt.Errorf("link %s: %w", harnessbin.RetiredName, err)
-		}
 	}
 
 	// Build extra binaries (e.g., ze-chaos for chaos-web tests).
@@ -429,8 +426,8 @@ func (r *Runner) Build(ctx context.Context) error {
 	return nil
 }
 
-// verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the binaries the
-// runner would otherwise build already exist, rather than building them. Extra
+// verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the ze the
+// runner would otherwise build already exists, rather than building them. Extra
 // binaries (e.g. ze-chaos) are not supported in this mode and must be built
 // normally.
 func (r *Runner) verifyPrebuilt() error {
@@ -443,31 +440,20 @@ func (r *Runner) verifyPrebuilt() error {
 	// "missing" would break LE_TEST_NO_BUILD for anyone
 	// who did exactly what the flag asks.
 	//
-	// Both binaries move together, to ONE directory: .ci tests exec `ze` and
-	// `ze-stripped` by bare name off the single directory this runner puts on
-	// their PATH (runner_exec.go), so resolving ze from one directory and le-test
-	// from another would pass both stat calls and still strand a test on a
-	// sibling binary that is not beside it.
-	//
-	// An explicit ZE_BIN/LE_TEST_BIN is exempt: it names ONE binary, so a miss
-	// there must fail loudly rather than silently run a different build.
-	if env.Get("ze.bin") == "" && harnessbin.TestBin() == "" {
-		_, zeErr := os.Stat(r.zePath)
-		_, testErr := os.Stat(r.testPath)
-		if zeErr != nil || testErr != nil {
-			if dir := sessionpath.FindPrebuiltDir(r.baseDir, binNameZe, harnessbin.Name); dir != "" {
+	// An explicit ZE_BIN is exempt: it names ONE binary, so a miss there must
+	// fail loudly rather than silently run a different build.
+	if env.Get("ze.bin") == "" {
+		if _, zeErr := os.Stat(r.zePath); zeErr != nil {
+			if dir := sessionpath.FindPrebuiltDir(r.baseDir, binNameZe); dir != "" {
 				r.zePath = filepath.Join(dir, binNameZe)
-				r.testPath = filepath.Join(dir, harnessbin.Name)
 			}
 		}
 	}
 
-	for _, p := range []string{r.zePath, r.testPath} {
-		if _, err := os.Stat(p); err != nil {
-			buildErr := fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
-			r.display.buildStatus(false, buildErr)
-			return buildErr
-		}
+	if _, err := os.Stat(r.zePath); err != nil {
+		buildErr := fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", r.zePath, err)
+		r.display.buildStatus(false, buildErr)
+		return buildErr
 	}
 	if len(r.extraBinaries) > 0 {
 		buildErr := fmt.Errorf("LE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 var (
@@ -294,7 +293,7 @@ func commandExpensive(segment string) bool {
 	if base == "go" {
 		return len(tokens) > 1 && oneOf(tokens[1], "test", "build", "vet", "run")
 	}
-	if base == "golangci-lint" || harnessRunner(base) {
+	if base == "golangci-lint" {
 		return true
 	}
 	if base == "le" {
@@ -331,8 +330,9 @@ func beforeRedirection(words []string) []string {
 // names the two areas rather than the shape.
 //
 // `le test <suite>` is the subject-first spelling of the suite areas, so the
-// word after `test` is read as the area: `test unit` is `test-unit`, and `test
-// harness` runs the harness, building it first when it is absent.
+// word after `test` is read as the area: `test unit` is `test-unit`. No
+// harness binary exists (plan/spec-le-subject-first-command-tree.md, D-8), so
+// no file name is read as the functional runner.
 //
 // `le go lint` is the subject-first name of `le verify lint`, so it runs the
 // linter and is heavy. The old spellings `verify lint`, `functional`,
@@ -349,9 +349,6 @@ func heavyArea(words []string) bool {
 	}
 	if area == "test" && len(rest) > 0 {
 		area, rest = rest[0], rest[1:]
-		if area == "harness" {
-			return true
-		}
 		if area == "unit" {
 			area = "test-unit"
 		}
@@ -363,18 +360,6 @@ func heavyArea(words []string) bool {
 		return false
 	}
 	return oneOf(area, "verify", "functional", "integration", "qemu", "test-unit")
-}
-
-// harnessRunner reports whether a program's base name is the functional test
-// harness: le-test, its retired name ze-test, or a cross-build of either such
-// as le-test-linux-arm64.
-func harnessRunner(base string) bool {
-	for _, name := range []string{harnessbin.Name, harnessbin.RetiredName} {
-		if base == name || strings.HasPrefix(base, name+"-") {
-			return true
-		}
-	}
-	return false
 }
 
 // ze point: commands/no-pipes-on-expensive-commands/never-pipe-an-expensive-command-read-the-log
@@ -466,22 +451,6 @@ func rawHeavy(segment string) (string, string) {
 			return "", ""
 		}
 		return "`golangci-lint`", admittedCommand("lint", tokens)
-	}
-	if harnessRunner(base) {
-		suite := "<suite>"
-		positional := make([]string, 0, 2)
-		for _, token := range tokens[1:] {
-			if !strings.HasPrefix(token, "-") && !regexp.MustCompile(`^\d+$`).MatchString(token) {
-				positional = append(positional, token)
-			}
-		}
-		if len(positional) != 0 {
-			suite = positional[0]
-			if suite == "bgp" && len(positional) > 1 {
-				suite = positional[1]
-			}
-		}
-		return "the functional runner `" + tokens[0] + "`", admittedCommand("functional-"+suite, tokens)
 	}
 	return "", ""
 }

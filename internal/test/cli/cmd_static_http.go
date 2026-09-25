@@ -10,7 +10,9 @@ import (
 	"time"
 )
 
-func cmdStaticHTTP(args []string) int {
+// CmdStaticHTTP is the harness command `le test static-http`, registered by
+// internal/le/test/statichttp. It answers the process exit code.
+func CmdStaticHTTP(args []string) int {
 	flags := flag.NewFlagSet("static-http", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	bind := flags.String("bind", "127.0.0.1:8080", "listen address")

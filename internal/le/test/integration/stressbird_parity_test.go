@@ -71,7 +71,7 @@ func TestStressBirdRecordedEffectsAreNonVacuous(t *testing.T) {
 		"run ip netns add ze-stress-ze-fixture",
 		"run ip netns add ze-stress-bb-fixture",
 		"start ip netns exec ze-stress-ze-fixture bird -f",
-		"start ip netns exec ze-stress-bb-fixture /repo/bin/le-test peer",
+		"start ip netns exec ze-stress-bb-fixture /repo/bin/le test peer",
 		"run ip netns exec ze-stress-ze-fixture birdc -s",
 		"run ip netns del ze-stress-ze-fixture",
 		"run ip netns del ze-stress-bb-fixture",

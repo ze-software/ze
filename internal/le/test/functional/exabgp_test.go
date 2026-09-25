@@ -64,19 +64,19 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	}
 
 	zeTest := recorder.commands[1]
-	if zeTest.Stage != "build-le-test" {
-		t.Fatalf("second stage = %q, want build-le-test", zeTest.Stage)
+	if zeTest.Stage != "build-le" {
+		t.Fatalf("second stage = %q, want build-le", zeTest.Stage)
 	}
-	if got := argumentAfter(zeTest.Arguments, "-tags"); got != "ze_test ze_exabgp" {
-		t.Fatalf("le-test tags = %q", got)
+	if got := argumentAfter(zeTest.Arguments, "-tags"); got != "ze_le ze_exabgp" {
+		t.Fatalf("le tags = %q", got)
 	}
 
 	// Two subjects since 2026-09-05, one per predecessor population. Each names
-	// its suite, because `le-test exabgp` alone runs encoding and nothing else.
+	// its suite, because `le test exabgp` alone runs encoding and nothing else.
 	for index, suite := range []string{"encoding", "api"} {
 		subject := recorder.commands[2+index]
 		wantSubject := []string{
-			"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, zeTest.Artifact,
+			"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, zeTest.Artifact, "test",
 			"exabgp", suite, "--all", "--timeout", "180s",
 		}
 		if !reflect.DeepEqual(subject.Arguments, wantSubject) {
@@ -101,11 +101,13 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 	if environment["ZE_BIN"] != ze.Artifact {
 		t.Fatalf("ZE_BIN = %q, want %q", environment["ZE_BIN"], ze.Artifact)
 	}
-	if environment["LE_TEST_BIN"] != zeTest.Artifact {
-		t.Fatalf("LE_TEST_BIN = %q, want %q", environment["LE_TEST_BIN"], zeTest.Artifact)
+	// The subject runs the set's own le (asserted above), so no harness
+	// variable names another file.
+	if value, present := environment["LE_TEST_BIN"]; present {
+		t.Fatalf("LE_TEST_BIN = %q, want it unset: the harness is the set's le", value)
 	}
 	if len(report.Artifacts) != 2 {
-		t.Fatalf("artifacts = %#v, want ze and ze-test", report.Artifacts)
+		t.Fatalf("artifacts = %#v, want ze and le", report.Artifacts)
 	}
 	if got := report.Children[2].Stdout; got != "42/42 ExaBGP compatibility tests passed\n" {
 		t.Fatalf("reported subject stdout = %q", got)
@@ -128,7 +130,7 @@ func TestRunExaBGPPreservesFirstFailureCodeAndCleanup(t *testing.T) {
 		wantCalls int
 	}{
 		{name: "ze build", stage: "build-ze", code: 37, wantCalls: 1},
-		{name: "le-test build", stage: "build-le-test", code: 38, wantCalls: 2},
+		{name: "le build", stage: "build-le", code: 38, wantCalls: 2},
 		// The encoding stage failing stops the run before the api stage, which is
 		// the point of the first-failure contract: three calls, not four.
 		{name: "compatibility subject", stage: "exabgp-encoding", code: 42, wantCalls: 3},

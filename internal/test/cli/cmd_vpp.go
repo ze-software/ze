@@ -15,7 +15,9 @@ import (
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
-func cmdVpp(args []string) int {
+// CmdVpp is the harness command `le test vpp`, registered by
+// internal/le/test/vpp. It answers the process exit code.
+func CmdVpp(args []string) int {
 	if err := zeTestVppMain(args); err != nil {
 		if !errors.Is(err, ErrTestsFailed) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)

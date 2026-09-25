@@ -77,7 +77,9 @@ type exabgpSuite struct {
 	byNick  map[string]*exabgpTestEntry
 }
 
-func cmdExabgp(args []string) int {
+// CmdExabgp is the harness command `le test exabgp`, registered by
+// internal/le/test/exabgp. It answers the process exit code.
+func CmdExabgp(args []string) int {
 	if err := zeTestExabgpMain(args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

@@ -417,28 +417,27 @@ func TestAGrepOverTheDirectoryMaterializesTheArtifact(t *testing.T) {
 	}
 }
 
-// TestBashHookAdmitsLeTest proves the pretool hook treats the harness under
-// its new name as the functional runner, as it treats ze-test (AC-11), and
-// that the subject-first `le test <suite>` spellings count as expensive.
+// TestBashHookReadsNoHarnessFile proves the pretool hook holds no admission
+// of a harness FILE: every harness command is `le test <name>` and no harness
+// binary exists (D-8), so a command line that names one of the retired file
+// names is not refused as the functional runner. That is also what ended the
+// false positive on a grep or a heredoc that merely mentions the name
+// (plan/journal/gate-fires-outside-its-population.md). The subject-first
+// `le test <suite>` spellings still count as expensive.
 //
-// VALIDATES: AC-11, le-test and le-test-<suffix> need job admission.
-// PREVENTS: the renamed harness reaching the machine unadmitted.
-func TestBashHookAdmitsLeTest(t *testing.T) {
+// VALIDATES: D-8, the hook's harness-file admission is gone.
+// PREVENTS: a text search for the retired name refused as a raw test run.
+func TestBashHookReadsNoHarnessFile(t *testing.T) {
 	refused := func(command string) bool {
 		return bashRawHeavy(context{input: map[string]any{"command": command}}) != nil
 	}
 	for _, command := range []string{
-		"le-test bgp plugin 42",
-		"bin/le-test bgp plugin 42",
-		"bin/le-test-linux-arm64 bgp parse 91",
+		"grep -n 'le-test bgp' internal/le/hookruntime/bash.go",
 		"ze-test bgp plugin 42",
 	} {
-		if !refused(command) {
-			t.Errorf("%q ran raw without job admission", command)
+		if refused(command) {
+			t.Errorf("%q was refused as a raw harness run", command)
 		}
-	}
-	if refused("./le job run label functional-plugin command bin/le-test bgp plugin 42") {
-		t.Error("an admitted le-test run was refused")
 	}
 
 	for _, command := range []string{
@@ -446,8 +445,6 @@ func TestBashHookAdmitsLeTest(t *testing.T) {
 		"./le test integration interop",
 		"./le test qemu run",
 		"./le test unit all",
-		"./le test harness bgp plugin 42",
-		"bin/le-test bgp plugin 42",
 	} {
 		if !commandExpensive(commandSegments(command)[0]) {
 			t.Errorf("%q is not read as expensive", command)

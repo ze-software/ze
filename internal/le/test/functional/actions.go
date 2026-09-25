@@ -58,7 +58,6 @@ type session struct {
 	built   bool
 	warmed  bool
 	label   string
-	extras  Extras
 	buildFn func() (BinarySet, error)
 	warmFn  func() error
 }
@@ -305,7 +304,6 @@ func newSession(args []string) *session {
 	if len(named) == 1 {
 		current.label = named[0].Name
 	}
-	current.extras = ExtrasFor(named...)
 	// Both closures ask for the toolchain rather than reading current.tc.
 	// The field is filled lazily, behind s.probed, so reading it directly
 	// hands Prepare and warmCITestPackages a zero Toolchain with an empty
@@ -318,7 +316,7 @@ func newSession(args []string) *session {
 		if err != nil {
 			return BinarySet{}, err
 		}
-		return Prepare(tc, current.label, current.extras)
+		return Prepare(tc, current.label)
 	}
 	current.warmFn = func() error {
 		tc, err := current.toolchain()

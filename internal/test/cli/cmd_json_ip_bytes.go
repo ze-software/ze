@@ -13,7 +13,9 @@ type ipByteRow struct {
 	Bytes uint64 `json:"bytes"`
 }
 
-func cmdJSONIPBytes(args []string) int {
+// CmdJSONIPBytes is the harness command `le test json-ip-bytes`, registered by
+// internal/le/test/jsonipbytes. It answers the process exit code.
+func CmdJSONIPBytes(args []string) int {
 	flags := flag.NewFlagSet("json-ip-bytes", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	ip := flags.String("ip", "", "IP address to total")

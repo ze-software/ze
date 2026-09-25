@@ -1,29 +1,34 @@
-package testfixture
+// VALIDATES: the stream drivers `dynamic` and `watchdog` are registered in the
+// harness fixture registry, which `le test fixture` runs, and write the same
+// lines at the same pauses as the le actions they replaced (AC-35 of
+// plan/spec-le-subject-first-command-tree.md).
+package fixture
 
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 )
 
-func TestAnswerListsNativeActions(t *testing.T) {
-	answer, code := Answer(nil)
-	if code != 0 {
-		t.Fatalf("Answer(nil) code = %d, want 0", code)
+// TestFixtureCarriesTheStreamDrivers proves the merge: the bare `le test
+// fixture` lists every driver from Names, so the two stream drivers must be
+// there, and a stream driver given an argument refuses rather than ignoring it.
+func TestFixtureCarriesTheStreamDrivers(t *testing.T) {
+	names := Names()
+	for _, want := range []string{"dynamic", "watchdog"} {
+		if !slices.Contains(names, want) {
+			t.Errorf("fixture registry holds no %q driver: %v", want, names)
+		}
 	}
-	listing, ok := answer.(Actions)
-	if !ok {
-		t.Fatalf("Answer(nil) type = %T, want Actions", answer)
-	}
-	if len(listing.Actions) != 2 ||
-		listing.Actions[0].Action != "dynamic" ||
-		listing.Actions[1].Action != "watchdog" {
-		t.Fatalf("Answer(nil) actions = %#v, want dynamic then watchdog", listing.Actions)
-	}
-	if got, want := Subs(), "dynamic watchdog"; got != want {
-		t.Fatalf("Subs() = %q, want %q", got, want)
+
+	driversMu.RLock()
+	driver := drivers["dynamic"]
+	driversMu.RUnlock()
+	if err := driver(t.Context(), []string{"extra"}); err == nil {
+		t.Error("dynamic accepted an argument; a stream driver takes none")
 	}
 }
 

@@ -34,6 +34,12 @@ func TestEveryNewNameResolvesToItsArea(t *testing.T) {
 
 	for _, row := range leroot.Renames() {
 		t.Run(strings.Join(row.Old(), " "), func(t *testing.T) {
+			// A row whose new words are a namespace (`test harness` to `test`)
+			// resolves through its members, which the forwarding test in
+			// harness_test.go places at their own directories.
+			if leroot.LookupCommand(row.Command) == nil && namespaceHasMembers(row.Command) {
+				return
+			}
 			if leroot.LookupCommand(row.Command) == nil {
 				t.Fatalf("new command %q is not registered", row.Command)
 			}
@@ -47,4 +53,15 @@ func TestEveryNewNameResolvesToItsArea(t *testing.T) {
 			}
 		})
 	}
+}
+
+// namespaceHasMembers reports whether some composed command sits under the
+// namespace word sequence.
+func namespaceHasMembers(namespace string) bool {
+	for _, command := range commandsAtStart {
+		if strings.HasPrefix(command.Name, namespace+" ") {
+			return true
+		}
+	}
+	return false
 }

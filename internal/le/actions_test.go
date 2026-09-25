@@ -59,7 +59,6 @@ var areasWithoutAnActionTable = []string{
 	"spec state",
 	"spec status",
 	"spec wip",
-	"test fixture",
 	"test stress-repro",
 	"verify summary",
 	"weekly",

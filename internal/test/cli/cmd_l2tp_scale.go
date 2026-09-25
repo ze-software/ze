@@ -21,7 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-func cmdL2tpScale(args []string) int {
+func CmdL2tpScale(args []string) int {
 	fs := flag.NewFlagSet("l2tp-scale", flag.ExitOnError)
 
 	var (

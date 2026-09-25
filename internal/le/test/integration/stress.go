@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const StressAction = "stress"
@@ -324,9 +323,8 @@ func (r *stressRunner) preflight(ctx context.Context) *StressBirdFailure {
 		}
 	}
 
-	peer := filepath.Join(r.base.root, "bin", harnessbin.Name)
-	if !r.system.FileExists(peer) {
-		return stressBirdFailure("preflight", gaterun.CannotStart, "bin/"+harnessbin.Name+" not found at "+peer+"; build it first: ./le test harness")
+	if _, err := r.system.Executable(); err != nil {
+		return stressBirdFailure("preflight", gaterun.CannotStart, "the BGP peer is this le (le test peer), and it cannot name its own file: "+err.Error())
 	}
 	r.zeBinary = r.system.Getenv("ZE_BINARY")
 	if r.zeBinary == "" || !r.system.FileExists(r.zeBinary) {
@@ -461,10 +459,13 @@ func (r *stressRunner) startPeer(
 	ctx context.Context,
 	round stressRound,
 ) (stressBirdProcess, *StressBirdFailure) {
-	peerBinary := filepath.Join(r.base.root, "bin", harnessbin.Name)
+	peerBinary, err := r.system.Executable()
+	if err != nil {
+		return nil, stressBirdFailure("peer", gaterun.CannotStart, err.Error())
+	}
 	argv := r.base.namespaceArgv(
 		r.base.peerNS,
-		peerBinary, "peer", "--mode", "inject", "--dial", stressBirdZeDial,
+		peerBinary, "test", "peer", "--mode", "inject", "--dial", stressBirdZeDial,
 		"--inject-prefix", round.prefixBase,
 		"--inject-count", strconv.Itoa(round.prefixes),
 		"--inject-nexthop", round.nexthop,

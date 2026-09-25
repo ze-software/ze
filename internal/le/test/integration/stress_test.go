@@ -82,7 +82,7 @@ func TestStressRegistryRunsEveryScenarioNonVacuously(t *testing.T) {
 	birdStarts := 0
 	for _, event := range recorder.events {
 		switch {
-		case strings.Contains(event, "/bin/le-test peer --mode inject"):
+		case strings.Contains(event, "/bin/le test peer --mode inject"):
 			peerStarts++
 		case strings.Contains(event, "/bin/ze start "):
 			zeStarts++

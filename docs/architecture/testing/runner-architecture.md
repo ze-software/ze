@@ -1,6 +1,6 @@
 # Test Runner Architecture
 
-How `le-test` discovers, schedules, executes, and reports functional tests.
+How the functional runner (`le test <suite>`) discovers, schedules, executes, and reports functional tests.
 
 This document covers the **execution architecture** (the scheduler and suite
 wrappers) and the **web `.wb` test format**. For the
@@ -25,9 +25,16 @@ The `.ci` `Runner` wrapper adds build and process orchestration.
 
 ## Scheduler and suite wrappers
 
-`le-test` subcommands register themselves in a dispatch table.
-<!-- source: internal/test/cli/register.go -- init, registerCIRoot -->
-<!-- source: internal/test/cli/dispatch.go -- registerRoot, registerCIRoot -->
+Every harness command is the le command `le test <name>`. Each has its own
+package at `internal/le/test/<name without hyphens>`, whose `register.go` calls
+`leroot.Register`, `leroot.RegisterShape` and `leroot.RegisterForwarding` with
+the answer `harnesstool.Answer` builds for a tool, or `harnesstool.SuiteAnswer`
+for a `.ci` suite from its `CIRunnerConfig`. The command forwards: every word after
+`test <name>` reaches the handler in `internal/test/cli` or its packages, a
+trailing help word included, and the handler's exit code is le's. No package
+under `internal/test` registers a ze root.
+<!-- source: internal/le/test/harnesstool/harnesstool.go -- Answer, SuiteAnswer -->
+<!-- source: internal/le/test/peer/register.go -- one harness command's registration -->
 `NewParallelRunner` constructs `parallelRunner` for direct use or use through
 the `.ci` `Runner` wrapper. The predecessor ExaBGP suite uses the bespoke
 scheduler in `runExaBGPSelected`.
@@ -310,21 +317,43 @@ resolving to `command-owner-firewall-root.ci` rather than to any `017-*.ci`.
 
 ## Which binaries a fixture reaches
 
-A fixture runs `ze` by bare name. The runner builds its own `ze` and the
-harness into a throwaway directory. The harness file is `le-test`
-(`harnessbin.Name`), and every builder also writes its retired name `ze-test` as
-a hard link, which the `.ci` files exec until the le rename rewrites them.
-The runner symlinks both under bare names into a shim directory, and prepends
-that directory to every child's PATH. So `exec.LookPath` and
-`exec.Command("ze", ...)` name the binary this run built. The shim exists
+A fixture runs `ze` by bare name. The runner builds `ze`, and only `ze`, into
+a throwaway directory (`LE_TEST_NO_BUILD=1` skips that build and uses a
+pre-built `ze`). No harness binary exists: every harness command is
+`le test <name>`, and the runner runs inside that `le`, so the runner's own
+executable (`os.Executable`) answers every harness exec.
+
+| `.ci` exec head | Runs |
+|-----------------|------|
+| `ze` | the `ze` this run built |
+| `le` | the runner's own executable, with the authored words |
+| `le-test`, `ze-test` (retired until Phase 3) | the runner's own executable, with `test` inserted |
+| `ze-peer` (retired until Phase 3) | the runner's own executable, with `test peer` inserted |
+| anything else | an extra binary of this run, else a PATH lookup |
+
+The parse steps resolve the same heads the same way (`resolveParseExec`).
+`le test <name>` runs in the test's work directory when `test <name>` is a
+harness command, which the runner reads off registration: under `test`, the
+forwarding commands are the harness commands. Every other `le` head keeps the
+repository root, as `./le` and `go` do.
+
+The runner prepends a shim directory to every child's PATH. It holds `ze` and
+`le` as symlinks to the two binaries above, and the three retired names as
+two-line shell scripts that exec that `le` with the inserted words. So
+`exec.LookPath`, `exec.Command("ze", ...)`, and a plugin `run` string that
+starts `le test engine-steps` name the binaries this run uses. The shim exists
 because a cross-compiled binary carries its target in the file name. One
 directory holding two architectures once gave the QEMU guest the host's `ze`.
 
-`./le test harness <argv>` builds `bin/le-test` under job admission on every
-call, then runs it with `<argv>` and answers its exit code. Go's build cache
-makes an unchanged rebuild cheap. `LE_TEST_NO_BUILD` runs the harness as it is
-and refuses when the file is absent.
-<!-- source: internal/le/test/harness/harness.go -- answerIn -->
+No child environment carries `ZE_LE_BUILD_NAME`: a child reached through the
+`le` link is not the named build file, and `refuseWrongBuildName` would refuse
+every one of them under `./le --name x`.
+
+`./le test harness <name> <argv>` is a retired spelling: it prints one stderr
+line naming `le test <name>`, then answers as `./le test <name> <argv>`. A bare
+`./le test harness`, or one whose next word names no member of `test`, is not
+rewritten.
+<!-- source: internal/le/leroot/retired.go -- retiredRewrite, namespaceMember -->
 
 `$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
 `.gitignore` excludes `bin/` and no verification job writes `ze` there. A
@@ -334,17 +363,19 @@ the run never made. `ZE_REPO_ROOT` names the source tree, and it is for reading
 TRACKED repository content: a golden config, a fixture input.
 
 The native `le` binary follows that rule too, and `nativeLEBinary` is the one
-helper that answers it. A suite whose fixtures drive `le` sets `LE: true` in the
-suite table, the run builds `le` into the set beside `ze`, and the fixture finds
-it by bare name on the same PATH. The `ui` and `runner` suites set it. Reading
+helper that answers it. `./le test functional` builds `ze`, `ze-stripped` and
+`le` from the tree under test into every isolated set, runs each suite as
+`<set>/le test <suite>` with `LE_TEST_NO_BUILD=1` and `ZE_BIN`, and the fixture
+finds that `le` by bare name on the same PATH. Reading
 `$ZE_REPO_ROOT/bin/le` instead is what made 20 `ui` cases fail in every fresh
 worktree and pass in a checkout where a developer had built one
 (`plan/journal/gate-verdict-depends-on-the-machine.md`).
 
 <!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
+<!-- source: internal/test/runner/harness_exec.go -- leHeadWords, leHarnessArea, droppedFromChild -->
 <!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
 <!-- source: internal/test/fixture/fixture.go -- nativeLEBinary -->
-<!-- source: internal/le/test/functional/binaries.go -- Extras, buildCommands -->
+<!-- source: internal/le/test/functional/binaries.go -- buildCommands, Prepare -->
 <!-- source: internal/test/runner/runner_exec_util.go -- zeRepoRootEnv -->
 
 ## Scratch roots

@@ -165,7 +165,7 @@ func FormatRerunCommand(suite string, args []string) string {
 	if suite == "" {
 		suite = defaultFailureSuite
 	}
-	command := []string{binNameLETest}
+	command := []string{"./le", leTestWord}
 	switch {
 	case suite == editorSuite:
 		command = append(command, editorSuite)

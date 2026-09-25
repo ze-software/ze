@@ -27,7 +27,9 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-func cmdPeer(args []string) int {
+// CmdPeer is the harness command `le test peer`, registered by
+// internal/le/test/peer. It answers the process exit code.
+func CmdPeer(args []string) int {
 	config, ok := zeTestParsePeerFlags(args)
 	if config == nil {
 		if ok {

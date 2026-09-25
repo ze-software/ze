@@ -283,10 +283,10 @@ func TestReplayReadsStdin(t *testing.T) {
 // VALIDATES: the command surface -- a missing file argument is a usage error,
 // and a file that does not exist is reported rather than treated as empty.
 func TestCmdReplayArguments(t *testing.T) {
-	if code := cmdReplay(nil); code != 2 {
+	if code := CmdReplay(nil); code != 2 {
 		t.Fatalf("no argument must be a usage error, got exit %d", code)
 	}
-	if code := cmdReplay([]string{filepath.Join(t.TempDir(), "absent.jsonl")}); code != 1 {
+	if code := CmdReplay([]string{filepath.Join(t.TempDir(), "absent.jsonl")}); code != 1 {
 		t.Fatalf("a missing file must be an error, got exit %d", code)
 	}
 }

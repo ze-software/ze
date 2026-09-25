@@ -253,16 +253,20 @@ func TestParseCICorpusReadsUnderTheGenericParser(t *testing.T) {
 // found in $PATH" under the gate while it passed from a shell that had bin/
 // on PATH.
 func TestParseExecResolvesBothBinaries(t *testing.T) {
-	const zePath, testPath = "/gate/bin/ze", "/gate/bin/le-test"
+	const zePath, lePath = "/gate/bin/ze", "/gate/bin/le"
 	for _, tc := range []struct{ exec, want string }{
 		{"ze config cat key", zePath + " config cat key"},
 		{"ze", zePath},
-		{"le-test fixture storage/empty-tree", testPath + " fixture storage/empty-tree"},
-		{"le-test fixture storage/empty-tree", testPath + " fixture storage/empty-tree"},
+		{"le test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
+		{"le-test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
+		{"ze-test fixture storage/empty-tree", lePath + " test fixture storage/empty-tree"},
+		{"ze-peer --mode sink", lePath + " test peer --mode sink"},
+		{"le", lePath},
 		{"cat test.conf", "cat test.conf"},
 		{"zebra route", "zebra route"},
+		{"lean x", "lean x"},
 	} {
-		got, err := resolveParseExec(tc.exec, zePath, testPath)
+		got, err := resolveParseExec(tc.exec, zePath, lePath)
 		if err != nil {
 			t.Fatalf("%q: %v", tc.exec, err)
 		}

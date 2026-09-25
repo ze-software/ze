@@ -7,11 +7,10 @@ import (
 	"github.com/ze-software/ze/internal/test/localdatacoverage"
 )
 
-func init() {
-	registerRoot("local-data-coverage", cmdLocalDataCoverage, "Exercise every local data command and its output contract")
-}
-
-func cmdLocalDataCoverage(args []string) int {
+// CmdLocalDataCoverage is the harness command `le test local-data-coverage`,
+// registered by internal/le/test/localdatacoverage. It answers the process exit
+// code.
+func CmdLocalDataCoverage(args []string) int {
 	if len(args) != 0 {
 		fmt.Fprintln(os.Stderr, "local-data-coverage: takes no arguments")
 		return 2

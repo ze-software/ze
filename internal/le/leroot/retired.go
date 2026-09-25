@@ -131,6 +131,9 @@ var renames = []Rename{
 	{Retired: "fuzz", Command: "test fuzz"},
 	{Retired: "stress-repro", Command: "test stress-repro"},
 	{Retired: "test-helper", Command: "test fixture"},
+	// Every harness command is a member of `test` (D-8), so the row names the
+	// namespace: `test harness peer x` runs `test peer x`.
+	{Retired: "test harness", Command: "test"},
 	{Retired: "netlab", Command: "test netlab"},
 	{Retired: "mutation", Command: "test mutation"},
 	{Retired: "test-health", Command: "test health"},
@@ -204,21 +207,29 @@ type Retirement struct {
 //
 //nolint:goconst // a row reads whole: a constant per repeated word hides which name a row retires
 var retirements = []Retirement{
-	{Kind: RetiredProgram, Old: "ze-test", Replacement: "le test harness", ProgramPositionOnly: true},
+	{Kind: RetiredProgram, Old: "ze-test", Replacement: "le test", ProgramPositionOnly: true},
+	{Kind: RetiredProgram, Old: "le-test", Replacement: "le test"},
+	// ze-peer is retired as a runner exec head only: the word also names peers
+	// in configs and prose that have nothing to do with the harness.
+	{Kind: RetiredProgram, Old: "ze-peer", Replacement: "le test peer", ProgramPositionOnly: true},
 	{Kind: RetiredProgram, Old: "ze-chaos", Replacement: "le chaos run"},
 	{Kind: RetiredProgram, Old: "ze-perf", Replacement: "le perf send | report | track"},
 	{Kind: RetiredProgram, Old: "ze-perf-run", Replacement: "le perf run"},
 	{Kind: RetiredProgram, Old: "ze-analyze", Replacement: "le mrt"},
 	{Kind: RetiredProgram, Old: "ze-gok", Replacement: "le build gokrazy"},
 	{Kind: RetiredProgram, Old: "ze-terminal-pty", Replacement: "le site terminal-demo pty"},
-	{Kind: RetiredTag, Old: "ze_test", Replacement: "le_test"},
+	{Kind: RetiredTag, Old: "ze_test", Replacement: "none: le carries the harness"},
 	{Kind: RetiredTag, Old: "ze_chaos", Replacement: "none: le chaos run"},
 	{Kind: RetiredTag, Old: "ze_analyze", Replacement: "none: le mrt"},
 	{Kind: RetiredTag, Old: "ze_perf", Replacement: "none: le perf"},
-	{Kind: RetiredFile, Old: "bin/ze-test", Replacement: "bin/le-test"},
-	{Kind: RetiredFile, Old: "bin/ze-test-linux-", Replacement: "bin/le-test-linux-"},
-	{Kind: RetiredFile, Old: "test/interop/ze-test-linux", Replacement: "test/interop/le-test-linux"},
-	{Kind: RetiredFile, Old: "/usr/local/bin/ze-test", Replacement: "/usr/local/bin/le-test"},
+	{Kind: RetiredFile, Old: "bin/ze-test", Replacement: "none: le test <name>"},
+	{Kind: RetiredFile, Old: "bin/ze-test-linux-", Replacement: "none: a linux le built by internal/le/linuxle"},
+	{Kind: RetiredFile, Old: "test/interop/ze-test-linux", Replacement: "none: a linux le at test/interop/le-linux"},
+	{Kind: RetiredFile, Old: "/usr/local/bin/ze-test", Replacement: "none: a linux le at /usr/local/bin/le"},
+	{Kind: RetiredFile, Old: "bin/le-test", Replacement: "none: le test <name>"},
+	{Kind: RetiredFile, Old: "bin/le-test-linux-", Replacement: "none: a linux le built by internal/le/linuxle"},
+	{Kind: RetiredFile, Old: "test/interop/le-test-linux", Replacement: "none: a linux le at test/interop/le-linux"},
+	{Kind: RetiredFile, Old: "/usr/local/bin/le-test", Replacement: "none: a linux le at /usr/local/bin/le"},
 	{Kind: RetiredFile, Old: "bin/ze-perf", Replacement: "none: a linux le at /usr/local/bin/le"},
 	{Kind: RetiredFile, Old: "bin/ze-perf-linux", Replacement: "none: a linux le at /usr/local/bin/le"},
 	{Kind: RetiredVariable, Old: "ze.perf.bin", Replacement: "none: the perf runner builds le"},
@@ -238,6 +249,11 @@ func Retirements() []Retirement {
 // when the command that replaces it is not registered yet: until a family
 // moves, its old name still runs its own handler, so a peer session calling
 // it keeps working.
+//
+// A row whose new words name a namespace rather than a command (`test harness`
+// to `test`) is accepted only when those words plus the caller's next word
+// resolve to a registered command (namespaceMember). A bare `test harness`, or
+// one followed by a word that names no member, is not rewritten.
 //
 // The longest matching row wins, so `docs-to-code check` takes its own row
 // over the row for `docs-to-code`.
@@ -262,7 +278,7 @@ func retiredRewrite(args []string) ([]string, Rename, bool) {
 	if bestWords == 0 {
 		return nil, Rename{}, false
 	}
-	if LookupCommand(best.Command) == nil {
+	if LookupCommand(best.Command) == nil && !namespaceMember(best, own[bestWords:]) {
 		return nil, Rename{}, false
 	}
 
@@ -270,7 +286,31 @@ func retiredRewrite(args []string) ([]string, Rename, bool) {
 	rewritten := make([]string, 0, len(fresh)+len(args)-bestWords)
 	rewritten = append(rewritten, fresh...)
 	rewritten = append(rewritten, args[bestWords:]...)
-	return rewritten, best, true
+	if LookupCommand(best.Command) != nil {
+		return rewritten, best, true
+	}
+	// A namespace row answers the row as the caller met it, member included,
+	// so the stderr line names the command that runs: `le test peer`, never
+	// the bare namespace `le test`.
+	shown := best
+	shown.RetiredAction = own[bestWords]
+	shown.Action = own[bestWords]
+	return rewritten, shown, true
+}
+
+// namespaceMember reports whether row's new command is a namespace and the
+// first of the caller's remaining words names one of its registered members.
+// A row that also names an Action places its own words after the namespace,
+// so it is never a namespace row.
+func namespaceMember(row Rename, rest []string) bool {
+	if row.Action != "" {
+		return false
+	}
+	if len(rest) == 0 {
+		return false
+	}
+	var tb textbuf.Buffer
+	return LookupCommand(tb.Str(row.Command).Byte(' ').Str(rest[0]).String()) != nil
 }
 
 // noteRetired writes the one stderr line a retired name owes: the words the

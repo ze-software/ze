@@ -16,7 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
-func cmdEditor(args []string) int {
+// CmdEditor is the harness command `le test editor`, registered by
+// internal/le/test/editor. It answers the process exit code.
+func CmdEditor(args []string) int {
 	if err := cmdEditorMain(args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output
 		return 1

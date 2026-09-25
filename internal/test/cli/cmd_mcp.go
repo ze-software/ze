@@ -119,7 +119,9 @@ $LAST in any line is replaced by the previous directive's output.
 Options:
 `
 
-func cmdMcp(args []string) int {
+// CmdMcp is the harness command `le test mcp`, registered by
+// internal/le/test/mcp. It answers the process exit code.
+func CmdMcp(args []string) int {
 	var text textbuf.Buffer
 
 	fs := flag.NewFlagSet("le-test mcp", flag.ContinueOnError)

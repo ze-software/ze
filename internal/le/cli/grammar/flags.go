@@ -114,10 +114,10 @@ type rawLiteral struct {
 //
 // LIMITATION (shared with internal/le/commandownership): this is a static AST
 // scan, so a root registered with a NON-LITERAL name -- a constant, or a
-// variable passed through a helper like internal/test/cli's registerRoot -- is
+// variable passed through a helper -- is
 // not resolved and is not checked. Every `ze` CLI root but `l2tp` is registered
-// with a literal; the invisible cases are that one and the `ze-test <suite>`
-// roots, which are a different binary and surface. A flag set named the same
+// with a literal; the invisible case is that one. The harness commands are le
+// members of `test`, not roots, so they are not in this scan. A flag set named the same
 // way is counted in UnresolvedSetNames rather than dropped silently.
 //
 // Local metas (RegisterLocalMeta) are deliberately excluded from Roots:

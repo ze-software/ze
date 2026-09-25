@@ -1,8 +1,9 @@
 // Design: docs/architecture/testing/runner-architecture.md -- the harness binary and its variables
-// Related: register.go -- the `test harness` registration
 // Related: ../../../test/harnessbin/harnessbin.go -- the harness file name and variables
 
-// Package testharness is `le test harness`: it builds the harness binary
+// Package testharness was `le test harness`, and registers nothing since the
+// harness commands became `le test <name>` (D-8); Phase 1d package b deletes
+// it with the other harness builders. It builds the harness binary
 // bin/le-test on every call, then runs it with the trailing argv and
 // answers its exit code.
 //

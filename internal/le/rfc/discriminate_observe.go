@@ -452,7 +452,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // every other test in it: `./le test functional parse` was already red in this
 // checkout from another session's work, so a suite-wide run could never
 // attribute a red to this one carrier. testfunctional.Prepare builds the isolated
-// set the suite runner builds, and ze-test takes one test's name in place of
+// set the suite runner builds, and `le test <suite>` takes one test's name in place of
 // the suite's --all.
 //
 // The overlay reaches the compiler through GOFLAGS, which every Go build
@@ -461,7 +461,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // starts no goroutine of its own, so the window belongs to nobody else.
 func (o *observationRunner) runFunctional(overlay string) (bool, string, error) {
 	var tb textbuf.Buffer
-	suite, selector, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
+	_, selector, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
 	if !held {
 		return false, "", parseErr(tb.Str(o.carrier.Name).
 			Str(" names no suite `./le test functional` runs, so this .ci has no runner"))
@@ -475,26 +475,21 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 		}
 		defer restore()
 	}
-	// The carrier's own suite decides the set: a ui or runner .ci drives the
-	// native le binary, and a set built without it fails the observation on a
-	// missing binary rather than on the break under test.
-	set, err := testfunctional.Prepare(o.toolchain, label, testfunctional.ExtrasFor(suite))
+	set, err := testfunctional.Prepare(o.toolchain, label)
 	if err != nil {
 		return false, "", parseErr(tb.Str("cannot build the isolated binaries one .ci runs ").
 			Str("against: ").Err(err))
 	}
 	defer testfunctional.Release(set)
 
-	argv := append([]string{filepath.Join(set.Dir, testfunctional.LETest)}, selector...)
+	argv := append([]string{filepath.Join(set.Dir, testfunctional.LE), "test"}, selector...)
 	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }
 
 // functionalSuite answers the named suite and the arguments its runner takes,
 // with the all-tests selector removed so a single named .ci takes its place.
-//
-// The suite itself comes back beside them because it also says which binaries
-// the isolated set needs (testfunctional.ExtrasFor).
+
 func functionalSuite(name string) (testfunctional.Suite, []string, bool) {
 	for _, suite := range testfunctional.Suites {
 		if suite.Name != name {

@@ -184,14 +184,15 @@ resolver.
 
 | Variable | Retired spelling | Default | Description |
 |----------|------------------|---------|-------------|
-| `le.test.bin` | `ze.test.bin` | `bin/le-test` | The harness binary the runner, `le test harness` and a stress repro run |
-| `le.test.no.build` | `ze.test.no.build` | false | Skip the in-process build and require pre-built binaries |
+| `le.test.bin` | `ze.test.bin` | `bin/le-test` | Read only inside a QEMU guest (`newAllTests`) until the guest runs a linux `le` (D-8). The runner, `le test <name>` and a stress repro run the process's own `le` and read no harness path |
+| `le.test.no.build` | `ze.test.no.build` | false | Skip the runner's in-process `ze` build and require a pre-built `ze`. Registered in `internal/test/runner` |
 | `le.qemu.test.bin` | `ze.qemu.test.bin` | `bin/le-test-linux-<guest arch>` | The harness cross-build a QEMU guest runs; the host forwards it into the guest as `LE_TEST_BIN` |
 
 `ze.test.bgp.port` keeps its `ze.` key: the daemon reads it too, so it is a
 product setting.
 
 <!-- source: internal/test/harnessbin/harnessbin.go -- Setting, answering -->
+<!-- source: internal/test/runner/runner.go -- NoBuild -->
 <!-- source: internal/le/test/qemu/run.go -- qemuTestBin -->
 
 ---

@@ -550,12 +550,14 @@ type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
-	// testPath is this runner's own executable, so a `cmd=...:exec=le-test ...`
-	// line runs the le-test that runs the suite and never a PATH lookup: the
-	// gate's bin directory is not on PATH, and the generic runner
-	// (runner_exec.go) resolves the same name to its own binary.
-	testPath string
-	colors   *Colors
+	// lePath is this runner's own executable, so a `cmd=...:exec=le ...` line,
+	// and a retired harness head, runs the le that runs the suite and never a
+	// PATH lookup: the gate's bin directory is not on PATH, and the generic
+	// runner (runner_exec.go) resolves the same heads to the same file. Empty
+	// when the process cannot name its own file, and resolveParseExec then
+	// refuses the line.
+	lePath string
+	colors *Colors
 	// timeoutFactor widens an authored `cmd=...:timeout=` when this run
 	// executes tests concurrently. Set by Run; 1 until then, so a caller that
 	// never went through Run gets the authored value unchanged.
@@ -564,44 +566,55 @@ type parsingRunner struct {
 
 // NewParsingRunner creates a parsing test runner.
 func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunner {
-	testPath, err := os.Executable()
+	lePath, err := ownExecutable()
 	if err != nil {
 		// Never a silent fallback to the bare name: runOneCommand refuses the
 		// exec line with this reason instead of a PATH lookup that fails later.
-		testPath = ""
+		lePath = ""
 	}
 	return &parsingRunner{
 		tests:         tests,
 		baseDir:       baseDir,
 		zePath:        zePath,
-		testPath:      testPath,
+		lePath:        lePath,
 		colors:        NewColors(),
 		timeoutFactor: 1,
 	}
 }
 
 // resolveParseExec maps the binary name at the head of an exec= line to the
-// path the runner holds for it. `ze` is the daemon under test and `le-test`
-// is the runner itself; every other head is left for a PATH lookup. The
-// retired name `ze-test` reaches the runner too, until Phase 3 removes it.
-func resolveParseExec(cmdLine, zePath, testPath string) (string, error) {
-	if rest, ok := strings.CutPrefix(cmdLine, binNameZe+" "); ok {
-		return zePath + " " + rest, nil
+// path the runner holds for it. `ze` is the daemon under test and `le` is the
+// runner itself; every other head is left for a PATH lookup. Until Phase 3 the
+// retired harness heads reach the runner too, with the words they stand for
+// (leHeadWords): `le-test` and `ze-test` run `le test`, `ze-peer` runs
+// `le test peer`.
+func resolveParseExec(cmdLine, zePath, lePath string) (string, error) {
+	head, rest, _ := strings.Cut(cmdLine, " ")
+	if head == binNameZe {
+		return joinExec(zePath, nil, rest), nil
 	}
-	if cmdLine == binNameZe {
-		return zePath, nil
+	words, isLE := leHeadWords(head)
+	if !isLE {
+		return cmdLine, nil
 	}
-	for _, harness := range []string{binNameLETest, binNameZeTest} {
-		rest, ok := strings.CutPrefix(cmdLine, harness+" ")
-		if !ok {
-			continue
-		}
-		if testPath == "" {
-			return "", errors.New("exec names " + harness + " and the runner does not know its own executable")
-		}
-		return testPath + " " + rest, nil
+	if lePath == "" {
+		return "", errors.New("exec names " + head + " and the runner does not know its own executable")
 	}
-	return cmdLine, nil
+	return joinExec(lePath, words, rest), nil
+}
+
+// joinExec answers an exec line: the binary path, the words it stands for,
+// then the authored rest of the line.
+func joinExec(path string, words []string, rest string) string {
+	var tb textbuf.Buffer
+	tb.Str(path)
+	for _, word := range words {
+		tb.Byte(' ').Str(word)
+	}
+	if rest != "" {
+		tb.Byte(' ').Str(rest)
+	}
+	return tb.String()
 }
 
 // Run executes selected tests in parallel with real-time progress display.
@@ -737,7 +750,7 @@ func (r *parsingRunner) setupWorkDir(test *parsingTest) (string, error) {
 
 // runOneCommand executes a single cmd= and checks its expectations.
 func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci *ciCommand, workDir string, allOutput *strings.Builder) bool {
-	cmdLine, resolveErr := resolveParseExec(ci.Exec, r.zePath, r.testPath)
+	cmdLine, resolveErr := resolveParseExec(ci.Exec, r.zePath, r.lePath)
 	if resolveErr != nil {
 		test.Error = fmt.Errorf("seq %d: %w", ci.Seq, resolveErr)
 		return false

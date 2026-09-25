@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-func cmdHTTPGet(args []string) int {
+// CmdHTTPGet is the harness command `le test http-get`, registered by
+// internal/le/test/httpget. It answers the process exit code.
+func CmdHTTPGet(args []string) int {
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "http-get: exactly one URL is required")
 		return 2

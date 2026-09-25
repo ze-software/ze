@@ -78,8 +78,17 @@ func TestEveryRetiredNameRunsItsNewCommand(t *testing.T) {
 		old := strings.Join(row.Old(), " ")
 		fresh := strings.Join(row.New(), " ")
 		t.Run(old, func(t *testing.T) {
+			// A namespace row (`test harness` to `test`) rewrites only when the
+			// next word names a member, so the probe carries one.
+			var member []string
 			if leroot.LookupCommand(row.Command) == nil {
-				t.Fatalf("row `le %s` -> `le %s`: the new command `le %s` is not registered", old, fresh, row.Command)
+				first := firstMember(row.Command)
+				if first == "" {
+					t.Fatalf("row `le %s` -> `le %s`: `le %s` is neither a registered command nor a namespace", old, fresh, row.Command)
+				}
+				member = []string{first}
+				old += " " + first
+				fresh += " " + first
 			}
 			if row.Action != "" {
 				list, declared := leroot.ActionsOf(row.Command)
@@ -91,8 +100,8 @@ func TestEveryRetiredNameRunsItsNewCommand(t *testing.T) {
 			// A trailing option asks for usage, which no handler answers, so
 			// the probe runs no command's work (leroot.asksForUsage). It still
 			// takes the whole dispatch path the old name takes.
-			oldArgs := append(row.Old(), "--help")
-			newArgs := append(row.New(), "--help")
+			oldArgs := append(append(row.Old(), member...), "--help")
+			newArgs := append(append(row.New(), member...), "--help")
 			oldCode, newCode := 0, 0
 			oldOut, oldErr := streams(t, func() { oldCode = leroot.Dispatch("le", oldArgs) })
 			newOut, newErr := streams(t, func() { newCode = leroot.Dispatch("le", newArgs) })
@@ -108,6 +117,43 @@ func TestEveryRetiredNameRunsItsNewCommand(t *testing.T) {
 				t.Errorf("row `le %s`: wrote\n%q\nto stderr, want %q then what `le %s` wrote:\n%q", old, oldErr, line, fresh, newErr)
 			}
 		})
+	}
+}
+
+// firstMember answers the first registered member of namespace, without the
+// namespace word, or "" when namespace holds no member.
+func firstMember(namespace string) string {
+	for _, command := range leroot.Commands() {
+		if member, ok := strings.CutPrefix(command.Name, namespace+" "); ok {
+			return member
+		}
+	}
+	return ""
+}
+
+// TestRetiredHarnessWordsReachTheToolArea proves AC-36: `le test harness peer`
+// answers as `le test peer` after the one stderr line, while a bare
+// `le test harness`, or one followed by a word that names no member of `test`,
+// is not rewritten and writes no rename line, because `test` alone is a
+// namespace and no command.
+func TestRetiredHarnessWordsReachTheToolArea(t *testing.T) {
+	code := 0
+	_, stderr := streams(t, func() { code = leroot.Dispatch("le", []string{"test", "harness", "peer", "--help"}) })
+	if !strings.HasPrefix(stderr, "warning: le test harness peer is renamed: run le test peer\n") {
+		t.Errorf("`le test harness peer --help` wrote no rename line naming `le test peer`:\n%s", stderr)
+	}
+	if code != 0 {
+		t.Errorf("`le test harness peer --help` answered %d, want 0", code)
+	}
+
+	for _, argv := range [][]string{{"test", "harness"}, {"test", "harness", "zzprobe"}} {
+		_, stderr = streams(t, func() { code = leroot.Dispatch("le", argv) })
+		if strings.Contains(stderr, "is renamed") {
+			t.Errorf("`le %s` was rewritten, want no rewrite:\n%s", strings.Join(argv, " "), stderr)
+		}
+		if code == 0 {
+			t.Errorf("`le %s` answered 0, want a refusal", strings.Join(argv, " "))
+		}
 	}
 }
 

@@ -280,7 +280,7 @@ func TestUISuiteBoundsNativeToolBuilds(t *testing.T) {
 		if suite.Name != suiteUi {
 			continue
 		}
-		want := []string{LETest, "ui", allTests, "-p", "8"}
+		want := []string{LE, leTestWord, "ui", allTests, "-p", "8"}
 		if got := suite.Command(); !slices.Equal(got, want) {
 			t.Fatalf("UI suite command = %v, want %v", got, want)
 		}
@@ -306,8 +306,8 @@ func TestCommandLineWrapsEverySuiteInTimeout(t *testing.T) {
 			t.Errorf("suite %s: timeout was given %q while the report reads %q",
 				suite.Name, argv[2], suite.Budget())
 		}
-		if argv[3] != set.zeTestPath() {
-			t.Errorf("suite %s runs %q, want the isolated %q", suite.Name, argv[3], set.zeTestPath())
+		if argv[3] != set.lePath() || argv[4] != leTestWord {
+			t.Errorf("suite %s runs %q %q, want the isolated %q test", suite.Name, argv[3], argv[4], set.lePath())
 		}
 	}
 }
@@ -391,12 +391,9 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the toolchain: %v", err)
 	}
-	commands := buildCommands(tc, filepath.Join("out", "bin"), Extras{LE: true})
-	if len(commands) != 4 {
-		t.Fatalf("a build with the le personality needs 4 commands, got %d", len(commands))
-	}
-	if len(buildCommands(tc, filepath.Join("out", "bin"), Extras{})) != 3 {
-		t.Error("a build with no extra binaries still compiled more than three")
+	commands := buildCommands(tc, filepath.Join("out", "bin"))
+	if len(commands) != 3 {
+		t.Fatalf("a set builds ze, ze-stripped and le, got %d commands", len(commands))
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -412,7 +409,7 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Errorf("the stripped build's tags moved: %s", stripped)
 	}
 	if harness := strings.Join(commands[2], " "); strings.Contains(harness, "-cover") {
-		t.Error("le-test was instrumented; it is the harness, not the subject")
+		t.Error("le was instrumented; it is the harness, not the subject")
 	}
 }
 
@@ -434,12 +431,7 @@ func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
 		t.Fatalf("load the toolchain: %v", err)
 	}
 
-	current := newSession([]string{suiteUi})
-	if !current.extras.LE {
-		t.Fatal("the ui suite did not ask for the le personality binary")
-	}
-
-	commands := buildCommands(tc, filepath.Join("out", "bin"), current.extras)
+	commands := buildCommands(tc, filepath.Join("out", "bin"))
 	var build string
 	for _, argv := range commands {
 		if strings.HasSuffix(strings.Join(argv, " "), filepath.Join("out", "bin", LE)+" ./cmd/ze") {
@@ -460,9 +452,6 @@ func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
 		}
 	}
 
-	if plain := buildCommands(tc, filepath.Join("out", "bin"), Extras{}); len(plain) != 3 {
-		t.Errorf("a suite that drives no le binary still paid for the compile: %v", plain)
-	}
 }
 
 // TestWebSessionBuildsLEForBareAndAliasVerbs pins that the web suite asks for
@@ -470,9 +459,6 @@ func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
 func TestWebSessionBuildsLEForBareAndAliasVerbs(t *testing.T) {
 	for _, verb := range []string{"web", "web-test"} {
 		current := newSession([]string{verb})
-		if !current.extras.LE {
-			t.Errorf("%q did not request the le binary that serves the chaos dashboard", verb)
-		}
 		if current.label != suiteWeb {
 			t.Errorf("%q label = %q, want %q", verb, current.label, suiteWeb)
 		}
@@ -618,7 +604,7 @@ func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
 		t.Fatalf("create malformed session root: %v", err)
 	}
 
-	set, err := Prepare(gotoolchain.Toolchain{Root: root}, "fixture", Extras{})
+	set, err := Prepare(gotoolchain.Toolchain{Root: root}, "fixture")
 	if err == nil {
 		t.Fatal("Prepare accepted a session resolver failure")
 	}

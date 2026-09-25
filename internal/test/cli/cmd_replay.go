@@ -68,7 +68,9 @@ type replayReport struct {
 	Coalesce bool         `json:"coalesce"`
 }
 
-func cmdReplay(args []string) int {
+// CmdReplay is the harness command `le test replay`, registered by
+// internal/le/test/replay. It answers the process exit code.
+func CmdReplay(args []string) int {
 	fs := flag.NewFlagSet("replay", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "emit the replay report as JSON")
 	// 0 means "take it from the capture header". A header written before the

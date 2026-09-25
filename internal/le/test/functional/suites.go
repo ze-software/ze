@@ -15,26 +15,24 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 // Area is the word this command is typed as, and the prefix leaction removes
 // from each gate name to derive its verb.
 const Area = "test functional"
 
-// LETest is the harness file the isolated set carries. Prepare also writes the
-// retired name ze-test beside it, which every .ci still execs by. A suite's
-// command opens with it, and commandLine swaps in the binary this run built.
-const LETest = harnessbin.Name
-
-// LE is the name the le personality carries in the isolated set. A fixture
-// executes it by that bare name off the child PATH, which the runner points at
-// the set this run built (nativeLEBinary, internal/test/fixture/fixture.go).
+// LE is the name the le personality carries in the isolated set. Every suite
+// runs as `le test <suite>` from that file, so a run tests the harness of the
+// tree under test and never the host bin/le. A suite's command opens with the
+// name, and commandLine swaps in the binary this run built.
 const LE = "le"
+
+// leTestWord is the namespace every harness command sits under.
+const leTestWord = "test"
 
 // Suite defines what one functional suite runs and why it is separate.
 //
-// Args is the le-test command line without the binary.
+// Args is the harness command line after `le test`.
 // Scaled selects derived concurrency. A suite with -p in Args has fixed concurrency.
 // A suite with neither setting uses the runner's default.
 type Suite struct {
@@ -45,12 +43,6 @@ type Suite struct {
 	// Warm compiles packages that this suite's .ci commands build inside
 	// their own deadlines before the suite starts.
 	Warm bool
-	// LE says this suite drives the native le binary, so the isolated set it
-	// runs against needs a compile of the le personality beside the ze binary.
-	// The web suite is one: it starts the chaos dashboard as `le chaos run`.
-	// A checkout holds no bin/le of its own: .gitignore excludes bin/, and the
-	// ./le launcher writes one only for the tree a developer types it in.
-	LE bool
 }
 
 // Rerun is the command a failure report tells the reader to type.
@@ -64,8 +56,8 @@ func (s Suite) Rerun() string {
 // The name rather than a path, because the path depends on which isolated set
 // this run built. commandLine substitutes it.
 func (s Suite) Command() []string {
-	argv := make([]string, 0, len(s.Args)+3)
-	argv = append(argv, LETest)
+	argv := make([]string, 0, len(s.Args)+4)
+	argv = append(argv, LE, leTestWord)
 	argv = append(argv, s.Args...)
 	if s.Scaled {
 		argv = append(argv, "-p", Parallel(s.Name))
@@ -186,7 +178,7 @@ var Suites = []Suite{
 		Why: "config reload; serial, because it shares the kernel routing table with managed",
 	},
 	{
-		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"}, LE: true,
+		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"},
 		Why: "CLI and completion, bounded because native le fixtures compile Go tools during their deadlines",
 	},
 	{Name: suiteEditor, Args: []string{"editor", allTests}, Why: "the TUI editor (.et files)"},
@@ -209,7 +201,7 @@ var Suites = []Suite{
 	{Name: suiteOspf, Args: []string{"ospf", allTests}, Warm: true, Why: "OSPF config and doctor"},
 	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Warm: true, Why: "OSPFv3 config and doctor"},
 	{
-		Name: suiteWeb, Args: []string{"web", allTests}, LE: true,
+		Name: suiteWeb, Args: []string{"web", allTests},
 		Why: "the web UI; the only suite that starts the chaos dashboard (option=server:kind=chaos)",
 	},
 	{Name: suiteInstall, Args: []string{"install", allTests}, Why: "installer, PXE, kernel config"},
@@ -221,7 +213,7 @@ var Suites = []Suite{
 	{Name: suiteIsisWire, Args: []string{"isis-wire", allTests}, Why: "IS-IS wire-level decode"},
 	{Name: suiteOspfWire, Args: []string{"ospf-wire", allTests}, Why: "OSPFv2 wire-level decode"},
 	{
-		Name: suiteRunner, Args: []string{"runner", allTests}, LE: true,
+		Name: suiteRunner, Args: []string{"runner", allTests},
 		Why: "the test-runner primitives (test/runner/*.ci). Host-safe: it spawns only" +
 			" sh and tail helpers, no ze daemon and no privileged tooling, which is why" +
 			" it stays in the gating run",

@@ -11,13 +11,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/peer"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
@@ -38,12 +38,12 @@ const (
 // packageZe is the Go package every binary this runner builds comes from.
 const packageZe = "./cmd/ze"
 
-// bgpCIRunnerDirs is the set of "le-test bgp <sub>" subcommands. Each name is
+// bgpCIRunnerDirs is the set of "le test bgp <sub>" subcommands. Each name is
 // also the test/<name> directory that subcommand walks (see zeTestRunEncodingOrAPI
 // and zeTestRunSimpleTests), so it is the single source of truth for both argument
 // validation (the `if !bgpCIRunnerDirs[command]` gate below) and the orphaned-suite
-// guard (TestCIRootsRegistered): those dirs are covered by a big runner, not
-// registerCIRoot.
+// guard (TestCIRootsRegistered in internal/le): those dirs are covered by a big
+// runner, not by a suite command of their own (harnesstool.SuiteAnswer).
 var bgpCIRunnerDirs = map[string]bool{
 	cmdEncode:    true,
 	cmdPlugin:    true,
@@ -54,7 +54,24 @@ var bgpCIRunnerDirs = map[string]bool{
 	cmdChaosWeb:  true,
 }
 
-func cmdBgp(args []string) int {
+// BigRunnerCIDirs answers the test/<dir> subdirectories the big runners walk
+// as subcommands rather than as suites of their own: the `le test bgp <sub>`
+// directories (bgpCIRunnerDirs) and the predecessor directory `le test exabgp`
+// walks (predecessorTestDir). The orphaned-suite guard in internal/le reads it,
+// so neither source is spelled a second time.
+func BigRunnerCIDirs() []string {
+	names := make([]string, 0, len(bgpCIRunnerDirs)+1)
+	for name := range bgpCIRunnerDirs {
+		names = append(names, name)
+	}
+	names = append(names, predecessorTestDir)
+	slices.Sort(names)
+	return names
+}
+
+// CmdBgp is the harness command `le test bgp`, registered by
+// internal/le/test/bgp. It answers the process exit code.
+func CmdBgp(args []string) int {
 	if err := zeTestBgpMain(args); err != nil {
 		if !errors.Is(err, ErrTestsFailed) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -495,8 +512,7 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 }
 
 func buildZe(ctx context.Context, baseDir string) (string, error) {
-	// "ze.bin" is registered in internal/test/runner, and le.test.no.build in
-	// internal/test/harnessbin.
+	// "ze.bin" and le.test.no.build are registered in internal/test/runner.
 	// BinDir is <baseDir>/bin off-session and this session's private bin/ under
 	// an AI session, so this build cannot overwrite a sibling session's ze while
 	// that session is running tests against it (same reasoning as runner.NewRunner).
@@ -507,7 +523,7 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 		}
 		zePath = v
 	}
-	if harnessbin.NoBuild() {
+	if runner.NoBuild() {
 		_, err := os.Stat(zePath)
 		if err == nil {
 			return zePath, nil

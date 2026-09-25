@@ -224,7 +224,7 @@ its workflow job added by hand. The full workflow map is
 <!-- source: .github/workflows/qemu-nightly.yml -- protocol-labs, runtime-kernel-labs -->
 <!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestEveryWorkflowNativeActionExists -->
 
-<!-- source: internal/test/cli/register.go -- subcommand registry -->
+<!-- source: internal/le/test/harnesstool/harnesstool.go -- Answer, SuiteAnswer -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: internal/le/verify/evidence/actions.go -- Actions -->
 <!-- source: internal/le/test/qemu/actions.go -- Actions -->
@@ -784,7 +784,7 @@ A `.ci` suite runs `-p N` tests at once. Where N comes from depends on the suite
 | `reload`, `managed` | the native suite table in `internal/le/test/functional/suites.go` | 1. They share the kernel routing table |
 | `vpp` | the command's own default | 1 |
 | the other bgp-runner suites | `runner.DefaultParallelConcurrent` | 20 |
-| the 22 `registerCIRoot` suites | `runner.DefaultSuiteConcurrency` | 2x the core count, floored at 8 |
+| the 24 suite commands (`harnesstool.SuiteAnswer`) | `runner.DefaultSuiteConcurrency` | 2x the core count, floored at 8 |
 
 The floor is 8 for both derivations, and it is one measured figure rather than a
 round number: it is what the `plugin` suite has been running at on GitHub's
@@ -808,7 +808,7 @@ itself killed). `plugin` is CORE-bound instead, so it caps at 1x. Measured on a
 | 64 | 196.5s | 23.1x | 36% |
 
 64 sits inside the two-run spread at 32, buys no measurable wall clock, and costs
-pass rate. Neither figure transfers to the 22 `registerCIRoot` suites: that sweep
+pass rate. Neither figure transfers to the 24 suite commands: that sweep
 never measured them.
 
 An explicit value still wins over the derivation:
@@ -1620,7 +1620,7 @@ The QEMU actions self-skip with one visible line when the operator-supplied
 installer kernel or a required host tool is unavailable. A real failure exits
 non-zero.
 
-<!-- source: internal/test/cli/register.go -- install CI root -->
+<!-- source: internal/le/test/install/register.go -- the install suite command -->
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <!-- source: internal/le/test/functional/actions.go -- Actions -->
@@ -1669,7 +1669,7 @@ Run with `./le test functional isis`. The offline wire-decode suite is separate:
 `./le test functional isis-wire`.
 <!-- source: internal/le/interoplab/bgp/check_special.go -- checkISISOwnLSPPurge, checkISISMaxLinkMetric, checkISISPerLevelHelloTimers -->
 <!-- source: internal/le/interoplab/bgp/check_isis.go -- checkISISMaxLinkMetric, checkISISPerLevelHelloTimers -->
-<!-- source: internal/test/cli/register.go -- isis CI suite registration -->
+<!-- source: internal/le/test/isis/register.go -- the isis suite command -->
 <!-- source: test/isis/isis-config.ci -- config validation evidence -->
 <!-- source: test/isis/isis-adjacency.ci -- adjacency config-surface evidence -->
 <!-- source: test/isis/isis-flooding.ci -- flooding evidence -->
@@ -2353,8 +2353,8 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ### Run a single test
 
 Native suite actions isolate their binaries. For one selection, queue the
-runner through `./le job run`; set `ZE_BIN` and `LE_TEST_BIN` only when testing
-an explicitly pinned pair.
+runner through `./le job run`; set `ZE_BIN` only when testing an explicitly
+pinned `ze`. The harness is always the `le` you run.
 
 BGP suites use the `le-test bgp <suite>` command shape:
 
@@ -2598,7 +2598,7 @@ See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.
 
 ### Entry Point: `internal/test/cli/*.go`
 
-<!-- source: internal/test/cli/register.go -- test runner entry point -->
+<!-- source: internal/le/test/harnesstool/harnesstool.go -- Answer, the le command each handler becomes -->
 <!-- source: internal/test/cli/cmd_bgp.go -- bgp test subcommand -->
 <!-- source: internal/test/cli/cmd_syslog.go -- syslog server subcommand -->
 <!-- source: internal/test/mock/rpki/rpki.go -- RPKI mock RTR subcommand -->
@@ -3128,7 +3128,7 @@ from the user entry point: a daemon started with an unparsable
 | Hello retries | `test/parse/l2tp-hello-retries-parse.ci` | `hello-retries` (dead-peer threshold) accepted |
 | Hello retries range | `test/parse/l2tp-hello-retries-range.ci` | `hello-retries 256` rejected (uint8 range) |
 
-<!-- source: internal/test/cli/register.go -- l2tpCmd runner dispatch -->
+<!-- source: internal/le/test/l2tp/register.go -- the l2tp suite command -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->
 
 ### L2TP scale tests

@@ -22,7 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 const (
@@ -220,10 +220,6 @@ func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
 			continue
 		}
 		artifactErr := exaBGPCheckArtifact(command.Artifact)
-		// The harness build also writes its retired name (harnessbin.LinkRetired).
-		if artifactErr == nil && filepath.Base(command.Artifact) == LETest {
-			_, artifactErr = harnessbin.LinkRetired(command.Artifact)
-		}
 		if artifactErr == nil {
 			continue
 		}
@@ -298,9 +294,9 @@ func exaBGPCommands(
 	commands := make([]exaBGPCommand, 0, 3)
 	var tb textbuf.Buffer
 	zeFound := false
-	zeTestFound := false
+	leFound := false
 
-	for _, arguments := range buildCommands(toolchain, set.Dir, Extras{}) {
+	for _, arguments := range buildCommands(toolchain, set.Dir) {
 		artifact, ok := exaBGPBuildArtifact(arguments)
 		if !ok {
 			return nil, errors.New("functional artifact owner declared a build without an output")
@@ -312,11 +308,11 @@ func exaBGPCommands(
 				return nil, errors.New("functional artifact owner declared ze more than once")
 			}
 			zeFound = true
-		case LETest:
-			if zeTestFound {
-				return nil, errors.New("functional artifact owner declared le-test more than once")
+		case LE:
+			if leFound {
+				return nil, errors.New("functional artifact owner declared le more than once")
 			}
-			zeTestFound = true
+			leFound = true
 		default:
 			continue
 		}
@@ -332,18 +328,16 @@ func exaBGPCommands(
 	if !zeFound {
 		return nil, errors.New("functional artifact owner declared no ze build")
 	}
-	if !zeTestFound {
-		return nil, errors.New("functional artifact owner declared no le-test build")
+	if !leFound {
+		return nil, errors.New("functional artifact owner declared no le build")
 	}
 
 	runEnvironment := set.Environment(toolchain)
 	runReportEnvironment := toolchain.Overrides(gotoolchain.EnvOptions{})
 	zePathEnvironment := tb.Reset().Str("ZE_BIN=").Str(filepath.Join(set.Dir, "ze")).String()
-	zeTestPathEnvironment := tb.Reset().Str(harnessbin.EnvTestBin).Byte('=').Str(set.zeTestPath()).String()
 	runReportEnvironment = append(runReportEnvironment,
-		harnessbin.EnvNoBuild+"=1",
+		runner.EnvNoBuild+"=1",
 		zePathEnvironment,
-		zeTestPathEnvironment,
 	)
 	// The two predecessor populations, both of them. `encoding` drives ze from a
 	// migrated config alone; `api` drives it through the ExaBGP bridge, which
@@ -358,8 +352,8 @@ func exaBGPCommands(
 		commands = append(commands, exaBGPCommand{
 			Stage: "exabgp-" + suite,
 			Arguments: []string{
-				"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, set.zeTestPath(),
-				"exabgp", suite, "--all", "--timeout", timeout,
+				"uv", "run", "--with", "paramiko", "--with", exaBGPPythonPackage, set.lePath(),
+				leTestWord, "exabgp", suite, "--all", "--timeout", timeout,
 			},
 			Directory:         toolchain.Root,
 			Environment:       runEnvironment,

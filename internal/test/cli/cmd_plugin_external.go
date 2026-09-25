@@ -10,7 +10,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// cmdPluginExternal runs a REGISTERED engine plugin's own RunEngine function
+// CmdPluginExternal is the harness command `le test plugin-external`, registered by
+// internal/le/test/pluginexternal. It answers the process exit code.
+//
+// CmdPluginExternal runs a REGISTERED engine plugin's own RunEngine function
 // (the same function internal invocation mode passes a net.Pipe() end to)
 // via a genuine external TLS connect-back instead. Test-only tool: proves a
 // plugin's runtime IsInternal()-guarded refuse/warn behavior actually fires
@@ -29,7 +32,7 @@ import (
 // plugins should be built as standalone binaries using pkg/plugin (see
 // examples/plugin/go/main.go), which speak the same protocol without
 // depending on the engine's own plugin registry being linked in.
-func cmdPluginExternal(args []string) int {
+func CmdPluginExternal(args []string) int {
 	if len(args) != 1 {
 		slog.Error("plugin-external: usage: le-test plugin-external <registered-plugin-name>")
 		return 1

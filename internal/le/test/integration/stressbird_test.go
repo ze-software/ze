@@ -40,7 +40,6 @@ type stressBirdRecordedProcess struct {
 func newStressBirdRecorder() *stressBirdRecorder {
 	return &stressBirdRecorder{
 		files: map[string]bool{
-			"/repo/bin/le-test": true,
 			"/repo/test/stress/scenarios/04-bulk-ipv4-bird/bird.conf": true,
 		},
 		missing:  make(map[string]bool),
@@ -58,6 +57,9 @@ func (r *stressBirdRecorder) LookPath(name string) (string, error) {
 	}
 	return "/fixture/bin/" + name, nil
 }
+
+// Executable answers the le the runner runs as, which is also the peer.
+func (r *stressBirdRecorder) Executable() (string, error) { return "/repo/bin/le", nil }
 
 func (r *stressBirdRecorder) FileExists(path string) bool {
 	r.events = append(r.events, "file "+path)
@@ -223,7 +225,7 @@ func TestStressBirdTimesOutTheFirstRedRoundAndStillCleansUp(t *testing.T) {
 	if len(report.Rounds) != 1 || report.Rounds[0].RouteQueries != 61 {
 		t.Fatalf("rounds = %#v, want one round and 61 bounded route queries", report.Rounds)
 	}
-	if anyStressBirdEvent(recorder.events, "start ip netns exec ze-stress-bb-fixture /repo/bin/le-test peer --mode inject --dial 172.31.0.2:179 --inject-prefix 10.64.0.0/24") {
+	if anyStressBirdEvent(recorder.events, "start ip netns exec ze-stress-bb-fixture /repo/bin/le test peer --mode inject --dial 172.31.0.2:179 --inject-prefix 10.64.0.0/24") {
 		t.Fatal("second round started after the first round timed out")
 	}
 	assertStressBirdCleanupTail(t, recorder.events, 2)
@@ -371,7 +373,6 @@ func assertStressBirdCallOrder(t *testing.T, events []string) {
 		"look birdc",
 		"look bird",
 		"look birdc",
-		"file /repo/bin/le-test",
 		"file /repo/test/stress/scenarios/04-bulk-ipv4-bird/bird.conf",
 		"run ip netns del ze-stress-ze-fixture",
 		"run ip netns del ze-stress-bb-fixture",
@@ -411,7 +412,7 @@ func assertStressBirdCallOrder(t *testing.T, events []string) {
 	}
 	for _, round := range prefixes {
 		ordered = append(ordered,
-			fmt.Sprintf("start ip netns exec ze-stress-bb-fixture /repo/bin/le-test peer --mode inject --dial 172.31.0.2:179 --inject-prefix %s --inject-count %d --inject-nexthop 172.31.0.3 --inject-asn 65100 --inject-dwell 30s stdout=/tmp/ze-stress-peer-fixture.log", round.base, round.count),
+			fmt.Sprintf("start ip netns exec ze-stress-bb-fixture /repo/bin/le test peer --mode inject --dial 172.31.0.2:179 --inject-prefix %s --inject-count %d --inject-nexthop 172.31.0.3 --inject-asn 65100 --inject-dwell 30s stdout=/tmp/ze-stress-peer-fixture.log", round.base, round.count),
 			"wait peer "+round.timeout.String(),
 			"run ip netns exec ze-stress-ze-fixture birdc -s /tmp/ze-stress-bird-fixture.ctl show route count",
 		)

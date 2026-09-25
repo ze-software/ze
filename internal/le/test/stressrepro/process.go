@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 type realProcessRunner struct{}
@@ -28,7 +28,9 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	if err != nil {
 		return processResult{code: 2, err: fmt.Errorf("split test: %w", err)}
 	}
-	argv := make([]string, 0, len(words)+1+max(1, len(testWords)))
+	// The harness is `le test <suite>`, run by this le (D-8).
+	argv := make([]string, 0, len(words)+2+max(1, len(testWords)))
+	argv = append(argv, "test")
 	argv = append(argv, words...)
 	argv = append(argv, "-v")
 	if len(testWords) == 0 {
@@ -41,8 +43,7 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 	defer cancel()
 	env := append([]string(nil), os.Environ()...)
 	env = setEnvironment(env, "ze.bin", spec.zeBin)
-	env = setEnvironment(env, harnessbin.EnvTestBin, spec.testBin)
-	env = setEnvironment(env, harnessbin.EnvNoBuild, "1")
+	env = setEnvironment(env, runner.EnvNoBuild, "1")
 	env = setEnvironment(env, "GOTRACEBACK", "all")
 	if spec.extraTags != "" {
 		env = setEnvironment(env, "ze.tags", spec.extraTags)

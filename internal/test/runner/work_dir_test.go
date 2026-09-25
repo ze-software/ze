@@ -28,11 +28,11 @@ func TestChildWorkingDirectoryAnchorsOnlyRepositoryTools(t *testing.T) {
 	rec := &Record{WorkDir: "/scratch/ze-work-1"}
 
 	for _, binName := range []string{"go", "le", "./le"} {
-		require.Equal(t, "/repo", r.childWorkingDirectory(binName, rec),
+		require.Equal(t, "/repo", r.childWorkingDirectory(binName, []string{"chaos", "run"}, rec),
 			"%s resolves its arguments against the module, so it keeps the repository root", binName)
 	}
 	for _, binName := range []string{"ze", "ze-test", "ze-peer", "tc", "curl"} {
-		require.Equal(t, "/scratch/ze-work-1", r.childWorkingDirectory(binName, rec),
+		require.Equal(t, "/scratch/ze-work-1", r.childWorkingDirectory(binName, nil, rec),
 			"%s writes its runtime files into its cwd, so it gets the test's own directory", binName)
 	}
 }

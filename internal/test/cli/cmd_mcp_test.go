@@ -515,7 +515,7 @@ func TestWaitReadyFailsOnADeadPort(t *testing.T) {
 }
 
 // captureStderr runs fn with os.Stderr replaced by a pipe and returns what fn
-// wrote there. cmdMcp reports its failure on stderr and returns an exit code,
+// wrote there. CmdMcp reports its failure on stderr and returns an exit code,
 // so the message is the only place the effective deadline is observable from
 // the entry point.
 func captureStderr(t *testing.T, fn func()) string {
@@ -561,7 +561,7 @@ func captureStderr(t *testing.T, fn func()) string {
 // is what keeps a real slowdown loud in the single-test debug loop.
 //
 // Mutation that must break it: drop the `* time.Duration(runner.ChildParallelFactor())`
-// from cmdMcp and the 3x case reports "after 150ms" instead of "after 450ms".
+// from CmdMcp and the 3x case reports "after 150ms" instead of "after 450ms".
 func TestMCPReadinessScalesWithConcurrency(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -588,10 +588,10 @@ func TestMCPReadinessScalesWithConcurrency(t *testing.T) {
 			// ever run out its deadline. TestWaitReadyFailsOnADeadPort uses the
 			// same endpoint.
 			out := captureStderr(t, func() {
-				code = cmdMcp([]string{"--port", "1", "--timeout", "150ms"})
+				code = CmdMcp([]string{"--port", "1", "--timeout", "150ms"})
 			})
 			if code != 1 {
-				t.Fatalf("cmdMcp = %d, want 1 against an unbound port", code)
+				t.Fatalf("CmdMcp = %d, want 1 against an unbound port", code)
 			}
 			if !strings.Contains(out, "MCP server not ready") {
 				t.Fatalf("stderr = %q, want the readiness failure", out)

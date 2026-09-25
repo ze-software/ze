@@ -3,7 +3,7 @@
 // Related: stressScenarioRegistry -- the complete five-scenario registry.
 //
 // stressbird.go owns the BIRD baseline scenario as callable Go. BIRD, birdc, ip,
-// ethtool, ss, and bin/le-test remain external because they are the systems this
+// ethtool, ss, and `le test peer` remain external because they are the systems this
 // integration gate exercises. No repository-owned Python, Make, sudo, or go-run
 // process sits between the action and this runner.
 package testintegration
@@ -26,7 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 const (
@@ -160,6 +159,9 @@ type stressBirdSystem interface {
 	effectiveUID() int
 	LookPath(string) (string, error)
 	FileExists(string) bool
+	// Executable answers the running le, which is also the BGP peer: the
+	// peer is `le test peer` (plan/spec-le-subject-first-command-tree.md, D-8).
+	Executable() (string, error)
 	PID() int
 	Environ() []string
 	Getenv(string) string
@@ -347,12 +349,11 @@ func (r *stressBirdRunner) preflight(ctx context.Context) *StressBirdFailure {
 		}
 	}
 
-	peer := filepath.Join(r.root, "bin", harnessbin.Name)
-	if !r.system.FileExists(peer) {
+	if _, err := r.system.Executable(); err != nil {
 		return stressBirdFailure(
 			"preflight", gaterun.CannotStart,
-			message.Reset().Str("bin/").Str(harnessbin.Name).Str(" not found at ").Str(peer).
-				Str("; build it first: ./le test harness").String(),
+			message.Reset().Str("the BGP peer is this le (le test peer), and it cannot name its own file: ").
+				Str(err.Error()).String(),
 		)
 	}
 	config := filepath.Join(
@@ -535,11 +536,14 @@ func (r *stressBirdRunner) startPeer(
 	ctx context.Context,
 	round stressBirdRound,
 ) (stressBirdProcess, *StressBirdFailure) {
-	peer := filepath.Join(r.root, "bin", harnessbin.Name)
+	peer, err := r.system.Executable()
+	if err != nil {
+		return nil, stressBirdFailure("peer", gaterun.CannotStart, err.Error())
+	}
 	command := stressBirdCommand{
 		argv: r.namespaceArgv(
 			r.peerNS,
-			peer, "peer", "--mode", "inject", "--dial", stressBirdZeDial,
+			peer, "test", "peer", "--mode", "inject", "--dial", stressBirdZeDial,
 			"--inject-prefix", round.prefixBase,
 			"--inject-count", strconv.Itoa(round.prefixes),
 			"--inject-nexthop", stressBirdPeerIP,
@@ -797,10 +801,11 @@ func (realStressBirdSystem) FileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func (realStressBirdSystem) PID() int                 { return os.Getpid() }
-func (realStressBirdSystem) Environ() []string        { return os.Environ() }
-func (realStressBirdSystem) Getenv(key string) string { return os.Getenv(key) }
-func (realStressBirdSystem) Now() time.Time           { return time.Now() }
+func (realStressBirdSystem) Executable() (string, error) { return os.Executable() }
+func (realStressBirdSystem) PID() int                    { return os.Getpid() }
+func (realStressBirdSystem) Environ() []string           { return os.Environ() }
+func (realStressBirdSystem) Getenv(key string) string    { return os.Getenv(key) }
+func (realStressBirdSystem) Now() time.Time              { return time.Now() }
 
 func (realStressBirdSystem) Run(
 	ctx context.Context,

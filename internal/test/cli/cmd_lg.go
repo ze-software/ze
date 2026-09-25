@@ -21,7 +21,10 @@ import (
 // in the peer stream, so the browser reads the words this error carries.
 var errLGEngineUnavailable = errors.New("bgp engine unavailable")
 
-// cmdLG serves the REAL looking glass with an engine that always fails.
+// CmdLG is the harness command `le test lg`, registered by
+// internal/le/test/lg. It answers the process exit code.
+//
+// CmdLG serves the REAL looking glass with an engine that always fails.
 //
 // It exists because a daemon cannot be asked for this state. The looking glass
 // dispatches in process, so `show bgp` answers an empty peer list when
@@ -31,7 +34,7 @@ var errLGEngineUnavailable = errors.New("bgp engine unavailable")
 // the real event stream.
 //
 // The .wb suite starts it for `option=server:kind=lg-no-engine`.
-func cmdLG(args []string) int {
+func CmdLG(args []string) int {
 	fs := flag.NewFlagSet("lg", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	listen := fs.String("listen", "127.0.0.1:0", "address the looking glass binds (host:port)")

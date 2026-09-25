@@ -36,30 +36,3 @@ func TestFeatureGateTagsFromManifest(t *testing.T) {
 		assert.Contains(t, built, want, "TestBuildTags missing %q", want)
 	}
 }
-
-// TestHelperBuildTagsCarryFeatureGates pins the le-test helper to the SAME
-// feature set as the daemon.
-//
-// PREVENTS: the helper being built with a bare `ze_test`, which compiles out
-// every gated plugin's registering init(). `le-test plugin-external as112` then
-// exits 1 with "unknown registered plugin" (internal/test/cli/cmd_plugin_external.go
-// registry.Lookup), the plugin's IsInternal() refusal is never emitted, and
-// as112-external-refuses / flowexport-external-refuses wait out their
-// await=stderr fence against a process that already died.
-func TestHelperBuildTagsCarryFeatureGates(t *testing.T) {
-	helperTags, err := testHelperBuildTags()
-	assert.NoError(t, err, "testHelperBuildTags should derive its tags")
-	built := strings.Split(helperTags, ",")
-
-	// ze_test selects the helper's own CLI surface (the peer / plugin-external
-	// subcommands); without it there is no helper at all.
-	assert.Contains(t, built, "ze_test", "testHelperBuildTags missing ze_test")
-
-	// Every gate the daemon gets, the helper gets: plugin-external hands the
-	// connection to the registry entry the DAEMON expects to be there.
-	gates, err := featureGateTags()
-	assert.NoError(t, err, "featureGateTags should read the manifest")
-	for _, want := range gates {
-		assert.Contains(t, built, want, "testHelperBuildTags missing gate %q", want)
-	}
-}

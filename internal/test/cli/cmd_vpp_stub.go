@@ -54,7 +54,9 @@ type vppStubState struct {
 	loopbackIndex uint32
 }
 
-func cmdVPPStub(args []string) int {
+// CmdVPPStub is the harness command `le test vpp-stub`, registered by
+// internal/le/test/vppstub. It answers the process exit code.
+func CmdVPPStub(args []string) int {
 	flags := flag.NewFlagSet("vpp-stub", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	socketPath := flags.String("socket", "", "Unix socket path")

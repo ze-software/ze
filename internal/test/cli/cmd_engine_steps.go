@@ -19,7 +19,10 @@ import (
 // The spawn env binds the connect-back token to this exact name.
 const engineStepsPluginName = "engine-steps"
 
-// cmdEngineSteps is the spawned executor for .ci engine-step directives
+// CmdEngineSteps is the harness command `le test engine-steps`, registered by
+// internal/le/test/enginesteps. It answers the process exit code.
+//
+// CmdEngineSteps is the spawned executor for .ci engine-step directives
 // (command=/stream=/expect=output|event|stream, see
 // internal/test/runner/engine_steps.go). It connects back to the daemon as a
 // regular external plugin, declares the one event subscription its expect=event
@@ -29,7 +32,7 @@ const engineStepsPluginName = "engine-steps"
 // the ZE-OBSERVER-FAIL sentinel the runner already gates on
 // (internal/test/runner/runner_validate.go). On completion (pass or fail) it
 // asks the daemon to shut down so the test finishes.
-func cmdEngineSteps(args []string) int {
+func CmdEngineSteps(args []string) int {
 	if len(args) != 1 {
 		slog.Error("engine-steps: usage: le-test engine-steps <steps.json>")
 		return 1

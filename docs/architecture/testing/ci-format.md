@@ -36,7 +36,7 @@ All three discoverers behave identically.
 
 | Discoverer | Format | Marker |
 |------------|--------|--------|
-| `EncodingTests.Discover` | `.ci`, suites rooted by `registerCIRoot` (encode, plugin, ui, ...) | `Record.ParseFailed` + `State=StateFail` + `FailureType=parse_error` |
+| `EncodingTests.Discover` | `.ci`, suites registered by `harnesstool.SuiteAnswer` and the bgp runner (encode, plugin, ui, ...) | `Record.ParseFailed` + `State=StateFail` + `FailureType=parse_error` |
 | `ParsingTests.Discover` | `.ci` (parse suite) | `parsingTest.ParseError` |
 | `ParsingTests.Discover` | legacy `valid/*.conf` + `invalid/*.conf` with a companion `.expect` | `parsingTest.ParseError` |
 | `DecodingTests.Discover` | `.ci` and `.test` (decode suite) | `decodingTest.ParseError` |

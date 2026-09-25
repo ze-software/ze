@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 // setBuildEnv sets a build-related env var and resets the env cache so
@@ -24,32 +23,30 @@ func setBuildEnv(t *testing.T, key, value string) {
 // clearBinOverrides drops the binary-path overrides so a test that asserts on
 // the binary-is-ABSENT branch controls where the lookup points.
 //
-// ZE_BIN and the harness variable, under both its spellings (LE_TEST_BIN, read
-// first, and the retired ZE_TEST_BIN), redirect the lookup to a path the test does not own. The
-// QEMU unit phase runs with both exported -- they select the FUNCTIONAL phase's
-// cross-compiled binaries -- so the lookup found a real binary, Build succeeded,
-// and the assertion failed on an error that could not occur. It stayed invisible
+// ZE_BIN redirects the lookup to a path the test does not own. The QEMU unit
+// phase runs with it exported -- it selects the FUNCTIONAL phase's
+// cross-compiled ze -- so the lookup found a real binary, Build succeeded, and
+// the assertion failed on an error that could not occur. It stayed invisible
 // until that phase was repaired and ran for the first time.
 //
 // Deliberately NOT folded into setBuildEnv: TestBuildNoBuildWithEnvOverride sets
-// these two vars THROUGH that helper, and clearing on every call made its second
+// ZE_BIN THROUGH that helper, and clearing on every call made its second
 // call erase the value its first call had just established.
 func clearBinOverrides(t *testing.T) {
 	t.Helper()
 	t.Setenv("ZE_BIN", "")
-	t.Setenv(harnessbin.EnvTestBin, "")
-	t.Setenv("ZE_TEST_BIN", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 }
 
 // TestBuildNoBuildSkip verifies the LE_TEST_NO_BUILD path: Build skips the
-// in-process `go build` and uses pre-built binaries, erroring only when they
-// are absent. This is what lets a slow QEMU VM run binaries cross-compiled on a
+// in-process `go build` and uses a pre-built ze, erroring only when it is
+// absent. This is what lets a slow QEMU VM run binaries cross-compiled on a
 // fast host instead of compiling the whole tree over a slow 9p mount.
 //
-// VALIDATES: LE_TEST_NO_BUILD=1 makes Build a no-op when bin/ze and bin/le-test
-// exist, and a clear, named error when they do not.
+// VALIDATES: LE_TEST_NO_BUILD=1 makes Build a no-op when bin/ze exists, and a
+// clear, named error when it does not. No harness binary is needed: every
+// harness command is the runner's own le.
 // PREVENTS: silent fallthrough to a real compile, or a confusing failure when
 // the prebuilt binaries are missing.
 func TestBuildNoBuildSkip(t *testing.T) {
@@ -69,21 +66,17 @@ func TestBuildNoBuildSkip(t *testing.T) {
 	require.Contains(t, err.Error(), "LE_TEST_NO_BUILD")
 
 	// Binaries present: Build must skip compilation and succeed.
-	for _, name := range []string{"ze", harnessbin.Name} {
-		require.NoError(t, os.WriteFile(filepath.Join(baseDir, "bin", name), []byte("prebuilt"), 0o755))
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(baseDir, "bin", "ze"), []byte("prebuilt"), 0o755))
 	require.NoError(t, r.Build(context.Background()), "Build must skip and succeed when prebuilt binaries exist")
 }
 
 func TestBuildNoBuildWithEnvOverride(t *testing.T) {
-	setBuildEnv(t, harnessbin.EnvNoBuild, "1")
+	setBuildEnv(t, EnvNoBuild, "1")
 	baseDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "bin"), 0o755))
 
 	zeBin := filepath.Join(baseDir, "bin", "ze-linux-arm64")
-	testBin := filepath.Join(baseDir, "bin", "ze-test-linux-arm64")
 	setBuildEnv(t, "ZE_BIN", zeBin)
-	setBuildEnv(t, harnessbin.EnvTestBin, testBin)
 
 	r, err := NewRunner(NewEncodingTests(baseDir), baseDir)
 	require.NoError(t, err)
@@ -95,8 +88,6 @@ func TestBuildNoBuildWithEnvOverride(t *testing.T) {
 	require.Contains(t, err.Error(), "ze-linux-arm64")
 
 	// Arch-suffixed binaries present: must succeed.
-	for _, p := range []string{zeBin, testBin} {
-		require.NoError(t, os.WriteFile(p, []byte("prebuilt"), 0o755))
-	}
+	require.NoError(t, os.WriteFile(zeBin, []byte("prebuilt"), 0o755))
 	require.NoError(t, r.Build(context.Background()))
 }

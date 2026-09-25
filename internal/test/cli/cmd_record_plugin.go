@@ -3,7 +3,7 @@
 //          ../../../pkg/plugin/records.go -- Records, the walk a handler answers with
 //          ../../../pkg/plugin/sdk/sdk_engine.go -- DispatchCommandAnswer, the streamed read
 //
-// cmdRecordPlugin is a Go SDK plugin that answers commands with a walk and
+// CmdRecordPlugin is a Go SDK plugin that answers commands with a walk and
 // reads an engine answer as one. It exists because the record path has two
 // halves and only a running daemon joins them. A plugin's own rows travel to an
 // operator through execute-command. An engine command's rows travel back
@@ -128,10 +128,13 @@ const (
 // reaches this command later, so the wait is usually zero.
 const engineAnswerWait = 15 * time.Second
 
-// cmdRecordPlugin runs the plugin. It answers recordWalkCommand and
+// CmdRecordPlugin is the harness command `le test record-plugin`, registered by
+// internal/le/test/recordplugin. It answers the process exit code.
+//
+// CmdRecordPlugin runs the plugin. It answers recordWalkCommand and
 // recordFaultCommand with a walk, and recordEngineCommand with what it read
 // from the engine's own streamed answer.
-func cmdRecordPlugin(_ []string) int {
+func CmdRecordPlugin(_ []string) int {
 	p, err := sdk.NewFromEnv(recordPluginName)
 	if err != nil {
 		slog.Error("record-plugin: connect back to the engine", "error", err)

@@ -50,7 +50,7 @@ func sessionScratch(root string) (string, error) {
 // on expiry, so leaked grandchildren (ze daemons, tacacs mocks) die with it.
 func commandLine(suite Suite, set BinarySet) []string {
 	argv := suite.Command()
-	argv[0] = set.zeTestPath()
+	argv[0] = set.lePath()
 
 	var tb textbuf.Buffer
 	full := make([]string, 0, len(argv)+3)
@@ -359,7 +359,7 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
-	set, err := Prepare(tc, "functional", ExtrasFor(plan.Running...))
+	set, err := Prepare(tc, "functional")
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1

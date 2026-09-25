@@ -12,7 +12,9 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-func cmdTextPlugin(_ []string) int {
+// CmdTextPlugin is the harness command `le test text-plugin`, registered by
+// internal/le/test/textplugin. It answers the process exit code.
+func CmdTextPlugin(_ []string) int {
 	p, err := sdk.NewFromEnv("text-test")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "text-plugin: init: %v\n", err)

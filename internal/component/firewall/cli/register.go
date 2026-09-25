@@ -5,11 +5,13 @@
 // internal/component/firewall, not under cmd/ze. cmd/ze/main.go dispatches
 // `ze firewall ...` through the registry handler registered here.
 
-// codegen:skip -- ze-test registers a `firewall` SUITE root of its own
-// (internal/test/cli/register.go, registerCIRoot), and the ze-test binary imports
-// plugin/all. A generated blank import would put two `firewall` roots in that one
-// binary, and MustRegisterRootHandler panics on the duplicate at init, which takes
-// every functional suite down. cmd/ze/ze_core_dispatch.go carries the import instead.
+// codegen:skip -- cmd/ze/ze_core_dispatch.go carries the import. The skip was made because
+// the harness registered a `firewall` SUITE root of its own and linked plugin/all, so
+// a generated blank import put two `firewall` roots in one binary and
+// MustRegisterRootHandler panicked at init. Since the harness became
+// `le test <name>` (plan/spec-le-subject-first-command-tree.md, D-8) it registers
+// no root, so that collision no longer exists; the skip stands until the
+// composition root is regenerated without it.
 
 package cli
 

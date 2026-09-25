@@ -570,7 +570,7 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 // which derived ZE_PLUGIN_PARALLEL and ZE_ENCODE_PARALLEL from the host and must
 // NOT reach this function. The two suites it measured run through the bgp runner
 // (DefaultParallelConcurrent, internal/test/cli/cmd_bgp.go); this default governs
-// the 22 registerCIRoot suites, which that measurement never covered. The 2x is
+// the suite commands (harnesstool.SuiteAnswer), which that measurement never covered. The 2x is
 // deliberate for a WAIT-bound suite, so lowering it to 1x on a CORE-bound suite's
 // evidence is a change to 22 suites nobody measured. If this assertion is in your
 // way, measure those suites first.
@@ -596,8 +596,9 @@ func TestDefaultSuiteConcurrencyIsBounded(t *testing.T) {
 // PREVENTS: someone re-introducing the unbounded default by passing 0 through to
 // RunOptions.Parallel, where non-positive means every selected test at once.
 func TestRegisteredSuitesGetABoundedDefault(t *testing.T) {
-	// Mirrors registerCIRoot's resolution; kept here because internal/test/cli
-	// imports this package and cannot be imported back without a cycle.
+	// Mirrors harnesstool.SuiteAnswer's resolution; kept here because
+	// internal/le/test/harnesstool imports this package and cannot be imported
+	// back without a cycle.
 	resolve := func(declared int) int {
 		if declared == 0 {
 			return DefaultSuiteConcurrency()

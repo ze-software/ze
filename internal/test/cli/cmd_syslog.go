@@ -14,7 +14,9 @@ import (
 	"github.com/ze-software/ze/internal/test/syslog"
 )
 
-func cmdSyslog(args []string) int {
+// CmdSyslog is the harness command `le test syslog`, registered by
+// internal/le/test/syslog. It answers the process exit code.
+func CmdSyslog(args []string) int {
 	fs := flag.NewFlagSet("syslog", flag.ExitOnError)
 	port := fs.Int("port", 0, "port to listen on (0 = dynamic)")
 	pattern := fs.String("pattern", "", "regex pattern to match (exits on match)")

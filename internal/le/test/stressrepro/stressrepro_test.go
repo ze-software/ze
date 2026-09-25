@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/leroot"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 )
 
 func TestOldOptionTableMapsExactlyToKeywords(t *testing.T) {
@@ -202,10 +201,8 @@ func stressTree(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"ze", harnessbin.Name} {
-		if err := os.WriteFile(filepath.Join(root, "bin", name), []byte("stub"), 0o755); err != nil {
-			t.Fatal(err)
-		}
+	if err := os.WriteFile(filepath.Join(root, "bin", "ze"), []byte("stub"), 0o755); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "feature-gates.txt"), []byte("ze_ospf x\nze_bgp x\nze_bgp y\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -453,7 +450,7 @@ func TestRaceBuildFailureAndMissingBinariesAreSetupErrors(t *testing.T) {
 	})
 	t.Run("missing", func(t *testing.T) {
 		root := stressTree(t)
-		if err := os.Remove(filepath.Join(root, "bin", harnessbin.Name)); err != nil {
+		if err := os.Remove(filepath.Join(root, "bin", "ze")); err != nil {
 			t.Fatal(err)
 		}
 		fake := &fakeRunner{}

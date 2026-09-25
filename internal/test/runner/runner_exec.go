@@ -78,11 +78,9 @@ func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
 	return v
 }
 
-// stepKindExpect is the trace.StepResult kind for an assertion step, and
-// zeTestVerbPeer is the `le-test peer` verb that drives the BGP peer.
+// stepKindExpect is the trace.StepResult kind for an assertion step.
 const (
 	stepKindExpect = "expect"
-	zeTestVerbPeer = "peer"
 )
 
 // runTest executes a single test.
@@ -226,8 +224,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	defer func() { _ = os.Remove(expectFile) }()
 
-	// Build peer args (le-test peer ...)
-	peerArgs := []string{zeTestVerbPeer, "--port", strconv.Itoa(rec.Port)}
+	// Build peer args (le test peer ...)
+	peerArgs := []string{leTestWord, leTestPeerWord, "--port", strconv.Itoa(rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
 		peerArgs = append(peerArgs, "--asn", asn)
 	}
@@ -240,7 +238,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	peerEnv := childEnv(
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 	)
-	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
+	peerCmd := exec.CommandContext(testCtx, r.lePath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
 	// Every child runs in this test's own directory. See Record.WorkDir.
 	peerCmd.Dir = rec.WorkDir
@@ -711,23 +709,23 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 
-		// Resolve binary path
+		// Resolve binary path. An `le` head, and until Phase 3 a retired
+		// harness head, runs the runner's own le with the words the head
+		// stands for (leHeadWords). A retired harness head is rewritten to
+		// `le`, so everything below reads one name for the harness. `ze-peer`
+		// keeps its name: the peer's stdin route and port read it.
 		binName := cmdParts[0]
-		if binName == binNameZeTest {
-			// The retired exec name reaches the same harness until Phase 3 removes it.
-			binName = binNameLETest
-		}
 		var binPath string
 		var extraArgs []string
-		switch binName {
-		case binNameZePeer:
-			// ze-peer is now le-test peer
-			binPath = r.testPath
-			extraArgs = []string{zeTestVerbPeer}
-		case binNameLETest:
-			// le-test subcommands (peeringdb, rpki, syslog, etc.)
-			binPath = r.testPath
-		case binNameZe:
+		words, isLE := leHeadWords(binName)
+		switch {
+		case isLE:
+			binPath = r.lePath
+			extraArgs = words
+			if binName != binNameZePeer {
+				binName = binNameLE
+			}
+		case binName == binNameZe:
 			binPath = r.zePath
 		default:
 			// Check if the binary was built as an extra binary in the temp dir.
@@ -771,7 +769,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// store. Their stdin block receives the same stable directory assignment.
 		configDir := rec.WorkDir
 		wrappedDaemon := false
-		if binName == binNameLETest && stdinContent != nil {
+		if binName == binNameLE && leHarnessArea(args) && stdinContent != nil {
 			for i := 0; i+1 < len(args); i++ {
 				if args[i] != "--" || filepath.Base(args[i+1]) != binNameZe {
 					continue
@@ -956,7 +954,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Run the child in this test's own directory, so its tmpfs files resolve
 		// by bare name and its runtime files land beside the test rather than in
 		// the repository root.
-		proc.Dir = r.childWorkingDirectory(binName, rec)
+		proc.Dir = r.childWorkingDirectory(binName, args, rec)
 
 		// Pipe the block, unless an arm above consumed it into a file.
 		if stdinContent != nil {

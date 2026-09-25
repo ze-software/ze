@@ -23,8 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/internal/test/trace"
@@ -70,7 +68,9 @@ func webBrowserMissing(verifyMode bool) error {
 	return nil
 }
 
-func cmdWeb(args []string) int {
+// CmdWeb is the harness command `le test web`, registered by
+// internal/le/test/web. It answers the process exit code.
+func CmdWeb(args []string) int {
 	if err := cmdWebMain(args); err != nil {
 		if !errors.Is(err, ErrTestsFailed) {
 			os.Stderr.WriteString(err.Error()) //nolint:errcheck // terminal output
@@ -358,16 +358,12 @@ func zeTestResolveWebBinaries(ctx context.Context, baseDir string, tests []*zeTe
 
 	bins.zeTest = self
 
-	if !zeTestWantsChaos(tests) {
-		return bins, nil
+	// The chaos dashboard is `le chaos run`, and this process IS that le:
+	// every harness command runs as `le test <name>` (D-8), so the web suite
+	// serves the dashboard from its own executable and builds nothing.
+	if zeTestWantsChaos(tests) {
+		bins.chaos = self
 	}
-
-	chaos, err := zeTestBuildChaos(ctx, baseDir, ze)
-	if err != nil {
-		return bins, err
-	}
-
-	bins.chaos = chaos
 
 	return bins, nil
 }
@@ -381,50 +377,6 @@ func zeTestWantsChaos(tests []*zeTestWebTest) bool {
 	}
 
 	return false
-}
-
-// zeTestBuildChaos resolves the le personality BESIDE the ze binary this run
-// uses. Its build carries every feature gate, as ./le's own build does
-// (repofeaturetags.DaemonBuildTags): without ze_bgp the BGP YANG modules are not
-// linked, and `le chaos run --in-process` stops at startup.
-//
-// Beside, rather than in a directory of its own: the functional flow builds an
-// isolated binary set into a throwaway directory and points ZE_BIN at it, while
-// a plain run uses this session's bin/. One rule reaches both, and it cannot
-// pick up a stale le binary from the other tree.
-//
-// The build is skipped under LE_TEST_NO_BUILD, the native functional flow's
-// promise that the caller built the isolated set already. A miss there is an
-// error rather than a build: building would defeat the isolation the flag gives.
-func zeTestBuildChaos(ctx context.Context, baseDir, zeBin string) (string, error) {
-	chaosPath := filepath.Join(filepath.Dir(zeBin), "le")
-
-	if _, err := os.Stat(chaosPath); err == nil {
-		return chaosPath, nil
-	}
-
-	if harnessbin.NoBuild() {
-		if dir := sessionpath.FindPrebuiltDir(baseDir, "le"); dir != "" {
-			return filepath.Join(dir, "le"), nil
-		}
-
-		return "", fmt.Errorf("LE_TEST_NO_BUILD set but %s is missing (unset LE_TEST_NO_BUILD or run the native functional action that prepared this suite)", chaosPath)
-	}
-
-	leTags, err := repofeaturetags.DaemonBuildTags(baseDir, repofeaturetags.LEBase)
-	if err != nil {
-		return "", fmt.Errorf("le build tags: %w", err)
-	}
-
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", leTags, "-o", chaosPath, packageZe) //nolint:gosec // paths from internal runner
-	cmd.Dir = baseDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("build le: %w: %s", err, output)
-	}
-
-	return chaosPath, nil
 }
 
 // zeTestWebCase reads a .wb file for the decisions the harness makes BEFORE the

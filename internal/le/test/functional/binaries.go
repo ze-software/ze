@@ -17,7 +17,7 @@
 //	                     Use it for one serial run that you want to keep.
 //	                     Use the default for concurrent runs.
 //
-//	ZE_TEST_CANONICAL=1  runs the session's own le-test in place.
+//	ZE_TEST_CANONICAL=1  runs the session's own bin/ set in place.
 //	                     Use this mode for release and CI reproducibility.
 //
 //	ZE_COVER=1           record which Go packages each suite EXECUTES. The DUT
@@ -27,7 +27,7 @@
 //	                     directory, so a relative root resolves against THAT
 //	                     directory and the emit fails silently.
 //
-// le-test itself is deliberately NOT instrumented: it is the harness, not the
+// le itself is deliberately NOT instrumented: it is the harness, not the
 // subject, and what it executed is not what the map is about.
 
 package testfunctional
@@ -45,7 +45,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	"github.com/ze-software/ze/internal/test/harnessbin"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 var (
@@ -60,7 +60,7 @@ var (
 		Key:         "ze.test.canonical",
 		Type:        envBool,
 		Default:     "false",
-		Description: "run the session's own le-test in place instead of an isolated set",
+		Description: "run the session's own bin/ set in place instead of an isolated set",
 		Private:     true,
 	})
 	_ = env.MustRegister(env.EnvEntry{
@@ -92,23 +92,28 @@ type BinarySet struct {
 	Canonical bool
 }
 
-// zeTestPath is the harness binary a suite is run through.
-func (b BinarySet) zeTestPath() string { return filepath.Join(b.Dir, LETest) }
+// leBuildNameCleared empties the variable the root launcher's --name option
+// sets (cmd/ze/le_build_name.go) for every suite child.
+const leBuildNameCleared = "ZE_LE_BUILD_NAME="
+
+// lePath is the le a suite is run through, as `le test <suite>`.
+func (b BinarySet) lePath() string { return filepath.Join(b.Dir, LE) }
 
 // Environment is the Go environment plus what freezes the runner against this
 // set. A canonical run adds nothing.
 func (b BinarySet) Environment(tc gotoolchain.Toolchain) []string {
-	base := tc.Environment(gotoolchain.EnvOptions{})
+	// The suite runs as the set's own le, which is not the build a
+	// `./le --name x` launcher named, so refuseWrongBuildName would refuse it.
+	// An empty value wins because os/exec uses the last duplicate key.
+	base := append(tc.Environment(gotoolchain.EnvOptions{}), leBuildNameCleared)
 	if b.Canonical {
 		return base
 	}
 	// Append instead of replace because os/exec uses the last duplicate key.
 	// gotoolchain.Environment uses the same rule for its inherited environment overrides.
 	var tb textbuf.Buffer
-	base = append(base, harnessbin.EnvNoBuild+"=1",
+	return append(base, runner.EnvNoBuild+"=1",
 		tb.Str("ZE_BIN=").Str(filepath.Join(b.Dir, "ze")).String())
-	tb.Reset()
-	return append(base, tb.Str(harnessbin.EnvTestBin).Byte('=').Str(b.zeTestPath()).String())
 }
 
 // scratchDir answers this session's own directory, or tmp when ZE_SCRATCH_DIR
@@ -171,35 +176,6 @@ func coverRoot(root string) (string, error) {
 // covering reports whether this run records coverage.
 func covering() bool { return env.Get("ze.cover") != "" }
 
-// Extras names the builds a set carries BESIDE the three every run needs.
-//
-// Each field is one suite's declaration of what its tests execute, read off
-// the suite table by ExtrasFor. A suite that drives neither binary pays for
-// neither compile.
-type Extras struct {
-	// LE says a suite drives the native le binary, so the set needs le
-	// beside ze. Its fixtures execute it by bare name off the child PATH
-	// (nativeLEBinary, internal/test/fixture/fixture.go).
-	LE bool
-}
-
-// ExtrasFor answers what these suites need beside ze, le-test and ze-stripped.
-//
-// One producer for every caller: the command line names its suites
-// (newSession), a gating run names the suites its run list holds (runGating),
-// and a discrimination observation names the one suite its carrier belongs to
-// (internal/le/rfc). A hardcoded answer at any of them is a second decision
-// about what a suite drives, and the suite table is where that fact lives.
-func ExtrasFor(suites ...Suite) Extras {
-	var extras Extras
-	for _, suite := range suites {
-		if suite.LE {
-			extras.LE = true
-		}
-	}
-	return extras
-}
-
 // buildCommands answers the builds one isolated set needs, in order.
 //
 // The DUT build mirrors runner.TestBuildTags (internal/test/runner/runner.go).
@@ -210,10 +186,11 @@ func ExtrasFor(suites ...Suite) Extras {
 //
 // The le build carries the personality tag and tc.Features, which is every
 // gate repofeaturetags.DaemonTags read out of the manifest, so the binary a
-// fixture drives holds the same feature set as the one ./le builds. It sits
-// beside the ze binary, where cmd_web.go looks for the `le chaos run` that
-// serves the chaos dashboard.
-func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][]string {
+// fixture drives holds the same feature set as the one ./le builds. Every set
+// carries it: each suite runs as `le test <suite>` from it, a fixture execs it
+// by bare name off the child PATH, and the harness's plugin-external looks up
+// the engine's plugin registry in it, which a feature gate compiles out.
+func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 	cover := []string{}
 	if covering() {
 		cover = []string{"-cover"}
@@ -229,12 +206,8 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][
 	commands := [][]string{
 		build(cover, tagString(tc, dutTags...), "ze"),
 		build(cover, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
-		// NOT instrumented: le-test is the harness, not the subject.
-		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), LETest),
-	}
-	if extras.LE {
-		commands = append(commands, build(nil,
-			tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE))
+		// NOT instrumented: le is the harness, not the subject.
+		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE),
 	}
 	return commands
 }
@@ -288,7 +261,7 @@ var ErrBuildFailed = errors.New("functional: the isolated test binaries could no
 // Thus, concurrent invocations and suites on one command line cannot delete each other's binaries.
 // The directory is inside the session directory.
 // A set therefore survives a missed cleanup but leaves with its session.
-func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, error) {
+func Prepare(tc gotoolchain.Toolchain, label string) (BinarySet, error) {
 	if env.Get("ze.test.canonical") != "" {
 		dir, err := canonicalBinDir(tc.Root)
 		if err != nil {
@@ -307,28 +280,19 @@ func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, 
 	}
 
 	var tb textbuf.Buffer
-	// The names are not written out here. The list said ze, le-test and
-	// ze-stripped while a run that drives le compiled a fourth binary, and each command
-	// prints itself as it starts (gaterun.Stream).
+	// The names are not written out here: each command prints itself as it
+	// starts (gaterun.Stream).
 	gaterun.Note(tb.Str("Building the isolated test binaries in ").Str(binaries).
 		Str("/...").String())
 
 	environ := tc.Environment(gotoolchain.EnvOptions{})
-	for _, argv := range buildCommands(tc, binaries, extras) {
+	for _, argv := range buildCommands(tc, binaries) {
 		if gaterun.Stream(argv, tc.Root, environ) != 0 {
 			if remove {
 				removeTree(root)
 			}
 			return BinarySet{}, ErrBuildFailed
 		}
-	}
-	// A .ci still execs the harness by its retired name, so the set carries
-	// that name too, as a hard link to the one file.
-	if _, err := harnessbin.LinkRetired(filepath.Join(binaries, LETest)); err != nil {
-		if remove {
-			removeTree(root)
-		}
-		return BinarySet{}, err
 	}
 	return BinarySet{Dir: binaries, Remove: remove}, nil
 }

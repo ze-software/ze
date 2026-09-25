@@ -178,8 +178,20 @@ func zeRepoRootEnv(baseDir string) string {
 // Every command launched from a functional .ci file receives CGO_ENABLED=0
 // here. Appending it last prevents an inherited or test-supplied value from
 // enabling cgo in nested Go compilations.
+//
+// The inherited environment loses every variable droppedFromChild names, so a
+// run started under `./le --name x` does not refuse its own `le` children.
 func childEnv(extra ...string) []string {
-	env := append(os.Environ(), "GOTRACEBACK=all")
+	inherited := os.Environ()
+	env := make([]string, 0, len(inherited)+len(extra)+2)
+	for _, entry := range inherited {
+		name, _, _ := strings.Cut(entry, "=")
+		if droppedFromChild(name) {
+			continue
+		}
+		env = append(env, entry)
+	}
+	env = append(env, "GOTRACEBACK=all")
 	env = append(env, extra...)
 	return append(env, "CGO_ENABLED=0")
 }
