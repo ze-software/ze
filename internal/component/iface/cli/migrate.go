@@ -231,7 +231,7 @@ func (r *migrateRequest) set(keyword, value string) error {
 }
 
 // arguments builds the keyword tail this request sends, without the command
-// path. The caller writes that path as a literal so `./le ci-dispatch check`
+// path. The caller writes that path as a literal so `./le cli dispatch check`
 // can hold it against the command tree.
 //
 // A keyword the operator did not name is left out, so the daemon applies its

@@ -2,7 +2,7 @@
 //
 // actions.go is the command surface: `le site facts update` writes the
 // committed file, and `le site facts check` reports what has gone stale in it.
-// The pair is the shape `le test-health update` and `le test-health check`
+// The pair is the shape `le test health update` and `le test health check`
 // already have, which is the point -- a generated file nobody gates goes stale
 // in silence.
 //

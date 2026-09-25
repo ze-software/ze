@@ -1,4 +1,4 @@
-// VALIDATES: the ze-analyze subcommands WIRE their damage counters -- a damaged
+// VALIDATES: the le mrt subcommands WIRE their damage counters -- a damaged
 // MRT record reaches the operator on stderr instead of silently skewing the
 // numbers on stdout.
 // PREVENTS: the failure that made this necessary. Counting the damage in a
@@ -36,7 +36,7 @@ func mrtRecord(mrtType, subtype uint16, payload []byte) []byte {
 	return rec
 }
 
-// runSubcommand drives a ze-analyze subcommand over stdin and returns its exit
+// runSubcommand drives a le mrt subcommand over stdin and returns its exit
 // code and everything it wrote to stderr.
 //
 // Both real streams are replaced: the subcommands write their reports with
@@ -112,7 +112,7 @@ func damagedRIBFile() []byte {
 }
 
 func TestRunDensity_ReportsDamagedUpdate(t *testing.T) {
-	// VALIDATES: `ze-analyze density` warns on stderr when an UPDATE's NLRI
+	// VALIDATES: `le mrt density` warns on stderr when an UPDATE's NLRI
 	// cannot be counted, and stays silent when the input is clean.
 	// PREVENTS: the B1 blocker -- a burst profile computed from a silently
 	// truncating counter, published as a measurement with exit 0.
@@ -132,7 +132,7 @@ func TestRunDensity_ReportsDamagedUpdate(t *testing.T) {
 }
 
 func TestRunCountAttrs_ReportsDamagedRIBRecord(t *testing.T) {
-	// VALIDATES: `ze-analyze count-attrs` warns when a RIB record fails to
+	// VALIDATES: `le mrt count-attrs` warns when a RIB record fails to
 	// decode, so its attribute distribution is not read as complete.
 	// PREVENTS: dropping the damaged.note(...) around forEachRIBEntry, which no
 	// test previously covered.
@@ -144,7 +144,7 @@ func TestRunCountAttrs_ReportsDamagedRIBRecord(t *testing.T) {
 }
 
 func TestRunMRTDump_ReportsDamagedRIBRecord(t *testing.T) {
-	// VALIDATES: `ze-analyze mrt-dump` warns when a RIB record fails to decode.
+	// VALIDATES: `le mrt mrt-dump` warns when a RIB record fails to decode.
 	// PREVENTS: a truncated hex dump being piped into `ze bgp decode` as though
 	// it were the whole file.
 	code, stderr := runSubcommand(t, damagedRIBFile(), func() int {
@@ -193,7 +193,7 @@ func TestProcessMRTFile_DispatchesAddPathRIBSubtypes(t *testing.T) {
 }
 
 func TestRunASPath_ReportsDamagedASPath(t *testing.T) {
-	// VALIDATES: `ze-analyze aspath` warns when an AS_PATH attribute cannot be
+	// VALIDATES: `le mrt aspath` warns when an AS_PATH attribute cannot be
 	// decoded, rather than excluding it from every statistic in silence.
 	// PREVENTS: a file of unreadable paths reporting a clean, small, entirely
 	// fictitious distribution.
@@ -215,7 +215,7 @@ func TestRunASPath_ReportsDamagedASPath(t *testing.T) {
 }
 
 func TestRunASPath_TwoByteBGP4MPRecordIsDecodedNotMangled(t *testing.T) {
-	// VALIDATES: `ze-analyze aspath` reads a BGP4MP_MESSAGE (subtype 1) AS_PATH
+	// VALIDATES: `le mrt aspath` reads a BGP4MP_MESSAGE (subtype 1) AS_PATH
 	// at 2-byte width, per RFC 6396 Section 4.4.2, and reports the real ASNs.
 	// PREVENTS: the hardcoded 4-byte read this replaced. That is the ONLY
 	// direction that catches it: on an _AS4 record a 2-byte path fails either
@@ -260,7 +260,7 @@ func damagedASPathRIBFile() []byte {
 }
 
 func TestRunRoutes_ReportsDamagedASPath(t *testing.T) {
-	// VALIDATES: `ze-analyze routes` warns on stderr when a route's AS_PATH
+	// VALIDATES: `le mrt routes` warns on stderr when a route's AS_PATH
 	// cannot be decoded, and still emits the route.
 	// PREVENTS: dropping the damaged.note(recErr) wiring. The JSON on stdout
 	// carries an EMPTY as-path for such a route, which every consumer reads as

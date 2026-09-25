@@ -31,7 +31,7 @@ func TestWebBrowserMissingSkipsOutsideVerifyMode(t *testing.T) {
 
 // TestZeTestBrowserSessionIsPerRun proves a test's browser session is owned by
 // its run. Method: the name carries this process id and the test nick, so two
-// concurrent ze-test web runs never drive one browser for the same test number.
+// concurrent le-test web runs never drive one browser for the same test number.
 //
 // VALIDATES: zeTestBrowserSession embeds the pid and the nick.
 // PREVENTS: sessions keyed by nick alone, where one run's test N navigated and

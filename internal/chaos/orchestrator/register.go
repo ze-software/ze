@@ -2,7 +2,7 @@
 //
 // The build tag keeps the `chaos` root out of every binary that links this
 // package for CLIRun alone: le links it for `le chaos run`, and without the tag
-// the ze binary built with ze_le would answer `ze chaos` too. The ze-chaos
+// the ze binary built with ze_le would answer `ze chaos` too. The le chaos run
 // program sets the tag (cmd/ze/ze_chaos_run.go).
 
 //go:build ze_chaos

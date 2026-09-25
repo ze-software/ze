@@ -57,7 +57,7 @@ func DefaultFiles(root string) ([]string, error) {
 // lessByPathParts orders paths as Python Path does: COMPONENT BY COMPONENT.
 //
 // This difference affects the tree. By components, "cmd/ze" sorts before
-// "cmd/ze-gok". By bytes, it sorts after because `-` is 0x2d and `/` is 0x2f.
+// "cmd/ze-installer". By bytes, it sorts after because `-` is 0x2d and `/` is 0x2f.
 // This reorders 41518 of 44957 findings. The JSON payloads would otherwise
 // differ even when their rendered pages agreed.
 func lessByPathParts(a, b string) bool {

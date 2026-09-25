@@ -29,7 +29,7 @@ import (
 
 // recordPluginName is the plugin name a .ci file must declare:
 //
-//	plugin { external record-plugin { run "ze-test record-plugin" } }
+//	plugin { external record-plugin { run "le-test record-plugin" } }
 //
 // The spawn env binds the connect-back token to this exact name.
 const recordPluginName = "record-plugin"

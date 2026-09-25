@@ -1,5 +1,5 @@
 // Design: docs/architecture/system-architecture.md -- MRT analysis subcommand registration
-// Related: root.go -- the `analyze` root the ze-analyze program registers
+// Related: root.go -- the `analyze` root the le mrt program registers
 
 // codegen:skip -- two entries link this package: `le mrt` (internal/le/mrt), and the
 // ze_analyze personality from cmd/ze/ze_analyze_register.go. The universal composition

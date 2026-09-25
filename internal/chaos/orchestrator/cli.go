@@ -16,7 +16,6 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -46,26 +45,26 @@ const (
 	envTypeString = "string"
 )
 
-// Env var registrations for ze-chaos port flags.
+// Env var registrations for le chaos run port flags.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.bgp.port", Type: envTypeInt, Default: "1850", Description: "Base BGP port for Ze to listen on"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.listen.base", Type: envTypeInt, Default: "1950", Description: "Base port for ze-chaos to listen on"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.listen.base", Type: envTypeInt, Default: "1950", Description: "Base port for le chaos run to listen on"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ssh.port", Type: envTypeInt, Default: "0", Description: "Ze SSH server port (0 = disabled)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web.ui.port", Type: envTypeInt, Default: "0", Description: "Ze web UI port (0 = disabled)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.lg.port", Type: envTypeInt, Default: "0", Description: "Ze looking glass port (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: envTypeString, Default: "", Description: "ze-chaos live web dashboard (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: envTypeString, Default: "", Description: "ze-chaos Prometheus metrics endpoint (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: envTypeString, Default: "", Description: "ze-chaos pprof HTTP server (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.mcp", Type: envTypeString, Default: "", Description: "ze-chaos MCP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: envTypeString, Default: "", Description: "le chaos run live web dashboard (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: envTypeString, Default: "", Description: "le chaos run Prometheus metrics endpoint (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: envTypeString, Default: "", Description: "le chaos run pprof HTTP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.mcp", Type: envTypeString, Default: "", Description: "le chaos run MCP server (addr:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: envTypeInt, Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
 // CLIRun is the chaos orchestrator's command line: it parses the flags in args,
 // runs the scenario, and answers the process exit code. Two entries call it:
 // `le chaos run` (internal/le/chaos/run), and the `chaos` root handler that
-// register.go registers for the ze-chaos program under the ze_chaos build tag.
+// register.go registers for the le chaos run program under the ze_chaos build tag.
 func CLIRun(args []string) int {
-	fs := flag.NewFlagSet("ze-chaos", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le chaos run", flag.ContinueOnError)
 
 	// Scenario flags
 	seed := fs.Uint64("seed", 0, "Deterministic seed (default: random, always printed)")
@@ -123,7 +122,7 @@ func CLIRun(args []string) int {
 	metricsAddr := fs.String("metrics", metricsDefault, metricsDesc)
 	webDefault, webDesc := env.AddrPortDefault("ze.chaos.web", "", "Live web dashboard (addr:port, e.g. :8000)")
 	webAddr := fs.String("web", webDefault, webDesc)
-	pprofDefault, pprofDesc := env.AddrPortDefault("ze.chaos.pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
+	pprofDefault, pprofDesc := env.AddrPortDefault("ze.chaos.pprof", "", "pprof HTTP server for le chaos run (addr:port, e.g. :6060)")
 	pprofAddr := fs.String("pprof", pprofDefault, pprofDesc)
 	debugAddr := fs.String("ze-pprof", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
 	mcpDefault, mcpDesc := env.AddrPortDefault("ze.chaos.mcp", "", "MCP server for AI queries (addr:port, e.g. :8001)")
@@ -152,21 +151,21 @@ func CLIRun(args []string) int {
 	warmup := fs.Duration("warmup", 5*time.Second, "Time before chaos starts")
 	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
 	application := fs.String("application", "ze", "Target BGP daemon: ze, frr, bird")
-	daemonBinary := fs.String("binary", "", "Path to daemon binary (default: auto-discover based on --application)")
+	daemonBinary := fs.String("binary", "", "Path to daemon binary (default: the --application's program in PATH)")
 	inProcess := fs.Bool("in-process", false, "Run reactor in-process with mock network and virtual clock")
 	configOnly := fs.Bool("config-only", false, "Generate config and exit (no orchestrator)")
-	pipe := fs.Bool("pipe", false, "Write config to stdout for piping (ze-chaos --pipe | ze -)")
+	pipe := fs.Bool("pipe", false, "Write config to stdout for piping (le chaos run --pipe | ze -)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `ze-chaos - Chaos monkey for Ze BGP route server testing
+		fmt.Fprintf(os.Stderr, `le chaos run - Chaos monkey for Ze BGP route server testing
 
 Usage:
-  ze-chaos [options]                        Run with forked ze (default)
-  ze-chaos --application frr [options]      Run with forked FRR bgpd
-  ze-chaos --application bird [options]     Run with forked BIRD
-  ze-chaos --pipe [options] | ze -          Pipe config to ze (old behavior)
-  ze-chaos --config-only                    Generate config to stdout and exit
-  ze-chaos --config-only --application frr  Generate FRR config to stdout
+  le chaos run [options]                        Run with forked ze (default)
+  le chaos run --application frr [options]      Run with forked FRR bgpd
+  le chaos run --application bird [options]     Run with forked BIRD
+  le chaos run --pipe [options] | ze -          Pipe config to ze (old behavior)
+  le chaos run --config-only                    Generate config to stdout and exit
+  le chaos run --config-only --application frr  Generate FRR config to stdout
 
 Scenario:
   --seed <uint64>            Deterministic seed (default: random, always printed)
@@ -207,7 +206,7 @@ Output:
   --mrt-file <path>          MRT file (BGP4MP records, strftime patterns supported; "-" writes stdout, no rotation)
   --metrics <addr:port>      Prometheus metrics endpoint
   --web <addr:port>          Live web dashboard (e.g. :8000)
-  --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
+  --pprof <addr:port>        pprof HTTP server for le chaos run (e.g. :6060)
   --ze-pprof <addr:port>     pprof HTTP server for ze (injected into config, e.g. :6061)
   --mcp <addr:port>          MCP server for AI queries (e.g. :8001)
   --ai-help                  Print chaos MCP tool definitions and exit
@@ -235,7 +234,7 @@ Ze Services (injected into generated config):
 
 Target:
   --application <name>       Target daemon: ze (default), frr, bird
-  --binary <path>            Path to daemon binary (default: auto-discover)
+  --binary <path>            Path to daemon binary (default: the --application's program in PATH)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -243,7 +242,7 @@ Control:
   --ze-pid <N>               Ze process PID (for config-reload chaos events)
   --in-process               Run reactor in-process (mock network, virtual clock)
   --config-only              Generate config and exit (no orchestrator)
-  --pipe                     Write config to stdout for piping (ze-chaos --pipe | ze -)
+  --pipe                     Write config to stdout for piping (le chaos run --pipe | ze -)
 `, v2List)
 	}
 
@@ -466,7 +465,7 @@ Control:
 	}
 
 	fmt.Fprintf(os.Stderr, "\n══════════════════════════════════════════\n")
-	fmt.Fprintf(os.Stderr, "  ze-chaos | seed: %d\n", *seed)
+	fmt.Fprintf(os.Stderr, "  le chaos run | seed: %d\n", *seed)
 	fmt.Fprintf(os.Stderr, "  peers: %d | routes: %d | heavy: %d×%d\n", *peers, *routes, heavyPeers, *heavyRoutes)
 	if *slowPeers > 0 {
 		fmt.Fprintf(os.Stderr, "  slow peers: %d (delay: %s)\n", *slowPeers, *slowReadDelay)
@@ -497,7 +496,7 @@ Control:
 		}
 		*port = allocated
 		if !*quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | allocated port: %d\n", *port)
+			fmt.Fprintf(os.Stderr, "le chaos run | allocated port: %d\n", *port)
 		}
 	}
 
@@ -522,15 +521,16 @@ Control:
 		return 1
 	}
 
-	// Auto-discover daemon binary: if --binary is not set, look for the
-	// target's default binary next to the running binary first, then PATH.
-	if *daemonBinary == "" && target == scenario.TargetZe {
-		if exe, exeErr := os.Executable(); exeErr == nil {
-			candidate := filepath.Join(filepath.Dir(exe), target.DefaultBinary())
-			if _, statErr := os.Stat(candidate); statErr == nil {
-				*daemonBinary = candidate
-			}
+	// Fork mode runs a ze daemon, so resolve and check it before the config
+	// names it in its plugin run directives. The config-only, in-process,
+	// pipe and config-out modes start no daemon.
+	if target == scenario.TargetZe && !*configOnly && !*inProcess && !*pipe && *configOut == "" {
+		resolved, resolveErr := resolveZeDaemon(*daemonBinary)
+		if resolveErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", resolveErr)
+			return 1
 		}
+		*daemonBinary = resolved
 	}
 
 	// Generate config for the target daemon.
@@ -621,7 +621,7 @@ Control:
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
 				return 1
 			}
-			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "le chaos run | web dashboard: %s\n", dashboardURL(*webAddr))
 			defer func() { _ = wd.Close() }()
 		}
 
@@ -659,7 +659,7 @@ Control:
 				}
 			}()
 			var mcpURLBuf textbuf.Buffer
-			mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(*mcpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
+			mcpURLBuf.Str("le chaos run | MCP server: http://").Str(*mcpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
 			defer func() {
 				shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer shutCancel()
@@ -703,12 +703,12 @@ Control:
 			fmt.Fprintf(os.Stderr, "error: in-process run: %v\n", ipErr)
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "ze-chaos | in-process complete | events: %d\n", len(result.Events))
+		fmt.Fprintf(os.Stderr, "le chaos run | in-process complete | events: %d\n", len(result.Events))
 
 		// When web dashboard is active, keep serving until Ctrl-C
 		// so the user can explore the final state.
 		if wd != nil {
-			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "le chaos run | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
@@ -735,7 +735,7 @@ Control:
 		}
 		*zePID = child.PID()
 		if !*quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | forked ze (pid %d)\n", child.PID())
+			fmt.Fprintf(os.Stderr, "le chaos run | forked ze (pid %d)\n", child.PID())
 			fmt.Fprint(os.Stderr, scenario.PeerSummary(configParams))
 		}
 	}
@@ -750,7 +750,7 @@ Control:
 	go func() {
 		<-sigCh
 		if !*quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | shutting down...\n")
+			fmt.Fprintf(os.Stderr, "le chaos run | shutting down...\n")
 		}
 		parentCancel()
 		if child != nil {
@@ -768,7 +768,7 @@ Control:
 			}
 			zeCrashed.Store(true)
 			if !*quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | ze crashed: %v\n", child.WaitErr())
+				fmt.Fprintf(os.Stderr, "le chaos run | ze crashed: %v\n", child.WaitErr())
 			}
 			parentCancel()
 		}()
@@ -778,7 +778,7 @@ Control:
 	// while Ze is still initializing. The HTTP server starts once
 	// setupReporting runs inside runOrchestrator.
 	if *webAddr != "" {
-		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
+		fmt.Fprintf(os.Stderr, "le chaos run | web dashboard: %s\n", dashboardURL(*webAddr))
 	}
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
@@ -849,7 +849,7 @@ Control:
 		// Check for pending restart.
 		select {
 		case newSeed := <-restartCh:
-			fmt.Fprintf(os.Stderr, "ze-chaos | restarting with seed: %d\n", newSeed)
+			fmt.Fprintf(os.Stderr, "le chaos run | restarting with seed: %d\n", newSeed)
 			*seed = newSeed
 
 			// Regenerate scenario with new seed.
@@ -895,7 +895,7 @@ func writeConfig(config string, params scenario.ConfigParams, path string, quiet
 			return err
 		}
 	} else {
-		// Default: write config to stdout for piping (ze-chaos | ze -).
+		// Default: write config to stdout for piping (le chaos run | ze -).
 		if _, err := fmt.Fprint(os.Stdout, config); err != nil {
 			return err
 		}

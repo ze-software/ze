@@ -2,7 +2,7 @@
 //
 // The ExaBGP compatibility stage is separate from the ordinary functional suite
 // table. It needs uv to provide Paramiko, but the test population and the DUT are
-// owned by ze-test and the functional binary builder respectively.
+// owned by le-test and the functional binary builder respectively.
 
 package testfunctional
 
@@ -156,7 +156,7 @@ func (r exaBGPReport) Text() string {
 		Str(" children passed\n").String()
 }
 
-// runExaBGP builds the exact ze and ze-test subjects, then runs every ExaBGP
+// runExaBGP builds the exact ze and le-test subjects, then runs every ExaBGP
 // compatibility case through uv. A nil runner selects the real process runner.
 // The first failing child supplies both the report code and the returned code.
 func runExaBGP(ctx context.Context, root string, runner exaBGPRunner) (
@@ -314,7 +314,7 @@ func exaBGPCommands(
 			zeFound = true
 		case LETest:
 			if zeTestFound {
-				return nil, errors.New("functional artifact owner declared ze-test more than once")
+				return nil, errors.New("functional artifact owner declared le-test more than once")
 			}
 			zeTestFound = true
 		default:
@@ -333,7 +333,7 @@ func exaBGPCommands(
 		return nil, errors.New("functional artifact owner declared no ze build")
 	}
 	if !zeTestFound {
-		return nil, errors.New("functional artifact owner declared no ze-test build")
+		return nil, errors.New("functional artifact owner declared no le-test build")
 	}
 
 	runEnvironment := set.Environment(toolchain)

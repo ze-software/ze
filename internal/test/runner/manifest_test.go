@@ -37,11 +37,11 @@ func TestFeatureGateTagsFromManifest(t *testing.T) {
 	}
 }
 
-// TestHelperBuildTagsCarryFeatureGates pins the ze-test helper to the SAME
+// TestHelperBuildTagsCarryFeatureGates pins the le-test helper to the SAME
 // feature set as the daemon.
 //
 // PREVENTS: the helper being built with a bare `ze_test`, which compiles out
-// every gated plugin's registering init(). `ze-test plugin-external as112` then
+// every gated plugin's registering init(). `le-test plugin-external as112` then
 // exits 1 with "unknown registered plugin" (internal/test/cli/cmd_plugin_external.go
 // registry.Lookup), the plugin's IsInternal() refusal is never emitted, and
 // as112-external-refuses / flowexport-external-refuses wait out their

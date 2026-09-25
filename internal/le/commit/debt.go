@@ -75,6 +75,9 @@ var debtGates = []struct {
 	// and holds one row per discharge, so a grep counts its own output.
 	{gateStaleIndexOK, "discovery-index freshness", false, nil},
 	{gateReviewOverride, "independent critical review", false, nil},
+	// The aliases are spellings that rows under plan/verification-debt/ carry.
+	// Those rows are historical records, so an alias keeps the command name the
+	// row was written with and never follows a later rename of the command.
 	{gateBrokenHeadFix, "repository tracked-build/check (HEAD does not compile)", true, []string{
 		"repository-tracked-build/check (HEAD does not compile)",
 		"./le repository tracked-build check (HEAD does not compile)",

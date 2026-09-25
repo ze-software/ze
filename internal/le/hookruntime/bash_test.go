@@ -208,18 +208,22 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		blocked bool
 	}{
 		{"verify-gate", `./le verify current mode full | tail -5`, true},
-		{"verify-lint", `./le verify lint run | grep issues`, true},
+		{"verify-lint", `./le go lint run | grep issues`, true},
 		{"verify-deps", `./le verify deps unit-cached | head -20`, true},
 		{"verify-status", `./le verify status check | tail -1`, false},
 		{"verify-summary", `./le verify summary append | head -2`, false},
 		{"ze-le-verify-gate", `ze le verify current mode full | tail -5`, true},
 		{"ze-le-verify-status", `ze le verify status check | tail -1`, false},
-		{"functional-run", `./le functional gating | tail -5`, true},
-		{"functional-listing", `./le functional | head -20`, false},
-		{"functional-listing-redirected", `./le functional 2>&1 | head -20`, false},
-		{"functional-run-redirected", `./le functional gating 2>&1 | tail -5`, true},
-		{"unit-run", `./le test-unit all | tail -5`, true},
-		{"unit-listing", `./le test-unit | head -20`, false},
+		{"functional-run", `./le test functional gating | tail -5`, true},
+		{"functional-listing", `./le test functional | head -20`, false},
+		{"functional-listing-redirected", `./le test functional 2>&1 | head -20`, false},
+		{"functional-run-redirected", `./le test functional gating 2>&1 | tail -5`, true},
+		{"unit-run", `./le test unit all | tail -5`, true},
+		{"unit-listing", `./le test unit | head -20`, false},
+		{"integration-run", `./le test integration all | tail -5`, true},
+		{"qemu-run", `./le test qemu all | tail -5`, true},
+		{"go-other", `./le go extract symbols | head -5`, false},
+		{"retired-verify-lint", `./le verify lint | grep issues`, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

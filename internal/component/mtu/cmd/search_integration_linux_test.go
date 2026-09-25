@@ -21,7 +21,7 @@
 // internal/core/probe/errqueue_integration_linux_test.go, where they are
 // unexported in a test file and cannot be imported. Every test skips,
 // never fails, when the namespaces or the raw socket are out of reach:
-// the QEMU runner (./le qemu all-tests) is where they run for real.
+// the QEMU runner (./le test qemu all-tests) is where they run for real.
 
 package cmd
 

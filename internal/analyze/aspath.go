@@ -62,7 +62,7 @@ func newASPathAnalysis() *aspathAnalysis {
 
 func runASPath(args []string) int {
 	if len(args) == 0 || helpAsked(args) {
-		fmt.Fprintf(os.Stderr, `ze-analyze aspath -- AS_PATH suffix sharing analysis
+		fmt.Fprintf(os.Stderr, `le mrt aspath -- AS_PATH suffix sharing analysis
 
 Analyzes MRT files to measure how much AS_PATH data can be compressed
 using a reversed trie (suffix sharing). Builds a trie where shared
@@ -72,11 +72,11 @@ Processes both TABLE_DUMP_V2 (RIB snapshots) and BGP4MP (live updates).
 JSON output to stdout; human-readable summary to stderr.
 
 Usage:
-  ze-analyze aspath <file.gz> [file2.gz ...]
+  le mrt aspath <file.gz> [file2.gz ...]
 
 Examples:
-  ze-analyze aspath test/internet/latest-bview.gz 2>/dev/null | jq .
-  ze-analyze aspath test/internet/latest-bview.gz >/dev/null
+  le mrt aspath test/internet/latest-bview.gz 2>/dev/null | jq .
+  le mrt aspath test/internet/latest-bview.gz >/dev/null
 `)
 		return usageExit(args)
 	}

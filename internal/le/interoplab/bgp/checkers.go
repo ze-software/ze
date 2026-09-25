@@ -158,8 +158,8 @@ var scenarioOperations = map[string][]operation{
 	// test/interop/scenarios/as-path-prepend-two-octet-peer, for
 	// spec-as-path-prepend-encodes-at-the-negotiated-width, and first executed
 	// on 2026-09-08. The command that runs it is
-	// `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le integration interop`;
-	// `./le integration scenario` is not an action and fails immediately.
+	// `INTEROP_SCENARIO=as-path-prepend-two-octet-peer ./le test integration interop`;
+	// `./le test integration scenario` is not an action and fails immediately.
 	//
 	// FRR NEEDS THE REAL FOUR-OCTET ASN IN remote-as EVEN HERE, because
 	// dont-capability-negotiate suppresses only what FRR sends: it still reads

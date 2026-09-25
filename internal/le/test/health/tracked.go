@@ -129,7 +129,7 @@ func hasExcludedPart(name string) bool {
 // lessByPathParts orders two paths the way Python orders two Path objects,
 // which is COMPONENT BY COMPONENT rather than byte by byte.
 //
-// The difference is live in this tree: "cmd/ze" sorts before "cmd/ze-gok"
+// The difference is live in this tree: "cmd/ze" sorts before "cmd/ze-installer"
 // there and after it here, because `-` is 0x2d and `/` is 0x2f. The order
 // reaches the page through the negative-test table, whose ranking is a STABLE
 // sort over a ratio and therefore breaks its many ties on the order the files

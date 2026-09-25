@@ -709,7 +709,7 @@ func compareWikiCommandCatalog(root, path string, want []byte) []Issue {
 	return []Issue{{
 		File:    commandSurfacePath(root, path),
 		Message: "the published wiki command catalog and the live command catalog disagree",
-		Detail:  "run `./le wiki-catalog update file <catalog.md>`; the wiki must preserve every per-command contract field",
+		Detail:  "run `./le cli catalog update file <catalog.md>`; the wiki must preserve every per-command contract field",
 	}}
 }
 

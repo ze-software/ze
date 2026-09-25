@@ -29,7 +29,7 @@ func runConvert(args []string) int {
 
 func runConvertPcap(args []string) int {
 	if len(args) != 2 {
-		os.Stderr.WriteString("usage: ze-analyze convert pcap <input.mrt> <output.pcap>\n") //nolint:errcheck // usage
+		os.Stderr.WriteString("usage: le mrt convert pcap <input.mrt> <output.pcap>\n") //nolint:errcheck // usage
 		return 1
 	}
 
@@ -86,7 +86,7 @@ func runConvertPcap(args []string) int {
 
 func runConvertJSON(args []string) int {
 	if len(args) != 1 {
-		os.Stderr.WriteString("usage: ze-analyze convert json <input.mrt>\n") //nolint:errcheck // usage
+		os.Stderr.WriteString("usage: le mrt convert json <input.mrt>\n") //nolint:errcheck // usage
 		return 1
 	}
 

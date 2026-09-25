@@ -504,12 +504,12 @@ func TestAnExcerptIsCutAtCharactersNotBytes(t *testing.T) {
 }
 
 func TestPathsSortByComponentTheWayPythonSortsThem(t *testing.T) {
-	// "cmd/ze" sorts before "cmd/ze-gok" by component and after it by byte,
+	// "cmd/ze" sorts before "cmd/ze-installer" by component and after it by byte,
 	// because `-` is 0x2d and `/` is 0x2f.
-	if !lessByPathParts("cmd/ze/dispatch.go", "cmd/ze-gok/main.go") {
+	if !lessByPathParts("cmd/ze/dispatch.go", "cmd/ze-installer/main.go") {
 		t.Error("the paths were ordered by byte rather than by component")
 	}
-	if lessByPathParts("cmd/ze-gok/main.go", "cmd/ze/dispatch.go") {
+	if lessByPathParts("cmd/ze-installer/main.go", "cmd/ze/dispatch.go") {
 		t.Error("the order is not antisymmetric")
 	}
 	// A directory sorts before a file whose name extends it, because the

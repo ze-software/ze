@@ -563,7 +563,7 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 // a value below the floor proven survivable on a 4-vCPU CI runner.
 // PREVENTS: the regression that killed GitHub's runner agent on 2026-07-26 -- a
 // suite default of 0 meant "all at once" (Runner.Run turns a non-positive
-// Parallel into len(selected)), so `ze-test ospf --all` launched 97 ze daemons
+// Parallel into len(selected)), so `le-test ospf --all` launched 97 ze daemons
 // simultaneously and the job died with exit 143 mid-suite.
 //
 // It is also AC-8 of spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant,

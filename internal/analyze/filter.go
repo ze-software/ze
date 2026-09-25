@@ -27,13 +27,13 @@ type filterOpts struct {
 	outputFile  string
 }
 
-const filterUsage = `ze-analyze filter -- filter MRT records to a new file
+const filterUsage = `le mrt filter -- filter MRT records to a new file
 
 Reads MRT records and writes only matching ones to the output file.
 All matching is exact. Multiple filters are AND-composed.
 
 Usage:
-  ze-analyze filter [options] <input.mrt> <output.mrt>
+  le mrt filter [options] <input.mrt> <output.mrt>
 
 Options:
   --peer-ip <ip>        Filter by peer IP address

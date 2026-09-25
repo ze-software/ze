@@ -1,4 +1,4 @@
-// VALIDATES: processMRTFile (the ze-analyze duplicate reader used by aspath,
+// VALIDATES: processMRTFile (the le mrt duplicate reader used by aspath,
 // communities, count-attrs, mrt-dump, density, attributes) reads "-" from stdin
 // and magic-sniffs gzip on the stdin stream (AC-7, AC-6). Fixing the openReader
 // choke point alone does NOT cover these subcommands.

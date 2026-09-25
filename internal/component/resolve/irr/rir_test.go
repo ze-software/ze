@@ -721,7 +721,7 @@ func TestARenderRefusesWhatTheParserRefuses(t *testing.T) {
 
 // VALIDATES: rendering the shipped seed reproduces the committed file byte for
 // byte, header included.
-// PREVENTS: `./le iana-asn write` rewriting the whole file on its next run for
+// PREVENTS: `./le data asn-delegation write` rewriting the whole file on its next run for
 // a formatting reason, which buries the change of data in a change of shape.
 func TestTheShippedSeedIsWhatTheRendererWrites(t *testing.T) {
 	table, err := parseDelegationTable(strings.NewReader(seedDelegation))

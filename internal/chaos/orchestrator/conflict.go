@@ -1,4 +1,4 @@
-// Design: docs/architecture/chaos-web-dashboard.md -- listener conflict detection for ze-chaos
+// Design: docs/architecture/chaos-web-dashboard.md -- listener conflict detection for le chaos run
 
 package orchestrator
 
@@ -12,14 +12,14 @@ import (
 )
 
 // validateChaosListenerConflicts checks for overlapping ip:port bindings among
-// ze-chaos single-port listeners. Range bases (--port, --listen-base) are excluded
+// le chaos run single-port listeners. Range bases (--port, --listen-base) are excluded
 // because they allocate N ports per peer count.
 //
 // Flags with value 0 (int ports) or "" (addr:port) are disabled and excluded.
 func validateChaosListenerConflicts(sshPort, webUIPort, lgPort, zeMCPPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr, mcpAddr string) error {
 	var endpoints []config.ListenerEndpoint
 
-	// Integer port flags bind on 127.0.0.1 (ze-chaos default local-addr).
+	// Integer port flags bind on 127.0.0.1 (le chaos run default local-addr).
 	localhost := net.IPv4(127, 0, 0, 1)
 	for _, ep := range []struct {
 		name string

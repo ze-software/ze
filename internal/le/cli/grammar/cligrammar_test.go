@@ -600,7 +600,7 @@ func TestTheTrackedFlagDebtIsPrintedAndReasoned(t *testing.T) {
 
 // VALIDATES: every `// ze point:` binding on the flag checker names a rule
 // point that exists on disk.
-// PREVENTS: a dangling binding. `./le rules gate-map-report` reads only
+// PREVENTS: a dangling binding. `./le ai rules gate-map-report` reads only
 // internal/le/hookruntime, so a binding on a gate's own checker is read by
 // nothing else: without this test, a renamed or deleted point would leave the
 // comment claiming an enforcement nobody can find.
@@ -633,5 +633,27 @@ func TestEveryPointBindingOnTheFlagCheckerResolves(t *testing.T) {
 	}
 	if found < 4 {
 		t.Errorf("the checker carries %d bindings, want one per flag rule", found)
+	}
+}
+
+// TestLeFlagSetsAreOutOfTheOfflineScope pins the scope rule for a flag set named
+// under the `le` root. The method calls offlineZeCommand with `le` among the
+// roots, as the real scan passes it.
+//
+// `le perf send` parses the flags `ze-perf run` parsed. le takes keywords, so
+// such a flag set belongs to a program le hands argv to, and judging it as a
+// ze offline command reports 37 findings about a completion surface that does
+// not exist. A declaration under `le` MUST bring it back into scope.
+func TestLeFlagSetsAreOutOfTheOfflineScope(t *testing.T) {
+	roots := []string{"bgp", "le"}
+	if offlineZeCommand("le perf send", roots, nil) {
+		t.Fatal("le perf send is judged as a ze offline command, want out of scope")
+	}
+	if !offlineZeCommand("bgp decode", roots, nil) {
+		t.Fatal("bgp decode is out of scope, want a ze offline command")
+	}
+	declared := map[string][]string{"le demo": {"x"}}
+	if !offlineZeCommand("le perf send", roots, declared) {
+		t.Fatal("a declaration under le did not bring le perf send into scope")
 	}
 }

@@ -3,8 +3,7 @@
 
 // Package buildgokrazy is `le build gokrazy`, the gokrazy build tool run
 // in-process with a project-local module cache and a prepared instance.
-// cmd/ze-gok holds the same code under its old program name until it is
-// removed, and its tests moved here.
+// It replaced a standalone gokrazy program, whose tests moved here.
 package buildgokrazy
 
 import (

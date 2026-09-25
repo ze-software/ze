@@ -314,13 +314,17 @@ A fixture runs `ze` by bare name. The runner builds its own `ze` and the
 harness into a throwaway directory. The harness file is `le-test`
 (`harnessbin.Name`), and every builder also writes its retired name `ze-test` as
 a hard link, which the `.ci` files exec until the le rename rewrites them.
-`./le test harness <argv>` builds `bin/le-test` under job admission when it is
-absent, then runs it with `<argv>` and answers its exit code. It symlinks both under bare names into a shim
-directory, and prepends that directory to every child's PATH. So
-`exec.LookPath` and `exec.Command("ze", ...)` name the binary this run built.
-The shim exists because a cross-compiled binary carries its target in the file
-name. One directory holding two architectures once gave the QEMU guest the
-host's `ze`.
+The runner symlinks both under bare names into a shim directory, and prepends
+that directory to every child's PATH. So `exec.LookPath` and
+`exec.Command("ze", ...)` name the binary this run built. The shim exists
+because a cross-compiled binary carries its target in the file name. One
+directory holding two architectures once gave the QEMU guest the host's `ze`.
+
+`./le test harness <argv>` builds `bin/le-test` under job admission on every
+call, then runs it with `<argv>` and answers its exit code. Go's build cache
+makes an unchanged rebuild cheap. `LE_TEST_NO_BUILD` runs the harness as it is
+and refuses when the file is absent.
+<!-- source: internal/le/test/harness/harness.go -- answerIn -->
 
 `$ZE_REPO_ROOT/bin/ze` is not that binary and MUST NOT be used to find it.
 `.gitignore` excludes `bin/` and no verification job writes `ze` there. A

@@ -15,7 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-const injectUsage = `ze-analyze inject -- inject MRT routes into a BGP session
+const injectUsage = `le mrt inject -- inject MRT routes into a BGP session
 
 Reads TABLE_DUMP_V2 or BGP4MP UPDATE records from an MRT file and sends
 them as BGP UPDATE messages to a remote peer over a raw TCP connection.
@@ -26,7 +26,7 @@ the stored path attributes. BGP4MP MESSAGE records containing UPDATEs
 are forwarded verbatim.
 
 Usage:
-  ze-analyze inject <file.mrt[.gz|.bz2]> <peer-ip:port> [options]
+  le mrt inject <file.mrt[.gz|.bz2]> <peer-ip:port> [options]
 
 Options:
   --local-as <asn>   Local AS number (default: 65000)

@@ -308,7 +308,7 @@ func TestAMissingBinaryIsRefusedBeforeAnythingRuns(t *testing.T) {
 	run.Run = rec.run
 
 	if _, code := run.Execute(); code == 0 {
-		t.Fatal("a run missing ze-test exited 0")
+		t.Fatal("a run missing le-test exited 0")
 	}
 	if len(rec.calls) != 0 {
 		t.Errorf("%d commands ran without the test binary", len(rec.calls))

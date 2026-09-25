@@ -26,7 +26,7 @@ func appendCall(path string, args []string) error {
 	return closeErr
 }
 
-// Run implements the external commands used by the le evidence fixture.
+// Run implements the external commands used by the le verify evidence fixture.
 func Run(name string, args []string) (int, bool) {
 	switch name {
 	case "docker":

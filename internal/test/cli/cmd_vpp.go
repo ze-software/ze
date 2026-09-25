@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md -- ze-test vpp subcommand
+// Design: docs/architecture/testing/ci-format.md -- le-test vpp subcommand
 
 package cli
 
@@ -169,7 +169,7 @@ func zeTestParseVPPCLI(args []string) (*vppCLIFlags, bool) {
 }
 
 func zeTestPrintVPPUsage() {
-	_, _ = os.Stderr.WriteString(`Usage: ze-test vpp [options] [tests...]
+	_, _ = os.Stderr.WriteString(`Usage: le-test vpp [options] [tests...]
 
 Run VPP stub-backed functional tests from test/vpp/.
 
@@ -186,9 +186,9 @@ Options:
   -s, --save DIR      Save logs to directory
 
 Examples:
-  ze-test vpp -l
-  ze-test vpp -a
-  ze-test vpp 1 2         # by numeric id
-  ze-test vpp --start 4
+  le-test vpp -l
+  le-test vpp -a
+  le-test vpp 1 2         # by numeric id
+  le-test vpp --start 4
 `)
 }

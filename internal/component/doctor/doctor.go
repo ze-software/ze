@@ -11,7 +11,7 @@
 // checks_*.go siblings, grouped by concern. Every check, this component's own
 // included, arrives through runDoctorChecks: runChecks writes no check out by
 // name, so a check `ze doctor` runs is one some package registered
-// (`./le enumeration report` refuses the next hand-written call).
+// (`./le arch enumeration report` refuses the next hand-written call).
 
 package doctor
 

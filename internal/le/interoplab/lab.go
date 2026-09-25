@@ -86,7 +86,7 @@ type SuiteReport struct {
 	Code          int              `json:"code"`
 }
 
-// Text renders the report for a terminal, so a failing `./le integration interop`
+// Text renders the report for a terminal, so a failing `./le test integration interop`
 // prints the scenario that failed and the assertion that failed it under the
 // "Failed: interop" summary rather than the summary alone. The sweep renders a
 // failing native answer only when it can render itself

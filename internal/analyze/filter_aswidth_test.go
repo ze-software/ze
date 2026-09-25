@@ -1,4 +1,4 @@
-// VALIDATES: `ze-analyze filter --as-path` derives the AS_PATH width from the
+// VALIDATES: `le mrt filter --as-path` derives the AS_PATH width from the
 // MRT record type, so a TABLE_DUMP (type 12, 2-byte AS per RFC 6396 Section 4.2)
 // file can actually be filtered.
 // PREVENTS: the hardcoded as4=true at the OnTableDump call site. ParseASPath

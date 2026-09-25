@@ -71,7 +71,7 @@ func TestAnchorSegmentsReadsBothFormats(t *testing.T) {
 }
 
 func TestAnchorSymbolTokensKeepsOnlyDeclarationClaims(t *testing.T) {
-	got := anchorSymbolTokens("Run(), Peer.Name, the wire format, ze-gok, routing, sa_count, StateIdle..StateEstablished")
+	got := anchorSymbolTokens("Run(), Peer.Name, the wire format, ze-installer, routing, sa_count, StateIdle..StateEstablished")
 	want := []string{"Run", "Peer.Name", "sa_count"}
 	if !slices.Equal(got, want) {
 		t.Errorf("anchorSymbolTokens answered %v, want %v", got, want)

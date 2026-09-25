@@ -550,8 +550,8 @@ type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
-	// testPath is this runner's own executable, so a `cmd=...:exec=ze-test ...`
-	// line runs the ze-test that runs the suite and never a PATH lookup: the
+	// testPath is this runner's own executable, so a `cmd=...:exec=le-test ...`
+	// line runs the le-test that runs the suite and never a PATH lookup: the
 	// gate's bin directory is not on PATH, and the generic runner
 	// (runner_exec.go) resolves the same name to its own binary.
 	testPath string
@@ -581,8 +581,9 @@ func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunne
 }
 
 // resolveParseExec maps the binary name at the head of an exec= line to the
-// path the runner holds for it. `ze` is the daemon under test and `ze-test`
-// is the runner itself; every other head is left for a PATH lookup.
+// path the runner holds for it. `ze` is the daemon under test and `le-test`
+// is the runner itself; every other head is left for a PATH lookup. The
+// retired name `ze-test` reaches the runner too, until Phase 3 removes it.
 func resolveParseExec(cmdLine, zePath, testPath string) (string, error) {
 	if rest, ok := strings.CutPrefix(cmdLine, binNameZe+" "); ok {
 		return zePath + " " + rest, nil
@@ -590,9 +591,13 @@ func resolveParseExec(cmdLine, zePath, testPath string) (string, error) {
 	if cmdLine == binNameZe {
 		return zePath, nil
 	}
-	if rest, ok := strings.CutPrefix(cmdLine, binNameZeTest+" "); ok {
+	for _, harness := range []string{binNameLETest, binNameZeTest} {
+		rest, ok := strings.CutPrefix(cmdLine, harness+" ")
+		if !ok {
+			continue
+		}
 		if testPath == "" {
-			return "", errors.New("exec names ze-test and the runner does not know its own executable")
+			return "", errors.New("exec names " + harness + " and the runner does not know its own executable")
 		}
 		return testPath + " " + rest, nil
 	}

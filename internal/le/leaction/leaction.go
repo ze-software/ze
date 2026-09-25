@@ -129,7 +129,7 @@ type Action struct {
 	Writes bool
 	// Alone says this action names the whole area rather than one member of
 	// it, so it MUST be the only verb on the line and a sweep refuses it beside
-	// another. `le functional gating` names a run list of 24 suites and `le
+	// another. `le test functional gating` names a run list of 24 suites and `le
 	// test-chaos all` names three tools, so a line naming one of them beside a
 	// second verb is a typo that starts hours of work rather than a selection
 	// an operator made. A line that names it alone runs it, whether the area
@@ -809,12 +809,12 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 				return nil, 2
 			}
 			// An action that names the whole area is not one member of a
-			// selection. `le functional gating encode` reads as a typo and
+			// selection. `le test functional gating encode` reads as a typo and
 			// would run 24 suites and then one more, so the two words that used
 			// to answer a refusal must answer one still (Action.Alone).
 			//
 			// The test is what the line NAMES, never how it was dispatched. An
-			// area whose Answer sweeps a one-word line as well (`le test-unit
+			// area whose Answer sweeps a one-word line as well (`le test unit
 			// all`) reaches this loop with one name, and that line is the one
 			// shape the verb is for.
 			if len(args) > 1 && act.Alone {

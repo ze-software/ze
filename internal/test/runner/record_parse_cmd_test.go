@@ -286,7 +286,7 @@ func TestParseCmdExecReady(t *testing.T) {
 		line string
 		want string
 	}{
-		{"after_exec", "cmd=background:seq=1:exec=ze-test fixture plugin/c $PORT2:ready=BMP-COLLECTOR: listening on", "BMP-COLLECTOR: listening on"},
+		{"after_exec", "cmd=background:seq=1:exec=le-test fixture plugin/c $PORT2:ready=BMP-COLLECTOR: listening on", "BMP-COLLECTOR: listening on"},
 		{"before_exec", "cmd=background:seq=1:ready=up now:exec=sleep 60", "up now"},
 		{"with_name", "cmd=background:seq=1:exec=sleep 60:ready=up:name=holder", "up"},
 	}

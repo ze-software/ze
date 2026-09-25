@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-perf subcommand tests
+// Design: docs/architecture/system-architecture.md -- le perf subcommand tests
 
 package cli
 
@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// VALIDATES: AC-15 "ze-perf run -h prints usage with flag descriptions and examples."
+// VALIDATES: AC-15 "le perf send -h prints usage with flag descriptions and examples."
 // PREVENTS: Help text missing or panicking.
 func TestRunHelp(t *testing.T) {
 	t.Parallel()
@@ -69,7 +69,7 @@ func captureStderr(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// VALIDATES: AC-9 "ze-perf track --check with regression exits non-zero, prints regression details."
+// VALIDATES: AC-9 "le perf track --check with regression exits non-zero, prints regression details."
 // PREVENTS: Regressions going undetected in CI.
 func TestTrackCheckRegression(t *testing.T) {
 	// No t.Parallel() -- captureStderr modifies global os.Stderr.
@@ -103,7 +103,7 @@ func TestTrackCheckRegression(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-10 "ze-perf track --check with no regression exits zero, prints 'no regression'."
+// VALIDATES: AC-10 "le perf track --check with no regression exits zero, prints 'no regression'."
 // PREVENTS: False exit codes when no regression detected.
 func TestTrackCheckNoRegression(t *testing.T) {
 	// No t.Parallel() -- captureStderr modifies global os.Stderr.

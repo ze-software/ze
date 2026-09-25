@@ -547,7 +547,7 @@ func TestCountUpdateNLRIs(t *testing.T) {
 	//   MP_UNREACH), AND reports an error whenever any of those sections is
 	//   damaged so the count cannot be read as exact.
 	// PREVENTS: missing counts from any of the four NLRI locations; and the
-	//   silent under-count that made `ze-analyze density` publish a fabricated
+	//   silent under-count that made `le mrt density` publish a fabricated
 	//   burst profile with exit 0 -- a single NLRI octet reading 0xFF used to
 	//   skip 32 bytes and keep counting.
 

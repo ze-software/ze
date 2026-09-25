@@ -28,13 +28,13 @@ type mrtStats struct {
 	TotalRecords  uint64            `json:"total-records"`
 }
 
-const statisticsUsage = `ze-analyze statistics -- MRT file statistics
+const statisticsUsage = `le mrt statistics -- MRT file statistics
 
 Reads MRT files and reports record counts by type/subtype, AFI breakdown,
 peer summary, timestamp range, and BGP message type distribution.
 
 Usage:
-  ze-analyze statistics <file.mrt[.gz|.bz2]> [file2...]
+  le mrt statistics <file.mrt[.gz|.bz2]> [file2...]
 
 Output:
   JSON to stdout, human summary to stderr.

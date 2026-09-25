@@ -308,7 +308,7 @@ func commandExpensive(segment string) bool {
 
 // beforeRedirection answers the words up to the first redirection. The
 // tokenizer keeps `2>&1` and `>` as words of their own. A caller counting what
-// follows an area name would therefore read `le functional 2>&1` as a command
+// follows an area name would therefore read `le test functional 2>&1` as a command
 // carrying a verb. It would then refuse a listing as the 24-suite run.
 func beforeRedirection(words []string) []string {
 	for i, word := range words {
@@ -325,20 +325,28 @@ func beforeRedirection(words []string) []string {
 // `le verify summary` read and write the verification certificate and run
 // nothing, while every other area under `verify` runs the gate.
 //
-// The suites stopped running on their bare name, so `le functional` and
-// `le test-unit` print a listing and the run needs `gating` or `all`. `le
+// The suites stopped running on their bare name, so `le test functional` and
+// `le test unit` print a listing and the run needs `gating` or `all`. `le
 // verify` still runs the gate on its bare name, which is why the exemption
 // names the two areas rather than the shape.
 //
 // `le test <suite>` is the subject-first spelling of the suite areas, so the
 // word after `test` is read as the area: `test unit` is `test-unit`, and `test
 // harness` runs the harness, building it first when it is absent.
+//
+// `le go lint` is the subject-first name of `le verify lint`, so it runs the
+// linter and is heavy. The old spellings `verify lint`, `functional`,
+// `integration`, `qemu` and `test-unit` stay heavy until the retired names are
+// removed.
 func heavyArea(words []string) bool {
 	words = beforeRedirection(words)
 	if len(words) == 0 {
 		return false
 	}
 	area, rest := words[0], words[1:]
+	if area == "go" {
+		return len(rest) > 0 && rest[0] == "lint"
+	}
 	if area == "test" && len(rest) > 0 {
 		area, rest = rest[0], rest[1:]
 		if area == "harness" {

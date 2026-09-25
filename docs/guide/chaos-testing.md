@@ -43,7 +43,14 @@ The web dashboard shows real-time peer status, per-family route propagation, con
 
 # Specify ze binary path
 ./le chaos run --binary ./bin/ze --seed 42 --peers 8 --duration 60s
+```
 
+Fork mode runs the ze daemon that `--binary` names, else the `ze` on PATH. It
+refuses when neither names a program, and it refuses a path that is the running
+`le` itself, because `le` is not a ze daemon.
+<!-- source: internal/chaos/orchestrator/fork.go -- resolveZeDaemon -->
+
+```bash
 # Pipeline mode: config on stdout, diagnostics on stderr
 ./le chaos run --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
 

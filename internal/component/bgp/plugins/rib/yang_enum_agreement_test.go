@@ -5,7 +5,7 @@
 // yang_enum_agreement_test.go holds this package's Go name tables to the YANG enumerations they
 // spell.
 //
-// `./le enumeration report` names each table: the Go side and the model each
+// `./le arch enumeration report` names each table: the Go side and the model each
 // declare the same set of words, and the gate cannot pick which one the other
 // should derive from. It cannot be derived here, because each Go table carries
 // what the model does not -- an RFC-assigned number, a typed value, a handler.

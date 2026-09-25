@@ -1292,7 +1292,7 @@ func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error
 const (
 	maxSummaryLen = 256
 	// The description bound is command.MaxDescriptionBytes rather than a number of
-	// its own, so this validator and `le docvalid help-shape` cannot disagree
+	// its own, so this validator and `le doc yang-contract help-shape` cannot disagree
 	// about what a long explanation is allowed to be.
 	maxDescriptionLen = command.MaxDescriptionBytes
 )

@@ -19,10 +19,10 @@ func TestDisplayDebugHintsUseSuiteSpecificCommands(t *testing.T) {
 	display.debugHints()
 
 	out := buf.String()
-	if !strings.Contains(out, "ze-test ui "+rec.Nick) {
+	if !strings.Contains(out, "le-test ui "+rec.Nick) {
 		t.Fatalf("missing top-level rerun command:\n%s", out)
 	}
-	if strings.Contains(out, "ze-test bgp ui") {
+	if strings.Contains(out, "le-test bgp ui") {
 		t.Fatalf("debug hint used wrong BGP command:\n%s", out)
 	}
 }
@@ -40,7 +40,7 @@ func TestDisplayDebugHintsUseEditorPatternCommand(t *testing.T) {
 	display.debugHints()
 
 	out := buf.String()
-	if !strings.Contains(out, "ze-test editor "+rec.Nick) {
+	if !strings.Contains(out, "le-test editor "+rec.Nick) {
 		t.Fatalf("missing editor rerun command:\n%s", out)
 	}
 }

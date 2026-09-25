@@ -1045,7 +1045,7 @@ func TestSummaryStripsATerminalEscape(t *testing.T) {
 // summary, so the row it returns holds no newline, carriage return or tab.
 // PREVENTS: A declared summary drawing a SECOND screen line. View counts the
 // message area as two entries and reads the prompt row from that count, so an
-// extra line puts the cursor one row above the prompt. `./le docvalid
+// extra line puts the cursor one row above the prompt. `./le doc yang-contract
 // help-shape` reads the summaries declared in this tree, and a plugin that
 // registers over the wire declares one it never sees.
 func TestSummaryWithANewlineStaysOnOneRow(t *testing.T) {

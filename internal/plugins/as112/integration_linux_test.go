@@ -2,7 +2,7 @@
 //
 // Requires CAP_NET_BIND_SERVICE / root: binding UDP/TCP port 53 needs
 // elevated privilege on Linux (and everywhere else). These assertions run under
-// `./le integration as112`, not the standard `test/plugin/*.ci` functional
+// `./le test integration as112`, not the standard `test/plugin/*.ci` functional
 // suite, which is unprivileged and has no precedent for a privileged-port bind.
 // The as112-*.ci functional tests still verify
 // config-application and `show as112` state; THIS file is the only place

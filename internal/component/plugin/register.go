@@ -51,7 +51,7 @@ type pluginRow struct {
 }
 
 // The command path is written as a literal at each call, not through a const.
-// `./le docvalid command-contract` parses this file to check that every YANG
+// `./le doc yang-contract command-contract` parses this file to check that every YANG
 // command has a handler, and it reads a string literal; a const identifier
 // reaches it as no path at all, so the command would be reported as declared in
 // YANG and served by nobody.

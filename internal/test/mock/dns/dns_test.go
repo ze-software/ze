@@ -1,4 +1,4 @@
-// Goal: prove the ze-test dns subcommand reports a bind it could not make,
+// Goal: prove the le-test dns subcommand reports a bind it could not make,
 // refuses a port outside the range, and prints a usage text derived from the
 // zone. Method: call Run with os.Stderr redirected to a pipe.
 //
@@ -80,7 +80,7 @@ func TestRunRefusesAPortOutsideTheRange(t *testing.T) {
 	}
 }
 
-// The usage reaches an author through `ze-test dns --help`, not only through
+// The usage reaches an author through `le-test dns --help`, not only through
 // zoneUsage. Run must therefore RETURN rather than exit: os.Exit skips the
 // crashlog.Flush cmd/ze/main.go runs after dispatch, and crashlog.Init has
 // replaced os.Stderr with a pipe only that flush drains, so an exit inside the
@@ -93,7 +93,7 @@ func TestHelpPrintsTheZone(t *testing.T) {
 	for name := range defaultZone() {
 		bare := strings.TrimSuffix(name, ".")
 		if !strings.Contains(stderr, bare) {
-			t.Errorf("`ze-test dns --help` does not name %s", bare)
+			t.Errorf("`le-test dns --help` does not name %s", bare)
 		}
 	}
 }

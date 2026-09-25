@@ -55,7 +55,7 @@ func TestStreamGivesTheChildNothingItWasNotHanded(t *testing.T) {
 
 // TestALaterEntryWinsOverAnEarlierOne verifies the override rule that every
 // caller uses. A caller appends an override to an inherited environment. The
-// isolated binary set uses this rule to add ZE_TEST_NO_BUILD to the environment
+// isolated binary set uses this rule to add LE_TEST_NO_BUILD to the environment
 // that gotoolchain derived.
 func TestALaterEntryWinsOverAnEarlierOne(t *testing.T) {
 	environ := []string{"PATH=" + os.Getenv("PATH"), "ZE_PROBE=first", "ZE_PROBE=second"}

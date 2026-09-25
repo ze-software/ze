@@ -186,14 +186,14 @@ func rfcCorpusFixture(t *testing.T, root string) {
 // TestSessionStartLeavesAPresentArtifactAlone bounds what this hook does.
 //
 // The rebuild is ABSENT-ONLY because the hook has a budget: `.claude/settings.json`
-// gives `le hook-check session-start` 5 seconds, and rendering all three
+// gives `le ai hooks session-start` 5 seconds, and rendering all three
 // artifacts does not fit inside it. A hook killed at its timeout loses the
 // whole session-start message with it, the BLOCKING LSP notice and the
 // verification-debt warning included, and leaves every artifact after the kill
 // point exactly as it found them. Measure it before changing this:
 //
 //	dir=$(./le session scratch ensure)
-//	echo '{}' | time ./le hook-check session-start > "$dir/session-start.log" 2>&1
+//	echo '{}' | time ./le ai hooks session-start > "$dir/session-start.log" 2>&1
 //
 // The cost of the bound is a STATED limitation: a write no Write or Edit hook
 // sees leaves the artifact present and stale until the next hooked write to one

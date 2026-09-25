@@ -61,7 +61,7 @@ func init() {
 	// `unknown command`: YANG declares a wire method for each and no daemon
 	// handler implements one.
 	//
-	// The path is written as a literal at each call. `./le docvalid
+	// The path is written as a literal at each call. `./le doc yang-contract
 	// command-contract` and the local-data coverage scan parse this file and
 	// read a string literal. A const identifier reaches them as no path at all.
 	registry.MustRegisterLocalData("show schema list", dataList, registry.Meta{

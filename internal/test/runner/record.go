@@ -254,7 +254,7 @@ type Record struct {
 	HTTPWaits  []httpCheck // http=wait readiness polls (run before checks)
 
 	// Engine steps: command=/stream= + expect=output|event|stream directives
-	// executed by the spawned `ze-test engine-steps` external plugin, fed via
+	// executed by the spawned `le-test engine-steps` external plugin, fed via
 	// engine-steps.json in the tmpfs dir (engine_steps.go).
 	EngineSteps []EngineStep
 
@@ -271,7 +271,7 @@ type Record struct {
 
 	// NeedsLinux is set when the test carries option=needs-linux: it requires a
 	// real Linux kernel and is validated in the QEMU Alpine VM. Used by the
-	// ZE_QEMU_LINUX_ONLY filter (the `./le qemu all-tests` tight loop) to
+	// ZE_QEMU_LINUX_ONLY filter (the `./le test qemu all-tests` tight loop) to
 	// run ONLY these tests and skip everything else.
 	NeedsLinux bool
 

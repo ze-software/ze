@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-analyze root handler registration
+// Design: docs/architecture/system-architecture.md -- le mrt root handler registration
 // Related: register.go -- the subcommands the root dispatches
 
 // codegen:skip -- the ze_analyze personality wires this, from cmd/ze/ze_analyze_register.go.

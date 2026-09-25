@@ -55,7 +55,7 @@ var (
 func TestVPPRealDataplaneInstalls(t *testing.T) {
 	socket := os.Getenv(realVPPSocketEnv)
 	if socket == "" {
-		t.Skipf("%s is unset: this test programs a running VPP (`./le deployment vpp-test`)", realVPPSocketEnv)
+		t.Skipf("%s is unset: this test programs a running VPP (`./le test deployment vpp-test`)", realVPPSocketEnv)
 	}
 	swIfIndex, err := strconv.Atoi(os.Getenv(realVPPIfIndexEnv))
 	if err != nil {

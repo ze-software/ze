@@ -50,7 +50,7 @@ const labBuildGOOS = "linux"
 // touches that lab alone: this producer holds no list of labs and no per-lab
 // branch.
 type LabBinary struct {
-	// Name is what the binary is called in a message: `ze`, `ze-test`.
+	// Name is what the binary is called in a message: `ze`, `le-test`.
 	Name string
 	// Base is the tag pair this personality carries before the feature gates,
 	// such as repofeaturetags.DaemonBase for a daemon and `ze_test` for the test

@@ -15,7 +15,7 @@
 //
 // Two formats meet here, and this package owns both. What a registry publishes
 // is read by parseRegistryDelegation, and what Ze ships and stores is written
-// by RenderDelegationTable and read by parseDelegationTable. `./le iana-asn
+// by RenderDelegationTable and read by parseDelegationTable. `./le data asn-delegation
 // write` calls into this package rather than declaring a second parser:
 // the two copies that used to exist each held a guard the other lacked.
 //
@@ -240,7 +240,7 @@ type DelegationTable struct {
 // RenderDelegationTable writes the Generated: and Source: lines after it, and
 // parseDelegationTable reads the first of those two back.
 const delegationTableHeader = "" +
-	"# Ze RIR delegation table, written by ./le iana-asn write. One line for\n" +
+	"# Ze RIR delegation table, written by ./le data asn-delegation write. One line for\n" +
 	"# each range: <start> <end> <registry-token>. The registry display name\n" +
 	"# and its whois host are Go constants in rir.go, so this file carries the\n" +
 	"# token alone.\n" +
@@ -476,7 +476,7 @@ var delegationClient = &http.Client{Timeout: fetchTimeout}
 
 // FetchDelegationTable reads the five registry delegation files and builds the
 // table every writer of this format publishes. `update resolve rir` stores
-// what it answers, and `./le iana-asn write` renders the shipped seed from it.
+// what it answers, and `./le data asn-delegation write` renders the shipped seed from it.
 // One recipe is what keeps a guard off one path and on the other: the parse,
 // the collapse and the render are this package's, and this is their one
 // caller.
@@ -629,7 +629,7 @@ func (t *rirTable) Len() int {
 // every line of it, while a registry publishes rows Ze has no use for.
 //
 // FetchDelegationTable is its only caller, so both writers of the Ze table
-// reach it: `update resolve rir` and `./le iana-asn write`.
+// reach it: `update resolve rir` and `./le data asn-delegation write`.
 func parseRegistryDelegation(r io.Reader) ([]RIREntry, error) {
 	var entries []RIREntry
 	scanner := bufio.NewScanner(r)
@@ -726,7 +726,7 @@ func parseDelegationFields(line string) (delegationFields, bool) {
 // binary search and RenderDelegationTable both need: sorted and disjoint.
 //
 // FetchDelegationTable is its only caller, so both writers of the Ze table
-// collapse the same way: `update resolve rir` and `./le iana-asn write`.
+// collapse the same way: `update resolve rir` and `./le data asn-delegation write`.
 func collapseRanges(entries []RIREntry) ([]RIREntry, error) {
 	if len(entries) == 0 {
 		return nil, nil

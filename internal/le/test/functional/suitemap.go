@@ -58,7 +58,7 @@ const suiteMapPath = "tmp/ze-suite-map.json"
 //
 // Reached names, for each suite, every package that suite reached. The package
 // spelling is the change-set selector's own: "./internal/component/ssh", rooted
-// at the checkout, so an answer from `./le changed packages` can be compared
+// at the checkout, so an answer from `./le repo changed packages` can be compared
 // with a recorded set without either side normalizing the other.
 type suiteMap struct {
 	Head    string              `json:"head"`

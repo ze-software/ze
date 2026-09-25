@@ -22,13 +22,13 @@ func runDownload(args []string) int {
 	fs := flag.NewFlagSet("download", flag.ContinueOnError)
 	outDir := fs.String("o", "test/internet", "Output directory for downloaded files")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `ze-analyze download -- fetch MRT data from public BGP collectors
+		fmt.Fprintf(os.Stderr, `le mrt download -- fetch MRT data from public BGP collectors
 
 Downloads RIB dumps and UPDATE streams from RIPE RIS (rrc00) and RouteViews.
 Files are saved as .gz for Go stdlib compatibility.
 
 Usage:
-  ze-analyze download [options] [YYYYMMDD] [HHMM]
+  le mrt download [options] [YYYYMMDD] [HHMM]
 
 Arguments:
   YYYYMMDD    Date for data files (default: today)
@@ -45,9 +45,9 @@ What gets downloaded:
   rv-updates.YYYYMMDD.HHMM.gz     RouteViews BGP4MP updates (~2 MB per 15-min file)
 
 Examples:
-  ze-analyze download                     # latest RIB + today's updates at 00:00
-  ze-analyze download 20260324            # specific date
-  ze-analyze download 20260324 1200       # specific date and time
+  le mrt download                     # latest RIB + today's updates at 00:00
+  le mrt download 20260324            # specific date
+  le mrt download 20260324 1200       # specific date and time
 `)
 	}
 
@@ -130,7 +130,7 @@ Examples:
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\nDone. Use 'ze-analyze density %s/ripe-updates.*.gz' to analyze.\n", *outDir)
+	fmt.Fprintf(os.Stderr, "\nDone. Use 'le mrt density %s/ripe-updates.*.gz' to analyze.\n", *outDir)
 	return 0
 }
 

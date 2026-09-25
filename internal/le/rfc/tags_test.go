@@ -224,8 +224,8 @@ func TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier(t *testing.T) {
 
 func TestOnlyAScheduledWorkflowGrantsANightlyTier(t *testing.T) {
 	sources := map[string]string{
-		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
-		"push.yml":    "on:\n  push:\njobs:\n  a:\n    steps:\n      - run: ./le integration interop-ipsec\n",
+		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
+		"push.yml":    "on:\n  push:\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop-ipsec\n",
 	}
 	got := scheduledActionsFrom(sources)
 	if got["integration/interop"] != "nightly.yml" {
@@ -240,8 +240,8 @@ func TestTheFirstScheduledWorkflowNamingAnActionIsTheOneRecorded(t *testing.T) {
 	// First wins in sorted workflow order, so filesystem listing order cannot
 	// change which scheduled pipeline the ledger names.
 	sources := map[string]string{
-		"b-nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
-		"a-nightly.yml": "on:\n  schedule:\n    - cron: '0 4 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le integration interop\n",
+		"b-nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
+		"a-nightly.yml": "on:\n  schedule:\n    - cron: '0 4 * * *'\njobs:\n  a:\n    steps:\n      - run: ./le test integration interop\n",
 	}
 	if got := scheduledActionsFrom(sources)["integration/interop"]; got != "a-nightly.yml" {
 		t.Errorf("the action is credited to %q, want the first workflow in order", got)
@@ -250,7 +250,7 @@ func TestTheFirstScheduledWorkflowNamingAnActionIsTheOneRecorded(t *testing.T) {
 
 func TestACommentedOutCommandGrantsNothing(t *testing.T) {
 	sources := map[string]string{
-		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      # - run: ./le integration interop\n",
+		"nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  a:\n    steps:\n      # - run: ./le test integration interop\n",
 	}
 	if got := scheduledActionsFrom(sources); len(got) != 0 {
 		t.Errorf("a commented-out command granted a tier: %v", got)
@@ -262,10 +262,10 @@ func TestNativeActionsInWorkflowCommands(t *testing.T) {
 		name, src string
 		want      []string
 	}{
-		{"one action", "run: ./le integration interop\n", []string{"integration/interop"}},
+		{"one action", "run: ./le test integration interop\n", []string{"integration/interop"}},
 		{"a wrapper", "run: sudo ./le rfc check\n", []string{"rfc/check"}},
 		{"a chain", "run: ./le rfc check && ./le doc check verify\n", []string{"rfc/check", "doc check/verify"}},
-		{"a quoted scalar", "- \"./le tier check\"\n", []string{"tier/check"}},
+		{"a quoted scalar", "- \"./le arch tier check\"\n", []string{"tier/check"}},
 		{"arguments do not change identity", "run: ./le verify current mode full\n", []string{"verify/current"}},
 		{"no native action", "run: echo a\n", nil},
 	}

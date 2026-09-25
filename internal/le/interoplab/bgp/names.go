@@ -155,7 +155,7 @@ const (
 	zeShowBMPPeers     = "show bmp peers"
 )
 
-// ze-test subcommands. A peer built from the Ze image runs one as its
+// le-test subcommands. A peer built from the Ze image runs one as its
 // container command, and Helper dispatches on the same word.
 const zeTestCommandSpeaker = "speaker"
 

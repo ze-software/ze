@@ -3,7 +3,7 @@
 // Detail: state_routematrix.go — route flow matrix and heatmap tracking
 // Related: viz_convergence_trend.go — ConvergenceTrend RingBuffer and ComputeConvergencePercentiles
 //
-// Package web implements a live HTMX dashboard for ze-chaos.
+// Package web implements a live HTMX dashboard for le chaos run.
 package web
 
 import (

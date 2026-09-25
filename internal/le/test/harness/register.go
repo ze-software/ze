@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- le's composition, one import per tool
-// Overview: harness.go -- build bin/le-test when absent, then exec it
+// Overview: harness.go -- build bin/le-test, then exec it
 //
 // One package, one register.go, one init(). Adding this tool to le also needs
 // one blank import in internal/le/register.go.
@@ -14,7 +14,7 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "run the test harness bin/le-test with the trailing argv, building it first when absent",
+		ShortHelp: "build the test harness bin/le-test, then run it with the trailing argv",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
 	})

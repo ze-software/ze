@@ -36,7 +36,7 @@ const usageLine = "usage: le job run label <label> [quiet] command <argv...>"
 // the job's exit code.
 //
 // The exit code belongs to the JOB, and this command returns it unchanged. A
-// generator says which failure it met through that code: `le discovery-index
+// generator says which failure it met through that code: `le repo package-map
 // update` exits 1 when the tree holds no ai/ directory and 2 when the tree
 // cannot be read, and a caller that flattened the two could not tell an
 // incomplete scan from a tree with nowhere to write.

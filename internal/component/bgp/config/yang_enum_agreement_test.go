@@ -9,7 +9,7 @@
 // yang_enum_agreement_test.go holds this package's Go name tables to the YANG enumerations they
 // spell.
 //
-// `./le enumeration report` names each table: the Go side and the model each
+// `./le arch enumeration report` names each table: the Go side and the model each
 // declare the same set of words, and the gate cannot pick which one the other
 // should derive from. It cannot be derived here, because each Go table carries
 // what the model does not -- an RFC-assigned number, a typed value, a handler.
@@ -113,7 +113,7 @@ func TestLeakFilterRolesMatchTheYANGModel(t *testing.T) {
 //
 // The test lives here rather than beside the table: internal/core MUST NOT
 // import a component package, and the YANG loader is one
-// (`./le tier check` reads a test file too).
+// (`./le arch tier check` reads a test file too).
 //
 // PREVENTS: an origin value added to the model that OriginFromText refuses, so
 // a config the schema accepts fails at the point the UPDATE is built.

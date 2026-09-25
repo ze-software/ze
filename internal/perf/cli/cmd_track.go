@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-perf track subcommand
+// Design: docs/architecture/system-architecture.md -- le perf track subcommand
 
 package cli
 
@@ -14,7 +14,7 @@ import (
 )
 
 func cmdTrack(args []string) int {
-	fs := flag.NewFlagSet("ze-perf track", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le perf track", flag.ContinueOnError)
 
 	md := fs.Bool("md", true, "Markdown output (default)")
 	html := fs.Bool("html", false, "HTML output")
@@ -25,7 +25,7 @@ func cmdTrack(args []string) int {
 	thresholdP99 := fs.Int("threshold-p99", 30, "P99 latency regression threshold (%)")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: ze-perf track [flags] <history.ndjson>\n\nTrack performance history and detect regressions from an NDJSON file.\n\nExamples:\n  ze-perf track history.ndjson\n  ze-perf track --check history.ndjson\n  ze-perf track --html history.ndjson > trend.html\n  ze-perf track --check --threshold-convergence 15 history.ndjson\n\nFlags:\n")
+		fmt.Fprint(os.Stderr, "Usage: le perf track [flags] <history.ndjson>\n\nTrack performance history and detect regressions from an NDJSON file.\n\nExamples:\n  le perf track history.ndjson\n  le perf track --check history.ndjson\n  le perf track --html history.ndjson > trend.html\n  le perf track --check --threshold-convergence 15 history.ndjson\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 

@@ -232,7 +232,11 @@ func nativeFixtureCallers(root string) (map[string][]string, error) {
 		}
 		rel, _ := filepath.Rel(root, path)
 		for line := range strings.SplitSeq(string(raw), "\n") {
-			at := strings.Index(line, "ze-test fixture ")
+			at := strings.Index(line, "le-test fixture ")
+			if at < 0 {
+				// The retired harness name, until Phase 3 removes it.
+				at = strings.Index(line, "ze-test fixture ")
+			}
 			if at < 0 {
 				continue
 			}

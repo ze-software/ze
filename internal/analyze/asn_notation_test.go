@@ -1,14 +1,14 @@
-// Design: docs/architecture/core-design.md -- AS notation on the ze-analyze flags
+// Design: docs/architecture/core-design.md -- AS notation on the le mrt flags
 package analyze
 
 import "testing"
 
 // TestAnalyzeASFlagsReadEveryNotation proves the four operator-typed AS flags
-// of the shipped `ze-analyze` binary take any of the three RFC 5396 spellings.
+// of the shipped `le mrt` binary take any of the three RFC 5396 spellings.
 //
 // VALIDATES: --peer-asn and the three --local-as readers call asn.Parse.
 // PREVENTS: an operator reading 1.10 on a show output and having
-// `ze-analyze filter --peer-asn 1.10` silently match nothing.
+// `le mrt filter --peer-asn 1.10` silently match nothing.
 func TestAnalyzeASFlagsReadEveryNotation(t *testing.T) {
 	for _, spelling := range []string{"65546", "1.10"} {
 		filter, ok := parseFilterOpts([]string{"--peer-asn", spelling, "in.mrt", "out.mrt"})

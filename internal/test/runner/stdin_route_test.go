@@ -128,7 +128,7 @@ func TestCIStdinZePeerHonorsDeclaredMode(t *testing.T) {
 }
 
 // TestCIStdinPipesForEveryOtherBinary checks that a binary neither branch names
-// keeps piping. ze-test and the helper scripts have always piped, by accident of
+// keeps piping. le-test and the helper scripts have always piped, by accident of
 // the two guards naming only ze and ze-peer, and the corpus depends on it.
 func TestCIStdinPipesForEveryOtherBinary(t *testing.T) {
 	for _, bin := range []string{binNameZeTest, "sh", "./script.sh"} {

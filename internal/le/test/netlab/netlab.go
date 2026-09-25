@@ -160,7 +160,7 @@ func (c *Checker) Run(update bool) (report *Report, code int) {
 	ze, err := c.findZe()
 	if err != nil {
 		return c.fail(report, err.Error(),
-			"Build a canonical daemon with `ZE_TEST_CANONICAL=1 ./le functional parse`, or set ZE_BIN=/path/to/ze.",
+			"Build a canonical daemon with `ZE_TEST_CANONICAL=1 ./le test functional parse`, or set ZE_BIN=/path/to/ze.",
 			"The render is only evidence if the daemon accepts what it produced.")
 	}
 	problems += c.validateGolden(report, ze, rendered)

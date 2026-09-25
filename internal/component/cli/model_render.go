@@ -111,7 +111,7 @@ func sanitizeForDisplay(s string) string {
 // reads the prompt row from that count. A newline inside a row draws a line
 // View did not count. The cursor then sits one row above the prompt.
 //
-// `./le docvalid help-shape` refuses a newline in a summary declared in this
+// `./le doc yang-contract help-shape` refuses a newline in a summary declared in this
 // tree. It reads the source. A plugin declares its own summary over the wire,
 // and that text reaches this row through MergeCommandPaths. No gate reads it,
 // so the bound is applied where the text is drawn.

@@ -554,7 +554,7 @@ func TestReleaseRecordsTheVerdictWhereAFollowerFindsIt(t *testing.T) {
 // detach makes a case's own admission independent of the job this test binary
 // is running inside.
 //
-// It is needed because the nesting rule WORKS. `./le test-unit core` routes
+// It is needed because the nesting rule WORKS. `./le test unit core` routes
 // through internal/le/job/answer.go, which exports ZE_RUN_JOB. Thus, a test
 // process that admits its own job finds a live parent entry and runs inside that slot.
 // The helper processes are unaffected because their environment names nothing.

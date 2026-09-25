@@ -614,21 +614,33 @@ func sited(findings []grammar.FlagFinding, set parsedFlagSet) []FlagRegisterHit 
 // mock servers, the appliance's internal tools -- is a separate binary with no
 // completion surface to be invisible to, and is counted out of scope rather
 // than judged.
+//
+// A path under the `le` root is out of scope too, although `le` is a
+// registered root. A le command takes keywords (leaction.Parameter), and its
+// grammar is judged by the le command check. A flag set named `le perf send` or
+// `le chaos run` belongs to a program that le hands its argv to unparsed: the
+// programs `ze-perf` and `ze-chaos` were before they moved under le, with the
+// same flags. No RegisterCommandFlags declaration exists under `le`, so the
+// completion surface F4 protects does not exist there. The day one is
+// declared, the declared arm brings every `le` flag set back into scope.
 func offlineZeCommand(path string, roots []string, declared map[string][]string) bool {
 	head, _, _ := strings.Cut(path, " ")
 	if head == "" {
 		return false
-	}
-	if slices.Contains(roots, head) {
-		return true
 	}
 	for known := range declared {
 		if first, _, _ := strings.Cut(known, " "); first == head {
 			return true
 		}
 	}
-	return false
+	if head == leRootName {
+		return false
+	}
+	return slices.Contains(roots, head)
 }
+
+// leRootName is the root every le command is registered under.
+const leRootName = "le"
 
 // sortedKeys answers a string-keyed map's keys in order.
 func sortedKeys[V any](values map[string]V) []string {

@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-perf run subcommand
+// Design: docs/architecture/system-architecture.md -- le perf send subcommand
 
 package cli
 
@@ -18,7 +18,7 @@ import (
 )
 
 func cmdRun(args []string) int {
-	fs := flag.NewFlagSet("ze-perf run", flag.ContinueOnError)
+	fs := flag.NewFlagSet("le perf send", flag.ContinueOnError)
 
 	// DUT flags.
 	dutAddr := fs.String("dut-addr", "", "DUT BGP address (required)")
@@ -57,7 +57,7 @@ func cmdRun(args []string) int {
 	output := fs.String("output", "", "Output file path (implies --json)")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, "Usage: ze-perf run [flags]\n\nRun a BGP propagation benchmark against a device under test (DUT).\n\nExamples:\n  ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000\n  ze-perf run --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json\n  ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast\n  ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10\n\nFlags:\n")
+		fmt.Fprint(os.Stderr, "Usage: le perf send [flags]\n\nRun a BGP propagation benchmark against a device under test (DUT).\n\nExamples:\n  le perf send --dut-addr 172.31.0.2 --dut-asn 65000\n  le perf send --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json\n  le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast\n  le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
@@ -126,7 +126,7 @@ func cmdRun(args []string) int {
 		parts = append(parts, "force-mp")
 	}
 
-	fmt.Fprintf(os.Stderr, "ze-perf run | %s\n", textbuf.Join(parts, " | "))
+	fmt.Fprintf(os.Stderr, "le perf send | %s\n", textbuf.Join(parts, " | "))
 
 	// Build benchmark config.
 	cfg := perf.BenchmarkConfig{

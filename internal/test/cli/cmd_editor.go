@@ -41,7 +41,7 @@ func cmdEditorMain(args []string) error {
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 
 	fs.Usage = func() {
-		_, _ = os.Stderr.WriteString(`Usage: ze-test editor [options] [test-ids...]
+		_, _ = os.Stderr.WriteString(`Usage: le-test editor [options] [test-ids...]
 
 Run editor functional tests (.et files).
 
@@ -50,13 +50,13 @@ Options:
 		fs.PrintDefaults()
 		_, _ = os.Stderr.WriteString(`
 Examples:
-  ze-test editor --all                    # Run all tests in test/editor/
-  ze-test editor --dir test/editor/navigation --all
-  ze-test editor -p commit                # Run tests matching "commit"
-  ze-test editor --start 42               # Resume at id 42 and run through the end
-  ze-test editor 1 2                      # Run specific tests by id
-  ze-test editor -v                       # Verbose output
-  ze-test editor -l                       # List available tests with N/TOTAL and one-based id
+  le-test editor --all                    # Run all tests in test/editor/
+  le-test editor --dir test/editor/navigation --all
+  le-test editor -p commit                # Run tests matching "commit"
+  le-test editor --start 42               # Resume at id 42 and run through the end
+  le-test editor 1 2                      # Run specific tests by id
+  le-test editor -v                       # Verbose output
+  le-test editor -l                       # List available tests with N/TOTAL and one-based id
 `)
 	}
 

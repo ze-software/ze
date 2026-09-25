@@ -12,13 +12,13 @@ import (
 )
 
 // coveredByBigRunner reports whether test/<name> is walked by one of the "big"
-// ze-test runners as a subcommand rather than through registerCIRoot (whose suite
+// le-test runners as a subcommand rather than through registerCIRoot (whose suite
 // name equals its directory, so registry.LookupRoot covers those). The two
 // sources of truth are consumed directly so this guard never re-hardcodes them:
 //
-//   - bgpCIRunnerDirs (cmd_bgp.go): the "ze-test bgp <sub>" dirs
+//   - bgpCIRunnerDirs (cmd_bgp.go): the "le-test bgp <sub>" dirs
 //     (encode/plugin/reload/decode/parse/chaos/chaos-web)
-//   - predecessorTestDir (cmd_exabgp.go): "exabgp-compat", walked by "ze-test exabgp"
+//   - predecessorTestDir (cmd_exabgp.go): "exabgp-compat", walked by "le-test exabgp"
 func coveredByBigRunner(name string) bool {
 	return bgpCIRunnerDirs[name] || name == predecessorTestDir
 }
@@ -74,7 +74,7 @@ func dirHasCIFiles(dir string) bool {
 
 // TestCIRootsRegistered is the recurrence guard for orphaned functional-test
 // suites: every top-level test/<dir> that holds .ci files MUST be reachable by
-// some ze-test runner, either as a registered root command (registerCIRoot,
+// some le-test runner, either as a registered root command (registerCIRoot,
 // name == directory; or a big runner registered via registerRoot such as vpp)
 // or as a big-runner subcommand directory listed in bigRunnerCIDirs.
 //
@@ -130,7 +130,7 @@ func TestCIRootsRegistered(t *testing.T) {
 
 	if len(orphans) > 0 {
 		slices.Sort(orphans)
-		t.Fatalf("orphaned .ci suite(s) with no ze-test runner: %v\n"+
+		t.Fatalf("orphaned .ci suite(s) with no le-test runner: %v\n"+
 			"Each test/<dir> holding .ci files must be rooted. Fix by either:\n"+
 			"  - registering the suite: add registerCIRoot(%q, ...) in internal/test/cli/register.go, or\n"+
 			"  - if the directory is a subcommand of a big runner, adding it to bgpCIRunnerDirs (cmd_bgp.go), or\n"+

@@ -18,7 +18,7 @@ package le
 // answers it now.
 //
 // Verb is empty when the area is the whole command, which is how a single-gate
-// tool is typed (`le cli-grammar`) and how an area that runs its own aggregate
+// tool is typed (`le cli grammar`) and how an area that runs its own aggregate
 // with no action word is typed (`le test functional`).
 //
 // Note carries what the pairing is not obvious from the two names alone: a
@@ -51,7 +51,7 @@ type retiredProducer struct {
 var portedProducers = []portedProducer{
 	// Repository, tier and tree gates. The Make recipes forwarded to the
 	// Python le under a compatibility verb that preserved the target name
-	// (`le repository ze-tier-selftest`); the native areas do not.
+	// (`le repo ze-tier-selftest`); the native areas do not.
 	{Target: "ze-tier-check", Area: "arch tier", Verb: "check"},
 	{Target: "ze-iface-resolution-check", Area: "arch iface-resolution"},
 	{Target: "ze-plugin-boundary-check", Area: "plugin boundary", Verb: "check"},
@@ -165,7 +165,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-verify-worktree", Area: "verify", Verb: "worktree"},
 	{Target: "ze-verify-debt-clear", Area: "commit", Verb: "debt-clear"},
 	{Target: "ze-lint", Area: "go lint", Verb: "run"},
-	{Target: "ze-lint-changed", Area: "go lint", Verb: "run", Note: "scope takes the package list `le changed packages` derives"},
+	{Target: "ze-lint-changed", Area: "go lint", Verb: "run", Note: "scope takes the package list `le repo changed packages` derives"},
 	{Target: "ze-evidence-vet", Area: "verify deps", Verb: "evidence-vet"},
 	{Target: "ze-dependency-vulnerability-check", Area: "verify deps", Verb: "vulnerability"},
 	{Target: "ze-unit-test-cached", Area: "verify deps", Verb: "unit-cached"},
@@ -180,8 +180,8 @@ var portedProducers = []portedProducer{
 	{Target: "ze-unit-cli-test", Area: "test unit", Verb: "cli"},
 	{Target: "ze-unit-test", Area: "test unit", Verb: "all", Note: "the verb runs the whole checkout under the race detector, which is the package population this target passed as ZE_PACKAGES, and then the installer group its own build tags hide from that run"},
 	{Target: "ze-unit-hook-test", Area: "ai hooks", Verb: "unit"},
-	{Target: "ze-unit-test-changed", Area: "verify deps", Verb: "unit-race-changed", Note: "the stage races the changed groups and the rest complement; `le changed packages` is the derivation the target shelled out for"},
-	{Target: "ze-unit-installer-test", Area: "test unit", Verb: "installer", Note: "the group carries the target's own GOOS=linux and ze_core ze_installer tags, runs the tests on Linux and type-checks them elsewhere, and is in the bare sweep as the target was a prerequisite of ze-unit-test; `le qemu all-tests` runs them for real off Linux"},
+	{Target: "ze-unit-test-changed", Area: "verify deps", Verb: "unit-race-changed", Note: "the stage races the changed groups and the rest complement; `le repo changed packages` is the derivation the target shelled out for"},
+	{Target: "ze-unit-installer-test", Area: "test unit", Verb: "installer", Note: "the group carries the target's own GOOS=linux and ze_core ze_installer tags, runs the tests on Linux and type-checks them elsewhere, and is in the bare sweep as the target was a prerequisite of ze-unit-test; `le test qemu all-tests` runs them for real off Linux"},
 	{Target: "ze-unit-linux-test", Area: "test qemu", Verb: "run", Note: "the packages and command keywords carry the Linux-only Go package the golang container ran"},
 
 	// Functional suites. The verb is the suite name; the area's own table is
@@ -358,7 +358,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "vet",
-		Reason: "the subject is one Go toolchain command: `go vet ./...`. The repository's own vetting is `le verify lint run` over every build flavor",
+		Reason: "the subject is one Go toolchain command: `go vet ./...`. The repository's own vetting is `le go lint run` over every build flavor",
 	},
 	{
 		Target: "tidy",
@@ -510,7 +510,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-generated-files-reconcile",
-		Reason: "Make itself: it ran the generated-files update and then re-checked the same paths. Both halves are `le repository generate` and `le repository generated-check`, each judged on its own row",
+		Reason: "Make itself: it ran the generated-files update and then re-checked the same paths. Both halves are `le repo generate` and `le repo generated-check`, each judged on its own row",
 	},
 	{
 		Target: "ze-gokrazy-build",
@@ -554,7 +554,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-mutation-test",
-		Reason: "a wrapper: the recipe was `gomu run --output json --incremental=false` and added nothing. The gomu program is the producer, and the two steps after it are `le mutation record-history` and `le test-health record`",
+		Reason: "a wrapper: the recipe was `gomu run --output json --incremental=false` and added nothing. The gomu program is the producer, and the two steps after it are `le test mutation record-history` and `le test health record`",
 	},
 	{
 		Target: "ze-mutation-test-changed",
@@ -562,7 +562,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-mutation-pkg-test",
-		Reason: "a wrapper: the recipe looped `gomu run` over each named package and added nothing. The gomu program is the producer, and merging its per-package reports is `le mutation combine`",
+		Reason: "a wrapper: the recipe looped `gomu run` over each named package and added nothing. The gomu program is the producer, and merging its per-package reports is `le test mutation combine`",
 	},
 	{
 		Target: "ze-netns-plugin-test",

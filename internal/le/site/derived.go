@@ -140,14 +140,14 @@ func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str("RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.\n")
 	out.Str("- Verify workflow: `./le verify worktree` runs the whole native verification ").
 		Str("population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, ").
-		Str("groups related failures, and prints narrow rerun commands. `./le repository` is the ").
+		Str("groups related failures, and prints narrow rerun commands. `./le repo` is the ").
 		Str("narrower handoff gate.\n")
 	out.Str("- Rule for regressions: do not hide a failure with a skip or loose assertion. ").
 		Str("Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, ").
 		Str("then rerun the gate that should have caught it.\n\n")
-	out.Str("Useful commands: `go test -race -run TestName ./internal/...`, `./le fuzz run`, ").
-		Str("`gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le qemu netns-test`, ").
-		Str("`./le integration interop`, `./le evidence release-candidate`.\n\n")
+	out.Str("Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, ").
+		Str("`gomu run`, `bin/ze-test bgp plugin 42 -v`, `./le test qemu netns-test`, ").
+		Str("`./le test integration interop`, `./le verify evidence release-candidate`.\n\n")
 }
 
 // writeLLMSComparison states which daemons Ze is compared with, and on what

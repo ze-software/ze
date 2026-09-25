@@ -809,10 +809,10 @@ func TestJobArgvSeparatesAFullRunFromAScopedRun(t *testing.T) {
 	if reflect.DeepEqual(full, scoped) {
 		t.Fatalf("full and scoped runs share one work identity %q", full)
 	}
-	if want := []string{"le", "verify", "lint", "run"}; !reflect.DeepEqual(full, want) {
+	if want := []string{"le", "go", "lint", "run"}; !reflect.DeepEqual(full, want) {
 		t.Fatalf("full run identity = %q, want %q", full, want)
 	}
-	if want := []string{"le", "verify", "lint", "run", "./internal/le", "./cmd/ze"}; !reflect.DeepEqual(scoped, want) {
+	if want := []string{"le", "go", "lint", "run", "./internal/le", "./cmd/ze"}; !reflect.DeepEqual(scoped, want) {
 		t.Fatalf("scoped run identity = %q, want %q", scoped, want)
 	}
 }

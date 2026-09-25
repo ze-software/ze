@@ -607,7 +607,7 @@ func yangSpaced(text string) string {
 //
 // It loads no YANG model. The hook judges one file that is not on disk yet.
 // A module whose imports the loader cannot resolve still has to be judged.
-// `./le docvalid help-shape` is the gate that reads the built tree.
+// `./le doc yang-contract help-shape` is the gate that reads the built tree.
 //
 // A string or a comment that never closes is an ERROR rather than an empty
 // answer. The content can be one Edit fragment. A scan that stopped early must
@@ -695,7 +695,7 @@ func scanYangText(content string) ([]yangText, error) {
 }
 
 // appendYangText records one finished statement when it is a summary or a long
-// help carrying text. An empty argument is left out. `./le docvalid help-shape`
+// help carrying text. An empty argument is left out. `./le doc yang-contract help-shape`
 // owns the `missing-summary` rule, and a fragment can end before its author
 // typed the text.
 func appendYangText(found []yangText, stack []yangBlock, keyword, argument string) []yangText {
@@ -754,7 +754,7 @@ func writeYangDescription(ctx context) *verdict {
 	if err != nil {
 		return &verdict{1, yellow + bold + "WARN: the proposed text of " + path + " does not read as YANG" + reset +
 			"\n  " + err.Error() + ", so no ze:help in it was judged.\n" +
-			"  Run ./le docvalid help-shape after the edit: it reads the built tree, and this hook reads one file."}
+			"  Run ./le doc yang-contract help-shape after the edit: it reads the built tree, and this hook reads one file."}
 	}
 
 	summaries := make(map[int]string, len(texts))
@@ -804,5 +804,5 @@ func writeYangDescription(ctx context) *verdict {
 		"  The bounds hold the statements that render on a one-line row.\n" +
 		"  Those are container, list, leaf, leaf-list, choice, case, action, rpc and notification.\n" +
 		"  A leaf and a leaf-list count in a config module alone, because a command module drops the text beside them.\n" +
-		"  ./le docvalid help-shape is the gate over the whole tree; this hook reads one proposed file."}
+		"  ./le doc yang-contract help-shape is the gate over the whole tree; this hook reads one proposed file."}
 }

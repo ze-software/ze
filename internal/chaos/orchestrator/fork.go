@@ -23,17 +23,42 @@ type zeChild struct {
 	tmpFile string
 }
 
-// forkZe starts a Ze instance with config piped via stdin.
-func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
+// resolveZeDaemon answers which program runs the forked ze daemon: the
+// --binary value when the caller gave one, else the `ze` on PATH. It refuses
+// when neither names a program, and it refuses the running executable itself.
+// The orchestrator runs inside le, and le answers `ze -` with "unknown
+// command", so a daemon path that resolves to this process is never a ze.
+func resolveZeDaemon(flagValue string) (string, error) {
+	binary := flagValue
 	if binary == "" {
-		var err error
-		binary, err = exec.LookPath("ze")
+		found, err := exec.LookPath("ze")
 		if err != nil {
-			return nil, fmt.Errorf("ze not found in PATH (use --binary to specify): %w", err)
+			return "", fmt.Errorf("no ze daemon: --binary is not set and ze is not in PATH: %w", err)
 		}
+		binary = found
 	}
+	daemon, err := os.Stat(binary)
+	if err != nil {
+		return "", fmt.Errorf("ze daemon %s: %w", binary, err)
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("locate the running executable: %w", err)
+	}
+	running, err := os.Stat(self)
+	if err != nil {
+		return "", fmt.Errorf("locate the running executable: %w", err)
+	}
+	if os.SameFile(daemon, running) {
+		return "", fmt.Errorf("ze daemon %s is this program, not ze (use --binary <path-to-ze>)", binary)
+	}
+	return binary, nil
+}
 
-	cmd := exec.CommandContext(ctx, binary, "-") // #nosec G204 - binary from --binary flag or PATH
+// forkZe starts a Ze instance with config piped via stdin. binary MUST be a
+// path resolveZeDaemon returned.
+func forkZe(ctx context.Context, config, binary string) (*zeChild, error) {
+	cmd := exec.CommandContext(ctx, binary, "-") // #nosec G204 - binary from --binary flag or PATH, checked by resolveZeDaemon
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

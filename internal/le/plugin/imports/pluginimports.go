@@ -870,7 +870,7 @@ func allSource(in imports) []byte {
 	b.Str("// triggering their init() registration.\n")
 	b.Str("//\n")
 	b.Str("// To add a plugin, create internal/component/bgp/plugins/<name>/register.go with an init()\n")
-	b.Str("// that calls registry.Register(). Then run: ./le repository generate\n")
+	b.Str("// that calls registry.Register(). Then run: ./le repo generate\n")
 	b.Str("package all\n\n")
 	b.Str("import (\n")
 

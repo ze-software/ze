@@ -15,14 +15,14 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-const serveUsage = `ze-analyze serve -- serve MRT file contents over BGP
+const serveUsage = `le mrt serve -- serve MRT file contents over BGP
 
 Listens for incoming BGP connections and sends all matching UPDATEs from
 the MRT file to each connecting peer. Useful for IXP traffic replay and
 router behavior testing.
 
 Usage:
-  ze-analyze serve [options] <input.mrt...>
+  le mrt serve [options] <input.mrt...>
 
 Options:
   --listen <addr:port>  Listen address (default: :179)

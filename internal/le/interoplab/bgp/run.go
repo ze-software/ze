@@ -26,9 +26,9 @@ const defaultPMACCTImage = "pmacct/pmbmpd:latest"
 // build context, which is what test/interop/Dockerfile.ze copies in.
 //
 // TWO of them, and that is what separates this lab from the other four: 14
-// scenario ze.conf files run `ze-test interop-bgp process ...` from inside the
+// scenario ze.conf files run `le-test interop-bgp process ...` from inside the
 // container, so an image carrying the daemon alone answers those scenarios with
-// "ze-test: not found".
+// "le-test: not found".
 //
 // The bases differ because the personalities do. ze_core selects the daemon
 // dispatch table that registers the `start` root command, ze_distro selects the

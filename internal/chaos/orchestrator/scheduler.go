@@ -60,13 +60,13 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 	dispatchAction := func(a engine.ScheduledAction) {
 		if ok, reason := guard.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | blocked %s for peer %d (%s)\n",
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | blocked %s for peer %d (%s)\n",
 					a.Action.Type, a.PeerIndex, reason)
 			}
 			return
 		}
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | %s -> peer %d\n",
+			fmt.Fprintf(os.Stderr, "le chaos run | scheduler | %s -> peer %d\n",
 				a.Action.Type, a.PeerIndex)
 		}
 		select {
@@ -76,7 +76,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			}
 		default:
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | dropped %s for peer %d (busy)\n",
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | dropped %s for peer %d (busy)\n",
 					a.Action.Type, a.PeerIndex)
 			}
 		}
@@ -87,17 +87,17 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 		case "pause":
 			paused = true
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | paused\n")
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | paused\n")
 			}
 		case "resume":
 			paused = false
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | resumed\n")
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | resumed\n")
 			}
 		case "rate":
 			sched.SetRate(cmd.Rate)
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | rate -> %.2f\n", cmd.Rate)
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | rate -> %.2f\n", cmd.Rate)
 			}
 		case "trigger":
 			if cmd.Trigger != nil {
@@ -105,7 +105,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			}
 		case "stop":
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | stopped by dashboard\n")
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | stopped by dashboard\n")
 			}
 			return true
 		}
@@ -140,7 +140,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 	actionType, ok := engine.ActionTypeFromString(t.ActionType)
 	if !ok {
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | unknown trigger action: %s\n", t.ActionType)
+			fmt.Fprintf(os.Stderr, "le chaos run | scheduler | unknown trigger action: %s\n", t.ActionType)
 		}
 		return
 	}
@@ -165,14 +165,14 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 		}
 		if ok, reason := guard.AllowChaos(idx, actionType); !ok {
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | blocked manual %s for peer %d (%s)\n",
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | blocked manual %s for peer %d (%s)\n",
 					actionType, idx, reason)
 			}
 			continue
 		}
 		action := engine.ChaosAction{Type: actionType, Params: t.Params}
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | manual %s -> peer %d\n",
+			fmt.Fprintf(os.Stderr, "le chaos run | scheduler | manual %s -> peer %d\n",
 				actionType, idx)
 		}
 		select {
@@ -182,7 +182,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 			}
 		default:
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | dropped manual %s for peer %d (busy)\n",
+				fmt.Fprintf(os.Stderr, "le chaos run | scheduler | dropped manual %s for peer %d (busy)\n",
 					actionType, idx)
 			}
 		}
@@ -217,21 +217,21 @@ func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCo
 			case "pause":
 				paused = true
 				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | paused\n")
+					fmt.Fprintf(os.Stderr, "le chaos run | route-sched | paused\n")
 				}
 			case "resume":
 				paused = false
 				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | resumed\n")
+					fmt.Fprintf(os.Stderr, "le chaos run | route-sched | resumed\n")
 				}
 			case "rate":
 				sched.SetRate(cmd.Rate)
 				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | rate -> %.2f\n", cmd.Rate)
+					fmt.Fprintf(os.Stderr, "le chaos run | route-sched | rate -> %.2f\n", cmd.Rate)
 				}
 			case "stop":
 				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | stopped by dashboard\n")
+					fmt.Fprintf(os.Stderr, "le chaos run | route-sched | stopped by dashboard\n")
 				}
 				return
 			}
@@ -243,13 +243,13 @@ func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCo
 			for _, a := range actions {
 				if ok, reason := guard.AllowRoute(a.PeerIndex, a.Action.Type); !ok {
 					if !quiet {
-						fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | blocked %s for peer %d (%s)\n",
+						fmt.Fprintf(os.Stderr, "le chaos run | route-sched | blocked %s for peer %d (%s)\n",
 							a.Action.Type, a.PeerIndex, reason)
 					}
 					continue
 				}
 				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | %s -> peer %d\n",
+					fmt.Fprintf(os.Stderr, "le chaos run | route-sched | %s -> peer %d\n",
 						a.Action.Type, a.PeerIndex)
 				}
 				select {
@@ -259,7 +259,7 @@ func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCo
 					}
 				default:
 					if !quiet {
-						fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | dropped %s for peer %d (busy)\n",
+						fmt.Fprintf(os.Stderr, "le chaos run | route-sched | dropped %s for peer %d (busy)\n",
 							a.Action.Type, a.PeerIndex)
 					}
 				}

@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md -- ze-test root handler registration
+// Design: docs/architecture/testing/ci-format.md -- le-test root handler registration
 
 package cli
 
@@ -35,7 +35,7 @@ func init() {
 	registerCIRoot("ldp", "ldp", "LDP", "Run LDP functional tests (.ci files in test/ldp/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show ldp neighbor/binding.", 0)
 	registerCIRoot("managed", "managed", "managed", "Run managed config functional tests (.ci files in test/managed/).\nTests fleet management: hub config, per-client auth, managed boot, config change.", 1)
 	registerCIRoot("policy", "policy", "policy routing", "Run policy routing functional tests (.ci files in test/policy/).\nCovers boot-time apply, table/next-hop actions, tcp-flags, tcp-mss, and reload.", 0)
-	registerCIRoot("pppoe", "pppoe", "PPPoE", "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `./le qemu pppoe-test` runs them and they SKIP\neverywhere else. That action supplies both halves: the per-test netns launch\nmode, and ze's runtime kernel, whose CONFIG_PPPOE the AF_PPPOX session behind\nPADS needs.", 0)
+	registerCIRoot("pppoe", "pppoe", "PPPoE", "Run PPPoE access-concentrator functional tests (.ci files in test/pppoe/).\nCovers RFC 2516 discovery over a real veth pair: PADI/PADO with AC-Name and\nAC-Cookie, PADR/PADS session allocation, forged-cookie rejection, an 802.1Q\nsub-interface, and PPPoE running alongside L2TP on one daemon. Every test\ndeclares option=netns-link, so `./le test qemu pppoe-test` runs them and they SKIP\neverywhere else. That action supplies both halves: the per-test netns launch\nmode, and ze's runtime kernel, whose CONFIG_PPPOE the AF_PPPOX session behind\nPADS needs.", 0)
 	registerCIRoot("rsvpte", "rsvpte", "RSVP-TE", "Run RSVP-TE functional tests (.ci files in test/rsvpte/).\nCovers single-daemon boot: config parse -> YANG -> engine startup -> show rsvp-te session/interface/tunnel/fast-reroute (incl. RFC 4090 fast-reroute config + bypass).", 0)
 	registerCIRoot("runner", "runner", "runner", "Run test-runner primitive functional tests (.ci files in test/runner/).\nCovers the .ci orchestration grammar itself: naming a background process and stopping it mid-test (cmd=background:name=, cmd=stop).", 0)
 	// Serial (1), not parallel: every test in this suite programs routes into
@@ -50,12 +50,12 @@ func init() {
 	registerCIRoot("vrrp", "vrrp", "VRRP", "Run VRRP functional tests (.ci files in test/vrrp/).\nCovers the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (vrid, priority, per-version interval encodings, accept-mode, IPv6 first-address link-local, duplicate vrid/address, VPP backend rejection), and the show/doctor surfaces.", 0)
 
 	// Engine-step executor: spawned BY test daemons as an external plugin
-	// (plugin { external engine-steps { run "ze-test engine-steps ./engine-steps.json" } })
+	// (plugin { external engine-steps { run "le-test engine-steps ./engine-steps.json" } })
 	// to drive .ci command=/stream=/expect=output|event|stream directives.
 	registerRoot("engine-steps", cmdEngineSteps, "Execute .ci engine-step directives as an external plugin (spawned by test daemons, not run directly)")
 
 	// Record-answer executor: spawned BY test daemons as an external plugin
-	// (plugin { external record-plugin { run "ze-test record-plugin" } })
+	// (plugin { external record-plugin { run "le-test record-plugin" } })
 	// to drive test/plugin/plugin-owned-command-streams.ci,
 	// plugin-reads-engine-answer.ci and plugin-command-partial-fault.ci.
 	registerRoot("record-plugin", cmdRecordPlugin, "Answer commands with a record walk and read one back (spawned by test daemons, not run directly)")
@@ -83,7 +83,7 @@ func init() {
 	registerRoot("mcp", cmdMcp, "MCP client (send commands to daemon via MCP endpoint)")
 	registerRoot("lg", cmdLG, "Looking glass served with an engine that always fails (browser tests)")
 	registerRoot("peer", cmdPeer, "BGP test peer (sink/echo/check modes)")
-	registerRoot("replay", cmdReplay, "Replay a captured BGP session (ze-test replay <capture-file|->) through the real read path with a deterministic clock")
+	registerRoot("replay", cmdReplay, "Replay a captured BGP session (le-test replay <capture-file|->) through the real read path with a deterministic clock")
 	registerRoot("plugin-external", cmdPluginExternal, "Run a registered engine plugin's RunEngine externally (TLS connect-back) -- proves IsInternal()-guarded refuse/warn behavior; not a production plugin launcher")
 	registerRoot("interop-bgp", interopbgp.Helper, "Compiled BGP interop process, speaker, and collector personalities")
 	registerRoot("text-plugin", cmdTextPlugin, "Run minimal text-mode plugin (for .ci tests)")

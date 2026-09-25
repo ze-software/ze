@@ -34,7 +34,7 @@ const LE = "le"
 
 // Suite defines what one functional suite runs and why it is separate.
 //
-// Args is the ze-test command line without the binary.
+// Args is the le-test command line without the binary.
 // Scaled selects derived concurrency. A suite with -p in Args has fixed concurrency.
 // A suite with neither setting uses the runner's default.
 type Suite struct {
@@ -117,8 +117,8 @@ const (
 	suiteDhcp       = "dhcp"
 )
 
-// allTests is the ze-test flag that selects every .ci of a suite, and bgpVerb
-// is the ze-test subcommand the four BGP suites run under.
+// allTests is the le-test flag that selects every .ci of a suite, and bgpVerb
+// is the le-test subcommand the four BGP suites run under.
 const (
 	allTests = "--all"
 	bgpVerb  = "bgp"

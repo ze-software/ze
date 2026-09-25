@@ -11,7 +11,7 @@ import (
 //
 // VALIDATES: SuiteReport.Text prints each failed scenario with its error and cleanup
 // errors, then the passed/failed summary.
-// PREVENTS: `./le integration interop` printing "Failed: interop" and nothing else.
+// PREVENTS: `./le test integration interop` printing "Failed: interop" and nothing else.
 func TestSuiteReportTextNamesTheFailedScenario(t *testing.T) {
 	report := SuiteReport{
 		Scenarios: []ScenarioResult{

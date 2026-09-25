@@ -288,7 +288,7 @@ func initLineRanges(root, importFile string) []lineRange {
 // module.
 //
 // The two sides must agree letter for letter, because phase 4 compares a
-// recorded set with `./le changed packages` without either side normalizing the
+// recorded set with `./le repo changed packages` without either side normalizing the
 // other.
 func selectorSpelling(importPath string) (name string, inside bool) {
 	if importPath == modulePath {

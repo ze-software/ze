@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-analyze action-first dispatch
+// Design: docs/architecture/system-architecture.md -- le mrt action-first dispatch
 
 package analyze
 

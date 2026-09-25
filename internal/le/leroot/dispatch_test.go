@@ -256,7 +256,7 @@ func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
 // VALIDATES: a help word at the end of an invocation renders usage and returns
 // WITHOUT calling the handler, for an area that declares its actions and for
 // one that hand-rolls its own dispatch.
-// PREVENTS: AC-6, the reason this spec exists: `./le stress-repro run suite
+// PREVENTS: AC-6, the reason this spec exists: `./le test stress-repro run suite
 // --help` reads the help word as the suite name and starts a multi-hour burn.
 func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	const burner = "trailing-help-burn-probe"
@@ -454,7 +454,7 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 // stands on the line, whatever it spells. It answers 2, and the handler never
 // runs. A bare `help` in the same slot is still the value the keyword
 // introduced, and the action runs.
-// PREVENTS: `le source-rewrite replace file <path> old beta new --help apply`
+// PREVENTS: `le repo rewrite replace file <path> old beta new --help apply`
 // writing the text `--help` into a file, and `le verify status check path
 // --help path internal` checking a path named `--help`. Both were measured on
 // commit 8036f6c2f, where only the last word was read, and only for two

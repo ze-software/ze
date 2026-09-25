@@ -146,7 +146,7 @@ var (
 // Complex families (VPN, EVPN, FlowSpec) require hex-mode withdrawals that bgp-rs
 // doesn't support yet — the text command parser can't round-trip their NLRI encoding.
 //
-// TODO: ze-chaos currently only supports route-server mode (bgp-rs). Future modes:
+// TODO: le chaos run currently only supports route-server mode (bgp-rs). Future modes:
 //   - route-reflector: iBGP peers, cluster-id, all families (no NLRI re-encoding needed)
 //   - router: best-path selection, all families via hex withdrawal path
 //

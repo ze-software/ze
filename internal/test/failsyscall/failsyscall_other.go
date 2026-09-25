@@ -11,7 +11,7 @@ import (
 )
 
 // Run refuses on any platform without seccomp. The verb stays registered
-// everywhere so `ze-test` has one command list on every host, and a caller that
+// everywhere so `le-test` has one command list on every host, and a caller that
 // reaches it off Linux is told why rather than finding no such command.
 func Run(_ []string) int {
 	fmt.Fprintln(os.Stderr, "fail-syscall: seccomp filters are Linux-only; run this inside the QEMU guest") //nolint:errcheck // diagnostic on the way out

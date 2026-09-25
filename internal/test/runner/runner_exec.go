@@ -79,7 +79,7 @@ func tmpfsForRecord(rec *Record) *tmpfs.Tmpfs {
 }
 
 // stepKindExpect is the trace.StepResult kind for an assertion step, and
-// zeTestVerbPeer is the `ze-test peer` verb that drives the BGP peer.
+// zeTestVerbPeer is the `le-test peer` verb that drives the BGP peer.
 const (
 	stepKindExpect = "expect"
 	zeTestVerbPeer = "peer"
@@ -159,7 +159,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		v := tmpfsForRecord(rec)
 		if len(rec.EngineSteps) > 0 {
 			// Contract with the .ci-declared external executor plugin:
-			// run "ze-test engine-steps ./engine-steps.json" (engine_steps.go).
+			// run "le-test engine-steps ./engine-steps.json" (engine_steps.go).
 			stepsJSON, stepsErr := marshalEngineSteps(r.engineStepsForRun(rec.EngineSteps))
 			if stepsErr != nil {
 				rec.Error = fmt.Errorf("marshal engine steps: %w", stepsErr)
@@ -226,7 +226,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	defer func() { _ = os.Remove(expectFile) }()
 
-	// Build peer args (ze-test peer ...)
+	// Build peer args (le-test peer ...)
 	peerArgs := []string{zeTestVerbPeer, "--port", strconv.Itoa(rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
 		peerArgs = append(peerArgs, "--asn", asn)
@@ -713,15 +713,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		// Resolve binary path
 		binName := cmdParts[0]
+		if binName == binNameZeTest {
+			// The retired exec name reaches the same harness until Phase 3 removes it.
+			binName = binNameLETest
+		}
 		var binPath string
 		var extraArgs []string
 		switch binName {
 		case binNameZePeer:
-			// ze-peer is now ze-test peer
+			// ze-peer is now le-test peer
 			binPath = r.testPath
 			extraArgs = []string{zeTestVerbPeer}
-		case binNameZeTest:
-			// ze-test subcommands (peeringdb, rpki, syslog, etc.)
+		case binNameLETest:
+			// le-test subcommands (peeringdb, rpki, syslog, etc.)
 			binPath = r.testPath
 		case binNameZe:
 			binPath = r.zePath
@@ -767,7 +771,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// store. Their stdin block receives the same stable directory assignment.
 		configDir := rec.WorkDir
 		wrappedDaemon := false
-		if binName == binNameZeTest && stdinContent != nil {
+		if binName == binNameLETest && stdinContent != nil {
 			for i := 0; i+1 < len(args); i++ {
 				if args[i] != "--" || filepath.Base(args[i+1]) != binNameZe {
 					continue
@@ -1244,7 +1248,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Find foreground (daemon) process -- the last non-peer background process.
 	// Uses peerProcs map for reliable detection since ze-peer is executed as
-	// "ze-test peer ..." and p.Path/p.String() won't contain "ze-peer".
+	// "le-test peer ..." and p.Path/p.String() won't contain "ze-peer".
 	var fgProc *exec.Cmd
 	for _, p := range bgProcs {
 		if !peerProcs[p] {

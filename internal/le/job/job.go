@@ -130,7 +130,7 @@ const SlotsMin = 1
 // It was a constant 1 until 2026-09-05, which is what the Makefile left behind
 // when ZE_RUN_SLOTS stopped being exported: eight sessions then queued for a
 // box running at a quarter of its capacity, and a queue nobody believes in is
-// the thing sessions route around. Measured that day: two `./le verify lint
+// the thing sessions route around. Measured that day: two `./le go lint
 // run` invocations waited thirteen minutes behind one holder on an otherwise
 // idle machine.
 func defaultSlots() int {

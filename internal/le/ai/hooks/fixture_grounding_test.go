@@ -26,7 +26,7 @@ import (
 // probe: testweakened.Proposed returns before its detector for every path that
 // is not a _test.go or a .ci/.et under test/, so writeWeakening never judges
 // the Python test files this category is about. Its arms are reachable from
-// `./le test-weakened` over a diff, and from no hook.
+// `./le test weakened` over a diff, and from no hook.
 //
 // The failure this prevents has already happened. `eae2825926` replaced the
 // Python hooks with Go, and two design fixtures did not come across: the

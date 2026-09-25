@@ -113,7 +113,7 @@ func runHere(arguments leaction.Arguments) (any, int) {
 // jobArgv is what the registry fingerprints as this job's work. A full run and
 // a scoped run do different work, so they must not share one verdict.
 func jobArgv(arguments leaction.Arguments) []string {
-	argv := []string{"le", "verify", "lint", actionRun}
+	argv := []string{"le", "go", "lint", actionRun}
 	if arguments.Has("scope") {
 		argv = append(argv, strings.Fields(arguments.One("scope"))...)
 	}

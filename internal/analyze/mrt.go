@@ -1,7 +1,7 @@
 // Design: (none -- research/analysis tool)
 // RFC: rfc/short/rfc6396.md -- MRT record layout; RFC 8050 add-path subtypes
 //
-// Shared MRT parsing helpers for ze-analyze subcommands.
+// Shared MRT parsing helpers for le mrt subcommands.
 // Provides constants, file opening, record iteration, and wire format helpers.
 // Wire decoding itself is delegated to internal/mrt; this file only adapts it
 // to the callback shape the subcommands use.
@@ -85,7 +85,7 @@ type mrtHandler struct {
 }
 
 // processMRTFile opens filename (or stdin when "-"), reads all MRT records, and
-// dispatches to handler. It shares "-" resolution with the ze-analyze choke
+// dispatches to handler. It shares "-" resolution with the le mrt choke
 // point (mrt.ReadFile / openReader): "-" reads stdin with magic-byte compression
 // sniffing, a real path keeps extension-based sniffing.
 func processMRTFile(filename string, h mrtHandler) error {

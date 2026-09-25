@@ -52,7 +52,7 @@ const (
 // leaves every selector spelling resolving `show bgp` instead.
 // `show bgp peer` is a prefix of both, so one entry covers the branch.
 //
-// `./le command list` reports only part of this list, so building it from the
+// `./le cli list` reports only part of this list, so building it from the
 // inventory leaves paths inheriting. The inventory walks AllBuiltinRPCs and the
 // streaming prefixes alone (internal/le/cli/list/register.go), and reports
 // neither of these two kinds:

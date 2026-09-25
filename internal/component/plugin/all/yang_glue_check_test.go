@@ -13,7 +13,7 @@ import (
 // It calls yangglue.Check, which is the producer `./le yang glue check` answers
 // from (internal/le/yang/glue/actions.go), so the check is the generator that
 // writes the file rather than a reimplementation that can drift. The uncached
-// backstop is `./le repository generated-check`, which runs that same action
+// backstop is `./le repo generated-check`, which runs that same action
 // (generationChecks, internal/le/repo/generate.go).
 //
 // It mirrors TestGeneratedPluginImportsCurrent in all_test.go deliberately:
@@ -45,7 +45,7 @@ func TestYANGGlueCurrent(t *testing.T) {
 
 	// Non-vacuity. Check answers an empty report with no error when derive
 	// matches nothing, so a layout change or a broken walk turns this test (and
-	// the `./le repository generated-check` step) green while guarding zero
+	// the `./le repo generated-check` step) green while guarding zero
 	// files. Assert it actually read a plausible number of directories, the
 	// same way TestPythonUnitTests fails on an empty glob.
 	const minYangDirs = 100 // 149 at the time of writing; a floor, not a count

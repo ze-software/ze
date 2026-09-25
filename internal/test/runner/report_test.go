@@ -49,8 +49,8 @@ func TestReportDebugCommandsUseSuiteSpecificCommands(t *testing.T) {
 	report.printDebugCommands(rec)
 
 	output := buf.String()
-	assert.Contains(t, output, "ze-test ui A")
-	assert.NotContains(t, output, "ze-test bgp ui")
+	assert.Contains(t, output, "le-test ui A")
+	assert.NotContains(t, output, "le-test bgp ui")
 	assert.NotContains(t, output, "--server")
 }
 

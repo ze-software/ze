@@ -78,7 +78,7 @@ func TreeHash(root string) string {
 // inputs were declared elsewhere would drift from the work it names.
 const LintLabel = "lint"
 
-// lintIgnores names the trees that `le verify lint run` does not read.
+// lintIgnores names the trees that `le go lint run` does not read.
 //
 // The declaration EXCLUDES rather than lists, and that direction is the safety
 // property. An input nobody thought of is fingerprinted by default, so a

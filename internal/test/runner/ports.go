@@ -21,7 +21,7 @@ type PortRange struct {
 
 // PortReservation holds advisory locks for a port range assigned to one running
 // test (LeaseTestPorts) or to one running web case (ReservePorts). The locks
-// coordinate concurrent ze-test processes; they do not bind the TCP ports, so
+// coordinate concurrent le-test processes; they do not bind the TCP ports, so
 // child ze/ze-peer processes can use them.
 //
 // flock is per open file description, so a second reservation over a port this
@@ -106,7 +106,7 @@ func AllocatePorts(base, count int) (PortRange, bool, error) {
 }
 
 // ReservePorts allocates a free port range and keeps an advisory
-// reservation until Release is called. This prevents concurrent ze-test
+// reservation until Release is called. This prevents concurrent le-test
 // processes from probing the same free range and racing each other at bind time.
 func ReservePorts(base, count int) (*PortReservation, bool, error) {
 	if reservation, ok, err := tryReservePortRange(base, count); err != nil {
@@ -148,7 +148,7 @@ var errNoLeasablePortPair = errors.New("no free test port pair in the lease band
 // gets a pair from the lease band instead. This is the whole mechanism against
 // parallel copies colliding on a deterministic port: every .ci suite numbers its
 // tests from the same base (EncodingTests.parseAndAdd), so the Nth test of every
-// suite prefers the same port, and two ze-test processes running different
+// suite prefers the same port, and two le-test processes running different
 // suites at once both reach it. The lock decides who keeps it, and the loser
 // moves rather than failing at bind.
 func LeaseTestPorts(preferred int) (*PortReservation, error) {
@@ -221,7 +221,7 @@ func tryReservePortRange(start, count int) (*PortReservation, bool, error) {
 }
 
 func reservePortLocks(start, count int) (*PortReservation, bool, error) {
-	lockDir := filepath.Join(os.TempDir(), "ze-test-port-locks")
+	lockDir := filepath.Join(os.TempDir(), "le-test-port-locks")
 	if err := os.MkdirAll(lockDir, 0o700); err != nil {
 		return nil, false, fmt.Errorf("create port lock directory: %w", err)
 	}

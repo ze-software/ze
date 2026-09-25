@@ -213,7 +213,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		Plugins:                   plugins,
 		Hub:                       hubPtr,
 		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
-		// Borrow (production) unless the caller requests self-hosting (ze-chaos
+		// Borrow (production) unless the caller requests self-hosting (le chaos run
 		// in-process sim, integration harness). See reactor.Config.
 		Standalone: standalone,
 	}

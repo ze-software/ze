@@ -3,7 +3,7 @@
 // Related: ../../../test/harnessbin/harnessbin.go -- the harness file name and variables
 
 // Package testharness is `le test harness`: it builds the harness binary
-// bin/le-test when it is absent, then runs it with the trailing argv and
+// bin/le-test on every call, then runs it with the trailing argv and
 // answers its exit code.
 //
 // The harness cannot be linked into le. Its roots (bgp, web, lg, peer, ...)
@@ -15,6 +15,7 @@ package testharness
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,7 +42,7 @@ const jobLabel = "test-harness-build"
 // cannotRun is the exit code when the harness cannot be built or started.
 const cannotRun = 1
 
-// Answer builds the harness when it is absent, then runs it with args.
+// Answer builds the harness, then runs it with args.
 func Answer(args []string) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -53,20 +54,25 @@ func Answer(args []string) (any, int) {
 
 // answerIn is Answer over a named checkout root.
 //
+// The harness is built on EVERY call, so the file that answers is always the
+// tree's: a harness kept because it exists answers for the code it was built
+// from. Go's build cache makes an unchanged rebuild cheap. LE_TEST_NO_BUILD is
+// the explicit opt-out, and it runs the named harness as it is, refusing when
+// that file is absent.
+//
 // A bare `test harness` runs the harness with no argv, which prints its
 // command list and exits 1 because it was given no command. The list IS the
 // answer to the bare form, so the bare form exits 0, as a bare le namespace
 // token does. Every other form answers the harness's own exit code.
 func answerIn(root string, args []string) (any, int) {
 	binary := harnessPath(root)
-	if _, err := os.Stat(binary); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			leaction.ReportError(err)
+	if harnessbin.NoBuild() {
+		if _, err := os.Stat(binary); err != nil {
+			leaction.ReportError(fmt.Errorf("LE_TEST_NO_BUILD is set and the harness %s is not there: %w", binary, err))
 			return nil, cannotRun
 		}
-		if code := build(root, binary); code != 0 {
-			return nil, code
-		}
+	} else if code := build(root, binary); code != 0 {
+		return nil, code
 	}
 	code := run(binary, args)
 	if code == cannotStart {

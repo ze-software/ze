@@ -161,7 +161,7 @@ func TestBuildUpdatesFamilyMismatch(t *testing.T) {
 // does the OPEN handshake and reads the injected stream, verifying every
 // byte arrives in order.
 func TestInjectEndToEnd(t *testing.T) {
-	// VALIDATES: ze-test peer --mode inject writes the BuildUpdates output
+	// VALIDATES: le-test peer --mode inject writes the BuildUpdates output
 	// to the socket after OPEN, without reordering or interleaving.
 	// PREVENTS: wrong dispatch on mode, truncated writes, keepalive
 	// interleaved in the middle of the stream.
@@ -240,7 +240,7 @@ func TestInjectEndToEnd(t *testing.T) {
 	}
 }
 
-// TestInjectActiveMode runs ze-test peer with --dial against a trivial
+// TestInjectActiveMode runs le-test peer with --dial against a trivial
 // listener that mimics ze: it reads our OPEN, writes back a well-formed
 // OPEN + KEEPALIVE, reads our KEEPALIVE, then drains the injected stream
 // and verifies byte-image equality.
@@ -426,7 +426,7 @@ func countMPReachNLRI(attrs []byte) int {
 
 // minimalOpenMsg builds a syntactically-valid OPEN advertising IPv4-unicast
 // and 4-byte ASN capabilities. Used only by the end-to-end test as the
-// active peer; ze-test peer mirrors the capabilities it sees.
+// active peer; le-test peer mirrors the capabilities it sees.
 func minimalOpenMsg(asn uint32) []byte {
 	rid := net.IPv4(127, 0, 0, 1).To4() // the router ID
 	capIPv4 := []byte{0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01}

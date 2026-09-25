@@ -1,4 +1,4 @@
-// Design: docs/architecture/system-architecture.md -- ze-perf action-first dispatch
+// Design: docs/architecture/system-architecture.md -- le perf action-first dispatch
 
 package cli
 

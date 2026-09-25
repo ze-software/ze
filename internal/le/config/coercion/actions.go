@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- the config-coercion area, as one command
 //
-// actions.go is the Python area, ported. `le repository ze-config-coercion-check`
+// actions.go is the Python area, ported. `le repo ze-config-coercion-check`
 // selected one gate out of an area's GateSet; `le config coercion check` selects
 // one action out of the table below. The three fields the Gate carried travel
 // with it: the retired Make target, the reason `--list` printed, and whether

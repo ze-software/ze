@@ -55,7 +55,7 @@ func TestActionTypeStringUnknown(t *testing.T) {
 // VALIDATES: The CLI help / usage text (which derives its action list from
 // V2ActionNames) always advertises every v2 action.
 // PREVENTS: A new v2 action being added to IsV2Action but staying invisible in
-// `ze-chaos --help` (regression: iface-link-flap/iface-addr-remove were missing
+// `le chaos run --help` (regression: iface-link-flap/iface-addr-remove were missing
 // from the hardcoded help strings; spec followup-test-infra review).
 func TestV2ActionNamesComplete(t *testing.T) {
 	names := V2ActionNames()

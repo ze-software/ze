@@ -412,7 +412,7 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Errorf("the stripped build's tags moved: %s", stripped)
 	}
 	if harness := strings.Join(commands[2], " "); strings.Contains(harness, "-cover") {
-		t.Error("ze-test was instrumented; it is the harness, not the subject")
+		t.Error("le-test was instrumented; it is the harness, not the subject")
 	}
 }
 

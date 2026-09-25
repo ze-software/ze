@@ -119,7 +119,7 @@ func setupFailure(err error) interoplab.SuiteReport {
 // wireCheckers holds the scenarios whose checkers decode PPPoE frames with
 // internal/component/l2tp/pppoe, the feature's own codec. That package is
 // compile-out-able under ze_l2tp, so an always-on file MUST NOT import it
-// (ai/rules/architecture.md, `./le tier check`). checkers_l2tp.go carries the
+// (ai/rules/architecture.md, `./le arch tier check`). checkers_l2tp.go carries the
 // import behind the tag and fills this map from its init().
 //
 // The map is empty rather than absent in a build without the tag, because such

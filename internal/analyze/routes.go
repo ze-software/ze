@@ -16,13 +16,13 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-const routesUsage = `ze-analyze routes -- extract prefix table from MRT
+const routesUsage = `le mrt routes -- extract prefix table from MRT
 
 Reads TABLE_DUMP_V2 RIB entries and outputs one JSON object per route
 with prefix, next-hop, AS path, origin, and communities.
 
 Usage:
-  ze-analyze routes <file.mrt[.gz|.bz2]> [--limit <n>]
+  le mrt routes <file.mrt[.gz|.bz2]> [--limit <n>]
 `
 
 type routeRecord struct {

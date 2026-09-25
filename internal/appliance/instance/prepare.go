@@ -1,7 +1,8 @@
 // Design: docs/architecture/appliance/gokrazy-build-pins.md -- preparing a
 // relocated gokrazy instance that keeps the checked-in build pins. Extracted from
-// internal/appliance/kernelargs.go so cmd/ze-gok can prepare an instance without
-// importing the whole appliance package (spec-gokrazy-builddir-tmp, D-1c).
+// internal/appliance/kernelargs.go so internal/le/build/gokrazy (`le build
+// gokrazy`) can prepare an instance without importing the whole appliance
+// package (spec-gokrazy-builddir-tmp, D-1c).
 
 // Package instance prepares a relocated copy of the checked-in gokrazy instance
 // so an image build never runs from, or writes to, a tracked path.
@@ -258,7 +259,7 @@ func replaceKernel(buildDir, pkg string) error {
 // reapStalePrepared best-effort removes prepared instance dirs under tmpRoot that
 // a dead build left behind. gok's pack.Main calls os.Exit(1) on a build failure
 // from inside gok.Execute, which skips both the deferred cleanup in runGokBuild
-// and the explicit cleanup in cmd/ze-gok/main; there is no way to run cleanup
+// and the deferred cleanup in internal/le/build/gokrazy; there is no way to run cleanup
 // across a callee's os.Exit, so the leaked dir is reclaimed here on the next run.
 //
 // Only dirs matching the prepared prefix AND older than preparedStaleAge are

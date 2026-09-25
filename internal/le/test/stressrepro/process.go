@@ -1,4 +1,4 @@
-// Design: docs/functional-tests.md -- ze-test invocation and test-only race build
+// Design: docs/functional-tests.md -- le-test invocation and test-only race build
 // Overview: run.go -- orchestration owns cancellation and result classification
 
 package teststressrepro

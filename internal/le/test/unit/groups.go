@@ -138,7 +138,7 @@ func (g Group) options() gotoolchain.TestOptions {
 // `go test`, because `go test` cross-compiles the test binary and then tries to
 // exec it, which on darwin fails with "fork/exec .../disk.test: exec format
 // error". Vet type-checks the tag-guarded files without running them. The real
-// execution happens on Linux, and in the Alpine VM through `le qemu all-tests`
+// execution happens on Linux, and in the Alpine VM through `le test qemu all-tests`
 // when the host is not Linux (ai/rules/platform-linux.md).
 func (g Group) Argv(tc gotoolchain.Toolchain) []string {
 	if g.crossTargeted() {

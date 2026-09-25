@@ -65,7 +65,7 @@ func Usage(program string) {
 // The bound is load-bearing. LookupLocalData matches the longest registered
 // prefix of whatever it is handed, so an unbounded span would let a value
 // further along the line be read as a command word: `le job run label x
-// command le verify lint` offers nine.
+// command le go lint` offers nine.
 const commandWordsMax = 2
 
 // resolve answers the registered command among the leading words of argv: the
@@ -208,11 +208,11 @@ func helpAsked(program string, words []string) int {
 // asksForUsage reports whether the reader's LAST word is a help word ASKING a
 // question, rather than the bare word `help` an area's grammar reads as data.
 // The bare word carries no dash, so a keyword can introduce it in any position.
-// `le source-rewrite replace file <path> old beta new help` types `help` as the
+// `le repo rewrite replace file <path> old beta new help` types `help` as the
 // text `new` takes.
 //
 // Four spellings ask the question here, in every area, and the set is closed:
-// `help`, `--help`, `-h` and `-help` (leaction.IsHelpArg). `le stress-repro run
+// `help`, `--help`, `-h` and `-help` (leaction.IsHelpArg). `le test stress-repro run
 // suite -help` therefore renders a page rather than the burn.
 //
 // Every other option reaches the area. Where the area declared a table, its

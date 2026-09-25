@@ -53,7 +53,7 @@ func captureStderr(t *testing.T, fn func()) string {
 // a developer may type, which is the reason it is stated once.
 func TestRefuseArgumentNamesTheCommandAndWhatWasTyped(t *testing.T) {
 	var code int
-	captured := captureStderr(t, func() { code = RefuseArgument("iface-resolution", "internal") })
+	captured := captureStderr(t, func() { code = RefuseArgument("arch iface-resolution", "internal") })
 
 	if code != 1 {
 		t.Errorf("the refusal answers %d, want 1", code)
@@ -62,10 +62,10 @@ func TestRefuseArgumentNamesTheCommandAndWhatWasTyped(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("the refusal wrote %d lines, want the message and the usage: %q", len(lines), captured)
 	}
-	if lines[0] != `error: iface-resolution takes no arguments, got "internal"` {
+	if lines[0] != `error: arch iface-resolution takes no arguments, got "internal"` {
 		t.Errorf("the message is %q", lines[0])
 	}
-	if lines[1] != "usage: le iface-resolution [| json | yaml | table]" {
+	if lines[1] != "usage: le arch iface-resolution [| json | yaml | table]" {
 		t.Errorf("the usage line is %q", lines[1])
 	}
 }

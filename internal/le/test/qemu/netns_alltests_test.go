@@ -235,6 +235,6 @@ func TestTheShimDirectoryIsTraversableByTheDroppedUser(t *testing.T) {
 	}
 	if info.Mode().Perm()&0o005 != 0o005 {
 		t.Errorf("the shim directory is %v, want it readable and traversable by every user:"+
-			" a suite in a per-test namespace execs ze-test through it as uid %s", info.Mode().Perm(), netnsUID)
+			" a suite in a per-test namespace execs le-test through it as uid %s", info.Mode().Perm(), netnsUID)
 	}
 }

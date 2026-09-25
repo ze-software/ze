@@ -40,7 +40,7 @@ func asPathAttr(fourByte bool, asns ...uint32) mrt.PathAttribute {
 }
 
 func TestBuildRouteRecord_IPv6NextHopFromTruncatedMPReach(t *testing.T) {
-	// VALIDATES: `ze-analyze routes` emits the correct next-hop for an IPv6
+	// VALIDATES: `le mrt routes` emits the correct next-hop for an IPv6
 	// TABLE_DUMP_V2 RIB entry, whose MP_REACH_NLRI is abbreviated to
 	// Next Hop Length + Next Hop (RFC 6396 Section 4.3.4).
 	// PREVENTS: the full-form decoder reading the length from offset 3 and

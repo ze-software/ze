@@ -1,4 +1,4 @@
-# Ze RIR delegation table, written by ./le iana-asn write. One line for
+# Ze RIR delegation table, written by ./le data asn-delegation write. One line for
 # each range: <start> <end> <registry-token>. The registry display name
 # and its whois host are Go constants in rir.go, so this file carries the
 # token alone.

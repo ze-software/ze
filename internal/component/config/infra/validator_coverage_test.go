@@ -48,7 +48,7 @@ func TestEveryValidatorSectionIsWalkedOrExcused(t *testing.T) {
 		t.Fatalf("this binary did not link the YANG that declares %q, so the "+
 			"derivation covered %d declaring sections rather than the whole tree "+
 			"and an empty answer would prove nothing. Run it with the feature "+
-			"tags: ./le test-unit", section, len(cov.Declaring))
+			"tags: ./le test unit", section, len(cov.Declaring))
 	}
 
 	for _, section := range cov.Unaccounted {

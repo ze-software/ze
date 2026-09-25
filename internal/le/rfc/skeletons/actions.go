@@ -1,6 +1,6 @@
 // Design: ai/rules/protocol.md -- the protocol-skeleton area, as one command
 //
-// actions.go is the Python area, ported. `le repository
+// actions.go is the Python area, ported. `le repo
 // ze-protocol-skeleton-report` selected one gate out of a GateSet; `le
 // rfc skeletons report` selects one action out of the table below.
 //

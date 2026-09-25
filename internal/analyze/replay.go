@@ -14,7 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-const replayUsage = `ze-analyze replay -- replay MRT over a BGP session
+const replayUsage = `le mrt replay -- replay MRT over a BGP session
 
 Reads BGP4MP MESSAGE records from an MRT file and replays them over a
 live BGP session to a remote peer, preserving original inter-message
@@ -24,7 +24,7 @@ Only UPDATE messages (type 2) are replayed. OPEN, NOTIFICATION, and
 KEEPALIVE messages in the MRT file are skipped.
 
 Usage:
-  ze-analyze replay <file.mrt[.gz|.bz2]> <peer-ip:port> [options]
+  le mrt replay <file.mrt[.gz|.bz2]> <peer-ip:port> [options]
 
 Options:
   --local-as <asn>   Local AS number (default: 65000)

@@ -1,6 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos reporting and metrics
 //
-// Package report provides the exit summary for ze-chaos validation runs.
+// Package report provides the exit summary for le chaos run validation runs.
 package report
 
 import (
@@ -111,7 +111,7 @@ func (s *Summary) Write(w io.Writer) int {
 	rw := &reportWriter{w: w}
 
 	rw.printf("\n══════════════════════════════════════════\n")
-	rw.printf("  ze-chaos | seed: %d\n", s.Seed) //nolint:gosec // seed is display-only
+	rw.printf("  le chaos run | seed: %d\n", s.Seed) //nolint:gosec // seed is display-only
 	rw.printf("══════════════════════════════════════════\n")
 	if s.IBGPCount > 0 && s.EBGPCount > 0 {
 		rw.printf("  run:   %s, %d peers (%d iBGP, %d eBGP)\n", s.Duration, s.PeerCount, s.IBGPCount, s.EBGPCount)

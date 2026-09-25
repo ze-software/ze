@@ -11,7 +11,9 @@ import (
 )
 
 // fakeHarness writes an executable bin/le-test under a fresh root that records
-// its argv in argv.txt and exits with code.
+// its argv in argv.txt and exits with code. It sets LE_TEST_NO_BUILD, because
+// the fresh root holds no source to build; TestHarnessBuildsOnEveryCall clears
+// it again.
 func fakeHarness(t *testing.T, code string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -24,6 +26,8 @@ func fakeHarness(t *testing.T, code string) string {
 	}
 	t.Setenv("LE_TEST_BIN", "")
 	t.Setenv("ZE_TEST_BIN", "")
+	t.Setenv("LE_TEST_NO_BUILD", "1")
+	t.Setenv("ZE_TEST_NO_BUILD", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 	return root
@@ -53,6 +57,40 @@ func TestHarnessExecsLeTestWithTheTrailingArgv(t *testing.T) {
 	bare := fakeHarness(t, "1")
 	if _, code := answerIn(bare, nil); code != 0 {
 		t.Errorf("bare form exit code %d, want 0", code)
+	}
+}
+
+// TestHarnessBuildsOnEveryCall proves `test harness` builds before it runs,
+// even when bin/le-test already exists (AC-7). The fresh root holds no
+// feature-gates.txt, so the build fails, and the harness already on disk
+// MUST NOT run in its place.
+//
+// VALIDATES: AC-7, the harness is built on every call.
+// PREVENTS: a stale bin/le-test answering for code it was not built from.
+func TestHarnessBuildsOnEveryCall(t *testing.T) {
+	root := fakeHarness(t, "0")
+	t.Setenv("LE_TEST_NO_BUILD", "")
+	env.ResetCache()
+	if _, code := answerIn(root, []string{"bgp", "--list"}); code != cannotRun {
+		t.Errorf("exit code %d, want %d from the failed build", code, cannotRun)
+	}
+	if _, err := os.Stat(filepath.Join(root, "argv.txt")); err == nil {
+		t.Error("the harness already on disk ran without a build")
+	}
+}
+
+// TestHarnessNoBuildRefusesAbsentHarness proves LE_TEST_NO_BUILD runs the
+// harness as it is and refuses when there is none, rather than building one.
+//
+// VALIDATES: the explicit opt-out never builds.
+// PREVENTS: LE_TEST_NO_BUILD silently compiling a harness.
+func TestHarnessNoBuildRefusesAbsentHarness(t *testing.T) {
+	root := fakeHarness(t, "0")
+	if err := os.Remove(filepath.Join(root, "bin", "le-test")); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, code := answerIn(root, []string{"bgp"}); code != cannotRun {
+		t.Errorf("exit code %d, want %d for an absent harness", code, cannotRun)
 	}
 }
 

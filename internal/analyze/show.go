@@ -13,14 +13,14 @@ import (
 	"github.com/ze-software/ze/internal/mrt"
 )
 
-const showUsage = `ze-analyze show -- human-readable MRT record dump
+const showUsage = `le mrt show -- human-readable MRT record dump
 
 Reads MRT records and prints a human-readable summary of each record,
 similar to bgpdump. BGP messages are parsed to show UPDATE contents,
 OPEN parameters, and NOTIFICATION details.
 
 Usage:
-  ze-analyze show <file.mrt[.gz|.bz2]> [--limit <n>]
+  le mrt show <file.mrt[.gz|.bz2]> [--limit <n>]
 `
 
 func runShow(args []string) int {

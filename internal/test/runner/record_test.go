@@ -165,7 +165,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 // with no letter-based short-code phase.
 //
 // VALIDATES: GenerateNick returns 1,2,3... as decimal strings for every test.
-// PREVENTS: Mixed letter/number ids like A, B, C reappearing in ze-test output.
+// PREVENTS: Mixed letter/number ids like A, B, C reappearing in le-test output.
 func TestGenerateNick_NumericOnly(t *testing.T) {
 	ResetNickCounter()
 

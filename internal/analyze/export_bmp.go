@@ -25,14 +25,14 @@ func runExport(args []string) int {
 	return exportDispatcher.Dispatch(args)
 }
 
-const exportBMPUsage = `ze-analyze export bmp -- send MRT BGP4MP records as BMP Route Monitoring
+const exportBMPUsage = `le mrt export bmp -- send MRT BGP4MP records as BMP Route Monitoring
 
 Connects to a BMP collector via TCP and sends each BGP4MP message record
 as a BMP v3 Route Monitoring message. TABLE_DUMP and state change records
 are skipped.
 
 Usage:
-  ze-analyze export bmp --target <host:port> [--peer-ip <ip>] <input.mrt>
+  le mrt export bmp --target <host:port> [--peer-ip <ip>] <input.mrt>
 
 Options:
   --target <host:port>  BMP collector address (required)

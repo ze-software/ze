@@ -8,7 +8,7 @@
 // package is compile-out-able, so the files holding those checkers carry
 // //go:build ze_l2tp and so does this table: an always-on file naming them
 // would pin the codec into every binary and defeat the compile-out
-// (ai/rules/architecture.md, `./le tier check`).
+// (ai/rules/architecture.md, `./le arch tier check`).
 //
 // A build without ze_l2tp therefore drives a product with no PPPoE access
 // concentrator, and offers only the two scenarios such a product can answer.

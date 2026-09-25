@@ -61,7 +61,7 @@ func TestDispatchPrefersTheLongerCommand(t *testing.T) {
 }
 
 // TestDispatchBoundsTheLookupAtTwoWords is the guard against a value being read
-// as a command word. `le job run label x command le verify lint` offers nine
+// as a command word. `le job run label x command le go lint` offers nine
 // words, and only the first two may ever reach the matcher.
 func TestDispatchBoundsTheLookupAtTwoWords(t *testing.T) {
 	deep := registerProbe(t, "probe-deep one two", GroupGate)

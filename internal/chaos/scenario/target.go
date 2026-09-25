@@ -4,7 +4,7 @@ package scenario
 
 import "fmt"
 
-// Target identifies the BGP daemon that ze-chaos generates config for and forks.
+// Target identifies the BGP daemon that le chaos run generates config for and forks.
 type Target string
 
 const (

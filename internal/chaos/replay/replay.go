@@ -1,6 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — event replay and diff
 //
-// Package replay provides event log replay and comparison for ze-chaos.
+// Package replay provides event log replay and comparison for le chaos run.
 //
 // It reads NDJSON event logs produced by --event-log, feeds events through
 // the validation model, and reports pass/fail with a summary.

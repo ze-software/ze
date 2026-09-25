@@ -347,7 +347,7 @@ func TestReviewArtifactIsHashPinnedToEveryCodeFile(t *testing.T) {
 // writes it, which is under the HARNESS session id.
 // PREVENTS: the regression the native port shipped. This gate built the name
 // itself from the eight-hex commit namespace that SessionID mints, so
-// `le spec session review record` wrote tmp/review/<stem>-<harness>.md, the gate
+// `le spec review record` wrote tmp/review/<stem>-<harness>.md, the gate
 // asked for tmp/review/<stem>-<namespace>.md, and every spec closure was refused
 // with "no independent-review artifact at ...". Neither package's tests could see
 // it: each chose its own session id and wrote the fixture under it, so both

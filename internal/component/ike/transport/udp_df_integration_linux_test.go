@@ -21,7 +21,7 @@
 // The router forwards and its far-side link is clamped to 1400, so a
 // 1500-octet DF datagram from the sender is refused there with Fragmentation
 // Needed reporting 1400. Every test skips, never fails, when the namespaces
-// or the raw socket are out of reach: the QEMU runner (./le qemu all-tests)
+// or the raw socket are out of reach: the QEMU runner (./le test qemu all-tests)
 // is where they run for real.
 
 package transport

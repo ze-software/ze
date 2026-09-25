@@ -16,7 +16,7 @@ import (
 )
 
 // seedDelegation is the shipped RIR delegation table, written by
-// `./le iana-asn write` from the five registry delegation files.
+// `./le data asn-delegation write` from the five registry delegation files.
 //
 //go:embed rir-delegation.txt
 var seedDelegation string

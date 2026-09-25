@@ -17,7 +17,7 @@
 //	                     Use it for one serial run that you want to keep.
 //	                     Use the default for concurrent runs.
 //
-//	ZE_TEST_CANONICAL=1  runs the session's own ze-test in place.
+//	ZE_TEST_CANONICAL=1  runs the session's own le-test in place.
 //	                     Use this mode for release and CI reproducibility.
 //
 //	ZE_COVER=1           record which Go packages each suite EXECUTES. The DUT
@@ -27,7 +27,7 @@
 //	                     directory, so a relative root resolves against THAT
 //	                     directory and the emit fails silently.
 //
-// ze-test itself is deliberately NOT instrumented: it is the harness, not the
+// le-test itself is deliberately NOT instrumented: it is the harness, not the
 // subject, and what it executed is not what the map is about.
 
 package testfunctional
@@ -60,7 +60,7 @@ var (
 		Key:         "ze.test.canonical",
 		Type:        envBool,
 		Default:     "false",
-		Description: "run the session's own ze-test in place instead of an isolated set",
+		Description: "run the session's own le-test in place instead of an isolated set",
 		Private:     true,
 	})
 	_ = env.MustRegister(env.EnvEntry{
@@ -186,7 +186,7 @@ type Extras struct {
 	LE bool
 }
 
-// ExtrasFor answers what these suites need beside ze, ze-test and ze-stripped.
+// ExtrasFor answers what these suites need beside ze, le-test and ze-stripped.
 //
 // One producer for every caller: the command line names its suites
 // (newSession), a gating run names the suites its run list holds (runGating),
@@ -234,7 +234,7 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][
 	commands := [][]string{
 		build(cover, tagString(tc, dutTags...), "ze"),
 		build(cover, tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
-		// NOT instrumented: ze-test is the harness, not the subject.
+		// NOT instrumented: le-test is the harness, not the subject.
 		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), LETest),
 	}
 	if extras.Chaos {
@@ -315,7 +315,7 @@ func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, 
 	}
 
 	var tb textbuf.Buffer
-	// The names are not written out here. The list said ze, ze-test and
+	// The names are not written out here. The list said ze, le-test and
 	// ze-stripped while a chaos run compiled a fourth binary, and each command
 	// prints itself as it starts (gaterun.Stream).
 	gaterun.Note(tb.Str("Building the isolated test binaries in ").Str(binaries).

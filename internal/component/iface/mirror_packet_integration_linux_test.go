@@ -4,7 +4,7 @@
 // traffic at the PACKET level, not just that the qdisc/filter installs. A frame
 // injected on a veth peer ingresses the mirror source and must appear, copied,
 // on the mirror destination captured via AF_PACKET. Requires CAP_NET_ADMIN
-// (skipped otherwise). Run under `./le integration iface`.
+// (skipped otherwise). Run under `./le test integration iface`.
 
 package iface
 

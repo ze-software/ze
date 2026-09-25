@@ -109,7 +109,7 @@ func normalizeLineBreaks(value string) string {
 // tableProse answers one prose value as a Markdown table cell.
 //
 // A cell cannot hold a line break, so a value that carries one is joined with a
-// space. A declared summary never carries one -- `./le docvalid help-shape`
+// space. A declared summary never carries one -- `./le doc yang-contract help-shape`
 // refuses it -- so this only ever fires for a description a plugin sent.
 func tableProse(value string) string {
 	if !strings.ContainsRune(value, '\n') {

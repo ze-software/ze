@@ -127,14 +127,14 @@ func TestACompactDocumentKeepsTheOrderItsKeysWereSetIn(t *testing.T) {
 }
 
 func TestAPathSortsComponentByComponent(t *testing.T) {
-	// `-` is 0x2d and `/` is 0x2f, so a byte comparison puts cmd/ze-gok first
+	// `-` is 0x2d and `/` is 0x2f, so a byte comparison puts cmd/ze-installer first
 	// and Python puts cmd/ze first. The order reaches the page through the
 	// negative-test ranking, which is a stable sort over a ratio and breaks its
 	// many ties on the order the files arrived in.
-	if !lessByPathParts("cmd/ze/a_test.go", "cmd/ze-gok/a_test.go") {
-		t.Errorf("cmd/ze sorted after cmd/ze-gok, which is the byte order rather than Python's")
+	if !lessByPathParts("cmd/ze/a_test.go", "cmd/ze-installer/a_test.go") {
+		t.Errorf("cmd/ze sorted after cmd/ze-installer, which is the byte order rather than Python's")
 	}
-	if lessByPathParts("cmd/ze-gok/a_test.go", "cmd/ze/a_test.go") {
+	if lessByPathParts("cmd/ze-installer/a_test.go", "cmd/ze/a_test.go") {
 		t.Errorf("the comparison is not antisymmetric over the pair it exists for")
 	}
 	if !lessByPathParts("internal/a", "internal/a/b") {

@@ -134,7 +134,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 	// Runner.runTest leases the real pair from this preference when the test
 	// starts (LeaseTestPorts). Nothing between discovery and that lease may
 	// assume the preference is free: discovery can run minutes ahead of the test,
-	// and a second ze-test process on the same machine numbers its own suite from
+	// and a second le-test process on the same machine numbers its own suite from
 	// the same base.
 	r.Port = et.port
 	et.port += TestPortSpan
@@ -226,7 +226,7 @@ generateDecoded:
 	// options are parsed so it does not depend on their order in the .ci file.
 	applyNetnsLinkGate(r)
 
-	// ZE_QEMU_LINUX_ONLY mode (the `./le qemu all-tests` tight loop) runs
+	// ZE_QEMU_LINUX_ONLY mode (the `./le test qemu all-tests` tight loop) runs
 	// ONLY tests marked option=needs-linux: every other test is skipped so the
 	// QEMU VM spends its time on the Linux-only surface, not re-running tests
 	// that already pass natively. Applied after all options are parsed so the
@@ -412,7 +412,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// management, nftables, kernel sockets, ...) and therefore cannot pass
 		// natively on a non-Linux host. On such a host the test is SKIPPED with
 		// a reason pointing at the QEMU runner; inside the QEMU Alpine VM
-		// (GOOS=linux, via `./le qemu all-tests`) the directive is
+		// (GOOS=linux, via `./le test qemu all-tests`) the directive is
 		// inert and the test runs normally. This is how Linux-only functional
 		// tests are validated automatically via QEMU instead of failing
 		// natively. See ai/rules/platform-linux.md "Linux-only functional tests".
@@ -451,13 +451,13 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 
 		if runtime.GOOS != goosLinux {
 			var tb textbuf.Buffer
-			r.SkipReason = tb.Str("needs-linux (run via ./le qemu all-tests; current GOOS=").Str(runtime.GOOS).Byte(')').String()
+			r.SkipReason = tb.Str("needs-linux (run via ./le test qemu all-tests; current GOOS=").Str(runtime.GOOS).Byte(')').String()
 			return nil
 		}
 		if len(caps) > 0 && !hasCaps(caps) {
 			var tb textbuf.Buffer
 			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
-				Str(" (capability absent; run via ./le qemu all-tests)").String()
+				Str(" (capability absent; run via ./le test qemu all-tests)").String()
 			return nil
 		}
 

@@ -68,11 +68,11 @@ func TestRunExaBGPMatchesMakeProducer(t *testing.T) {
 		t.Fatalf("second stage = %q, want build-le-test", zeTest.Stage)
 	}
 	if got := argumentAfter(zeTest.Arguments, "-tags"); got != "ze_test ze_exabgp" {
-		t.Fatalf("ze-test tags = %q", got)
+		t.Fatalf("le-test tags = %q", got)
 	}
 
 	// Two subjects since 2026-09-05, one per predecessor population. Each names
-	// its suite, because `ze-test exabgp` alone runs encoding and nothing else.
+	// its suite, because `le-test exabgp` alone runs encoding and nothing else.
 	for index, suite := range []string{"encoding", "api"} {
 		subject := recorder.commands[2+index]
 		wantSubject := []string{
@@ -250,7 +250,7 @@ func TestRunExaBGPFailsBeforeChildrenWhenPopulationCannotBeDerived(t *testing.T)
 }
 
 // VALIDATES: the caller's context reaches the first and every subsequent child.
-// PREVENTS: compiler, uv, or ze-test processes outliving worktree verification.
+// PREVENTS: compiler, uv, or le-test processes outliving worktree verification.
 func TestRunExaBGPPassesCallerContextToEveryChild(t *testing.T) {
 	root := exaBGPFixture(t)
 	ctx, cancel := context.WithCancel(t.Context())

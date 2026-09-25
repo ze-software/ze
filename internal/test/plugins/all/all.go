@@ -2,7 +2,7 @@
 // internal/component/plugin/all/all.go).
 //
 // Package all blank-imports test-only internal plugins. The production
-// daemon (cmd/ze) does NOT import this package; only the ze-test binary
+// daemon (cmd/ze) does NOT import this package; only the le-test binary
 // or other test infrastructure may. Functional tests build cmd/ze with the
 // zetest tag to load this package without exposing test plugins in normal
 // production builds.

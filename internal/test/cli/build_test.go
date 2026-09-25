@@ -23,11 +23,12 @@ func setBuildEnv(t *testing.T, key, value string) {
 // clearBinOverrides drops the binary-path overrides so a test that asserts on the
 // binary-is-ABSENT branch controls where the lookup points. Same reason as the
 // identical helper in internal/test/runner: the QEMU unit phase exports ZE_BIN /
-// ZE_TEST_BIN for the functional phase, and an inherited value points the lookup
+// LE_TEST_BIN for the functional phase, and an inherited value points the lookup
 // at a real binary, so the asserted error cannot occur.
 func clearBinOverrides(t *testing.T) {
 	t.Helper()
 	t.Setenv("ZE_BIN", "")
+	t.Setenv("LE_TEST_BIN", "")
 	t.Setenv("ZE_TEST_BIN", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -42,7 +43,7 @@ func clearBinOverrides(t *testing.T) {
 // LE_TEST_NO_BUILD.
 // PREVENTS: those suites recompiling ze on a slow target (for example a QEMU VM
 // over 9p) when a host cross-compiled binary already exists, defeating the
-// host-compile architecture used by `./le qemu all-tests`.
+// host-compile architecture used by `./le test qemu all-tests`.
 func TestBuildZeNoBuild(t *testing.T) {
 	clearBinOverrides(t)
 	setBuildEnv(t, "LE_TEST_NO_BUILD", "1")

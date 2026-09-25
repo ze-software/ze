@@ -99,7 +99,7 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 //
 // Method: one goroutine re-resolves the dynamic peer, as each reconnection does, while
 // this one applies a reload. The verdict is the race detector, so the test runs
-// under `./le test-unit bgp`. The closing assertions are the second half: a
+// under `./le test unit bgp`. The closing assertions are the second half: a
 // resolved chain still comes out of the accessor, and every name is one the two writers
 // can actually produce, never a shape a torn header would leave.
 //

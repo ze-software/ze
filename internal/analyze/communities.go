@@ -50,7 +50,7 @@ func runCommunities(args []string) int {
 	format := fs.String("format", "yaml", "Output format: yaml, json")
 	postPolicy := fs.Bool("post-policy", false, "Simulate post-policy view (strip action communities)")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `ze-analyze communities -- per-ASN community default analysis
+		fmt.Fprintf(os.Stderr, `le mrt communities -- per-ASN community default analysis
 
 Identifies communities that appear in nearly every route from a given ASN.
 These "defaults" can be assumed present in a cache, encoding only exceptions.
@@ -62,16 +62,16 @@ route that lacks it. This saves 4 bytes per route per default community.
 Supports both TABLE_DUMP_V2 (RIB snapshots) and BGP4MP (live updates).
 
 Usage:
-  ze-analyze communities [options] <file.gz> [file2.gz ...]
+  le mrt communities [options] <file.gz> [file2.gz ...]
 
 Options:
 `)
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze-analyze communities test/internet/latest-bview.gz
-  ze-analyze communities --threshold 0.90 --format json test/internet/latest-bview.gz
-  ze-analyze communities --post-policy test/internet/latest-bview.gz
+  le mrt communities test/internet/latest-bview.gz
+  le mrt communities --threshold 0.90 --format json test/internet/latest-bview.gz
+  le mrt communities --post-policy test/internet/latest-bview.gz
 `)
 	}
 

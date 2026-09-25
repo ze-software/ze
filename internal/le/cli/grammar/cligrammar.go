@@ -475,7 +475,7 @@ func walkYANG(tree string, read func(rel string, scanner *bufio.Scanner) error) 
 //
 // Feeder 5 of the grammar gate. The other feeders check how commands are
 // declared; this one checks the repository's own call sites. Terminal demos
-// need Docker and run from `./le terminal-demo`, so the pre-commit gate does not
+// need Docker and run from `./le site terminal-demo`, so the pre-commit gate does not
 // execute them. When `ze <config-file>` was removed in favor of
 // `ze start <config-file>`, thirteen demos kept the dead form and the deploy
 // workflow stayed red for four days.

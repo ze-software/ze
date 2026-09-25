@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/ci-format.md — decode test helpers
 //
 // Package decode provides shared BGP message decode helpers for test tools.
-// Used by both ze-peer (test peer) and ze-test (functional test runner).
+// Used by both ze-peer (test peer) and le-test (functional test runner).
 package decode
 
 import (

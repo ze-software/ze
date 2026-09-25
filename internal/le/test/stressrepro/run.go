@@ -239,7 +239,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 			}
 			if result.err != nil && !errors.Is(result.err, context.Canceled) && !errors.Is(result.err, context.DeadlineExceeded) {
 				_, _ = fmt.Fprintf(log, "\n===== invocation %d SETUP ERROR =====\n%s\n", report.Completed, result.err)
-				report.SetupError = "could not run ze-test: " + result.err.Error()
+				report.SetupError = "could not run le-test: " + result.err.Error()
 				cancelBatch()
 				continue
 			}
@@ -293,7 +293,7 @@ func ensureBinaries(paths ...string) error {
 	if len(missing) == 0 {
 		return nil
 	}
-	return fmt.Errorf("missing prebuilt binaries: %v; build them first with a canonical native run, for example `ZE_TEST_CANONICAL=1 ./le functional parse`", missing)
+	return fmt.Errorf("missing prebuilt binaries: %v; build them first with a canonical native run, for example `ZE_TEST_CANONICAL=1 ./le test functional parse`", missing)
 }
 
 func binaryFromEnvironment(root, key, name string) string {

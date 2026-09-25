@@ -4,7 +4,7 @@
 // Goal: prove the backends an operator can write at environment/log/backend are
 // backends slogutil writes to, so a word cannot exist on one side alone. The
 // test sits here rather than beside validBackends because slogutil is under
-// the model and MUST NOT import the loader (./le tier check); this package
+// the model and MUST NOT import the loader (./le arch tier check); this package
 // already imports both. Method: read the enumeration out of the loaded model
 // with configyang.EnumValues, which fails on a leaf that declares no
 // enumeration, and hold it to slogutil.BackendNames in both directions.

@@ -9,7 +9,7 @@
 //
 // All three exist because of one defect class. A check-mode ze-peer with no
 // expectation exits 1 BEFORE binding a listening socket (the "no test data"
-// branch of ze-test peer). ze then dials a dead port, gets connection refused,
+// branch of le-test peer). ze then dials a dead port, gets connection refused,
 // and backs off 5->10->20->40s, which reads as a BGP establishment stall. An
 // expect=exit:code=0 on the same test skipped every BGP-level assertion, so the
 // test passed while no BGP ever ran. Per ai/rules/evidence.md the
@@ -33,7 +33,7 @@ import (
 )
 
 // peerNoTestDataMessage is the stderr ze-peer emits in check mode with no
-// expectations, from the "no test data" branch of ze-test peer's cmd_peer.go.
+// expectations, from the "no test data" branch of le-test peer's cmd_peer.go.
 const peerNoTestDataMessage = "no test data available to test against"
 
 // zePeerBin is the command name the runner recognizes as a BGP test peer.

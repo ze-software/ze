@@ -22,7 +22,7 @@
 // 1500-octet DF datagram from the sender is refused there with
 // Fragmentation Needed (or Packet Too Big) reporting 1400. Every test
 // skips, never fails, when the namespaces or the raw socket are out of
-// reach: the QEMU runner (./le qemu all-tests) is where they run for real.
+// reach: the QEMU runner (./le test qemu all-tests) is where they run for real.
 
 package probe
 

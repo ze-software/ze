@@ -186,17 +186,23 @@ func (k RetiredKind) String() string {
 // Retirement is one retired name that is not an le command. Replacement is
 // what a caller writes instead, for the report to print. It is text for a
 // person, never parsed.
+//
+// ProgramPositionOnly marks a program name that is also an ordinary fixture
+// spelling: `ze-test` is a hostname, a NAS id, a module name and a wire method
+// in tests that have nothing to do with the harness. The sweep then matches the
+// name only where it is run or shipped as a program, never as a word in text.
 type Retirement struct {
-	Kind        RetiredKind `json:"-"`
-	Old         string      `json:"old"`
-	Replacement string      `json:"replacement"`
+	Kind                RetiredKind `json:"-"`
+	Old                 string      `json:"old"`
+	Replacement         string      `json:"replacement"`
+	ProgramPositionOnly bool        `json:"-"`
 }
 
 // retirements is the non-command half of the rename map.
 //
 //nolint:goconst // a row reads whole: a constant per repeated word hides which name a row retires
 var retirements = []Retirement{
-	{Kind: RetiredProgram, Old: "ze-test", Replacement: "le test harness"},
+	{Kind: RetiredProgram, Old: "ze-test", Replacement: "le test harness", ProgramPositionOnly: true},
 	{Kind: RetiredProgram, Old: "ze-chaos", Replacement: "le chaos run"},
 	{Kind: RetiredProgram, Old: "ze-perf", Replacement: "le perf send | report | track"},
 	{Kind: RetiredProgram, Old: "ze-perf-run", Replacement: "le perf run"},

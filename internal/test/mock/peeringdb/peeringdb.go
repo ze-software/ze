@@ -17,14 +17,14 @@ import (
 )
 
 func Run(args []string) int {
-	fs := flag.NewFlagSet("ze-test peeringdb", flag.ExitOnError)
+	fs := flag.NewFlagSet("le-test peeringdb", flag.ExitOnError)
 
 	var port int
 
 	fs.IntVar(&port, "port", 0, "HTTP listen port (0 = auto)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test peeringdb [flags]
+		fmt.Fprintf(os.Stderr, `Usage: le-test peeringdb [flags]
 
 Deterministic fake PeeringDB HTTP server for functional tests.
 
@@ -57,7 +57,7 @@ Flags:
 	defer func() { _ = ln.Close() }()
 
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "ze-test peeringdb: listening on port %s\n", portStr)
+	fmt.Fprintf(os.Stderr, "le-test peeringdb: listening on port %s\n", portStr)
 
 	srv := &http.Server{
 		Handler:           mux,

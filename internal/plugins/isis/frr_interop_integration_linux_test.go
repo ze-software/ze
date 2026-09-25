@@ -17,7 +17,7 @@
 //
 // FRR's SPF/dataplane is not required; cross-implementation adjacency + LSDB
 // exchange is the interop proof. It t.Skips when FRR is absent; run it through
-// `./le qemu all-tests`, whose guest provides FRR.
+// `./le test qemu all-tests`, whose guest provides FRR.
 package isis
 
 import (
@@ -80,7 +80,7 @@ func startISISFRRPeer(t *testing.T) {
 	t.Helper()
 	zebra, isisd := frrISISBin("zebra"), frrISISBin("isisd")
 	if zebra == "" || isisd == "" {
-		t.Skipf("FRR not installed (zebra=%q isisd=%q); run via `./le qemu all-tests`", zebra, isisd)
+		t.Skipf("FRR not installed (zebra=%q isisd=%q); run via `./le test qemu all-tests`", zebra, isisd)
 	}
 
 	// Clean any residue from a previous aborted run, then register teardown.

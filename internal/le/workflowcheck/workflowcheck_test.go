@@ -272,8 +272,8 @@ func TestEveryWorkflowNativeActionExists(t *testing.T) {
 }
 
 func TestNativeActionExtractorHandlesWorkflowCommands(t *testing.T) {
-	source := "run: sudo -E env PATH=$PATH ./le integration iface && ./le verify deps vulnerability\n" +
-		"# ./le integration absent-action\n"
+	source := "run: sudo -E env PATH=$PATH ./le test integration iface && ./le verify deps vulnerability\n" +
+		"# ./le test integration absent-action\n"
 	// integration is one word and verify deps is two, so the same line proves
 	// both readings: the extractor asks the registry rather than counting words.
 	want := []string{"integration/iface", "verify deps/vulnerability"}
@@ -599,7 +599,7 @@ func TestCodeQLKeepsOnlyTheShippedLanguagePopulation(t *testing.T) {
 	if !slices.Equal(languages, want) {
 		t.Errorf("codeql.yml languages = %v, want %v", languages, want)
 	}
-	if !strings.Contains(source, "./le feature-tags write") {
+	if !strings.Contains(source, "./le repo feature-tags write") {
 		t.Error("CodeQL tag provenance must name the current native producer")
 	}
 }

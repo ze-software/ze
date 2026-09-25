@@ -142,7 +142,7 @@ func TestNestedLintStageDoesNotQueueBehindItsParent(t *testing.T) {
 			if err != nil {
 				nestedErr = err
 			} else {
-				ticket, admitErr := admission.Admit(job.LintLabel, []string{"le", "verify", "lint", "run"})
+				ticket, admitErr := admission.Admit(job.LintLabel, []string{"le", "go", "lint", "run"})
 				nestedErr = admitErr
 				if ticket != nil {
 					nested = ticket.Kind

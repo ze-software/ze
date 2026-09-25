@@ -82,7 +82,7 @@ func TestChaosClockJitter(t *testing.T) {
 // TestChaosClockDeterministic verifies same seed produces same jitter sequence.
 //
 // VALIDATES: Seed-driven PRNG produces reproducible results.
-// PREVENTS: non-deterministic behavior across ze-chaos binary builds.
+// PREVENTS: non-deterministic behavior across le chaos run binary builds.
 func TestChaosClockDeterministic(t *testing.T) {
 	inner := clock.RealClock{}
 	cc1 := newChaosClock(inner, ChaosConfig{Seed: 99, Rate: 1.0})

@@ -111,7 +111,7 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 
 // RegisterActions records the action table one area declared, so the dispatcher
 // can publish that area's grammar and render it WITHOUT calling the area's
-// handler. `le stress-repro run suite --help` started a multi-hour burn because
+// handler. `le test stress-repro run suite --help` started a multi-hour burn because
 // the only surface holding the grammar was the handler itself.
 //
 // It is a second call beside Register rather than a fifth argument to it: an

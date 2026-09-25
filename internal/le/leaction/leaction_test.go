@@ -321,7 +321,7 @@ func TestSweepRefusesBeforeItRunsAnything(t *testing.T) {
 }
 
 // TestSweepCarriesEachActionsOwnAnswer is AC-7 for a sweep: the payload is the
-// data, so `| json` over `le functional a b` carries both answers.
+// data, so `| json` over `le test functional a b` carries both answers.
 func TestSweepCarriesEachActionsOwnAnswer(t *testing.T) {
 	area := sweepArea(0, 0)
 	answer, _ := area.Sweep([]string{"a", "b"}, RunEveryAction)
@@ -393,7 +393,7 @@ func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
 
 // VALIDATES: AC-9 -- an action that names the whole area runs on its own, so a
 // line naming it beside another verb is refused and nothing runs.
-// PREVENTS: `le functional gating encode` running the 24 gating suites and then
+// PREVENTS: `le test functional gating encode` running the 24 gating suites and then
 // one more, where the same two words refused before the three run-list verbs
 // became rows of the table. Two words of typing are not an instruction to start
 // hours of work on a shared machine.
@@ -486,7 +486,7 @@ func (u unterminatedAnswer) Text() string { return u.line }
 // area invoked with no pipe operator.
 //
 // It exists because a native action holds its cause in SweepRow.Answer and
-// streams nothing: `./le functional exabgp-test` answered 127 with "Failed:
+// streams nothing: `./le test functional exabgp-test` answered 127 with "Failed:
 // exabgp-test" and no reason, while the report named the child that could not
 // start (plan/journal/failing-gate-prints-no-cause.md).
 func TestSweepTextNamesTheCauseAFailingReportHolds(t *testing.T) {
@@ -664,7 +664,7 @@ func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
 		t.Fatalf("a help word reached the handler with %#v", got)
 	}
 
-	want := "usage: le qemu run command <command> [timeout <duration>]" +
+	want := "usage: le test qemu run command <command> [timeout <duration>]" +
 		" [share <path>]... [keep-alive] [| json | yaml | table]\n" +
 		"  boot a guest\n"
 	if page != want {
@@ -800,7 +800,7 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 	if got != nil {
 		t.Errorf("a help word at a keyword position ran the action with %#v", got)
 	}
-	if !strings.HasPrefix(page, "usage: le qemu run") {
+	if !strings.HasPrefix(page, "usage: le test qemu run") {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
@@ -836,7 +836,7 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 		if got != nil {
 			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
 		}
-		if !strings.HasPrefix(page, "usage: le qemu run") {
+		if !strings.HasPrefix(page, "usage: le test qemu run") {
 			t.Errorf("%s in a value slot printed %q", flag, page)
 		}
 	}
@@ -847,7 +847,7 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 // the option, and answers 2, the code every other keyword mistake answers. The
 // bare word `help` in the same slot is still the value the operator typed,
 // because it carries no dash.
-// PREVENTS: `le source-rewrite replace file <path> old beta new --help apply`
+// PREVENTS: `le repo rewrite replace file <path> old beta new --help apply`
 // writing the text `--help` into a file. The trailing-position rule read the
 // last word only, so an option one slot earlier stayed data. No le action takes
 // a value that begins with a dash (ai/rules/cli.md).

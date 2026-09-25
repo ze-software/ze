@@ -380,7 +380,7 @@ func TestFindNode(t *testing.T) {
 // This test used to pin the opposite property. It said the row was unchanged
 // whether or not a description carried an authored `Usage:` sentence, BECAUSE
 // the listing stopped at the first sentence. That cut is deleted, so an
-// authored sentence now reaches the operator's listing. `./le docvalid
+// authored sentence now reaches the operator's listing. `./le doc yang-contract
 // usage-contract` keeps one out of a description. This test is why that gate
 // has to exist, because nothing downstream hides one any more. The usage line
 // itself is generated from the command model (usage.go).

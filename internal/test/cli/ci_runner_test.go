@@ -23,10 +23,10 @@ func TestCISubcommandPrintsHeaderAndTopLevelRerunHints(t *testing.T) {
 		t.Fatalf("missing suite header:\n%s", display.String())
 	}
 
-	if got := runner.FormatRerunCommand("ui", []string{"7"}); got != "ze-test ui 7" {
+	if got := runner.FormatRerunCommand("ui", []string{"7"}); got != "le-test ui 7" {
 		t.Fatalf("wrong top-level rerun hint: %s", got)
 	}
-	if got := runner.FormatRerunCommand("plugin", []string{"7"}); got != "ze-test bgp plugin 7" {
+	if got := runner.FormatRerunCommand("plugin", []string{"7"}); got != "le-test bgp plugin 7" {
 		t.Fatalf("wrong BGP rerun hint: %s", got)
 	}
 }

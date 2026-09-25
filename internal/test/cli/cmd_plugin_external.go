@@ -31,7 +31,7 @@ import (
 // depending on the engine's own plugin registry being linked in.
 func cmdPluginExternal(args []string) int {
 	if len(args) != 1 {
-		slog.Error("plugin-external: usage: ze-test plugin-external <registered-plugin-name>")
+		slog.Error("plugin-external: usage: le-test plugin-external <registered-plugin-name>")
 		return 1
 	}
 	name := args[0]

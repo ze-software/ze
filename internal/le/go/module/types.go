@@ -113,7 +113,7 @@ func (r *MoveReport) Text() string {
 			out.Str("generated registration set preserved (0 dropped).\n")
 		}
 		if r.Code == 0 {
-			out.Str("next: le tier check\n")
+			out.Str("next: le arch tier check\n")
 		} else {
 			fmt.Fprintf(&out, "FAILED after mutation (code %d).\n", r.Code)
 		}

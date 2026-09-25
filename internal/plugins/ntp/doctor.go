@@ -35,7 +35,7 @@ import (
 // The codes the checks emit. internal/core/diagnostic/codes.go declares each
 // one, so `ze explain <code>` answers. Each is its own declaration: one code
 // is one fact, and a block of them reads as a second list of the code
-// registry (./le enumeration check).
+// registry (./le arch enumeration check).
 
 // codeClockNoSync names a disabled client on a platform ze keeps the clock on.
 const codeClockNoSync = "doctor-clock-no-sync"

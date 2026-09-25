@@ -86,7 +86,7 @@ func parseClosureAction(args []string) (closureAction, string) {
 
 func reportMalformedJournals(paths []string) {
 	for _, path := range paths {
-		fmt.Fprintf(os.Stderr, "warning: malformed journal row in %s (run `./le journal report`)\n", path) //nolint:errcheck // CLI output
+		fmt.Fprintf(os.Stderr, "warning: malformed journal row in %s (run `./le spec journal report`)\n", path) //nolint:errcheck // CLI output
 	}
 }
 

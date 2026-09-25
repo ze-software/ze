@@ -21,12 +21,47 @@ import (
 
 // retiredDeclarations are the files that declare the rename map, the sweep and
 // their tests. They name every old form by necessity, so they are not callers.
+// Every `internal/le/leroot/retired*.go` file is one too, listed or not: that
+// is the alias and its tests, which Phase 3 deletes with the map.
 var retiredDeclarations = [...]string{
 	"internal/le/leroot/retired.go",
 	"internal/le/leroot/retired_test.go",
 	"internal/le/leroot/retired_dispatch_test.go",
 	"internal/le/doc/check/retired.go",
 	"internal/le/doc/check/retired_test.go",
+}
+
+// retiredAliasPrefix is the path prefix of the alias implementation and its
+// tests in leroot.
+const retiredAliasPrefix = "internal/le/leroot/retired"
+
+// retiredRecord is one path the sweep skips because it records history: what
+// a command was called on the day the record was written (owner decision,
+// 2026-09-24). A path that ends in a slash is a directory and takes every file
+// under it.
+type retiredRecord struct {
+	path string
+	why  string
+}
+
+// retiredRecords are the historical records AC-16 declares. A record states
+// what happened under the names of its day, so a rewrite would falsify it.
+var retiredRecords = [...]retiredRecord{
+	{path: "plan/journal/", why: "defect rows record the command a session ran when it met the defect"},
+	{path: "plan/verification-debt/", why: "debt entries record the command that was not run"},
+	{path: "plan/learned/", why: "closed-spec summaries record the commands of their day"},
+	{path: "plan/handover/", why: "handovers are frozen session state"},
+	{path: "plan/audits/", why: "audits record the commands they ran"},
+	{path: "test/weakened/", why: "weakening records quote the commit and the command they judged"},
+	{path: "website/blog/", why: "published posts are the owner's authored prose"},
+	{path: "website/changes/posts/", why: "published change posts are the owner's authored prose"},
+	{path: "website/changes/discord/2026-08-03-weekly.md", why: "a published weekly update"},
+	{path: "website/talks/", why: "published talks record the commands of their day"},
+	{path: "plan/known-failures/RESOLVED.md", why: "resolved failures record the command that failed"},
+	{
+		path: "plan/spec-le-subject-first-command-tree.md",
+		why:  "the spec of this rename names every old form in order to retire it",
+	},
 }
 
 // retiredException is one declared use of an old spelling that names
@@ -40,6 +75,10 @@ type retiredException struct {
 // retiredExceptions are the declared exceptions of AC-16. Each names the file
 // and the old spelling it may keep, and why the spelling is not the retired
 // name.
+// discordChannelWhy is the reason shared by the files that name the Discord
+// channel.
+const discordChannelWhy = "the Discord channel named ze-test, not the harness binary"
+
 var retiredExceptions = [...]retiredException{
 	{
 		file: "internal/le/weekly/answer.go",
@@ -56,15 +95,92 @@ var retiredExceptions = [...]retiredException{
 		old:  "ze_test",
 		why:  "the nftables table named ze_test, not the build tag",
 	},
+	{
+		file: "internal/component/bgp/reactor/filter_flowspec.go",
+		old:  "le rules",
+		why:  "the FlowSpec prefix operators ge/le, not the le command",
+	},
+	{
+		file: "ai/skills/ze-weekly-update.md",
+		old:  "ze-test",
+		why:  discordChannelWhy,
+	},
+	{
+		file: ".claude/memory/reference_discord_bot.md",
+		old:  "ze-test",
+		why:  discordChannelWhy,
+	},
+	{
+		file: "website/changes/discord/STYLE.md",
+		old:  "ze-test",
+		why:  discordChannelWhy,
+	},
+	{
+		file: "ai/skills/ze-test.md",
+		old:  "ze-test",
+		why:  "the skill named ze-test, not the harness binary",
+	},
+}
+
+// retiredWord is one spelling that contains a retired name and names something
+// else wherever it appears. The sweep blanks it out of a line before matching.
+type retiredWord struct {
+	match *regexp.Regexp
+	why   string
+}
+
+// retiredWords are the declared spellings of AC-16 that are not file-bound.
+var retiredWords = [...]retiredWord{
+	{
+		match: regexp.MustCompile(`(^|[\s` + "`" + `'"(])/ze-test(?:$|[^A-Za-z0-9_-])`),
+		why:   "the /ze-test skill, not the harness binary",
+	},
+	{
+		match: regexp.MustCompile(`ze-test-client(?:$|[^A-Za-z0-9_-])`),
+		why:   "the EAP identity ze-test-client, not the harness binary",
+	},
+	{
+		match: regexp.MustCompile(`ze-test-all(?:$|[^A-Za-z0-9_-])`),
+		why:   "the retired make target ze-test-all, not the harness binary",
+	},
+}
+
+// retiredMasked answers the line with every declared word blanked out, byte
+// for byte, so a pattern cannot match inside one.
+func retiredMasked(line string) string {
+	for _, word := range retiredWords {
+		line = word.match.ReplaceAllStringFunc(line, func(found string) string {
+			return strings.Repeat(" ", len(found))
+		})
+	}
+	return line
 }
 
 // retiredExcluded reports whether a tracked file is outside the sweep: the
-// vendored tree, which Ze does not write, and the declarations themselves.
+// vendored tree, which Ze does not write, the declarations themselves, and the
+// historical records.
 func retiredExcluded(rel string) bool {
 	if strings.HasPrefix(rel, "vendor/") {
 		return true
 	}
-	return slices.Contains(retiredDeclarations[:], rel)
+	if slices.Contains(retiredDeclarations[:], rel) {
+		return true
+	}
+	if strings.HasPrefix(rel, retiredAliasPrefix) && strings.HasSuffix(rel, ".go") {
+		return true
+	}
+	for _, record := range retiredRecords {
+		if strings.HasSuffix(record.path, "/") {
+			if strings.HasPrefix(rel, record.path) {
+				return true
+			}
+			continue
+		}
+		if rel == record.path {
+			return true
+		}
+	}
+	return false
 }
 
 // retiredExempt reports whether one old spelling is declared legitimate in one
@@ -173,6 +289,10 @@ func namePattern(retired leroot.Retirement) retiredPattern {
 			tb.Str(edgeAfterName)
 		}
 	case leroot.RetiredProgram:
+		if retired.ProgramPositionOnly {
+			programPosition(&tb, regexp.QuoteMeta(retired.Old))
+			break
+		}
 		// A program name continues into its file names, `ze-test-linux-amd64`
 		// among them, so only a letter or digit ends the match.
 		tb.Str(edgeBefore).Str(regexp.QuoteMeta(retired.Old)).Str(edgeAfterIdent)
@@ -186,6 +306,45 @@ func namePattern(retired leroot.Retirement) retiredPattern {
 		needle:      normalizeRetired(retired.Old),
 		match:       regexp.MustCompile(tb.String()),
 	}
+}
+
+// programPosition writes the expression for a program name that is matched
+// only where it is a program:
+//
+//   - run as the first word of a command: at the line start, after a shell
+//     separator, after `$(` or a backtick, or as a `.ci` `exec=` value, with
+//     any path before it;
+//   - the first word of a quoted command string followed by an argument, as a
+//     plugin `run "<name> fixture ..."` or a usage line carries it;
+//   - a Go argv element followed by another literal argv element, as
+//     `"<name>", "peer"` is passed to a process starter;
+//   - built as `cmd/<name>`, shipped as `bin/<name>` or `<name>-linux-<arch>`,
+//     or copied or run by a Dockerfile line;
+//   - named in prose as the program: `<name>` followed by binary, harness,
+//     personality, executable or runner.
+//
+// The same word as a whole string literal, a hostname in a config string, a
+// NAS id or a module name is not the program. The variables the program reads
+// are rows of their own.
+func programPosition(tb *textbuf.Buffer, name string) {
+	const (
+		command = `(?:^[ \t]*(?:\$[ \t]+)?|[;|&(` + "`" + `][ \t]*|\$\([ \t]*|exec=)`
+		path    = `(?:[^\s"'` + "`" + `;|&()]*/)?`
+		argvEnd = `(?:$|[ \t"'` + "`" + `)])`
+		quoted  = `["'][ \t]*`
+		argWord = `[ \t]+[A-Za-z]`
+		argvGo  = `",[ \t]*"`
+		shipped = "(?:cmd|bin)/"
+		docker  = `(?:^[ \t]*(?:COPY|RUN|ADD)[ \t](?:.*[^A-Za-z0-9_.-])?)`
+		prose   = `[ \t]+(?:binary|binaries|harness|personality|executable|runner)\b`
+	)
+	tb.Str(command).Str(path).Str(name).Str(argvEnd).
+		Byte('|').Str(quoted).Str(path).Str(name).Str(argWord).
+		Byte('|').Byte('"').Str(name).Str(argvGo).
+		Byte('|').Str(edgeBefore).Str(shipped).Str(name).Str(edgeAfterIdent).
+		Byte('|').Str(edgeBefore).Str(name).Str("-linux-").
+		Byte('|').Str(docker).Str(name).Str(edgeAfterIdent).
+		Byte('|').Str(edgeBefore).Str(name).Str(prose)
 }
 
 // retiredPatterns compiles the whole rename map, commands first, in the order
@@ -295,7 +454,7 @@ func sweepRetired(root string) (RetiredReport, error) {
 				if !strings.Contains(folded, pattern.needle) {
 					continue
 				}
-				if !pattern.match.MatchString(line) {
+				if !pattern.match.MatchString(retiredMasked(line)) {
 					continue
 				}
 				if retiredExempt(rel, pattern.old) {

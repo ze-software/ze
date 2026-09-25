@@ -80,7 +80,7 @@ func TestNeedsLinuxNetAdminSkipsWithoutCapability(t *testing.T) {
 	if r.SkipReason == "" {
 		t.Fatal("caps=net-admin ran without CAP_NET_ADMIN: the test will hang instead of skipping")
 	}
-	if !strings.Contains(r.SkipReason, "./le qemu all-tests") {
+	if !strings.Contains(r.SkipReason, "./le test qemu all-tests") {
 		t.Fatalf("skip reason %q does not name the runner that can run this test", r.SkipReason)
 	}
 }
@@ -177,7 +177,7 @@ func TestBPFTokenIsCapBPFOnly(t *testing.T) {
 // PREVENTS: two failures with one shape. Declaring `caps=net-admin` on a test
 // whose only privileged act is binding port 53 would skip a host that can bind
 // it and cannot program nftables, deleting coverage; checking no bit at all
-// would let the test run unprivileged, where `ze-test dns` fails to bind and
+// would let the test run unprivileged, where `le-test dns` fails to bind and
 // the daemon's lookups time out against nothing.
 func TestCapsNetBindGateBothPolarities(t *testing.T) {
 	bits := capsRequired[capsNetBind]

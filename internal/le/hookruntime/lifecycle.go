@@ -224,7 +224,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 	// this, and put a number here only when you have:
 	//
 	//	dir=$(./le session scratch ensure)
-	//	echo '{}' | time ./le hook-check session-start > "$dir/session-start.log" 2>&1
+	//	echo '{}' | time ./le ai hooks session-start > "$dir/session-start.log" 2>&1
 	//
 	// What the bound costs is a STATED limitation rather than a hidden one: a
 	// write no Write or Edit hook sees (`sed -i`, a heredoc, `git rebase`, `git

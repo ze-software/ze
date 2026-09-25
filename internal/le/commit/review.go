@@ -181,7 +181,7 @@ func oneStem(stems map[string]bool) (string, error) {
 //
 // The artifact's name comes from the package that WRITES it. Building it here
 // gave this gate a second opinion about which session id names the file, and it
-// was the wrong one: `le spec session review record` writes under the harness
+// was the wrong one: `le spec review record` writes under the harness
 // session, this read asked for the eight-hex commit namespace, and no closure
 // could satisfy the gate (spec.ReviewArtifactPath).
 func CheckReview(root, stem string, paths []string) ReviewResult {

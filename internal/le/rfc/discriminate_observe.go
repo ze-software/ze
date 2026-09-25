@@ -29,8 +29,8 @@ import (
 //
 // One runner per carrier kind, and each one is the carrier's OWN runner: the
 // unit kind is `go test` over the tagged function, the functional kind is the
-// suite `./le functional` runs, and the interop kind is the scenario
-// `./le integration` runs. Nothing here re-implements a runner the repository
+// suite `./le test functional` runs, and the interop kind is the scenario
+// `./le test integration` runs. Nothing here re-implements a runner the repository
 // already has.
 type observationRunner struct {
 	tree      string
@@ -449,7 +449,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // runFunctional runs ONE `.ci`, not the suite that holds it.
 //
 // The suite is the wrong unit twice over. It is slow, and it is hostage to
-// every other test in it: `./le functional parse` was already red in this
+// every other test in it: `./le test functional parse` was already red in this
 // checkout from another session's work, so a suite-wide run could never
 // attribute a red to this one carrier. testfunctional.Prepare builds the isolated
 // set the suite runner builds, and ze-test takes one test's name in place of
@@ -464,7 +464,7 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 	suite, selector, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
 	if !held {
 		return false, "", parseErr(tb.Str(o.carrier.Name).
-			Str(" names no suite `./le functional` runs, so this .ci has no runner"))
+			Str(" names no suite `./le test functional` runs, so this .ci has no runner"))
 	}
 	label := "discrimination-clean"
 	if overlay != "" {

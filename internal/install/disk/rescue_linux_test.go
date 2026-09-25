@@ -11,7 +11,7 @@
 //
 // Note this file is guarded by `ze_installer`, a build tag no plain `go test`
 // supplies. The native installer-tag unit pass runs it through
-// `./le functional install-test`; before that coverage existed, every test here
+// `./le test functional install-test`; before that coverage existed, every test here
 // was inert. See the tag-orphan list in test/health/latest.json.
 
 //go:build linux && ze_installer

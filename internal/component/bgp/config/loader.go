@@ -110,7 +110,7 @@ func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cli
 }
 
 // LoadReactorWithPluginsStandalone is LoadReactorWithPlugins for callers that own
-// the reactor lifecycle and self-host the plugin server (the ze-chaos in-process
+// the reactor lifecycle and self-host the plugin server (the le chaos run in-process
 // simulation). The reactor creates its own server, signal handler, and starts
 // peers inline instead of borrowing a hub-owned server.
 func LoadReactorWithPluginsStandalone(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {

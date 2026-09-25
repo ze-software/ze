@@ -105,7 +105,7 @@ func handleRIRRefresh(cc *pluginserver.CommandContext, args []string) (*plugin.R
 	}
 
 	// The fetch also answers how many records the five files yielded before the
-	// collapse. That number sizes a GENERATION run, and `./le iana-asn write`
+	// collapse. That number sizes a GENERATION run, and `./le data asn-delegation write`
 	// publishes it for a developer refreshing the shipped seed. What an
 	// operator asks of a refresh is what the table now holds, which is the
 	// range count below.

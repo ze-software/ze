@@ -6,7 +6,7 @@
 // a real editor (full YANG schema load + parse), so the storm is too heavy for
 // the pre-commit gate. Run it with:
 //
-//	./le integration stress-web
+//	./le test integration stress-web
 package web
 
 import (

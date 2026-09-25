@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/harnessbin"
 	"github.com/ze-software/ze/internal/test/peer"
 	"github.com/ze-software/ze/internal/test/runner"
@@ -37,7 +38,7 @@ const (
 // packageZe is the Go package every binary this runner builds comes from.
 const packageZe = "./cmd/ze"
 
-// bgpCIRunnerDirs is the set of "ze-test bgp <sub>" subcommands. Each name is
+// bgpCIRunnerDirs is the set of "le-test bgp <sub>" subcommands. Each name is
 // also the test/<name> directory that subcommand walks (see zeTestRunEncodingOrAPI
 // and zeTestRunSimpleTests), so it is the single source of truth for both argument
 // validation (the `if !bgpCIRunnerDirs[command]` gate below) and the orphaned-suite
@@ -279,27 +280,24 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	}
 	defer r.Cleanup()
 
-	// ze-chaos drives an in-process BGP reactor, so it must also set ze_bgp.
-	// The ze_chaos tag alone does not add ZE_FEATURES. Without ze_bgp, the BGP
-	// YANG modules are not linked.
-	//
-	// The binary still BUILDS. It then stops at startup with "resolve YANG
-	// modules: no such module: ze-bgp-conf". Every chaos-web and
-	// chaos-integration test then fails on a refused connection, and no client
-	// output explains it.
-	//
-	// zeTestBuildChaos carries the same pair for the same reason. These two
-	// native Go build paths must not drift apart.
-	const chaosTags = "ze_chaos ze_bgp"
+	// The chaos suites exec `le chaos run`, so they need the le personality in
+	// the runner's temp dir. The build carries every feature gate, as ./le's
+	// own build does (repofeaturetags.DaemonBuildTags). Without ze_bgp the BGP
+	// YANG modules are not linked, and `--in-process` then stops at startup
+	// with "resolve YANG modules: no such module: ze-bgp-conf": every
+	// chaos-web and chaos-integration test fails on a refused connection, and
+	// no client output explains it.
 	switch cli.command {
-	case cmdChaosWeb:
+	case cmdChaosWeb, cmdChaosIntg:
+		leTags, err := repofeaturetags.DaemonBuildTags(baseDir, repofeaturetags.LEBase)
+		if err != nil {
+			return fmt.Errorf("le build tags: %w", err)
+		}
+		// The daemon `le chaos run` forks is the runner's own ze, reached as
+		// `ze` on the child PATH (Runner.setupBinShims). A second, untagged ze
+		// here would carry no ze_core and answer `ze -` with "unknown command".
 		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: packageZe, Tags: chaosTags},
-		})
-	case cmdChaosIntg:
-		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: packageZe, Tags: chaosTags},
-			"ze":       {Pkg: packageZe},
+			"le": {Pkg: packageZe, Tags: leTags},
 		})
 	}
 
@@ -418,7 +416,7 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // terminal output
 	fmt.Fprintf(os.Stdout, "Waiting for client connection...\n")                                         //nolint:errcheck // terminal output
 	fmt.Fprintf(os.Stdout, "\nRun client in another terminal:\n")                                        //nolint:errcheck // terminal output
-	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port) //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "   le-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port) //nolint:errcheck // terminal output
 
 	p, err := peer.New(config)
 	if err != nil {
@@ -472,7 +470,7 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // output
 	fmt.Fprintf(os.Stdout, "Starting ze bgp client...\n")                                                //nolint:errcheck // output
 	fmt.Fprintf(os.Stdout, "\nServer should be running. If not:\n")                                      //nolint:errcheck // output
-	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port) //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "   le-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port) //nolint:errcheck // output
 
 	zeDir := filepath.Dir(zePath)
 	existingPath := os.Getenv("PATH")
@@ -616,7 +614,7 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 }
 
 func zeTestPrintRunUsage() {
-	_, _ = os.Stderr.WriteString(`Usage: ze-test bgp <type> [options] [tests...]
+	_, _ = os.Stderr.WriteString(`Usage: le-test bgp <type> [options] [tests...]
 
 Types:
   encode    Run encode tests (static routes)
@@ -647,13 +645,13 @@ Debugging:
   --client ID         Run client only for test
 
 Examples:
-  ze-test bgp encode -l
-  ze-test bgp encode -a
-  ze-test bgp encode 1 2 3
-  ze-test bgp encode --start 42
-  ze-test bgp plugin -a -q
-  ze-test bgp decode -a
-  ze-test bgp parse -a
-  ze-test bgp encode -c 10 1 2    # stress test: run tests 1,2 ten times
+  le-test bgp encode -l
+  le-test bgp encode -a
+  le-test bgp encode 1 2 3
+  le-test bgp encode --start 42
+  le-test bgp plugin -a -q
+  le-test bgp decode -a
+  le-test bgp parse -a
+  le-test bgp encode -c 10 1 2    # stress test: run tests 1,2 ten times
 `)
 }

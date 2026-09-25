@@ -130,14 +130,14 @@ func sharedBinDir(baseDir string) string {
 //
 // Session scoping exists to stop one session's BUILD overwriting another's
 // binary. Reading a binary someone already built clobbers nothing, so a
-// ZE_TEST_NO_BUILD lookup falls back to the shared bin/ -- otherwise a perfectly
+// LE_TEST_NO_BUILD lookup falls back to the shared bin/ -- otherwise a perfectly
 // good cross-compiled or make-built binary at <baseDir>/bin/ze would be reported
 // missing.
 //
 // It resolves a DIRECTORY rather than each binary independently, because .ci
 // tests exec `ze` and `ze-stripped` by BARE NAME and the runner puts one
 // directory on their PATH (runner_exec.go). Resolving ze from one directory and
-// ze-test from another would satisfy both stat calls and still leave a test
+// le-test from another would satisfy both stat calls and still leave a test
 // exec'ing a sibling binary that is not there.
 func FindPrebuiltDir(baseDir string, names ...string) string {
 	// No names means nothing was asked for, so no directory can satisfy it.

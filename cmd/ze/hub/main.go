@@ -222,7 +222,7 @@ func clearStaleCandidateOnBoot(store storage.Storage, configPath string) error {
 // or EOF. Returns the config data and whether stdin remains open (NUL found).
 //
 // When stdin remains open, the caller can monitor it for EOF to detect
-// upstream process exit — e.g., in a pipeline like "ze-chaos | ze -",
+// upstream process exit — e.g., in a pipeline like "le chaos run | ze -",
 // when the chaos tool exits, stdin closes, and Ze initiates clean shutdown.
 //
 // When no NUL is found (plain "cat config.conf | ze -"), reading stops at

@@ -9,7 +9,7 @@
 // is the flag-equivalent of a SLAAC/RA-assigned address -- IFA_F_PERMANENT is
 // clear -- so it drives the same `origin=slaac` classification without needing
 // a Router Advertisement daemon. A plain (permanent) address must classify
-// `static`. Run under `./le integration iface`.
+// `static`. Run under `./le test integration iface`.
 
 package iface
 

@@ -148,7 +148,7 @@ type Node struct {
 	// statement. Only the help
 	// page for this one command reads it, and it holds the newlines its author
 	// wrote. Empty means nobody has written an explanation for this command. The
-	// help page then prints the summary alone, and `le docvalid help-shape`
+	// help page then prints the summary alone, and `le doc yang-contract help-shape`
 	// refuses the empty text on a node the commit under test added or changed
 	// (plan/spec-command-help-and-description.md, AC-1).
 	Description  string

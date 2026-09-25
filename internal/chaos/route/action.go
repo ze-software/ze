@@ -1,7 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md — route action scheduling
 //
 // Package route implements route dynamics scheduling and action types
-// for the ze-chaos testing tool. Route dynamics represent normal internet
+// for the le chaos run testing tool. Route dynamics represent normal internet
 // behavior (churn, withdrawals) as opposed to chaos (session disruption).
 package route
 

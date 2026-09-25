@@ -202,7 +202,7 @@ func TestInitialSyncEORAlsoCountsAsAnUpdateSent(t *testing.T) {
 // VALIDATES: the End-of-RIB family set is asserted from production code, never
 // simulated inside the test that names it.
 // PREVENTS: the reason those tests survived for so long: they DO assert, so the
-// assert-nothing detector (`./le test-sensitivity check`) never saw them, and
+// assert-nothing detector (`./le test sensitivity check`) never saw them, and
 // their names read as coverage of RFC 4724.
 //
 // Two limitations, stated rather than hidden. It greps ONE identifier, so the same

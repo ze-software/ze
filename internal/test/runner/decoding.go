@@ -167,7 +167,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*decodingTest, error) {
 // New format:
 //
 //	stdin=payload:hex=<hex-payload>
-//	cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
+//	cmd=foreground:seq=1:exec=le-test decode --family <family> -:stdin=payload
 //	expect=json:json=<expected-json>
 //
 // Legacy format (still supported):
@@ -299,7 +299,7 @@ type decodeCmdResult struct {
 }
 
 // parseDecodeCmdLine extracts type, family, hex payload, json flag, and plugins from a cmd= line.
-// Format: cmd=foreground:seq=1:exec=ze-test decode [--json] [--plugin <name>] --open -:stdin=payload.
+// Format: cmd=foreground:seq=1:exec=le-test decode [--json] [--plugin <name>] --open -:stdin=payload.
 func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) decodeCmdResult {
 	result := decodeCmdResult{msgType: msgTypeUpdate}
 
@@ -322,7 +322,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) decodeCmd
 		return result
 	}
 
-	// Parse exec command: ze-test decode [--json] [--plugin <name>] [--family <family>] [--open|--update] [--nlri <family>] -
+	// Parse exec command: le-test decode [--json] [--plugin <name>] [--family <family>] [--open|--update] [--nlri <family>] -
 	args := strings.Fields(execPart)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]

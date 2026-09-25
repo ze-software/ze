@@ -29,14 +29,14 @@ func runRecord(args []string) int {
 	return recordDispatcher.Dispatch(args)
 }
 
-const recordBMPUsage = `ze-analyze record bmp -- accept BMP connections, write MRT files
+const recordBMPUsage = `le mrt record bmp -- accept BMP connections, write MRT files
 
 Listens for incoming BMP (RFC 7854) connections and writes received BGP
 messages as BGP4MP MRT records. Useful for recording traffic from routers
 that speak BMP for later replay or analysis.
 
 Usage:
-  ze-analyze record bmp [options] <output.mrt>
+  le mrt record bmp [options] <output.mrt>
 
 Options:
   --listen <addr:port>  Listen address (default: :4321)

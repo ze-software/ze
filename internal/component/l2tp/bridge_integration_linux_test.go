@@ -8,7 +8,7 @@
 // authored + compiled (`go test -tags 'integration linux' -run xxx -count=0
 // ./internal/component/l2tp/`) and gated with t.Skipf so it no-ops without
 // the capability. Runbook to run it on a capable host:
-//   ./le deployment gokrazy-l2tp-ppp-test
+//   ./le test deployment gokrazy-l2tp-ppp-test
 // (or include ./internal/component/l2tp/... in a direct integration-tagged run).
 
 package l2tp
@@ -36,7 +36,7 @@ func openPPPChannel(t *testing.T) int {
 // real kernel: it opens a /dev/ppp channel fd and issues PPPIOCUNBRIDGECHAN
 // (idempotent when no bridge exists on a fresh channel). Establishing a full
 // PPPoE<->pppol2tp bridge requires two connected pppox sockets; that end-to-end
-// path is driven by `./le deployment gokrazy-l2tp-ppp-test`.
+// path is driven by `./le test deployment gokrazy-l2tp-ppp-test`.
 //
 // VALIDATES (on a capable host): the PPPIOCBRIDGECHAN/PPPIOCGCHAN constants
 // are the correct arch values and the ioctl wrappers reach the kernel.

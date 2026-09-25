@@ -35,7 +35,7 @@ import (
 // symlink resolves to "net:[<inode>]"); `cat` cannot read the nsfs symlink
 // target. Requires CAP_SYS_ADMIN to create the namespace -- skipped otherwise,
 // so it self-skips on an unprivileged host and is exercised for real in QEMU
-// (./le qemu all-tests) where the runner is root.
+// (./le test qemu all-tests) where the runner is root.
 func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 	// The host reference must be captured before any thread switches namespace.
 	// /proc/self/ns/net reflects the caller's netns; at this point nothing has
@@ -117,7 +117,7 @@ func TestNetnsLaunchChildInheritsNamespace(t *testing.T) {
 // The test enters a fresh netns, provisions eth1/10.0.0.2/24, then performs the
 // exact operation that was failing -- adding a default route via 10.0.0.1 -- and
 // asserts it succeeds. Requires CAP_SYS_ADMIN + CAP_NET_ADMIN; self-skips on an
-// unprivileged host and runs for real in QEMU (./le qemu all-tests).
+// unprivileged host and runs for real in QEMU (./le test qemu all-tests).
 func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
 	restore, _, err := enterTestNetns("ze-provision-link")
 	if err != nil {

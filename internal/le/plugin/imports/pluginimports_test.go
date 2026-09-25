@@ -146,7 +146,7 @@ func TestGeneratedAllGoIsByteExact(t *testing.T) {
 		"// triggering their init() registration.\n" +
 		"//\n" +
 		"// To add a plugin, create internal/component/bgp/plugins/<name>/register.go with an init()\n" +
-		"// that calls registry.Register(). Then run: ./le repository generate\n" +
+		"// that calls registry.Register(). Then run: ./le repo generate\n" +
 		"package all\n\n" +
 		"import (\n" +
 		"\t// Infrastructure schema packages — YANG module registration.\n" +

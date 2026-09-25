@@ -33,7 +33,7 @@ func mpUnreachAttr(afi uint16, safi uint8, nlri []byte) mrt.PathAttribute {
 }
 
 func TestMPReachCount_IPv6Announcements(t *testing.T) {
-	// VALIDATES: `ze-analyze show` counts prefixes announced via MP_REACH_NLRI.
+	// VALIDATES: `le mrt show` counts prefixes announced via MP_REACH_NLRI.
 	// PREVENTS: an IPv6 UPDATE rendering with no announce count at all, because
 	// the UPDATE's own NLRI field is IPv4-only (RFC 4271 Section 4.3).
 	nh := netip.MustParseAddr("2001:db8::1").As16()
@@ -48,7 +48,7 @@ func TestMPReachCount_IPv6Announcements(t *testing.T) {
 }
 
 func TestMPUnreachCount_IPv6Withdrawals(t *testing.T) {
-	// VALIDATES: `ze-analyze show` counts prefixes withdrawn via MP_UNREACH_NLRI.
+	// VALIDATES: `le mrt show` counts prefixes withdrawn via MP_UNREACH_NLRI.
 	// PREVENTS: an IPv6 withdrawal rendering as W=0, indistinguishable from a
 	// record that withdraws nothing.
 	nlri := []byte{32, 0x20, 0x01, 0x0d, 0xb8}

@@ -21,11 +21,15 @@ const (
 	postWriteEditRowsExpected = 24
 )
 
+// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md, Phase 2:
+// the bash fixtures name the subject-first commands (`ai rules index-update`,
+// `ai hooks unit`, `spec wip`, `test unit`, `repo changed`, `test qemu`). Same
+// rows, same expected codes.
 var parityCatalogDigest = [sha256.Size]byte{
-	0x31, 0x2c, 0x57, 0xe8, 0xaf, 0xce, 0xa9, 0xbf,
-	0x8d, 0x3e, 0xb4, 0x5f, 0x59, 0x82, 0x47, 0xaa,
-	0x21, 0xc8, 0x2c, 0x20, 0x88, 0xe6, 0x9d, 0x96,
-	0x0a, 0xfd, 0x9c, 0xf6, 0x69, 0x4b, 0xb2, 0x3c,
+	0x51, 0x7b, 0x31, 0x6f, 0x2c, 0xec, 0x15, 0x64,
+	0x00, 0xab, 0x0f, 0x75, 0x6e, 0x67, 0x12, 0xc3,
+	0xc2, 0xd3, 0xea, 0x75, 0x97, 0x90, 0xcc, 0xce,
+	0x59, 0x82, 0x6e, 0x01, 0x5b, 0x14, 0xaf, 0x0e,
 }
 
 var (
@@ -33,7 +37,7 @@ var (
 		`(?s)(?:^|[;&\n])\s*(?:timeout\s+(?:-k\s+\S+\s+)?\S+\s+|nice\s+-n\s+\S+\s+)?` +
 			`(?:go\s+test\b|(?:\./)?le\s+verify(?:\s|$)|` +
 			`(?:(?:\./)?bin/ze-test|(?:/\S*/)?tmp/session/[0-9]{4}-[0-9]{2}-[0-9]{2}-[^/\s]+/bin/ze-test)\b|` +
-			`(?:(?:\./)?bin/ze|ze)\s+le\s+hook-check\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
+			`(?:(?:\./)?bin/ze|ze)\s+le\s+(?:hook-check|ai\s+hooks)\s+unit\b)[^;&\n]*?(?:\||\|&)\s*(?:head|tail|grep)\b`,
 	)
 	// cheapVerifyArea names the le areas that live under the `verify` word and
 	// run nothing: they read and write the verification certificate. The

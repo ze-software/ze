@@ -169,7 +169,7 @@ var legacyInteropTrees = [...]interopTree{
 	{"interop-pppoe", "test/interop-pppoe/", "test deployment/docker-pppoe-accel-test"},
 }
 
-// FunctionalSuites answers the suites `./le functional` runs.
+// FunctionalSuites answers the suites `./le test functional` runs.
 //
 // The answer comes from the functional area's read-only catalog. RFC evidence
 // classification therefore consumes the same run list as the native runner
@@ -291,12 +291,12 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// none of them. The verb runs exactly the population these rows are built
 	// from, because FunctionalSuites is testfunctional.GatingNames.
 	out = append(out, suiteCarriers(kindFunctional, ciSuffix, "ci",
-		"./le functional gating", "./le verify current mode full (functional stage", suites)...)
+		"./le test functional gating", "./le verify current mode full (functional stage", suites)...)
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.
 	out = append(out, suiteCarriers(kindEditor, etSuffix, "ci",
-		"./le functional editor", "./le verify current mode full (functional stage",
+		"./le test functional editor", "./le verify current mode full (functional stage",
 		editorSuites)...)
 	// test/exabgp-compat is not one of the run list's suites. It has its own
 	// native action and stage, so it is a declared row rather than a second
@@ -304,13 +304,13 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	out = append(out, Carrier{
 		Name: "functional-exabgp", Kind: kindFunctional, Tier: tierVerify,
 		Prefix: "test/exabgp-compat/", Suffix: ciSuffix, Reader: "ci",
-		Runner:   "./le functional exabgp-test",
+		Runner:   "./le test functional exabgp-test",
 		Pipeline: "./le verify current mode full (exabgp stage)",
 	}, Carrier{
 		Name: "functional-unrun", Kind: kindFunctional, Tier: tierUnrun, Prefix: "",
 		Suffix: ciSuffix, Reader: "ci",
 		Runner: "no native full-verifier stage walks this directory",
-		Pipeline: unrunCI.Str("no automated caller; ./le functional runs ").
+		Pipeline: unrunCI.Str("no automated caller; ./le test functional runs ").
 			Join(suites, ", ").String(),
 	}, Carrier{
 		Name: "editor-unrun", Kind: kindEditor, Tier: tierUnrun, Prefix: "",

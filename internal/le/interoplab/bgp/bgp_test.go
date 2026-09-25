@@ -19,7 +19,7 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
-// VALIDATES: `./le integration interop` wires the shared staging producer, and no longer hands the image its feature tags.
+// VALIDATES: `./le test integration interop` wires the shared staging producer, and no longer hands the image its feature tags.
 // PREVENTS: an image build that compiles ze inside the container, which the kernel killed three times on an idle 31 GiB host (2026-09-06).
 func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
 	root, err := lepath.Root()
@@ -50,7 +50,7 @@ func TestBGPSuiteDeclaresAPreflightBuild(t *testing.T) {
 }
 
 // VALIDATES: the bgp lab stages BOTH personalities, the daemon and the test binary, at the paths its Dockerfile copies.
-// PREVENTS: an image with no le-test, or no ze-test link to it; ze-test is what 14 scenario ze.conf files run `ze-test interop-bgp process ...` with.
+// PREVENTS: an image with no le-test, or no le-test link to it; le-test is what 14 scenario ze.conf files run `le-test interop-bgp process ...` with.
 func TestBGPPreflightDeclaresBothPersonalities(t *testing.T) {
 	declared := LabBinaries()
 	if len(declared) != 2 {

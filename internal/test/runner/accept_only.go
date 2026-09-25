@@ -191,7 +191,7 @@ var acceptOnlyExcludedParseFiles = map[string]string{
 	// Deliberately-red tracked test (spec-fixit-redistribute-establishment-stall):
 	// its peer1/peer2 blocks declare only expect=json, which ze-peer does not
 	// consume, so validatePeerBlocks rejects it at discovery on purpose (it fails
-	// its own `ze-test bgp plugin` suite too). It carries expect=json + reject=
+	// its own `le-test bgp plugin` suite too). It carries expect=json + reject=
 	// stderr, so it is value-asserting and can never be accept-only regardless.
 	"test/plugin/forward-mpreach-nexthop-self-two-peer.ci": "deliberately-red tracked test; value-asserting (expect=json + reject=stderr), never accept-only",
 }

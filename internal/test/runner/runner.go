@@ -41,7 +41,10 @@ var (
 const (
 	binNameZe     = "ze"
 	binNameZePeer = "ze-peer"
-	binNameZeTest = "ze-test" // the harness as a .ci execs it; the file is harnessbin.Name
+	binNameLETest = harnessbin.Name // the harness as a .ci execs it
+	// binNameZeTest is the retired exec name. It still answers until the
+	// retired names are removed (plan/spec-le-subject-first-command-tree.md, Phase 3).
+	binNameZeTest = harnessbin.RetiredName
 )
 
 // TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
@@ -49,7 +52,7 @@ const TestPluginBuildTag = "zetest"
 
 // featureGatesFile is the feature-gate manifest (repo-relative): the single
 // source of truth for compile-out-able features, written by
-// `./le feature-tags write`. See ai/rules/plugins.md.
+// `./le repo feature-tags write`. See ai/rules/plugins.md.
 const featureGatesFile = "feature-gates.txt"
 
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.
@@ -71,11 +74,11 @@ func TestBuildTags() (string, error) {
 	return textbuf.Join(tags, ","), nil
 }
 
-// testHelperBuildTags returns the tags for the ze-test helper binary, using the
+// testHelperBuildTags returns the tags for the le-test helper binary, using the
 // same generated feature manifest as the daemon build.
 //
-// The feature-gate tags are NOT optional decoration here. ze-test links the
-// engine's own plugin registry so `ze-test plugin-external <name>` can run a
+// The feature-gate tags are NOT optional decoration here. le-test links the
+// engine's own plugin registry so `le-test plugin-external <name>` can run a
 // registered plugin's RunEngine over a real TLS connect-back
 // (internal/test/cli/cmd_plugin_external.go). Registration happens in each
 // plugin package's init(), which a feature gate compiles out: built with a bare
@@ -159,7 +162,7 @@ type Runner struct {
 	baseDir  string
 	tmpDir   string
 	zePath   string
-	testPath string // ze-test binary (used for peer subcommand)
+	testPath string // le-test binary (used for peer subcommand)
 	display  *Display
 	report   *Report
 	colors   *Colors
@@ -174,7 +177,7 @@ type Runner struct {
 	// binaries that should be built alongside ze and ze-test.
 	extraBinaries map[string]ExtraBinary
 
-	// binShimDir holds bare-named symlinks (ze, ze-test) to the binaries this
+	// binShimDir holds bare-named symlinks (ze, le-test) to the binaries this
 	// run actually resolved. It is what goes on a test child's PATH; see
 	// setupBinShims for why the binaries' own directory must not.
 	binShimDir string
@@ -198,7 +201,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 
 	colors := NewColors()
 	// Off-session this is <baseDir>/bin, as before. Under a session it is that
-	// session's private bin/, so a direct `ze-test` invocation (the chaos
+	// session's private bin/, so a direct `le-test` invocation (the chaos
 	// targets, ad-hoc runs, ZE_TEST_CANONICAL=1) can no longer rebuild the
 	// shared bin/ze out from under a sibling session mid-test. Build here is
 	// unlocked by design; isolation, not locking, is what makes it safe.
@@ -288,7 +291,7 @@ func (r *Runner) setupBinShims() error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create bin shim dir: %w", err)
 	}
-	for name, target := range map[string]string{binNameZe: r.zePath, binNameZeTest: r.testPath} {
+	for name, target := range map[string]string{binNameZe: r.zePath, binNameLETest: r.testPath, binNameZeTest: r.testPath} {
 		abs, err := filepath.Abs(target)
 		if err != nil {
 			return fmt.Errorf("resolve %s binary %q: %w", name, target, err)
@@ -378,18 +381,18 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build ze-test (provides peer subcommand, and plugin-external's registry)
+	// Build le-test (provides peer subcommand, and plugin-external's registry)
 	helperTags, err := testHelperBuildTags()
 	if err != nil {
 		r.display.buildStatus(false, err)
-		return fmt.Errorf("build ze-test: %w", err)
+		return fmt.Errorf("build le-test: %w", err)
 	}
 	cmd = exec.CommandContext(ctx, "go", "build", "-tags", helperTags, "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
-		return fmt.Errorf("build ze-test: %w", err)
+		return fmt.Errorf("build le-test: %w", err)
 	}
 	// Callers still exec the harness by its retired name, so a build of the
 	// default file writes that name beside it (harnessbin.LinkRetired).
@@ -442,7 +445,7 @@ func (r *Runner) verifyPrebuilt() error {
 	//
 	// Both binaries move together, to ONE directory: .ci tests exec `ze` and
 	// `ze-stripped` by bare name off the single directory this runner puts on
-	// their PATH (runner_exec.go), so resolving ze from one directory and ze-test
+	// their PATH (runner_exec.go), so resolving ze from one directory and le-test
 	// from another would pass both stat calls and still strand a test on a
 	// sibling binary that is not beside it.
 	//
@@ -513,7 +516,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	// `concurrency > 1`, and its contract is that a single selected test keeps
 	// the authored timeout so a real slowdown surfaces immediately. Once suites
 	// carry a bounded DEFAULT (DefaultSuiteConcurrency) instead of 0, the
-	// requested cap is 8/32/128 even for `ze-test <suite> <one-id>` -- so
+	// requested cap is 8/32/128 even for `le-test <suite> <one-id>` -- so
 	// storing the cap silently tripled every budget in exactly the single-test
 	// debug loop ai/rules/testing.md tells people to use.
 	r.concurrency = min(parallel, len(selected))
@@ -552,7 +555,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 
 	// -v prints what the runner RAN for every test, passing ones included. The
 	// option was carried from the command line into RunOptions and read by
-	// nothing, so `ze-test <suite> -v` over a green suite printed no more than a
+	// nothing, so `le-test <suite> -v` over a green suite printed no more than a
 	// bare run (AC-8, spec-fixit-ci-runner-cannot-test-stdin).
 	pr.SetVerbose(opts.Verbose)
 	pr.setOnVerbose(func(tests *Tests) {

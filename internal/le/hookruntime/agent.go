@@ -25,7 +25,7 @@ var skillTriggers = []skillTrigger{
 
 var (
 	skillReference = regexp.MustCompile(`/ze-[a-z0-9-]+`)
-	writesGo       = regexp.MustCompile(`(?i)\bgo\b|\.go\b|./le changed scope|gofmt|gopls`)
+	writesGo       = regexp.MustCompile(`(?i)\bgo\b|\.go\b|./le repo changed scope|gofmt|gopls`)
 	briefWork      = regexp.MustCompile(`(?i)\b(fix|implement|write|add|refactor|migrate|wire|rewrite)\b`)
 	styleGuide     = regexp.MustCompile(`(?i)docs/contributing/ze-(?:go-)?style\.md|\bze-(?:go-)?style\b`)
 )

@@ -272,7 +272,7 @@ func ensureModcacheRW() error {
 }
 
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
-// than shelling out to the ze-gok binary. gok still spawns its own
+// than shelling out to a separate gok binary. gok still spawns its own
 // `go build`/`go list` subprocesses for the target packages. runGokBuild sets
 // their target architecture and CGO-free environment before this function.
 // The subprocesses resolve modules from the repo-local gokrazy/modcache, so

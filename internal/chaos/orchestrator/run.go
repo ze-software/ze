@@ -275,7 +275,7 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 		}
 
 		if cfg.Verbose && ev.Type == peer.EventError {
-			fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
+			fmt.Fprintf(os.Stderr, "le chaos run | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
 		}
 	}
 
@@ -546,7 +546,7 @@ func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, e
 			}
 		}()
 		var mcpURLBuf textbuf.Buffer
-		mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(cfg.McpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
+		mcpURLBuf.Str("le chaos run | MCP server: http://").Str(cfg.McpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
 		cleanups = append(cleanups, func() {
 			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer shutCancel()

@@ -110,6 +110,166 @@ func TestRetiredCommandSweepFindsAnInjectedName(t *testing.T) {
 	}
 }
 
+func TestRetiredCommandSweepSkipsHistoricalRecords(t *testing.T) {
+	// VALIDATES: every declared historical record, and every leroot alias
+	// file, is skipped, while the same old name in an ordinary file beside
+	// them is still found.
+	// PREVENTS: an exclusion that is too wide hiding a live caller, and one
+	// that is too narrow making Phase 2 rewrite history.
+	const line = "./le test-unit all\n"
+	files := map[string]string{
+		"plan/spec-other.md":                  line,
+		"internal/le/leroot/retired_extra.go": line,
+	}
+	skipped := []string{"internal/le/leroot/retired_extra.go"}
+	for _, record := range retiredRecords {
+		path := record.path
+		if strings.HasSuffix(path, "/") {
+			path += "nested/record.md"
+		}
+		files[path] = line
+		skipped = append(skipped, path)
+	}
+	root := fixtureRepository(t, files)
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !retiredFound(report, "le test-unit", "plan/spec-other.md", 1) {
+		t.Errorf("plan/spec-other.md:1 is not listed; the file matched %v",
+			retiredLinesOf(report, "plan/spec-other.md"))
+	}
+	for _, path := range skipped {
+		if lines := retiredLinesOf(report, path); len(lines) != 0 {
+			t.Errorf("%s is excluded, and the report lists it at %v", path, lines)
+		}
+	}
+}
+
+func TestRetiredCommandSweepBlanksDeclaredWords(t *testing.T) {
+	// VALIDATES: a declared word that contains the harness name (the skill,
+	// the EAP identity, the old make target) is not a match, and the harness
+	// name beside it on the same line still is.
+	// PREVENTS: a declared word hiding a live caller on its line.
+	root := fixtureRepository(t, map[string]string{
+		"docs/words.md": strings.Join([]string{
+			"run /ze-test first",
+			"identity ze-test-client",
+			"make ze-test-all",
+			"run /ze-test && ze-test peer",
+		}, "\n") + "\n",
+	})
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for line := 1; line <= 3; line++ {
+		if retiredFound(report, "ze-test", "docs/words.md", line) {
+			t.Errorf("docs/words.md:%d holds only a declared word, and the report lists it", line)
+		}
+	}
+	if !retiredFound(report, "ze-test", "docs/words.md", 4) {
+		t.Errorf("docs/words.md:4 names the harness beside a declared word, and the report misses it")
+	}
+}
+
+func TestRetiredHarnessMatchesOnlyInProgramPosition(t *testing.T) {
+	// VALIDATES: the harness name is matched where it is run or shipped as a
+	// program (a command's first word, exec=, cmd/, bin/, the cross-build
+	// suffix, a Dockerfile COPY or RUN), and not where the same word is a
+	// fixture: a hostname in a config string, a NAS id, a module name.
+	// PREVENTS: some 300 fixture strings reported as callers of the harness,
+	// and a tightening that also loses the forms which really run it.
+	root := fixtureRepository(t, map[string]string{
+		"test/plugin/run.ci": strings.Join([]string{
+			"exec=ze-test bgp plugin",
+			"ze-test peer --port 1790",
+			"out=$(bin/ze-test bgp parse 1)",
+			"go build -o bin/x ./cmd/ze-test",
+			"cp build/ze-test-linux-arm64 guest/",
+			"make build; ./bin/ze-test editor",
+		}, "\n") + "\n",
+		"test/interop/Dockerfile.x": "COPY le-test /usr/bin/\nCOPY ze-test /usr/bin/\n",
+		"internal/component/x/fixture_test.go": strings.Join([]string{
+			"package x",
+			`const config = "system { host-name ze-test; }"`,
+			`nas := "ze-test"`,
+			`module := "ze-test-module"`,
+			`// Connects as the ze-test client.`,
+			`cert, err := root.IssueLeaf("ze-test", nil)`,
+		}, "\n") + "\n",
+		"internal/test/fixture/start.go": strings.Join([]string{
+			`p, err := startFixtureProcess(ctx, env, "", "ze-test", "peer")`,
+			`	run "ze-test fixture plugin/probe"`,
+			`// The ze-test binary serves the peer half.`,
+		}, "\n") + "\n",
+	})
+
+	report, err := sweepRetired(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line := 1; line <= 6; line++ {
+		if !retiredFound(report, "ze-test", "test/plugin/run.ci", line) {
+			t.Errorf("test/plugin/run.ci:%d runs or builds the harness, and the report misses it", line)
+		}
+	}
+	if retiredFound(report, "ze-test", "test/interop/Dockerfile.x", 1) {
+		t.Error("test/interop/Dockerfile.x:1 copies le-test, and the report lists it")
+	}
+	if !retiredFound(report, "ze-test", "test/interop/Dockerfile.x", 2) {
+		t.Error("test/interop/Dockerfile.x:2 copies the harness, and the report misses it")
+	}
+	for line := 1; line <= 3; line++ {
+		if !retiredFound(report, "ze-test", "internal/test/fixture/start.go", line) {
+			t.Errorf("internal/test/fixture/start.go:%d starts or names the harness, and the report misses it", line)
+		}
+	}
+	if found := retiredLinesOf(report, "internal/component/x/fixture_test.go"); len(found) != 0 {
+		t.Errorf("fixture_test.go names ze-test only as fixture text, and the sweep listed %v", found)
+	}
+}
+
+func TestRetiredEveryDeclaredExceptionIsFileScoped(t *testing.T) {
+	// VALIDATES: every row of retiredExceptions, the per-file ones for the
+	// Discord channel and the skill among them, hides its spelling in its own
+	// file and nowhere else. The method writes one matching line into the
+	// declared file and the same line into a file no exception names.
+	// PREVENTS: an exception that hides nothing (a dead row) or that hides the
+	// spelling in every file. A new exception with no sample line fails here.
+	samples := map[string]string{
+		"ze-test":  "exec=ze-test bgp plugin",
+		"ze_test":  "//go:build ze_test",
+		"le rules": "./le rules index-update",
+	}
+	for _, exception := range retiredExceptions {
+		sample, known := samples[exception.old]
+		if !known {
+			t.Errorf("exception %s %q has no sample line in this test", exception.file, exception.old)
+			continue
+		}
+		root := fixtureRepository(t, map[string]string{
+			exception.file:       sample + "\n",
+			"docs/unexcepted.md": sample + "\n",
+		})
+		report, err := sweepRetired(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if found := retiredLinesOf(report, exception.file); len(found) != 0 {
+			t.Errorf("%s declares %q, and the sweep listed %v", exception.file, exception.old, found)
+		}
+		if !retiredFound(report, exception.old, "docs/unexcepted.md", 1) {
+			t.Errorf("the %q exception of %s hid the line in docs/unexcepted.md, or the sample does not match",
+				exception.old, exception.file)
+		}
+	}
+}
+
 func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 	// VALIDATES: a spelling that names something else is not a match: the
 	// ze-test publication channel, the nftables table ze_test, the ze_chaos_
@@ -123,7 +283,7 @@ func TestRetiredCommandSweepHonorsDeclaredExceptions(t *testing.T) {
 		"internal/component/firewall/validate_test.go":  "package firewall\nconst table = \"ze_test\"\n",
 		"docs/architecture/testing/qemu-integration.md": "nft list table inet ze_test\n",
 		"docs/metrics.md":                               "ze_chaos_peers_total\n//go:build zetest\nZE_TEST_BGP_PORT=1790 ze_test_bgp_port\nwhile tier holds\n./le test-unitx\n",
-		"docs/elsewhere.md":                             "the ze-test binary\n",
+		"docs/elsewhere.md":                             "exec=ze-test bgp\n",
 		"internal/le/leroot/retired.go":                 "{Retired: \"test-unit\"} ze-chaos ze_test\n",
 		"vendor/example.com/x/ze_test.txt":              "ze-chaos ze_test\n",
 	})

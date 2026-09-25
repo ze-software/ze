@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md -- ze-test root handler helpers
+// Design: docs/architecture/testing/ci-format.md -- le-test root handler helpers
 
 package cli
 
@@ -18,11 +18,11 @@ func registerRoot(name string, handler func([]string) int, desc string) {
 	})
 }
 
-// registerCIRoot registers one `ze-test <suite>` root handler.
+// registerCIRoot registers one `le-test <suite>` root handler.
 //
 // parallel is the DEFAULT for -p, not a ceiling. Zero means "no opinion, use the
 // host-derived default" (runner.DefaultSuiteConcurrency), NOT "all at once":
-// unset and all-at-once used to be the same value, which is how `ze-test ospf
+// unset and all-at-once used to be the same value, which is how `le-test ospf
 // --all` came to launch 97 ze daemons simultaneously and kill CI's runner agent.
 // An operator who genuinely wants that behavior still asks for it with `-p 0`.
 func registerCIRoot(name, testSubdir, description, detail string, parallel int) {

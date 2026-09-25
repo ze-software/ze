@@ -52,7 +52,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryRenderedRule, generator: fixtureNameGenerator{prefix: "point-overwrite-case-variant-", suffix: "", labels: []string{"ai", "rules", "points", "rule-dir", "section-dir"}}, expectedExit: -1},
 	{category: categoryRenderedRule, name: "point-overwrite-case-variant-slug", expectedExit: -1},
 	{category: categoryRenderedRule, generator: fixtureNameGenerator{prefix: "rendered-rule-case-variant-", suffix: "", labels: []string{"ai", "rules"}}, expectedExit: -1},
-	{category: categoryRenderedRule, name: "rendered-rule-case-variant-names-the-real-generator", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "./le rules index-update"}}},
+	{category: categoryRenderedRule, name: "rendered-rule-case-variant-names-the-real-generator", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "./le ai rules index-update"}}},
 	{category: categoryRenderedRule, name: "point-overwrite-multiedit-empty-old-string-refused", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "already exists"}}},
 	{category: categoryRenderedRule, name: "point-overwrite-multiedit-targeted-allowed", expectedExit: 0},
 	{category: categoryRenderedRule, generator: fixtureNameGenerator{prefix: "c_", suffix: "-wired-into-CHECKS", labels: []string{"rendered_rules", "point_overwrite"}}, expectedExit: -1},

@@ -253,7 +253,7 @@ func judgedByModuleKind(t *testing.T, keyword string) {
 //
 // The corroboration is the gate's own silence. `leaf target` in
 // internal/plugins/as112/yang/ze-as112-cmd.yang carries a semicolon and no full
-// stop, and `./le docvalid help-shape` refuses nothing over it. The gate CANNOT
+// stop, and `./le doc yang-contract help-shape` refuses nothing over it. The gate CANNOT
 // stay silent over a leaf in the tree it walks.
 func TestWriteEditIgnoresALeafInACommandModuleButJudgesOneInAConfigModule(t *testing.T) {
 	judgedByModuleKind(t, "leaf")

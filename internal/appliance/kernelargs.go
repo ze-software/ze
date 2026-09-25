@@ -8,7 +8,7 @@
 //
 // Instance preparation (copying the gokrazy instance under project tmp/ so the
 // build never runs from a tracked path) lives in the instance subpackage, which
-// cmd/ze-gok also imports.
+// internal/le/build/gokrazy (`le build gokrazy`) also imports.
 
 package appliance
 

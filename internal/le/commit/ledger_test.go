@@ -235,3 +235,22 @@ func TestEveryLedgerGateNameIsDeclared(t *testing.T) {
 		t.Errorf("%d ledger row(s) name gate %q, which debtGates declares neither as a Name nor as an alias", count, gate)
 	}
 }
+
+// TestHistoricalTrackedBuildSpellingIsDeclared pins the spelling that rows under
+// plan/verification-debt/ carry for the broken-HEAD gate. The method is the
+// same lookup a verification uses, debtGateAt, over the literal row text.
+//
+// The command was renamed from `le repository tracked-build` to `le repo
+// tracked-build`. The ledger rows are history and keep the old name, so a
+// rewrite that follows the rename into the alias list strands those rows as
+// unrecognized, and a green verification then never clears them.
+func TestHistoricalTrackedBuildSpellingIsDeclared(t *testing.T) {
+	historical := "./le repository tracked-build check (HEAD does not compile)"
+	at := debtGateAt(historical)
+	if at < 0 {
+		t.Fatalf("debtGates does not declare the historical spelling %q", historical)
+	}
+	if debtGates[at].Key != gateBrokenHeadFix {
+		t.Fatalf("%q resolves to gate %q, want %q", historical, debtGates[at].Key, gateBrokenHeadFix)
+	}
+}
