@@ -1612,7 +1612,7 @@ gRPC `ParamInfo` message carries `short_help` and `description`; and
 notification's `leaves` with both keys. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
-`./le docvalid help-shape` holds the two corpora to one shape.
+`./le doc yang-contract help-shape` holds the two corpora to one shape.
 
 An RPC's pair reaches an agent through the machine-readable reference.
 `SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.ShortHelp` and
@@ -1652,7 +1652,7 @@ the summary and `Description` is the explanation, and the same empty-is-unwritte
 rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
-a path and the registration's for every other. `./le docvalid help-shape` holds
+a path and the registration's for every other. `./le doc yang-contract help-shape` holds
 this third corpus to the same seven rules, reading the registrations this binary
 links from the registry and the four `cmd/ze` declares in `package main` from
 its source, which is the only way to read a package Go forbids importing.

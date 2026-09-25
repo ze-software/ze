@@ -192,5 +192,5 @@ CLI.
 Functional fixtures live in `test/ospf-wire/` and run with:
 
 ```bash
-./le functional ospf-wire
+./le test functional ospf-wire
 ```

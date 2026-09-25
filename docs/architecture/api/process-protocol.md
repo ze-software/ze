@@ -675,7 +675,7 @@ Stopping a borrowed server costs twice, and both costs were measured:
 | A reload that removes the component | `runBGPEngine` returns when bgp is removed at reload, not only at shutdown, and its tail stops the reactor. An unguarded stop takes the hub's whole plugin server down, and every other plugin with it, while the daemon keeps running |
 
 A component that CONSTRUCTS its own server still stops it: a standalone reactor
-(`Config.Standalone`, the ze-chaos in-process runner) self-hosts, and its cleanup
+(`Config.Standalone`, the in-process runner of `le chaos run`) self-hosts, and its cleanup
 is that server's only stop. So the rule is a test of ownership, never of the call
 site.
 <!-- source: internal/component/bgp/reactor/reactor.go -- startAPIServer, the self-host branch -->

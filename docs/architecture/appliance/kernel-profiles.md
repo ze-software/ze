@@ -77,7 +77,7 @@ The runtime manifest and compiled floor require both symbols.
   survive SIGKILL. Resolution follows the process working directory through
   the relative `kernelInstallerConfigDir`. Put the complete registry and native
   builder fixture beneath the scratch root.
-- `./le repository check` flags an exported symbol in a changed Go file that has no
+- `./le repo check` flags an exported symbol in a changed Go file that has no
   cross-package caller, even when the symbol predates the change. Appliance-only
   helpers stay unexported for that reason.
 

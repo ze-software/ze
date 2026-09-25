@@ -28,7 +28,7 @@ What landed in sessions 1 and 2:
 | D-3 an assertion that cannot fail is refused | `internal/le/test/weakened` |
 | D-4 added tokens found by multiset difference, not a positional slice | `run_audit` (`internal/le/test/weakened/audit.go`) |
 | D-5 the whole multi-line justification is captured and wrapped | `relax_reasons`, `report` (same file) |
-| The stock was counted and held down | The retired `make ze-relax-census` census and its ceiling file were replaced on 2026-08-16 by the per-commit `./le test-weakened check` ledger |
+| The stock was counted and held down | The retired `make ze-relax-census` census and its ceiling file were replaced on 2026-08-16 by the per-commit `./le test weakened check` ledger |
 | The three refuted l2tp justifications removed | `test/plugin/redistribute-l2tp-{announce,withdraw,multi-peer-nexthop}.ci` |
 
 Tests: 28 relax fixtures in `internal/le/ai/hooks/hookcheck.go` (394/394 pass),
@@ -103,7 +103,7 @@ Verified by reading the producers, not the callers.
 | RFC-tagged tests | `_rfc_tagged_change_err`, called before the relax hatch | The token buys nothing. This ordering is correct and it holds, before and after the fix |
 
 **At audit time no retired build target, CI stage, or ratchet read the token
-stock.** The current replacement is `./le test-weakened check`, implemented in
+stock.** The current replacement is `./le test weakened check`, implemented in
 `internal/le/test/weakened`. The old audit script ran only from `/ze-review` and
 `/ze-review-deep`, and it saw only new tokens. The 755 existing tokens were
 invisible to every gate.
@@ -276,7 +276,7 @@ you fix the detector, and the stock rebuilds.
 | Replace the `.ci` line count with a count of assertion-bearing constructs (`expect=`, `contains=`, `assert`, `reject=`) | Kills D-1, the source of ~430 tokens. A sleep removed is not an assertion removed |
 | Open the hatch only on a justification this edit WRITES, on every tool including `Write` | Kills D-2. The token stops being a permanent per-file exemption |
 | Fix `run_audit` to diff the reason SET, not a positional slice, and capture the full multi-line reason | Kills D-4 and D-5. A reviewer is shown the reason that belongs to the finding |
-| Add the now-retired `make ze-relax-census`, since replaced by `./le test-weakened check` | Nothing counted the stock then. Without a ratchet it could regrow silently |
+| Add the now-retired `make ze-relax-census`, since replaced by `./le test weakened check` | Nothing counted the stock then. Without a ratchet it could regrow silently |
 
 ### Session 2 -- fix the three (do not wait for session 1)
 
@@ -434,7 +434,7 @@ beside the change it accepted.
 | a ceiling file plus a census target counting HEAD | nothing to count, because a per-commit file cannot accumulate |
 | `c_test_weakening` opens on a token the edit writes | `c_test_weakening` opens on a row naming the test the edit weakens |
 | no commit-time check | `weakened_problems` (`internal/le/commit/actions.go`) recomputes the weakenings of the paths the commit names, and refuses a commit that does not carry `test/weakened/<session>.md` |
-| `make ze-relax-census` | `./le test-weakened check` |
+| `make ze-relax-census` | `./le test weakened check` |
 
 `internal/le/test/weakened/actions.go` is the one implementation both gates call.
 `docs/architecture/testing/test-health.md` describes the live mechanism.

@@ -95,7 +95,7 @@ OSPF and IS-IS are self-contained plugins under `internal/plugins/ospf` and
 | Area | Location | Purpose |
 |------|----------|---------|
 | Main binary | `cmd/ze/` | CLI verbs, daemon startup, install/service/support tooling |
-| Other binaries | Build tags: `ze_perf`, `ze_analyze` | Benchmarks, MRT/RIB analysis. ze-test, ze-chaos, ze-perf, and ze-analyze are build-tag variants of cmd/ze. |
+| Other binaries | Build tags: `ze_perf`, `ze_analyze` | Benchmarks, MRT/RIB analysis. le-test is a build-tag variant of cmd/ze. `le chaos run`, `le perf` and `le mrt` are le commands. The old `ze-chaos`, `ze-perf` and `ze-analyze` builds work until they are removed. |
 | Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
 | BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
 | Plugin owners | `internal/plugins/` | Self-contained feature owners. Command-only plugins provide command schemas and handlers. Full-subsystem plugins also own protocol or service runtimes, configuration, and state. |
@@ -192,7 +192,7 @@ ze schema handlers            # Show handler → module mapping
 
 # Testing
 ze-peer --sink --port 1790    # Run test peer (sink mode)
-ze-test bgp encode --all      # Run encoding tests
+le-test bgp encode --all      # Run encoding tests
 
 # Utilities
 ze config validate <file>     # Validate config file
@@ -269,16 +269,16 @@ plugin {
 
 ### Functional Tests
 ```bash
-./le functional gating        # All functional tests
-ze-test bgp encode --list     # List N/TOTAL, id, and name
-ze-test bgp encode 1 2 3      # Run specific tests
-ze-test bgp encode --start 42 # Resume at id 42
+./le test functional gating        # All functional tests
+le-test bgp encode --list     # List N/TOTAL, id, and name
+le-test bgp encode 1 2 3      # Run specific tests
+le-test bgp encode --start 42 # Resume at id 42
 ```
 <!-- source: internal/test/cli/cmd_bgp.go -- zeTestPrintRunUsage -->
 
 ### Linting
 ```bash
-./le verify lint run            # golangci-lint over every build flavor
+./le go lint run            # golangci-lint over every build flavor
 ```
 
 ---

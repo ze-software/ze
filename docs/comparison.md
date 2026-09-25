@@ -292,7 +292,7 @@ from something that needs one.
 | SNMP agent (AgentX/MIB) | No | No | No | Yes | No | No | No | No | No | No | Yes |
 
 **Session capture and replay:** Ze records one peer's inbound protocol events as
-raw wire bytes in a JSONL file, and `ze-test replay` feeds that file back through
+raw wire bytes in a JSONL file, and `le-test replay` feeds that file back through
 the same read path with a fake clock, so a session bug on an operator's box
 reproduces on a developer's machine. This is not MRT: MRT records ROUTES for
 analysis, after decoding, while a capture records the BYTES the peer sent,
@@ -448,7 +448,7 @@ covers EVPN, MPLS, SR, SRv6, VRF, VXLAN, VLAN, LAG and STP. Ze declares none of 
 IS-IS is the one place where the ze daemon declares a protocol the BIRD daemon does
 not.
 
-Every ze key is rendered and parsed by `./le netlab render-check`. No key is
+Every ze key is rendered and parsed by `./le test netlab render-check`. No key is
 validated against netlab's own integration tests, because a live lab was never started
 here. Ze's artifacts are in this repository at `contrib/netlab/` and are not upstream
 yet.
@@ -657,7 +657,7 @@ traffic counters read from the pppN kernel interface:
 
 ### Scale Validation
 
-Ze includes control-plane scale test infrastructure (`ze-test l2tp-scale`)
+Ze includes control-plane scale test infrastructure (`le-test l2tp-scale`)
 that validates 2000 concurrent L2TP sessions across 10 tunnels on loopback.
 The test measures session establishment rate, RADIUS auth/accounting
 handling, IP pool allocation correctness, and teardown completeness without

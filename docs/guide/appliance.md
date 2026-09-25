@@ -54,8 +54,7 @@ The vendored gokrazy command (`github.com/gokrazy/tools/gok`) runs in process.
 `ze appliance build` calls it directly. A developer runs it with
 `./le build gokrazy <gok args>`, which uses the checked-in module cache, forbids
 network module lookups, and builds `overwrite` from a prepared copy of the
-instance under `tmp/`. The `ze-gok` program (`cmd/ze-gok`) holds the same code and
-keeps working until it is removed. No separate gokrazy installation or
+instance under `tmp/`. No separate gokrazy installation or
 first-party script is required.
 <!-- source: internal/appliance/cmd_build.go -- runGokInProcess -->
 <!-- source: internal/le/build/gokrazy/gokrazy.go -- Run -->
@@ -135,7 +134,7 @@ support, the deployment proof target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
-./le deployment gokrazy-l2tp-ppp-test
+./le test deployment gokrazy-l2tp-ppp-test
 ```
 
 The proof image is built from a temporary gokrazy instance config so the normal
@@ -367,8 +366,6 @@ gokrazy/
 cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox)
   main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
   _gokrazy/                 # renamed busybox extrafiles per arch
-cmd/ze-gok/
-  main.go                   # old program name for `le build gokrazy`, removed later
 internal/le/build/gokrazy/  # `le build gokrazy`: the vendored gokrazy command wrapper
 ```
 

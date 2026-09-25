@@ -14,8 +14,8 @@ Date: 2026-03-24 00:00 UTC. 55 source peers, 300 seconds of continuous data.
 Collected and analysed with:
 
 ```
-ze-analyse download
-ze-analyse density test/internet/ripe-updates.20260324.0000.gz
+./le mrt download
+./le mrt density test/internet/ripe-updates.20260324.0000.gz
 ```
 
 ## NLRI Density: How Many Prefixes Per UPDATE
@@ -141,23 +141,23 @@ A channel of 1024 would absorb more setup traffic, but this is counterproductive
 Download fresh data and run the analysis:
 
 ```
-ze-analyse download                                    # fetch latest data
-ze-analyse density test/internet/ripe-updates.*.gz     # analyse updates
+./le mrt download                                    # fetch latest data
+./le mrt density test/internet/ripe-updates.*.gz     # analyse updates
 ```
 
 For a longer observation window, download multiple 5-minute files:
 
 ```
-ze-analyse download 20260324 0000
-ze-analyse download 20260324 0005
-ze-analyse download 20260324 0010
-ze-analyse density test/internet/ripe-updates.*.gz
+./le mrt download 20260324 0000
+./le mrt download 20260324 0005
+./le mrt download 20260324 0010
+./le mrt density test/internet/ripe-updates.*.gz
 ```
 
 RouteViews data can also be used (15-minute intervals, fewer peers):
 
 ```
-ze-analyse density test/internet/rv-updates.*.gz
+./le mrt density test/internet/rv-updates.*.gz
 ```
 
 ## Related

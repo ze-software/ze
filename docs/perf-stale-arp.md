@@ -1,4 +1,4 @@
-# Stale ARP in ze-perf Propagation Benchmark
+# Stale ARP in the le perf Propagation Benchmark
 
 ## Summary
 
@@ -20,7 +20,7 @@ error: iteration 1/4 (warmup): connecting receiver: dialing 172.31.0.2:1791:
 The error appears in both the 2 GB and 4 GB Colima VM runs. It is
 deterministic, not intermittent.
 
-## Background: how ze-perf uses two IPs
+## Background: how `le perf send` uses two IPs
 
 The runner container is assigned 172.31.0.10 by Docker (the primary IP). A
 second address, 172.31.0.11, is added manually inside the container:
@@ -73,13 +73,13 @@ container).
 
 ### 3. Sender connects (succeeds)
 
-In sender-first mode, ze-perf dials the sender session first from 172.31.0.10
+In sender-first mode, `le perf send` dials the sender session first from 172.31.0.10
 to ze at port 1790. This works because Docker correctly updated ARP for
 172.31.0.10.
 
 ### 4. Receiver connects (times out)
 
-After sending routes and waiting, ze-perf dials the receiver session from
+After sending routes and waiting, `le perf send` dials the receiver session from
 172.31.0.11 to ze at port 1791. The TCP SYN reaches ze (the bridge forwards it
 based on destination MAC, which is ze's own NIC). Ze's kernel sends the SYN-ACK
 back to 172.31.0.11, looks up the ARP cache, and sends it to the stale MAC
@@ -122,7 +122,7 @@ docker exec dut cat /proc/net/arp
 
 Other DUTs (bird, frr, gobgp) use port 179 for both peers and do not have
 separate sender/receiver ports. Their `sender_port` and `receiver_port` are 0,
-so ze-perf connects both sessions to the same port from the same runner IP.
+so `le perf send` connects both sessions to the same port from the same runner IP.
 Ze is the only DUT where the receiver IP (172.31.0.11) is used to connect to a
 dedicated port (1791), and only in the propagation benchmark which requires
 destroying and recreating the runner container.
@@ -159,7 +159,7 @@ This is fragile because it requires exec into the DUT, and some DUTs (bird,
 frr) may not have the `ip` tool.
 
 **Option C: don't destroy the runner between runs.** Keep the runner container
-alive across both `run_perf` calls and re-exec ze-perf instead of creating a
+alive across both `run_perf` calls and re-exec `le perf send` instead of creating a
 fresh container. This avoids the ARP problem entirely, but requires refactoring
 `run_perf` to optionally reuse an existing runner.
 

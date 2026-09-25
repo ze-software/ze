@@ -124,7 +124,7 @@ so no spec closes without a clean independent review.
 Review has no required model. The artifact records the model when available;
 review independence comes from a fresh reviewer context.
 
-The review gate then requires a CLEAN `./le spec session review record` artifact
+The review gate then requires a CLEAN `./le spec review record` artifact
 that covers every reviewable file in the commit and whose hashes still match, so
 any edit after the review invalidates it. `review-override <reason>` is the only
 way past, and it records a verification-debt row.

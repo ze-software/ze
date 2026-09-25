@@ -89,7 +89,7 @@ The verify debugging protocol identifies a functional failure with:
 
 | Field | Source | Purpose |
 |-------|--------|---------|
-| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le functional` |
+| Suite label | `le-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le test functional` |
 | Test id | One-based decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
 | Run number | `N/TOTAL` printed by `--list` and per-test result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
@@ -145,7 +145,7 @@ Never hardcode port numbers. Use `$PORT` in `cmd=` exec values and `$PORT2` in `
 The pair is LEASED when the test starts, not when the suite discovers it
 (`runner.LeaseTestPorts`, `internal/test/runner/ports.go`). Discovery numbers the
 Nth test of every suite from the same base, so the preference alone collides
-whenever two ze-test processes run at once; the lease takes a machine-wide
+whenever two le-test processes run at once; the lease takes a machine-wide
 advisory lock in `$TMPDIR/ze-test-port-locks` and probes the pair, and a test
 whose preferred pair is locked or occupied gets one from 25000-32759 instead. A
 hardcoded number in a `.ci` file takes part in neither step, which is why the
@@ -234,9 +234,9 @@ already writes: no new directive chooses between them.
 | The `exec=` line | Where the block goes | Why |
 |------------------|----------------------|-----|
 | `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in a stable per-daemon directory, and argv becomes `ze [flags] start <file>` | SIGHUP reads the source again and a restart reuses its tree |
-| `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `ze-test peer` takes its expect script as a path argument |
+| `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `le-test peer` takes its expect script as a path argument |
 | `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
-| every other line, `ze bgp decode -`, `ze config validate -`, `ze-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
+| every other line, `ze bgp decode -`, `ze config validate -`, `le-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
 
 The daemon `-` is recognized by POSITION, not by a list of verbs: the runner
 asks `zeDaemonConfigArgIndex` which argument is the config, and substitutes only
@@ -250,7 +250,7 @@ fixture rewriting that bare name still edits the source the daemon reads.
 Further distinct blocks use `daemon-2/ze-<block>.conf`, `daemon-3/…`, each
 with its own sibling `database/`. Reusing a block reuses its directory.
 Numbered directories distinguish even block names that sanitise identically.
-Wrapped launches such as `ze-test fail-syscall … -- ze -` retain real stdin
+Wrapped launches such as `le-test fail-syscall … -- ze -` retain real stdin
 and receive an isolated `ze.config.dir` by the same allocation rule.
 Explicit file paths remain authoritative; the runner does not choose a backend.
 <!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
@@ -384,7 +384,7 @@ option=<type>:key=value[:key=value...]
 | Type | Keys | Description |
 |------|------|-------------|
 | `file` | `path=<name>` | Config file to use |
-| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `ze-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
+| `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `le-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | The number of TCP connections the peer serves. It is a BOUND, never a witness: the count says how many connections happened and not who caused them. A peer that closes when its expectations are met makes ze dial again on its retry timer, so `value=2` is reached by a daemon that did nothing. To assert that the DAEMON dropped and restarted a session, add `option=linger`, which makes the peer incapable of causing the second connection. |
@@ -395,9 +395,9 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
-| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le qemu netns-test` path because the named link must never be created on the host. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns-test` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
@@ -740,10 +740,19 @@ process. Three limits apply:
 - An unbalanced quote fails the test with `unclosed quote in ...`.
 - No shell runs, so `|`, `>` and `$HOME` are ordinary characters inside an
   argument. The runner expands `$PORT` and `$PORT2` and nothing else, and
-  `ze-test fixture` expands the environment in its own arguments.
+  `le-test fixture` expands the environment in its own arguments.
 
 One splitter serves every suite, so a `cmd=` line produces the same argv
 wherever it runs.
+
+The first word selects the program. `ze` is the daemon under test, and
+`le-test` is the harness the runner itself runs as. The retired name `ze-test`
+reaches the same harness until the retired names are removed. `ze-peer` is
+`le-test peer`. A name that the suite compiled into its temporary directory
+runs from there: the chaos suites compile `le`, so `exec=le chaos run ...`
+runs that build. Any other name is found on `PATH`. A shim directory on the
+child's `PATH` holds `ze`, `le-test` and `ze-test`, so a plugin `run "le-test ..."`
+line in a config reaches the same binaries.
 
 **Provenance:** until 2026-09-02 the `.ci` runner split the value on whitespace
 alone while the parse suite honored quotes. The example above was already
@@ -752,7 +761,8 @@ only the first word of the quoted command, `ze cli` fell through to its SSH
 client, and each test failed with `no credentials for 127.0.0.1:2222`.
 
 <!-- source: internal/test/runner/runner_exec_util.go -- splitCommand -->
-<!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction -->
+<!-- source: internal/test/runner/runner_exec.go -- runExecCommands argv construction and binary resolution -->
+<!-- source: internal/test/runner/runner.go -- setupBinShims -->
 <!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
 <!-- source: internal/test/fixture/fixture.go -- Run, os.ExpandEnv over the fixture's own arguments -->
 <!-- test: test/runner/exec-quoted-argument.ci -- a quoted argument carrying a pipe reaches the callee as one argv element -->
@@ -770,7 +780,7 @@ protocol stall.
 stderr, and it starts no later step until the text appears:
 
 ```
-cmd=background:seq=1:exec=ze-test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
+cmd=background:seq=1:exec=le-test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 ```
@@ -962,7 +972,7 @@ readiness handshake is armed only for Ze daemons.
 
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C...
-cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=le-test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
 
@@ -1667,7 +1677,7 @@ reporting.
 | Function | Purpose |
 |----------|---------|
 | `fixture.Register(name, driver)` | Register one compiled fixture command |
-| `fixture.Run(args)` | Dispatch `ze-test fixture <name> [args...]` |
+| `fixture.Run(args)` | Dispatch `le-test fixture <name> [args...]` |
 | `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
 | `observeConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle. It is unexported, so only a fixture in this package calls it |
 | `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
@@ -1748,7 +1758,7 @@ instead of an embedded Python observer. The runner serializes the parsed steps
 to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
 config directory of every further daemon, because a plugin runs in its daemon's
 config directory; the `.ci` declares the executor as an
-external plugin (`run "ze-test engine-steps ./engine-steps.json"`), which runs
+external plugin (`run "le-test engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
 
@@ -1989,7 +1999,7 @@ never opened.
 ### A scaffolding ze-peer is signaled at teardown
 
 A sink, echo or inject `ze-peer` never ends itself: its accept loop runs until its
-context is cancelled, and `ze-test peer` maps SIGTERM to that cancel. The runner
+context is cancelled, and `le-test peer` maps SIGTERM to that cancel. The runner
 sends that SIGTERM at teardown, after the last step and before the barrier that
 collects peer output. The peer exits with status 0 and its capture is complete, so
 a `.ci` author needs no teardown directive and must not add one.

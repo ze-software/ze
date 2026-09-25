@@ -169,7 +169,7 @@ writes it via `config.ApplyEnvConfig` when the operator sets
 
 | Variable | Default | Class | Description |
 |----------|---------|-------|-------------|
-| `ze.test.bgp.port` | 179 | ENV | BGP TCP port (ze-test peer + ze-test harness; private) |
+| `ze.test.bgp.port` | 179 | ENV | BGP TCP port (le-test peer + le-test harness; private) |
 | `ze.bfd.test-parallel` | false | ENV | BFD parallel test mode (private) |
 
 ### Harness variables

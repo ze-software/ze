@@ -143,7 +143,7 @@ The action builds both protoc plugins from the vendored module versions, runs
 Run the installed checker through the repository gate:
 
 ```bash
-./le staticcheck-feature-matrix check
+./le go staticcheck check
 ```
 
 The target and its checked feature population are documented in
@@ -259,7 +259,7 @@ even after the command succeeds. Log out and back in, or run one command with
 the new group:
 
 ```bash
-sg kvm -c './le qemu vpp-hugepages-test'
+sg kvm -c './le test qemu vpp-hugepages-test'
 ```
 
 Setup distinguishes the two states: `kvm-access` reports `pending` when the

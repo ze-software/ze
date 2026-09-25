@@ -111,9 +111,9 @@ the real path.
 
 | File | Suite | What it proves |
 |------|-------|----------------|
-| `test/plugin/firewall-domain-group-update.ci` | `./le functional plugin` | Two updates around a changed DNS answer: the kernel set holds the new address and not the replaced one, and the change log names both |
-| `test/plugin/firewall-domain-group-clear.ci` | `./le functional plugin` | The set leaves the kernel with the cache, read back from nftables after the clear |
-| `test/firewall/firewall-cli-domain-group-show.ci` | `./le functional firewall` | The DNS name is rendered beside the address it supplied, in the same element object |
+| `test/plugin/firewall-domain-group-update.ci` | `./le test functional plugin` | Two updates around a changed DNS answer: the kernel set holds the new address and not the replaced one, and the change log names both |
+| `test/plugin/firewall-domain-group-clear.ci` | `./le test functional plugin` | The set leaves the kernel with the cache, read back from nftables after the clear |
+| `test/firewall/firewall-cli-domain-group-show.ci` | `./le test functional firewall` | The DNS name is rendered beside the address it supplied, in the same element object |
 
 Each declares its term against the group in its own config rather than committing
 one mid-test. A daemon start runs no verify, so the table is simply held back
@@ -121,7 +121,7 @@ until the first update resolves the group, which is the cold start these files
 walk through.
 
 All three serialize on `option=exclusive:group=dns-stub-port-53`. Their fixture
-serves the `ze-test dns` stub in process on port 53, which `system name-server`
+serves the `le-test dns` stub in process on port 53, which `system name-server`
 reaches because that leaf is an address and carries no port.
 <!-- source: internal/test/fixture/netfilter_fixture_domain_group.go -- domainGroupUpdate, domainGroupClear, domainGroupShow -->
 

@@ -36,7 +36,7 @@ in is decided by **dependency direction**, not by the registration mechanism:
 for platform plugins that other plugins depend on (BGP, iface, the RIB),
 `internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS,
 OSPF). A config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
-`./le tier check` gate, as does a new `internal/core/` import of
+`./le arch tier check` gate, as does a new `internal/core/` import of
 `internal/component/` or `internal/plugins/` (core is the leaf tier; the
 grandfathered pairs live in `internal/le/arch/tier/testdata/core_import_baseline.txt`).
 Full rule and the audit tool:

@@ -96,8 +96,7 @@ counts needed their own map. 64 pages would otherwise report as 65536.
 appliance package in module mode and fetches with `go get`. It has no vendor
 support: a `vendor/` tree in a builddir is ignored. The system and kernel
 modules resolve through `gokrazy/modcache/`, with `GOMODCACHE` set by
-`buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). The old `ze-gok`
-program (`cmd/ze-gok`) sets it the same way until it is removed. Ze's prepared build module binds its dependencies to the
+`buildgokrazy.Run` (`internal/le/build/gokrazy/gokrazy.go`). Ze's prepared build module binds its dependencies to the
 canonical root vendor tree as described below.
 
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
@@ -222,8 +221,8 @@ cache written before the flag existed needs a one-time
 
 | Proof | What it does | Use it for |
 |-------|--------------|------------|
-| `./le qemu vpp-hugepages-test` | Builds a real image through `ze appliance build`, boots it in QEMU, asserts the kernel command line and the reserved hugepage count | The default boot proof |
-| `./le deployment gokrazy-l2tp-ppp-test` | Builds the appliance and boots it against a real LAC | The L2TP path |
+| `./le test qemu vpp-hugepages-test` | Builds a real image through `ze appliance build`, boots it in QEMU, asserts the kernel command line and the reserved hugepage count | The default boot proof |
+| `./le test deployment gokrazy-l2tp-ppp-test` | Builds the appliance and boots it against a real LAC | The L2TP path |
 | `test/appliance/serial-login.ci` | Boots nothing. Its header says the QEMU plan applies "when appliance serial test infrastructure is ready"; it asserts the argv[0] shell-invocation gate offline | Never a boot proof |
 
 An image build alone is not a boot proof.

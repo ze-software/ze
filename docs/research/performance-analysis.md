@@ -5,7 +5,7 @@
 > current measurements and the up-to-date work list.
 
 **Date:** 2026-03-26
-**Scope:** Identify bottlenecks affecting ze-perf convergence, throughput, and latency
+**Scope:** Identify bottlenecks affecting `le perf send` convergence, throughput, and latency
 **Method:** Code analysis + micro-benchmarks on hot path components
 
 ---
@@ -414,9 +414,9 @@ CGO_ENABLED=0 go test -run='^$' -bench=. -benchmem ./internal/component/bgp/reac
 For deeper analysis beyond micro-benchmarks:
 
 ```bash
-# CPU profile during ze-perf run
+# CPU profile during le perf send
 ze --pprof 127.0.0.1:6060 config.conf &
-ze-perf run --dut-addr 127.0.0.1 --dut-asn 65000 --routes 10000
+./le perf send --dut-addr 127.0.0.1 --dut-asn 65000 --routes 10000
 go tool pprof http://127.0.0.1:6060/debug/pprof/profile?seconds=30
 
 # Mutex contention profile

@@ -399,7 +399,7 @@ The existing independent-collector scenario runs FRR as the BGP source and
 pmacct `pmbmpd` as the BMP collector:
 
 ```
-INTEROP_SCENARIO=bmp-statistics-pmacct ./le integration interop
+INTEROP_SCENARIO=bmp-statistics-pmacct ./le test integration interop
 ```
 
 Its automated assertions cover periodic Statistics Reports decoded by pmacct.

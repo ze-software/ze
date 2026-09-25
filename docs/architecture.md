@@ -195,13 +195,13 @@ Selected routes move through a shared route-decision pipeline:
 
 ## Programs
 
-| Binary | Purpose |
-|--------|---------|
+| Binary or command | Purpose |
+|-------------------|---------|
 | `ze` | Network OS: BGP, CLI, config, hub, interface, ExaBGP migration, plugin, schema, signal, completion |
-| `ze-chaos` | Chaos testing orchestrator: fault injection, scheduling |
-| `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
-| `ze-analyze` | MRT/RIB analysis: attributes, communities, density, dump |
-| `ze-test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
+| `le chaos run` | Chaos testing orchestrator: fault injection, scheduling |
+| `le perf` | Performance benchmarking: UPDATE throughput tracking |
+| `le mrt` | MRT/RIB analysis: attributes, communities, density, dump |
+| `le-test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
 <!-- source: cmd/ze/main.go -- ze binary entry point -->
 
 ## Source Layout

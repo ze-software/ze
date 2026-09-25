@@ -198,7 +198,7 @@ Use this for:
   connects to its API socket on startup.
 - **Gokrazy containers:** a sidecar image bundles `vpp` and `ze`; the
   supervisor starts VPP first, then ze with `external true`.
-- **Functional tests:** `./le functional vpp` drives the compiled Go VPP
+- **Functional tests:** `./le test functional vpp` drives the compiled Go VPP
   stub instead of a real VPP. See `docs/functional-tests.md` for the harness.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
 
@@ -229,7 +229,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | Path | Type | Default | What it controls |
 |------|------|---------|------------------|
 | `vpp.enabled` | boolean | `false` | Master switch. `false` means ze does not start VPP at all. |
-| `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `ze-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behaviour. |
+| `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `le-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behaviour. |
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. The core is excluded from the worker set. Omit for VPP default. A core the host does not hold online is refused at commit. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze takes the cores from the kernel's isolated set (`/sys/devices/system/cpu/isolated`), lowest first, `main-core` excluded and any CPU no longer online excluded, and writes them as `corelist-workers`. On a host that isolated nothing, the list falls back to `main-core+1 .. main-core+workers` and `ze doctor` reports `doctor-vpp-cpu-isolation`. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --> |

@@ -250,7 +250,7 @@ func toVPNParams(r VPNRoute) message.VPNParams
 The exotic MP_REACH families (MUP/VPLS/MVPN/FlowSpec/SR-Policy) share `PluginRoute`
 / `PluginParams`; their NLRI and family-specific attributes are pre-built by the
 family plugin, so the message package carries no per-family domain object or builder
-for them. (`message.FlowSpecParams` / `BuildFlowSpec` survive only for the ze-chaos
+for them. (`message.FlowSpecParams` / `BuildFlowSpec` survive only for the chaos orchestrator
 load generator, not the config/API route path.)
 
 ---

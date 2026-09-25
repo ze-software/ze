@@ -14,10 +14,9 @@ Ze includes a chaos testing mode that injects faults during operation to verify 
 ```
 
 `./le chaos run <options>` takes every option the `ze-chaos` program takes and
-behaves the same way. The examples below still spell the program name: `ze-chaos`
-keeps working until it is removed, and each `ze-chaos <options>` line runs the same
-as `./le chaos run <options>`. A help word after `./le chaos run` shows le's page
-for the command, so the options are the ones shown on this page.
+behaves the same way. The old `ze-chaos` program keeps working until it is
+removed. A help word after `./le chaos run` reaches the orchestrator, which
+prints its own option list.
 <!-- source: internal/le/chaos/run/run.go -- Answer -->
 
 ## Flags
@@ -30,58 +29,58 @@ for the command, so the options are the ones shown on this page.
 <!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
 <!-- source: internal/component/bgp/config/loader_create.go -- chaosRateFromEnv, ze.bgp.chaos.seed/rate -->
 
-## ze-chaos Tool
+## Chaos Tool
 
-The `ze-chaos` tool, run as `./le chaos run`, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
+The chaos tool, `./le chaos run`, is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
 
-![ze-chaos dashboard](img/ze-chaos-dashboard.png)
+![chaos dashboard](img/ze-chaos-dashboard.png)
 
 The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.
 
 ```bash
-# Fork mode (default): ze-chaos starts ze as a child process
-ze-chaos --seed 42 --peers 8 --duration 60s
+# Fork mode (default): le chaos run starts ze as a child process
+./le chaos run --seed 42 --peers 8 --duration 60s
 
 # Specify ze binary path
-ze-chaos --binary ./bin/ze --seed 42 --peers 8 --duration 60s
+./le chaos run --binary ./bin/ze --seed 42 --peers 8 --duration 60s
 
 # Pipeline mode: config on stdout, diagnostics on stderr
-ze-chaos --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
+./le chaos run --pipe --seed 42 --peers 8 --duration 60s | ./bin/ze -
 
 # Write config to file
-ze-chaos --config-out chaos.conf --seed 42 --peers 8
+./le chaos run --config-out chaos.conf --seed 42 --peers 8
 ze start chaos.conf
 
 # In-process mode: mock network + virtual clock (fully deterministic)
-ze-chaos --in-process --seed 42 --duration 30s
+./le chaos run --in-process --seed 42 --duration 30s
 
 # In-process with chaos and route dynamics
-ze-chaos --in-process --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
+./le chaos run --in-process --seed 42 --duration 60s --chaos-rate 0.1 --route-rate 0.05
 
 # Multi-family
-ze-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
+./le chaos run --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 --pipe | ./bin/ze -
 ```
 
 ### Multi-Daemon Testing (FRR, BIRD)
 
-ze-chaos can generate configs for and fork FRR (bgpd) or BIRD, so the same
+./le chaos run can generate configs for and fork FRR (bgpd) or BIRD, so the same
 chaos scenario runs against different BGP implementations.
 
 ```bash
 # Generate FRR config to inspect
-ze-chaos --config-only --application frr --seed 42 --peers 4
+./le chaos run --config-only --application frr --seed 42 --peers 4
 
 # Generate BIRD config to inspect
-ze-chaos --config-only --application bird --seed 42 --peers 4
+./le chaos run --config-only --application bird --seed 42 --peers 4
 
 # Fork FRR bgpd (auto-discovers bgpd in PATH)
-ze-chaos --application frr --seed 42 --peers 4 --duration 60s
+./le chaos run --application frr --seed 42 --peers 4 --duration 60s
 
 # Fork BIRD with explicit binary path
-ze-chaos --application bird --binary /usr/sbin/bird --seed 42 --peers 4 --duration 60s
+./le chaos run --application bird --binary /usr/sbin/bird --seed 42 --peers 4 --duration 60s
 
 # Write config to file, start daemon manually
-ze-chaos --config-only --application frr --config-out chaos-frr.conf
+./le chaos run --config-only --application frr --config-out chaos-frr.conf
 bgpd -f chaos-frr.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
 ```
 
@@ -106,24 +105,24 @@ Neither route survives a reboot; re-run `./le setup install` after one.
 #### Running via Docker
 
 When FRR or BIRD is not installed locally, use Docker. The `--network host`
-flag shares the host network so ze-chaos simulators can connect directly
+flag shares the host network so `le chaos run` simulators can connect directly
 (Linux only; macOS Docker Desktop does not support host networking).
 
 ```bash
-# Start FRR in Docker, ze-chaos on the host
-ze-chaos --config-only --application frr --seed 42 --peers 4 \
+# Start FRR in Docker, le chaos run on the host
+./le chaos run --config-only --application frr --seed 42 --peers 4 \
   --config-out chaos-frr.conf
 docker run --rm --network host \
   -v ./chaos-frr.conf:/etc/frr/bgpd.conf:ro \
   quay.io/frrouting/frr:10.3.1 \
   /usr/lib/frr/bgpd -f /etc/frr/bgpd.conf -p 1850 -l 127.0.0.1 -P 0 -n -Z -S
 
-# In another terminal: run ze-chaos against the FRR instance
-ze-chaos --application frr --seed 42 --peers 4 --duration 60s \
+# In another terminal: run le chaos run against the FRR instance
+./le chaos run --application frr --seed 42 --peers 4 --duration 60s \
   --config-out /dev/null
 
 # Same pattern for BIRD
-ze-chaos --config-only --application bird --seed 42 --peers 4 \
+./le chaos run --config-only --application bird --seed 42 --peers 4 \
   --config-out chaos-bird.conf
 docker run --rm --network host \
   -v ./chaos-bird.conf:/etc/bird.conf:ro \
@@ -137,13 +136,13 @@ Validate generated configs without running a full session:
 
 ```bash
 # FRR: -C flag checks config and exits
-ze-chaos --config-only --application frr > frr.conf
+./le chaos run --config-only --application frr > frr.conf
 docker run --rm -v ./frr.conf:/etc/frr/bgpd.conf:ro \
   quay.io/frrouting/frr:10.3.1 \
   /usr/lib/frr/bgpd -C -f /etc/frr/bgpd.conf -n -Z -S -p 0 -P 0
 
 # BIRD: -p flag parses config and exits
-ze-chaos --config-only --application bird > bird.conf
+./le chaos run --config-only --application bird > bird.conf
 docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
   --entrypoint sh bird-interop:latest \
   -c 'bird -p -c /etc/bird.conf'
@@ -154,21 +153,21 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
 
 ```bash
 # Record events
-ze-chaos --event-log run.ndjson --seed 42 | ./bin/ze -
+./le chaos run --event-log run.ndjson --seed 42 | ./bin/ze -
 
 # Replay a recorded failure
-ze-chaos --replay run.ndjson
+./le chaos run --replay run.ndjson
 
 # Shrink to minimal reproduction
-ze-chaos --shrink run.ndjson
+./le chaos run --shrink run.ndjson
 ```
 <!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
 
 ### Property Validation
 
 ```bash
-ze-chaos --properties all --convergence-deadline 5s | ./bin/ze -
-ze-chaos --properties list    # Show available properties
+./le chaos run --properties all --convergence-deadline 5s | ./bin/ze -
+./le chaos run --properties list    # Show available properties
 ```
 
 Properties validated:
@@ -215,4 +214,4 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 - **CI pipeline:** Catch race conditions and edge cases
 - **Debugging:** Reproduce intermittent failures with a fixed seed
 - **Benchmarking:** Measure convergence time under fault conditions
-<!-- source: internal/chaos/orchestrator/cli.go -- ze-chaos tool; test/ -- chaos functional tests -->
+<!-- source: internal/chaos/orchestrator/cli.go -- the chaos tool; test/ -- chaos functional tests -->

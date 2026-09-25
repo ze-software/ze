@@ -86,7 +86,7 @@
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |
 | [Operational Reports](operational-reports.md) | Warnings, errors, and the report bus |
 | [Audit Trail](audit.md) | `show audit`, config commit/discard records, auth-fail records |
-| [Benchmarking](benchmarking.md) | `ze-perf` cross-implementation latency benchmark |
+| [Benchmarking](benchmarking.md) | `le perf` cross-implementation latency benchmark |
 | [ExaBGP Migration](../exabgp/exabgp-migration.md) | Config conversion and plugin compatibility bridge |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |
 | [Fleet Configuration](fleet-config.md) | Centralized config management for multi-node deployments |

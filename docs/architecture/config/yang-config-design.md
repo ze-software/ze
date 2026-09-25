@@ -582,7 +582,7 @@ rpc through `gyang.RPC.Exts()`, and returns the summary. The explanation is the
 goyang entry's own `Description`. A second reader would let the two surfaces
 drift into two spellings of one declaration.
 
-`./le docvalid help-shape` holds both corpora to one shape: 601 command tree
+`./le doc yang-contract help-shape` holds both corpora to one shape: 601 command tree
 nodes and 211 RPCs, each summary one sentence of 25 words at most, on one line,
 with no semicolon and a full stop at the end.
 

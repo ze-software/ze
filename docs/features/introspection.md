@@ -35,7 +35,7 @@ unregistered access (`env.MustRegister()`).
 | `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
 
 An in-tree plugin's declarations are in reach of both catalogs. `ze help command
---json` and `./le command list` read the compiled command tree in their own
+--json` and `./le cli list` read the compiled command tree in their own
 process and start no plugin, but a registered plugin puts the same declarations
 on its `registry.Registration`: `Commands` for what each answer holds and
 `Pipes` for the aliases it puts on its commands. So both catalogs name every
@@ -94,10 +94,10 @@ that runs more than one command holds the plugin as its own child.
 
 | Native action | What it does |
 |---------------|--------------|
-| `./le inventory` | Reports plugins, YANG modules, RPCs, families, tests, and packages |
-| `./le command list` | Reads every CLI command from the compiled registries |
-| `./le docvalid command-contract` | Cross-checks YANG commands and handlers |
-| `./le docvalid doc-drift` | Detects documentation drift |
+| `./le repo inventory` | Reports plugins, YANG modules, RPCs, families, tests, and packages |
+| `./le cli list` | Reads every CLI command from the compiled registries |
+| `./le doc yang-contract command-contract` | Cross-checks YANG commands and handlers |
+| `./le doc yang-contract doc-drift` | Detects documentation drift |
 
 Each plugin the inventory reports also carries the package directory it
 registers from and every YANG file beside it. Both are DERIVED, so no plugin

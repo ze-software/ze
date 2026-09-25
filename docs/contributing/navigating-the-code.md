@@ -118,12 +118,12 @@ that always reads a current index.
 **Which writes invalidate, and which do not.** The removal is keyed to the
 `Write` and `Edit` TOOLS. A write that reaches the file some other way moves an
 input with no hook in the path: `sed -i`, a shell heredoc, `git rebase`, `git
-stash pop`, `git checkout`, and `./le repository generate`. Each of those leaves
+stash pop`, `git checkout`, and `./le repo generate`. Each of those leaves
 the index PRESENT and stale, and neither the read hook nor a session start
 rebuilds one that is present, so it stays stale until the next `Write` or `Edit`
 to one of its inputs. Run the writer yourself after a bulk rewrite:
-`./le discovery-index update`, `./le docs-to-code update`,
-`./le docs-to-code index-update`.
+`./le repo package-map update`, `./le doc index write`,
+`./le doc index write`.
 <!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
 
@@ -131,8 +131,8 @@ Only Bash is intercepted. The `Read` and the `Grep` TOOL reach no hook. One of
 them opens an index the last edit removed, and reports a missing file.
 
 Ask the question from Bash, or write the index yourself. The writers are
-`./le discovery-index update` for `ai/PACKAGE-MAP.md`, and
-`./le docs-to-code update` and `./le docs-to-code index-update` for the other
+`./le repo package-map update` for `ai/PACKAGE-MAP.md`, and
+`./le doc index write` and `./le doc index write` for the other
 two.
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
 
@@ -147,10 +147,10 @@ code does (`ai/rules/evidence.md`).
 
 ## Measuring what a session spends
 
-`./le token-economy` reads this machine's Claude Code transcript store and
+`./le ai tokens` reads this machine's Claude Code transcript store and
 prints per-session and per-agent-type context costs. The store grows with every
 session, so re-run it for current ratios instead of copying an absolute figure
-into a rule or a document. `./le token-economy session <id-prefix>` prints the
+into a rule or a document. `./le ai tokens session <id-prefix>` prints the
 per-agent-type table for one session, which is the only comparison that holds:
 across sessions the always-on preamble changes size and swamps the difference.
 

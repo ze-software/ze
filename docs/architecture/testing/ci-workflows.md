@@ -10,16 +10,16 @@ need.
 | Suite | Workflow and job | Trigger | Blocking |
 |-------|------------------|---------|----------|
 | Every native verification stage. The job reads its list from `./le verify list mode full` and runs each stage as a native action | `verify.yml`, job `verify` | push and pull_request | yes |
-| `./le fuzz run` | `evidence-nightly.yml`, job `fuzz` | schedule `17 3 * * *` | advisory |
-| `./le integration iface`, `fib`, `firewall`, `traffic`, `gtsm`, `as112` | `evidence-nightly.yml`, job `integration`, under `sudo` | schedule | advisory |
-| `./le integration interop` | `evidence-nightly.yml`, job `interop` | schedule | advisory |
-| `./le integration interop-ipsec` | `evidence-nightly.yml`, job `ipsec-interop` | schedule | advisory |
-| `./le deployment docker-l2tp-ppp-test` | `evidence-nightly.yml`, job `l2tp-interop` | schedule | advisory |
-| `./le deployment docker-pppoe-accel-test` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
-| `./le qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
-| The LDP, IS-IS and VRRP protocol labs, each inside `./le qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
+| `./le test fuzz run` | `evidence-nightly.yml`, job `fuzz` | schedule `17 3 * * *` | advisory |
+| `./le test integration iface`, `fib`, `firewall`, `traffic`, `gtsm`, `as112` | `evidence-nightly.yml`, job `integration`, under `sudo` | schedule | advisory |
+| `./le test integration interop` | `evidence-nightly.yml`, job `interop` | schedule | advisory |
+| `./le test integration interop-ipsec` | `evidence-nightly.yml`, job `ipsec-interop` | schedule | advisory |
+| `./le test deployment docker-l2tp-ppp-test` | `evidence-nightly.yml`, job `l2tp-interop` | schedule | advisory |
+| `./le test deployment docker-pppoe-accel-test` | `evidence-nightly.yml`, job `pppoe-interop` | schedule | advisory |
+| `./le test qemu all-tests`, inside a guest booting the runtime kernel | `qemu-nightly.yml`, job `needs-linux` | schedule `43 4 * * *` | advisory |
+| The LDP, IS-IS and VRRP protocol labs, each inside `./le test qemu run` | `qemu-nightly.yml`, job `protocol-labs` | schedule | advisory |
 | The L2TP appliance proof, the PPPoE labs, the seven-case ASPA plugin namespace subset, and the traffic-usage eBPF proof | `qemu-nightly.yml`, job `runtime-kernel-labs` | schedule | advisory |
-| `bin/ze-perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
+| `./le perf track --check` against `test/perf/history/ze.ndjson` | `perf-nightly.yml`, job `perf-regression-check` | schedule `42 3 * * *` | advisory | <!-- doc-links: ignore (the history file is written by the nightly job and is not committed; perf-nightly.yml:33 guards on its absence) -->
 | `./le verify deps vulnerability` | `govulncheck.yml` | schedule `37 5 * * *` | advisory |
 | CodeQL | `codeql.yml` | push, pull_request, schedule `21 16 * * 3` | as configured by the action |
 

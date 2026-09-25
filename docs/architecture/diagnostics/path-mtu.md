@@ -244,7 +244,7 @@ local entry the kernel queued, or from `probe.KernelPathMTU` when the drain
 finds none. Both matchers are the ones the ping session uses.
 
 `search_integration_linux_test.go` (`integration && linux`, run by
-`./le qemu all-tests`) proves the prober against the clamped
+`./le test qemu all-tests`) proves the prober against the clamped
 three-namespace path of `active-probes.md`: the router's 1400 confirmed
 `via ICMP`; with the router's ICMP errors dropped on the sender (strict
 reverse-path filtering plus a blackhole route for the router's address,

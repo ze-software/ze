@@ -40,7 +40,7 @@ Last updated: 2026-06-07
 Ze has encoders for all types. The daemon component produces live BGP4MP records
 from the reactor via MessageObserver (raw wire bytes, async non-blocking writes).
 Periodic TABLE_DUMP_V2 RIB snapshots use a cross-plugin bridge to iterate the
-RIB under short per-family locks. The ze-chaos tool also uses BGP4MP encoders
+RIB under short per-family locks. The chaos tool (`le chaos run`) also uses BGP4MP encoders
 to produce MRT recordings from chaos test sessions (`--mrt-file` flag).
 
 ### Read (parse MRT files)
@@ -215,8 +215,8 @@ timestamps and all sub-type variants.
 | Convert to pcap | Yes | No | Yes (mrt2pcap) | No |
 | Convert to text | Yes (`show`) | No | Yes (mrt2full, mrt2sum) | No |
 | Convert text to MRT | No | No | Yes (txt2mrt) | No |
-| Statistics/summary | Yes (`ze-analyse statistics`) | No | Yes (mrt2stat) | No |
-| Policy-based filtering | Yes (`ze-analyse filter`) | No | Yes (mrtfilter) | No |
+| Statistics/summary | Yes (`./le mrt statistics`) | No | Yes (mrt2stat) | No |
+| Policy-based filtering | Yes (`./le mrt filter`) | No | Yes (mrtfilter) | No |
 | Next-hop rewrite on inject | No | Yes (`--nexthop`) | No | No |
 | Backpressure control | No | Yes (`--queue-size`) | No | No |
 | Write filtered MRT | Yes (verbatim records) | No | Yes (mrtfilter output) | Yes (MrtRibEncoder/MrtUpdatesEncoder) |

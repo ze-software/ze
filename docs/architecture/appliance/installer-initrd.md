@@ -50,7 +50,7 @@ The installer uses the upstream `vishvananda/netlink` package directly. It does
 not import `internal/plugins/iface/netlink`: the initrd is a separate binary
 with its own build tag, and the plugin tree is not in it.
 
-`./le qemu install-test` proves the initrd boots and installs cleanly.
+`./le test qemu install-test` proves the initrd boots and installs cleanly.
 
 The installer fetches over URLs an operator supplies, so every line it writes
 about one goes through `redact.URL`. `waitForServer` and the download path name
@@ -135,9 +135,9 @@ QEMU acceptance path as unproven until these run green on a machine that has a
 kernel and those tools:
 
 ```
-ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le qemu install-scenarios-test
-ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le qemu install-ventoy-test
-ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image ./le qemu install-iso-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le test qemu install-scenarios-test
+ZE_INSTALL_KERNEL=/path/to/vmlinuz ./le test qemu install-ventoy-test
+ZE_INSTALL_ARCH=arm64 ZE_INSTALL_KERNEL=/path/to/Image ./le test qemu install-iso-test
 ```
 
 The first-run risks, most likely first: `nclient4` DHCP behavior under QEMU

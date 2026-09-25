@@ -71,8 +71,8 @@ own that holds only `register.go`: `le spec current` lives at
 
 **A hyphen joins one name; a space separates a namespace.** This is the rule
 `docs/architecture/cli/command-namespacing.md` states for the product CLI, and
-le follows it: `le verify lint`, not `le verify-lint`, because `verify` is an
-object with members, and `le cli stdio`, not `le dash-stdio`, because the
+le follows it: `le go lint`, not `le go-lint`, because `go` is an
+object with members, and `le cli stdio`, not `le cli-stdio`, because the
 check belongs to the `cli` subject. The tests are one subject too: `le test
 unit`, `le test health` and `le test weakened` are members of `test`, and the
 chaos simulator's own tests are `le chaos selftest`. Feeder 6 of the grammar
@@ -265,7 +265,7 @@ so a ratchet that started a mutation run or an interop scenario would put that
 cost on every session in the checkout. A gate area MAY therefore carry a verb
 that executes, and the ratchet it feeds MUST NOT.
 
-**`le test-unit` runs Go tests two ways, and only one of them is a verdict about
+**`le test unit` runs Go tests two ways, and only one of them is a verdict about
 the checkout.** The six named verbs are targeted subsets a developer runs while
 working inside one of them: `bgp`, `core`, `plugins`, `config`, `cli` and
 `installer`. `all` runs `./...`, so a package outside every named group is

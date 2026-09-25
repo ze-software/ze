@@ -239,6 +239,6 @@ Every new doctor check must:
    `ze explain <code>` works. The entry names the code through an exported
    constant, and the check that emits it references that constant. A code
    spelled a second time in the emitting package is a second declaration of
-   one fact, and `./le enumeration check` refuses it.
+   one fact, and `./le arch enumeration check` refuses it.
 3. Include a unit test proving the check fires when the relevant config
    is present and emits the registered code.

@@ -74,7 +74,7 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | Hierarchical logging | Working -- per-subsystem levels, runtime changes |
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
-| Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
+| Chaos testing (`le chaos run`) | Working -- deterministic replay, property validation |
 | Plugin setup results | Working -- each plugin records what its own `init()` achieved, `show plugin list` replays it in the `outcome` and `reason` columns, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other plugins record nothing yet and list as `unknown` |
 | Local certificate authority | Working -- ze generates a root at its first persistent start, keeps it in the managed store, and issues its own components' certificates from it. A genuinely storeless stdin daemon uses a process-lifetime root and warns that it changes on restart. `show pki local-ca pem` exports the root. `ze doctor` reports a persistent root as absent, unloadable, or within 90 days of expiry |
 | ICMP probe socket check | Working -- `ze doctor` tries the raw ICMP socket and then the unprivileged datagram one, and reports `doctor-icmp-probe` when neither opens or `doctor-icmp-probe-unprivileged` when ping runs on the datagram socket and traceroute cannot |
@@ -104,7 +104,7 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 
 | Feature | Notes |
 |---------|-------|
-| MRT dump (RFC 6396) writing | Reading works via `ze-analyse`. Writing is not implemented. |
+| MRT dump (RFC 6396) writing | Reading works via `./le mrt`. Writing is not implemented. |
 | Full BGP confederation behavior | AS path segment parsing exists, but full confederation deployment behavior is not listed as supported. |
 | Flowspec redirect to VRF | 4-byte ASN with IP redirect (Type 0x82) extended community not yet supported. |
 | External plugin filesystem discovery | External plugins must be configured. Built-in plugins auto-load by config roots, families, event types, and send types. |

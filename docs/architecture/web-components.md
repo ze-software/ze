@@ -94,7 +94,7 @@ to make the other pass.
 
 | Check | Reads | Error direction |
 |-------|-------|-----------------|
-| `./le web-assets check` | the sources | OVER-approximates: a branch no request takes still contributes its asset |
+| `./le web assets check` | the sources | OVER-approximates: a branch no request takes still contributes its asset |
 | `TestPageImportsCoverRenderedAttributes` (web), `TestLGPageImportsCoverRenderedAttributes`, `TestChaosPageImportsCoverRenderedAttributes` | the captured fixtures | UNDER-approximates: a branch no fixture exercises is invisible |
 
 <!-- source: internal/test/markupcheck/head.go -- HeadCoverageFindings, the fixture side -->
@@ -102,7 +102,7 @@ to make the other pass.
 ## Component Filesystem
 
 Every unit below is a templ component in `internal/component/web`. The file name
-carries the visual concern, and `./le repository generate` writes a `*_templ.go` beside
+carries the visual concern, and `./le repo generate` writes a `*_templ.go` beside
 each source.
 
 ```

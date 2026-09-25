@@ -24,7 +24,7 @@ required keyword prints bare, an optional one prints inside brackets, and a
 keyword that repeats carries a trailing ellipsis.
 
 The bare word `help` that a declared keyword introduced is that keyword's VALUE,
-and the action runs. `./le source-rewrite replace file <path> old beta new help`
+and the action runs. `./le repo rewrite replace file <path> old beta new help`
 replaces `beta` with the word `help`. The registered table tells a value from a
 question, so the two never collide in an area that declares one.
 
@@ -36,13 +36,13 @@ and `-V`. A dash opens a long option, or a cluster of one-letter short options.
 
 An action that dispatches through its action table refuses a dash-leading word
 in every value slot, and answers 2. `./le verify status check path --help path
-internal` refuses and reads no path. `./le source-rewrite replace file <path>
+internal` refuses and reads no path. `./le repo rewrite replace file <path>
 old beta new --help apply` refuses and writes nothing. Only the bare word,
 which carries no dash, can be data.
 
 Four spellings ask for help, and the set is closed: `help`, `--help`, `-h` and
 `-help`. A trailing one of the four asks the question in every area, so
-`./le stress-repro run suite -help` prints a page and starts no burn.
+`./le test stress-repro run suite -help` prints a page and starts no burn.
 
 Every other option travels on. An area with a table refuses it. An area
 without one hands it to the child, so `./le job run label x command echo
@@ -64,10 +64,10 @@ therefore unreachable as the last word of such an area's line.
 
 Any OTHER option reaches such an area, because the dispatcher cannot read it as
 a question and the area's own parser owns the line. That is what `command
-<argv...>` means: `./le job run label encode-list command bin/ze-test bgp encode
+<argv...>` means: `./le job run label encode-list command bin/le-test bgp encode
 --list` hands `--list` to the child.
 
-## A bare `go test` is not `./le test-unit`
+## A bare `go test` is not `./le test unit`
 
 Ze compiles features out behind build tags (`//go:build ze_isis`, `ze_ospf`,
 `ze_ldp`, `ze_rsvpte`, `ze_web`, `ze_ssh`, and the rest). `internal/le/gotoolchain`
@@ -90,7 +90,7 @@ To scope a run to one package and keep the tags, read the tag list out of
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
 ```
 
-## What `./le test-unit all` covers
+## What `./le test unit all` covers
 
 `all` runs `./...` under the feature tag set and the race detector, then each
 group whose own build tags compile its test files out of that run. Today that
@@ -104,16 +104,16 @@ swept those six verbs and nothing else: a session that ran it read green over
 every other component and over all of `internal/le`, `internal/appliance`,
 `internal/test`, `pkg` and `cmd`.
 
-`./le test-unit` typed alone lists the verbs and starts no run.
+`./le test unit` typed alone lists the verbs and starts no run.
 
 ## A functional suite is not the runner binary
 
-`./le functional <suite>` builds an isolated bare-named binary pair into the
+`./le test functional <suite>` builds an isolated bare-named binary pair into the
 session scratch directory (`internal/le/test/functional/binaries.go`). The daemon
-carries the test-only tag set, and the suite runs with `ZE_TEST_NO_BUILD=1`,
-`ZE_BIN` and `ZE_TEST_BIN` pointing at that pair (`BinarySet.Environment`).
+carries the test-only tag set, and the suite runs with `LE_TEST_NO_BUILD=1`,
+`ZE_BIN` and `LE_TEST_BIN` pointing at that pair (`BinarySet.Environment`).
 
-Running a `ze-test` binary directly skips all of that. The runner can then
+Running a `le-test` binary directly skips all of that. The runner can then
 rebuild a daemon without the test-only surface, so a fixture times out for a
 build-population reason and the failure looks like the code under test. The
 `--server` and `--client` hints the runner prints on failure inherit the same
@@ -121,9 +121,9 @@ gap: they re-run the same non-equivalent launch.
 
 | Want | Use |
 |------|-----|
-| A whole suite | `./le functional plugin` (`./le functional list` names every suite, and `./le functional select` says which ones a gating run would start) |
-| One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le functional <suite>` |
-| A kernel-dependent suite in the VM | `./le qemu netns-test suites <comma-separated-suites>` |
+| A whole suite | `./le test functional plugin` (`./le test functional list` names every suite, and `./le test functional select` says which ones a gating run would start) |
+| One test, iterating | The owning compiled fixture's Go test, then rerun the whole `./le test functional <suite>` |
+| A kernel-dependent suite in the VM | `./le test qemu netns-test suites <comma-separated-suites>` |
 
 ## The lint gate
 
@@ -135,7 +135,7 @@ lines only. Package-wide analysis is what finds the rest:
 - type mismatches from an interface change
 - constants and vars that became unreferenced
 
-`./le verify lint run` lints every package holding an uncommitted Go change, once
+`./le go lint run` lints every package holding an uncommitted Go change, once
 for each BUILD rather than once. golangci-lint analyzes one GOOS, one GOARCH and
 one tag set for each run, so a file outside that build is not merely unchecked:
 the pass exits 0 and reads as clean over it. The flavor matrix that closes that
@@ -148,14 +148,14 @@ cold analysis for each build, which is minutes.
 
 ## The changed-set selector
 
-`./le changed scope` is the one selector, and `./le verify current mode changed`
+`./le repo changed scope` is the one selector, and `./le verify current mode changed`
 reuses its answer. It reports the changed packages plus two levels of their
 importers (`defaultDepth`, `internal/le/repo/changed/selector.go`), and the feature
 tags the change can reach.
 
 ```
-./le changed scope print both
-./le changed scope print packages paths-from FILE
+./le repo changed scope print both
+./le repo changed scope print packages paths-from FILE
 ```
 
 A non-Go path seeds the Go packages whose tests read it, so a `.ci` file or a
@@ -178,7 +178,7 @@ A scoped run also judges fewer Staticcheck feature-matrix rows. `scopeMatrix`
 rows that omit no feature tag, plus one row per tag the change reached: 3 of 38
 for a `ze_ssh`-local change, with 36 feature tags declared in `feature-gates.txt`.
 Those two rows are `all_features` and `core_only`, and `validateScoped` refuses
-any scope that subtracts one of them. `./le staticcheck-feature-matrix check`
+any scope that subtracts one of them. `./le go staticcheck check`
 typed on its own judges every row, because only a verify run publishes the
 feature-tag answer that `ZE_VERIFY_SCOPE_TAGS` (`ScopeTagsKey`) names.
 
@@ -189,7 +189,7 @@ so each row is judged by exactly one piece and the pieces together judge them
 all. A CI red names the piece it came from, and that command reproduces it:
 
 ```
-./le staticcheck-feature-matrix check part 3 of 6
+./le go staticcheck check part 3 of 6
 ```
 
 A piece dealt no row says so and passes: its rows are judged by a sibling piece
@@ -216,7 +216,7 @@ passes, and so do the root names that are shared by design: `ze-verify*`,
 
 ```
 dir=$(./le session scratch ensure)          # <session-dir>/scratch/, created for you
-./le test-unit all > "$dir/unit.log" 2>&1
+./le test unit all > "$dir/unit.log" 2>&1
 ```
 
 Nothing under `tmp/session/` is deleted automatically: not at session end, not on
@@ -512,8 +512,8 @@ refused before the job starts.
 
 Parallel verify runs share the build cache, the ports, and the test binaries. An
 admitted job runs now, queues behind the jobs already in flight, or attaches to an
-equivalent run. Two actions admit themselves today, `./le verify lint run` and
-`./le verify lock run`; anything else is admitted by typing it after
+equivalent run. Two actions admit themselves today, `./le go lint run` and
+`./le job run`; anything else is admitted by typing it after
 `./le job run label <label> command`. The rest of the heavy population joins in
 `plan/spec-native-action-job-admission.md`, so a second `./le verify current mode
 full` does NOT block on the first: only its lint stage does.
@@ -546,7 +546,7 @@ option travels on, so `command echo -html=cover.out` reaches the child.
 
 The command adds no build tags, no `-race`, no
 package pattern and no timeout of its own, so write each of them yourself. The
-`PKG=` and `RUN=` spellings belong to `./le fuzz`, which declares them as
+`PKG=` and `RUN=` spellings belong to `./le test fuzz`, which declares them as
 argument aliases; `go test` reads `PKG=./x` as an import path and refuses it.
 
 Carry the feature tags from the recipe at the top of this page, or the run
@@ -594,7 +594,7 @@ recipe needs.
 
 ## Which native action owns the documentation gate
 
-`./le doc check verify` and `./le repository generated-check` are separate actions.
+`./le doc check verify` and `./le repo generated-check` are separate actions.
 `internal/le/doc/wiring.Verify` owns the ordered documentation gate, including the
 `internal/le/doc/yangcontract` command and drift checks, the `internal/le/doc/check` links,
 and RFC freshness. `internal/le/repo` owns the generated repository artifacts.

@@ -92,7 +92,7 @@ the plugin registration check derive their verb set from it.
 The three read rows state the rule. The tree breaks it in 18 places, and "Where
 a read verb changes the system" lists every one.
 
-The counts come from `./le command list`, which reads the live handlers and
+The counts come from `./le cli list`, which reads the live handlers and
 schemas and reports 364 commands on this checkout. Run it rather than trusting
 this column.
 <!-- source: internal/le/cli/list/commandlist.go -- Collect, Answer -->
@@ -446,7 +446,7 @@ Answer these in order. Each one has a single correct answer from this page.
    text, and refuse by name every operator the shape cannot support.
 7. Where the command enumerates the members of a set, spell that action `list`,
    and place it where no operator-supplied value can occupy the same slot.
-8. Run `./le cli-grammar`. Seven feeders check the result.
+8. Run `./le cli grammar`. Seven feeders check the result.
 
 ## Least surprise: what an operator already knows
 
@@ -523,8 +523,8 @@ The read-verb rows are in the section above.
 | T-4 | `peer raw`, `peer update`, `peer announce`, `peer withdraw` | One object has one action root. These four sit at the top-level `peer` root while every other peer action sits under `request peer` | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang`. Fix: the same spec moves all four to `request peer <sel> <verb>` |
 | T-5 | `peer raw` arguments | Every argument a handler reads MUST be declared. The schema declares `selector` alone, and the handler reads a message type, an encoding and the data | `internal/component/bgp/plugins/cmd/raw/raw.go` `handleRaw` |
 | T-6 | `request peer <sel> clear soft` | One concept carries one name. It sends ROUTE-REFRESH for every negotiated family. `request peer <sel> refresh <family>` sends it for one. The word `clear` is also a root verb, used here as a leaf word | `internal/component/bgp/plugins/route_refresh/handler/clear_soft.go` `handleBgpPeerClearSoft`, beside `refresh.go` `handleRefresh` |
-| T-10 | `cache` and `commit` | A verb is declared because commands use it. Both are canonical root verbs that no command uses, and both live under `request` instead | `verbs.go` `Verbs`, against `./le command list` |
-| T-11 | `request quiesce` | Ze writes the plain verb rather than the specialist one, and `docs/contributing/writing-style.md` names this exact pair | `./le command list`, `ze-system:quiesce` |
+| T-10 | `cache` and `commit` | A verb is declared because commands use it. Both are canonical root verbs that no command uses, and both live under `request` instead | `verbs.go` `Verbs`, against `./le cli list` |
+| T-11 | `request quiesce` | Ze writes the plain verb rather than the specialist one, and `docs/contributing/writing-style.md` names this exact pair | `./le cli list`, `ze-system:quiesce` |
 | T-12 | `ai/patterns/cli-command.md` | A page MUST match the tree. Its Full Command Inventory publishes `cache list`, `commit start <name>`, `command list`, `log set` and `subscribe <type>`, which are the pre-verb-first spellings | The live paths are `request cache retain`, `request commit`, `system command list`, `request log level` and `request subscribe` |
 | T-13 | `set system file-descriptors` | `set` is `RoleMutation`, which `verbs.go` defines as mutating the config YANG tree in engine path form. The one shipped `set` command calls `setrlimit` on the process and touches no config node | `internal/plugins/host-cmd/cmd/set_fd_linux.go` `handleSetSystemFD`, against `verbs.go` `RoleMutation` |
 | T-14 | `docs/guide/command-catalogue.md` | The same rule. Its Naming convention section states "domain-first, verb-second" and reserves a `generate` root verb, and it prints `bgp monitor` | `verbs.go` `Verbs` holds no `generate`, and the live path is `monitor bgp` |

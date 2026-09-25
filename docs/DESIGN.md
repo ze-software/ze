@@ -881,27 +881,27 @@ expect=exit:code=0
 
 | Test Category | Location | Runner |
 |---------------|----------|--------|
-| Encoding | `test/encode/` | `ze-test bgp encode` |
-| Decoding | `test/decode/` | `ze-test bgp decode` |
-| Config parsing | `test/parse/` | `ze-test bgp parse` |
-| Plugin behavior | `test/plugin/` | `ze-test bgp plugin` |
-| ExaBGP compat | `test/exabgp/` | `./le functional exabgp-test` |
-| Integration | `test/integration/` | `./le functional gating` |
-| Unit tests | `internal/**/*_test.go` | `./le test-unit bgp` and the other native groups |
-| Fuzz tests | Various | `./le fuzz run` |
-| Chaos tests | Various | `./le test-chaos unit` |
+| Encoding | `test/encode/` | `le-test bgp encode` |
+| Decoding | `test/decode/` | `le-test bgp decode` |
+| Config parsing | `test/parse/` | `le-test bgp parse` |
+| Plugin behavior | `test/plugin/` | `le-test bgp plugin` |
+| ExaBGP compat | `test/exabgp/` | `./le test functional exabgp-test` |
+| Integration | `test/integration/` | `./le test functional gating` |
+| Unit tests | `internal/**/*_test.go` | `./le test unit bgp` and the other native groups |
+| Fuzz tests | Various | `./le test fuzz run` |
+| Chaos tests | Various | `./le chaos selftest unit` |
 
 ### Native Test Commands
 
 | Command | What It Runs |
 |---------|--------------|
 | `./le verify current mode full` | Static gates, Linux/amd64 SCA, unit, functional, and ExaBGP checks |
-| `./le test-unit bgp` | Race-instrumented BGP unit group |
-| `./le functional gating` | All release-gate `.ci` suites |
-| `./le verify lint run` | golangci-lint over every Go build flavor |
-| `./le fuzz run` | Every discovered Go fuzz target |
-| `./le functional exabgp-test` | ExaBGP compatibility suite |
-| `./le test-chaos unit` | Chaos simulator unit tests |
+| `./le test unit bgp` | Race-instrumented BGP unit group |
+| `./le test functional gating` | All release-gate `.ci` suites |
+| `./le go lint run` | golangci-lint over every Go build flavor |
+| `./le test fuzz run` | Every discovered Go fuzz target |
+| `./le test functional exabgp-test` | ExaBGP compatibility suite |
+| `./le chaos selftest unit` | Chaos simulator unit tests |
 
 Full verification runs `./le verify deps vulnerability` before its unit stage.
 The outer Go process stays host-native. Its exec wrapper starts host-native
@@ -937,8 +937,8 @@ runs on schedule.
 
 | Tool | Purpose |
 |------|---------|
-| `ze-test` | Functional test runner (`--list`, `--all`, by index) |
-| `ze-test peer` | BGP test peer (`--sink`, `--echo`, `--port`, `--asn`) |
+| `le-test` | Functional test runner (`--list`, `--all`, by index) |
+| `le-test peer` | BGP test peer (`--sink`, `--echo`, `--port`, `--asn`) |
 
 ---
 

@@ -1,11 +1,11 @@
 # Performance Benchmarking
 
-Ze includes `ze-perf`, a standalone BGP propagation latency benchmark tool. It
+Ze includes `le perf`, a BGP propagation latency benchmark tool. It
 measures route forwarding performance through a device under test (DUT) by
 establishing sender and receiver BGP sessions, injecting routes, and timing
 their propagation.
 
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
 | Feature | Description |
 |---------|-------------|

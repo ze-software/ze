@@ -8,11 +8,11 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 
 ```bash
 # Quick start
-./le functional gating             # Run all release-gate suites
-./le functional select             # Which suites a gating run would start, and why
-./le functional encode             # Encoding tests only
-./le functional plugin             # Plugin tests only
-./le functional reload             # Reload tests only
+./le test functional gating             # Run all release-gate suites
+./le test functional select             # Which suites a gating run would start, and why
+./le test functional encode             # Encoding tests only
+./le test functional plugin             # Plugin tests only
+./le test functional reload             # Reload tests only
 ```
 
 ## Release Gate Coverage
@@ -66,7 +66,7 @@ covers, and the four conditions it never widens, is
 [`docs/architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 
 A scoped run also judges fewer Staticcheck matrix rows.
-`./le staticcheck-feature-matrix check` derives one row per feature tag in
+`./le go staticcheck check` derives one row per feature tag in
 `feature-gates.txt` plus `all_features` and `core_only`, 38 rows today, and each
 row is a full-module analysis. `scopeFeatureMatrix`
 (`internal/le/go/staticcheck.Answer`) keeps a row when it omits no tag
@@ -96,7 +96,7 @@ checkout. The full rule and the reason for each branch are
 [`architecture/testing/verify-freshness-scope.md`](architecture/testing/verify-freshness-scope.md).
 <!-- source: internal/le/test/functional/suitemap.go -- suiteMap, selectSuites, suitesFor -->
 
-`./le functional select` prints the run list a gating run would start for this
+`./le test functional select` prints the run list a gating run would start for this
 checkout, and runs nothing. It names the suites that run, the suites the map
 ruled out, and the suites `ZE_SKIP_SUITES` left out, and it says which package
 it could not answer for when the run widened.
@@ -110,7 +110,7 @@ reduces the directory to the packages that suite REACHED: a package it covered
 outside `register.go` and outside every `func init()` body. A suite that records
 nothing is left OUT of the map, so the next reader knows nothing about it and
 runs it. Only a run that ran every gating suite publishes, so neither
-`./le functional encode` nor a run under `ZE_SKIP_SUITES` writes a map naming
+`./le test functional encode` nor a run under `ZE_SKIP_SUITES` writes a map naming
 the few suites it happened to run.
 <!-- source: internal/le/test/functional/reach.go -- reachedPackages, packagesInProfile -->
 <!-- source: internal/le/test/functional/suitemap.go -- suiteRecording, publish -->
@@ -122,7 +122,7 @@ The functional test target runs 27 suites: encode, plugin, parse, decode, reload
 ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
 web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrrp.
 
-`./le repository check` is a fast (~0.2s) post-verify check that catches recurring
+`./le repo check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
 exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
 before presenting work as complete.
@@ -140,26 +140,26 @@ must be run manually:
 
 | Suite | Runner | Why not gated |
 |-------|--------|---------------|
-| Static routes | `./le functional static` | Separate route-installation fixture |
-| Traffic control | `./le functional traffic` | Requires traffic-control platform support |
-| Flow export | `./le functional flow-export` | Requires Linux packet-sampling support for release evidence |
-| VPP | `./le functional vpp` | Uses the Go VPP stub in `internal/test/cli/cmd_vpp_stub.go` |
-| L2TP wire | `./le functional l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
-| OSPFv2 wire | `./le functional ospf-wire` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
-| IS-IS wire | `./le functional isis-wire` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
-| BGP interop | `./le integration interop` (`INTEROP_SCENARIO=<name>` for one) | Requires Docker peer daemons and image builds. The runner fails when Docker is unavailable |
-| IPsec interop | `IPSEC_INTEROP_SCENARIO=<name> ./le integration interop-ipsec` | Requires strongSwan in privileged Docker containers |
-| RADIUS interop | `RADIUS_INTEROP_SCENARIO=<name> ./le integration interop-radius` | Ze's admin login against a real FreeRADIUS server at a pinned tag. Requires Docker, and no kernel module: the admin path is a UDP socket and ze's own listeners |
-| Chaos web | `./le functional web` | Browser and dashboard scenarios |
+| Static routes | `./le test functional static` | Separate route-installation fixture |
+| Traffic control | `./le test functional traffic` | Requires traffic-control platform support |
+| Flow export | `./le test functional flow-export` | Requires Linux packet-sampling support for release evidence |
+| VPP | `./le test functional vpp` | Uses the Go VPP stub in `internal/test/cli/cmd_vpp_stub.go` |
+| L2TP wire | `./le test functional l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| OSPFv2 wire | `./le test functional ospf-wire` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
+| IS-IS wire | `./le test functional isis-wire` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
+| BGP interop | `./le test integration interop` (`INTEROP_SCENARIO=<name>` for one) | Requires Docker peer daemons and image builds. The runner fails when Docker is unavailable |
+| IPsec interop | `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec` | Requires strongSwan in privileged Docker containers |
+| RADIUS interop | `RADIUS_INTEROP_SCENARIO=<name> ./le test integration interop-radius` | Ze's admin login against a real FreeRADIUS server at a pinned tag. Requires Docker, and no kernel module: the admin path is a UDP socket and ze's own listeners |
+| Chaos web | `./le test functional web` | Browser and dashboard scenarios |
 
 Every suite action routes through `internal/le/job`, which runs it now,
 queues it behind a heavy job already in flight, or attaches it to an equivalent
 run. Queue a runner selection with
-`./le job run label <label> command bin/ze-test <suite> <selection>`.
+`./le job run label <label> command bin/le-test <suite> <selection>`.
 <!-- source: internal/le/test/functional/actions.go -- Actions -->
 <!-- source: internal/le/test/integration/actions.go -- Actions -->
 
-Clean release-candidate evidence can be run with `./le evidence release-candidate`.
+Clean release-candidate evidence can be run with `./le verify evidence release-candidate`.
 The action refuses a dirty worktree, clones the repository into an ephemeral
 Docker container, mirrors the CI dependency setup, and runs
 `./le verify current mode full` there.
@@ -169,18 +169,18 @@ Docker because the local runner needs a Linux system service; Docker-specific
 targets say so in the target name.
 
 Real VPP daemon evidence is separate from the stub-backed VPP functional suite:
-`./le deployment vpp-test` starts VPP in a privileged Docker container and
+`./le test deployment vpp-test` starts VPP in a privileged Docker container and
 proves `fib-vpp` add and withdraw against VPP's real FIB, traffic policers,
 and the IKE IPsec dataplane backend.
 
 External L2TP peer evidence is separate from the in-tree L2TP fixture suite:
-`./le deployment l2tp-test` starts Ze and a real `xl2tpd` LAC in a
+`./le test deployment l2tp-test` starts Ze and a real `xl2tpd` LAC in a
 privileged Docker container, then proves the control tunnel and incoming-call
 session are established. Full PPP/NCP/kernel dataplane peer evidence is a
-separate Linux-only target: `./le deployment l2tp-ppp-test` creates Ze and
+separate Linux-only target: `./le test deployment l2tp-ppp-test` creates Ze and
 LAC network namespaces joined by a veth underlay, then requires `xl2tpd`,
 `pppd`, `ping`, `/dev/ppp`, `iproute2`, and PPPoL2TP kernel support.
-`./le deployment docker-l2tp-ppp-test` runs a peer-isolated Docker lab with Ze,
+`./le test deployment docker-l2tp-ppp-test` runs a peer-isolated Docker lab with Ze,
 a real `xl2tpd`/`pppd` peer, FRR for BGP redistribution, and an independent Go
 RADIUS peer. Its four scenarios cover Ze as LNS and initiator, PPP LCP/IPCP,
 kernel `pppN` interfaces, dataplane traffic, route redistribution, and RADIUS
@@ -188,7 +188,7 @@ accounting attributes. The lab refuses to run a PPP scenario when `/dev/ppp`,
 `ip l2tp`, or the `l2tp_ppp`/`pppol2tp` module is missing. A single scenario is
 selected with `ZE_L2TP_INTEROP_SCENARIO=<name>`.
 
-`./le deployment docker-pppoe-accel-test` runs two PPPoE roles against independent
+`./le test deployment docker-pppoe-accel-test` runs two PPPoE roles against independent
 peers. Ze acts as a client against the Alpine
 [accel-ppp](https://accel-ppp.org/) access concentrator, then as an access
 concentrator against `pppd` with the `rp-pppoe` plugin. The checkers require
@@ -198,7 +198,7 @@ clean teardown. The Docker form needs host-kernel `/dev/ppp` and `pppoe`
 support. `ZE_PPPOE_INTEROP_SCENARIO=<name>` selects one role. See
 `docs/labs/pppoe-interop.md`.
 
-`./le qemu vrrp-keepalived-test` runs the VRRP interop lab against keepalived
+`./le test qemu vrrp-keepalived-test` runs the VRRP interop lab against keepalived
 2.3.1 on one L2 segment. Three network namespaces are bridged so a passive
 observer can prove the virtual IP moves at layer 2. The action boots Ze's
 runtime kernel through the native QEMU harness and uses the shared verified
@@ -208,12 +208,12 @@ is measured from tcpdump wire timestamps against the acceptance bands in
 `plan/spec-vrrp-6-interop.md`, never from wall clock.
 
 The Linux-only VRRP runtime `.ci` tests carry `option=needs-linux`: they skip on
-Darwin and unprivileged Linux, then run inside `./le qemu all-tests`.
+Darwin and unprivileged Linux, then run inside `./le test qemu all-tests`.
 
 ### Which pipeline runs each QEMU lab
 
-`.github/workflows/qemu-nightly.yml` invokes the registered `./le qemu`
-actions. `./le qemu all-tests` covers the Linux functional suites;
+`.github/workflows/qemu-nightly.yml` invokes the registered `./le test qemu`
+actions. `./le test qemu all-tests` covers the Linux functional suites;
 `vrrp-keepalived-test`, `pppoe-accel-test`, and `pppoe-test` own their protocol
 labs. `TestEveryWorkflowNativeActionExists` checks the other direction: every
 `./le` action a workflow names is registered in the Go action tables. Nothing
@@ -236,26 +236,26 @@ its workflow job added by hand. The full workflow map is
 
 ```bash
 # List available tests with run number, total, one-based id, and name
-ze-test bgp encode --list
-ze-test ui --list
+le-test bgp encode --list
+le-test ui --list
 
 # Run specific tests by id or exact name
-ze-test bgp encode 4 5 6
-ze-test ui 4
+le-test bgp encode 4 5 6
+le-test ui 4
 
 # Run all tests
-ze-test bgp encode --all
-ze-test ui --all
+le-test bgp encode --all
+le-test ui --all
 
 # Resume a suite after a timeout or interrupted run
-ze-test bgp plugin --start 42
-ze-test editor --start 42
+le-test bgp plugin --start 42
+le-test editor --start 42
 
 # Stress test selected tests
-ze-test bgp encode --count 10 1 2
+le-test bgp encode --count 10 1 2
 
 # Run tests under development from test/draft/<suite> instead of test/<suite>
-ze-test bgp plugin --draft --all
+le-test bgp plugin --draft --all
 ```
 <!-- source: internal/test/cli/cmd_bgp.go -- zeTestParseRunCLI, zeTestPrintRunUsage -->
 <!-- source: internal/test/cli/ci_runner.go -- RunCISubcommand common options -->
@@ -275,10 +275,10 @@ repo-wide gate:
 
 ```bash
 $EDITOR test/draft/plugin/my-test.ci        # 1. write
-ze-test bgp plugin --draft -a               # 2. run only drafts
-./le stress-repro run suite "bgp plugin --draft" test 1 any-failure
+le-test bgp plugin --draft -a               # 2. run only drafts
+./le test stress-repro run suite "bgp plugin --draft" test 1 any-failure
 mv test/draft/plugin/my-test.ci test/plugin/  # 3. promote when green
-ze-test bgp plugin -a                       # 4. now it is real
+le-test bgp plugin -a                       # 4. now it is real
 ```
 
 `--draft` swaps the discovery root; without it you always get the real tests.
@@ -286,18 +286,18 @@ ze-test bgp plugin -a                       # 4. now it is real
 **Type the runner's own verb, and read the log rather than the exit code.** Not
 every suite sits under `bgp`: `plugin`, `encode`, `decode`, `parse` and `reload`
 do, and `ui`, `editor`, `web` and the protocol suites are typed bare, as
-`ze-test ui -a`. `internal/le/test/functional/suites.go` carries the argv for each
+`le-test ui -a`. `internal/le/test/functional/suites.go` carries the argv for each
 one, and it is the only place that answers this. A runner given a verb it does
-not know prints its usage and **exits 0**, so `ze-test bgp ui --draft` reads as a
+not know prints its usage and **exits 0**, so `le-test bgp ui --draft` reads as a
 pass and runs nothing (`ai/rules/commands.md`; the defect is recorded in
 `plan/journal/silent-fall-through.md`). The check is a `--- PASS` or
 `VERIFY STEP` line naming your test.
 
-**A `.ci` whose fixture is compiled into `ze-test` needs `ze-test` rebuilt, not
-just `ze`.** `ze-test fixture <name>` resolves the name in the binary's own
+**A `.ci` whose fixture is compiled into `le-test` needs `le-test` rebuilt, not
+just `ze`.** `le-test fixture <name>` resolves the name in the binary's own
 registry (`internal/test/fixture`, `Register`), so a fixture you added this
 session is absent from a stale binary while the daemon under test is current.
-`./le functional <suite>` rebuilds both.
+`./le test functional <suite>` rebuilds both.
 Suite discovery is a non-recursive glob, so the incubator is invisible to it for
 free; the six gates that walk `test/` recursively each skip it explicitly, and
 `TestDraftDirIsInvisibleToRepoGates` fails if one of them stops. Adding a new
@@ -331,7 +331,7 @@ below.
 ---
 ## Functional Suite Inventory
 
-Every `ze-test` functional suite uses the same selection contract after the suite
+Every `le-test` functional suite uses the same selection contract after the suite
 name: `--list`, `--all`, `--start ID`, `--pattern TEXT`, or positional
 `ID_OR_NAME...`. `--list` prints each test as `N/TOTAL ID NAME`; `ID` is
 one-based, so the full-suite progress number and runnable id match. Each run
@@ -343,35 +343,35 @@ and name, plus periodic progress while tests are still running.
 
 | Suite | Command | Files | How it works |
 |-------|---------|-------|--------------|
-| Encode | `ze-test bgp encode` | `test/encode/*.ci` | Builds Ze and `ze-peer`, starts peers, then checks BGP wire output from configured routes. |
-| Plugin | `ze-test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, decoded storage keys, or exported files. |
-| Parse | `ze-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
-| Decode | `ze-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
-| Reload | `ze-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
-| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. `bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex` cover the standard-input forms: since 2026-09-07 the runner pipes a stdin block whenever the `-` belongs to a verb rather than to a daemon config argument (`routeStdinBlock`, `internal/test/runner/runner_exec_util.go`). Before that it replaced the first `-` in argv with a file and piped nothing, so `bgp-decode-stdin-hex` failed on a path where hexadecimal was expected and `bgp-decode-pcap-stdin` passed for a reason it does not assert (`plan/journal/green-that-could-not-have-been-red.md`). |
-| Editor | `ze-test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
-| Managed | `ze-test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
-| L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
-| Firewall | `ze-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
-| Policy | `ze-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
-| IPsec | `ze-test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. Two of them read Ze's own kernel read-back surface: `ipsec-show-dataplane-kernel` asserts that `show vpn ipsec dataplane sa` names the ESP transform and the addresses the test configured, and stops naming them after `clear vpn ipsec sa`, which is a transition rather than a state; `ipsec-show-sa-counters` asserts that `show vpn ipsec sa` reports `counters-known` true and NUMERIC byte counters, where 0 is the kernel's true count for a tunnel no packet crossed and null is the failure it discriminates. `ipsec-dataplane-show` is their unprivileged sibling: under the noop backend every dump reports that the backend cannot enumerate, which is reachability evidence and never kernel evidence. |
-| Web | `ze-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `ze-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `ze-test lg`), or the chaos dashboard (`ze-chaos`). |
-| Install | `ze-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
-| Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
-| Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
-| Flow export | `ze-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
-| BFD | `ze-test bfd` | `test/bfd/*.ci` | Exercises the BFD surface an operator reaches on a running daemon. `bfd-detection-interval` reads back the RFC 5880 Section 6.8.4 detection time and the Section 6.8.3 slow-start transmit interval of a configured session through `show bfd session address <peer>`. The suite exists so an RFC 5880 / 5881 / 5883 requirement has a `.ci` home whose verify tier the run list grants; the BFD tests that predate it stay in `test/plugin/`. |
-| DHCP server | `ze-test dhcp` | `test/dhcp/*.ci` | Exercises the DHCP server's address-pool surface through `ze config validate`, which is where the plugin's in-process config verifier runs. `dhcp-range-inside-subnet` accepts a pool and a static mapping inside their subnet and refuses each way out of it. A live DHCP exchange needs a privileged bind on UDP 67 and is not reachable from an unprivileged gating run. |
-| VRRP | `ze-test vrrp` | `test/vrrp/*.ci` | Exercises the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (mandatory vrid and its 1..255 range, duplicate vrid or virtual-address per unit+family, the operator-assigned priority 255 rejection, the version-dependent interval encodings, accept-mode as VRRPv3-only, the IPv6 first-address link-local rule, `track` on the address-owner group, a zero `priority-decrement`, and the VPP backend rejection), and the doctor/explain surface. `vrrp-accept-mode.ci` and `vrrp-track.ci` are the two kernel proofs: the first reads the `ze_vrrp` drop rules back and probes the virtual address with a UDP datagram, the second flaps a tracked veth and reads the advertised priority byte off an AF_PACKET capture on the parent's veth peer (`vrrp/vrrp-track-setup` and `vrrp/vrrp-track-driver`, `internal/test/fixture/vrrp_track_linux.go`). Each command asserts its own exit code via `cmd=...:exit=N`, because `expect=exit:code=` only ever reaches a file's last quick-exit `ze` command. Tests that boot a daemon carry `option=needs-linux` and run only under QEMU. |
-| VPP | `ze-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
-| L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
-| IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
-| OSPFv2 wire | `ze-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
-| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, distance arbitration, and raw-socket doctor diagnostics, the RFC 3101 NSSA default route through the operator's `show ospf database nssa-external` subview (`ospf-nssa-abr-default.ci` for the border-router default with no `default-originate` leaf, `ospf-nssa-internal-default.ci` for the forwarding-address precondition on an internal router, and `test/ospfv3/ospfv3-nssa-abr-default.ci` for the OSPFv3 `0x2007` NSSA-LSA), plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospfv3-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
-| Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
-| Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
-| ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-| Runner | `ze-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le hook-check` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
+| Encode | `le-test bgp encode` | `test/encode/*.ci` | Builds Ze and `ze-peer`, starts peers, then checks BGP wire output from configured routes. |
+| Plugin | `le-test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, decoded storage keys, or exported files. |
+| Parse | `le-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
+| Decode | `le-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
+| Reload | `le-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
+| UI | `le-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. The three `bgp-decode-pcap-*` tests carry their capture as a base64 `tmpfs=` block, because `test/decode/` cannot express them: its driver reads the flags off the `exec=` line and then builds its own `ze bgp decode <hex>` argv, so it never runs the command as written. `bgp-decode-pcap-stdin` and `bgp-decode-stdin-hex` cover the standard-input forms: since 2026-09-07 the runner pipes a stdin block whenever the `-` belongs to a verb rather than to a daemon config argument (`routeStdinBlock`, `internal/test/runner/runner_exec_util.go`). Before that it replaced the first `-` in argv with a file and piped nothing, so `bgp-decode-stdin-hex` failed on a path where hexadecimal was expected and `bgp-decode-pcap-stdin` passed for a reason it does not assert (`plan/journal/green-that-could-not-have-been-red.md`). |
+| Editor | `le-test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
+| Managed | `le-test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
+| L2TP | `le-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
+| Firewall | `le-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
+| Policy | `le-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
+| IPsec | `le-test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. Two of them read Ze's own kernel read-back surface: `ipsec-show-dataplane-kernel` asserts that `show vpn ipsec dataplane sa` names the ESP transform and the addresses the test configured, and stops naming them after `clear vpn ipsec sa`, which is a transition rather than a state; `ipsec-show-sa-counters` asserts that `show vpn ipsec sa` reports `counters-known` true and NUMERIC byte counters, where 0 is the kernel's true count for a tunnel no packet crossed and null is the failure it discriminates. `ipsec-dataplane-show` is their unprivileged sibling: under the noop backend every dump reports that the backend cannot enumerate, which is reachability evidence and never kernel evidence. |
+| Web | `le-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `le-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `le-test lg`), or the chaos dashboard (`ze-chaos`). |
+| Install | `le-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
+| Static | `le-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
+| Traffic | `le-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
+| Flow export | `le-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
+| BFD | `le-test bfd` | `test/bfd/*.ci` | Exercises the BFD surface an operator reaches on a running daemon. `bfd-detection-interval` reads back the RFC 5880 Section 6.8.4 detection time and the Section 6.8.3 slow-start transmit interval of a configured session through `show bfd session address <peer>`. The suite exists so an RFC 5880 / 5881 / 5883 requirement has a `.ci` home whose verify tier the run list grants; the BFD tests that predate it stay in `test/plugin/`. |
+| DHCP server | `le-test dhcp` | `test/dhcp/*.ci` | Exercises the DHCP server's address-pool surface through `ze config validate`, which is where the plugin's in-process config verifier runs. `dhcp-range-inside-subnet` accepts a pool and a static mapping inside their subnet and refuses each way out of it. A live DHCP exchange needs a privileged bind on UDP 67 and is not reachable from an unprivileged gating run. |
+| VRRP | `le-test vrrp` | `test/vrrp/*.ci` | Exercises the vrrp YANG augment under interface units, the plugin's cross-leaf verifier (mandatory vrid and its 1..255 range, duplicate vrid or virtual-address per unit+family, the operator-assigned priority 255 rejection, the version-dependent interval encodings, accept-mode as VRRPv3-only, the IPv6 first-address link-local rule, `track` on the address-owner group, a zero `priority-decrement`, and the VPP backend rejection), and the doctor/explain surface. `vrrp-accept-mode.ci` and `vrrp-track.ci` are the two kernel proofs: the first reads the `ze_vrrp` drop rules back and probes the virtual address with a UDP datagram, the second flaps a tracked veth and reads the advertised priority byte off an AF_PACKET capture on the parent's veth peer (`vrrp/vrrp-track-setup` and `vrrp/vrrp-track-driver`, `internal/test/fixture/vrrp_track_linux.go`). Each command asserts its own exit code via `cmd=...:exit=N`, because `expect=exit:code=` only ever reaches a file's last quick-exit `ze` command. Tests that boot a daemon carry `option=needs-linux` and run only under QEMU. |
+| VPP | `le-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
+| L2TP wire | `le-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
+| IS-IS wire | `le-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
+| OSPFv2 wire | `le-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
+| OSPF | `le-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, distance arbitration, and raw-socket doctor diagnostics, the RFC 3101 NSSA default route through the operator's `show ospf database nssa-external` subview (`ospf-nssa-abr-default.ci` for the border-router default with no `default-originate` leaf, `ospf-nssa-internal-default.ci` for the forwarding-address precondition on an internal router, and `test/ospfv3/ospfv3-nssa-abr-default.ci` for the OSPFv3 `0x2007` NSSA-LSA), plus the RFC 5250 opaque carrier, RFC 3630/5392 Traffic Engineering, the RFC 7770 Router Information LSA (`ospf-ri-*.ci`, and `test/ospfv3/ospfv3-ri-originate.ci` for the v3 engine), and the RFC 7684 Extended Prefix/Link Opaque LSAs (`ospf-ext-register.ci`, `ospf-ext-prefix-originate.ci`, `ospf-ext-link-originate.ci`, `ospf-ext-prefix-receive.ci`, `ospf-ext-subtlv-hook.ci`, `ospf-ext-decode.ci`), with FRR interop scenarios (`ospf-ri-frr`, `ospfv3-ri-frr`, `ospf-ext-prefix-link-frr`) run under QEMU. |
+| Chaos | `le-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. Each test execs `le chaos run`; the run compiles the le personality (`ze_le` and every gate `feature-gates.txt` declares) into its temp directory. |
+| Chaos web | `le-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. Each test execs `le chaos run --in-process --web`, against the same le build as the chaos suite. |
+| ExaBGP compatibility | `le-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `le-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
+| Runner | `le-test runner` | `test/runner/*.ci` | Exercises the `.ci` orchestration grammar and the native verify-freshness, structural-red attribution, verification-debt (`verify-scope-debt-clear` runs the gate a row names, `verify-scope-debt-discharge` records how an unrunnable row's obligation was met and then tampers with the record to see the row counted open again), in-flight failure-query, change-set-selection and derived-artifact fixtures (`le-derived-artifact-lifecycle` drives `le ai hooks` over a scratch checkout: a session start renders an artifact the tree does not hold, a write to one of its inputs removes it, and a command naming it rebuilds it before that command runs; `le-rfc-ledger-is-derived` walks the same loop for the five RFC outputs, and runs `./le rfc check` over a tree holding none of them to prove the gate judges the summaries rather than a page). The compiled Go fixtures use throwaway Git repositories and need no interpreter. |
 <!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
 <!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
 <!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
@@ -396,8 +396,8 @@ which kills leaked `ze` daemons and mock servers with it.
 Override any of them on the command line:
 
 ```bash
-ZE_SUITE_TIMEOUT=1200s ./le functional gating
-ZE_SUITE_TIMEOUT_PLUGIN=1800s ./le functional plugin
+ZE_SUITE_TIMEOUT=1200s ./le test functional gating
+ZE_SUITE_TIMEOUT_PLUGIN=1800s ./le test functional plugin
 ```
 
 #### One suite's budget is its own
@@ -425,7 +425,7 @@ The retired orchestration required four edits that a test had to hold in step,
 since the budget could be spelled in one place and not another: the run would
 then say 1500s while the kill landed at 600s.
 
-`./le functional gating` prints one runtime line per suite, and a table of all
+`./le test functional gating` prints one runtime line per suite, and a table of all
 of them at the end:
 
 ```
@@ -467,12 +467,12 @@ component-group targets to test only the area you changed:
 
 | Command | Scope | Approximate time |
 |---------|-------|------------------|
-| `./le test-unit bgp` | `./internal/component/bgp/...` | about 1:30 |
-| `./le test-unit core` | `./internal/core/...` | about 30 seconds |
-| `./le test-unit plugins` | `./internal/plugins/...` | about 40 seconds |
-| `./le test-unit config` | `./internal/component/config/...` | about 20 seconds |
-| `./le test-unit cli` | `./internal/component/cli/...` | about 10 seconds |
-| `./le test-unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
+| `./le test unit bgp` | `./internal/component/bgp/...` | about 1:30 |
+| `./le test unit core` | `./internal/core/...` | about 30 seconds |
+| `./le test unit plugins` | `./internal/plugins/...` | about 40 seconds |
+| `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
+| `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
+| `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
 | `./le verify current mode full` | Every unit group plus repository gates | about 5 minutes |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
@@ -481,7 +481,7 @@ release/build evidence.
 
 The `installer` group carries no `-race` flag and targets Linux. On another
 host `go test` cross-compiles a Linux binary it cannot start, so the group runs
-`go vet` over the same files. `./le qemu all-tests` runs them for real inside
+`go vet` over the same files. `./le test qemu all-tests` runs them for real inside
 the Alpine virtual machine.
 
 ### Property-based tests (stdlib `testing/quick`)
@@ -505,19 +505,19 @@ native integration actions supply the required build tags:
 
 | Command | Test | Tag | What it drives |
 |---------|------|-----|----------------|
-| `./le integration stress-web` | `TestWebConcurrentEditStress` | `stress` | Concurrent editor sessions mutate and commit one config under the race detector |
-| `./le integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 128 managed clients authenticate and synchronize against the real listener |
+| `./le test integration stress-web` | `TestWebConcurrentEditStress` | `stress` | Concurrent editor sessions mutate and commit one config under the race detector |
+| `./le test integration stress-fleet` | `TestFleetManyClientsPerf` | `fleetperf` | 128 managed clients authenticate and synchronize against the real listener |
 <!-- source: internal/le/test/integration/gates.go -- Table -->
 
 The BGP route stress harness is a native integration action. It creates two
 network namespaces, starts Ze or BIRD, and drives the exact five-scenario
-registry with `ze-test peer --mode inject`. It needs root, `ip`, `ethtool`,
+registry with `le-test peer --mode inject`. It needs root, `ip`, `ethtool`,
 `tcpdump`, and BIRD for the baseline scenario.
 
 ```bash
-./le integration stress
-STRESS_SCENARIO=03-session-flap ./le integration stress
-STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le integration stress
+./le test integration stress
+STRESS_SCENARIO=03-session-flap ./le test integration stress
+STRESS_SCENARIO=05-profile-1m ZE_PPROF=1 ./le test integration stress
 ```
 
 The registry covers four bulk route counts from 100,000 to 1,000,000, sequential
@@ -526,14 +526,14 @@ baseline, and the 1,000,000-route CPU, heap, and goroutine profile run.
 <!-- source: internal/le/test/integration/stress.go -- native scenario registry and runner -->
 <!-- source: internal/le/test/integration/stressbird.go -- BIRD baseline runner -->
 
-### netlab template render check (`./le netlab render-check`, out of `./le verify current mode full`)
+### netlab template render check (`./le test netlab render-check`, out of `./le verify current mode full`)
 
 `contrib/netlab/` mirrors the netlab daemon integration: the daemon definition, the
 Jinja2 templates that emit ze configuration, one reference topology, and the committed
 render under `contrib/netlab/golden/`. The check builds a scratch lab from that mirror
 and runs `netlab create`. It then compares each rendered node configuration against its
 golden file, and runs `ze config validate` on each golden. It never writes to the
-golden file. `./le netlab render-update` rewrites the golden files.
+golden file. `./le test netlab render-update` rewrites the golden files.
 
 It is out of `./le verify current mode full` because it needs netlab installed, and `./le verify current mode full` must run on
 a machine that has neither netlab nor Jinja2. **A missing netlab is an error exit, not a
@@ -562,18 +562,17 @@ Opting in takes two entries, not one. The ceiling names the benchmark, and
 benchmark lives outside those packages is reported MISSING, so the gate goes red
 until the package is added beside it.
 
-Timing regressions run separately through `bin/ze-perf track --check`, while
-the Docker DUT matrix uses the native Go runner:
-`go run ./cmd/ze-perf-run --build --test`.
+Timing regressions run separately through `./le perf track --check`, while
+the Docker DUT matrix uses the native Go runner: `./le perf run`.
 <!-- source: internal/perf/allocgate.go -- AllocCeilings, checkAllocCeilings -->
 <!-- source: internal/le/verify/deps/verifydeps.go -- allocPackages -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
-<!-- source: cmd/ze-perf-run/main.go -- main -->
+<!-- source: internal/le/perf/actions.go -- perf run, perf track -->
 
 ### Privileged kernel-state tests under QEMU (`option=needs-linux`)
 
 `.ci` tests tagged `option=needs-linux` skip on non-Linux hosts and unprivileged
-Linux, then run as root inside `./le qemu all-tests`. CAP_NET_ADMIN and real
+Linux, then run as root inside `./le test qemu all-tests`. CAP_NET_ADMIN and real
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun -->
@@ -587,7 +586,7 @@ capability bits the probe tests.
 | Token | Capability | What needs it |
 |-------|-----------|---------------|
 | `net-admin` | CAP_NET_ADMIN | interfaces, netlink, nftables |
-| `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `ze-test dns` does on 53 |
+| `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `le-test dns` does on 53 |
 | `net-raw` | CAP_NET_RAW | raw and packet sockets (ping, traceroute) |
 | `bpf` | CAP_BPF | loading eBPF programs and creating maps |
 | `sys-time` | CAP_SYS_TIME | setting the system clock, which the NTP restart carrier does |
@@ -597,7 +596,7 @@ capability bits the probe tests.
 #### A clamped path built by the test itself
 
 A `.ci` that needs a path with a known MTU runs the daemon through the
-compiled fixture `ze-test fixture plugin/clamped-path netns <prefix> [route-mtu
+compiled fixture `le-test fixture plugin/clamped-path netns <prefix> [route-mtu
 <octets>] [far-daemon <conf>]... [without-net-raw] run <argv...>`
 (`internal/test/fixture/plugin_fixture_clamped_path_linux.go`). The fixture
 builds three named network namespaces (`<prefix>-s`, `-r`, `-f`: sender,
@@ -608,7 +607,7 @@ link is 1600 so a 1528-octet probe leaves the sender and the ROUTER refuses
 it, which is the answer under test. The fixture's exit is the daemon's, an
 error when the daemon exits non-zero, and it removes the namespaces on every
 exit. It is the last `cmd=` line under `expect=exit:code=0`, so the runner
-waits for it, and the fixture plugin inside the daemon (`ze-test fixture
+waits for it, and the fixture plugin inside the daemon (`le-test fixture
 plugin/ping-do-not-fragment`) dispatches `show ping` and reads the payload.
 `without-net-raw` is how the unprivileged variant loses `CAP_NET_RAW` while
 staying root: the fixture drops the bit from its thread's bounding set
@@ -616,7 +615,7 @@ staying root: the fixture drops the bit from its thread's bounding set
 widens the sender namespace's `ping_group_range`, and after the start reads
 the daemon's own `CapEff` from `/proc`, printing `DROPPED:` or refusing with
 `GUARD:` when the bit is still held. The doctor variant runs
-`ze-test fixture plugin/isolated-netns netns <name> without-net-raw run ze
+`le-test fixture plugin/isolated-netns netns <name> without-net-raw run ze
 doctor --json <conf>`: one fresh namespace whose `ping_group_range` is the
 kernel default. No shell, `ip` or `capsh` is involved, which is what the
 repository contract `TestNoPythonLeRemains` (`internal/le/contract_test.go`)
@@ -663,11 +662,11 @@ in `allTestsRun.Run` in `internal/le/test/qemu/alltests.go`; `test/traffic/traff
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface
 fault family (`iface-link-flap`, `iface-addr-remove`) has a netns-scoped
-integration tests supplied by the applicable `./le integration` action, plus
+integration tests supplied by the applicable `./le test integration` action, plus
 the `test/chaos/iface-link-flap.ci` scenario.
 
 Suites that mutate shared, un-namespaced kernel state run serially in
-`./le qemu all-tests`. The guest is a throwaway VM, so nothing any suite
+`./le test qemu all-tests`. The guest is a throwaway VM, so nothing any suite
 programs reaches the operator's own kernel.
 
 Four suites go further and take a fresh network namespace for each test:
@@ -796,7 +795,7 @@ The two derivations differ above the floor, and the difference is the shape of
 the suite. `DefaultSuiteConcurrency` scales at 2x the core count because a
 WAIT-bound suite spends most of its wall clock waiting for daemons, and because
 its predecessor was "all at once": every suite declared 0, a non-positive
-`Parallel` means `len(selected)`, and `ze-test ospf --all` launched 97 daemons
+`Parallel` means `len(selected)`, and `le-test ospf --all` launched 97 daemons
 until a GitHub job died mid-suite on 2026-07-26 (exit 143, the runner agent
 itself killed). `plugin` is CORE-bound instead, so it caps at 1x. Measured on a
 32-core box against the suite's 4545s sum of per-test medians:
@@ -813,7 +812,7 @@ pass rate. Neither figure transfers to the 22 `registerCIRoot` suites: that swee
 never measured them.
 
 An explicit value still wins over the derivation:
-`ZE_PLUGIN_PARALLEL=8 ./le functional plugin` pins the suite, and `-p 0`
+`ZE_PLUGIN_PARALLEL=8 ./le test functional plugin` pins the suite, and `-p 0`
 on the runner command line selects every test at once. `ZE_SUITE_CORES` replaces
 the core count the derivation reads, so a large host can run the two suites as a
 4-vCPU runner does. A value that is not a number is the floor, because an empty
@@ -822,7 +821,7 @@ the core count the derivation reads, so a large host can run the two suites as a
 Raising concurrency moves flakes before it moves wall clock, so a deadline the
 harness cannot see is fixed first. `ParallelTimeoutHeadroom` widens every budget
 the runner measures a child against, and it cannot reach a deadline the child
-enforces INSIDE its own binary: `ze-test mcp` waited a fixed 10s for the daemon's
+enforces INSIDE its own binary: `le-test mcp` waited a fixed 10s for the daemon's
 listener, and six of one 32-way run's failures were that one message. The runner
 publishes two values into every `cmd=` child's environment so such a deadline
 scales from the same source of truth. `ze.test.parallel.factor` is the multiplier
@@ -862,8 +861,8 @@ operator's real firewall. An **opt-in per-test network-namespace launch mode**
 makes them runnable host-safely on Linux:
 
 ```bash
-./le qemu netns-test
-./le qemu netns-test suites firewall
+./le test qemu netns-test
+./le test qemu netns-test suites firewall
 ```
 
 The native action provisions capabilities, runs each suite in a disposable
@@ -883,7 +882,7 @@ the same registered QEMU action path.
 
 The `system-kernel-log-show` plugin test opens `/dev/kmsg` and needs
 `CAP_SYSLOG`. It runs in the privileged guest population through
-`./le qemu all-tests`; an unprivileged host run skips it with the required
+`./le test qemu all-tests`; an unprivileged host run skips it with the required
 capability in the reason.
 
 The namespace runner locks its goroutine to one OS thread, enters a disposable
@@ -920,13 +919,13 @@ single test  →  single package  →  component group  →  ./le verify current
 
 ```bash
 ./le job run label one-config-test command go test ./internal/component/config/system/... -run TestMyThing
-./le test-unit config
+./le test unit config
 ./le verify current mode full
 ```
 
 #### Test binaries are isolated from the development binary
 
-Every native functional action builds `ze`, `ze-test`, and `ze-stripped` into a
+Every native functional action builds `ze`, `le-test`, and `ze-stripped` into a
 session-owned temporary `bin/` directory. It sets the binary paths before the
 suite starts, freezes that set for the run, and removes it afterward. Editing
 or rebuilding `bin/ze` cannot change a suite already in flight.
@@ -1174,17 +1173,17 @@ Parse coverage configs live in `test/parse/coverage-*.ci`. They are positive
 parse/validate coverage for realistic multi-feature configurations, such as
 IXP peering, large peer sets, RPKI policy, and redistribution. Run a specific
 coverage case by name, for example
-`./le job run label parse-ixp command bin/ze-test bgp parse coverage-ixp-peering`.
+`./le job run label parse-ixp command bin/le-test bgp parse coverage-ixp-peering`.
 
 BGP interop scenarios live under descriptively named directories in
-`test/interop/scenarios/`. Run all with `./le integration interop`, or one with
-`INTEROP_SCENARIO=<name> ./le integration interop`. Scenario files use the
+`test/interop/scenarios/`. Run all with `./le test integration interop`, or one with
+`INTEROP_SCENARIO=<name> ./le test integration interop`. Scenario files use the
 default `172.30.0.x` lab prefix, then render into an available `/24`. Concurrent
 runs retry successive subnets. Use `ZE_INTEROP_SUBNET_INDEX=N` or
 `ZE_INTEROP_SUBNET_PREFIX=A.B.C.` to force a prefix. A scenario whose config
 enables BMP gets the compiled collector personality on the run's `.6` address
 before Ze starts.
-`rpki-server` starts `ze-test rpki --bind 0.0.0.0` on the run's `.7` address.
+`rpki-server` starts `le-test rpki --bind 0.0.0.0` on the run's `.7` address.
 
 The tree is not BGP-only. A scenario that includes `keepalived.conf` gets a real
 keepalived on the run's `.8` address, and `vrrp-mastership-keepalived` is the
@@ -1243,16 +1242,16 @@ expect=stderr:contains=route-refresh requires process with send { update; }
 ### 3. MCP Tests (`test/plugin/mcp-*.ci`)
 
 End-to-end scenarios for the MCP transport. The runner launches a ze
-daemon with `--mcp <port>` in the background and `ze-test mcp` in the
+daemon with `--mcp <port>` in the background and `le-test mcp` in the
 foreground; assertions come from `expect=exit:code=...` and
 `expect=stdout|stderr:contains=...`.
 
-`ze-test mcp` speaks MCP revision `2026-07-28`. Every message it sends is its
+`le-test mcp` speaks MCP revision `2026-07-28`. Every message it sends is its
 own HTTP POST to `/mcp` carrying the `MCP-Protocol-Version`, `Mcp-Method` and
 (where required) `Mcp-Name` headers plus a `params._meta` block: there is no
 handshake, no session id, and no GET stream to set up.
 
-<!-- source: internal/test/cli/cmd_mcp.go -- ze-test mcp driver -->
+<!-- source: internal/test/cli/cmd_mcp.go -- le-test mcp driver -->
 
 Driver flags:
 
@@ -1368,7 +1367,7 @@ Eight files cover the `io.modelcontextprotocol/tasks` extension:
 `task-identity-scope.ci`, `task-no-extension.ci`, `task-removed-methods.ci`,
 `task-rib-routes.ci` and `task-update-ack.ci`.
 
-Most pass the `--tasks` flag to `ze-test mcp`, which declares the
+Most pass the `--tasks` flag to `le-test mcp`, which declares the
 `io.modelcontextprotocol/tasks` identifier under
 `_meta.clientCapabilities.extensions` on every request.
 `task-no-extension.ci` deliberately omits the flag. It is the A/B twin of
@@ -1534,7 +1533,7 @@ a reload log alone does not prove that the intended bytes were applied.
 VPP functional tests are outside the default release gate. Run them with:
 
 ```bash
-./le functional vpp
+./le test functional vpp
 ```
 
 The suite uses the compiled Go VPP API stub. Each test gets a fresh Unix socket,
@@ -1542,9 +1541,9 @@ so it needs no DPDK, vfio, root, or Python helper.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- cmdVPPStub, runVPPStub -->
 <!-- source: internal/test/cli/cmd_vpp.go -- cmdVpp -->
 
-Real-daemon evidence uses `./le deployment vpp-test`. It starts VPP in Docker
+Real-daemon evidence uses `./le test deployment vpp-test`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
-`./le deployment vpp-iface-test` covers GRE and WireGuard interface behavior.
+`./le test deployment vpp-iface-test` covers GRE and WireGuard interface behavior.
 <!-- source: internal/le/test/deployment/actions.go -- Actions -->
 
 ### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
@@ -1609,11 +1608,11 @@ kernel, initrd, and ISO actions. The kernel builder is native Go in
 driver.
 
 ```bash
-./le functional install
-./le qemu install-test
-./le qemu install-iso-test
-./le qemu install-scenarios-test
-./le qemu install-ventoy-test
+./le test functional install
+./le test qemu install-test
+./le test qemu install-iso-test
+./le test qemu install-scenarios-test
+./le test qemu install-ventoy-test
 ```
 
 The QEMU actions self-skip with one visible line when the operator-supplied
@@ -1665,8 +1664,8 @@ against a circuit-wide pair that advertises 30 at both.
 They are the goal-validation evidence for the IS-IS umbrella and run under the
 Linux Docker interop harness (`test/interop/daemons` has `isisd=yes`), not on darwin.
 
-Run with `./le functional isis`. The offline wire-decode suite is separate:
-`./le functional isis-wire`.
+Run with `./le test functional isis`. The offline wire-decode suite is separate:
+`./le test functional isis-wire`.
 <!-- source: internal/le/interoplab/bgp/check_special.go -- checkISISOwnLSPPurge, checkISISMaxLinkMetric, checkISISPerLevelHelloTimers -->
 <!-- source: internal/le/interoplab/bgp/check_isis.go -- checkISISMaxLinkMetric, checkISISPerLevelHelloTimers -->
 <!-- source: internal/test/cli/register.go -- isis CI suite registration -->
@@ -1697,8 +1696,8 @@ Linux Docker interop harness only (raw IPv6 proto 89 over `ff02::5`), not on dar
 Common suite form:
 
 ```
-ze-test bgp <suite> [options] [ID_OR_NAME...]
-ze-test <suite> [options] [ID_OR_NAME...]
+le-test bgp <suite> [options] [ID_OR_NAME...]
+le-test <suite> [options] [ID_OR_NAME...]
 ```
 
 Common selection options:
@@ -1731,11 +1730,11 @@ Common run options:
 
 ### Replaying a captured BGP session
 
-`ze-test replay` is a tool root, not a suite: it takes one capture file instead
+`le-test replay` is a tool root, not a suite: it takes one capture file instead
 of test ids.
 
 ```
-ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
+le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
 ```
 
 A capture file of `-` is read from stdin, so a capture piped from the machine
@@ -1773,13 +1772,13 @@ matches the `N` in `N/TOTAL`. A line like `42/120  42  bgp-open` means "test id
 **Examples:**
 ```bash
 # Run test id 4
-ze-test bgp encode 4
+le-test bgp encode 4
 
 # Run tests 1, 41, and 42
-ze-test bgp encode 1 41 42
+le-test bgp encode 1 41 42
 
 # Resume at id 42
-ze-test bgp encode --start 42
+le-test bgp encode --start 42
 ```
 
 ---
@@ -1899,13 +1898,13 @@ log.
 
 #### Writing a record answer: the Go SDK test plugin
 
-`ze-test record-plugin` is a Go SDK plugin whose command handlers answer with a
+`le-test record-plugin` is a Go SDK plugin whose command handlers answer with a
 walk. A `.ci` spawns it the way it spawns the engine-step executor:
 
 ```
 plugin {
 	external record-plugin {
-		run "ze-test record-plugin"
+		run "le-test record-plugin"
 		encoder json
 	}
 }
@@ -2031,7 +2030,7 @@ Test directives belong to one of two scopes:
 
 | Scope | Consumer | Placement |
 |-------|----------|-----------|
-| Test runner | The `ze-test` process itself (seeds `proc.Env`, drives orchestration) | File level, outside any `stdin=...` block |
+| Test runner | The `le-test` process itself (seeds `proc.Env`, drives orchestration) | File level, outside any `stdin=...` block |
 | `ze-peer` stdin | The `ze-peer` subprocess reading its stdin at runtime | Inside the `stdin=peer:terminator=X` block |
 
 Which directives are valid inside a `stdin=peer:` block is not listed here. `ze-peer`'s own parser is the definition of that set, `ClaimLine` (`internal/test/peer/expect.go`) is the function that answers it, and the runner's peer-block guard reads that answer rather than a second list (`internal/test/runner/peer_contract.go`). A list beside it drifts, and it did: it omitted `option=asn`, `option=bind`, `option=linger`, `option=silent`, `option=await_eor` and `reject=bgp`, and it named `option=timeout`, which the test runner consumes rather than `ze-peer`. The directives and their keys are documented in `docs/architecture/testing/ci-format.md`.
@@ -2040,7 +2039,7 @@ A directive `ze-peer` claims must stay in-block, so the subprocess receives it. 
 
 `option=conn_map:value=router-id` sorts each accepted connection batch by the BGP router ID in OPEN. `option=conn_map:value=remote-ip` sorts each batch by the TCP source address, which stays stable when reload tests intentionally change router IDs. With `conn_map`, `option=tcp_connections:value=N` is the batch size; if expectations remain after one batch, `ze-peer` accepts another batch and continues with the next `conn=N` rules.
 
-**`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`ze-peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `ze-peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/ze-test <suite> -list` time with an error naming the exact directive and pointing at this section.
+**`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`ze-peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `ze-peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/le-test <suite> -list` time with an error naming the exact directive and pointing at this section.
 
 <!-- source: internal/test/runner/record_parse.go — parseAndAdd peer-block loop -->
 
@@ -2311,10 +2310,10 @@ Use `--count N` (`-c N`) to run tests multiple times for benchmarking or detecti
 
 ```bash
 # Run test C 10 times with timing
-ze-test bgp plugin -c 10 C
+le-test bgp plugin -c 10 C
 
 # Run all encoding tests 5 times
-ze-test bgp encode -c 5 -a
+le-test bgp encode -c 5 -a
 ```
 
 **Per-iteration timing** is shown during execution:
@@ -2353,31 +2352,31 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ### Run a single test
 
 Native suite actions isolate their binaries. For one selection, queue the
-runner through `./le job run`; set `ZE_BIN` and `ZE_TEST_BIN` only when testing
+runner through `./le job run`; set `ZE_BIN` and `LE_TEST_BIN` only when testing
 an explicitly pinned pair.
 
-BGP suites use the `ze-test bgp <suite>` command shape:
+BGP suites use the `le-test bgp <suite>` command shape:
 
 ```bash
-ze-test bgp encode --timeout 60s --verbose 4
-ze-test bgp plugin --server 4
-ze-test bgp plugin --client 4
+le-test bgp encode --timeout 60s --verbose 4
+le-test bgp plugin --server 4
+le-test bgp plugin --client 4
 ```
 
-Top-level `.ci` suites use `ze-test <suite>` without the `bgp` prefix:
+Top-level `.ci` suites use `le-test <suite>` without the `bgp` prefix:
 
 ```bash
-ze-test ui 4
-ze-test managed 4
-ze-test firewall 4
+le-test ui 4
+le-test managed 4
+le-test firewall 4
 ```
 
 Resume from the last printed id after a timeout or interrupted run:
 
 ```bash
-ze-test bgp plugin --start 42
-ze-test ui --start 42
-ze-test editor --start 42
+le-test bgp plugin --start 42
+le-test ui --start 42
+le-test editor --start 42
 ```
 <!-- source: internal/test/runner/selection.go -- Selection.Start -->
 
@@ -2605,7 +2604,7 @@ See `docs/contributing/rfc-implementation-guide.md` §9.7 and `ai/skills/ze-rfc.
 
 Subcommand-based CLI with `bgp` for BGP test execution, `syslog` for syslog server, and `rpki` for deterministic RPKI mock RTR server.
 
-### ze-test rpki
+### le-test rpki
 
 Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-generates VRPs for all /8 prefixes based on the first octet modulo 3:
 
@@ -2615,9 +2614,9 @@ Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-genera
 | 1 | ASN=65099, maxLen=/32 | Invalid |
 | 2 | No VRP | NotFound |
 
-Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
+Usage: `le-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
-### ze-test irr
+### le-test irr
 
 Deterministic IRR whois server for firewall and BGP IRR functional tests. It
 answers RPSL `!i` (AS-SET expansion) and `!a4`/`!a6` (prefix lookup) queries for
@@ -2634,11 +2633,11 @@ one known AS-SET, `AS-TEST`, and answers `D` (key not found) for everything else
 forever after. It models an IRR server that has a bad minute after a good
 refresh, which is the case ze must not let empty a live filter.
 
-Usage: `ze-test irr --port 4343 [--empty-after-first]`
+Usage: `le-test irr --port 4343 [--empty-after-first]`
 
 <!-- source: internal/test/mock/irr/irr.go -- IRR mock whois subcommand -->
 
-### ze-test dns
+### le-test dns
 
 Deterministic DNS server for any functional test that resolves a name. It
 answers A and AAAA on 127.0.0.1 over UDP, from a fixed zone.
@@ -2663,7 +2662,7 @@ A TTL of 0 keeps the answer out of the daemon's resolver cache, so a second
 lookup reaches the stub rather than the cache. That is what lets a test change an
 answer and observe the change with no cache-clearing command.
 
-The stub has two forms. `ze-test dns --port <N>` is the process a `.ci` starts
+The stub has two forms. `le-test dns --port <N>` is the process a `.ci` starts
 with `cmd=background`, and `dns.Start` plus `Server.Set` is the in-process form a
 compiled fixture uses when it must change an answer while the test runs.
 `test/plugin/dns-stub-lookup.ci` drives the first and
@@ -2674,12 +2673,12 @@ A daemon is pointed at the stub through `system name-server`, which is declared
 and declares `option=needs-linux:caps=net-bind` plus
 `option=exclusive:group=dns-stub-port-53`.
 
-`ze-test cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
+`le-test cymru` is a separate DNS server. It synthesizes a Team Cymru TXT record
 from the queried ASN and shares no answer with this zone.
 
-Usage: `ze-test dns --port 53`
+Usage: `le-test dns --port 53`
 
-<!-- source: internal/test/mock/dns/dns.go -- ze-test dns subcommand -->
+<!-- source: internal/test/mock/dns/dns.go -- le-test dns subcommand -->
 <!-- source: internal/test/mock/dns/zone.go -- the zone table above -->
 <!-- source: internal/test/mock/dns/server.go -- Start, Set, Close -->
 
@@ -2692,8 +2691,8 @@ Usage: `ze-test dns --port 53`
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`./le functional exabgp-test`) use OS-assigned
-dynamic ports. The compiled `ze-test interop-bgp exabgp-server` personality
+ExaBGP compatibility tests (`./le test functional exabgp-test`) use OS-assigned
+dynamic ports. The compiled `le-test interop-bgp exabgp-server` personality
 binds port 0 and prints `PORT <N>`. The Go runner passes that port to the
 migrated Ze client. Use `--server ID --port N` and `--client ID --port N` for
 split-terminal debugging.
@@ -2702,12 +2701,12 @@ split-terminal debugging.
 
 ### ExaBGP Verify Output
 
-The compatibility runner is integrated into `ze-test`, so it uses the same
+The compatibility runner is integrated into `le-test`, so it uses the same
 `--list`, `--all`, `--start`, `--pattern`, per-test result lines, progress, and
 summary format as the other functional suites. The public action is:
 
 ```bash
-./le functional exabgp-test
+./le test functional exabgp-test
 ```
 <!-- source: internal/test/cli/cmd_exabgp.go -- native selection and progress output -->
 
@@ -2728,7 +2727,7 @@ drives.
 
 ## Per-Test Timing Baseline
 
-`ze-test` maintains a rolling timing baseline in `tmp/test-timings.json` that enables two features:
+`le-test` maintains a rolling timing baseline in `tmp/test-timings.json` that enables two features:
 <!-- source: internal/test/runner/timing.go -- TimingEntry, LoadTimings, Timings.Save -->
 
 **Auto-timeout:** Each test's timeout is calculated as `min(global_timeout, max(5s, 5x baseline_avg))`. A test that normally takes 500ms gets a 5s timeout instead of the default 15s. This catches hangs in seconds rather than waiting for the global timeout. Explicit `option=timeout:value=` in the `.ci` file always takes precedence.
@@ -2762,7 +2761,7 @@ inspect route delivery.
 
 ## Editor Tests (.et format)
 
-Editor tests run through `./le functional editor`; select one with `./le job run label editor-one command bin/ze-test editor ID_OR_NAME`.
+Editor tests run through `./le test functional editor`; select one with `./le job run label editor-one command bin/le-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain selection flags -->
@@ -2803,19 +2802,19 @@ parsing, cryptographic operations, protocol state machines, IGP packet decoders
 (IS-IS, OSPF), and receiver/server-facing parsers (BMP, RADIUS, DHCP, VRRP).
 Fuzz tests catch crashes, panics, and memory corruption on malformed input.
 
-The target list is not maintained at all. `./le fuzz` walks `internal/` for
+The target list is not maintained at all. `./le test fuzz` walks `internal/` for
 `func Fuzz` when it runs, and emits one anchored `-fuzz=^<Name>$` invocation
 per target against that target's exact package. A new fuzzer is included by the
 existing action.
 
 ```bash
-./le fuzz run                               # every target, 10s each
-./le fuzz list                              # what would run, and where
-FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le fuzz run
+./le test fuzz run                               # every target, 10s each
+./le test fuzz list                              # what would run, and where
+FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le test fuzz run
 
 ```
 
-`./le fuzz run` discovers the targets and runs them through the native Go
+`./le test fuzz run` discovers the targets and runs them through the native Go
 action.
 <!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 
@@ -2883,13 +2882,13 @@ They are **not** part of `./le verify current mode full` and require both Docker
 <!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
 
 ```bash
-./le integration live-rpki
+./le test integration live-rpki
 ```
 
 ### Build Tag
 
 Live tests use `//go:build live`. Normal unit, functional, and pre-commit runs
-exclude them. `./le integration live-rpki` supplies the tag and the
+exclude them. `./le test integration live-rpki` supplies the tag and the
 external infrastructure.
 
 ### RPKI Live Test
@@ -2925,10 +2924,10 @@ excluded from all normal test targets.
 ### Running on Linux
 
 ```bash
-./le integration iface
-./le integration fib
-./le integration firewall
-./le integration traffic
+./le test integration iface
+./le test integration fib
+./le test integration firewall
+./le test integration traffic
 ```
 
 ### Running on macOS (QEMU)
@@ -2936,7 +2935,7 @@ excluded from all normal test targets.
 macOS cannot run these tests natively. Use the QEMU Alpine VM:
 
 ```bash
-./le qemu all-tests
+./le test qemu all-tests
 ```
 
 This is the standard workflow for macOS developers. The QEMU runner boots an
@@ -2948,7 +2947,7 @@ See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
 details on how to write QEMU integration tests and add new packages.
 
 The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/` carry
-`//go:build integration && linux`. `./le qemu all-tests` runs them inside the
+`//go:build integration && linux`. `./le test qemu all-tests` runs them inside the
 guest with the registered integration population.
 <!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
 <!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
@@ -2956,13 +2955,13 @@ guest with the registered integration population.
 ### Deployment Evidence
 
 ```bash
-./le evidence release-candidate
-./le deployment vpp-test
-./le deployment l2tp-test
-./le deployment l2tp-ppp-test
-./le qemu install-test
-./le qemu install-iso-test
-./le deployment docker-l2tp-ppp-test
+./le verify evidence release-candidate
+./le test deployment vpp-test
+./le test deployment l2tp-test
+./le test deployment l2tp-ppp-test
+./le test qemu install-test
+./le test qemu install-iso-test
+./le test deployment docker-l2tp-ppp-test
 ```
 
 These actions are external evidence and declare their own prerequisites.
@@ -2972,8 +2971,8 @@ PPPoL2TP kernel support.
 ### Build Tag
 
 Integration tests use `//go:build integration && linux`. Normal unit,
-functional, and pre-commit runs exclude them. The native `./le integration`
-and `./le qemu` actions supply the integration tag where their scenarios need
+functional, and pre-commit runs exclude them. The native `./le test integration`
+and `./le test qemu` actions supply the integration tag where their scenarios need
 it.
 
 ### How They Work
@@ -3031,23 +3030,23 @@ Additional dataplane integration packages:
 
 L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
 negotiation, authentication, IP pool, and teardown over real loopback UDP.
-Run with `./le functional l2tp`.
+Run with `./le test functional l2tp`.
 
 > **In the default release gate.** The in-tree L2TP `.ci` tests are included in
-> `./le functional gating` and can be selected with `./le functional l2tp`.
+> `./le test functional gating` and can be selected with `./le test functional l2tp`.
 > External-peer and PPP dataplane evidence use separate deployment actions.
 
 ```bash
-ze-test l2tp --list    # List available tests
-ze-test l2tp --all     # Run all tests
+le-test l2tp --list    # List available tests
+le-test l2tp --all     # Run all tests
 ```
 
-For external-peer evidence, run `./le deployment l2tp-test`. It uses a
+For external-peer evidence, run `./le test deployment l2tp-test`. It uses a
 real `xl2tpd` LAC to establish the L2TP control tunnel and incoming-call session
 against Ze. It intentionally does not claim full PPP/NCP dataplane proof when
 the Docker host lacks the `l2tp_ppp` kernel module.
 
-For full PPP/NCP peer evidence, run `./le deployment l2tp-ppp-test` on a
+For full PPP/NCP peer evidence, run `./le test deployment l2tp-ppp-test` on a
 Linux host or target runner with `xl2tpd`, `pppd`, `ping`, `/dev/ppp`,
 `iproute2`, and PPPoL2TP kernel support. The target refuses skip-kernel-probe
 mode, creates peer-isolated Ze and LAC network namespaces, starts Ze as LNS,
@@ -3058,12 +3057,12 @@ the LNS through the PPP tunnel from the LAC namespace to prove dataplane
 connectivity, observes subscriber route injection, and verifies teardown
 returns both namespaces' kernel L2TP/PPP state to their initial snapshots.
 
-On macOS, `./le deployment docker-l2tp-ppp-test` runs that same proof in
+On macOS, `./le test deployment docker-l2tp-ppp-test` runs that same proof in
 privileged Linux containers. Docker is only a Linux userspace wrapper here: the
 test still fails unless the Docker host kernel has `/dev/ppp`, Generic Netlink
 L2TP, and PPPoL2TP support.
 
-For appliance evidence, run `./le deployment gokrazy-l2tp-ppp-test` on a
+For appliance evidence, run `./le test deployment gokrazy-l2tp-ppp-test` on a
 Linux host with QEMU and PPPoL2TP support. The native appliance kernel action
 materializes the verified runtime kernel from its durable cache or builds it
 through `internal/appliance/kernelbuilder`. The proof then builds a temporary
@@ -3139,15 +3138,15 @@ root, no Docker, no kernel modules) and measure session establishment
 rate, RADIUS round-trip handling, pool allocation correctness, and
 teardown completeness.
 
-The test tooling lives in `ze-test l2tp-scale`, which bundles a Go LAC
+The test tooling lives in `le-test l2tp-scale`, which bundles a Go LAC
 simulator (speaking the L2TP wire protocol) and an embedded mock RADIUS
 server. The native deployment action starts Ze, runs the four-scenario
 registry, checks each result, and retains the simulator's exact result bytes.
 
 ```bash
-./le deployment l2tp-scale-test
-L2TP_SCALE_SCENARIO=2k-sessions ./le deployment l2tp-scale-test
-ze-test l2tp-scale --help
+./le test deployment l2tp-scale-test
+L2TP_SCALE_SCENARIO=2k-sessions ./le test deployment l2tp-scale-test
+le-test l2tp-scale --help
 ```
 
 | Scenario | Native checker | What it validates |

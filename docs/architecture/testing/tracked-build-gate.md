@@ -15,7 +15,7 @@ committed population and catches that class.
 
 <!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 
-`./le staticcheck-feature-matrix check` type-checks working-tree production
+`./le go staticcheck check` type-checks working-tree production
 and `_test.go` sources. It derives N+2 rows from the N unique manifest features:
 distro all-on, bare core, and one row for each omitted feature.
 The matrix covers those direct omissions. It makes no guarantee for arbitrary
@@ -37,7 +37,7 @@ The deal is round robin over the DERIVED rows (`Matrix.Part`), never an
 assignment written by hand, so a feature gate added to `feature-gates.txt` lands
 in one piece for free. Each piece names the rows it judged in its own log, which
 is the only log a reader of one shard has. Typing
-`./le staticcheck-feature-matrix check` with no part judges every row, as before.
+`./le go staticcheck check` with no part judges every row, as before.
 
 One Staticcheck run is bounded at 90 seconds for each row it judges
 (`deadlinePerRow`, `internal/le/go/staticcheck/judge.go`), so a 7-row

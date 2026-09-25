@@ -54,7 +54,7 @@ Envelope and value conventions:
 ## Address families
 
 A family is written `afi/safi`. Plugins register families at startup, so this
-is not a static list: `./le inventory` prints what the build actually carries,
+is not a static list: `./le repo inventory` prints what the build actually carries,
 and the registry is the authority.
 
 | AFI | SAFIs |

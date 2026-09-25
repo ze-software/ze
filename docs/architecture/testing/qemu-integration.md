@@ -12,9 +12,9 @@ with full kernel capabilities.
 CGO_ENABLED=0 ./le --name qemu-setup build-artifacts host
 ./ze-host appliance kernel --target runtime --arch amd64 --builder docker
 
-# all-tests runs INSIDE the guest. le qemu run boots the guest and carries it in.
-./le --name qemu-current qemu run kernel "<kernel-directory>/vmlinuz" packages "iproute2 libcap" \
-  command "./le qemu all-tests"
+# all-tests runs INSIDE the guest. le test qemu run boots the guest and carries it in.
+./le --name qemu-current test qemu run kernel "<kernel-directory>/vmlinuz" packages "iproute2 libcap" \
+  command "./le test qemu all-tests"
 ```
 
 Replace `<kernel-directory>` with the directory the kernel builder prints.
@@ -49,9 +49,9 @@ Both entry points run one VM for the whole population, never one VM per test.
 
 | Command | Population |
 |---------|------------|
-| `./le qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects only the seven ASPA cases |
-| `./le qemu run ... command "./le qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
-| `./le qemu run ... command "./le qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
+| `./le test qemu netns-test suites <comma-separated-suites>` | The explicit kernel-dependent subset for each selected suite. `plugin` selects only the seven ASPA cases |
+| `./le test qemu run ... command "./le test qemu all-tests"` | Every functional suite, the Linux unit pass, the installer phase, and every registered integration package. Four of the suites run in a per-test network namespace, which needs `packages "iproute2 libcap"` |
+| `./le test qemu run ... command "./le test qemu all-tests only needs-linux"` | The same suites, each narrowed to the `.ci` tests marked `option=needs-linux`. The unit, installer and integration phases stay whole, and the report names the population it covered |
 
 `all-tests` discovers the suites' tests through the native runner, so a new
 `needs-linux` test needs no registration there. `netns-test` uses the explicit
@@ -63,11 +63,11 @@ test in its directory.
 
 ### `all-tests` is a GUEST action, and four things must be true before it runs
 
-`le qemu all-tests` refuses to start outside the VM: `internal/le/test/qemu/actions.go`
+`le test qemu all-tests` refuses to start outside the VM: `internal/le/test/qemu/actions.go`
 registers it with "This action runs inside the VM. Its caller is the command
 value passed to the host qemu run action." Typed on the host it answers
 `qemu: the repository is not mounted: /workspace` and nothing runs. The host
-driver is always `./le qemu run ... command "<the guest command>"`.
+driver is always `./le test qemu run ... command "<the guest command>"`.
 
 Four preconditions, each of which fails with a message that does NOT name the
 precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish:
@@ -75,12 +75,12 @@ precondition. Measured 2026-09-04 and 2026-09-05, seven guest boots to establish
 | Precondition | What its absence looks like |
 |--------------|-----------------------------|
 | `packages iproute2` | `ZE-OBSERVER-FAIL: ... ip: invalid argument 'replace' to 'ip'`. BusyBox `ip` has no `neigh replace`, so an observer that programs a neighbour dies in test setup, before any assertion |
-| The three binaries, under canonical names | `qemu: bin/ze-stripped is missing or not executable -- cross-compile it on the host first`. `le qemu run` shares the checkout, where the cross-built artifacts carry `-linux-arm64` suffixes, so name them with `ZE_BIN`, `ZE_STRIPPED_BIN` and `ZE_TEST_BIN`. `shim()` symlinks them to `ze`, `ze-stripped` and `ze-test` because the tools dispatch on basename |
+| The three binaries, under canonical names | `qemu: bin/ze-stripped is missing or not executable -- cross-compile it on the host first`. `le test qemu run` shares the checkout, where the cross-built artifacts carry `-linux-arm64` suffixes, so name them with `ZE_BIN`, `ZE_STRIPPED_BIN` and `LE_TEST_BIN`. `shim()` symlinks them to `ze`, `ze-stripped` and `le-test` because the tools dispatch on basename |
 | The three binaries, STATICALLY linked | `qemu: bin/ze: is dynamically linked against /lib64/ld-linux-x86-64.so.2, which the musl guest does not have`, and nothing runs. `runnableInGuest` (`alltests.go`) reads each binary's PT_INTERP header before the first child. Until 2026-09-05 `verify()` only stat'd the file, and the same cause surfaced as 326 identical per-test failures (`start ze: fork/exec ... : no such file or directory`), because the kernel answers ENOENT for the LOADER while naming the BINARY. Build with `CGO_ENABLED=0`, which is what the native toolchain sets (`internal/le/gotoolchain`) |
 | `packages libcap` | `qemu: setcap is not on the guest PATH, so the per-test network namespace suites cannot hold their capabilities`. The four routed suites run ze as an ordinary user inside a fresh namespace, and `setcap` is what gives that user CAP_NET_ADMIN |
-| The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `ze-test plugin <name>` is read as the `ze plugin` command; the suite form is `ze-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
+| The `bgp` verb before the suite | The `ze plugin` help text, and exit 1. `le-test plugin <name>` is read as the `ze plugin` command; the suite form is `le-test bgp <suite> <name>`, which is what `vmSuites` passes (`alltests.go`) |
 
-`le qemu run` installs only `git curl musl-dev` beyond the base image
+`le test qemu run` installs only `git curl musl-dev` beyond the base image
 (`internal/le/test/qemu/run.go`), so anything else a test shells out to has to be
 named in `packages`. `iproute2` and `libcap` are both preconditions of a whole
 run, and the refusal for each one names it.
@@ -100,12 +100,12 @@ boot. It does the binary shim by hand because that is `all-tests`'s job and this
 path skips `all-tests`:
 
 ```bash
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
+./le test qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2" \
   command "mkdir -p /tmp/zb \
     && ln -sf /workspace/bin/ze-linux-arm64 /tmp/zb/ze \
-    && ln -sf /workspace/bin/ze-test-linux-arm64 /tmp/zb/ze-test \
+    && ln -sf /workspace/bin/le-test-linux-arm64 /tmp/zb/le-test \
     && ln -sf /workspace/bin/ze-stripped-linux-arm64 /tmp/zb/ze-stripped \
-    && cd /workspace && PATH=/tmp/zb:\$PATH ze-test bgp plugin <test-name>"
+    && cd /workspace && PATH=/tmp/zb:\$PATH le-test bgp plugin <test-name>"
 ```
 
 Wrap it in `./le job run label <name> quiet command ...` so it takes its turn
@@ -153,7 +153,7 @@ NEXT_HOP, `10.0.0.1`, is then nonlocal, on-link and syntactically valid.
 The selector does not include other plugin namespace cases or move the whole
 plugin suite into namespaces.
 
-`./le qemu netns-test suites <names>` is the same launcher over a named subset,
+`./le test qemu netns-test suites <names>` is the same launcher over a named subset,
 and it also asserts the guest root nft ruleset is unchanged by the run. It is
 the tight loop; `all-tests` retains the whole-suite namespace table above.
 
@@ -162,8 +162,8 @@ The seven-case ASPA subset is scheduled in `qemu-nightly.yml`'s
 the runtime-kernel guest:
 
 ```bash
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap kmod" \
-  timeout 1200s command 'bin/ze-le-linux-amd64 le qemu netns-test suites plugin'
+./le test qemu run kernel tmp/kernel/build/vmlinuz packages "nftables iproute2 libcap kmod" \
+  timeout 1200s command 'bin/ze-le-linux-amd64 le test qemu netns-test suites plugin'
 ```
 
 This uses the architecture-qualified guest binaries selected by the existing
@@ -199,7 +199,7 @@ population is printed at the START of the run as well.
 
 | Host | Behavior |
 |------|----------|
-| `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le functional gating` stay green on darwin without running the test |
+| `GOOS != linux` | The runner sets `SkipReason` and the test reports SKIP, never FAIL. `./le verify worktree` and `./le test functional gating` stay green on darwin without running the test |
 | `GOOS == linux`, inside the VM | The option is inert, so the same `.ci` test runs for real against the Linux kernel |
 
 <!-- source: internal/test/runner/record_parse.go -- the needs-linux option -->
@@ -213,7 +213,7 @@ answers the empty string, QEMU boots the Alpine ISO's own kernel, and
 set. So a run with no `kernel` argument proves nothing about the kernel an
 operator gets, and every recipe on this page passes one.
 
-The host action `./le qemu run` owns the Alpine cache, the QEMU lifecycle, both
+The host action `./le test qemu run` owns the Alpine cache, the QEMU lifecycle, both
 9p shares, bounded SSH waits, package installation, and cleanup. When the
 parameter is there, the guest release check refuses a boot whose `uname -r`
 disagrees with `internal/appliance/kernel.version`.
@@ -223,8 +223,8 @@ The native host action cross-compiles a Linux `cmd/ze` personality with the
 Linux suite is:
 
 ```text
-./le qemu run kernel <vmlinuz> packages "<packages>" timeout 3600s \
-  command '<guest-le-binary> le qemu all-tests'
+./le test qemu run kernel <vmlinuz> packages "<packages>" timeout 3600s \
+  command '<guest-le-binary> le test qemu all-tests'
 ```
 
 The extra `le` after the guest binary is intentional. The cross-compiled file
@@ -240,7 +240,7 @@ migration leaves: `tmp/` itself a symlink, or a real `tmp/` whose migratable
 children (the `tmplink.Migratable` allowlist) are each a symlink. Every link found
 becomes one 9p share, tagged `zescratch` for `tmp/` or `zescratch-<child>`, that
 the guest mounts at the link's own absolute target before it touches
-`/workspace/tmp`. `Run.scratchShares` adds them to the `./le qemu run` argv and
+`/workspace/tmp`. `Run.scratchShares` adds them to the `./le test qemu run` argv and
 setup line, and `guestSetup` plus `qemuArgs` in the kernel builder do the same
 for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
 both sit under `/workspace/tmp`.
@@ -251,13 +251,13 @@ both sit under `/workspace/tmp`.
 ```text
 host                                      QEMU Alpine VM
 ────                                      ──────────────
-./le qemu run kernel <vmlinuz> ...
+./le test qemu run kernel <vmlinuz> ...
   ├─ cross-compile cmd/ze and the native guest runner
   └─ boot the named kernel and run ONE command over SSH
        ├─ boot the named kernel             → verify uname -r
        ├─ mount checkout and tmp target      → /workspace
        ├─ install declared packages
-       └─ SSH native guest command           → le qemu all-tests   (in the guest)
+       └─ SSH native guest command           → le test qemu all-tests   (in the guest)
                                                 ├─ per-test namespace preparation
                                                 ├─ functional suites
                                                 ├─ Linux unit pass
@@ -266,7 +266,7 @@ host                                      QEMU Alpine VM
 ```
 
 `all-tests` is on the GUEST side of that diagram. It is an action of the same
-`le qemu` table, and typing it on the host answers `qemu: the repository is not
+`le test qemu` table, and typing it on the host answers `qemu: the repository is not
 mounted: /workspace`.
 
 The runtime kernel itself is built by `ze appliance kernel`, which writes
@@ -282,7 +282,7 @@ The installer phase runs `go test -tags 'ze_core ze_installer'` over
 `./internal/install/...`. No other phase compiles those files. The tag is a
 personality, not a feature the manifest declares. The unit pass therefore
 excludes every file behind it. On a host that is not Linux,
-`./le test-unit installer` can only type-check them, so this virtual machine
+`./le test unit installer` can only type-check them, so this virtual machine
 is where they run.
 
 ## Appliance first-boot storage import
@@ -304,7 +304,7 @@ cover the later boundary between tree publication and seed retirement.
 ```bash
 ZE_INSTALL_KERNEL=$PWD/build/kernel/Image \
 ZE_INSTALL_ARCH=amd64 ZE_INSTALL_KEEP=1 \
-./le --name storage-proof qemu install-test
+./le --name storage-proof test qemu install-test
 ```
 
 The kernel must match the target architecture and include the module-free
@@ -338,7 +338,7 @@ store for diagnosis. A skipped action is not storage-import evidence.
 | nftables / firewall code | A network namespace plus nft test |
 | sysctl / kernel tuning | A procfs read test (a write may need `t.Skip`) |
 | Any new Linux-only package | An entry in `integrationPackages`, `internal/le/test/qemu/alltests.go` |
-| A Docker interop lab needing host-kernel features | A native `./le qemu <feature>` action beside the Docker action |
+| A Docker interop lab needing host-kernel features | A native `./le test qemu <feature>` action beside the Docker action |
 
 ### Build Tags
 
@@ -349,7 +349,7 @@ Two patterns, choose based on what the test needs:
 | `//go:build linux` | Test imports linux-only types but needs no kernel capabilities | `host/cpu_linux_test.go` |
 | `//go:build integration && linux` | Test needs root, devices, namespaces, ioctls | `iface/config_integration_linux_test.go` |
 
-Tests tagged `integration && linux` run through the applicable `./le qemu`
+Tests tagged `integration && linux` run through the applicable `./le test qemu`
 action, which supplies `-tags integration`. Tests tagged only `linux` also run
 in native unit groups on a Linux host.
 
@@ -385,7 +385,7 @@ Never require physical hardware. Use kernel virtual devices:
 | Block device | loop device on a tmpfs file | `losetup` |
 
 A focused VM run that needs an extra Alpine package, such as `strace` or
-`util-linux`, passes it after the `packages` keyword to `./le qemu run`.
+`util-linux`, passes it after the `packages` keyword to `./le test qemu run`.
 
 ### Failing ONE Socket Under a Daemon
 
@@ -395,13 +395,13 @@ condition supplies one: an interface that goes down delivers silence, and a
 device-bound `AF_PACKET` socket is told `ENETDOWN` once by `packet_notifier`
 before it reverts to blocking.
 
-`ze-test fail-syscall` supplies one. It installs a classic seccomp filter that
+`le-test fail-syscall` supplies one. It installs a classic seccomp filter that
 answers a chosen errno for a chosen syscall, then `execve`s the command, so no
 tracer is in the path and the refused call is charged to the daemon's own CPU
 time.
 
 ```
-cmd=background:seq=1:exec=ze-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
+cmd=background:seq=1:exec=le-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
 ```
 
 | Keyword | Meaning |
@@ -421,7 +421,7 @@ Three constraints the caller has to know:
   either answer is wrong. A filter that installed and selects nothing would
   otherwise leave the daemon healthy while the test reported an armed window.
 - **Wrapped stdin daemons receive isolated storage.** The runner recognizes
-  `ze-test fail-syscall ... -- ze -` and gives it a stable per-daemon config
+  `le-test fail-syscall ... -- ze -` and gives it a stable per-daemon config
   folder. The wrapper still needs its own readiness probe.
 
 `CONFIG_SECCOMP` and `CONFIG_SECCOMP_FILTER` are pinned in
@@ -479,8 +479,8 @@ For a distinct guest proof, add one action to `internal/le/test/qemu/actions.go`
 keep the action callable from Go. The host recipe invokes it through:
 
 ```text
-./le qemu run kernel <vmlinuz> packages "<packages>" \
-  command '<guest-le-binary> le qemu <action>'
+./le test qemu run kernel <vmlinuz> packages "<packages>" \
+  command '<guest-le-binary> le test qemu <action>'
 ```
 
 The host prepares the binary and kernel; the guest action owns only the proof.
@@ -494,7 +494,7 @@ The guest is an Alpine live system with no systemd. It provides:
 | Root access | Yes | All capabilities |
 | PTY pairs | Yes | `/dev/ptmx` |
 | Network namespaces | Yes | `ip netns` |
-| nftables | Yes | Installed through the `packages` keyword of `./le qemu run` |
+| nftables | Yes | Installed through the `packages` keyword of `./le test qemu run` |
 | Go toolchain | Yes | Downloaded and cached under `tmp/qemu/` |
 | Repository | Yes | Mounted read-write over virtio-9p at `/workspace` |
 | Kernel modules | **No** | See below |
@@ -536,10 +536,10 @@ actions.
 
 | Lab | Docker action | QEMU action | Native producer |
 |-----|---------------|-------------|-----------------|
-| L2TP (Ze LNS against xl2tpd) | `./le deployment docker-l2tp-ppp-test` | `./le deployment gokrazy-l2tp-ppp-test` | `internal/le/test/deployment` |
-| PPPoE (Ze client against accel-ppp) | `./le deployment docker-pppoe-accel-test` | `./le qemu pppoe-accel-test` | `internal/le/test/qemu/pppoe_accel_linux.go` |
-| VRRP (Ze against keepalived) | `./le integration interop`, scenario `vrrp-mastership-keepalived` | `./le qemu vrrp-keepalived-test` | `internal/le/test/qemu/vrrp_keepalived_linux.go` |
-| MOBIKE (Ze initiator and responder against strongSwan) | `./le integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le qemu ipsec-mobike-test kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
+| L2TP (Ze LNS against xl2tpd) | `./le test deployment docker-l2tp-ppp-test` | `./le test deployment gokrazy-l2tp-ppp-test` | `internal/le/test/deployment` |
+| PPPoE (Ze client against accel-ppp) | `./le test deployment docker-pppoe-accel-test` | `./le test qemu pppoe-accel-test` | `internal/le/test/qemu/pppoe_accel_linux.go` |
+| VRRP (Ze against keepalived) | `./le test integration interop`, scenario `vrrp-mastership-keepalived` | `./le test qemu vrrp-keepalived-test` | `internal/le/test/qemu/vrrp_keepalived_linux.go` |
+| MOBIKE (Ze initiator and responder against strongSwan) | `./le test integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le test qemu ipsec-mobike-test kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
 
 <!-- source: internal/le/test/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
 <!-- source: internal/le/test/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
@@ -548,7 +548,7 @@ The MOBIKE action is a manual runtime-kernel proof, not a merge gate or a
 scheduled job. It runs both existing movement scenarios, without a selector:
 
 ```text
-./le --name mobike-proof qemu ipsec-mobike-test kernel <runtime-vmlinuz> timeout 1200s
+./le --name mobike-proof test qemu ipsec-mobike-test kernel <runtime-vmlinuz> timeout 1200s
 ```
 
 The host builds a static Linux daemon and the native guest runner through build
@@ -557,7 +557,7 @@ the invoking session's scratch directory until the VM run ends; host tools are
 not cross-compiled. The existing QEMU harness boots the supplied runtime kernel,
 checks its release, installs Alpine's `strongswan`, `iproute2`, `iputils` and
 `util-linux` packages, and invokes
-`le deployment ipsec-mobike-test daemon <guest-daemon-path>` in the guest.
+`le test deployment ipsec-mobike-test daemon <guest-daemon-path>` in the guest.
 No Docker daemon or guest Go build is involved.
 
 The deployment action also accepts explicit `charon <path>` and `swanctl <path>`;
@@ -582,7 +582,7 @@ Retained failure artifacts live in the guest and last for that guest's lifetime.
 <!-- source: internal/le/test/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
 <!-- source: internal/le/test/qemu/vrrp_keepalived_linux.go -- startZe -->
 
-`./le qemu vrrp-keepalived-test` runs four scenarios, selectable with
+`./le test qemu vrrp-keepalived-test` runs four scenarios, selectable with
 `scenarios=<csv>`.
 
 | Scenario | What it proves |

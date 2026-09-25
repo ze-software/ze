@@ -1,6 +1,6 @@
 # Test Runner Architecture
 
-How `ze-test` discovers, schedules, executes, and reports functional tests.
+How `le-test` discovers, schedules, executes, and reports functional tests.
 
 This document covers the **execution architecture** (the scheduler and suite
 wrappers) and the **web `.wb` test format**. For the
@@ -25,7 +25,7 @@ The `.ci` `Runner` wrapper adds build and process orchestration.
 
 ## Scheduler and suite wrappers
 
-`ze-test` subcommands register themselves in a dispatch table.
+`le-test` subcommands register themselves in a dispatch table.
 <!-- source: internal/test/cli/register.go -- init, registerCIRoot -->
 <!-- source: internal/test/cli/dispatch.go -- registerRoot, registerCIRoot -->
 `NewParallelRunner` constructs `parallelRunner` for direct use or use through
@@ -98,7 +98,7 @@ The scheduler and suite wrappers render through the same components:
 - **Color/glyph formatting** — `Colors`, TTY-aware via `slogutil.UseColor`. <!-- source: internal/test/runner/color.go -- Colors, NewColors -->
 - **Timing baseline** — rolling per-test durations persisted under the suite label. Baseline updates are suppressed when the run is contended (host load > CPUs with concurrent test processes) to prevent slow-run pollution. <!-- source: internal/test/runner/timing.go -- Timings, Record, Save --> <!-- source: internal/test/runner/hostload.go -- HostLoad, snapshotHostLoad --> <!-- source: internal/core/hostload/hostload.go -- Load.Contended -->
 - **Per-test timeout resolution** — the effective wall-clock budget is `explicit cmd timeout=` (or `option=timeout`) ▸ else baseline-derived `SuggestedTimeout` (`min(suite-default, max(5s, 5×avg))`) ▸ else the suite default. The resolved value is then widened by `ParallelTimeoutHeadroom` (×3) whenever the run executes tests concurrently (`concurrency > 1`): authored timeouts are measured against an uncontended run, so parallel execution — where tests share CPU and run slower — needs proportional headroom or budgets set near the uncontended runtime flake. Serial runs (`-p 1`, single-test debug) keep the tight authored value so real slowdowns surface quickly. <!-- source: internal/test/runner/runner_exec.go -- runTest/runOrchestrated timeout resolution, withParallelHeadroom --> <!-- source: internal/test/runner/parallel.go -- ParallelTimeoutHeadroom -->
-- **Inner gates derive from that budget, never from a constant** — a fixed inner deadline is sized against one machine and lies at any other speed, so the gates a daemon enforces *inside* a test derive from the resolved per-test budget and then take the same parallel headroom (applied once, on top). Three do this today. The `await=stderr` fence (`0.8 ×` budget, floored, clamped back down to the budget) and the plugin-startup stall window handed over as `ze_plugin_stage_timeout` (same shape, floor `10s`) are enforced by the runner. The third is enforced by a compiled fixture in its own process: the runner publishes the resolved budget as `ze.test.budget`, `ChildTestBudget` reads it back, and `WaitBudget` / `WaitAttempts` hand each fixture wait a percentage of it. That route exists because a fixture is a child racing its own clock, so the headroom the runner applies to the budget it measures the child against never reached the deadlines inside the child: `storageCommand` held 25s while the sixteen `.ci` files driving it declared `option=timeout:value=90s`, and `startFixtureDaemon` polled a hand-written 450 attempts kept in step with a 60s budget by nothing but a comment. A fixture percentage is below 100 for the same ordering reason the other two shares are below 1: the fixture's own message, which names what it was waiting for, must beat the runner's bare timeout kill. <!-- source: internal/test/runner/parallel.go -- TestBudgetEnv, ChildTestBudget --> <!-- source: internal/test/fixture/budget.go -- WaitBudget, WaitAttempts --> The stall window is **not** a budget for how long a startup stage may take — `StartupCoordinator.WaitForStageProgress` already waits on the *condition*, restarting its window every time any plugin completes a stage — it bounds only how long the whole tier may go with zero progress before it is declared wedged. Machine speed therefore enters through the test's own declared budget, which is where an author already expresses it: the ospfv3 netns tests declare `timeout=15s` for work that costs 1.6s natively, and `./le qemu netns-test` runs `-p 1`, so the parallel headroom is a no-op there and could not compensate for emulation. The share is below 1 for ordering, not for speed: the watchdog must expire *before* the outer budget so the failure names the wedged plugin instead of reporting an opaque test timeout. <!-- source: internal/test/runner/plugin_stage_stall.go -- pluginStageStall, pluginStageStallEnv --> <!-- source: internal/test/runner/await_stderr.go -- defaultAwaitStderrTimeout --> <!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, noteProgressLocked --> <!-- source: internal/component/plugin/server/server.go -- defaultStageTimeout, ze.plugin.stage.timeout -->
+- **Inner gates derive from that budget, never from a constant** — a fixed inner deadline is sized against one machine and lies at any other speed, so the gates a daemon enforces *inside* a test derive from the resolved per-test budget and then take the same parallel headroom (applied once, on top). Three do this today. The `await=stderr` fence (`0.8 ×` budget, floored, clamped back down to the budget) and the plugin-startup stall window handed over as `ze_plugin_stage_timeout` (same shape, floor `10s`) are enforced by the runner. The third is enforced by a compiled fixture in its own process: the runner publishes the resolved budget as `ze.test.budget`, `ChildTestBudget` reads it back, and `WaitBudget` / `WaitAttempts` hand each fixture wait a percentage of it. That route exists because a fixture is a child racing its own clock, so the headroom the runner applies to the budget it measures the child against never reached the deadlines inside the child: `storageCommand` held 25s while the sixteen `.ci` files driving it declared `option=timeout:value=90s`, and `startFixtureDaemon` polled a hand-written 450 attempts kept in step with a 60s budget by nothing but a comment. A fixture percentage is below 100 for the same ordering reason the other two shares are below 1: the fixture's own message, which names what it was waiting for, must beat the runner's bare timeout kill. <!-- source: internal/test/runner/parallel.go -- TestBudgetEnv, ChildTestBudget --> <!-- source: internal/test/fixture/budget.go -- WaitBudget, WaitAttempts --> The stall window is **not** a budget for how long a startup stage may take — `StartupCoordinator.WaitForStageProgress` already waits on the *condition*, restarting its window every time any plugin completes a stage — it bounds only how long the whole tier may go with zero progress before it is declared wedged. Machine speed therefore enters through the test's own declared budget, which is where an author already expresses it: the ospfv3 netns tests declare `timeout=15s` for work that costs 1.6s natively, and `./le test qemu netns-test` runs `-p 1`, so the parallel headroom is a no-op there and could not compensate for emulation. The share is below 1 for ordering, not for speed: the watchdog must expire *before* the outer budget so the failure names the wedged plugin instead of reporting an opaque test timeout. <!-- source: internal/test/runner/plugin_stage_stall.go -- pluginStageStall, pluginStageStallEnv --> <!-- source: internal/test/runner/await_stderr.go -- defaultAwaitStderrTimeout --> <!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, noteProgressLocked --> <!-- source: internal/component/plugin/server/server.go -- defaultStageTimeout, ze.plugin.stage.timeout -->
 - **External-probe test knob** — `ze.doctor`-style reachability checks probe real network destinations with multi-second timeouts; functional tests set `ze.test.doctor.probe-timeout` (the runner injects `250ms`) so probes to deliberately-unreachable fixtures fail fast instead of dominating wall-clock. The override only shortens a probe, never lengthens it, so production keeps its per-check defaults. <!-- source: internal/core/diagnostic/doctor_probe.go -- DoctorProbeTimeout, DoctorProbeTimeoutEnv --> <!-- source: internal/test/runner/runner_exec.go -- proc.Env probe-timeout injection -->
 - **Failure routing** — under `ZE_VERIFY_MODE=1`, failed suites emit a compact `VERIFY FAILURE INDEX` with one `VERIFY FAILURE GROUP: {json}` token per group. Contended runs label the index header and attach host load context to each group. A `near_timeout` failure kind classifies tests that consumed >80% of their timeout without the context deadline firing. <!-- source: internal/test/runner/failure_group.go -- groupFunctionalFailures, printFailureGroups --> <!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, ZE_VERIFY_MODE --> <!-- source: internal/test/runner/hostload.go -- isNearTimeout, FailTypeNearTimeout -->
 
@@ -165,8 +165,8 @@ of them has to start that one.
 | `kind` | What the harness starts | Scheme | Ports |
 |--------|-------------------------|--------|-------|
 | `web` | `ze start --web <port> --web-only` | `https` | 1 |
-| `lg` | `ze-test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
-| `lg-no-engine` | `ze-test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
+| `lg` | `le-test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
+| `lg-no-engine` | `le-test lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `ze-chaos --in-process --web :<port>` | `http` | 1 |
 
 The looking glass gets a peer because its pages read `show bgp`: without
@@ -176,7 +176,7 @@ test asks for it, beside the `ze` binary the run is using.
 
 `lg-no-engine` exists because no configuration reaches the engine-unavailable
 state: the looking glass dispatches in process, so a daemon with no BGP still
-answers an empty peer list. `ze-test lg` builds the REAL server through
+answers an empty peer list. `le-test lg` builds the REAL server through
 `lg.NewLGServer` and injects one failing dispatcher, which is the only part that
 is not production code. The two ends of the `lg` daemon peer carry different
 loopback addresses (127.0.0.1 and 127.0.0.2), so a rule comparing a route
@@ -356,7 +356,7 @@ still uses the system temp directory.
 
 ## Timing baseline and auto-timeout
 
-`ze-test` saves per-test timing to `tmp/test-timings.json` as a rolling EMA with
+`le-test` saves per-test timing to `tmp/test-timings.json` as a rolling EMA with
 alpha 0.3. After three samples the baseline drives two things:
 
 - **Auto-timeout.** The per-test timeout is `min(global, max(5s, 5 x baseline avg))`.
@@ -375,7 +375,7 @@ pollute the EMA.
 
 On a loaded machine the failure index is headed
 `VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. That means load
-exceeded the CPU count with concurrent `ze-test` or `go test` processes.
+exceeded the CPU count with concurrent `le-test` or `go test` processes.
 
 - A `near_timeout` kind says the test consumed over 80% of its timeout without
   the context deadline firing. That is CPU starvation, not a bug. Rerun it on a
@@ -394,7 +394,7 @@ single suite never triggers them, looping the whole run is impractical, and the
 verify aggregator truncates the crashing daemon's goroutine stack to about two
 lines, so the crash site is usually lost.
 
-`./le stress-repro run suite <suite>` recreates that pressure cheaply: CPU and GC
+`./le test stress-repro run suite <suite>` recreates that pressure cheaply: CPU and GC
 burner processes oversubscribe every core while many concurrent copies of one
 suite loop, and it captures the FIRST failure's complete, untruncated output. It
 sets `GOTRACEBACK=all` so a panic dumps every goroutine, reuses the isolated
@@ -403,14 +403,14 @@ the capture to `tmp/stress-repro/<slug>-<ts>.log`. Exit 0 means reproduced, 1 no
 reproduced, 2 a setup error.
 
 ```
-./le stress-repro run suite rsvpte iterations 80
-./le stress-repro run suite rsvpte race
-./le stress-repro run suite bgp burners 32 parallel 8
-./le stress-repro run suite "bgp plugin" test 97 any-failure
+./le test stress-repro run suite rsvpte iterations 80
+./le test stress-repro run suite rsvpte race
+./le test stress-repro run suite bgp burners 32 parallel 8
+./le test stress-repro run suite "bgp plugin" test 97 any-failure
 ```
 
 The suite selector and `test` selector are both split on whitespace, so a
-sub-suite and a multi-token selector reach `ze-test` exactly as typed by hand.
+sub-suite and a multi-token selector reach `le-test` exactly as typed by hand.
 
 By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)
 counts as a reproduction, and everything else is discarded down to the last 500
@@ -418,7 +418,7 @@ bytes. An assertion flake exits non-zero with no crash signature, so
 `any-failure` is what keeps its evidence.
 
 A no-build reproduction tests the isolated binary set it was given. After
-changing daemon source, run the owning `./le functional <suite>` action once
+changing daemon source, run the owning `./le test functional <suite>` action once
 (`internal/le/test/functional.Prepare` rebuilds the pair) before trusting a verdict:
 otherwise a fixed bug still reproduces against the stale binary.
 
@@ -465,11 +465,11 @@ reason in a normal run: the error, and for editor and web the failed step
 only (`trace.PrintFailedSteps`). Under `-v` a failed test prints its whole
 step trace, and passing tests also show theirs. Until 2026-09-24 the parallel
 runner called the failure callback only under `-v` or verify mode, so a normal
-`./le functional web` run named a failed test and never said why. The `.ci` runner emits trace in failure
+`./le test functional web` run named a failed test and never said why. The `.ci` runner emits trace in failure
 reports when `rec.StepTrace` is non-empty, and `Report.printStepTraces` prints
 every selected test's trace under `-v`. That last half was untrue for the `.ci`
 runner until 2026-09-07: `RunOptions.Verbose` was carried from the command line
-and read by nothing, so `ze-test <suite> -v` over a green suite printed no more
+and read by nothing, so `le-test <suite> -v` over a green suite printed no more
 than a bare run.
 
 The first step of each command is what the runner RAN: the argv it built, and

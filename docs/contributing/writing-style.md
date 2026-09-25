@@ -489,7 +489,7 @@ meaning and never a count.
 | An error message | Name what failed, the offending value, and the next action. Keep the leading phrase stable so it stays greppable (`ai/rules/cli.md`) |
 | A code comment | Say why, and state a caller obligation with MUST (`ai/rules/go-standards.md`) |
 | A YANG `ze:help` on a config node | One sentence on what the leaf MEANS. Never prescribe a CLI spelling (`ai/rules/config.md`) |
-| A YANG `ze:help` on a COMMAND node or an RPC | The one-line summary: one sentence, 25 words at most, one line, no semicolon, and it ends in a full stop. `./le docvalid help-shape` names the path and the rule when it does not |
+| A YANG `ze:help` on a COMMAND node or an RPC | The one-line summary: one sentence, 25 words at most, one line, no semicolon, and it ends in a full stop. `./le doc yang-contract help-shape` names the path and the rule when it does not |
 | A YANG `description` beside a `ze:help` | The long explanation the help page of that one command, rpc or config node prints. It can be several sentences over several lines, and STE reviews it as prose |
 | A `registry.Meta.ShortHelp` on an offline local command | The same one-line summary a command node owes, judged by the same gate. The catalog publishes it where the command reaches no YANG node |
 | A `registry.Meta.Description` | The long explanation, in the same shape as a node's `description` |
@@ -623,11 +623,11 @@ smallest complete config that carries it. Build the binary and run
 
 | Command | What it does |
 |---------|--------------|
-| `./le ste review-changed` | Every finding in the files you changed, with the line and the replacement |
-| `./le ste check` | The gate. It fails when a habit grew in a file you changed |
-| `./le ste review` | The whole tree, for a rewriting session |
-| `./le ste check file <path>...` | Named files |
-| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `check` declares `file <path>` as its one keyword (`internal/le/doc/ste/actions.go`), which repeats and takes paths only. The package reads no stdin |
+| `./le doc ste review-changed` | Every finding in the files you changed, with the line and the replacement |
+| `./le doc ste check` | The gate. It fails when a habit grew in a file you changed |
+| `./le doc ste review` | The whole tree, for a rewriting session |
+| `./le doc ste check file <path>...` | Named files |
+| `./le doc ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `check` declares `file <path>` as its one keyword (`internal/le/doc/ste/actions.go`), which repeats and takes paths only. The package reads no stdin |
 
 The gate compares each file against its own version at HEAD. Legacy prose in a
 file you touch costs nothing, and the sentence you add is what goes red. No

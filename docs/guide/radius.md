@@ -342,7 +342,7 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
 | `radius-admin-chap-hashed-freeradius` | The §2.2 consequence above is real: the same entry stored hashed accepts the same password over PAP and refuses it over CHAP, and ze authenticates the operator through no backend at all |
 | `radius-admin-eap-freeradius` | `auth-method eap-mschapv2` completes against a server ze did not write: FreeRADIUS computes the Message-Authenticator, the MS-CHAPv2 challenge and the authenticator response from its own code, and its record shows an EAP-Message with neither password attribute beside it and at least one round that carried the State back |
 
-Run them with `./le integration interop-radius`, or one at a time with
+Run them with `./le test integration interop-radius`, or one at a time with
 `RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.
 
 Unit coverage lives in `internal/component/radius/{config,authenticator,aaa,chap,doctor}_test.go`.
@@ -361,7 +361,7 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 `source=local` means RADIUS was unreachable (or unconfigured) and the local
 bcrypt user accepted the credentials.
 
-<!-- source: internal/test/mock/radius/radius.go -- ze-test radius-mock for .ci tests -->
+<!-- source: internal/test/mock/radius/radius.go -- le-test radius-mock for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->

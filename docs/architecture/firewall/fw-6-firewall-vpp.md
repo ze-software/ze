@@ -56,7 +56,7 @@ be recreated, which opened a window with no firewall protection. Cleanup builds 
 - **`resetBackends()` in tests must clear the verifiers map too.** Adding
   `verifiers` to the same mutex-protected state as `backends` means the test
   reset has to cover both.
-- **`./le repository generate` rewrites `all.go`.** The codegen script discovers the plugin
+- **`./le repo generate` rewrites `all.go`.** The codegen script discovers the plugin
   package. A manual edit is overwritten.
 - The plugin path is `internal/plugins/firewall/vpp/`, not `firewallvpp/`,
   matching `traffic/vpp/`, `firewall/nft/` and `fib/vpp/`.

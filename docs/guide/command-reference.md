@@ -5,7 +5,7 @@ and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
 This page explains the command model. For a live list of every command, run
-`ze help command`. `./le wiki-catalog update file <destination>` writes the
+`ze help command`. `./le cli catalog update file <destination>` writes the
 Markdown catalog from the same live registries.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
@@ -1621,7 +1621,7 @@ That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias on its `registry.Registration`, which
 every reader that links the composition root sees, so `ze help command --json`
-and `./le command list` both list `summary` on the command. Each row carries the
+and `./le cli list` both list `summary` on the command. Each row carries the
 command's summary under `description` and its long explanation under
 `description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
@@ -2254,28 +2254,29 @@ ze resolve rir 15169                                   # Which registry holds an
 | `--dns-server <host>` | cymru | Override DNS server for TXT queries |
 | `--url <url>` | peeringdb | Override PeeringDB API base URL <!-- source: internal/component/resolve/cli/main.go -- Run --> |
 
-### ze-perf
+### le perf
 
-BGP propagation latency benchmark tool. Separate binary from `ze`.
+BGP propagation latency benchmark tool, run by the development tool `le`.
 
-<!-- source: internal/perf/cli/register.go -- ze-perf CLI entry point -->
+<!-- source: internal/perf/cli/register.go -- perf CLI entry point -->
 
-The development tool `le` runs the three subcommands as `le perf send`,
-`le perf report` and `le perf track`, with the same flags and exit codes.
-`le perf send` is `ze-perf run`.
+`le perf send`, `le perf report` and `le perf track` take the same flags and
+give the same exit codes as `ze-perf run`, `ze-perf report` and
+`ze-perf track`. The separate `ze-perf` binary keeps working until it is
+removed.
 <!-- source: internal/le/perf/actions.go -- programVerbs -->
 
 ```
-ze-perf <command> [flags]
+./le perf <command> [flags]
 ```
 
 | Command | Purpose |
 |---------|---------|
-| `run` | Run benchmark against a BGP DUT |
+| `send` | Run benchmark against a BGP DUT |
 | `report` | Generate comparison report from result files |
 | `track` | Track performance history and detect regressions |
 
-#### ze-perf run
+#### le perf send
 
 Run a BGP propagation benchmark against a device under test (DUT). Establishes
 sender and receiver sessions with the DUT, injects routes from the sender, and
@@ -2284,10 +2285,10 @@ measures how quickly they propagate through to the receiver.
 <!-- source: internal/perf/cli/cmd_run.go -- run subcommand -->
 
 ```
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000
-ze-perf run --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000
+./le perf send --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
+./le perf send --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 ```
 
 **DUT flags:**
@@ -2341,15 +2342,15 @@ ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 
 Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
 
-#### ze-perf report
+#### le perf report
 
 Generate a comparison report from one or more result JSON files.
 
 <!-- source: internal/perf/cli/cmd_report.go -- report subcommand -->
 
 ```
-ze-perf report result-ze.json result-gobgp.json
-ze-perf report --html result-ze.json result-gobgp.json > report.html
+./le perf report result-ze.json result-gobgp.json
+./le perf report --html result-ze.json result-gobgp.json > report.html
 ```
 
 | Flag | Type | Default | Purpose |
@@ -2357,20 +2358,20 @@ ze-perf report --html result-ze.json result-gobgp.json > report.html
 | `--md` | bool | `true` | Markdown output |
 | `--html` | bool | `false` | HTML output (overrides `--md`) |
 
-Reads result JSON files produced by `ze-perf run --json` and generates a
+Reads result JSON files produced by `le perf send --json` and generates a
 side-by-side comparison table.
 
-#### ze-perf track
+#### le perf track
 
 Track performance history and detect regressions from an NDJSON file.
 
 <!-- source: internal/perf/cli/cmd_track.go -- track subcommand -->
 
 ```
-ze-perf track history.ndjson
-ze-perf track --check history.ndjson
-ze-perf track --html history.ndjson > trend.html
-ze-perf track --check --threshold-convergence 15 history.ndjson
+./le perf track history.ndjson
+./le perf track --check history.ndjson
+./le perf track --html history.ndjson > trend.html
+./le perf track --check --threshold-convergence 15 history.ndjson
 ```
 
 | Flag | Type | Default | Purpose |
@@ -2955,11 +2956,11 @@ The daemon handles these Unix signals directly:
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
 | `SIGUSR1` | Dump status to stderr <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 --> |
 
-## ze-chaos
+## le chaos run
 
 Chaos monkey for testing Ze BGP route server propagation. Run it as
 `./le chaos run <flags>`, which takes every flag below. The `ze-chaos` program
-keeps working until it is removed, so the examples still spell its name.
+keeps working until it is removed.
 <!-- source: internal/le/chaos/run/run.go -- Answer -->
 
 ### AI Integration Flags
@@ -2971,8 +2972,8 @@ keeps working until it is removed, so the examples still spell its name.
 | `--ai-help` | Print chaos MCP tool definitions as JSON and exit |
 
 ```bash
-ze-chaos --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
-ze-chaos --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
-ze-chaos --ai-help                           # Print tool schemas
+./le chaos run --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
+./le chaos run --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
+./le chaos run --ai-help                           # Print tool schemas
 ```
 <!-- source: internal/chaos/orchestrator/cli.go -- CLI flags -->

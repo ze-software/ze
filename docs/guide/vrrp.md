@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../features/rfc-status.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`./le integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le test integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -287,7 +287,7 @@ installed with the parent's subnet prefix, and a small set of `arp_ignore`,
 IP while letting the macvlan answer with the virtual MAC. This mirrors what
 keepalived's `use_vmac` does, and ze restores the sysctls it changed when the
 last group on an interface goes away. This behaviour is verified against
-keepalived under QEMU (`ze-test`'s VRRP interop lab).
+keepalived under QEMU (`le-test`'s VRRP interop lab).
 
 If Ze cannot read or set a required sysctl, the group does not start. It attempts
 to restore shared settings changed by that setup and reports both setup and

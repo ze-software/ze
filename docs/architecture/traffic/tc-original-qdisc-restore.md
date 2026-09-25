@@ -103,6 +103,6 @@ snapshot key must then be absent.
 The carrier is `test/traffic/storage-tc-restart.ci`, gated
 `option=needs-linux:caps=net-admin`. It requires Linux, `CAP_NET_ADMIN`, and
 `iproute2`, so a host without those capabilities skips it and the disposable
-QEMU guest (`./le qemu all-tests`) runs it. It changes only its own dummy
+QEMU guest (`./le test qemu all-tests`) runs it. It changes only its own dummy
 interface.
 <!-- source: internal/test/fixture/storage_consumer_tc.go -- storageTCRestart -->

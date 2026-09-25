@@ -13,9 +13,9 @@ depth is fixed at two, so a point id is always `<rule>/<section>/<slug>`.
 |------|-------|---------------|
 | `ai/rules/points/<rule>/manifest.md` | The title, the metadata block, the sections and the reading order | You |
 | `ai/rules/points/<rule>/<section>/<slug>.md` | One point: a frontmatter header, then the body verbatim | You |
-| `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le rules render-update` |
-| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le rules condensed-update` |
-| `ai/rules/INDEX.md` | The dispatch index | `./le rules index-update` |
+| `ai/rules/<rule>.md` | The rendered rule an agent reads | `./le ai rules render-update` |
+| `ai/rules/TRIGGERS.md`, `ai/rules/CORE.md` | The session payload | `./le ai rules condensed-update` |
+| `ai/rules/INDEX.md` | The dispatch index | `./le ai rules index-update` |
 
 An Edit to any generated file is refused by `writeRenderedRule` in
 `internal/le/hookruntime/writeedit.go`. The refusal names the point directory.
@@ -28,7 +28,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 | Task | Steps |
 |------|-------|
-| Change one instruction | Edit the point file. Run `./le rules render-update` |
+| Change one instruction | Edit the point file. Run `./le ai rules render-update` |
 | Add an instruction | Pick a slug no file in that SECTION uses, write the point, add the slug under that section in the manifest, render |
 | Add a section | Add its line to the manifest, create the directory, and put at least one point in it. An empty section is refused |
 | Remove an instruction | Delete the point file AND its manifest line. Either one alone is a hard error |
@@ -37,7 +37,7 @@ rather than a section of its own, and that is what keeps the depth at two.
 
 A point body is copied through verbatim. The renderer joins bodies with one
 blank line and rewrites nothing inside one. That is what lets
-`./le rules points-roundtrip-check` prove no byte was lost.
+`./le ai rules points-roundtrip-check` prove no byte was lost.
 
 ## Pick a slug that is free
 
@@ -61,7 +61,7 @@ cannot derive either one and an empty line would claim the point was examined.
 
 | Field | Values | Notes |
 |-------|--------|-------|
-| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `./le rules gate-map-report` leaves them out of its counts |
+| `kind` | `directive`, `table`, `note`, `heading`, `fence` | Describes the block. `heading` and `fence` are structural, so `./le ai rules gate-map-report` leaves them out of its counts |
 | `level` | `MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY` | The strongest RFC 2119 level the body states. Required on a `directive`, empty on every other kind. See "Every directive states a level" |
 | `stage` | empty | Reserved. It will let a design-phase agent skip implementation directives. Leave it empty |
 | `rationale` | a repo-relative path, or the line absent | Where the record of WHY this instruction exists lives: a `plan/learned/NNNN-*.md` summary, or an `ai/rationale/*.md` file |
@@ -85,7 +85,7 @@ reader who stops after the general statement is misled, and the repetition that
 prevents that is invisible: `ai/rules/writing.md` states the UK English
 exception at three levels, and a dedup pass can delete one copy with every gate
 staying green. The link closes that. Deleting the exception point leaves the
-general point naming nothing, and `./le rules gate-map-report` fails.
+general point naming nothing, and `./le ai rules gate-map-report` fails.
 
 Declare it when the exception lives in a DIFFERENT point. An instruction that
 states its own carve-out in the same block needs no link, and neither does one
@@ -142,12 +142,12 @@ A block that states no obligation is `kind: note` or `kind: table`, never
 lookup gains a word and no obligation from being made to say MUST.
 
 Two gates enforce this. `writePointLanguage` in
-`internal/le/hookruntime/writeedit.go` refuses the write, and `./le rules lint`
+`internal/le/hookruntime/writeedit.go` refuses the write, and `./le ai rules lint`
 refuses the finished tree. A Write carries the whole point, so a missing keyword
 is refused there; an Edit carries a fragment, so only the lowercase modal it
 introduces is decidable at write time. Run the pass alone with:
 
-    ./le rules lint
+    ./le ai rules lint
 
 ## The rule header
 
@@ -189,7 +189,7 @@ Score a candidate trigger before you split a section into a rule of its own.
 that too many other triggers share, and `unreachableBlocking` names each
 blocking rule no past task would surface. `coreMembers` then makes exactly that
 set always-on, so a split whose trigger scores nothing returns the new rule to
-the core at full size and saves nothing. `./le rules router-report` prints the
+the core at full size and saves nothing. `./le ai rules router-report` prints the
 set and the corpus it read.
 
 ## The body budget
@@ -281,8 +281,8 @@ Two files load into every session, and one generator emits both from one parse.
 Core membership is derived, never listed. A rule is always-on when the ladder in
 `ai/rules/rule-precedence.md` names it on rung 1 or 2, when it IS that ladder,
 when it has no routable trigger, or when no past task description in `plan/`
-would surface it. `./le rules router-report` prints that last set and the corpus
-it read, and `./le rules payload-report` measures what a session loads against a
+would surface it. `./le ai rules router-report` prints that last set and the corpus
+it read, and `./le ai rules payload-report` measures what a session loads against a
 40,000-token budget.
 
 ## Binding a hook check to a point
@@ -300,7 +300,7 @@ A check that enforces nothing written in `ai/rules/` says so, with a reason:
     func bashRootBuild(ctx context) *verdict {
 
 <!-- source: internal/le/ai/rules/coverage.go -- bindingLine, noPointLine -->
-`./le rules gate-map-report` joins those comments against the points on disk, and
+`./le ai rules gate-map-report` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
 `none`, the two sets of links naming nothing, the ungated count, and the two
@@ -330,16 +330,16 @@ table.
 
 ## The order the generators run in
 
-`./le rules condensed-update` and `./le rules index-update` parse the RENDERED rules, so
+`./le ai rules condensed-update` and `./le ai rules index-update` parse the RENDERED rules, so
 a render that has not run yet feeds them the previous text.
 
-    ./le rules render-update
-    ./le rules condensed-update
-    ./le rules index-update
-    ./le rules lint
+    ./le ai rules render-update
+    ./le ai rules condensed-update
+    ./le ai rules index-update
+    ./le ai rules lint
 
-`./le doc check verify` runs all of them, plus `./le rules render-check`,
-`./le rules points-roundtrip-check` and `./le rules gate-map-report`. Run it before you commit.
+`./le doc check verify` runs all of them, plus `./le ai rules render-check`,
+`./le ai rules points-roundtrip-check` and `./le ai rules gate-map-report`. Run it before you commit.
 
 After a trigger edit, READ your rule's row in the regenerated `TRIGGERS.md`. A
 trigger that lost half its clause is not visible from the point file alone.

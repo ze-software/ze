@@ -65,13 +65,13 @@ machine. The QEMU action remains available for a host where the probe refuses.
 ## Running
 
 ```
-./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le deployment docker-pppoe-accel-test
-ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le deployment docker-pppoe-accel-test
+./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-empty-service-name ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=pppoe-padr-replay ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-zero-identifier ./le test deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=ipv6cp-missing-option ./le test deployment docker-pppoe-accel-test
 ```
 
 `01-pppoe-chap-ipv4` and `02-ze-ac-pppd-client` predate the naming rule and keep
@@ -86,9 +86,9 @@ scenario bound, and `ZE_PPPOE_INTEROP_SUFFIX` provides parallel-run isolation.
 The QEMU proof for Ze as a client against accel-ppp is:
 
 ```
-./le qemu run kernel tmp/kernel/build/vmlinuz \
+./le test qemu run kernel tmp/kernel/build/vmlinuz \
   packages "iproute2 iputils accel-ppp ppp kmod" \
-  command "./le qemu pppoe-accel-test"
+  command "./le test qemu pppoe-accel-test"
 ```
 
 The host `qemu run` action boots the runtime kernel and installs the guest
@@ -166,6 +166,6 @@ missing wire evidence rather than passing vacuously.
 |----------|---------|------------------|--------------|
 | `test/pppoe/pppoe-basic.ci` | Access concentrator | Functional fixture | No |
 | `test/pppoe/pppoe-vlan.ci` | Access concentrator on VLAN | Functional fixture | No |
-| `test/pppoe/pppoe-service-name.ci` | Access concentrator | Functional fixture | No (`option=netns-link`, `./le qemu pppoe-test`) |
-| `./le deployment docker-pppoe-accel-test` | Client and access concentrator | accel-ppp and pppd | Host kernel |
-| `./le qemu pppoe-accel-test` | Client | accel-ppp | Runtime kernel |
+| `test/pppoe/pppoe-service-name.ci` | Access concentrator | Functional fixture | No (`option=netns-link`, `./le test qemu pppoe-test`) |
+| `./le test deployment docker-pppoe-accel-test` | Client and access concentrator | accel-ppp and pppd | Host kernel |
+| `./le test qemu pppoe-accel-test` | Client | accel-ppp | Runtime kernel |

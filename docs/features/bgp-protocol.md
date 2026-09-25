@@ -81,12 +81,12 @@ That includes a route distinguisher in every form Ze parses one, and the
 administrator of an extended community such as `target:1.10:5`. It also
 includes the `as-path` of `show bgp encode route`, the MVPN `source-as`, the
 `show bgp rib path` filter, the `AS<n>` peer selector, and `rpki validate`. The
-`ze-analyze` binary reads them on `--peer-asn` and `--local-as`.
+`./le mrt` command reads them on `--peer-asn` and `--local-as`.
 
 One reader answers each of those forms. `selector.ParseASNSelector` is the
 `AS<n>` selector, for every peer command and for the policy filter.
 `attribute.ParseExtCommunityAdmin` is the extended-community administrator, for
-all four of its parsers. A private copy of either is what `./le repository
+all four of its parsers. A private copy of either is what `./le repo
 check` now reports.
 
 The `L` suffix of an extended community forces the four-octet encoding, and it
@@ -311,7 +311,7 @@ session where neither side negotiated ADD-PATH keeps its zero-copy forward.
 ### Protocol event capture and replay
 
 A peer writes every message it receives to a bounded JSONL file, together with
-the config operations applied while the capture runs. `ze-test replay <file>`
+the config operations applied while the capture runs. `le-test replay <file>`
 feeds the file back through the same read path with an injected clock.
 
 The tee sits on the complete wire message in both read paths, before message
@@ -327,7 +327,7 @@ whether an enabled peer's capture directory is usable
 (`doctor-bgp-capture-directory`).
 
 ```bash
-ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
+le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
 ```
 
 <!-- source: internal/core/capture/capture.go -- the bounded JSONL writer -->

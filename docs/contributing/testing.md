@@ -12,8 +12,8 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ```
 
 `./le` is the compiled repository development entry point. Each area exposes
-its own verbs, for example `./le functional plugin`,
-`./le qemu install-iso-test`, and `./le test-unit bgp`. Legacy command names
+its own verbs, for example `./le test functional plugin`,
+`./le test qemu install-iso-test`, and `./le test unit bgp`. Legacy command names
 have no compatibility aliases.
 
 Action words describe the contract: `check` is a read-only verdict, `verify` is
@@ -27,8 +27,8 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | Step | What you run | When | Time |
 |------|--------------|------|------|
 | 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
-| 2 | `./le test-unit bgp` | Checking one component group | 10s to 1:30 |
-| 3 | `./le functional plugin` | Checking the user-visible path | varies |
+| 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
+| 3 | `./le test functional plugin` | Checking the user-visible path | varies |
 | 4 | `./le verify current mode full` | Ready to commit | about 2 minutes |
 
 `./le verify current mode full` is the pre-commit gate. The narrower commands
@@ -40,20 +40,20 @@ machine.
 
 | Command | Scope | Time |
 |---------|-------|------|
-| `./le test-unit bgp` | BGP engine, wire, reactor | about 1:30 |
-| `./le test-unit core` | Core libraries | about 30 seconds |
-| `./le test-unit plugins` | All plugins | about 40 seconds |
-| `./le test-unit config` | Config parsing and YANG | about 20 seconds |
-| `./le test-unit cli` | CLI component | about 10 seconds |
-| `./le test-unit installer` | Installer initrd logic behind the `ze_installer` tag | about 10 seconds |
-| `./le test-unit all` | The whole checkout, then the groups their build tags hide from it | minutes: it is every package under `-race` |
+| `./le test unit bgp` | BGP engine, wire, reactor | about 1:30 |
+| `./le test unit core` | Core libraries | about 30 seconds |
+| `./le test unit plugins` | All plugins | about 40 seconds |
+| `./le test unit config` | Config parsing and YANG | about 20 seconds |
+| `./le test unit cli` | CLI component | about 10 seconds |
+| `./le test unit installer` | Installer initrd logic behind the `ze_installer` tag | about 10 seconds |
+| `./le test unit all` | The whole checkout, then the groups their build tags hide from it | minutes: it is every package under `-race` |
 
 Pick the group matching your change. Each group is a subset of `all`, so a
 green group says nothing about the rest of the tree.
 
 The `installer` group runs the tests on Linux. On another host `go test`
 cross-compiles a Linux binary it cannot start, so the group runs `go vet`
-and type-checks the same files instead. `./le qemu all-tests` runs them for
+and type-checks the same files instead. `./le test qemu all-tests` runs them for
 real inside the Alpine virtual machine.
 
 ## Test types
@@ -81,19 +81,19 @@ Each `test/` subdirectory has its own runner and format:
 
 | Directory | What it tests | Runner |
 |-----------|---------------|--------|
-| `test/encode/` | BGP wire encoding | `ze-test bgp encode` |
-| `test/decode/` | Wire decoding | `ze-test bgp decode` |
-| `test/parse/` | Config parsing (valid/invalid) | `ze-test bgp parse` |
-| `test/plugin/` | Plugin behavior | `ze-test bgp plugin` |
-| `test/reload/` | Config reload | `ze-test bgp reload` |
-| `test/ui/` | CLI completion | `ze-test ui` |
-| `test/editor/` | TUI editor (`.et` files) | `ze-test editor` |
-| `test/managed/` | Managed config | `ze-test managed` |
-| `test/web/` | Web UI | `ze-test web` |
-| `test/l2tp/` | L2TP daemon | `ze-test l2tp` |
-| `test/firewall/` | Firewall | `ze-test firewall` |
-| `test/policy/` | Policy routing | `ze-test policy` |
-| `test/exabgp-compat/` | ExaBGP compatibility | `ze-test exabgp` |
+| `test/encode/` | BGP wire encoding | `le-test bgp encode` |
+| `test/decode/` | Wire decoding | `le-test bgp decode` |
+| `test/parse/` | Config parsing (valid/invalid) | `le-test bgp parse` |
+| `test/plugin/` | Plugin behavior | `le-test bgp plugin` |
+| `test/reload/` | Config reload | `le-test bgp reload` |
+| `test/ui/` | CLI completion | `le-test ui` |
+| `test/editor/` | TUI editor (`.et` files) | `le-test editor` |
+| `test/managed/` | Managed config | `le-test managed` |
+| `test/web/` | Web UI | `le-test web` |
+| `test/l2tp/` | L2TP daemon | `le-test l2tp` |
+| `test/firewall/` | Firewall | `le-test firewall` |
+| `test/policy/` | Policy routing | `le-test policy` |
+| `test/exabgp-compat/` | ExaBGP compatibility | `le-test exabgp` |
 
 Run a single test by one-based ID or exact name, list the available IDs, or
 resume from the last printed ID after an interrupted run. Queue the runner
@@ -101,12 +101,12 @@ through `./le job run label <label> command <argv...>` to use the same admission
 as a full suite.
 
 ```sh
-./le job run label plugin-42 command bin/ze-test bgp plugin 42          # test id 42
-./le job run label encode-list command bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
-./le job run label plugin-from-42 command bin/ze-test bgp plugin --start 42  # id 42 and every later test
-./le job run label editor-7 command bin/ze-test editor 7                # editor test id 7
-./le job run label editor-nav command bin/ze-test editor -p nav         # editor tests matching "nav"
-./le job run label exabgp-from-20 command bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
+./le job run label plugin-42 command bin/le-test bgp plugin 42          # test id 42
+./le job run label encode-list command bin/le-test bgp encode --list    # list N/TOTAL, id, and name
+./le job run label plugin-from-42 command bin/le-test bgp plugin --start 42  # id 42 and every later test
+./le job run label editor-7 command bin/le-test editor 7                # editor test id 7
+./le job run label editor-nav command bin/le-test editor -p nav         # editor tests matching "nav"
+./le job run label exabgp-from-20 command bin/le-test exabgp --start 20 # resume ExaBGP compatibility
 ```
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
@@ -115,10 +115,10 @@ as a full suite.
 Run a full suite:
 
 ```sh
-./le functional encode
-./le functional plugin
-./le functional gating
-./le functional exabgp-test
+./le test functional encode
+./le test functional plugin
+./le test functional gating
+./le test functional exabgp-test
 ```
 
 ### Mutation tests (gomu)
@@ -130,8 +130,8 @@ logical, bitwise, branch, return value, and error handling operators), runs the 
 suite against each mutation, and reports which mutations survived.
 
 gomu uses overlay-based execution, so it never modifies source files on disk.
-It is a Go tool recorded in `tools.go`. The native `./le mutation combine`
-command combines completed reports, and `./le mutation record-history` appends
+It is a Go tool recorded in `tools.go`. The native `./le test mutation combine`
+command combines completed reports, and `./le test mutation record-history` appends
 their per-package scores to the committed history.
 
 Mutation testing is advisory. It never gates `./le verify current mode full` or CI. A surviving mutant
@@ -156,7 +156,7 @@ gomu is vendored and runs through `go run`, so it needs no install.
 |---------|---------|
 | `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental=false --fail-on-gate=false` | Full advisory mutation run |
 | `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental --base-branch=main --fail-on-gate=false` | Changed-file advisory mutation run |
-| `./le mutation combine` | Combine the per-package JSON reports |
+| `./le test mutation combine` | Combine the per-package JSON reports |
 
 Tuning is by flag on `gomu run`, not by environment variable. gomu reads only
 `GITHUB_TOKEN` and `GITHUB_REPOSITORY`, both for its GitHub integration.
@@ -179,10 +179,10 @@ These require external infrastructure (Docker, root/CAP_NET_ADMIN, QEMU, or inte
 They are not part of the normal development cycle.
 
 ```sh
-./le integration interop
-./le integration iface
-./le qemu all-tests
-./le integration live-rpki
+./le test integration interop
+./le test integration iface
+./le test qemu all-tests
+./le test integration live-rpki
 ```
 
 
@@ -212,7 +212,7 @@ The route, in order:
 3. Name `test/weakened/<session>.md` in the commit. `internal/le/commit.Answer`
    refuses a commit that weakens a test and leaves the row in the working tree.
 
-`./le test-weakened check` prints every session's shard and the rows in it, and
+`./le test weakened check` prints every session's shard and the rows in it, and
 names yours. Read it when you want to know what the ledger holds without
 preparing a commit.
 
@@ -225,7 +225,7 @@ three cases into one table lowers a count exactly as deleting a check does. The
 COMMIT still needs a row for it, and that row is where you say which of the two
 happened.
 
-`./le test-weakened check` runs the checker over the file and is a stage of
+`./le test weakened check` runs the checker over the file and is a stage of
 `./le verify current mode full` in both modes. The rule is `ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
@@ -249,7 +249,7 @@ Common case (one group changed): ~2 min total instead of 6+.
 <!-- source: internal/le/go/lint/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
-set. `./le verify lint run` therefore runs more than one.
+set. `./le go lint run` therefore runs more than one.
 
 | Pass | Build | What only it reads |
 |------|-------|--------------------|
@@ -278,7 +278,7 @@ silent for that long. That is the linter in a queue, not a hang.
 <!-- source: internal/le/job/registry.go -- shares, reportBusy -->
 <!-- source: internal/le/job/treehash.go -- InputHash, lintIgnores -->
 
-`./le verify lint run` claims the `lint` label in the shared job registry
+`./le go lint run` claims the `lint` label in the shared job registry
 (`internal/le/job`) before it plans anything. A lint uses cores allocated for
 the whole machine, so admission decides how many run at once, and it prints
 `[lint] waiting: <holder> running (pid N, Ns elapsed): <the holder's last log
@@ -318,8 +318,8 @@ file in a new package, and the drift is silent.
 
 The driver then asserts coverage. Every tracked Go file must be loaded by some
 pass. The exceptions are `vendor/`, `gokrazy/modcache/`, and the `//go:build
-ignore` files that belong to no build. `./le verify lint run` executes the
-native plan and returns its flavor rows as structured output; `./le verify lint run`
+ignore` files that belong to no build. `./le go lint run` executes the
+native plan and returns its flavor rows as structured output; `./le go lint run`
 retains the established target interface.
 
 Two files are still outside it, and the driver names both on every run.
@@ -385,7 +385,7 @@ written empty, in source a reader can see.
 
 <!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 
-`./le staticcheck-feature-matrix check` type-checks the working tree in N+2
+`./le go staticcheck check` type-checks the working tree in N+2
 configurations derived from the N unique features in `feature-gates.txt`: one
 distro all-on row, one bare-core row, and one row that omits each feature.
 Staticcheck includes selected `_test.go` files. This stage type-checks those
@@ -407,18 +407,18 @@ six pieces run on six shards rather than on one job's clock. Each piece names
 the rows it judged in its own log. Rerun one piece, or the whole matrix:
 
 ```sh
-./le staticcheck-feature-matrix check part 3 of 6
-./le staticcheck-feature-matrix check
+./le go staticcheck check part 3 of 6
+./le go staticcheck check
 ```
 
 The matrix checks package and test variants in the working tree.
-`./le repository tracked-build check` remains the committed-tree final-link check for shipped
+`./le repo tracked-build check` remains the committed-tree final-link check for shipped
 build flavors.
 
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repository tracked-build check` (`internal/le/repo/trackedbuild.Answer`) is the
+included. `./le repo tracked-build check` (`internal/le/repo/trackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -427,8 +427,8 @@ producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:
 
 ```sh
-./le repository tracked-build check
-REV=7abe8a07e ./le repository tracked-build check
+./le repo tracked-build check
+REV=7abe8a07e ./le repo tracked-build check
 ```
 
 The action builds every flavor in `internal/le/repo/trackedbuild/matrix.go` over
@@ -459,7 +459,7 @@ FAIL	github.com/ze-software/ze/internal/core/bgp/attribute	0.003s
 
 ### Functional test failures
 
-`ze-test` prints a summary at the end of each suite. Look for the test name
+`le-test` prints a summary at the end of each suite. Look for the test name
 and the expectation that failed:
 
 ```
@@ -538,14 +538,14 @@ Reproducing a load-dependent flake is
 |--------------|-----|
 | Check my setup | `./le verify current mode full` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
-| Run one functional test | `./le job run label plugin-42 command bin/ze-test bgp plugin 42` |
-| Run a component group | `./le test-unit bgp` |
+| Run one functional test | `./le job run label plugin-42 command bin/le-test bgp plugin 42` |
+| Run a component group | `./le test unit bgp` |
 | Run the pre-commit check | `./le verify current mode full` |
-| Type-check every supported feature combination | `./le staticcheck-feature-matrix check` |
+| Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
-| List functional tests | `./le job run label encode-list command bin/ze-test bgp encode --list` |
-| Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le fuzz run` |
-| Run all fuzz targets | `./le fuzz run` |
-| Check the commit compiles | `./le repository tracked-build check` |
-| Check web behavior | `./le functional web` |
-| Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repository generate` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |
+| List functional tests | `./le job run label encode-list command bin/le-test bgp encode --list` |
+| Run one fuzz target | `FUZZ=FuzzName PKG=./path/... TIME=30s ./le test fuzz run` |
+| Run all fuzz targets | `./le test fuzz run` |
+| Check the commit compiles | `./le repo tracked-build check` |
+| Check web behavior | `./le test functional web` |
+| Check that every `*_templ.go` matches its `.templ` source | `./le doc check templ-output`. No `./le` action writes the output back (`./le repo generate` carries no templ stage), so bring it back in step with the checker's own invocation minus `-check`: `./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"`. Both walk `internal/` only. Never run a bare `templ generate`, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate |

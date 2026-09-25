@@ -524,7 +524,7 @@ and fix config before committing.
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: test/plugin/mcp-announce.ci -- MCP functional test -->
 
-`ze-test mcp` is an MCP client for functional tests. It reads commands from
+`le-test mcp` is an MCP client for functional tests. It reads commands from
 stdin and sends them to the MCP endpoint.
 
 ```bash
@@ -533,7 +533,7 @@ ze --mcp 8080 config.conf &
 
 # Send commands
 echo 'wait-established
-send bgp * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | ze-test mcp --port 8080
+send bgp * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24' | le-test mcp --port 8080
 ```
 
 Every message it sends is its own POST to `/mcp`, with the required headers and

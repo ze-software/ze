@@ -22,7 +22,7 @@ that one entry, so no earlier revision is accepted, aliased, or defaulted to.
 <!-- source: internal/component/mcp/streamable.go — ProtocolVersion, supportedProtocolVersions, isSupportedProtocolVersion -->
 
 `cmd/ze/hub/service_mcp.go:startMCPServer` mounts `NewStreamable` for all
-production listeners, including the `ze-chaos` orchestrator, which supplies a
+production listeners, including the `le chaos run` orchestrator, which supplies a
 `ToolProvider` to replace the tool surface. Provider mode changes only which
 tools the server offers. It takes the same header validation, the same
 per-request metadata, and the same per-request authentication as every other
@@ -371,7 +371,7 @@ until restart. Configuration reload rejects a change it cannot apply.
 
 Four modes are selected by `environment.mcp.auth-mode`: `none`, `bearer`,
 `bearer-list`, and `oauth`. `none` is not a bypass. It is an authenticator that
-accepts every request with a zero `Identity`. That is why `ze-chaos`, which
+accepts every request with a zero `Identity`. That is why `le chaos run`, which
 configures no token and no auth mode, reaches the same uniform path as every
 other caller. It is not a carve-out.
 

@@ -2,7 +2,7 @@
 
 <!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
 
-For current counts and uncovered RPCs, run `./le inventory`.
+For current counts and uncovered RPCs, run `./le repo inventory`.
 
 
 ## Gaps -- Config Behavior Without .ci

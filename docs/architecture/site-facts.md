@@ -38,7 +38,7 @@ downstream reads that file and never counts for itself.
 | One fix | `./le site facts update`, named in every report the gate prints |
 
 The commands are `./le site facts update` and `./le site facts check`. The pair
-is the shape `./le test-health update` and `./le test-health check` already had,
+is the shape `./le test health update` and `./le test health check` already had,
 and the pair is the point: a generated file nobody gates goes stale in silence.
 
 ## Not every fact can be committed

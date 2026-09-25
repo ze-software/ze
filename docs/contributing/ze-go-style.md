@@ -503,7 +503,7 @@ repository wrote the rule itself.
 
 Where that happens, the rule goes in `.golangci/ruleguard/modern.go`, which
 gocritic's `ruleguard` checker loads at run time. The rule then reaches every
-place the linter already reaches: the post-write hook, `./le verify lint run`,
+place the linter already reaches: the post-write hook, `./le go lint run`,
 CI, and `//nolint`. A rule written this way needs no new gate, no new hook, and
 no custom linter binary.
 
@@ -525,7 +525,7 @@ that states the cost, and a `Suggest` line that gives the replacement. Note that
 drop the old one, so a mass rewrite runs `gofmt -r` and then `goimports`.
 
 The dot is a trade, and the cost is on this page. Neither path gate reaches
-into the directory: `./le docs-to-code index-check` accepts a `<!-- source: -->`
+into the directory: `./le doc index check` accepts a `<!-- source: -->`
 anchor into it without checking, and `./le doc check links` does not count a
 dotted path among its broken references. Both were measured by breaking the
 path and watching the count stay put. So if the rules file is renamed, nothing

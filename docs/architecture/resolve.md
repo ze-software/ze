@@ -163,7 +163,7 @@ data was collected, and one `Source:` line for each of the five delegation
 files it was built from.
 <!-- source: internal/component/resolve/irr/rir.go -- delegationTableHeader, RenderDelegationTable -->
 
-`./le iana-asn write` rewrites that file. It reads the five registry delegation
+`./le data asn-delegation write` rewrites that file. It reads the five registry delegation
 files, parses each one, sorts, collapses adjacent ranges of one registry, and
 writes the whole table in one call. It is the one generator whose input is the
 network rather than the tree, so it has no check twin: a checkout cannot be
@@ -184,7 +184,7 @@ stale tree and drop every state key.
 <!-- source: internal/component/resolve/cmd/rir.go -- handleRIRRefresh -->
 <!-- source: internal/component/resolve/irr/rir.go -- FetchDelegationTable -->
 
-`./le iana-asn write` and `update resolve rir` run the same recipe. The parse,
+`./le data asn-delegation write` and `update resolve rir` run the same recipe. The parse,
 the collapse, the date and the render all belong to the `irr` package, and both
 callers reach them through `irr.FetchDelegationTable`. Two copies of that
 recipe existed until 2026-09-02, and each held a guard the other lacked.

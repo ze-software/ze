@@ -229,7 +229,7 @@ accepted; this server issues no requestState, so a retry must not carry one
 The functional-test client speaks the client half of the loop:
 
 ```
-ze-test mcp --port 8080 --elicit form
+le-test mcp --port 8080 --elicit form
 ```
 
 with stdin directives:

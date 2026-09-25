@@ -2,10 +2,10 @@
 
 ## Overview
 
-`ze-analyse attributes <mrt-file.gz>` measures how much route attribute data
+`./le mrt attributes <mrt-file.gz>` measures how much route attribute data
 can be deduplicated by hashing attribute bundles. The analysis processes
 RIPE RIS and RouteViews MRT dumps (TABLE_DUMP_V2 RIB snapshots and BGP4MP
-live update streams), fetched via `ze-analyse download`.
+live update streams), fetched via `./le mrt download`.
 
 ## What is a "bundle"?
 
@@ -72,7 +72,7 @@ often share attributes.
 
 ## AS_PATH suffix sharing analysis
 
-`ze-analyse aspath <mrt-file.gz>` builds a reversed trie over all AS_PATHs
+`./le mrt aspath <mrt-file.gz>` builds a reversed trie over all AS_PATHs
 to measure suffix sharing. Each AS_PATH is inserted origin-first (reversed),
 so paths sharing the same origin and transit chain share trie nodes.
 

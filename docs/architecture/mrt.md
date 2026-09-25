@@ -83,7 +83,7 @@ produces a signal:
 |-------|------------------------------|
 | `ParsePrefixesAFI` | Returns the prefixes decoded *before* the damage **and** an error naming the offset and offending value. The caller can salvage the good entries and still report the record as damaged. |
 | `ParseMPReach` / `ParseMPUnreach` | Propagate that error, wrapped with the AFI/SAFI. |
-| `ParseBGPMessage` | Propagates it; `ze-analyze show` renders the record as `[parse error]` so one damaged record is visible without aborting the file. |
+| `ParseBGPMessage` | Propagates it; `./le mrt show` renders the record as `[parse error]` so one damaged record is visible without aborting the file. |
 | `forEachRIBEntry` | Returns the decode error; the subcommands count damaged records and print a `warning: N malformed RIB record(s) skipped` line to stderr. |
 
 An out-of-range prefix length is never emitted as a prefix: `netip`'s zero

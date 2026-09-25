@@ -30,7 +30,7 @@ now applies.
 
 ## Traps
 
-- **`./le repository check` scans untracked files**, so a wholly new tree IS
+- **`./le repo check` scans untracked files**, so a wholly new tree IS
   scanned, and a non-zero exit can be mostly other work's symbols. Scope the
   count before believing a claim about one package.
   <!-- source: internal/le/repo/wiring.go -- exported symbol caller and interface-seam checks -->

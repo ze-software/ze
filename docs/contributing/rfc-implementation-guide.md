@@ -560,14 +560,14 @@ The scanner includes command tests under `cmd/`, including tests of daemon liste
 
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
-| `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
-| `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
-| `test/exabgp-compat/*.ci` | `functional` | `./le functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
-| `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
-| `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
-| `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |
-| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le deployment docker-l2tp-ppp-test` | same derivation |
-| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le deployment docker-pppoe-accel-test` | same derivation |
+| `*_test.go` outside `internal/le/` | `unit` | `./le test unit all` | `verify`, on every push |
+| `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le test functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
+| `test/exabgp-compat/*.ci` | `functional` | `./le test functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
+| `test/editor/*.et` | `editor` | `./le test functional editor` | `verify`, on the same earned-per-suite basis |
+| `internal/le/interoplab/bgp/*.go` | `interop` | `./le test integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
+| `internal/le/interoplab/ipsec/*.go` | `interop` | `./le test integration interop-ipsec` | same derivation |
+| `internal/le/interoplab/l2tp/*.go` | `interop` | `./le test deployment docker-l2tp-ppp-test` | same derivation |
+| `internal/le/interoplab/pppoe/*.go` | `interop` | `./le test deployment docker-pppoe-accel-test` | same derivation |
 
 The four legacy trees under `test/interop*/` carry the same interop kinds through
 `legacyInteropCarriers`, keyed on a `/check.py` suffix.
@@ -781,8 +781,8 @@ Before marking implementation complete:
 
 ```
 [ ] Verify the agreed implementation boundary through ./le verify worktree
-[ ] Fuzz targets pass: ./le fuzz run
-[ ] Functional tests pass: ./le functional gating
+[ ] Fuzz targets pass: ./le test fuzz run
+[ ] Functional tests pass: ./le test functional gating
 [ ] RFC MUST tests have both polarities: ./le rfc check
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements

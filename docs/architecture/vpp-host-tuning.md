@@ -119,5 +119,5 @@ symptom is a check that produces no diagnostic end to end.
 ## Test placement
 
 A Linux-tagged test with no `integration` tag runs in the native unit groups on
-a Linux host. Adding it to `./le qemu all-tests`, which builds with
+a Linux host. Adding it to `./le test qemu all-tests`, which builds with
 `-tags integration`, does not change the unit population.

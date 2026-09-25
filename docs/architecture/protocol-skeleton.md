@@ -66,7 +66,7 @@ declares it and gains a row when a protocol lands.
 
 ## The advisory report
 
-    ./le protocol-skeleton report
+    ./le rfc skeletons report
 
 It classifies every module of every listed protocol and prints a one-line
 summary. Pipe it through `| json` for the per-protocol table. Report mode always
@@ -74,7 +74,7 @@ exits 0, whatever it found: it is a lens, not a gate. An enforced skeleton would
 need a large allowlist, which the tiers work already measured as the wrong
 trade. Only a tree it could not READ answers non-zero.
 
-    ./le protocol-skeleton selftest
+    ./le rfc skeletons selftest
 
 The selftest is the one part that fails, and it fails when the classifier itself
 stopped telling the five classes apart.

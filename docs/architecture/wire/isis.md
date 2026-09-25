@@ -513,7 +513,7 @@ $ printf '831b01060f...' | ze isis decode --pretty
 
 Functional coverage: `test/isis-wire/isis-pdu-1.ci` (a captured LAN L1 Hello)
 and `test/isis-wire/isis-truncated.ci` (malformed input is rejected). Run with
-`./le functional isis-wire`.
+`./le test functional isis-wire`.
 
 ## Tests
 

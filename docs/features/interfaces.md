@@ -223,7 +223,7 @@ up/down, bridge, mirror, ...), the DHCP client socket binding, and the
 routing/protocol consumers all act on the bound kernel device. The dispatch
 layer performs this translation for the by-name backend ops and leaves
 `GetInterface` and `ListInterfaces` raw because the resolver is built on them.
-`./le iface-resolution check` keeps new consumers from resolving the kernel
+`./le arch iface-resolution check` keeps new consumers from resolving the kernel
 directly instead of through the resolver.
 
 The **config apply path** resolves separately, and on purpose. It takes ONE interface

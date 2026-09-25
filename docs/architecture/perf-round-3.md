@@ -9,7 +9,7 @@ Third optimization round. The first campaign took the convergence benchmark from
 This round targeted three paths identified through source audit and arithmetic,
 not speculative profiling. Each change preserves wire bytes, JSON output, and
 CLI behavior byte-for-byte. The proof for each is its own Go benchmark, not
-the end-to-end ze-perf convergence number (none of these paths are exercised
+the end-to-end `le perf send` convergence number (none of these paths are exercised
 by the single-DUT 100K-route benchmark).
 
 ## 1. Lock-Free EBGP Variant Cache Hits (deleted 2026-08-17)

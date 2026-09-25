@@ -116,7 +116,7 @@ a bug report. Nothing uploads it.
 ## Replaying
 
 ```
-ze-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
+le-test replay [--json] [--local-as N] [--peer-as N] [--router-id N] <capture-file|->
 ```
 
 A capture file of `-` is read from stdin, which is how a file arriving from

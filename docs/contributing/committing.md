@@ -226,7 +226,7 @@ from, and the push authorisation apply in every tree.
 ## After the script runs
 
 For a commit carrying Go, module, or vendor paths, run
-`./le repository tracked-build check` immediately afterwards. It judges the
+`./le repo tracked-build check` immediately afterwards. It judges the
 commit you just made, which no run before that commit could see.
 
 Report the commit SHA, the included files, the message file, the script path,
@@ -253,7 +253,7 @@ generated file git still tracks. The rendered rules and
 file with its own generator at each rebase stop and continue. A DERIVED artifact
 is never one of them: it is untracked, so a rebase cannot conflict on it. Which
 files those are is `derived.All`'s answer rather than a list here, and
-`./le hook-check session-start` prints each one it builds. The RFC ledger and
+`./le ai hooks session-start` prints each one it builds. The RFC ledger and
 its shards left git on 2026-09-11 and joined that set. Finish the rebase before repairing
 bookkeeping, never mid-rebase, then recompute any derived ratchet the rebase
 loosened.

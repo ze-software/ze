@@ -133,7 +133,7 @@ then folds every whitespace run into a single space. No word is lost, and no
 newline survives. A second line would draw a row the view did not count. The
 cursor would then sit one row above the prompt.
 
-`./le docvalid help-shape` refuses a newline in a summary declared in this
+`./le doc yang-contract help-shape` refuses a newline in a summary declared in this
 tree. It reads the source. A plugin declares its own summary over the wire, and
 no gate reads that one. The bound is applied where the text is drawn.
 
