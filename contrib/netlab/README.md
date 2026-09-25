@@ -54,7 +54,7 @@ Copy the two artifacts into the netlab package:
     cp -R contrib/netlab/ze   <netlab>/netsim/daemons/ze
 
 Or keep them out of the install and let a topology carry them. This is what
-`./le netlab render-check` does. It needs two files beside the topology:
+`./le test netlab render-check` does. It needs two files beside the topology:
 
 - `topology-defaults.yml`, holding the contents of `ze.yml` under a `daemons: ze:` key
 - a `templates/ze/` directory, holding the templates
@@ -96,11 +96,11 @@ once, naming the file, because the secret is still in it.
 
 ## Keeping this from drifting
 
-    ./le netlab render-check
+    ./le test netlab render-check
 
 It renders these templates with a real netlab, compares the result against
 `golden/`, and runs `ze config validate` on each golden file. A missing netlab is
-an error, never a skip. `./le netlab render-update` rewrites the golden files.
+an error, never a skip. `./le test netlab render-update` rewrites the golden files.
 Review the diff.
 
 `test/plugin/netlab-lab-profile.ci` is the other half, and it needs no netlab. It

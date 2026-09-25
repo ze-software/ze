@@ -103,8 +103,8 @@ These are bugs in the Completer, not the test infrastructure. The tests express 
 | Change | Description |
 |--------|-------------|
 | `test/ui/` directory | New test directory for UI/completion functional tests |
-| `ze-test bgp ui` command | New test runner subcommand using `EncodingTests` runner |
-| `./le functional ui` | Native action for UI tests; this replaces the retired `make ze-functional-ui-test` target |
+| `./le test harness bgp ui` command | New test runner subcommand using `EncodingTests` runner |
+| `./le test functional ui` | Native action for UI tests; this replaces the retired `make ze-functional-ui-test` target |
 | `--input` flag with `+` encoding | `+` = space, avoids shell quoting issues in test runner |
 | `--context` with `/` separator | `/` = path separator, avoids `strings.Fields()` splitting |
 
@@ -115,7 +115,7 @@ These are bugs in the Completer, not the test infrastructure. The tests express 
 go test -race ./internal/component/config/editor/... -v
 
 # UI tests
-./le functional ui
+./le test functional ui
 
 # Full suite
 ./le verify current mode full

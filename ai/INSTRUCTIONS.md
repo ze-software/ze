@@ -1,4 +1,4 @@
-<!-- DO NOT EDIT GENERATED COPIES. Edit ai/INSTRUCTIONS.md and run: ./le ai skills-sync -->
+<!-- DO NOT EDIT GENERATED COPIES. Edit ai/INSTRUCTIONS.md and run: ./le ai sync write -->
 
 # DANGER -- ABSOLUTE PROHIBITIONS
 
@@ -232,11 +232,11 @@ the owner stays under 15 lines, and puts its tables before its prose.
 
 Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP).
 
-**Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way. The composition root `internal/component/plugin/all/all.go` is generated (`./le repository generate`).
+**Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way. The composition root `internal/component/plugin/all/all.go` is generated (`./le repo generate`).
 
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
-<!-- BEGIN GENERATED: arch-components (internal/le/repo/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-components (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
 46 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
@@ -248,7 +248,7 @@ trafficfeature, trafficstat, vpp, web
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
-<!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
 66 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
@@ -264,7 +264,7 @@ traffic-cmd, trafficusage, update-cmd, vrrp
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
-<!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/repo/archmap.Update; ./le arch-map update) -->
+<!-- BEGIN GENERATED: arch-bgp-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
 33 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, capa, cmd, epe, filter_aspath, filter_aspath_length,
@@ -289,11 +289,9 @@ rib, role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 | Binary | Purpose |
 |--------|---------|
 | `ze` | Network OS: bgp, cli, config, hub, iface, exabgp migrate, plugin, schema, signal, completion |
-| `ze-chaos` | Chaos testing orchestrator: fault injection, scheduling |
-| `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
-| `ze-analyse` | MRT/RIB analysis: attributes, communities, density, dump |
-| `ze-test` | Functional test runner: bgp, editor, peer, mcp, web, rpki, managed |
-| `ze-gok` | gokrazy appliance image build wrapper (`cmd/ze-gok/`) |
+| `le-test` | Functional test harness (`bin/le-test`, `bin/le-test-linux-<arch>`): bgp, editor, peer, mcp, web, rpki, managed. A person runs it as `./le test harness <root> <args>` |
+| `ze-installer`, `ze-serial-shell` | Target binaries: see "Binary naming convention" below |
+| `le` | Developer launcher. `./le chaos run` (chaos orchestrator), `./le perf` (UPDATE throughput benchmarks), `./le mrt` (MRT/RIB analysis) and `./le build gokrazy` (gokrazy image build) replace the standalone developer builds, which are removed in Phase 3 of `plan/spec-le-subject-first-command-tree.md` |
 
 ### Binary naming convention
 
@@ -301,14 +299,14 @@ Binaries fall into two families, and the distinction is load-bearing:
 
 - **Host binaries** run on the operator / build / dev machine and are compiled for
   the host (no `GOOS`/`GOARCH` override). These are the CLIs in the table above (one
-  `cmd/ze/` codebase selected by build tag) plus `ze-gok` (`cmd/ze-gok/`). A build or
+  `cmd/ze/` codebase selected by build tag) plus the gokrazy build that `./le build gokrazy` runs. A build or
   test action that must RUN one of these to drive `ze appliance ...` on the build
   host compiles `cmd/ze` (tags `ze_core,ze_setup`) and names it `ze-host` by
   convention (for example, `internal/le/test/qemu.(*Installer).buildHostZe`).
 - **Target binaries** run on the appliance or inside an image and are cross-compiled
   `GOOS=linux GOARCH=<arch> CGO_ENABLED=0`: `cmd/ze-installer` (the busybox-free
   installer initrd's PID 1, build tag `ze_installer`, packed into the initrd as
-  `/init`; `./le build-artifacts installer-amd64` and `installer-arm64` write
+  `/init`; `./le build installer amd64` and `arm64` write
   standalone cross-builds to `bin/ze-installer-<arch>`), `cmd/ze-serial-shell`
   (appliance serial console), and `cmd/ze`
   itself when gokrazy packs it into the image.
@@ -363,7 +361,7 @@ means "no rule applies".
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/performance.md`, `ai/rules/performance.md`, `ai/rules/performance.md` -- load-bearing divergence from standard Go |
 | Add a YANG leaf, env var, or config option | `ai/rules/config.md` (YANG vs env var decision), `ai/rules/config.md` (naming), `ai/patterns/config-option.md` (structural template) |
 | Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugins.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
-| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/architecture.md` -- tier = dependency direction; a misplaced config-driven engine fails `./le tier check` |
+| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/architecture.md` -- tier = dependency direction; a misplaced config-driven engine fails `./le arch tier check` |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md` |
 | Meet a WAVE of red: unrelated packages failing to build, `no space left on device`, `cache entry not found`, a whole suite red at once | `docs/contributing/running-commands.md`, "When the disk is full" -- the cache disk is full before this is a code defect, once for each row in `plan/journal/full-disk-false-red.md`. Read `df -h cache/go-cache`, which follows the symlink to the device that really holds the cache. Never `df` on the checkout ROOT, which answers about the wrong device when `cache/` is on another filesystem, and never `stat -f`, which is a FORMAT flag on macOS and prints the path back instead of any free space. `./le scratch cache-clean` empties all three build caches, the two Go ones and golangci-lint's, and prints what each returned |
@@ -374,8 +372,8 @@ means "no rule applies".
 | Write a spec | `ai/rules/planning.md`, `plan/README.md` (which of the three release buckets it goes in), `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
 | Claim work is done | `ai/rules/completion.md` -- agreed acceptance criteria and separate implementation, verification, and gap status |
-| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec session review record` artifact (`./le commit create` enforces it) |
-| Finish Go edits | `ai/rules/commands.md` -- run `./le verify lint run` before claiming done |
+| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec review record` artifact (`./le commit create` enforces it) |
+| Finish Go edits | `ai/rules/commands.md` -- run `./le go lint run` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- the native `./le commit create` route. A commit owes NO green gate (`ai/rules/pre-release.md`); the gate is owed before a push |
 | Run any test/build/lint command | `ai/rules/commands.md` -- use the registered `./le` action so feature tags and job admission are preserved; no lossy pipes, read the log after; write it under `$(./le session scratch ensure)`, never at the `tmp/` root |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
@@ -402,7 +400,7 @@ followed.
 apply before the shape of a task is known, so they sit behind no trigger. The
 index marks them `always-on`, and such a rule needs no read.
 
-Both come from one parse by `./le rules condensed-update`, in the canonical
+Both come from one parse by `./le ai rules condensed-update`, in the canonical
 rule format (`ai/rules/rule-format.md`). The "Before You..." dispatch above
 still applies, and so does `ai/rules/INDEX.md`.
 

@@ -91,13 +91,13 @@ exact command, and a link to the real source for anyone who wants the detail.
 
 | Page | Proves | Source (cited) | Command |
 |------|--------|-----------------|---------|
-| `labs/l2tp-interop/` | Ze as LNS against real `xl2tpd`/`pppd`; FRR proves BGP redistribution of a subscriber /32 from a live PPP session | `docs/architecture/testing/l2tp-interop.md`, `internal/le/interoplab/l2tp`, `internal/le/deployment` | `./le deployment docker-l2tp-ppp-test`; `./le deployment gokrazy-l2tp-ppp-test` |
-| `labs/pppoe-interop/` | Ze's PPPoE client against real `accel-ppp` | `docs/architecture/testing/pppoe-interop.md`, `internal/le/interoplab/pppoe` | `./le deployment docker-pppoe-accel-test`; `./le qemu pppoe-accel-test` |
-| `labs/ipsec-interop/` | Ze as IKE initiator against real strongSwan/charon, with FRR redistribution scenarios | `internal/le/interoplab/ipsec` | `./le integration interop-ipsec` |
+| `labs/l2tp-interop/` | Ze as LNS against real `xl2tpd`/`pppd`; FRR proves BGP redistribution of a subscriber /32 from a live PPP session | `docs/architecture/testing/l2tp-interop.md`, `internal/le/interoplab/l2tp`, `internal/le/deployment` | `./le test deployment docker-l2tp-ppp-test`; `./le test deployment gokrazy-l2tp-ppp-test` |
+| `labs/pppoe-interop/` | Ze's PPPoE client against real `accel-ppp` | `docs/architecture/testing/pppoe-interop.md`, `internal/le/interoplab/pppoe` | `./le test deployment docker-pppoe-accel-test`; `./le test qemu pppoe-accel-test` |
+| `labs/ipsec-interop/` | Ze as IKE initiator against real strongSwan/charon, with FRR redistribution scenarios | `internal/le/interoplab/ipsec` | `./le test integration interop-ipsec` |
 | `labs/vlan-qos/` | Historical 802.1p PCP tagging and classification proof | `website/labs/vlan-qos/` | The retired shell lab has no current native action, so the page must not publish a runnable command |
-| `labs/looking-glass-graph/` | A UK topology populates the Looking Glass graph | `internal/le/interoplab/bgp/lg_lab.go` | `./le integration interop` includes the registered BGP scenarios |
-| `labs/appliance-install/` | The installer boots and completes in QEMU across HTTP/PXE, ISO, Ventoy-on-FAT, and failure scenarios | `internal/le/qemu/install.go`, `install_iso.go`, `install_ventoy.go`, `install_scenarios.go`; `docs/guide/ze-install.md` | `./le qemu install-test`, `install-iso-test`, `install-ventoy-test`, `install-scenarios-test` |
-| `labs/vpp-dataplane/` | Ze programs FIB, traffic, and firewall into a real VPP daemon via GoVPP | `internal/le/deployment/vppevidence.go`, `docs/guide/vpp.md` | `./le deployment vpp-test` |
+| `labs/looking-glass-graph/` | A UK topology populates the Looking Glass graph | `internal/le/interoplab/bgp/lg_lab.go` | `./le test integration interop` includes the registered BGP scenarios |
+| `labs/appliance-install/` | The installer boots and completes in QEMU across HTTP/PXE, ISO, Ventoy-on-FAT, and failure scenarios | `internal/le/qemu/install.go`, `install_iso.go`, `install_ventoy.go`, `install_scenarios.go`; `docs/guide/ze-install.md` | `./le test qemu install-test`, `install-iso-test`, `install-ventoy-test`, `install-scenarios-test` |
+| `labs/vpp-dataplane/` | Ze programs FIB, traffic, and firewall into a real VPP daemon via GoVPP | `internal/le/deployment/vppevidence.go`, `docs/guide/vpp.md` | `./le test deployment vpp-test` |
 
 ## Comparison page (`compare/index.html`)
 

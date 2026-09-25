@@ -141,7 +141,7 @@ package.
     `required` for a non-declaring client, which still gets its answer, as
     `resultType: "complete"`.
 
-    A `StreamableConfig.Provider` (ze-chaos) short-circuits here. `CallTool` delegates to the
+    A `StreamableConfig.Provider` (the chaos orchestrator, `./le chaos run`) short-circuits here. `CallTool` delegates to the
     provider, which has no YANG behind it and therefore no annotation to read. Otherwise
     `callTool` builds a per-call `server` runner that carries the request's authenticated
     username (`tools.go`, built `streamable_tools.go`), and then it resolves the
@@ -262,7 +262,7 @@ package.
 | `discover.go` | `server/discover`: `serverCapabilities`, `instructions`, `serverInfo`, the server name/version constants |
 | `streamable_tools.go` | `runMethod` method switch, the `requestScope` per-request value, `callTool`, `createTask`, `tasks/*` handlers, the JSON-RPC/MCP error codes, and the `ok`/`fail`/`failUnsupportedVersion`/`failMissingTasksCapability` response builders |
 | `streamable_auth.go` | `buildAuthForMode`: OAuth AS-metadata fetch + JWKS priming at startup, dispatch to bearer/none/oauth strategies, origin canonicalization, `writeAuthError` |
-| `tools.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), `ToolProvider` interface (ze-chaos), plus command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` |
+| `tools.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), `ToolProvider` interface (the chaos orchestrator), plus command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` |
 | `tasks.go` | `taskRegistry` keyed by authenticated principal (`byIdentity`), per-principal concurrency cap, terminal-retention cap, TTL clamp and GC, `runTaskWorker` |
 | `resources.go` | `resources/list` / `resources/read`, MIME sniffer, `ui://` URI validator over the embedded FS |
 | `caching.go` | Cacheable results: `cacheTTLByMethod` (the closed set of methods carrying hints), the two `ttlMs` constants, the unconditional `cacheScopePrivate`, and `stampCacheHints` |
@@ -289,7 +289,7 @@ package.
   takes, before dispatch. A revoked token stops working on the next request rather than at some
   expiry, and nothing analogous to the old `Mcp-Session-Id` exists to steal. `auth-mode none` is
   not a bypass. `noneAuthenticator` (`bearer.go`) *authenticates* every caller as a zero
-  `Identity`. That is why the ze-chaos Provider listener takes the same uniform path as everyone
+  `Identity`. That is why the chaos orchestrator Provider listener takes the same uniform path as everyone
   else, rather than a carve-out.
 - **Per-request state is a VALUE, so the compiler forbids the old optional-session bug class.**
   `requestScope` (`streamable_tools.go`) is built once in `handlePOST` and copied into every
@@ -369,7 +369,7 @@ package.
   becomes a `key value` pair appended to the CLI command string. Values containing
   newlines/tabs are rejected before they reach the dispatcher (`tools.go`).
 - **No stdio transport exists.** "stdio/HTTP" is a common MCP transport pairing elsewhere. But
-  Ze's MCP server only speaks the Streamable HTTP profile. `ze-test mcp` (a separate test client
+  Ze's MCP server only speaks the Streamable HTTP profile. `./le test harness mcp` (a separate test client
   under `internal/test/cli/`) is an HTTP client, not a stdio bridge.
 - **Command dispatch is shared, not MCP-private.** `mcpDispatch` reaches the exact same
   `pluginserver.Dispatcher.Dispatch` the CLI/SSH/web surfaces call, tagged only by
@@ -387,7 +387,7 @@ package.
 - **The MCP Apps gate is applied to the ASSEMBLED tool list, not inside `buildToolDef`.**
   `allTools` (`streamable_tools.go`) calls `gateUIMeta` on the finished slice. One site therefore
   covers both descriptor origins: the ones generated from the command registry, and the ones a
-  `ToolProvider` (ze-chaos) supplies. A provider owns its maps and can return the same ones on
+  `ToolProvider` (the chaos orchestrator) supplies. A provider owns its maps and can return the same ones on
   every call, so `withoutUIMeta` copies rather than edits. When the gate is open, or when no
   descriptor carries `_meta.ui`, the input slice is returned untouched.
 - **The `_meta.ui` fallback is omission, never rejection.** The specification permits exactly two
@@ -408,14 +408,14 @@ package.
 ## See also
 - `docs/architecture/mcp/overview.md`: protocol profile, transport shape, headers, per-request
   metadata, capability negotiation, result envelope, error codes
-- `docs/guide/mcp/overview.md`: operator-facing config, auth modes, tool reference, `ze-test
+- `docs/guide/mcp/overview.md`: operator-facing config, auth modes, tool reference, `./le test harness
   mcp` usage
 - `docs/guide/mcp/elicitation.md`: the Multi Round-Trip round trip, the form-mode precondition,
   the retry shape, and why no `requestState` is issued
 - `docs/guide/mcp/tasks.md`: the `io.modelcontextprotocol/tasks` extension -- server-directed
   creation, polling, and the removed methods
 - `docs/guide/mcp/remote-access.md`: tunneling / remote-bind guidance
-- `docs/guide/mcp/chaos.md`: MCP under `ze-chaos`
+- `docs/guide/mcp/chaos.md`: MCP under `./le chaos run`
 - `docs/features/mcp-integration.md`: feature-level summary (AI-ready BGP operations, example
   flows)
 - `docs/features/ai-first.md`: where MCP fits in Ze's broader AI-facing surface

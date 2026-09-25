@@ -8,7 +8,7 @@ Rationale: `ai/rationale/session-start.md`
 ```
 [ ] 1. Load LSP tool (`ToolSearch query="select:LSP"`). UNCONDITIONAL FIRST ACTION.
 [ ] 2. Read `docs/contributing/ze-go-style.md`. EVERY session, before any code.
-[ ] 3. Run `./le spec session current` to see this session's claimed spec
+[ ] 3. Run `./le spec current` to see this session's claimed spec
 [ ] 4. Read plan/<spec-name> (if a spec is claimed)
 [ ] 5. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 6. Check git status
@@ -56,7 +56,7 @@ Two things hid the gap, and neither is a reason to rely on them:
 - `ze-style` is an OUTPUT STYLE (`.claude/output-styles/ze-style.md`), not a
   skill, so it never appears in the skills listing an agent reads at startup.
 - The native `pretool-writeedit` action (`internal/le/hookruntime/runtime.go`,
-  dispatched via `./le hook-check pretool-writeedit`) only runs for the `Write`,
+  dispatched via `./le ai hooks pretool-writeedit`) only runs for the `Write`,
   `Edit`, `MultiEdit`, and `NotebookEdit` tools. Go written through a Bash
   heredoc reaches it never, and auto mode tells agents to prefer Bash for file
   changes.
@@ -86,7 +86,7 @@ not close.
 loading a tool your harness does not expose. Some contexts get "No matching deferred
 tools found" back, subagents on some builds among them. Issuing the query and getting
 that answer SATISFIES step 1 -- proceed, do not retry, do not treat it as a skipped
-step. The gate agrees: the native `block-until-lsp` action (`./le hook-check
+step. The gate agrees: the native `block-until-lsp` action (`./le ai hooks
 block-until-lsp`, `internal/le/hookruntime/lifecycle.go`) lifts on the query text, not
 on a successful load (by design -- a stuck session is the worse failure). The banned
 excuses above are about SKIPPING the query; issuing it and getting nothing back is not
@@ -104,7 +104,7 @@ never read a whole file to hunt for a symbol on the strength of one empty query.
 binary every call returns `ENOENT: gopls` and the session silently falls back to
 reading whole files. That is what happened on one of the two dev machines: the server
 was absent there until 2026-08-05, and that machine's transcript store held 33
-sessions with no LSP call in any of them (`./le token-economy` reads
+sessions with no LSP call in any of them (`./le ai tokens` reads
 `~/.claude/projects/`, so its counts are per-machine and say nothing about the other).
 The gate could not see it, and by design will not: it lifts on the query text, because
 a stuck session is the worse failure.
@@ -158,7 +158,7 @@ was 19% of eight sessions' spend (`ai/rationale/context-economy.md`). The per-sp
 state file is the handoff, so the next session starts from it, not from this one.
 
 The Stop hook knows about this instruction and does not fight it.
-The native `block-premature-stop` action (`./le hook-check block-premature-stop`,
+The native `block-premature-stop` action (`./le ai hooks block-premature-stop`,
 `hookStop` in `internal/le/hookruntime/lifecycle.go`) holds `what next` and `what
 would you like` in a second phrase list, appended only when `openWork` is true
 (`:342`). `openWork` is set when the claimed spec's Status is still

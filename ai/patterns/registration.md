@@ -16,9 +16,9 @@ Every module (plugin, schema, env var, command, validator) follows this model.
 The core never imports a specific plugin. Plugins never import each other.
 Communication is through text commands (`DispatchCommand`) and registries.
 
-`./le repository generate` auto-generates `internal/component/plugin/all/all.go` by scanning
+`./le repo generate` auto-generates `internal/component/plugin/all/all.go` by scanning
 the filesystem for `register.go` files. Adding/removing a plugin = add/remove files
-+ run `./le repository generate`.
++ run `./le repo generate`.
 
 ## All Registration Mechanisms
 
@@ -129,7 +129,7 @@ into the registry.
 generated composition root `internal/component/plugin/all` writes that import.
 `internal/le/plugin/imports` discovers a command owner by its `command/registry`
 registrar call, so a new `internal/component/<x>/cli` is linked by
-`./le repository generate` and by nothing else. `./le plugin imports check`
+`./le repo generate` and by nothing else. `./le plugin imports check`
 reports an owner no blank import reaches.
 
 `cmd/ze/ze_core_dispatch.go` still hand-imports five packages, each with its
@@ -192,7 +192,7 @@ func init() {
 
 ### Binary Personality Registration
 
-Binary personalities (ze-test, ze-chaos, ze-perf, ze-analyze) are separate binaries
+Binary personalities (the `le-test` harness, and the chaos, perf and MRT developer builds that `./le chaos run`, `./le perf` and `./le mrt` replace in Phase 3) are separate binaries
 built from `cmd/ze/` with build tags. Each personality's domain code lives in
 `internal/`, self-registers via `init()`, and the cmd/ze file is a build-tagged
 blank import.
@@ -216,7 +216,7 @@ handler with the CLI command registry. `dispatchMain()` in `dispatch.go` uses
 - Set `binarySetup` when the feature self-registers via init() (unnecessary)
 - Use build tags on `internal/` packages (tags gate binary composition via blank imports, not library availability)
 
-**Existing gap:** ze-test uses a local map in `cmd/ze/ze_test_register.go` instead
+**Existing gap:** the `le-test` harness uses a local map in `cmd/ze/ze_test_register.go` instead
 of `subdispatch.Dispatcher`. Mock server domain code is in `cmd/ze/ze_test_*.go`
 instead of `internal/test/mock/`. `spec-cmd-reorg` addresses this.
 
@@ -374,7 +374,7 @@ All registration is complete before any concurrent access. Registries are read-o
 ### New plugin
 See `ai/patterns/plugin.md`. Touch: plugin registry, YANG module registry (if schema),
 attribute name registry (if new attr), attr mod handler (if modifying attrs).
-Run `./le repository generate`.
+Run `./le repo generate`.
 
 ### New config option
 See `ai/patterns/config-option.md`. Touch: YANG module (leaf definition),
@@ -389,7 +389,7 @@ Touch: env var registry (`env.MustRegister()`), YANG module (leaf under environm
 See `ai/rules/config.md`: every YANG environment leaf = matching env var.
 
 ### New YANG module
-Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `./le repository generate`.
+Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `./le repo generate`.
 
 ### New attribute code
 Touch: attribute name registry, optionally attr mod handler registry.
@@ -436,5 +436,5 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugins.md` import rules + code review |
 | No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
-| All blank imports auto-generated | `./le repository generate` + `internal/le/plugin/imports/pluginimports.go` |
+| All blank imports auto-generated | `./le repo generate` + `internal/le/plugin/imports/pluginimports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

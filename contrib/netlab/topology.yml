@@ -16,7 +16,7 @@
 # next hop and one discard.
 #
 # Render it and compare against the golden files:
-#     ./le netlab render-check
+#     ./le test netlab render-check
 #
 # Run it (needs netlab, containerlab, docker, and the local lab image first):
 #     docker build -f docker/Dockerfile.lab -t netlab/ze:latest .

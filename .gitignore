@@ -103,7 +103,7 @@ coverage.html
 
 # Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
 # ai/INSTRUCTIONS.md)
-# Regenerate with: ./le ai skills-sync
+# Regenerate with: ./le ai sync write
 #
 # Both names are ANCHORED to the repository root, because only the root pair is
 # generated. An unanchored name matches at every depth, and it took two files
@@ -121,12 +121,10 @@ coverage.html
 .claude/agents/
 
 test/perf/results/
-bin/ze-perf-linux
 # Cross-compiled lab binaries staged into an interop Docker build context by
 # `StageBinaries` in `internal/le/interoplab/zebuild.go`, which every one of the
 # five labs calls; regenerated on each run that is not NO_BUILD.
 test/interop/ze-linux
-test/interop/ze-test-linux
 test/interop/le-test-linux
 test/interop-ipsec/ze-linux
 test/interop-l2tp/ze-linux
@@ -167,8 +165,8 @@ internal/appliance/build/
 gokrazy/ze/builddir/github.com/ze-software/ze/go.sum
 
 # Derived documentation indexes, generated on demand and never committed.
-# `./le docs-to-code update` and `./le docs-to-code index-update` write them
-# from Go design headers and source anchors, and `./le discovery-index update`
+# `./le doc index write` writes them
+# from Go design headers and source anchors, and `./le repo package-map update`
 # writes the package map from the package doc comments.
 #
 # Each one is registered in internal/le/derived, so a write to a file that feeds

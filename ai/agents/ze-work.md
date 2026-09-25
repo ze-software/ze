@@ -26,8 +26,8 @@ file and costs about a tenth of reading it. Never read a whole file to hunt for
 a symbol, and never report that you cannot look.
 
 **Your prompt cache lives five minutes, so you run no command that can take
-longer:** no `./le verify lint run`, no `./le verify worktree`, no
-`./le test-unit all`, no `./le functional` suite. A call that outlasts the
+longer:** no `./le go lint run`, no `./le verify worktree`, no
+`./le test unit all`, no `./le test functional` suite. A call that outlasts the
 window ends the cache, and your next call rewrites every token you hold for one
 result. Prove your package with the scoped package test under `./le job run`,
 name the gates you owe in your handoff, and let the main thread run them, or a

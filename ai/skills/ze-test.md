@@ -37,9 +37,9 @@ place and hope verify does not run.
 ## Step 2 — Run it as a draft
 
 ```
-ze-test bgp plugin --draft -a
-ze-test bgp plugin --draft --pattern <name>
-ze-test <suite> --draft -a          # every suite takes --draft
+./le test harness bgp plugin --draft -a
+./le test harness bgp plugin --draft --pattern <name>
+./le test harness <suite> --draft -a          # every suite takes --draft
 ```
 
 `--draft` swaps the discovery root from `test/<suite>` to
@@ -93,7 +93,7 @@ never run concurrently, and register the cluster in
 ## Step 6 — Prove it under load, still as a draft
 
 ```
-./le stress-repro run suite "<suite> --draft" test <id> any-failure iterations 80
+./le test stress-repro run suite "<suite> --draft" test <id> any-failure iterations 80
 ```
 
 Passing once on an idle machine proves very little. `any-failure` is required
@@ -104,7 +104,7 @@ evidence is thrown away.
 
 ```
 mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci
-ze-test <suite> -a
+./le test harness <suite> -a
 ```
 
 A plain move: the draft is untracked, so the destination just appears as a new

@@ -312,7 +312,7 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | No os.Exit() | Return exit code from handler. Never call `os.Exit()` in a handler |
 | Suggest | Unknown subcommand: `suggest.Command(arg, candidates)` + hint to stderr |
 | Help | Handle `help`, `-h`, `--help` at parent level BEFORE dispatch |
-| Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `./le dash-stdio check` enforces it |
+| Stdin/stdout | `-` means stdin (read) / stdout (write). Read/write a user-supplied path through `internal/core/cliio` (`ReadFile`/`OpenReader`/`Create`/`WriteFile`), NEVER a raw `os` call -- `./le cli stdio check` enforces it |
 | JSON output | `\| json` over a structured payload. A `--json` flag is legitimate only on a tool that reaches no pipe layer -- see `ai/rules/cli.md` "`--flag` or Keyword" |
 
 ### Flag spellings
@@ -398,7 +398,7 @@ See `ai/patterns/registration.md` "Subcommand Dispatch" section for the full tem
 
 Existing examples: `cmd/ze/install/dispatch.go`, `cmd/ze/uninstall/dispatch.go`.
 
-### Binary personalities (ze-test, ze-perf, etc.)
+### Binary personalities (the `le-test` harness and the developer builds)
 
 Binary personalities are build-tagged variants of `cmd/ze/`. Their domain code
 belongs in `internal/`, not in `cmd/ze/`. The cmd/ze file is a build-tagged
@@ -444,7 +444,7 @@ together, and the last one is enforced by a gate.
 
 | Declaration | Call | Why |
 |-------------|------|-----|
-| The command and its handler | `cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)` | The path MUST be a string literal at the call: `./le docvalid command-contract` parses this file and reads literals, so a `const` identifier reaches it as no path at all |
+| The command and its handler | `cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)` | The path MUST be a string literal at the call: `./le doc yang-contract command-contract` parses this file and reads literals, so a `const` identifier reaches it as no path at all |
 | The answer shape | `command.RegisterShape([]string{path}, command.ShapeTab)` | The published pipe catalog can then say which operators apply before the command runs |
 | The column order | `command.RegisterColumns([]string{path}, command.ColumnOrder{...})` | Without it `\| table` orders columns alphabetically |
 | The runtime evidence | One row in `internal/test/localdatacoverage.Evidence()`, plus an assertion in the same package's walk | `TestEveryLocalDataRegistrationHasAFunctionalCase` (`internal/component/command/registry`) derives production registrations from the Go AST and fails when one has no row. The row's command MUST carry a real pipe |
@@ -518,7 +518,7 @@ automatically.
 [ ] Owner package: register.go in internal/component/<owner>/cli (NOT cmd/ze) -- owner is cmd/ze-free
 [ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
 [ ] register.go: registry.MustRegisterLocal(<path>, handler) for every `show X` shortcut
-[ ] Owner init() linked: run `./le repository generate`, which writes the blank import into internal/component/plugin/all
+[ ] Owner init() linked: run `./le repo generate`, which writes the blank import into internal/component/plugin/all
 [ ] If storage-dependent: open the store in the command (storage.OpenReadOnly for a read, resolve.StorageFor for a write) and close it there; never from init()
 [ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)
 [ ] If online: YANG tree with ze:command extension

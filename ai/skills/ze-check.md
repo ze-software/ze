@@ -76,8 +76,8 @@ does it still exist? Skip preference/feedback memories.
 
 ### 4e. Native hook registration
 
-Run `./le hook-check unit`, then compare the configured hook kinds with the
-actions listed by `./le hook-check`. A configured kind with no native action is
+Run `./le ai hooks unit`, then compare the configured hook kinds with the
+actions listed by `./le ai hooks`. A configured kind with no native action is
 **MISSING HOOK ACTION**.
 
 ### 4f. Wiring check

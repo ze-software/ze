@@ -23,15 +23,13 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Build ze-perf
-        run: CGO_ENABLED=0 go build -tags ze_perf -o bin/ze-perf ./cmd/ze
-
-      # An empty history is not a regression. Once records exist, the committed
-      # binary owns the comparison and its non-zero verdict fails this job.
+      # An empty history is not a regression. Once records exist, `le perf
+      # track` owns the comparison and its non-zero verdict fails this job.
+      # The launcher builds le on its first call.
       - name: Perf regression check
         run: |
           if [ -s test/perf/history/ze.ndjson ]; then
-            bin/ze-perf track --check test/perf/history/ze.ndjson
+            ./le perf track --check test/perf/history/ze.ndjson
           else
             echo "no perf history (test/perf/history/ze.ndjson); nothing to check"
           fi

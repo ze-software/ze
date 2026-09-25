@@ -8,7 +8,7 @@ description: Fix Surviving Mutations
 Run mutation testing on a package, analyze surviving mutants, and either
 strengthen tests or fix code bugs exposed by the mutations.
 
-See also: `./le mutation` (report combination and history actions)
+See also: `./le test mutation` (report combination and history actions)
 
 ## Instructions
 
@@ -42,7 +42,7 @@ See also: `./le mutation` (report combination and history actions)
      (`ai/rules/documentation.md`)
    - Run `go test -race "$ARGUMENTS"` after each batch
 
-6. Re-run the same `go run github.com/sivchari/gomu/cmd/gomu run ... "$ARGUMENTS"` command to measure improvement. Use `./le mutation record-history report mutation-report.json` when the run must enter the committed history.
+6. Re-run the same `go run github.com/sivchari/gomu/cmd/gomu run ... "$ARGUMENTS"` command to measure improvement. Use `./le test mutation record-history report mutation-report.json` when the run must enter the committed history.
 
 7. Report the before/after mutation score and list what was fixed vs skipped.
 

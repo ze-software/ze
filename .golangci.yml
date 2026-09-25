@@ -2,7 +2,7 @@
 version: "2"
 
 run:
-  # 10m was the budget for ONE pass. `./le verify lint run` drives sixteen
+  # 10m was the budget for ONE pass. `./le go lint run` drives sixteen
   # flavors over 756 packages with `-j` at a quarter of the machine's cores,
   # and on a checkout several sessions are working it ran out at the last
   # flavor, having already found and reported 210 files. A budget that expires
@@ -31,9 +31,9 @@ run:
   # prevents their registry callers (e.g. registerService) from being reported
   # as unused.
   #
-  # golangci-lint cannot read feature-gates.txt, so `./le feature-tags write`
+  # golangci-lint cannot read feature-gates.txt, so `./le repo feature-tags write`
   # derives this list from the manifest. Do not edit it by hand.
-  # `./le feature-tags check` rejects drift. See ai/rules/plugins.md.
+  # `./le repo feature-tags check` rejects drift. See ai/rules/plugins.md.
   build-tags:
     - ze_core
     - ze_lg

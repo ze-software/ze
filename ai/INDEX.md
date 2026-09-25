@@ -9,7 +9,7 @@ them.
 A `Write` or an `Edit` TOOL call on a file that feeds one removes it. A Bash
 command that names one, or names a directory holding one, rebuilds it before
 that command runs, so a grep reads the current code. A write that reaches the
-file another way (`sed -i`, a heredoc, `git rebase`, `./le repository generate`)
+file another way (`sed -i`, a heredoc, `git rebase`, `./le repo generate`)
 moves an input with no hook in the path and leaves the index PRESENT and stale.
 Nothing rebuilds one that is present: a session start builds only what the tree
 does not hold, and so does the read hook. It stays stale until the next `Write`
@@ -25,10 +25,10 @@ Ask the question from Bash instead
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
-| Which problems recur? | `plan/journal/` (one file per class; `./le journal report` prints classes with 2+ rows) |
+| Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows) |
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
-| Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le digest` |
+| Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |
 
 ## I Want To...
 
@@ -39,7 +39,7 @@ Ask the question from Bash instead
 | Understand the modular core | `ai/patterns/registration.md` | `docs/architecture/core-design.md` |
 | Keep a plugin self-contained (removal test) | `ai/rules/plugins.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
 | Call another package's function directly from a plugin (not through RPC) | `ai/rules/plugins.md` | Check `p.IsInternal()`; guard with refuse-or-warn depending on how much value survives running external. Gated by `./le plugin boundary check` |
-| Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/architecture.md` | Tier = dependency direction; engine placement gated by `./le tier check` (`./le tier check`) |
+| Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/architecture.md` | Tier = dependency direction; engine placement gated by `./le arch tier check` |
 | Test linux-only code (QEMU) | `ai/rules/platform-linux.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/completion.md` | Implement the missing behavior at the source, never route around it |
 | Decide how much machinery a fix or feature needs (KISS, MVP, over-engineering) | `ai/rules/simplicity.md` | The simplest FULLY CORRECT answer, nothing beyond it. Cuts machinery, never correctness. A second problem gets its own spec, never an extra branch in this fix |
@@ -59,8 +59,8 @@ Ask the question from Bash instead
 | Compare Ze with other products | `ai/rules/writing.md` | Cite every claim, link code or official feature docs, label uncertainty, and add hide-column controls for wide product matrices |
 | Add or change an agent behavior rule | `ai/rules/repo-maintenance.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `./le yang migration path-refactor operation <remove|rename|move> ...` | Add `apply` only after reviewing the preview |
-| Move a package between tiers | `./le module move source <path> destination <tier-or-path>` | Add `apply` only after reviewing the preview |
-| Rename the module path (host or owner change) | `./le module rename to <module> [from <module>]` | Add `apply` after the preview, then follow the native command's reported regeneration list |
+| Move a package between tiers | `./le go module move source <path> destination <tier-or-path>` | Add `apply` only after reviewing the preview |
+| Rename the module path (host or owner change) | `./le go module rename to <module> [from <module>]` | Add `apply` after the preview, then follow the native command's reported regeneration list |
 | See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |
 | Understand Ze vs standard Go | `ai/rules/architecture.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/repo-maintenance.md` | Pre-flight compliance checklist |
@@ -137,7 +137,7 @@ Ask the question from Bash instead
 3. Read ai/rules/repo-maintenance.md if the doc adds or changes a feature, tool, check, gate, or test path
 4. Read the actual source before any factual claim
 5. Add <!-- source: path -- symbol --> anchors
-6. Run ./le ste review-changed to read your own prose back
+6. Run ./le doc ste review-changed to read your own prose back
 7. Run ./le doc check verify after editing docs/
 ```
 
@@ -155,17 +155,17 @@ DHCP ranges, and `ai/digests/firewall.md` for the firewall global options.
 
 | What to test | Test format | Directory | Runner |
 |---|---|---|---|
-| Config parses correctly | `.ci` | `test/parse/` | `ze-test bgp parse` |
-| BGP wire encoding | `.ci` | `test/encode/` | `ze-test bgp encode` |
-| BGP wire decoding | `.ci` | `test/decode/` | `ze-test bgp decode` |
-| Reading a pcap back, and the capture ze writes | `.ci` | `test/ui/bgp-decode-pcap-*.ci` | `ze-test ui` |
-| Plugin behavior / API | `.ci` | `test/plugin/` | `ze-test bgp plugin` |
-| Config reload via SIGHUP | `.ci` | `test/reload/` | `ze-test bgp reload` |
-| CLI show/monitor output | `.ci` | `test/ui/` | `ze-test ui` |
-| Web HTTP endpoints | `.wb` | `test/web/` | `ze-test web` |
-| Editor TUI interactions | `.et` | `test/editor/` | `ze-test editor` |
+| Config parses correctly | `.ci` | `test/parse/` | `./le test harness bgp parse` |
+| BGP wire encoding | `.ci` | `test/encode/` | `./le test harness bgp encode` |
+| BGP wire decoding | `.ci` | `test/decode/` | `./le test harness bgp decode` |
+| Reading a pcap back, and the capture ze writes | `.ci` | `test/ui/bgp-decode-pcap-*.ci` | `./le test harness ui` |
+| Plugin behavior / API | `.ci` | `test/plugin/` | `./le test harness bgp plugin` |
+| Config reload via SIGHUP | `.ci` | `test/reload/` | `./le test harness bgp reload` |
+| CLI show/monitor output | `.ci` | `test/ui/` | `./le test harness ui` |
+| Web HTTP endpoints | `.wb` | `test/web/` | `./le test harness web` |
+| Editor TUI interactions | `.et` | `test/editor/` | `./le test harness editor` |
 | Pure logic (no daemon) | `_test.go` | `internal/<pkg>/` | `go test` |
-| Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `./le qemu all-tests` |
+| Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `./le test qemu all-tests` |
 
 Key docs: `ai/patterns/functional-test.md` (directories + runner commands),
 `docs/functional-tests.md` (verify artifacts and rerun workflow),
@@ -189,7 +189,7 @@ artifact type. Check them whenever your work touches the described concern.
 
 | Concern | Rule | When it applies |
 |---|---|---|
-| Every word you write | `ai/rules/writing.md`, guide: `docs/contributing/writing-style.md` | Rule one. ASD-STE100 Issue 9 for all repository writing: docs, comments, error messages, CLI output, YANG descriptions, specs, commit and PR text. Six banned habits. Gate: `./le ste check`. Report: `./le ste review` |
+| Every word you write | `ai/rules/writing.md`, guide: `docs/contributing/writing-style.md` | Rule one. ASD-STE100 Issue 9 for all repository writing: docs, comments, error messages, CLI output, YANG descriptions, specs, commit and PR text. Six banned habits. Gate: `./le doc ste check`. Report: `./le doc ste review` |
 | Every line of Go you write | `ai/rules/go-standards.md`, guide: `docs/contributing/ze-go-style.md` | The reasoning behind the Go rules: safety, performance, developer experience, in that order. Adapted from TigerStyle. Read it once, then use the rule files |
 | How much you write | `ai/rules/writing.md` | Any subagent report, rule, doc, commit body, or learned summary. Per-artifact budgets. A report to the owner routes to `ai/INSTRUCTIONS.md`, "Say it once, say it short" |
 | Listing/enumerating things | `ai/rules/evidence.md` | Help text, usage strings, error messages, any output that enumerates items |
@@ -208,7 +208,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Discoverability | `ai/rules/repo-maintenance.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
 | Which model runs this phase | `ai/rules/planning.md` | Any available model; review requires a context independent of the author |
 | Two rules point in different directions | `ai/rules/rule-precedence.md` | The ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy |
-| How much work is already in flight | `./le spec session wip` | In-progress specs, stalest first, against `ZE_SPEC_WIP_CAP` (default 12); `claim` refuses a new `ready` spec over the cap |
+| How much work is already in flight | `./le spec wip` | In-progress specs, stalest first, against `ZE_SPEC_WIP_CAP` (default 12); `claim` refuses a new `ready` spec over the cap |
 | Who executes this phase (main thread vs subagent) | `ai/rules/planning.md` | Any spec work: the main thread supervises, each phase runs in a subagent through its `ze-*` skill |
 
 ## Dev Tools
@@ -247,19 +247,19 @@ Reach for one of these before inventing a new mechanism.
 |------|------------------|
 | Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
 | Documentation drift and YANG command contracts | `./le doc check verify` |
-| Source-to-document reverse index | `./le docs-to-code index-update`; read `ai/CODE-TO-DOCS.md` |
+| Source-to-document reverse index | `./le doc index write`; read `ai/CODE-TO-DOCS.md` |
 | Which tests enforce an RFC MUST, and what the backlog is | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
-| What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le discovery-index update` writes it on demand |
+| What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le repo package-map update` writes it on demand |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
-| Which problems recur | `./le journal report`; read `plan/journal/`, one file per class, where the row count is the recurrence |
+| Which problems recur | `./le spec journal report`; read `plan/journal/`, one file per class, where the row count is the recurrence |
 | Whether every path a tracked file names still resolves | `./le doc check links`. It is its own `./le verify current mode full` stage, and `sweepTracked` in `internal/le/doc/check/links.go` sweeps every tracked file, not only the instruction corpus. Repair the reference, or mark its line with a `doc-links: ignore` marker that states why the path cannot resolve. The record trees are excluded, because their paths are facts about a past moment rather than claims about the tree today: `citationExcludes` in the same file names them |
 | Whether every symbol a `docs/` source anchor names is declared where the anchor points | `./le doc check verify` (`checkAnchors` in `internal/le/doc/index/codetodocs.go`) |
-| How data flows through a subsystem | read `ai/digests/<subsystem>.md`; `ai/digests/README.md` lists them and `./le digest` validates their anchors |
-| Plugin, command, YANG, and test inventory | `./le inventory` |
-| Command inventory | `./le command list` |
+| How data flows through a subsystem | read `ai/digests/<subsystem>.md`; `ai/digests/README.md` lists them and `./le ai digest` validates their anchors |
+| Plugin, command, YANG, and test inventory | `./le repo inventory` |
+| Command inventory | `./le cli list` |
 | Spec progress | `./le spec status` |
 | Generated plugin imports | `./le plugin imports check` |
-| Whether the tree git holds compiles | `./le repository tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
+| Whether the tree git holds compiles | `./le repo tracked-build check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
 | Runtime readiness | `ze doctor --json` and `ze explain <diagnostic-code>` |
 
 Each of these answers with structured data, so `| json`, `| yaml` and `| table`
@@ -268,10 +268,10 @@ all render it.
 ### Add a development tool
 
 1. Add one package at the path the command name predicts: a space in the name
-   is a directory level, so `le verify lint` lives at
+   is a directory level, so `le go lint` lives at
    `internal/le/go/lint/`. Give it callable behavior and an
    `Answer(args []string) (any, int)` command boundary. Use a space, never a
-   hyphen, when the left word is an object with members: `./le cli-grammar`
+   hyphen, when the left word is an object with members: `./le cli grammar`
    refuses `verify-lint` and names the split.
 2. Declare every action once in that package's action table. Action words are
    keywords and precede any value.
@@ -336,19 +336,19 @@ disagree, the manifest is right and the row is stale.
 | `./le doc ste` | `internal/le/doc/ste.Answer` | the repository's writing, against ASD-STE100 Simplified Technical English: review every surface, and gate each changed file against its own HEAD version |
 | `./le doc wiring` | `internal/le/doc/wiring.Answer` | the changed-file wiring, documentation, command and inventory gate |
 | `./le doc yang-contract` | `internal/le/doc/yangcontract.Answer` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |
-| `./le evidence` | `internal/le/verify/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
-| `./le go-extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
-| `./le go-version` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
+| `./le verify evidence` | `internal/le/verify/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
+| `./le go extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
+| `./le go version-pin` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
-| `./le journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
-| `./le module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
+| `./le spec journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
+| `./le go module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
 | `./le mrt` | `internal/le/mrt.Answer` | analyze, filter, convert, replay and serve MRT files: `le mrt <subcommand> [options]` |
 | `./le perf` | `internal/le/perf.Answer` | benchmark BGP against every DUT (`run`), run the benchmark program (`send`, `report`, `track`), and suggest a run when data-plane code changed |
-| `./le platform-vet` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
+| `./le go vet-platforms` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
 | `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |
 | `./le plugin imports` | `internal/le/plugin/imports.Answer` | the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it |
-| `./le protocol-skeleton` | `internal/le/rfc/skeletons.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |
+| `./le rfc skeletons` | `internal/le/rfc/skeletons.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |
 | `./le repo arch-map` | `internal/le/repo/archmap.Answer` | the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them |
 | `./le repo changed` | `internal/le/repo/changed.Answer` | what this checkout changed: the test groups it touches, and the packages a scoped verify must cover |
 | `./le repo feature-tags` | `internal/le/repo/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
@@ -367,9 +367,9 @@ disagree, the manifest is right and the row is stale.
 | `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify, and render the published terminal demonstrations |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
 | `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
-| `./le spec session` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
+| `./le spec current` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
-| `./le staticcheck-feature-matrix` | `internal/le/go/staticcheck.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
+| `./le go staticcheck` | `internal/le/go/staticcheck.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
 | `./le test deployment` | `internal/le/test/deployment.Answer` | ze against a real peer daemon in a container: the protocol proofs that need another implementation to mean anything |
 | `./le test functional` | `internal/le/test/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le test fuzz` | `internal/le/test/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
@@ -383,7 +383,7 @@ disagree, the manifest is right and the row is stale.
 | `./le test unit` | `internal/le/test/unit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
 | `./le test weakened` | `internal/le/test/weakened.Answer` | detect and record test weakenings against a commit baseline |
 | `./le verify deps` | `internal/le/verify/deps.Answer` | the Go-tool and dependency stages used only by native pre-commit verification |
-| `./le verify lint` | `internal/le/go/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
+| `./le go lint` | `internal/le/go/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
 | `./le verify status` | `internal/le/verify/status.Answer` | read and write the verification certificate for the current checkout |
 | `./le verify summary` | `internal/le/verify/summary.Answer` | append one stage failure block to the verification failure index |
 | `./le verify` | `internal/le/verify.Answer` | the full pre-commit gate against a fixed commit in a detached worktree |
@@ -411,7 +411,7 @@ Mechanical recipes for creating common artifacts. Read before coding.
 
 ## Learned Summaries (Curated)
 
-Structural decisions, patterns, and gotchas. Recurrence data: `plan/journal/` (`./le journal report`).
+Structural decisions, patterns, and gotchas. Recurrence data: `plan/journal/` (`./le spec journal report`).
 Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/learned/RECURRING-PATTERNS.md`.
 
 ## Architecture Docs
@@ -552,7 +552,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | environment, env vars | `config/environment.md`, `config/environment-block.md` |
 | web, dashboard, UI | `web-interface.md`, `web-components.md`, `chaos-web-dashboard.md` |
 | templ, `.templ`, generated markup, view-model type safety | `./le doc check templ-output` (Dev Tools above), `tools.go`, `internal/component/web/templ_typesafety_test.go` |
-| per-page asset imports, `page_assets.go`, `pageAssets`, `//ze:page`, htmx extension per page | `./le web-assets check` (Dev Tools above), `internal/le/web/assets.Write`, `internal/test/markupcheck/head.go` |
+| per-page asset imports, `page_assets.go`, `pageAssets`, `//ze:page`, htmx extension per page | `./le web assets check` (Dev Tools above), `internal/le/web/assets.Write`, `internal/test/markupcheck/head.go` |
 | golden fixture, rendered markup, template bytes, byte-for-byte HTML | `go test ./internal/component/web ./internal/component/lg`, `internal/test/golden`, `web-interface.md` |
 | rendering-engine port, pre-port bytes, normalized HTML comparison | `go test -run 'Test(Web|LG)TemplPortFidelity' ./internal/component/web ./internal/component/lg -port-ref=<sha>`, `internal/test/golden/portcheck.go`, `internal/test/golden/normalize.go` |
 | HTML in a Go string, inline script, inline style, `onclick`, `hx-on`, CSP `'self'`, asset 404, `map[string]any` in a component | `internal/test/markupcheck`, `internal/test/templcheck` (Dev Tools above), `ai/rules/architecture.md` ("Server-Rendered Markup") |
@@ -610,20 +610,20 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | ASPA, path verification, RTR | `docs/guide/rpki.md` (ASPA Path Verification), `internal/component/bgp/plugins/rpki/`, `docs/features/rfc-status.md` (draft-ietf-sidrops-aspa-verification) |
 | BMP, monitoring protocol | `docs/guide/bmp.md`, `internal/component/bgp/plugins/bmp/`, `docs/architecture/api/commands.md` (bmp-sessions, bmp-peers) |
 | docker, container, scratch, lab image | `docs/guide/docker.md` (both images), `docker/Dockerfile`, `docker/Dockerfile.lab` |
-| netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le netlab render-check`, `docker/Dockerfile.lab` |
+| netlab, containerlab, lab topology, daemon integration, contrib | `docs/guide/netlab.md`, `contrib/netlab/README.md`, `contrib/netlab/ze.yml`, `contrib/netlab/ze/`, `./le test netlab render-check`, `docker/Dockerfile.lab` |
 | chaos, fault injection, scheduler | `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` |
-| changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le changed scope`, `internal/le/repo/changed.Answer`, `internal/le/go/staticcheck.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
+| changed set, scoped verify, which packages changed, change-set selector, reverse dependency depth, feature scope, staticcheck matrix rows, `ZE_VERIFY_SCOPE_TAGS` | `./le repo changed scope`, `internal/le/repo/changed.Answer`, `internal/le/go/staticcheck.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/commands.md` |
 | declared failure group, VERIFY FAILURE GROUP, whose red is this, attributing a structural red, failure index | `internal/le/verify/engine.RunMode`, `internal/le/doc/wiring.Group`, `internal/le/commit.Answer`, `docs/architecture/testing/verify-freshness-scope.md`, `ai/rules/precommit-verify.md` |
 | commit, commit script, commit message, verified commit, verify freshness, owner override, commit no test, verification debt, gate owed, push refused | `internal/le/commit.Answer`, `internal/le/verify/status.Answer`, `ai/rules/git-safety.md`, `ai/rules/precommit-verify.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | weekly update, Zeledon, ze-news, Discord announcement, website changes, homepage latest updates | `ai/skills/ze-weekly-update.md`, `website/AI.md`, `website/changes/discord/STYLE.md`, `internal/le/weekly`, `internal/le/site` |
 | spec status, spec metadata, spec closure, release bucket, immediate, pre-release, work not done, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/TEMPLATE.md`, `plan/TEMPLATE-CLOSURE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
-| inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
-| literal restates a registry, hardcoded plugin name list, copied key set, central enumeration, hand-called doctor check, enumeration exempt marker, enumeration gated marker, gated by, agreement test, YANG enumeration agreement | `ai/rules/principles.md`, `./le enumeration check`, `./le enumeration report`, `internal/le/arch/enumeration` |
+| inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le repo inventory`, `./le doc yang-contract`, `./le doc index` |
+| literal restates a registry, hardcoded plugin name list, copied key set, central enumeration, hand-called doctor check, enumeration exempt marker, enumeration gated marker, gated by, agreement test, YANG enumeration agreement | `ai/rules/principles.md`, `./le arch enumeration check`, `./le arch enumeration report`, `internal/le/arch/enumeration` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
-| command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `./le cli-grammar`, `docs/architecture/cli/root-namespace-grammar.md` |
+| command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `./le cli grammar`, `docs/architecture/cli/root-namespace-grammar.md` |
 | which verb, verb semantics, read-only verb, idempotent command, side effect, selector placement, narrowing versus shaping, least surprise | `docs/architecture/cli/command-verbs.md` |
-| flag or keyword, --flag, flag register, flag registry, offline flag, client flag to the daemon, --json versus pipe | `ai/rules/cli.md` (`--flag` or Keyword), `./le cli-grammar`, `internal/component/command/grammar/flags.go`, `docs/architecture/cli/root-namespace-grammar.md` |
+| flag or keyword, --flag, flag register, flag registry, offline flag, client flag to the daemon, --json versus pipe | `ai/rules/cli.md` (`--flag` or Keyword), `./le cli grammar`, `internal/component/command/grammar/flags.go`, `docs/architecture/cli/root-namespace-grammar.md` |
 | DispatchCommandArgs, typed inter-plugin dispatch, tokenizer bypass | `docs/architecture/api/process-protocol.md`, `ai/digests/plugin-transport.md`, `ai/rules/plugins.md` |
 | RawMessage, double marshal, callback passthrough, SDK callback | `docs/architecture/api/process-protocol.md`, `ai/digests/api-ipc.md` |
 | pipe first, pipe last, pipe metadata | `ai/rules/cli.md` (The Rule (pipes)), `docs/guide/command-reference.md`, `docs/features/formatting.md` |
@@ -631,14 +631,14 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | plugin internal keyword, in-process plugin config | `docs/guide/plugins.md` (the `internal` keyword), `ai/patterns/plugin.md` |
 | plugin declarations, query mode, declare mode, ZE_PLUGIN_MODE, ask a plugin what it declares without running it, show plugin declarations | `docs/architecture/cli/plugin-modes.md` (Query Mode), `docs/features/introspection.md` (the five states), `docs/plugin-development/protocol.md` (`sdk.RunOrDeclare`), `internal/component/plugin/declarations.go` |
 | appliance auth, local admin, bootstrap auth, RBAC | `docs/guide/operator-access-rbac.md`, `ai/digests/aaa-auth.md`, `internal/component/authz/`, `internal/component/aaa/` |
-| appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `./le build-artifacts`, `./le qemu` |
+| appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `./le build`, `./le test qemu` |
 | Dependabot alert on vendored go.mod, gokrazy/modcache manifest, bump gokrazy init, appliance dependency bump, CVE on vendored appliance dep | `ai/rules/platform-linux.md`, `./le setup install`, `internal/le/setup/`, `.github/dependabot.yml` |
-| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/test/qemu/`, `internal/install/disk/fault_linux.go`, `./le qemu install-scenarios-test`, `./le qemu install-ventoy-test`, `docs/functional-tests.md` |
-| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/test/qemu/`, `./le qemu vpp-hugepages-test`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
+| installer initrd QEMU evidence, R-6 fault injection, ze.mac pin, rescue console, Ventoy ISO-on-FAT, ze_installer_fault, ZE_INITRD_FAULT | `internal/le/test/qemu/`, `internal/install/disk/fault_linux.go`, `./le test qemu install-scenarios-test`, `./le test qemu install-ventoy-test`, `docs/functional-tests.md` |
+| VPP hugepage boot reservation, poll-sleep-microseconds, image.hugepages, doctor-vpp-hugepages, hugepage QEMU evidence | `internal/appliance/kernelargs.go`, `internal/component/vpp/doctor_linux.go`, `internal/component/vpp/startupconf.go`, `internal/le/test/qemu/`, `./le test qemu vpp-hugepages-test`, `docs/guide/vpp.md`, `docs/guide/appliance.md` |
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/evidence.md`) |
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
-| code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le docs-to-code index-update`) |
+| code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le doc index write`) |
 | mutation testing, gomu, mutation score, mutant | `docs/contributing/testing.md` (Mutation tests), `./le test mutation`, `internal/le/test/mutation/` |
 | test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `internal/le/test/health.Answer`, `internal/le/test/sensitivity.Answer`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
 | find bugs, hunt bugs, bug classes, latent bugs, recurring traps, taxonomy sweep, silent fall-through, unwired feature | `ai/skills/ze-hunt.md`, `plan/learned/RECURRING-PATTERNS.md` |
@@ -679,9 +679,9 @@ declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 Per-session: `tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md` (gitignored),
 in the directory that also holds this session's `bin/` and `scratch/`. Each session gets its own file.
-Session markers: `tmp/session/.session-<ID>` map sessions to specs. `./le spec session current`
-reads the claim, `./le spec session state current` locates this session's state, and
-`./le spec session state latest spec <spec-file>` locates the newest prior state. The
+Session markers: `tmp/session/.session-<ID>` map sessions to specs. `./le spec current`
+reads the claim, `./le spec state current` locates this session's state, and
+`./le spec state latest spec <spec-file>` locates the newest prior state. The
 producer is `internal/le/spec/`.
 
 ## Project Facts (no rule carries these)
@@ -696,11 +696,11 @@ on 2026-08-30, because a lookup is not a rule.
 - **YANG choice/case**: `mandatory true` and inner-choice exclusivity are NOT enforced by the walker. Plugins using `choice` add Go-side validation in their parser. `ze config validate` does not invoke `OnConfigVerify`.
 - **Constants for command/status names** -- literals catch typos at compile time. Editor commands: `internal/component/cli/model.go`. Plugin status: `plugin.StatusDone`/`StatusError`.
 - **Proximity**: `bgp/handler/` is a middleman; handlers belong in `bgp/plugins/`. ALL RPCs need YANG.
-- **Inventory**: `./le inventory [--json]` imports `plugin/all` and queries real registries. Use it for plugin counts, RPC totals, family coverage.
+- **Inventory**: `./le repo inventory [--json]` imports `plugin/all` and queries real registries. Use it for plugin counts, RPC totals, family coverage.
 - **SDK type aliases** (`pkg/plugin/sdk/sdk_types.go` re-exporting `rpc.*`) are intentional -- external plugins import only `sdk`. They are not identity wrappers.
 - **No filtered/noexport route tracking** -- Ze does not store import-filtered or export-filtered routes (unlike BIRD's "import keep filtered on"): the RIB pipeline has scope keywords (sent/received/sent-received) and filter stages, but no "filtered" scope. The birdwatcher-compatible endpoints `/routes/filtered/{name}` and `/routes/noexport/{name}` return empty lists for compatibility; if filtered tracking ever lands, point them at the real store.
 - **Gokrazy appliance owns process lifecycle** -- ze deploys as a gokrazy appliance: no systemd, no init system, no package manager. Any external process ze depends on (VPP or future dependencies) is exec'd, supervised, and cleaned up by ze itself; ze is never designed around an OS-level process manager.
-- **Stress tooling is native Go**: `internal/le/test/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside `ze-test peer --mode inject`. Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le integration stress`.
+- **Stress tooling is native Go**: `internal/le/test/integration/stress.go` owns stress orchestration, and the BGP UPDATE stream is generated inside the harness `peer --mode inject` (`./le test harness peer`). Extend the Go injector for a new scenario with a pool-friendly byte builder, one pre-allocated buffer, one TCP writer, and a keepalive goroutine. Run it through `./le test integration stress`.
 - **CLI dispatch discoverability gaps**: (1) no one-shot command against a RUNNING daemon (`ze cli -c "summary"` shape). `ze show` and `ze run` use SSH (`sshclient.ExecCommand`) internally but expose no shell one-liner. The offline-config half is covered by `ze config show <file> [path...]`. (2) `ze help --ai --api` prints YANG RPC names (`ze-bgp:overview`), not the dispatch strings users type. (3) No way to list the Dispatcher's match keys. `reactor.ExecuteCommand()` accepts strings undiscoverable without reading source. The highest-value fix is the one-shot daemon command (SSH port 2222, credentials from the zefs database).
 
 ### Mistakes that recur, and their corrections
@@ -709,7 +709,7 @@ One line each. The full class, with reproduction and fix, is in `plan/learned/RE
 and the matching `plan/journal/` class file. A mistake-log entry is one line: the lesson, then the
 rule it points at.
 
-- **"Linux-only tests cannot run on this macOS host" is false** (RECURRING, ZERO TOL). Mark kernel-dependent `.ci` cases with `option=needs-linux`, use `./le qemu netns-test suites <names>` for a focused pass, and `./le qemu all-tests` for the full guest proof. Never dismiss such a failure as environmental.
+- **"Linux-only tests cannot run on this macOS host" is false** (RECURRING, ZERO TOL). Mark kernel-dependent `.ci` cases with `option=needs-linux`, use `./le test qemu netns-test suites <names>` for a focused pass, and `./le test qemu all-tests` for the full guest proof. Never dismiss such a failure as environmental.
 - **Feature not wired** (RECURRING, ZERO TOL). Unit tests are not wiring. Name the user entry point.
 - **Daemon command without offline CLI** (sysctl-0). Every `CommandDecl` plugin needs a `cmd/ze/<name>/` offline entry point.
 - **Wrong production path** (rib-04). Grep ALL implementations; trace the consumer's call chain.

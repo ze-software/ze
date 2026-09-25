@@ -73,9 +73,9 @@ plan/journal/
 ```
 
 `ai/` is where an author edits. The tooling installs each agent's own copy
-elsewhere, and those copies are generated and gitignored. `./le ai skills-sync`
+elsewhere, and those copies are generated and gitignored. `./le ai sync write`
 writes `.claude/skills/`, `.claude/agents/`, `CLAUDE.md` and `AGENTS.md` from
-`ai/`, and `./le rules render-update` writes `ai/rules/*.md` from
+`ai/`, and `./le ai rules render-update` writes `ai/rules/*.md` from
 `ai/rules/points/`. Two directories stay hand-written and Claude-only, because
 no other agent reads them: `.claude/rules/` and `.claude/hooks/`.
 

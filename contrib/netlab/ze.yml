@@ -13,7 +13,7 @@
 # needs from daemon_config, so a declared module with no key fails
 # `netlab create` with "Cannot find <module> configuration template".
 #
-# `./le netlab render-check` renders these templates and compares the output
+# `./le test netlab render-check` renders these templates and compares the output
 # against contrib/netlab/golden/, so they cannot drift from ze config syntax.
 
 description: Ze network operating system

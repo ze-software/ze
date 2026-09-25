@@ -62,10 +62,10 @@ Measured on 2026-08-22: `clear_debt` (`internal/le/commit`) changed the argument
 
 - **A `ze.log.<subsystem>` key in a `.ci` test MUST name a real slog subsystem.** An internal plugin's logger name is `CanonicalSubsystemName` of its registry name (`internal/component/plugin/inprocess.go`), which turns every hyphen into a dot, and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on `.` only. So a plugin registered `bgp-adj-rib-in` reads `ze.log.bgp.adj.rib.in`; `ze.log.bgp.adj-rib-in` matches no lookup, sets nothing, and leaves the level at the WARN default with no error, which is why it has recurred three times. A hyphen is legitimate ONLY when that exact subsystem is declared literally in Go. `checkLogSubsystemKeys` (`internal/le/doc/wiring/checks.go`) enforces it.
 
-- **A crash is not the only reproduction, so `./le stress-repro run` MUST carry its `any-failure` keyword for a load-dependent failure that is not a crash.** By default only a crash signature (panic, `DATA RACE`, runtime error) counts and everything else is discarded down to the last 500 bytes, so an assertion flake exits non-zero, matches nothing, and the run reports "not reproduced" while throwing the evidence away.
+- **A crash is not the only reproduction, so `./le test stress-repro run` MUST carry its `any-failure` keyword for a load-dependent failure that is not a crash.** By default only a crash signature (panic, `DATA RACE`, runtime error) counts and everything else is discarded down to the last 500 bytes, so an assertion flake exits non-zero, matches nothing, and the run reports "not reproduced" while throwing the evidence away.
 
-- **A no-build stress reproduction tests the isolated binary set it was given, so after changing daemon source you MUST rebuild before trusting its verdict**, otherwise a fixed bug still "reproduces" against the stale binary. Run the owning `./le functional <suite>` action once; `internal/le/test/functional.Prepare` rebuilds the isolated daemon and runner pair.
-- **A flake MUST NOT be hunted by looping `./le functional gating` or `./le verify worktree`**: use `./le stress-repro` against the suspected suite.
+- **A no-build stress reproduction tests the isolated binary set it was given, so after changing daemon source you MUST rebuild before trusting its verdict**, otherwise a fixed bug still "reproduces" against the stale binary. Run the owning `./le test functional <suite>` action once; `internal/le/test/functional.Prepare` rebuilds the isolated daemon and runner pair.
+- **A flake MUST NOT be hunted by looping `./le test functional gating` or `./le verify worktree`**: use `./le test stress-repro` against the suspected suite.
 
 ## CI Sleep Justification
 
@@ -81,7 +81,7 @@ Measured on 2026-08-22: `clear_debt` (`internal/le/commit`) changed the argument
 - **A compiled observer MUST report an assertion failure by RETURNING an error, and MUST NOT print a line and return `nil`.** `fixture.Observe` can still request a clean daemon shutdown, so `expect=exit:code=0` does not prove the observer's assertion and MUST NOT be relied on alone. `fixture.Run` passes the returned error to `fixture.ReportFailure`, which emits the `ZE-OBSERVER-FAIL` sentinel the runner detects.
 - **An assertion on a production log line SHOULD be preferred over either**, because it verifies the production code path rather than the observer: `expect=stderr:pattern=<decision log>` plus `reject=stderr:pattern=<wrong outcome>`.
 
-- **A commit owes the focused test for what it changed, run once; the full gate is owed before a PUSH.** That focused test MUST run through a native action: `./le job run label unit-pkg quiet command go test <package>`, a component group (`./le test-unit bgp`), or `./le test-unit all`. Everything after `command` is the child's argv unchanged, so the `PKG=` spelling belongs to `./le fuzz` and `go test` refuses it as an import path.
+- **A commit owes the focused test for what it changed, run once; the full gate is owed before a PUSH.** That focused test MUST run through a native action: `./le job run label unit-pkg quiet command go test <package>`, a component group (`./le test unit bgp`), or `./le test unit all`. Everything after `command` is the child's argv unchanged, so the `PKG=` spelling belongs to `./le test fuzz` and `go test` refuses it as an import path.
 - **A bare `go test` MUST NOT be used in its place.** `internal/le/gotoolchain.Toolchain` gives native actions the repository build cache and the feature tags, and a shell run has neither.
 
 **The action or page in the row MUST be used; the obligation is derivable but the
@@ -91,11 +91,11 @@ NAME is not, and a hand-written second copy of it drifts.**
 |-----------|----------------|
 | Which suite runs which format, and what each `test/<subdir>/` asserts | `docs/functional-tests.md` |
 | `.ci` directives, sleep kinds, the sleep ratchet, the accept-only baseline | `docs/architecture/testing/ci-format.md` |
-| Any change to `//go:build linux` code | `./le qemu all-tests` |
-| Changes to nft, FIB, or OSPF kernel programming | `./le qemu netns-test suites firewall,policy,ospf,ospfv3` |
+| Any change to `//go:build linux` code | `./le test qemu all-tests` |
+| Changes to nft, FIB, or OSPF kernel programming | `./le test qemu netns-test suites firewall,policy,ospf,ospfv3` |
 | Build tags, virtual substitutes, and native action wiring for Linux-only code | `ai/rules/platform-linux.md`, read in full first |
 | A change to reactor lock or shared state (`session*.go`, `forward_pool*.go`, `peer.go`, a new goroutine there) | `go test -race -count=20 ./internal/component/bgp/reactor/...`, and paste the output as the evidence |
 | A VPP backend's Apply pipeline | the `vppOps` seam and scripted `fakeOps` tests, never a running VPP daemon (`internal/plugins/traffic/vpp/apply_test.go`) |
 | A suite or gate went red | `tmp/ze-verify-failures.log`, then that group's `Rerun` command and nothing wider |
-| Whether the suite is healthy enough to claim it | `docs/features/test-health.md`, generated by `./le test-health update` |
-| Reproducing a load-dependent failure | `./le stress-repro` against the suspected suite |
+| Whether the suite is healthy enough to claim it | `docs/features/test-health.md`, generated by `./le test health update` |
+| Reproducing a load-dependent failure | `./le test stress-repro` against the suspected suite |

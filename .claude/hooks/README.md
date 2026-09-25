@@ -4,7 +4,7 @@ All registered hooks execute in the compiled root `le` command. The canonical
 configuration is `.claude/settings.json`; each entry invokes:
 
 ```text
-$CLAUDE_PROJECT_DIR/le hook-check <hook-name>
+$CLAUDE_PROJECT_DIR/le ai hooks <hook-name>
 ```
 
 The runtime lives in `internal/le/hookruntime`. `internal/le/ai/hooks` owns the
@@ -100,7 +100,7 @@ check's row cannot survive it.
 | `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
 | `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves. |
 | `writeCISleep` | `testing.md` | A pause in a `.ci` test that names no justification marker. |
-| `writeYangDescription` | `writing.md` | A proposed YANG `ze:help` past 96 characters or 25 words. Also one carrying a semicolon or no full stop, and a `description` that repeats the `ze:help` beside it. It judges the statements that render on a one-line row, and a `leaf` or `leaf-list` only in a config module. It reports the summaries whose owner it did not find, it warns rather than blocks, and `./le docvalid help-shape` is the gate. |
+| `writeYangDescription` | `writing.md` | A proposed YANG `ze:help` past 96 characters or 25 words. Also one carrying a semicolon or no full stop, and a `description` that repeats the `ze:help` beside it. It judges the statements that render on a one-line row, and a `leaf` or `leaf-list` only in a config module. It reports the summaries whose owner it did not find, it warns rather than blocks, and `./le doc yang-contract help-shape` is the gate. |
 
 `writeGoPatterns` is the edit-time allocation-pattern check. It blocks
 `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, and `strconv.FormatInt` or
@@ -201,7 +201,7 @@ while any row is open. `debtGates` names the six keys above, plus `stale-index-o
 
 The review gate runs only for a closure commit, which `closureStem` identifies.
 `ROUND_CAP` and `cmd_record` in `internal/le/spec/review.go` price the
-review round count at `./le spec session review record`, not here.
+review round count at `./le spec review record`, not here.
 
 ## Changed-file gates (`./le doc wiring`)
 
@@ -221,11 +221,11 @@ worktree` runs them.
 `checkWiring` runs beside them and reports each exported symbol the change adds
 that no non-test file under `internal/` or `cmd/` names.
 
-## Tree checks (`./le repository`)
+## Tree checks (`./le repo`)
 
 <!-- source: internal/le/repository/repository.go -- Run -->
-`./le repository tree-check` declares an empty changed set and runs the three
-tree-wide checks. `./le repository check` runs all five over the current tree.
+`./le repo tree-check` declares an empty changed set and runs the three
+tree-wide checks. `./le repo check` runs all five over the current tree.
 
 | Check | Scope | What it reports |
 |---|---|---|
@@ -243,9 +243,9 @@ middle of an edit cannot show. They stay out of the gate.
 ## Prose gate (ASD-STE100)
 
 <!-- source: internal/le/doc/ste/actions.go -- Actions -->
-`./le ste check` compares each changed file with its own text at HEAD and prints
+`./le doc ste check` compares each changed file with its own text at HEAD and prints
 only the habits that grew, so a document nobody touched can never fail.
-`./le ste review` reports the whole tree and `./le ste review-changed` reports
+`./le doc ste review` reports the whole tree and `./le doc ste review-changed` reports
 the working tree's changes. Surfaces are Markdown under `docs/`, `ai/`, `plan/`
 and the root, prose comments in `.go`, and `description` strings in `.yang`.
 STE is a guideline, so no gate refuses on it.
@@ -255,10 +255,10 @@ STE is a guideline, so no gate refuses on it.
 | Runner | Covers |
 |---|---|
 | `internal/le/ai/hooks/parity.go` | Golden exit-code regression over the 208 dispatcher fixtures, in four tables, one per registered check group. |
-| `./le hook-check unit` | The 607 typed behavior fixtures: spec validation, source-read evidence, commit-time gates, delegation, and the registered write and Bash checks. |
+| `./le ai hooks unit` | The 607 typed behavior fixtures: spec validation, source-read evidence, commit-time gates, delegation, and the registered write and Bash checks. |
 
 Run the focused hook proof with:
 
 ```text
-./le hook-check unit
+./le ai hooks unit
 ```

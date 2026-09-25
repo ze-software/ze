@@ -52,7 +52,7 @@ phase itself.
   API call is the context size at that call, and context grows by about 1.9k
   tokens a call from a 45k floor. A long agent therefore pays more for every
   later call it makes: measured over this machine's session transcripts
-  (`./le token-economy`, `ai/rationale/context-economy.md`), the eleven
+  (`./le ai tokens`, `ai/rationale/context-economy.md`), the eleven
   longest implementation agents ran 200-400 calls to 400-750k of context and
   were 41% of everything eight sessions spent. Cut each phase so one agent
   finishes it in about 60 calls, and cut a phase the spec wrote too large into
@@ -83,7 +83,7 @@ phase itself.
 ### Phase handoff: the per-spec state file
 
 Every phase agent ends by APPENDING its handoff to the per-spec state file that
-`./le spec session state current` reports. `./le spec session state latest spec
+`./le spec state current` reports. `./le spec state latest spec
 <spec-stem>` recovers the newest state across sessions. That file already
 exists and carries digests after compaction. Write into it. A new handoff file
 family is layering
@@ -100,7 +100,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the gates OWED and not run: `./le verify lint run`, `./le test-unit all`, `./le functional gating`, which the main thread runs after this phase returns (`ai/rules/commands.md`) |
+| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the gates OWED and not run: `./le go lint run`, `./le test unit all`, `./le test functional gating`, which the main thread runs after this phase returns (`ai/rules/commands.md`) |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -163,7 +163,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
 
 ## Steps
 
-1. **Read the spec:** Run `./le spec session current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec session claim spec <spec-name>`. Then read `plan/<spec-name>`.
+1. **Read the spec:** Run `./le spec current` to find this session's spec. If empty, use the spec named in the conversation and claim it with `./le spec claim spec <spec-name>`. Then read `plan/<spec-name>`.
    - If `claim` exits 3, the WIP cap refused it: too many specs are already in-progress. That is a decision for the user, not something to route around. Show them the list it printed and ask whether to close one first or raise `ZE_SPEC_WIP_CAP`. Do NOT edit the spec's Status by hand to skip the check.
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
@@ -200,7 +200,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
    - Implement minimal code to pass
    - Run the scoped package test until green: the `go test -race` recipe under
      `./le job run` in `docs/contributing/running-commands.md`, over the packages
-     this phase changed. `./le test-unit all` is the main thread's, after the
+     this phase changed. `./le test unit all` is the main thread's, after the
      phase returns (`ai/rules/commands.md`)
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
@@ -217,7 +217,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
    - Move to next phase
-6. **Run full verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`.
+6. **Run full verification:** `./le go lint run && ./le test unit all && ./le test functional gating`.
    In a phase agent this step is the scoped package test only; the three
    commands are OWED, named in the handoff, and the main thread runs them once
    after the phase agents return, itself or through a fresh `/ze-verify` agent
@@ -238,7 +238,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
-9. **Re-run verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`,
+9. **Re-run verification:** `./le go lint run && ./le test unit all && ./le test functional gating`,
    under the same split as step 6: scoped in a phase agent, the full chain from
    the main thread.
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
@@ -273,7 +273,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
          a closure commit needs the Review Gate artifact this session MUST NOT
          produce. Run the script path the command prints
          (`ai/rules/git-safety.md`).
-      3. Run `./le spec session release`.
+      3. Run `./le spec release`.
       4. Report the commit SHA, and state that `/ze-close` is the next
          phase. It reviews that commit.
       When the row is absent or `-`, none of this applies: hand the uncommitted

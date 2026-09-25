@@ -4,7 +4,7 @@ The rules in `ai/rules/context-economy.md` and the five-minute directive in
 `ai/rules/commands.md` come from one measurement, taken 2026-09-15 over the
 eight sessions this checkout ran between 2026-09-07 and 2026-09-14: 10,736 API
 calls, 99 subagents, read from the machine-local transcript store
-(`./le token-economy` prints the same shape over every session).
+(`./le ai tokens` prints the same shape over every session).
 
 ## What a call costs
 
@@ -63,8 +63,8 @@ Over the eight sessions: 65 such rewrites in subagents, 19.2M tokens written
 again, about 10% of the spend. The price is the context at that moment, so a
 fresh agent spawned for the gate alone (`/ze-verify` on `ze-read`) loses only
 its 45k floor, while an implementation agent at 500k loses 500k. The commands that ran past five minutes, in
-subagents only: `./le verify lint run` (21 of 112 runs), `./le job run` (10 of
-399), `./le functional ui` (4 of 9), `./le functional encode`, `./le test-unit
+subagents only: `./le go lint run` (21 of 112 runs), `./le job run` (10 of
+399), `./le test functional ui` (4 of 9), `./le test functional encode`, `./le test unit
 config`. Twenty-one of the lint runs hit the 600-second Bash timeout, so the
 agent lost the cache and got no result. The main thread ran no command past
 five minutes and had no expiry of this kind.

@@ -28,7 +28,7 @@ internal/component/bgp/plugins/<name>/
     register.go       # GENERATED: init() -> yang.RegisterModule()
 ```
 
-After creating, run `./le repository generate` to update `internal/component/plugin/all/all.go`.
+After creating, run `./le repo generate` to update `internal/component/plugin/all/all.go`.
 
 ## register.go Template
 
@@ -317,7 +317,7 @@ Space-separated flags: `"nlri yang capa"`.
 ```
 [ ] Create plugins/<name>/register.go with init() -> registry.Register()
 [ ] Create plugins/<name>/<name>.go with atomic logger + Run<Name>Plugin()
-[ ] Run ./le repository generate (updates all.go)
+[ ] Run ./le repo generate (updates all.go)
 [ ] Regenerate the snapshots TestRegisteredPluginNames reads, in testdata/:
     go test -tags '<ze_core + features>' ./internal/component/plugin/all/ -update
     (the package path comes BEFORE -update; a package named after a flag the go
@@ -334,7 +334,7 @@ Space-separated flags: `"nlri yang capa"`.
 [ ] No imports of sibling plugins (use DispatchCommand for inter-plugin communication)
 ```
 
-`./le repository generate` populates the rest: CLI dispatch, plugin runners,
+`./le repo generate` populates the rest: CLI dispatch, plugin runners,
 YANG embed and register glue, config roots, family and capability maps, and
 decoder maps.
 

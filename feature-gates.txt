@@ -20,12 +20,12 @@
 # Four consumers cannot parse this manifest at runtime: .golangci.yml
 # build-tags, gokrazy/ze/config.json GoBuildTags, the go install command in
 # docs/guide/quickstart.md, and the shipped CodeQL build combinations.
-# `./le feature-tags write` regenerates those lists, and `./le feature-tags
+# `./le repo feature-tags write` regenerates those lists, and `./le repo feature-tags
 # check` rejects drift. Native stress, integration, and deployment actions read
 # their daemon tags through the same Go parser.
 #
 # To add a feature gate, add each package that must disappear below, create its
-# gated registration or seam, then run `./le feature-tags write` and
+# gated registration or seam, then run `./le repo feature-tags write` and
 # `./le plugin imports write`. The full procedure is in
 # ai/rules/feature-gate-registration.md.
 #

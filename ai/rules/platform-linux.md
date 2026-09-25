@@ -23,7 +23,7 @@
 
 **A tight loop MAY be used while iterating, and the full pass MUST be the one that reports the result**, because it is the only form that covers the whole population. The entry points and the population each one covers are `docs/architecture/testing/qemu-integration.md`.
 
-**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le qemu run kernel <vmlinuz> command "<command>"` owns the Alpine image, the QEMU process, the bounded waits, SSH execution and cleanup; `Run.assertRuntimeKernel` (`internal/le/test/qemu/run_exec.go`) then refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
+**Every functional QEMU proof MUST boot Ze's runtime kernel, never the stock Alpine kernel, and the caller MUST supply that kernel path.** `./le test qemu run kernel <vmlinuz> command "<command>"` owns the Alpine image, the QEMU process, the bounded waits, SSH execution and cleanup; `Run.assertRuntimeKernel` (`internal/le/test/qemu/run_exec.go`) then refuses the result unless the guest reports the release in `internal/appliance/kernel.version`.
 
 "The stock kernel has the needed feature" is not an exception. A failure to load the supplied kernel can leave the ISO kernel running, so checking the staged file on the host proves nothing, and the verdict would describe Alpine's kernel while reading as a verdict about Ze.
 
@@ -37,7 +37,7 @@
 
 **A test whose prerequisite is absent MUST call `t.Skip`, never `t.Fatal`.** One test file runs in environments with different capabilities, and a fatal there reports a broken product for a missing capability. The worked example is `docs/architecture/testing/qemu-integration.md`.
 
-**A new integration package MUST be added to `integrationPackages` in `internal/le/test/qemu/alltests.go`.** `./le qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
+**A new integration package MUST be added to `integrationPackages` in `internal/le/test/qemu/alltests.go`.** `./le test qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
 
 **A probe that asserts on a counter sitting behind state written for a remote
 peer MUST send its traffic over an egress that really carries it, and MUST carry
@@ -72,10 +72,10 @@ A lab that needs a QEMU runner MUST be built with all four steps below. Three
 of them fail closed on their own; the fourth, registration, does not, so a lab
 that skips it is invisible rather than red.
 
-1. **Native netns evidence:** implement the lab under `internal/le` and register a named `./le deployment <verb>` or `./le qemu <verb>` action. Run Ze and the peer daemon in separate network namespaces joined by a veth, without Docker.
-2. **Peer from Alpine packages:** install the peer daemon through the `packages` parameter of `./le qemu run`, or declare it in the dedicated native QEMU action. Use the same packaged peer in the Docker and QEMU proofs where Alpine supplies it.
-3. **Runtime kernel, always:** pass Ze's staged runtime kernel through `./le qemu run kernel <vmlinuz>`. `Run.assertRuntimeKernel` refuses a guest whose `uname -r` does not match `internal/appliance/kernel.version`. Add every required `CONFIG_*` symbol to `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`.
-4. **Registered action:** add the feature action to the owning Go action table and expose it through `./le qemu` or `./le deployment`. The bare area command is the inventory, and it MUST list the new action.
+1. **Native netns evidence:** implement the lab under `internal/le` and register a named `./le test deployment <verb>` or `./le test qemu <verb>` action. Run Ze and the peer daemon in separate network namespaces joined by a veth, without Docker.
+2. **Peer from Alpine packages:** install the peer daemon through the `packages` parameter of `./le test qemu run`, or declare it in the dedicated native QEMU action. Use the same packaged peer in the Docker and QEMU proofs where Alpine supplies it.
+3. **Runtime kernel, always:** pass Ze's staged runtime kernel through `./le test qemu run kernel <vmlinuz>`. `Run.assertRuntimeKernel` refuses a guest whose `uname -r` does not match `internal/appliance/kernel.version`. Add every required `CONFIG_*` symbol to `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`.
+4. **Registered action:** add the feature action to the owning Go action table and expose it through `./le test qemu` or `./le test deployment`. The bare area command is the inventory, and it MUST list the new action.
 
 **A new interop lab MUST ship both native actions in the same change, and MUST add its row to the lab table in `docs/architecture/testing/qemu-integration.md`.**
 
@@ -85,13 +85,13 @@ that skips it is invisible rather than red.
 
 **QEMU evidence is scheduled and advisory. You MUST NOT treat it as a blocking push gate, and you MUST NOT skip the focused QEMU proof for your change.** Which workflow runs which suite, and which of them block, is `docs/architecture/testing/ci-workflows.md`.
 
-**Every registered `./le qemu` and `./le integration` action MUST be given a real caller in the same change**: a workflow job, another native action, or an explicit manual classification. No gate checks this direction today. `TestEveryWorkflowNativeActionExists` (`internal/le/workflowcheck/workflowcheck_test.go`) checks only the other one, that every action a workflow names is registered, so an action nobody calls stays green and runs nowhere. Which workflow job runs each action is `docs/architecture/testing/ci-workflows.md`.
+**Every registered `./le test qemu` and `./le test integration` action MUST be given a real caller in the same change**: a workflow job, another native action, or an explicit manual classification. No gate checks this direction today. `TestEveryWorkflowNativeActionExists` (`internal/le/workflowcheck/workflowcheck_test.go`) checks only the other one, that every action a workflow names is registered, so an action nobody calls stays green and runs nowhere. Which workflow job runs each action is `docs/architecture/testing/ci-workflows.md`.
 
 ## Initrd: Prefer Procfs/Sysfs Over External Commands
 
 **An initrd operation MUST use its in-process Go replacement; it MUST NOT shell out to an external tool.** That covers bringing a link up, applying an address and a route, the DHCP lease, the image download, and mount, umount, loop, block-device ioctls, reboot and poweroff. The replacement for each operation, and the procfs or sysfs source for each state read, is `docs/architecture/appliance/installer-initrd.md`.
 
-**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; `./le qemu install-test` proves that the initrd boots and installs cleanly.
+**Where a syscall is unavoidable, you MUST isolate it in a named `_linux.go` helper so the platform dependency is visible and testable behind a fake.** `internal/install/disk` and `cmd/ze-installer` MUST contain no `exec.Command` of an external binary; `./le test qemu install-test` proves that the initrd boots and installs cleanly.
 
 ## Appliance Dependency Bumps
 
@@ -105,7 +105,7 @@ that skips it is invisible rather than red.
 4. **You MUST regenerate the go.sums cleanly.** Delete the affected builddir `go.sum` files (filesystem removal, never `git rm`), then run `go mod download all` in each affected builddir. The sums regenerate from the new build list and prune the old version string. You MUST NOT hand-edit hashes.
 5. **Re-vendor and prune.** The module download extracts the new version under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/`. Remove the old `@<old>` directory. Confirm the working tree holds only the expected old-file deletions and new source.
 6. **Refresh coupling.** Search for the old version string and update every document or spec that names the old module-cache path.
-7. **Verify (BLOCKING).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le deployment gokrazy-l2tp-ppp-test` boots the appliance. An image build alone is insufficient.
+7. **Verify (BLOCKING).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le test deployment gokrazy-l2tp-ppp-test` boots the appliance. An image build alone is insufficient.
 
 **A `SKIP` MUST NOT be treated as evidence.** Under a hardware accelerator the hugepage proof treats a no-answer as a FAIL; if it skips for want of KVM access, you MUST fix that (on Linux, group membership: `./le setup check`) and rerun.
 

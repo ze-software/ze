@@ -78,9 +78,9 @@ phase itself.
 A slow run and admission contention are not failures. Fall back to individual
 native stages only when the worktree action cannot run for an environmental
 reason:
-1. `./le verify lint run`
-2. `./le test-unit all`
-3. `./le functional gating`
+1. `./le go lint run`
+2. `./le test unit all`
+3. `./le test functional gating`
 
 Report whichever stages completed and which one stopped the run. This gives partial results instead of no results.
 

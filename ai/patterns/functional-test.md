@@ -45,33 +45,33 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `ai/rules/testing.
 
 ## Runner Commands
 
-All `ze-test` suites use the same selection contract after the suite name:
+All `./le test harness` suites use the same selection contract after the suite name:
 `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`.
 `--list` prints `N/TOTAL id name` with one-based ids; runs print one completion
 line per test plus periodic progress.
 
 | Directory | Runner command | Native action |
 |-----------|----------------|---------------|
-| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `./le functional encode` |
-| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `./le functional plugin` |
-| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `./le functional decode` |
-| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `./le functional parse` |
-| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `./le functional reload` |
-| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `./le functional ui` |
-| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `./le functional editor` |
-| `test/web/` | `ze-test web [--all|--start N|N...]` | `./le functional web` |
-| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `./le functional managed` |
-| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `./le functional l2tp` |
-| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `./le functional firewall` |
-| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `./le functional policy` |
-| `test/static/` | `ze-test static [--all|--start N|N...]` | `./le functional static` |
-| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `./le functional traffic` |
-| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `./le functional flow-export` |
-| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `./le functional vpp` |
-| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `./le functional l2tp-wire` |
-| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `./le functional exabgp-test` |
+| `test/encode/` | `./le test harness bgp encode [--all|--start N|N...]` | `./le test functional encode` |
+| `test/plugin/` | `./le test harness bgp plugin [--all|--start N|N...]` | `./le test functional plugin` |
+| `test/decode/` | `./le test harness bgp decode [--all|--start N|N...]` | `./le test functional decode` |
+| `test/parse/` | `./le test harness bgp parse [--all|--start N|N...]` | `./le test functional parse` |
+| `test/reload/` | `./le test harness bgp reload [--all|--start N|N...]` | `./le test functional reload` |
+| `test/ui/` | `./le test harness ui [--all|--start N|N...]` | `./le test functional ui` |
+| `test/editor/` | `./le test harness editor [--all|--start N|N...]` | `./le test functional editor` |
+| `test/web/` | `./le test harness web [--all|--start N|N...]` | `./le test functional web` |
+| `test/managed/` | `./le test harness managed [--all|--start N|N...]` | `./le test functional managed` |
+| `test/l2tp/` | `./le test harness l2tp [--all|--start N|N...]` | `./le test functional l2tp` |
+| `test/firewall/` | `./le test harness firewall [--all|--start N|N...]` | `./le test functional firewall` |
+| `test/policy/` | `./le test harness policy [--all|--start N|N...]` | `./le test functional policy` |
+| `test/static/` | `./le test harness static [--all|--start N|N...]` | `./le test functional static` |
+| `test/traffic/` | `./le test harness traffic [--all|--start N|N...]` | `./le test functional traffic` |
+| `test/flow-export/` | `./le test harness flow-export [--all|--start N|N...]` | `./le test functional flow-export` |
+| `test/vpp/` | `./le test harness vpp [--all|--start N|N...]` | `./le test functional vpp` |
+| `test/l2tp-wire/` | `./le test harness l2tp-wire [--all|--start N|N...]` | `./le test functional l2tp-wire` |
+| `test/exabgp-compat/` | `./le test harness exabgp [--all|--start N|N...]` | `./le test functional exabgp-test` |
 
-Gated suites (in `./le functional gating`): encode, plugin, parse, decode, reload,
+Gated suites (in `./le test functional gating`): encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
 (run manually): static, traffic, flow-export, vpp, l2tp-wire, chaos, chaos-web, exabgp.
 
@@ -275,8 +275,8 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ## Running Tests
 
 ```bash
-./le functional gating          # All gated functional tests
-./le test-unit all              # Component-group unit tests
+./le test functional gating          # All gated functional tests
+./le test unit all              # Component-group unit tests
 ./le verify current mode full   # Full current-checkout verification
 ```
 
@@ -291,5 +291,5 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 [ ] If testing JSON: expect=json with all non-volatile fields
 [ ] If testing CLI: expect=exit:code + expect=stdout:contains
 [ ] If testing error: expect=stderr:contains or pattern
-[ ] Test runs successfully with ./le functional gating
+[ ] Test runs successfully with ./le test functional gating
 ```

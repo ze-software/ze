@@ -29,7 +29,7 @@ If no arguments are provided, ASK the user for the source file, destination file
 Run the native extraction action:
 
 ```bash
-./le go-extract source <source.go> dest <dest.go> symbol <symbol1> [symbol <symbol2> ...]
+./le go extract source <source.go> dest <dest.go> symbol <symbol1> [symbol <symbol2> ...]
 ```
 
 ### Post-Extract

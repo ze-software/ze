@@ -31,7 +31,7 @@ extension only when it streams, and the per-page sets are derived
 
 A directory under `third_party/web/` is the unit a consumer subscribes to. A
 consumer that holds one file of a directory MUST hold every file of that
-directory, and `./le vendor-web check` reads the two trees that way. An
+directory, and `./le web vendor check` reads the two trees that way. An
 asset for one consumer only gets its own directory, as `swagger-ui/` does. A
 directory that reaches no consumer is a problem too: it says the sync was never
 told to copy it.
@@ -62,23 +62,23 @@ so both upgrade actions remain offline and deterministic.
 ## Sync
 
 ```bash
-./le vendor-web sync           # copy from third_party/web/ to every consumer
-./le repository generate       # runs the same sync, with the other generators
-./le vendor-web check          # gate: each consumer copy matches its source
-./le vendor-web update-report  # ask the npm registry for newer versions
-./le htmx-upgrade check        # gate: no unexplained htmx 4 upgrade issue
-./le htmx-upgrade report       # print every htmx 4 upgrade issue
+./le web vendor sync           # copy from third_party/web/ to every consumer
+./le repo generate       # runs the same sync, with the other generators
+./le web vendor check          # gate: each consumer copy matches its source
+./le web vendor update-report  # ask the npm registry for newer versions
+./le web htmx check        # gate: no unexplained htmx 4 upgrade issue
+./le web htmx report       # print every htmx 4 upgrade issue
 ```
 
 The consumer copies are generated files and they stay tracked in git. `//go:embed`
 reads them at compile time, and `./le repository-tracked-build check` compiles what git
 holds, so a build that runs no generator must find them.
 
-`./le vendor-web check` is a stage of `./le verify current mode full` and a
-prerequisite of `./le repository generated-check`. It exits non-zero when a copy
+`./le web vendor check` is a stage of `./le verify current mode full` and a
+prerequisite of `./le repo generated-check`. It exits non-zero when a copy
 differs or is absent. It queries no registry, so it runs with no network.
 
-`./le vendor-web update-report` reads EVERY npm dist-tag and answers the newest
+`./le web vendor update-report` reads EVERY npm dist-tag and answers the newest
 release among them, prereleases excluded. htmx is why: 4.0.0 shipped under the
 `next` tag and `latest` stayed on 2.0.10, so a query for `latest` alone reports
 the release this tree already holds as a downgrade.

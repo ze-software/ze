@@ -83,9 +83,9 @@ le_build_config='go.mod go.sum feature-gates.txt'
 # .version assets, and go:embed bakes each one INTO the binary. A walk that
 # looks only at *.go therefore reports a current binary after a schema edit.
 #
-# That is not theoretical. On 2026-09-13 four .yang edits left `le docvalid
+# That is not theoretical. On 2026-09-13 four .yang edits left `le doc yang-contract
 # help-shape` answering the PRE-edit result, because it reads the embedded
-# copy, while `le cli-grammar` went green at once because it greps the disk.
+# copy, while `le cli grammar` went green at once because it greps the disk.
 # Two gates disagreed about one edit and neither was wrong: they were reading
 # different copies of the same file (plan/journal/stale-artifact-reused.md).
 # The predicate is written out at each call site rather than held in a variable.

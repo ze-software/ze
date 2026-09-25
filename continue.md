@@ -38,7 +38,7 @@ the pattern worth budgeting for: the gate is defect-finding, not paperwork.
 Everything below this heading is the record of how it got there, kept because the
 Phase 6 finding outlives the spec. What replaced its one outstanding item was
 spec-failing-socket-proof-needs-a-non-ptrace-injection-point, closed on
-2026-09-11: `ze-test fail-syscall` (`internal/test/failsyscall`) fails one named
+2026-09-11: `./le test harness fail-syscall` (`internal/test/failsyscall`) fails one named
 syscall through a classic seccomp filter and then execs the daemon, so nothing
 traces it and the failing call is charged to the daemon's own CPU.
 
@@ -64,7 +64,7 @@ Three counters, one per package, because `ppp` cannot import `pppoe` or `l2tp`:
 `registry.InjectPluginMetrics`, never `GetMetricsRegistry`.
 
 Verified: `go vet` clean on darwin and `GOOS=linux`, `-race` green across the l2tp
-tree and the pacer, and a third `./le verify lint run` showing zero findings on
+tree and the pacer, and a third `./le go lint run` showing zero findings on
 these files.
 
 ### Owed, phases 5 and 6
@@ -140,7 +140,7 @@ per-session form because its YANG container declares no id leaf.
 
 **This host cannot run the interop or QEMU labs.** Docker's kernel carries no `pppoe`
 module (`host kernel missing PPPoE requirements: pppoe (PPPoE pppox kernel module)`)
-and `./le qemu pppoe-test` exits 1 with `qemu guest evidence requires Linux`. Four
+and `./le test qemu pppoe-test` exits 1 with `qemu guest evidence requires Linux`. Four
 scenarios and four `.ci` tests were written across this session's specs and NONE has
 ever executed. They are honest, registered, and unproven. A Linux host with PPPoE
 kernel support is what they owe. Do not weaken them to reach green.
@@ -176,7 +176,7 @@ concluded its tags could not get records because `gomu` is absent; that is wrong
 
 ## 7. How to restart
 
-1. `./le spec session release`, then claim the backoff spec.
+1. `./le spec release`, then claim the backoff spec.
 2. Read the diff in `internal/component/l2tp/pppoeclient/dialer.go` and the untracked
    `dialer_test.go`. That is the killed phase, and the blocking-read question in
    section 3 is unanswered.
@@ -220,7 +220,7 @@ record of what it was waiting for.
 
 **`spec-ospf-auto-cost-reference-bandwidth` — closest to done.** Three review
 rounds, now 0 BLOCKER and 0 ISSUE. All that remains is `/ze-close`: the AC walk,
-`./le spec session review record`, the learned summary, then the two closure
+`./le spec review record`, the learned summary, then the two closure
 commits. The session claim is already on this spec.
 
 **`spec-ddos-timing-leaves-reach-no-worker` — one open BLOCKER.** Round 5 found
@@ -334,7 +334,7 @@ About 18 GB was freed: 33 pre-today session scratch directories and 103 stale
 
 ## 7. How to restart
 
-1. `./le spec session release`, claim `spec-ospf-auto-cost-reference-bandwidth`, and
+1. `./le spec release`, claim `spec-ospf-auto-cost-reference-bandwidth`, and
    run `/ze-close` on it. It is one audit away from done.
 2. Claim the ddos spec, paste the round 5 section into its Review Gate, fix the
    BLOCKER and correct the exposure table, then run round 6 and close.
@@ -474,7 +474,7 @@ Verify with the registered action before acting on one.
 **Correction, 2026-09-11: QEMU DOES run on this host.** Earlier sections of this
 document say it does not, and that is wrong. `qemu-system-aarch64` with HVF is
 installed and boots. The refusal "qemu guest evidence requires Linux" belongs to the
-guest-only `./le qemu pppoe-test` verb, not to QEMU as such. Phase 6 of the backoff
+guest-only `./le test qemu pppoe-test` verb, not to QEMU as such. Phase 6 of the backoff
 spec discovered this by trying rather than believing the note. The Docker interop
 blocker is real and separate: that kernel carries no `pppoe` module.
 
