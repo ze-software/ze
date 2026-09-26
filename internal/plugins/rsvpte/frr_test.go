@@ -309,7 +309,6 @@ func TestPLRArmsBypass(t *testing.T) {
 	lsp, ok := e.table.Get(keyFromMessage(fwd))
 	require.True(t, ok)
 	require.NotNil(t, lsp.Bypass, "PLR armed a bypass")
-	// RFC requirement: RFC4090-3.2-2 positive -- for link protection the PLR selects the bypass whose merge point is the NHOP.
 	assert.Equal(t, netip.MustParseAddr("10.0.0.3"), lsp.Bypass.TunnelEndpoint, "bypass merges at the NHOP")
 	assert.True(t, lsp.Bypass.TunnelID >= bypassTunnelIDBase, "bypass uses the reserved tunnel-id range")
 
@@ -428,7 +427,6 @@ func TestLocalRepairSwitchesFIB(t *testing.T) {
 	assert.Equal(t, []uint32{5000, 18000}, bk.out, "bypass label outermost, then the swapped protected label")
 	assert.Equal(t, netip.MustParseAddr("10.0.1.3"), bk.nextHop, "forwarded via the bypass next hop")
 
-	// RFC requirement: RFC4090-6.5-2 positive -- on a successful local repair the protected LSP is retained (not torn down).
 	repaired, ok := e.table.Get(protectedKey())
 	require.True(t, ok, "protected LSP is retained, not torn down")
 	repaired.mu.Lock()
@@ -472,7 +470,6 @@ func TestLocalRepairFallsBackToTeardown(t *testing.T) {
 	// RFC requirement: RFC4090-3.2-1 negative -- with no usable bypass no label-stacked backup swap is programmed.
 	assert.Empty(t, fib.backups, "no backup programmed when the bypass is not ready")
 	_, alive := e.table.Get(protectedKey())
-	// RFC requirement: RFC4090-6.5-2 negative -- an unrepairable protected LSP falls back to teardown (the LSP is removed).
 	assert.False(t, alive, "unrepairable protected LSP is torn down")
 	perr, _, ok := ft.lastByType(MsgTypePathErr)
 	require.True(t, ok)
@@ -766,7 +763,6 @@ func TestNodeProtectionLocalRepair(t *testing.T) {
 	lsp, ok := e.table.Get(protectedKey())
 	require.True(t, ok)
 	require.NotNil(t, lsp.Bypass, "node-protection bypass armed")
-	// RFC requirement: RFC4090-3.2-2 positive -- for node protection the PLR selects the bypass whose merge point is the NNHOP (not the NHOP).
 	assert.Equal(t, netip.MustParseAddr("10.0.0.4"), lsp.Bypass.TunnelEndpoint, "bypass merges at the NNHOP, not the NHOP")
 
 	// RESV from the NHOP carrying label recording: NHOP label 18000, NNHOP 7777.
@@ -807,7 +803,6 @@ func TestNodeProtectionNeedsNodeBypass(t *testing.T) {
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: buildPath(nodeProtectionPSB(), netip.MustParseAddr("10.0.0.1"), 64)})
 	lsp, ok := e.table.Get(protectedKey())
 	require.True(t, ok)
-	// RFC requirement: RFC4090-3.2-2 negative -- a node-protection request is not satisfied by a link-only bypass merging at the NHOP, so no bypass is armed.
 	assert.Nil(t, lsp.Bypass, "node protection is not satisfied by a link-only bypass")
 }
 
