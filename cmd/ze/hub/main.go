@@ -1047,6 +1047,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Publish the reload for SSH session editors created by the infra hook
 	// (registered before this closure could exist).
 	sessionReloadHolder.Store(&reloadAfterCommit)
+	// The request data RPCs act on this store through the same reload. The
+	// deferred clear runs before the store closes, so no RPC reaches a closed one.
+	if store != nil {
+		installDataRPC(&dataRPCTarget{store: store, configPath: configPath, reload: reloadAfterCommitContext})
+		defer installDataRPC(nil)
+	}
 	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
 		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit)
 	})

@@ -191,6 +191,24 @@ opener and the same owner lock.
 <!-- source: internal/component/config/storage/blob.go -- OpenBlob, CreateBlob, CreateBlobPopulated -->
 <!-- source: internal/component/config/storage/open.go -- OpenTree -->
 
+### Restoring a config from an artifact
+
+`ReadRestoreSource` runs the artifact check (`checkArtifact`, the same
+`zefs.Check` verdict import uses), opens the artifact read-only through
+`OpenBlob`, and selects one config: the name the operator gave, else the only
+config, else the one named like the device, else a refusal listing every name.
+A config is a name with a `meta/config/<name>/active` pointer or a
+`file/active/<name>` mirror; the bytes are the active version, or the mirror
+when there is no pointer. Offline, `RestoreConfig` writes the candidate and
+promotes it under ONE guard, so a crash leaves either nothing or a normal
+candidate; a failure before the active pointer moves withdraws the candidate
+and its version. The daemon's `request data restore` stages the same bytes as
+the candidate and runs its SIGHUP reload, which promotes last. `request data
+backup` runs `Backup` over the daemon's own bound handle (`ownedStore` looks
+through `BindConfigSource`), under the lock every commit takes.
+<!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
+<!-- source: internal/component/config/storage/backup.go -- Backup, ownedStore, CheckArtifactPath -->
+
 ## Version pointers and recovery
 
 Pointers are per configuration name: `meta/config/<name>/active`, `candidate`,

@@ -178,7 +178,12 @@ func PromoteCandidate(store Storage, configPath string) (err error) {
 		return err
 	}
 	defer func() { err = releaseGuard(guard, err) }()
+	return promoteCandidateLocked(store, guard, configPath)
+}
 
+// promoteCandidateLocked is PromoteCandidate for a caller that already holds
+// the config lock, so a restore can write and promote under one guard.
+func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) error {
 	candidate, ok, err := readPointerLocked(store, guard, configPath, pointerCandidate)
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,10 +28,10 @@ type BackupResult struct {
 // lands in the backup whole (version and pointer) or not at all. opts set the
 // artifact's spare policy; a caller MUST state it, because an artifact is
 // normally exact-fit (zefs.Spare(0)) and the zefs default pads by 10%.
-// An existing file at path is refused, and so is every name the live store
-// owns in its own folder. The artifact is created 0600: it holds credentials.
-func Backup(source Storage, path string, opts ...zefs.Option) (result BackupResult, err error) {
-	owned, ok := source.(*store)
+// An existing file at path is refused unless replace is set; every name the
+// live store owns in its own folder is refused whatever replace says. The artifact is created 0600: it holds credentials.
+func Backup(source Storage, path string, replace bool, opts ...zefs.Option) (result BackupResult, err error) {
+	owned, ok := ownedStore(source)
 	if !ok {
 		return BackupResult{}, fmt.Errorf("backup: unsupported storage %T", source)
 	}
@@ -54,7 +55,7 @@ func Backup(source Storage, path string, opts ...zefs.Option) (result BackupResu
 	}
 	artifact, err := CreateBlobPopulated(target, func(seed Storage) error {
 		return copyKeys(guard, seed, keys)
-	}, false, opts...)
+	}, replace, opts...)
 	if err != nil {
 		return BackupResult{}, fmt.Errorf("backup %s: %w", target, err)
 	}
@@ -160,4 +161,43 @@ func sameDirectory(a, b string) bool {
 		return false
 	}
 	return os.SameFile(infoA, infoB)
+}
+
+// CheckArtifactPath refuses an artifact path a daemon RPC MUST NOT act on. The
+// path names a file on the daemon's host that an operator typed over SSH, so
+// it is refused when relative (the daemon's working directory is not the
+// operator's), when it carries a ".." element (the spelling hides where it
+// lands), and when it is a symlink (the link, not the operator, would choose
+// the file). Each refusal names the rule that refused it.
+func CheckArtifactPath(path string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("%s: the path must be absolute: %w", path, errors.ErrUnsupported)
+	}
+	for element := range strings.SplitSeq(path, string(filepath.Separator)) {
+		if element == ".." {
+			return fmt.Errorf("%s: the path must not contain \"..\": %w", path, errors.ErrUnsupported)
+		}
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		return fmt.Errorf("%s: the path is a symlink: %w", path, errors.ErrUnsupported)
+	}
+	return nil
+}
+
+// ownedStore returns the store behind s, looking through the config-source
+// binding a daemon wraps its live handle in, so a live backup walks the same
+// handle and the same lock the daemon commits through.
+func ownedStore(s Storage) (*store, bool) {
+	if bound, ok := s.(*configStore); ok {
+		s = bound.Storage
+	}
+	owned, ok := s.(*store)
+	return owned, ok
 }

@@ -23,6 +23,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/cmd/update/yang"
 	_ "github.com/ze-software/ze/internal/component/config/archive/yang"
 	_ "github.com/ze-software/ze/internal/component/config/redistribute/yang"
+	_ "github.com/ze-software/ze/internal/component/config/storage/yang"
 	_ "github.com/ze-software/ze/internal/component/config/system/yang"
 	_ "github.com/ze-software/ze/internal/component/debug/yang"
 	_ "github.com/ze-software/ze/internal/component/doctor/yang"

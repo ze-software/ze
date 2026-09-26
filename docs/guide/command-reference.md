@@ -2165,6 +2165,7 @@ ze data registered [pattern]
 ze data check
 ze data repair --output <new-path>
 ze data backup <file> [spare <n>]  # Copy every key to one blob artifact
+ze data restore <file> config [name <source-name>]  # Commit the artifact's config
 ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
@@ -2186,7 +2187,40 @@ It refuses an existing file and every name the live store owns in its folder
 `.replaced-*` names and the init and import stages). It is offline only: while
 a daemon owns the store it refuses, naming the recorded SSH endpoint and the
 live route, `request data backup path <file>`.
+
+`restore <file> config` runs `ze data check`'s verification over the artifact, then
+commits one config from it as a new version of this device's config (the name
+in `meta/instance/name`, or `ze.conf`). The active pointer moves to the new
+version, the previous active becomes the rollback, and `file/active/<name>`
+holds the new bytes. Credentials, identity, runtime state and every other
+version are unchanged. The artifact's config is its active version, or its
+`file/active/<name>` mirror when it has no pointer (a seed). `name
+<source-name>` selects one config from an artifact that holds several. Without
+it the artifact's only config is taken, else the one named like this device;
+any other case is refused, listing the artifact's configs. A differing source
+name is printed. A staged candidate refuses the restore. It is offline only:
+while a daemon owns the store it names the live route, `request data restore
+path <file> config`.
+
+The daemon answers two RPCs over SSH, for a file on its own host:
+
+```
+request data backup path <absolute-file> [spare <n>] [force]
+request data restore path <absolute-file> config [name <source-name>]
+```
+
+Both refuse a relative path, a `..` element and a symlink, each naming the
+rule. `backup` walks the daemon's own store under its write lock and answers
+`path`, `keys` and `bytes`. `force` replaces an existing file and never lifts
+the refusal of a name the store owns. `restore` stages the artifact's config
+as the candidate and runs the reload a SIGHUP runs: the config becomes active
+only when that reload accepts it, and a refused config leaves the active config
+and its pointers as they were. It answers `path`, `source-name`, `config-name`
+and `version`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
+<!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
+<!-- source: cmd/ze/hub/data_rpc.go -- handleDataBackup, handleDataRestore -->
 <!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->

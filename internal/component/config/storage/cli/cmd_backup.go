@@ -38,7 +38,7 @@ func cmdBackup(storePath string, args []string) int {
 		out.StdErr() //nolint:errcheck // error output
 		return 1
 	}
-	result, err := storage.Backup(source, file, zefs.Spare(spare))
+	result, err := storage.Backup(source, file, false, zefs.Spare(spare))
 	if closeErr := source.Close(); closeErr != nil {
 		err = errors.Join(err, closeErr)
 	}

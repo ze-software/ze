@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | storage-1-backend-parity |
-| Phase | 2/6 |
+| Phase | 3/6 |
 | Handoff | verify |
 | Updated | 2026-09-26 |
 
@@ -101,6 +101,7 @@ addressing of history (`spec-storage-3-content-addressed-history`).
 - `ze data repair` calls `zefs.RepairPath`, which dispatches a blob to `Repair` and a framed tree to `repairFrameTree`; `RepairPath` takes the option too and passes it to the blob branch (a tree frame is rewritten whole and is exact-fit).
 - There is no `internal/component/config/storage/conformance_test.go`. The two-encoding table is `TestStorageConformance` in `storage_test.go`, driven by `pointerTestStores` (`pointer_test.go`); the AC-21 tests and `TestOpenBlobConformance` live beside it in `storage_test.go`.
 - `zefs.Check`'s `EntryStatus` carried no capacity. Phase 2 adds `KeyCapacity` and `Capacity`, so an exact-fit claim (AC-1, AC-18) is observable from outside `pkg/zefs`.
+- (2026-09-26, Phase 3) The daemon's store is a `BindConfigSource` wrapper, so `Backup` reaches the store through `ownedStore`. The RPC handlers live in `cmd/ze/hub/data_rpc.go`, and their `init()` registration is `cmd/ze/hub/register_data_rpc.go` because the write hook admits an `init()` that registers only in a `register*` file. The YANG module is `internal/component/config/storage/yang/ze-data-cmd.yang`, whose `config` and `force` are `type empty` keyword leaves. `Backup` takes `replace bool` for the RPC's `force`. The live restore reuses the commit reload (`reloadAfterCommitContext`, which runs `doReloadContext`), published to the handlers through `installDataRPC`.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The blob format byte-for-byte; a blob written with any spare value opens with every existing reader

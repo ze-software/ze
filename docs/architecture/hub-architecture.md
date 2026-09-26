@@ -225,6 +225,15 @@ In-process storage guards are released before plugin callbacks run. The lifetime
 `database.lock` remains held until the store closes.
 <!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
 
+The hub also answers two `request data` RPCs beside `request reload`
+(`register_data_rpc.go`). They act on the store the hub owns through a target
+`installDataRPC` publishes once the commit reload exists and clears before the
+store closes. `request data backup` walks that store under its write lock.
+`request data restore ... config` stages the artifact's config as the candidate
+and calls the same commit reload, so the SIGHUP acceptance chain runs and
+promotion stays last.
+<!-- source: cmd/ze/hub/data_rpc.go -- installDataRPC, handleDataBackup, handleDataRestore -->
+
 
 ### Before Anything: the plugin setup gate
 

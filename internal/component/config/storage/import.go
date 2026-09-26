@@ -134,18 +134,8 @@ func importOwned(path string, folder, owner *os.File, replace bool) (_ *store, r
 			return nil, fmt.Errorf("%s records an import of %s whose bytes changed: re-run ze init --from with the original blob, or remove that intent file once %s holds the wanted tree", intentPath, sourcePath, filepath.Join(folder.Name(), treeName))
 		}
 	}
-	report, err := zefs.Check(sourcePath)
-	if err != nil {
+	if err := checkArtifact(sourcePath); err != nil {
 		return nil, err
-	}
-	if !report.MagicOK {
-		return nil, fmt.Errorf("%w: %s: invalid magic", ErrCorrupt, sourcePath)
-	}
-	if !report.ContainerOK {
-		return nil, fmt.Errorf("%w: %s: %s; entries: %v", ErrCorrupt, sourcePath, report.ContainerError, report.Entries)
-	}
-	if report.CorruptEntries != 0 {
-		return nil, fmt.Errorf("%w: %s: %v", ErrCorrupt, sourcePath, report.Entries)
 	}
 	source, err := zefs.Open(sourcePath)
 	if err != nil {
@@ -496,4 +486,24 @@ func retireSource(parent *os.File, intent importIntent, retired bool) error {
 		return err
 	}
 	return parent.Sync()
+}
+
+// checkArtifact runs zefs.Check over a blob artifact and refuses one whose
+// magic, container or any entry fails, naming the failing entries. Every
+// reader of an artifact runs it before it reads a key.
+func checkArtifact(path string) error {
+	report, err := zefs.Check(path)
+	if err != nil {
+		return err
+	}
+	if !report.MagicOK {
+		return fmt.Errorf("%w: %s: invalid magic", ErrCorrupt, path)
+	}
+	if !report.ContainerOK {
+		return fmt.Errorf("%w: %s: %s; entries: %v", ErrCorrupt, path, report.ContainerError, report.Entries)
+	}
+	if report.CorruptEntries != 0 {
+		return fmt.Errorf("%w: %s: %v", ErrCorrupt, path, report.Entries)
+	}
+	return nil
 }
