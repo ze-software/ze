@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1565,4 +1567,101 @@ func dischargeRowsFor(file, shard string, line int) []string {
 		}
 	}
 	return rows
+}
+
+// TestCommitCacheLoadsEveryCommitInOneBatch drives commitCache.load over two
+// commits, one of them spelled twice, and two revisions that name no commit,
+// in one call, with diff.noprefix set in the repository's own config.
+//
+// VALIDATES: each revision ends resolved or refused, two spellings of one
+// commit answer the same facts, and each commit's diff of each ledger shard is
+// the diff of that shard alone, so a row added to one shard never binds a
+// commit through its sibling, whatever the user's diff config says.
+// PREVENTS: the batched show attributing one file's added lines to another
+// file, a config that drops the a/ and b/ prefixes emptying every diff, or a
+// revision nobody resolved answering a zero commitFacts.
+func TestCommitCacheLoadsEveryCommitInOneBatch(t *testing.T) {
+	root := newDischargeRepository(t)
+	runCommitGit(t, root, "config", "diff.noprefix", "true")
+	runCommitGit(t, root, "config", "diff.mnemonicPrefix", "true")
+	const rowA = "| 2026-09-26 | aaaaaaaa | first | gate a | reason a | open |"
+	const rowB = "| 2026-09-26 | bbbbbbbb | first | gate b | reason b | open |"
+	first := commitFixture(t, root, "first", map[string]string{
+		debtShardPath("aaaaaaaa.md"): rowA + "\n",
+		debtShardPath("bbbbbbbb.md"): rowB + "\n",
+	}, nil)
+	second := commitFixture(t, root, "second", map[string]string{"notes.txt": "x\n"}, nil)
+
+	commits := newCommitCache()
+	commits.load(root, []string{first, "HEAD", second, "no-such-revision", ""})
+
+	one, err := commits.read(root, first)
+	if err != nil {
+		t.Fatalf("read(first): %v", err)
+	}
+	if one.SHA != first || one.Subject != "first" || one.Parent == "" {
+		t.Fatalf("read(first) = %+v, want SHA %s, subject first and a parent", one, first)
+	}
+	if !slices.Contains(one.Paths, debtShardPath("bbbbbbbb.md")) {
+		t.Fatalf("read(first) paths = %v, want the second shard", one.Paths)
+	}
+	head, err := commits.read(root, "HEAD")
+	if err != nil || head.SHA != second || head.Parent != first {
+		t.Fatalf("read(HEAD) = %+v, %v; want SHA %s with parent %s", head, err, second, first)
+	}
+	if bySHA, err := commits.read(root, second); err != nil || !reflect.DeepEqual(bySHA, head) {
+		t.Fatalf("read(%s) = %+v, %v; want the facts read(HEAD) answered, %+v", second, bySHA, err, head)
+	}
+	for _, revision := range []string{"no-such-revision", ""} {
+		if _, err := commits.read(root, revision); err == nil {
+			t.Fatalf("read(%q) answered no error, want the revision refused", revision)
+		}
+	}
+
+	rowOf := func(text string) Debt {
+		row, ok := parseDebtRow("x.md", 1, text)
+		if !ok {
+			t.Fatalf("fixture row %q does not parse", text)
+		}
+		return row
+	}
+	shardA, shardB := debtShardPath("aaaaaaaa.md"), debtShardPath("bbbbbbbb.md")
+	if !commitAddedRow(commits.ledgerDiff(first, shardA), rowOf(rowA)) {
+		t.Fatal("the first commit's diff of shard a does not add row a")
+	}
+	if commitAddedRow(commits.ledgerDiff(first, shardA), rowOf(rowB)) {
+		t.Fatal("the first commit's diff of shard a adds row b, which only shard b holds")
+	}
+	if !commitAddedRow(commits.ledgerDiff(first, shardB), rowOf(rowB)) {
+		t.Fatal("the first commit's diff of shard b does not add row b")
+	}
+	if commits.ledgerDiff(second, shardA) != "" {
+		t.Fatal("the second commit answers a diff of shard a, which it never changed")
+	}
+}
+
+// TestLedgerDiffRefusesAHeaderItCannotParse feeds parseLedgerDiffs a commit
+// whose second file header is C-quoted.
+//
+// VALIDATES: the commit is refused with the header named, and a commit beside
+// it in the same output still answers its diffs.
+// PREVENTS: the lines under an unparsed header running on into the previous
+// file's section, which binds a row to a shard that never held it.
+func TestLedgerDiffRefusesAHeaderItCannotParse(t *testing.T) {
+	const quoted = "diff --git \"a/plan/verification-debt/we\\tird.md\" \"b/plan/verification-debt/we\\tird.md\""
+	patches := "\x1eaaaa\n" +
+		"diff --git a/plan/verification-debt/a.md b/plan/verification-debt/a.md\n+| row a |\n" +
+		quoted + "\n+| row b |\n" +
+		"\x1ebbbb\n" +
+		"diff --git a/plan/verification-debt/b.md b/plan/verification-debt/b.md\n+| row c |\n"
+	diffs, unreadable := parseLedgerDiffs(patches)
+	if unreadable["aaaa"] != quoted {
+		t.Fatalf("unreadable = %q, want commit aaaa refused at %q", unreadable, quoted)
+	}
+	if _, answered := diffs["aaaa"]; answered {
+		t.Fatalf("diffs[aaaa] = %q, want no diff for a refused commit", diffs["aaaa"])
+	}
+	if !strings.Contains(diffs["bbbb"]["plan/verification-debt/b.md"], "+| row c |") {
+		t.Fatalf("diffs[bbbb] = %q, want the b.md section", diffs["bbbb"])
+	}
 }

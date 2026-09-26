@@ -357,6 +357,11 @@ func applyDischarges(root string, rows []Debt) []string {
 		at[rows[index].Shard+":"+strconv.Itoa(rows[index].Line)] = index
 	}
 	commits := newCommitCache()
+	revisions := make([]string, 0, len(records))
+	for index := range records {
+		revisions = append(revisions, records[index].Commits...)
+	}
+	commits.load(root, revisions)
 	discharged := make(map[int]dischargeRecord, len(records))
 	for _, record := range records {
 		key := record.Shard + ":" + strconv.Itoa(record.Line)
@@ -549,11 +554,7 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 				", so it is not a commit this row covers; the row's subject is " +
 				strconv.Quote(row.Subject))
 		}
-		added, err := commitAddedRow(root, shard, row, one.SHA)
-		if err != nil {
-			return nil, err
-		}
-		if !added {
+		if !commitAddedRow(commits.ledgerDiff(one.SHA, shard), row) {
 			unbound = append(unbound, len(facts))
 		}
 		paired = paired || commitCarriesSubject(subject, one)
@@ -603,8 +604,8 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 // It asks about the commit the caller already holds rather than building the
 // set `git log -S<reason> -- <shard>` answers, because the caller needs a
 // membership test and nothing else. Building the set walks the whole commit
-// graph filtered to the path, and reading one commit's diff of one file reads
-// two blobs.
+// graph filtered to the path. The diff it scans is the commit's diff of the
+// shard, which commitCache.load read for every commit in one batched git call.
 //
 // The scan reads ADDED lines alone, and among those the OPEN ones alone.
 // A commit that only DELETED a row wrote no row, and a commit that rewrote the
@@ -614,12 +615,7 @@ func dischargeCommits(root string, row Debt, record dischargeRecord, commits *co
 // cleared; recordDebt is the only producer that opens an obligation, and it
 // writes open. A commit that only flipped a sibling row of this row's gate and
 // reason opened nothing, so it binds nothing.
-func commitAddedRow(root, shard string, row Debt, sha string) (bool, error) {
-	patch, err := gitOutput(root, "show", "--no-renames", "--format=", "--patch", sha, "--", shard)
-	if err != nil {
-		return false, errors.New("the diff of " + sha + " over " + shard +
-			" cannot be read, so no commit can be bound to that row: " + err.Error())
-	}
+func commitAddedRow(patch string, row Debt) bool {
 	for line := range strings.SplitSeq(patch, "\n") {
 		if !strings.HasPrefix(line, "+") || strings.HasPrefix(line, "+++") {
 			continue
@@ -632,10 +628,10 @@ func commitAddedRow(root, shard string, row Debt, sha string) (bool, error) {
 			continue
 		}
 		if added.Gate == row.Gate && added.Reason == row.Reason {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // rowLineHistory answers every commit that changed the row's OWN line of one
@@ -991,74 +987,313 @@ type commitFacts struct {
 	Removed []string
 }
 
-// commitCache holds one git read per revision, so a ledger read costs one read
-// per commit rather than one per row. Its bound is the number of DISTINCT
-// commits the discharge records name, which is the discharged population.
+// commitCache holds what a discharge re-derives about each commit it names:
+// the facts of commitFacts, and the commit's diff of the ledger directory that
+// commitAddedRow scans. Its bound is the number of DISTINCT commits the
+// discharge records name, which is the discharged population.
+//
+// load reads a whole set of commits in three git calls, whatever the size of
+// the set. The cache read each commit with four forks until 2026-09-26: two
+// rev-parse, a name-status show and a diff show. The ledger held 60 records
+// naming 60 commits, so every ledger read forked git 242 times, measured at
+// 2.7 to 3.0 s on a loaded machine. That was most of the session-start hook's
+// 5 s budget, and ListDebt is on that hook's path.
+//
+// Not safe for concurrent use.
 type commitCache struct {
 	facts   map[string]commitFacts
 	refused map[string]string
+	// diffs holds, for each commit SHA, its diff of each ledger file it changed.
+	diffs map[string]map[string]string
 }
+
+// commitLoadMax bounds the commits one git call names, so the argument list
+// stays far below the platform limit however large the ledger grows.
+const commitLoadMax = 256
 
 func newCommitCache() *commitCache {
-	return &commitCache{facts: make(map[string]commitFacts), refused: make(map[string]string)}
+	return &commitCache{
+		facts:   make(map[string]commitFacts),
+		refused: make(map[string]string),
+		diffs:   make(map[string]map[string]string),
+	}
 }
 
+// read answers the facts of one revision, loading it when no earlier load did.
 func (c *commitCache) read(root, revision string) (commitFacts, error) {
-	if facts, cached := c.facts[revision]; cached {
-		return facts, nil
+	if !c.known(revision) {
+		c.load(root, []string{revision})
 	}
-	if problem, cached := c.refused[revision]; cached {
+	if problem, refused := c.refused[revision]; refused {
 		return commitFacts{}, errors.New(problem)
 	}
-	facts, err := readCommitFacts(root, revision)
-	if err != nil {
-		c.refused[revision] = err.Error()
-		return commitFacts{}, err
-	}
-	c.facts[revision] = facts
-	return facts, nil
+	return c.facts[revision], nil
 }
 
-// readCommitFacts reads the identity, the subject and the file population of
-// one commit. Rename detection is OFF: a spec moved between release buckets is
-// a removal and an addition, which is the pair relocatedSpecs reads.
-func readCommitFacts(root, revision string) (commitFacts, error) {
-	if revision == "" {
-		return commitFacts{}, errors.New("name the commit: commit <sha>")
+// known answers whether a load already decided this revision either way.
+func (c *commitCache) known(revision string) bool {
+	if _, loaded := c.facts[revision]; loaded {
+		return true
 	}
-	sha, err := gitOutput(root, "rev-parse", "--verify", "-q", revision+"^{commit}")
+	_, refused := c.refused[revision]
+	return refused
+}
+
+// ledgerDiff answers one commit's diff of one ledger file, empty when the
+// commit did not change that file. The commit MUST have been read first.
+func (c *commitCache) ledgerDiff(sha, path string) string {
+	return c.diffs[sha][path]
+}
+
+// load decides every revision it is given: each one ends in facts or in
+// refused, so read never answers a zero commitFacts for a revision it did not
+// resolve. A failed git call refuses every revision it was reading, which fails
+// the discharges that name them closed.
+func (c *commitCache) load(root string, revisions []string) {
+	pending := make([]string, 0, len(revisions))
+	for _, revision := range revisions {
+		if c.known(revision) {
+			continue
+		}
+		if slices.Contains(pending, revision) {
+			continue
+		}
+		if revision == "" {
+			c.refused[revision] = "name the commit: commit <sha>"
+			continue
+		}
+		pending = append(pending, revision)
+	}
+	for first := 0; first < len(pending); first += commitLoadMax {
+		c.loadChunk(root, pending[first:min(first+commitLoadMax, len(pending))])
+	}
+}
+
+// loadChunk reads at most commitLoadMax revisions: one cat-file resolves them,
+// one show reads each commit's subject, parent and file population, and one
+// show reads each commit's diff of the ledger directory. Rename detection is
+// OFF: a spec moved between release buckets is a removal and an addition,
+// which is the pair relocatedSpecs reads. `git show` over several commits
+// renders each one as `git show` over that commit alone, so a merge commit
+// keeps the combined diff it always had.
+func (c *commitCache) loadChunk(root string, revisions []string) {
+	shas, err := resolveCommits(root, revisions)
 	if err != nil {
-		return commitFacts{}, errors.New("commit " + strconv.Quote(revision) +
-			" does not resolve in this checkout")
+		c.refuseAll(revisions, err.Error())
+		return
 	}
-	facts := commitFacts{SHA: strings.TrimSpace(sha)}
-	// A root commit has no parent, and that is not a failure: nothing existed
-	// before it, so every "did this change X" question answers no.
-	if parent, err := gitOutput(root, "rev-parse", "--verify", "-q", facts.SHA+"^"); err == nil {
-		facts.Parent = strings.TrimSpace(parent)
+	resolved := make([]string, 0, len(shas))
+	for index, revision := range revisions {
+		if shas[index] == "" {
+			c.refused[revision] = "commit " + strconv.Quote(revision) +
+				" does not resolve in this checkout"
+			continue
+		}
+		if !slices.Contains(resolved, shas[index]) {
+			resolved = append(resolved, shas[index])
+		}
 	}
-	shown, err := gitOutput(root, "show", "--no-renames", "--name-status",
-		"--format=%s%x00", facts.SHA)
+	if len(resolved) == 0 {
+		return
+	}
+	shown, err := gitOutput(root, append(append(ledgerShow(), "--name-status",
+		"--format=%x1e%H%x00%P%x00%s%x00"), resolved...)...)
 	if err != nil {
-		return commitFacts{}, err
+		c.refuseAll(revisions, err.Error())
+		return
 	}
-	subject, listing, split := strings.Cut(shown, "\x00")
+	patches, err := gitOutput(root, append(append(append(ledgerShow(), "--format=%x1e%H",
+		"--patch", "--src-prefix=a/", "--dst-prefix=b/"), resolved...), "--", debtDir)...)
+	if err != nil {
+		c.refuseAll(revisions, err.Error())
+		return
+	}
+	facts := parseCommitFacts(shown)
+	diffs, unreadable := parseLedgerDiffs(patches)
+	for sha, files := range diffs {
+		c.diffs[sha] = files
+	}
+	for index, revision := range revisions {
+		sha := shas[index]
+		if sha == "" {
+			continue
+		}
+		if header, refused := unreadable[sha]; refused {
+			c.refused[revision] = "the diff of " + sha + " over " + debtDir +
+				" holds a file header this reader cannot parse, so no row can be bound to it: " + header
+			continue
+		}
+		one, shownHere := facts[sha]
+		if !shownHere {
+			c.refused[revision] = "git show " + sha + " printed no subject"
+			continue
+		}
+		c.facts[revision] = one
+	}
+}
+
+// ledgerShow is the start of both batched `git show` calls. It pins every
+// output setting a user's git config can flip, because the parsers below read
+// the output's shape: diff.noprefix drops the a/ and b/ of a diff header,
+// core.quotePath quotes a non-ASCII path, color adds escapes, an external diff
+// replaces the patch, and log.showSignature adds lines. The --patch call adds
+// the two prefixes itself.
+func ledgerShow() []string {
+	return []string{"-c", "core.quotePath=false", "show", "--no-renames", "--no-color",
+		"--no-ext-diff", "--no-show-signature"}
+}
+
+// refuseAll refuses every revision of a chunk a git call could not read.
+func (c *commitCache) refuseAll(revisions []string, problem string) {
+	for _, revision := range revisions {
+		c.refused[revision] = problem
+	}
+}
+
+// resolveCommits answers the full SHA of each revision as a commit, in order,
+// and an empty string for a revision that names no commit. `cat-file
+// --batch-check` answers one line for each line it reads, which is what lets
+// a single call carry every revision.
+func resolveCommits(root string, revisions []string) ([]string, error) {
+	var input bytes.Buffer
+	for _, revision := range revisions {
+		input.WriteString(revision)
+		input.WriteString("^{commit}\n")
+	}
+	command := exec.CommandContext(context.Background(), "git", "cat-file", "--batch-check") // #nosec G204 -- fixed Git query; the revisions go through stdin.
+	command.Dir = root
+	command.Stdin = &input
+	var stdout, complaint bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &complaint
+	if err := command.Run(); err != nil {
+		return nil, fmt.Errorf("git cat-file --batch-check: %w: %s", err,
+			strings.TrimSpace(complaint.String()))
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if len(lines) != len(revisions) {
+		return nil, fmt.Errorf("git cat-file --batch-check answered %d lines for %d revisions",
+			len(lines), len(revisions))
+	}
+	shas := make([]string, len(revisions))
+	for index, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && fields[1] == "commit" {
+			shas[index] = fields[0]
+		}
+	}
+	return shas, nil
+}
+
+// parseCommitFacts reads the output of loadChunk's name-status show: each
+// commit opens with a record separator, then its SHA, its parents and its
+// subject, each closed by NUL, then one name-status line per file. The parent
+// is the FIRST parent, and a root commit has none, which is not a failure:
+// nothing existed before it, so every "did this change X" question answers no.
+func parseCommitFacts(shown string) map[string]commitFacts {
+	facts := make(map[string]commitFacts)
+	for record := range strings.SplitSeq(shown, "\x1e") {
+		fields := strings.SplitN(record, "\x00", 4)
+		if len(fields) != 4 {
+			continue
+		}
+		one := commitFacts{SHA: strings.TrimSpace(fields[0]), Subject: strings.TrimSpace(fields[2])}
+		if parents := strings.Fields(fields[1]); len(parents) != 0 {
+			one.Parent = parents[0]
+		}
+		for line := range strings.SplitSeq(fields[3], "\n") {
+			status, path, tabbed := strings.Cut(strings.TrimSpace(line), "\t")
+			if !tabbed {
+				continue
+			}
+			if path == "" {
+				continue
+			}
+			if strings.HasPrefix(status, "D") {
+				one.Removed = append(one.Removed, path)
+				continue
+			}
+			one.Paths = append(one.Paths, path)
+		}
+		facts[one.SHA] = one
+	}
+	return facts
+}
+
+// parseLedgerDiffs splits the output of loadChunk's diff show by commit and
+// then by file. A file's section opens at its `diff --git a/<path> b/<path>`
+// header, or `diff --cc <path>` for a merge, and a patch body line never
+// starts with "diff ", because every body line carries a prefix column.
+// Rename detection is off, so the two paths of a --git header are one path.
+//
+// A header it cannot parse, a C-quoted path among them, marks the commit
+// unreadable rather than letting the lines that follow run on into the previous
+// file's section, where they would bind a row to a shard that never held it.
+// The second answer maps each such commit to the header it refused.
+func parseLedgerDiffs(patches string) (map[string]map[string]string, map[string]string) {
+	diffs := make(map[string]map[string]string)
+	unreadable := make(map[string]string)
+	for record := range strings.SplitSeq(patches, "\x1e") {
+		sha, body, found := strings.Cut(record, "\n")
+		if !found {
+			continue
+		}
+		sha = strings.TrimSpace(sha)
+		if sha == "" {
+			continue
+		}
+		files := make(map[string]string)
+		path := ""
+		var section strings.Builder
+		for line := range strings.SplitSeq(body, "\n") {
+			if strings.HasPrefix(line, "diff ") {
+				header, parsed := ledgerDiffHeader(line)
+				if !parsed {
+					unreadable[sha] = line
+					break
+				}
+				if path != "" {
+					files[path] = section.String()
+				}
+				path = header
+				section.Reset()
+			}
+			section.WriteString(line)
+			section.WriteByte('\n')
+		}
+		if _, refused := unreadable[sha]; refused {
+			continue
+		}
+		if path != "" {
+			files[path] = section.String()
+		}
+		diffs[sha] = files
+	}
+	return diffs, unreadable
+}
+
+// ledgerDiffHeader answers the path a diff section header names, and false for
+// a header whose path it cannot read: a quoted path, or a --git header whose
+// two paths differ, which rename detection being off never produces.
+func ledgerDiffHeader(line string) (string, bool) {
+	if rest, isCombined := strings.CutPrefix(line, "diff --cc "); isCombined {
+		if strings.HasPrefix(rest, "\"") {
+			return "", false
+		}
+		return rest, rest != ""
+	}
+	rest, isGit := strings.CutPrefix(line, "diff --git a/")
+	if !isGit {
+		return "", false
+	}
+	path, target, split := strings.Cut(rest, " b/")
 	if !split {
-		return commitFacts{}, errors.New("git show " + facts.SHA + " printed no subject")
+		return "", false
 	}
-	facts.Subject = strings.TrimSpace(subject)
-	for line := range strings.SplitSeq(listing, "\n") {
-		status, path, tabbed := strings.Cut(strings.TrimSpace(line), "\t")
-		if !tabbed || path == "" {
-			continue
-		}
-		if strings.HasPrefix(status, "D") {
-			facts.Removed = append(facts.Removed, path)
-			continue
-		}
-		facts.Paths = append(facts.Paths, path)
+	if path != target {
+		return "", false
 	}
-	return facts, nil
+	return path, path != ""
 }
 
 // gitOutput runs one read-only git query and answers its stdout.

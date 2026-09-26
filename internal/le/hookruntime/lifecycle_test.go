@@ -3,6 +3,7 @@ package hookruntime
 
 import (
 	"bytes"
+	stdcontext "context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
@@ -293,5 +295,113 @@ func TestSessionStartLeavesAPresentArtifactAlone(t *testing.T) {
 	}
 	if strings.Contains(printed, "Built ai/DOCS-TO-CODE.md") {
 		t.Errorf("the hook reported building an artifact that was already there:\n%s", printed)
+	}
+}
+
+// TestSessionStartPrintsItsNoticeWhenAStepOverruns drives the hook with a step
+// that outlasts the budget, the shape a loaded machine gives the ledger read.
+//
+// VALIDATES: the BLOCKING LSP notice is the first line whatever a step costs,
+// the hook returns at its budget instead of waiting for the step, one stderr
+// line names the step that ran out and every step after it, and no report
+// after the cut reaches stdout.
+// PREVENTS: the harness killing the hook at its 5 s timeout and dropping the
+// whole message, the LSP notice included.
+func TestSessionStartPrintsItsNoticeWhenAStepOverruns(t *testing.T) {
+	root := t.TempDir()
+	for _, artifact := range derived.All() {
+		writeHookFixture(t, root, artifact.Path, "# derived\n")
+	}
+	release := make(chan struct{})
+	budget, steps := sessionStartBudget, sessionStartSteps
+	t.Cleanup(func() {
+		close(release)
+		sessionStartBudget, sessionStartSteps = budget, steps
+	})
+	sessionStartBudget = 100 * time.Millisecond
+	slow := sessionStartStep{name: "slow", run: func(stdcontext.Context, *sessionStart, *sessionStartReport) { <-release }}
+	sessionStartSteps = append([]sessionStartStep{slow}, steps...)
+
+	started := time.Now()
+	printed, noted := runSessionStartStreams(t, root)
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("the hook returned after %s, want it cut at its %s budget", elapsed, sessionStartBudget)
+	}
+	if !strings.HasPrefix(printed, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\"") {
+		t.Fatalf("the hook printed %q, want the LSP notice first", printed)
+	}
+	names := make([]string, 0, len(sessionStartSteps))
+	for _, step := range sessionStartSteps {
+		names = append(names, step.name)
+	}
+	want := "session-start: the 100ms budget ran out, so these reports were skipped: " + strings.Join(names, ", ") + "\n"
+	if noted != want {
+		t.Fatalf("the hook wrote %q to stderr, want %q", noted, want)
+	}
+	for _, report := range []string{"Clean tree", "uncommitted", "specs", "Tip:"} {
+		if strings.Contains(printed, report) {
+			t.Fatalf("the hook printed %q after the cut, want no report containing %q", printed, report)
+		}
+	}
+}
+
+// TestSessionStartReportsTheTree drives the tree report through the hook over
+// a clean repository and over a directory git cannot read.
+//
+// VALIDATES: a clean repository prints "Clean tree" and no stderr note; a
+// status git cannot give is said on stderr and never printed as a clean tree.
+// PREVENTS: a failed git status reading as a clean tree, which the hook printed
+// until 2026-09-26.
+func TestSessionStartReportsTheTree(t *testing.T) {
+	tests := []struct {
+		name  string
+		git   bool
+		clean bool
+		note  string
+	}{
+		{name: "clean repository", git: true, clean: true, note: ""},
+		{name: "no repository", git: false, clean: false, note: "session-start: git status failed, so the tree was not counted: "},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			for _, artifact := range derived.All() {
+				writeHookFixture(t, root, artifact.Path, "# derived\n")
+			}
+			if test.git {
+				commitHookFixture(t, root)
+			}
+			printed, noted := runSessionStartStreams(t, root)
+			if strings.Contains(printed, "Clean tree") != test.clean {
+				t.Fatalf("the hook printed %q, want the clean-tree line %v", printed, test.clean)
+			}
+			if test.note == "" && strings.Contains(noted, "session-start:") {
+				t.Fatalf("the hook wrote %q to stderr, want no session-start note", noted)
+			}
+			if test.note != "" && !strings.Contains(noted, test.note) {
+				t.Fatalf("the hook wrote %q to stderr, want %q", noted, test.note)
+			}
+		})
+	}
+}
+
+// TestSessionStartPrintsAReadyReportPastTheDeadline asks for the next report
+// when a report and the deadline are both ready, 100 times.
+//
+// VALIDATES: the ready report is answered every time.
+// PREVENTS: select picking the deadline at random and printing a finished step
+// as skipped, which one in two tries would do.
+func TestSessionStartPrintsAReadyReportPastTheDeadline(t *testing.T) {
+	deadline, cancel := stdcontext.WithCancel(t.Context())
+	cancel()
+	for try := range 100 {
+		reports := make(chan *sessionStartReport, 1)
+		reports <- &sessionStartReport{}
+		if _, arrived := nextSessionStartReport(deadline, reports); !arrived {
+			t.Fatalf("try %d: a ready report was dropped for a passed deadline", try)
+		}
+		if _, arrived := nextSessionStartReport(deadline, reports); arrived {
+			t.Fatalf("try %d: an empty channel answered a report after the deadline", try)
+		}
 	}
 }

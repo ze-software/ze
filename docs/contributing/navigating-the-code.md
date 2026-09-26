@@ -125,7 +125,16 @@ to one of its inputs. Run the writer yourself after a bulk rewrite:
 `./le repo package-map update`, `./le doc index write`,
 `./le doc index write`.
 <!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions -->
-<!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
+
+**What a session start prints, and what it cuts.** `./le ai hooks
+session-start` prints the BLOCKING LSP notice and the rules pointer first,
+before any report that reads the tree. `.claude/settings.json` gives the hook
+5 s, and the harness drops everything a hook printed when it kills it. So the
+reports that follow run under the hook's own 3.5 s budget. A report still
+running at that point is cut, and one stderr line names it with every report
+after it. The notice is already out, and nothing after the cut prints.
+<!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart, runSessionStartSteps -->
 
 Only Bash is intercepted. The `Read` and the `Grep` TOOL reach no hook. One of
 them opens an index the last edit removed, and reports a missing file.
@@ -134,7 +143,7 @@ Ask the question from Bash, or write the index yourself. The writers are
 `./le repo package-map update` for `ai/PACKAGE-MAP.md`, and
 `./le doc index write` and `./le doc index write` for the other
 two.
-<!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
 
 Every non-test `.go` file carries its own answer in a `// Design: <doc> -- topic`
 header. The scan stops after 25 lines (`HeaderLines`, `internal/le/doc/index/docstocode.go`),

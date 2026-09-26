@@ -2,6 +2,7 @@
 package hookruntime
 
 import (
+	"bytes"
 	stdcontext "context"
 	"encoding/json"
 	"fmt"
@@ -116,7 +117,61 @@ func hookUntilLSP(ctx context, errOut io.Writer) int {
 	return 2
 }
 
+// sessionStartBudget is how long the session-start hook reports before it cuts
+// what is left. `.claude/settings.json` gives the hook 5 s, and a hook the
+// harness kills at that timeout loses everything it printed, the BLOCKING LSP
+// notice included. The 1.5 s between the two is the margin for starting the
+// binary on a loaded machine. Measured 2026-09-26 on this checkout, the whole
+// hook took 3.4 to 4.9 s at a load average near 28, and the ledger read was 2.7
+// to 3.0 s of it. Once commit.ListDebt stopped forking git four times for each
+// discharged commit, the hook took 0.6 to 0.8 s. Tests shorten the budget to
+// prove the cut.
+var sessionStartBudget = 3500 * time.Millisecond
+
+// sessionStartSteps are the hook's reports, in the order they print. Each one
+// writes into its own report and nothing else, so a step cut at the deadline
+// leaves no partial line on the hook's output. Tests prepend a slow step.
+var sessionStartSteps = []sessionStartStep{
+	{name: "tree", run: reportTree},
+	{name: "specs", run: reportSpecs},
+	{name: "session state", run: reportSessionState},
+	{name: "verification debt", run: reportDebt},
+	{name: "journal", run: reportDueJournal},
+	{name: "derived artifacts", run: buildDerivedArtifacts},
+	{name: "agent files", run: reportAgentFiles},
+}
+
+// sessionStartStep is one report of the session-start hook.
+type sessionStartStep struct {
+	name string
+	run  func(stdcontext.Context, *sessionStart, *sessionStartReport)
+}
+
+// sessionStart is what every step reads. No step writes to it.
+type sessionStart struct {
+	ctx   context
+	claim string
+	specs []string
+}
+
+// sessionStartReport is what one step prints: out goes to the session, note to
+// stderr.
+type sessionStartReport struct {
+	out  bytes.Buffer
+	note bytes.Buffer
+}
+
+// hookSessionStart prints the session-start message. The notices every session
+// MUST see print FIRST and cost no I/O, so no slow step can take them with it.
+// The reports follow under sessionStartBudget, and one the budget cuts is named
+// on stderr with the ones after it, instead of the harness dropping the whole
+// message at its timeout.
 func hookSessionStart(ctx context, out, errOut io.Writer) int {
+	fmt.Fprintln(out, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call.")                                 //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial.")                                                          //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Warning:   See .claude/rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'.")                                                //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                           //nolint:errcheck // hook protocol
+	fmt.Fprintln(out, "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers") //nolint:errcheck // hook protocol
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
 		_ = os.Setenv("CLAUDE_CODE_SESSION_ID", id)
 		if environmentFile := os.Getenv("CLAUDE_ENV_FILE"); environmentFile != "" {
@@ -127,113 +182,213 @@ func hookSessionStart(ctx context, out, errOut io.Writer) int {
 			}
 		}
 	}
-	journalDue := countDueJournal(ctx.root)
-	id := resolvedSessionID(ctx)
-	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
-	if claim == specUnassigned {
-		claim = ""
+	state := sessionStart{ctx: ctx}
+	state.claim = readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+resolvedSessionID(ctx)))
+	if state.claim == specUnassigned {
+		state.claim = ""
 	}
-	gitStatus, cancelStatus := stdcontext.WithTimeout(stdcontext.Background(), gitTimeout)
-	command := exec.CommandContext(gitStatus, "git", "status", "--porcelain")
-	command.Dir = ctx.root
-	status, _ := command.Output()
-	cancelStatus()
-	if strings.TrimSpace(string(status)) == "" {
-		fmt.Fprintln(out, "Clean tree") //nolint:errcheck // hook protocol
-	} else {
-		lines := strings.Split(strings.TrimSuffix(string(status), "\n"), "\n")
-		modified, added := 0, 0
-		for _, line := range lines {
-			if strings.HasPrefix(line, " M") {
-				modified++
+	state.specs, _ = specpath.All(ctx.root)
+	if !runSessionStartSteps(&state, sessionStartSteps, sessionStartBudget, out, errOut) {
+		return 0
+	}
+	if state.claim == "" && len(state.specs) != 0 {
+		fmt.Fprintln(out, "Tip: /ze-status for a cross-project attention view") //nolint:errcheck // hook protocol
+	}
+	return 0
+}
+
+// runSessionStartSteps runs the steps in order on one goroutine and prints each
+// report as it arrives, until the budget runs out. It answers false when the
+// budget cut a step, after one stderr line names that step and every step after
+// it.
+//
+// The goroutine lives for this one hook run. It runs the steps in order and
+// stops before the next step once the deadline passes. The report channel holds
+// one slot for each step, so the goroutine never blocks on a send after this
+// function returned. A step that reads the context, the git status among them,
+// stops at the deadline; one that does not ends with the process.
+func runSessionStartSteps(state *sessionStart, steps []sessionStartStep, budget time.Duration, out, errOut io.Writer) bool {
+	deadline, cancel := stdcontext.WithTimeout(stdcontext.Background(), budget)
+	defer cancel()
+	reports := make(chan *sessionStartReport, len(steps))
+	go func() {
+		for _, step := range steps {
+			if deadline.Err() != nil {
+				return
 			}
-			if strings.HasPrefix(line, "??") {
-				added++
-			}
+			report := &sessionStartReport{}
+			step.run(deadline, state, report)
+			reports <- report
 		}
-		fmt.Fprintf(out, "Warning: %d uncommitted: %dM %dA\n", len(lines), modified, added) //nolint:errcheck // hook protocol
+	}()
+	for index := range steps {
+		report, arrived := nextSessionStartReport(deadline, reports)
+		if !arrived {
+			skipped := make([]string, 0, len(steps)-index)
+			for _, step := range steps[index:] {
+				skipped = append(skipped, step.name)
+			}
+			fmt.Fprintf(errOut, "session-start: the %s budget ran out, so these reports were skipped: %s\n", budget, strings.Join(skipped, ", ")) //nolint:errcheck // hook protocol
+			return false
+		}
+		out.Write(report.out.Bytes())     //nolint:errcheck // hook protocol
+		errOut.Write(report.note.Bytes()) //nolint:errcheck // hook protocol
 	}
-	specs, _ := specpath.All(ctx.root)
+	return true
+}
+
+// nextSessionStartReport answers the next report, and false once the deadline
+// passed with no report waiting. A report that is ready wins over a deadline
+// that is also ready: select picks between two ready cases at random, and a
+// finished step must never print as skipped.
+func nextSessionStartReport(deadline stdcontext.Context, reports <-chan *sessionStartReport) (*sessionStartReport, bool) {
+	select {
+	case report := <-reports:
+		return report, true
+	case <-deadline.Done():
+	}
+	select {
+	case report := <-reports:
+		return report, true
+	default:
+		return nil, false
+	}
+}
+
+// reportTree counts the uncommitted files. The git call stops at the hook's
+// deadline, and a status git cannot give is said, never read as a clean tree.
+func reportTree(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	command := exec.CommandContext(deadline, "git", "status", "--porcelain")
+	command.Dir = state.ctx.root
+	status, err := command.Output()
+	if err != nil {
+		fmt.Fprintf(&report.note, "session-start: git status failed, so the tree was not counted: %v\n", err) //nolint:errcheck // hook protocol
+		return
+	}
+	if strings.TrimSpace(string(status)) == "" {
+		fmt.Fprintln(&report.out, "Clean tree") //nolint:errcheck // hook protocol
+		return
+	}
+	lines := strings.Split(strings.TrimSuffix(string(status), "\n"), "\n")
+	modified, added := 0, 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, " M") {
+			modified++
+		}
+		if strings.HasPrefix(line, "??") {
+			added++
+		}
+	}
+	fmt.Fprintf(&report.out, "Warning: %d uncommitted: %dM %dA\n", len(lines), modified, added) //nolint:errcheck // hook protocol
+}
+
+// reportSpecs names this session's claimed spec and the spec population.
+func reportSpecs(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	root, claim, specs := state.ctx.root, state.claim, state.specs
 	if claim != "" {
 		// The claim marker holds the file NAME, so the line has to say which
 		// bucket to open. It named plan/<claim> until the release buckets
 		// arrived, and that path opened nothing for a spec in two of the three.
-		if relative, err := specpath.Find(ctx.root, claim); err == nil {
-			fmt.Fprintf(out, "SPEC: %s (+%d others)\n   -> READ %s BEFORE any work\n", claim, max(0, len(specs)-1), relative) //nolint:errcheck // hook protocol
+		if relative, err := specpath.Find(root, claim); err == nil {
+			fmt.Fprintf(&report.out, "SPEC: %s (+%d others)\n   -> READ %s BEFORE any work\n", claim, max(0, len(specs)-1), relative) //nolint:errcheck // hook protocol
 		}
 	} else if len(specs) != 0 {
-		fmt.Fprintf(out, "%d specs, none claimed by this session\n", len(specs)) //nolint:errcheck // hook protocol
+		fmt.Fprintf(&report.out, "%d specs, none claimed by this session\n", len(specs)) //nolint:errcheck // hook protocol
 	}
-	if len(specs) != 0 {
-		// The breakdown comes from specstatus so this line and `./le spec
-		// status` name one vocabulary in one order. This hook used to keep its
-		// own list of seven statuses, which named no default and so counted
-		// only what it listed: `done` was absent, and the line under-reported
-		// the population it sits beside. StatusPhrases consults no git, which
-		// is the reason it exists rather than Collect.
-		if phrases, err := specstatus.StatusPhrases(ctx.root); err == nil && len(phrases) != 0 {
-			fmt.Fprintf(out, "   (%s)\n", strings.Join(phrases, ", ")) //nolint:errcheck // hook protocol
-		}
+	if len(specs) == 0 {
+		return
 	}
-	if claim != "" {
-		found := stateFile(ctx)
-		if _, err := os.Stat(found); err != nil {
-			stem := strings.TrimSuffix(strings.TrimPrefix(claim, "spec-"), ".md")
-			found, _ = spec.LatestStateForSpec(ctx.root, stem)
-			if found != "" && !filepath.IsAbs(found) {
-				found = filepath.Join(ctx.root, found)
-			}
-		}
-		if _, err := os.Stat(found); err == nil {
-			fmt.Fprintf(out, "Session state: %s\n", found) //nolint:errcheck // hook protocol
-		}
+	// The breakdown comes from specstatus so this line and `./le spec
+	// status` name one vocabulary in one order. This hook used to keep its
+	// own list of seven statuses, which named no default and so counted
+	// only what it listed: `done` was absent, and the line under-reported
+	// the population it sits beside. StatusPhrases consults no git, which
+	// is the reason it exists rather than Collect.
+	if phrases, err := specstatus.StatusPhrases(root); err == nil && len(phrases) != 0 {
+		fmt.Fprintf(&report.out, "   (%s)\n", strings.Join(phrases, ", ")) //nolint:errcheck // hook protocol
 	}
-	if debts, err := commit.ListDebt(ctx.root); err == nil {
-		open := make([]commit.Debt, 0)
-		for index := range debts {
-			if strings.EqualFold(debts[index].Status, "open") {
-				open = append(open, debts[index])
-			}
-		}
-		if len(open) != 0 {
-			fmt.Fprintf(out, "Warning: verification debt: %d gate(s) owed, --push is refused until cleared\n", len(open)) //nolint:errcheck // hook protocol
-			for index := range open[:min(5, len(open))] {
-				fmt.Fprintf(out, "   - %s  (%s)\n", open[index].Gate, open[index].Subject) //nolint:errcheck // hook protocol
-			}
+}
+
+// reportSessionState names the claimed spec's session state file.
+func reportSessionState(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	if state.claim == "" {
+		return
+	}
+	found := stateFile(state.ctx)
+	if _, err := os.Stat(found); err != nil {
+		stem := strings.TrimSuffix(strings.TrimPrefix(state.claim, "spec-"), ".md")
+		found, _ = spec.LatestStateForSpec(state.ctx.root, stem)
+		if found != "" && !filepath.IsAbs(found) {
+			found = filepath.Join(state.ctx.root, found)
 		}
 	}
-	printDueJournal(<-journalDue, out, errOut)
-	// Every derived artifact the tree does not hold is built here, and the
-	// registry is what says which they are. Two hardcoded os.Stat blocks named
-	// ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md until 2026-09-11, which made
-	// this hook a central enumeration a third artifact had to be added to.
-	//
-	// ABSENT-ONLY is a budget decision, not an oversight. `.claude/settings.json`
-	// gives this hook 5 seconds, and rendering all three artifacts does not fit
-	// inside what is LEFT of it. The rendering itself is about a second; the
-	// hook's own cost is the rest, most of it the `commit.ListDebt` call above,
-	// which reads every shard in plan/verification-debt/ and applies the
-	// discharge overlay.
-	// That read grows with the ledger, so the margin shrinks on its own, and a
-	// loaded machine has none: measured at 2.2s here and at 4.3, 4.8 and 5.9s on
-	// the same checkout the same afternoon. Read the rebuild as the change that
-	// does not fit, never as the reason the budget is tight
-	// (plan/journal/test-gate-repeats-expensive-work.md).
-	//
-	// A hook killed at its timeout is worse than a stale artifact in
-	// two ways at once: every artifact after the kill point is left exactly as
-	// it was, and the whole session-start message goes with it, the BLOCKING LSP
-	// notice and the verification-debt warning included. Measure before changing
-	// this, and put a number here only when you have:
-	//
-	//	dir=$(./le session scratch ensure)
-	//	echo '{}' | time ./le ai hooks session-start > "$dir/session-start.log" 2>&1
-	//
-	// What the bound costs is a STATED limitation rather than a hidden one: a
-	// write no Write or Edit hook sees (`sed -i`, a heredoc, `git rebase`, `git
-	// stash pop`, a generator) leaves the artifact present and stale until the
-	// next hooked write to one of its inputs.
-	// docs/contributing/navigating-the-code.md tells the reader so.
+	if _, err := os.Stat(found); err == nil {
+		fmt.Fprintf(&report.out, "Session state: %s\n", found) //nolint:errcheck // hook protocol
+	}
+}
+
+// reportDebt warns about the open verification-debt rows. commit.ListDebt is
+// the one producer of "is this row open", so this step holds no rule of its
+// own. A ledger it cannot read is said on stderr, never read as no debt.
+func reportDebt(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	debts, err := commit.ListDebt(state.ctx.root)
+	if err != nil {
+		fmt.Fprintf(&report.note, "session-start: verification debt not read: %v\n", err) //nolint:errcheck // hook protocol
+		return
+	}
+	open := make([]commit.Debt, 0)
+	for index := range debts {
+		if strings.EqualFold(debts[index].Status, "open") {
+			open = append(open, debts[index])
+		}
+	}
+	if len(open) == 0 {
+		return
+	}
+	fmt.Fprintf(&report.out, "Warning: verification debt: %d gate(s) owed, --push is refused until cleared\n", len(open)) //nolint:errcheck // hook protocol
+	for index := range open[:min(5, len(open))] {
+		fmt.Fprintf(&report.out, "   - %s  (%s)\n", open[index].Gate, open[index].Subject) //nolint:errcheck // hook protocol
+	}
+}
+
+// reportDueJournal prints one line when journal classes are due for a fix
+// pass. A journal it cannot read costs the session this line only: the reason
+// goes to stderr and the rest of the hook runs.
+func reportDueJournal(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	journal, err := specjournal.Check(state.ctx.root)
+	if err != nil {
+		fmt.Fprintf(&report.note, "journal: due classes not counted: %s\n", strings.ReplaceAll(err.Error(), "\n", " ")) //nolint:errcheck // hook protocol
+		return
+	}
+	if due := journal.DueCount(); due != 0 {
+		fmt.Fprintf(&report.out, "journal: %d problem classes are due for a fix pass (./le spec journal report)\n", due) //nolint:errcheck // hook protocol
+	}
+}
+
+// buildDerivedArtifacts builds every derived artifact the tree does not hold
+// and the registry declares for this hook.
+//
+// The registry is what says which they are. Two hardcoded os.Stat blocks named
+// ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md until 2026-09-11, which made this
+// hook a central enumeration a third artifact had to be added to.
+//
+// ABSENT-ONLY is a budget decision, not an oversight. Rendering all three
+// artifacts is about a second, which does not fit beside the hook's other
+// reports inside sessionStartBudget on a loaded machine. Measure before
+// changing this, and put a number here only when you have:
+//
+//	dir=$(./le session scratch ensure)
+//	echo '{}' | time ./le ai hooks session-start > "$dir/session-start.log" 2>&1
+//
+// Each artifact is written to a temporary file and renamed, so a render the
+// budget cuts leaves the old file or none, never a partial one.
+//
+// What the bound costs is a STATED limitation rather than a hidden one: a
+// write no Write or Edit hook sees (`sed -i`, a heredoc, `git rebase`, `git
+// stash pop`, a generator) leaves the artifact present and stale until the
+// next hooked write to one of its inputs.
+// docs/contributing/navigating-the-code.md tells the reader so.
+func buildDerivedArtifacts(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
 	for _, artifact := range derived.All() {
 		// The artifact declares whether this hook may render it, because the
 		// budget above is fixed and the renders are not the same size. An
@@ -244,28 +399,26 @@ func hookSessionStart(ctx context, out, errOut io.Writer) int {
 		if artifact.SessionStart != derived.SessionStartBuild {
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
+		if deadline.Err() != nil {
+			return
+		}
+		if _, err := os.Stat(filepath.Join(state.ctx.root, filepath.FromSlash(artifact.Path))); !os.IsNotExist(err) {
 			continue
 		}
-		if err := artifact.Rebuild(ctx.root); err != nil {
-			fmt.Fprintf(out, "Warning: %s is absent and could not be built: %v\n", artifact.Path, err) //nolint:errcheck // hook protocol
+		if err := artifact.Rebuild(state.ctx.root); err != nil {
+			fmt.Fprintf(&report.out, "Warning: %s is absent and could not be built: %v\n", artifact.Path, err) //nolint:errcheck // hook protocol
 			continue
 		}
-		fmt.Fprintf(out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol
+		fmt.Fprintf(&report.out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol
 	}
-	if report, err := (aisync.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
-		fmt.Fprintln(out, "Warning: generated agent files are stale (AGENTS.md / a leftover CLAUDE.md / skills mirrors)") //nolint:errcheck // hook protocol
-		fmt.Fprintln(out, "   -> run: ./le ai sync write")                                                                //nolint:errcheck // hook protocol
+}
+
+// reportAgentFiles warns when the generated agent files are stale.
+func reportAgentFiles(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
+	if mirror, err := (aisync.Mirror{Root: state.ctx.root}).Check(); err != nil || len(mirror.Stale) != 0 {
+		fmt.Fprintln(&report.out, "Warning: generated agent files are stale (AGENTS.md / a leftover CLAUDE.md / skills mirrors)") //nolint:errcheck // hook protocol
+		fmt.Fprintln(&report.out, "   -> run: ./le ai sync write")                                                                //nolint:errcheck // hook protocol
 	}
-	fmt.Fprintln(out, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call.")                                 //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial.")                                                          //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Warning:   See .claude/rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'.")                                                //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                           //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers") //nolint:errcheck // hook protocol
-	if claim == "" && len(specs) != 0 {
-		fmt.Fprintln(out, "Tip: /ze-status for a cross-project attention view") //nolint:errcheck // hook protocol
-	}
-	return 0
 }
 
 func readFirstLine(path string) string {
@@ -694,39 +847,4 @@ func markdownSection(text, heading string) string {
 		}
 	}
 	return strings.Join(lines[:end], "\n")
-}
-
-// dueJournal is the journal's answer to the session-start hook: the count of
-// classes due for a fix pass, or the reason the journal could not be read.
-type dueJournal struct {
-	due int
-	err error
-}
-
-// countDueJournal starts reading the journal at HEAD and returns the channel
-// its one answer arrives on. It is a one-time step of this hook's single run:
-// the read costs about 0.3 s, the hook already spends 4.5 to 4.8 s of its 5 s
-// budget on this checkout, and overlapping the read with the git status and
-// ledger reads below keeps it off that path. The channel holds one answer, so
-// the goroutine never blocks and ends when the read does.
-func countDueJournal(root string) <-chan dueJournal {
-	answer := make(chan dueJournal, 1)
-	go func() {
-		report, err := specjournal.Check(root)
-		answer <- dueJournal{due: report.DueCount(), err: err}
-	}()
-	return answer
-}
-
-// printDueJournal prints one line when journal classes are due for a fix pass.
-// A journal it cannot read costs the session this line only: the reason goes
-// to errOut and the rest of the hook runs.
-func printDueJournal(journal dueJournal, out, errOut io.Writer) {
-	if journal.err != nil {
-		fmt.Fprintf(errOut, "journal: due classes not counted: %s\n", strings.ReplaceAll(journal.err.Error(), "\n", " ")) //nolint:errcheck // hook protocol
-		return
-	}
-	if journal.due != 0 {
-		fmt.Fprintf(out, "journal: %d problem classes are due for a fix pass (./le spec journal report)\n", journal.due) //nolint:errcheck // hook protocol
-	}
 }
