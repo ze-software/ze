@@ -128,6 +128,8 @@ func storageTreeScenario(ctx context.Context, args []string) error {
 		err = storageDoctorScenario(ctx, true)
 	case "data-check-tree":
 		err = storageDataScenario(ctx)
+	case "data-backup":
+		err = storageBackupScenario(ctx)
 	case "stdin-ephemeral-authority":
 		err = storageEphemeralScenario(ctx)
 	case "explicit-file-restart":
@@ -586,6 +588,120 @@ func storageDataScenario(ctx context.Context) error {
 	}
 	if output, err = storageCommand(ctx, "", "data", "cat", "meta/fixture/bad", "--path", "repaired"); err == nil {
 		return fmt.Errorf("repair retained corrupt key: %s", output)
+	}
+	return nil
+}
+
+// storageBackupScenario drives `ze data backup` through the binary: a tree
+// holding nested history and an unknown namespace is copied to one exact-fit
+// artifact that `ze data check` accepts; an existing file, a store-owned name
+// and an out-of-range spare are refused; and a held owner lock, the lock a
+// daemon holds, refuses the backup naming the recorded SSH endpoint and the
+// live route.
+func storageBackupScenario(ctx context.Context) error {
+	values := map[string][]byte{
+		"meta/ssh/default":                []byte("127.0.0.1/2222"),
+		"file/active/router.conf":         []byte("bgp { }\n"),
+		"file/20260926-101500.000/r.conf": []byte("history"),
+		"object/ab/cdef":                  []byte("future namespace"),
+	}
+	store, err := storage.Create(".")
+	if err != nil {
+		return err
+	}
+	for key, value := range values {
+		if err := store.WriteKey(key, value); err != nil {
+			return errors.Join(err, store.Close())
+		}
+	}
+	if err := store.Close(); err != nil {
+		return err
+	}
+	output, err := storageRequireCommand(ctx, "", "data", "--path", storageTreeName, "backup", "out.zefs")
+	if err != nil {
+		return err
+	}
+	for _, want := range []string{"4 keys", "holds secrets"} {
+		if !bytes.Contains(output, []byte(want)) {
+			return fmt.Errorf("backup output lacks %q:\n%s", want, output)
+		}
+	}
+	if _, err := storageRequireCommand(ctx, "", "data", "--path", "out.zefs", "check"); err != nil {
+		return err
+	}
+	if err := storageBlobEquals("out.zefs", values); err != nil {
+		return err
+	}
+	report, err := zefs.Check("out.zefs")
+	if err != nil {
+		return err
+	}
+	for _, entry := range report.Entries {
+		if entry.Capacity != entry.Size || entry.KeyCapacity != len(entry.Key) {
+			return fmt.Errorf("backup entry %s is not exact-fit: %+v", entry.Key, entry)
+		}
+	}
+	info, err := os.Stat("out.zefs")
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm() != 0o600 {
+		return fmt.Errorf("backup mode %o, want 0600", info.Mode().Perm())
+	}
+	refusals := [][]string{
+		{"out.zefs"},
+		{"database.zefs"},
+		{"other.zefs", "spare", "101"},
+		{"other.zefs", "spare", "ten"},
+	}
+	for _, args := range refusals {
+		command := append([]string{"data", "--path", storageTreeName, "backup"}, args...)
+		if output, err := storageCommand(ctx, "", command...); err == nil {
+			return fmt.Errorf("ze %v accepted:\n%s", command, output)
+		}
+	}
+	if _, err := os.Lstat("database.zefs"); !errors.Is(err, fs.ErrNotExist) {
+		return errors.Join(errors.New("refused backup left database.zefs"), err)
+	}
+	owner, err := storage.OpenTree(storageTreeName, true)
+	if err != nil {
+		return err
+	}
+	output, err = storageCommand(ctx, "", "data", "--path", storageTreeName, "backup", "held.zefs")
+	closeErr := owner.Close()
+	if err == nil {
+		return errors.Join(fmt.Errorf("backup ran beside the owner:\n%s", output), closeErr)
+	}
+	for _, want := range []string{"127.0.0.1/2222", "request data backup"} {
+		if !bytes.Contains(output, []byte(want)) {
+			return errors.Join(fmt.Errorf("owner refusal lacks %q:\n%s", want, output), closeErr)
+		}
+	}
+	return closeErr
+}
+
+// storageBlobEquals opens an artifact read-only and requires exactly values.
+func storageBlobEquals(path string, values map[string][]byte) error {
+	blob, err := storage.OpenBlob(path, false)
+	if err != nil {
+		return err
+	}
+	defer blob.Close() //nolint:errcheck // read-only comparison.
+	keys, err := blob.ListKeys("")
+	if err != nil {
+		return err
+	}
+	if len(keys) != len(values) {
+		return fmt.Errorf("%s holds %d keys, want %d: %v", path, len(keys), len(values), keys)
+	}
+	for key, want := range values {
+		got, err := blob.ReadKey(key)
+		if err != nil {
+			return fmt.Errorf("%s: %s: %w", path, key, err)
+		}
+		if !bytes.Equal(got, want) {
+			return fmt.Errorf("%s: %s = %q, want %q", path, key, got, want)
+		}
 	}
 	return nil
 }

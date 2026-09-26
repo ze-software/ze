@@ -21,7 +21,7 @@ func init() {
 		ShortHelp: "Store keys and blob artifact management",
 		Mode:      modeOffline,
 		Section:   registry.SectionConfiguration,
-		Subs:      "write, import, rm, list, cat, registered, check, repair, encode",
+		Subs:      "backup, write, import, rm, list, cat, registered, check, repair, encode",
 	})
 	// list and registered answer with DATA, so their answers reach the pipe
 	// layer. They printed a table and returned an exit code, while YANG

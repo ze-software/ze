@@ -1,0 +1,7 @@
+# Test: data-backup
+# VALIDATES: `ze data backup <file>` copies every key of the tree to one exact-fit 0600 artifact that `ze data check` accepts; an existing file, a store-owned name and an out-of-range spare are refused; an owner lock refuses it naming the SSH endpoint and `request data backup`.
+# PREVENTS: a backup that drops nested keys, pads an artifact, corrupts the store it copies, or runs beside a daemon.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/tree data-backup:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: data-backup

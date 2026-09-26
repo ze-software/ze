@@ -2164,6 +2164,7 @@ ze data rm <key>...
 ze data registered [pattern]
 ze data check
 ze data repair --output <new-path>
+ze data backup <file> [spare <n>]  # Copy every key to one blob artifact
 ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
@@ -2175,7 +2176,19 @@ Data commands never initialize a missing live store.
 and writes verified keys to a new tree or blob. It refuses an existing output.
 Integrity exits are `0` for success, `1` for corruption or skipped keys, and `2`
 for an I/O failure or unsafe path.
+
+`backup` copies every key of the store, at any depth and in any namespace, to
+one new blob artifact under one write lock, so a commit is in the backup whole
+or not at all. The artifact is exact-fit unless `spare <n>` names a percentage
+from 0 to 100, is created mode 0600, and holds credentials and private keys.
+It refuses an existing file and every name the live store owns in its folder
+(`database`, `database.zefs`, `*.lock`, `database.import-intent`, the
+`.replaced-*` names and the init and import stages). It is offline only: while
+a daemon owns the store it refuses, naming the recorded SSH endpoint and the
+live route, `request data backup path <file>`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup -->
+<!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 
 ### ze plugin

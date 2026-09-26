@@ -102,6 +102,7 @@ never the tree's framing bytes.
 | `ze data registered` | Show registered key patterns |
 | `ze data check` | Check integrity; exits 0 clean, 1 corrupt, 2 unreadable |
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination |
+| `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
 <!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->

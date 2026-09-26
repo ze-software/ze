@@ -425,6 +425,7 @@ func (g *guard) List(prefix string) ([]string, error) {
 	}
 	return immediateChildren(keys, key), nil
 }
+
 // ReadKey reads one raw key through the held guard. It reaches the encoding
 // directly, because the guard already holds the store's mutex and
 // Storage.ReadKey would wait on it forever. On a blob the bytes are valid only

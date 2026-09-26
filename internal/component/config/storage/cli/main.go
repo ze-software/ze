@@ -25,6 +25,7 @@ const defaultStoreName = "database"
 // subcommandHandlers maps subcommand names to their handler functions.
 // Each handler receives the store path and remaining args.
 var subcommandHandlers = map[string]func(string, []string) int{
+	"backup":     cmdBackup,
 	"import":     cmdImport,
 	"write":      cmdWrite,
 	"rm":         cmdRm,
@@ -330,6 +331,7 @@ func usage() {
 		Usage:     []string{"ze data [--path <store>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "backup <file> [spare <n>]", Desc: "Copy every key to one blob artifact, exact-fit unless spare names a percentage (0-100); offline only"},
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
 				{Name: "import <file>...", Desc: "Import files into the store"},
 				{Name: "rm <key>...", Desc: "Remove entries from the store"},
@@ -352,6 +354,7 @@ func usage() {
 			"ze data cat file/active/etc/ze/router.conf",
 			"ze data rm file/active/etc/ze/old-router.conf",
 			"ze data registered",
+			"ze data backup /var/backups/router-1.zefs",
 			"ze data --path /tmp/test.zefs import router.conf",
 		},
 	}
