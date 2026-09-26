@@ -500,3 +500,58 @@ func TestBashHookReadsHarnessSuitesAsHeavy(t *testing.T) {
 		}
 	}
 }
+
+// TestGovernedWriteCatchesEveryScriptRuntime drives the pretool-bash hook with a
+// script payload for each runtime the interpreter tier names. The method is the
+// hook's own entry point, so the runtime list, the write-call list and the
+// escape are judged together.
+//
+// It exists because the runtime list held perl and ruby alone, so a
+// `python3 -c` or `python3 - <<EOF` payload wrote spec files with none of the
+// Write/Edit checks having run, and Node had the same hole.
+func TestGovernedWriteCatchesEveryScriptRuntime(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		blocked bool
+	}{
+		{"python3-c-open-write", `python3 -c "open('plan/spec-x.md','w').write('x')"`, true},
+		{"python3-heredoc-write-text", "python3 - <<'EOF'\nfrom pathlib import Path\nPath('plan/spec-x.md').write_text('x')\nEOF", true},
+		{"python3.12-os-replace", `python3.12 -c "import os; os.replace('scratch/x','ai/rules/commands.md')"`, true},
+		{"python-shutil-copy", `python -c "import shutil; shutil.copy('x', 'plan/spec-x.md')"`, true},
+		{"node-write-file-sync", `node -e "require('fs').writeFileSync('plan/spec-x.md', 'x')"`, true},
+		{"node-append-file-sync", `node -e "require('fs').appendFileSync('ai/rules/commands.md', 'x')"`, true},
+		{"perl-open-truncate-mode", `perl -e 'open(my $f, ">", "plan/spec-x.md"); print $f "x"'`, true},
+		{"python3-read-plan", `python3 -c "print(open('plan/spec-x.md').read())"`, false},
+		{"python3-read-ai-rules", `python3 -c "print(open('ai/rules/commands.md').read())"`, false},
+		{"node-read-plan", `node -e "console.log(require('fs').readFileSync('plan/spec-x.md', 'utf8'))"`, false},
+		{"python3-write-admitted", `ZE_ADMIT_GOVERNED_WRITE="reads plan/, writes scratch" python3 -c "open('plan/spec-x.md','w').write('x')"`, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": test.command},
+			})
+			refused := strings.Contains(message, "shell write to plan/ or ai/rules/")
+			if refused != test.blocked {
+				t.Fatalf("command %q: refused = %v (code %d), want %v: %s",
+					test.command, refused, code, test.blocked, message)
+			}
+			if test.blocked && code != 2 {
+				t.Fatalf("command %q: code = %d, want 2", test.command, code)
+			}
+		})
+	}
+}
+
+// TestLossyPipeReadsTheTwoWordArea drives the pretool-bash hook with one piped
+// command for each side of the area boundary. The method is the hook's own
+// entry point, so the tokenizer, heavyArea and bashLossyPipe are judged
+// together.
+//
+// It exists because `le verify-status` became `le verify status` when the
+// commands were grouped, and the guard read only the first word: a certificate
+// read piped into `tail` was refused with the message the verification gate
+// owns, while nothing in the tree said the area had changed meaning.

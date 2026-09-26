@@ -34,11 +34,19 @@ var (
 	// made unreachable. It can also be bundled with its neighbors: `perl -0pi`,
 	// `perl -pi`, `sed -Ei`, `sed -i.bak` and `sed --in-place` all edit in place,
 	// and a standalone `-i` saw none of them.
-	governedSed     = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl|ruby)[ \t]+(?:[^|;&\n]*[ \t])?-[-A-Za-z0-9]*i[^|;&\n]*(?:plan/|ai/rules/)`)
-	governedTee     = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
-	governedCopy    = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+[^|;&\n]*[ \t]["']?(?:plan/|ai/rules/)`)
-	governedRuntime = regexp.MustCompile(`\b(?:perl|ruby)\b`)
-	governedWrite   = regexp.MustCompile(`(?:open\([^)]*["'][wa]|write_text\(|\.write\(|writelines\(|truncate\()`)
+	governedSed  = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl|ruby)[ \t]+(?:[^|;&\n]*[ \t])?-[-A-Za-z0-9]*i[^|;&\n]*(?:plan/|ai/rules/)`)
+	governedTee  = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
+	governedCopy = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+[^|;&\n]*[ \t]["']?(?:plan/|ai/rules/)`)
+	// The interpreter tier names every script runtime whose write calls
+	// governedWrite can recognize, because a runtime missing here writes freely:
+	// `python3 -c "open('plan/x','w').write(...)"` passed while the list held perl
+	// and ruby alone. governedWrite holds each runtime's write calls: an open mode
+	// that writes (Python and Ruby `'w'`, `'a'`, `'x'`, `'r+'`; Perl `'>'`, `'>>'`,
+	// `'+<'`), the write methods, Node and Deno file writes, and a rename, replace,
+	// copy or move. A mode is a whole quoted token, so the path `"ai/rules/x"` is
+	// not read as append mode, and a script that only reads stays free.
+	governedRuntime = regexp.MustCompile(`\b(?:perl|ruby|python[0-9.]*|node(?:js)?|deno|bun)\b`)
+	governedWrite   = regexp.MustCompile(`(?:\bopen\([^)]*["'](?:[wax]|r\+)[bt+]*["']|\bopen\b[^;\n]*["'](?:\+<|\+?>)|write_(?:text|bytes)\(|\.write\(|writelines\(|truncate\(|(?:write(?:Text)?File|appendFile|copyFile|rename)(?:Sync)?\(|createWriteStream\(|os\.replace\(|shutil\.(?:copy\w*|move)\(|\.replace\([^)]*(?:plan/|ai/rules/))`)
 )
 
 // ze point: none -- the worktree prohibition lives in ai/INSTRUCTIONS.md, outside the rule corpus
@@ -622,7 +630,7 @@ func governedReason(command string) bool {
 
 // governedShellWrite reports whether the command writes into a governed tree by
 // any of the five routes: a redirect, an in-place editor, tee, a copy or move,
-// or an interpreter script that opens a file for writing.
+// or a Perl, Ruby, Python, Node, Deno or Bun script that writes a file.
 //
 // Each route is its own named test rather than one compound condition, so a
 // reader can see which route fired and a new route is a new line.

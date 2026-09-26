@@ -663,7 +663,10 @@ staging or commit verb in a shared checkout. Running the scan through the harnes
 The same guard refuses a write to `plan/` or `ai/rules/` from Bash
 (`bashGovernedWrite`), because the Write and Edit tools are where the document
 checks in `internal/le/hookruntime/writeedit.go` run. The interpreter tier
-over-matches on purpose, so a heredoc that merely NAMES those trees beside a write
+covers Perl, Ruby, Python, Node, Deno and Bun payloads. It refuses one that
+names a governed tree beside a write call: a write mode passed to `open`, a
+write method, `writeFileSync`, or a rename, copy or move. A payload that only
+reads passes. The tier over-matches on purpose, so a heredoc that merely NAMES those trees beside a write
 primitive is refused too. A wrong refusal is answered with
 `ZE_ADMIT_GOVERNED_WRITE="<reason>"`, never by rewording the command. Reading
 stays free: `grep`, `cat`, `sed -n` and `./le commit create file plan/spec-x.md
