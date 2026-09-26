@@ -334,6 +334,7 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
 	fileOverride := fs.Bool("f", false, "Edit a loose file without the live store")
+	backupPath := fs.String(flagBackup, "", "Edit a config inside a backup artifact, with no daemon")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
 	webPort := fs.String("web", "", "Start web UI on given port (passed to ephemeral daemon)")
@@ -343,10 +344,11 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		p := helpfmt.Page{
 			Command:   "ze config edit",
 			ShortHelp: "Interactive configuration editor with VyOS-like set commands",
-			Usage:     []string{"ze config edit [options] [config-file]"},
+			Usage:     []string{"ze config edit [options] [config-file]", "ze config edit --backup <file> [config-name]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-f", Desc: "Edit a loose file without the live store"},
+					{Name: helpFlagBackup, Desc: "Edit a config inside a backup artifact; no daemon"},
 					{Name: "--web <port>", Desc: "Start web UI on given port (ephemeral daemon)"},
 					{Name: "--insecure-web", Desc: "Disable web auth (binds localhost)"},
 				}},
@@ -379,6 +381,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 				"ze config edit                         Edit default config (<identity>.conf)",
 				"ze config edit router.conf             Edit specific config",
 				"ze config edit -f /etc/ze/config.conf  Edit from filesystem",
+				"ze config edit --backup router.zefs    Edit a backup before restoring it",
 			},
 		}
 		p.WriteErr()
@@ -397,12 +400,27 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		return exitError
 	}
 
+	if *backupPath != "" {
+		if *fileOverride {
+			fmt.Fprintln(os.Stderr, "error: --backup and -f cannot be combined: -f edits a loose file, --backup edits a config inside a backup artifact")
+			return exitError
+		}
+		if *webPort != "" || *insecureWeb {
+			fmt.Fprintln(os.Stderr, "error: --backup edits offline with no daemon; --web and --insecure-web need one")
+			return exitError
+		}
+	}
+
 	// The interactive editor needs a real file identity (draft/backup/lock) and a
 	// TTY; a config on stdin ("-") has neither, and stdin is consumed by the pipe.
 	// Reject early, independent of the storage backend.
 	if fs.NArg() >= 1 && cliio.IsStdin(fs.Arg(0)) {
 		fmt.Fprintf(os.Stderr, "error: interactive edit cannot read a config from stdin (\"-\"); use `ze config set - ...` for a pipeline, or edit a file\n")
 		return 1
+	}
+
+	if *backupPath != "" {
+		return cmdEditBackup(*backupPath, fs.Arg(0), *user)
 	}
 
 	configPath := ""
@@ -476,6 +494,89 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 	return runStoredEditor(configPath, *user, daemonArgs)
 }
 
+// cmdEditBackup edits one config inside a backup artifact with no daemon.
+//
+// The artifact opens through storage.OpenBlob, which holds its exclusive
+// <artifact>.lock sidecar until the editor closes it, so a second editor on
+// the same file is refused for the whole session. The sidecar survives the
+// commits: each one rewrites the artifact through a rename that installs a
+// new inode, and a lock on the artifact's own descriptor would die with the
+// first.
+//
+// No daemon is probed or started and no SSH credentials are read: the
+// artifact is not a store any daemon serves, and a commit publishes into it
+// directly (cli.NewOfflineSessionEditor).
+func cmdEditBackup(backupPath, configName, user string) int {
+	store, err := openBackup(backupPath, true)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: config edit: %v\n", err)
+		return exitError
+	}
+	if configName == "" {
+		configName = resolve.DefaultConfig(store)
+		if !store.Exists(configName) {
+			configName = selectConfig(store, "file/active", configName)
+		}
+	}
+	if configName == "" {
+		store.Close() //nolint:errcheck // The selection refusal is already reported.
+		return exitError
+	}
+	ed, err := cli.NewOfflineSessionEditor(store, filepath.Base(configName), backupEditorUser(user))
+	if err != nil {
+		store.Close() //nolint:errcheck // Returning the editor error.
+		fmt.Fprintf(os.Stderr, "error: config edit: %v\n", err)
+		return exitError
+	}
+	ed.OwnStore()
+	return runBackupSession(ed)
+}
+
+// backupEditorUser names the operator a backup session records as the author
+// of its changes: the --user flag, else the operating system user, the way
+// the daemon's attached console names its operator. "unknown" is the fallback
+// because ValidateUser refuses an empty name, and a name nobody read MUST NOT
+// claim an identity.
+func backupEditorUser(user string) string {
+	if user != "" {
+		return user
+	}
+	if login := os.Getenv("USER"); login != "" {
+		return login
+	}
+	return "unknown"
+}
+
+// runBackupSession runs the interactive session of a backup editor. A test
+// replaces it to drive the editor without a terminal.
+var runBackupSession = runBackupModel
+
+// runBackupModel runs the terminal editor over ed and closes it, which
+// releases the artifact and its lock. Operational commands (`run ...`) have
+// no daemon to reach, so no command executor is wired.
+func runBackupModel(ed *cli.Editor) int {
+	defer ed.Close() //nolint:errcheck // Best effort cleanup.
+	m, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
+	}
+	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
+	return runEditorProgram(&m)
+}
+
+// runEditorProgram runs the terminal program of an editor model to its end.
+func runEditorProgram(m *cli.Model) int {
+	if _, err := tea.NewProgram(*m).Run(); err != nil {
+		if errors.Is(err, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(err)
+		}
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
+	}
+	return exitOK
+}
+
 // runStoredEditor leaves drafts, commits, and history inside the owning daemon.
 func runStoredEditor(configPath, user string, daemonArgs []string) int {
 	creds, credsErr := sshclient.ReadCredentialsWithFlags(sshclient.ResolveStoreDir(configPath), user)
@@ -538,12 +639,5 @@ func runEditor(ed *cli.Editor, configPath, user string) int {
 			defer tw.Close() //nolint:errcheck // Best effort transcript.
 		}
 	}
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		if errors.Is(err, tea.ErrProgramPanic) {
-			crashlog.HandleCaughtPanic(err)
-		}
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
-	}
-	return exitOK
+	return runEditorProgram(&m)
 }

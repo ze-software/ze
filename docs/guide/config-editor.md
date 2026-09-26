@@ -160,6 +160,36 @@ owning daemon gives each session an identity (`user@origin%timestamp`) and a
 per-user change file. Commit applies the session's changes with conflict
 detection. The same store holds draft recovery and history for every surface.
 
+**Backup mode** (`ze config edit --backup <artifact> [config-name]`): the
+editor opens a config inside a backup artifact (a `.zefs` file that `ze data
+backup` or `request data backup` wrote) with no daemon. No SSH credentials are
+read, no daemon is probed or started, and `run` commands have nothing to reach.
+The session behaves as a daemon session does: it has an identity, a draft and
+history, all inside the artifact. A commit publishes into the artifact: a new
+version, the active and rollback pointers, and `file/active/<name>`. The
+status line ends in "and published". `ze data restore <artifact> config` then
+applies the edited config to a device.
+
+The editor holds the artifact's `<artifact>.lock` sidecar for the whole
+session, so a second `--backup` editor, and any other `--backup` command, on
+the same file is refused with an error that names it. A lock on the artifact
+itself would not do: each commit rewrites the artifact through a rename,
+which installs a new file. Writes pad each changed slot by 10%, so a later
+edit of about the same size stays in place; `ze data backup` writes
+exact-fit artifacts because nothing edits them. `--backup` cannot be combined
+with `-f`, `--web` or `--insecure-web`, and the refusal names both flags.
+Without a config name the editor uses the artifact's `<instance>.conf` and
+otherwise asks which config to edit.
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
+<!-- source: internal/component/config/cli/backup_flag.go -- openBackup, publishInBackup -->
+<!-- source: internal/component/cli/editor.go -- NewOfflineSessionEditor, SetOfflinePromotion -->
+
+`ze config show`, `diff`, `set` and `list` take the same `--backup <artifact>`
+flag and work on the configs inside it: `show` and `diff` read under a shared
+lock, `set` publishes the way an editor commit does, and `list` names only
+the artifact's configs. `set --backup` refuses `--reload`, because an artifact
+has no daemon.
+
 When the daemon was started with an explicit file, every start reads that
 file, and daemon commits update it together with stored history. An external
 edit must be reconciled before a competing daemon commit can succeed. Bare
@@ -190,14 +220,14 @@ leaf-list member rather than a leaf or a path.
 
 Use file mode (`ze config edit -f`) for these operations.
 
-| Feature | File mode | Session mode |
-|---------|-----------|--------------|
-| Commit | Writes explicit file | Applies tracked changes in the owning daemon |
-| Multi-user | Offline writer only | Per-user change files |
-| Conflict detection | External file changes | Live and stale changes |
-| Blame / authorship | No | Yes |
-| Crash recovery | `.edit` file | Change files and draft |
-| Draft / discard path | No | Yes |
+| Feature | File mode | Session mode | Backup mode |
+|---------|-----------|--------------|-------------|
+| Commit | Writes explicit file | Applies tracked changes in the owning daemon | Publishes a version and its pointers into the artifact |
+| Multi-user | Offline writer only | Per-user change files | One editor; the artifact lock refuses a second |
+| Conflict detection | External file changes | Live and stale changes | Live and stale changes |
+| Blame / authorship | No | Yes | Yes |
+| Crash recovery | `.edit` file | Change files and draft | Change files and draft, inside the artifact |
+| Draft / discard path | No | Yes | Yes |
 
 ## YANG Completion
 

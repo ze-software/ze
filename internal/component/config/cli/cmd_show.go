@@ -6,6 +6,7 @@ package cli
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"os"
 
@@ -18,13 +19,36 @@ import (
 
 // openShowEditor builds the read-only editor for `ze config show`, reading the
 // config from stdin when configFile is "-" (via cliio) and otherwise from the
-// file. `ze config show` opens no store (AC-24): the file is the loose config.
-func openShowEditor(configFile string) (*editor.Editor, error) {
+// file. `ze config show` opens no live store (AC-24): the file is the loose
+// config. With --backup, configFile names a config inside that artifact and
+// the bytes are its file/active entry, read under the artifact's shared lock.
+func openShowEditor(configFile, backupPath string) (*editor.Editor, error) {
+	if backupPath != "" {
+		return openBackupShowEditor(configFile, backupPath)
+	}
 	data, err := cliio.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
 	return editor.NewEditorFromContent(data, configFile)
+}
+
+// openBackupShowEditor reads one config out of a backup artifact and releases
+// the artifact before the editor is built: the render needs the bytes, never
+// the handle.
+func openBackupShowEditor(configName, backupPath string) (*editor.Editor, error) {
+	store, err := openBackup(backupPath, false)
+	if err != nil {
+		return nil, err
+	}
+	data, err := store.ReadFile(configName)
+	if closeErr := store.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return nil, fmt.Errorf("backup %s: %w", backupPath, err)
+	}
+	return editor.NewEditorFromContent(data, configName)
 }
 
 // cmdShow implements `ze config show <file> [path...]`.
@@ -50,16 +74,18 @@ func cmdShow(args []string) int {
 // can assert on the rendered tree without capturing os.Stdout.
 func showConfig(out io.Writer, args []string) int {
 	fs := flag.NewFlagSet("config show", flag.ExitOnError)
+	backupPath := fs.String(flagBackup, "", "Read the config from a backup artifact")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config show",
 			ShortHelp: "Show the configuration tree at a path",
-			Usage:     []string{"ze config show <file> [path...]"},
+			Usage:     []string{"ze config show <file> [path...]", "ze config show --backup <artifact> <config-name> [path...]"},
 			Examples: []string{
 				"ze config show ze.conf",
 				"ze config show ze.conf bgp",
 				"ze config show ze.conf bgp peer edge1",
 				"ze config show ze.conf environment web",
+				"ze config show --backup router.zefs router.conf bgp",
 			},
 		}
 		p.WriteErr()
@@ -78,7 +104,7 @@ func showConfig(out io.Writer, args []string) int {
 	configFile := fs.Arg(0)
 	path := fs.Args()[1:]
 
-	ed, err := openShowEditor(configFile)
+	ed, err := openShowEditor(configFile, *backupPath)
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
 		return exitError

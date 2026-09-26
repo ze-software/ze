@@ -2098,9 +2098,15 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=key:path=<key>:not-contains=<text>` | Decoded value excludes text | `expect=key:path=file/active/test.conf:not-contains=old` |
 | `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+<!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->
 
 Editor tests use a tree store by default; `option=storage:value=tree` states
-that choice explicitly, and other values are refused. The runner seeds config
+that choice explicitly. `option=storage:value=blob` runs the test on a backup
+artifact the way `ze config edit --backup` opens one: the runner creates
+`backup.zefs`, seeds it, closes it, reopens it writable through
+`storage.OpenBlob`, and builds each session with
+`cli.NewOfflineSessionEditor`, so a commit publishes into the artifact. Blob
+mode needs `option=session:user=...`. Other values are refused. The runner seeds config
 fixtures once and all sessions and `restart=` steps share the same lifetime
 store handle. `expect=key` reads that handle, while `expect=file` reads the
 original loose fixture or a separate exported artifact.

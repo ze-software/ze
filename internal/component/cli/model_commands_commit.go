@@ -259,7 +259,7 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 		}
 	}
 	var tb2 textbuf.Buffer
-	tb2.Str("Configuration committed and reloaded").Str(archiveMsg)
+	tb2.Str("Configuration committed and ").Str(m.editor.acceptedVerb()).Str(archiveMsg)
 	appendCommitWarnings(&tb2, warnings)
 	return commandResult{statusMessage: tb2.String(), refreshConfig: true, revalidate: true}, nil
 }
@@ -340,7 +340,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
 	appendCommitWarnings(&tb4, commitResult.Warnings)
 	if transactional && commitResult.Applied > 0 {
-		tb4.Str(" and reloaded")
+		tb4.Str(" and ").Str(m.editor.acceptedVerb())
 	}
 
 	// Archive config to remote locations (best-effort, non-fatal).

@@ -124,7 +124,9 @@ Configuration management.
 
 ```
 ze config edit [file]            # Interactive editor
+ze config edit --backup <artifact> [name]  # Edit a config inside a backup, no daemon
 ze config set <file> <path> <value>
+ze config set --backup <artifact> <name> <path> <value>
 ze config deactivate <file> <path>  # Mark a node inactive (kept in file, skipped at apply)
 ze config activate <file> <path>    # Clear the inactive flag on a node
 ```
@@ -140,6 +142,7 @@ ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
 ze config rename <old> <new>     # Rename a config in the database
 ze config list [prefix]          # List files in database
+ze config list --backup <artifact>  # List the configs inside a backup
 ze config cat <key>              # Print database entry
 ```
 
@@ -152,7 +155,16 @@ ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
 ze config fmt <file>             # Format and normalize
+ze config show --backup <artifact> <name> [path...]  # Read a config inside a backup
+ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
+
+`--backup <artifact>` points `edit`, `show`, `diff`, `set` and `list` at the
+configs inside a backup artifact instead of the live store, with no daemon. A
+commit or a `set` publishes a new version and its pointers into the artifact,
+and the artifact's lock refuses a second writer. `--backup` with `-f` is
+refused. See "Backup mode" in `docs/guide/config-editor.md`.
+<!-- source: internal/component/config/cli/backup_flag.go -- openBackup -->
 
 `show` is the one-shot, non-interactive way to inspect a config subtree:
 `ze config show ze.conf bgp peer edge1` prints only that subtree (list entries
@@ -2197,8 +2209,9 @@ from 0 to 100, is created mode 0600, and holds credentials and private keys.
 It refuses an existing file and every name the live store owns in its folder
 (`database`, `database.zefs`, `*.lock`, `database.import-intent`, the
 `.replaced-*` names and the init and import stages). It is offline only: while
-a daemon owns the store it refuses, naming the recorded SSH endpoint and the
-live route, `request data backup path <file>`.
+a daemon owns the store it refuses, naming the SSH endpoint `ze init` recorded
+in `meta/ssh/default` (or saying that none is recorded) and the live route,
+`request data backup path <file>`.
 
 `restore <file> config` runs `ze data check`'s verification over the artifact, then
 commits one config from it as a new version of this device's config (the name

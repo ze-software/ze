@@ -51,6 +51,7 @@ type Editor struct {
 	draftMtime        time.Time                            // Last known draft file mtime (for polling)
 	commitWriter      func(expected, content []byte) error // Daemon-owned source publication.
 	onReload          ReloadNotifier                       // Optional: called after successful save
+	offlinePromotion  bool                                 // onReload promotes in the editor's own store; no daemon.
 	onArchive         archive.Notifier                     // Optional: called after successful save to archive config
 	preCommitValidate func(candidate string) error         // Optional: validate candidate config before writing
 	showColumns       map[string]bool                      // In-memory show column preferences (sticky per session)
@@ -104,6 +105,33 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
 	return newEditor(store, configPath, string(data), true)
+}
+
+// NewOfflineSessionEditor opens a session editor over a store that no daemon
+// owns, which is a backup artifact opened by `ze config edit --backup`. It
+// carries what a daemon's session editor carries (session identity, the saved
+// draft, version history in the store) and replaces the daemon's reload with
+// SetOfflinePromotion, so a commit writes the version, the pointers and the
+// file/active mirror into the store itself.
+//
+// origin is "local": the session is typed at this terminal. The caller keeps
+// the store's close obligation, or passes it with OwnStore.
+func NewOfflineSessionEditor(store storage.Storage, configPath, user string) (*Editor, error) {
+	if err := ValidateUser(user); err != nil {
+		return nil, fmt.Errorf("invalid username: %w", err)
+	}
+	ed, err := NewEditorWithStorage(store, configPath)
+	if err != nil {
+		return nil, err
+	}
+	ed.SetSession(NewEditSession(user, "local"))
+	if ed.HasDraft() {
+		if !ed.LoadDraft() {
+			return nil, fmt.Errorf("load saved draft for %s", configPath)
+		}
+	}
+	ed.SetOfflinePromotion()
+	return ed, nil
 }
 
 // NewEditorFromContent builds an editor from in-memory content instead of a
@@ -329,6 +357,32 @@ func (e *Editor) SetStdoutSink(w io.Writer) {
 // When nil (standalone mode), no notification is attempted.
 func (e *Editor) SetReloadNotifier(fn ReloadNotifier) {
 	e.onReload = fn
+}
+
+// SetOfflinePromotion makes a commit publish its staged candidate in the
+// editor's own store, for a store no daemon owns (`ze config edit --backup`).
+// A daemon accepts a candidate by reloading it and then promotes it; an
+// offline artifact has nobody to accept it, so acceptance IS the promotion:
+// the active and rollback pointers and the file/active mirror move in one
+// guarded step (storage.PromoteCandidate). A commit that wrote only the
+// file/active mirror would leave the active pointer on the old version, and
+// every reader that follows the pointer (ReadActiveConfig, restore) would
+// still answer the old config.
+//
+// It replaces any reload notifier. The caller MUST NOT set one afterwards.
+func (e *Editor) SetOfflinePromotion() {
+	e.onReload = func() error { return storage.PromoteCandidate(e.store, e.originalPath) }
+	e.offlinePromotion = true
+}
+
+// acceptedVerb names what the acceptance step after a staged candidate did,
+// for the commit status line: a daemon reloaded it, an offline store
+// published it.
+func (e *Editor) acceptedVerb() string {
+	if e.offlinePromotion {
+		return "published"
+	}
+	return "reloaded"
 }
 
 // HasReloadNotifier returns true if a reload notifier is configured.

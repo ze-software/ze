@@ -79,18 +79,18 @@ func parseBackupArgs(args []string) (file string, spare int, err error) {
 }
 
 // daemonAddress returns " at <host/port>" for the SSH endpoint the store
-// records, read through a reader handle, which a running daemon permits. It
-// returns "" when the store records none or cannot be read, so the hint
-// still names the live route without inventing an address.
+// records (the target `ze init` wrote), read through a reader handle, which a
+// running daemon permits. When the store records none, or cannot be read, it
+// says so: an empty answer would read as a hint that forgot the address.
 func daemonAddress(storePath string) string {
 	reader, err := openStore(storePath, false)
 	if err != nil {
-		return ""
+		return " (its SSH address is unreadable: " + err.Error() + ")"
 	}
 	defer reader.Close() //nolint:errcheck // read-only hint lookup.
 	endpoint, err := reader.ReadKey(zefs.KeySSHDefault.Pattern)
 	if err != nil {
-		return ""
+		return " (the store records no SSH address at " + zefs.KeySSHDefault.Pattern + ")"
 	}
 	return " at " + string(endpoint)
 }

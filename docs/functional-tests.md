@@ -2775,7 +2775,7 @@ Editor tests run through `./le test functional editor`; select one with `./le jo
 | `option=file:path=` | `option=file:path=test.conf` | Config file to load |
 | `option=mode:value=` | `option=mode:value=command` | Command-only mode (no editor) |
 | `option=history:store` | `option=history:store` | Persist history in the same tree as config |
-| `option=storage:value=` | `option=storage:value=tree` | Explicitly select the default tree; other values are refused |
+| `option=storage:value=` | `option=storage:value=blob` | `tree` (default) or `blob`, a backup artifact edited as `ze config edit --backup` does; other values are refused |
 | `input=type:text=` | `input=type:text=show` | Type text |
 | `input=enter/up/down/tab` | `input=enter` | Press named key |
 | `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |

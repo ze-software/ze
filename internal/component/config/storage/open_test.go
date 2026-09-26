@@ -456,3 +456,58 @@ func TestOpenRefusesUnfinishedImport(t *testing.T) {
 		require.NoDirExists(t, filepath.Join(unreadable, "database"))
 	}
 }
+
+// TestOpenBlobLock proves one writer per artifact: a second writer and a
+// reader are refused with ErrBusy while the first holds the artifact, and the
+// artifact opens again once the first closes.
+//
+// VALIDATES: spec-storage-2 AC-12 and R-7, a second `--backup` editor is refused.
+// PREVENTS: two offline editors interleaving whole-file rewrites of one artifact.
+func TestOpenBlobLock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "backup.zefs")
+	created, err := CreateBlob(path)
+	require.NoError(t, err)
+	require.NoError(t, created.Close())
+
+	first, err := OpenBlob(path, true)
+	require.NoError(t, err)
+	_, err = OpenBlob(path, true)
+	require.ErrorIs(t, err, ErrBusy)
+	_, err = OpenBlob(path, false)
+	require.ErrorIs(t, err, ErrBusy)
+	require.NoError(t, first.Close())
+
+	again, err := OpenBlob(path, true)
+	require.NoError(t, err)
+	require.NoError(t, again.Close())
+}
+
+// TestOpenBlobLockSurvivesRewrite proves the writer's exclusion outlives the
+// rewrite a write performs. The write renames a temp file over the artifact,
+// so the artifact is a new inode afterwards; the lock lives on the stable
+// <artifact>.lock sidecar and still refuses a second writer.
+//
+// VALIDATES: spec-storage-2 AC-12 and R-11, the second editor is still refused
+// after the first one's commit rewrote the artifact.
+// PREVENTS: a lock on the artifact's own descriptor, which dies at the first
+// rewrite and lets a second editor in.
+func TestOpenBlobLockSurvivesRewrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "backup.zefs")
+	created, err := CreateBlob(path)
+	require.NoError(t, err)
+	require.NoError(t, created.WriteFile("router.conf", []byte("before"), 0))
+	require.NoError(t, created.Close())
+
+	first, err := OpenBlob(path, true)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, first.Close()) })
+	before, err := os.Stat(path)
+	require.NoError(t, err)
+	require.NoError(t, first.WriteFile("router.conf", []byte("after the rewrite, longer than before"), 0))
+	after, err := os.Stat(path)
+	require.NoError(t, err)
+	require.False(t, os.SameFile(before, after), "the write must have installed a new inode, or this test proves nothing")
+
+	_, err = OpenBlob(path, true)
+	require.ErrorIs(t, err, ErrBusy)
+}

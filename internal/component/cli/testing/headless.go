@@ -123,6 +123,34 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 	return hm, nil
 }
 
+// newHeadlessBackupModel creates a headless model over a backup artifact,
+// built by the constructor `ze config edit --backup` uses, so the test drives
+// the same session, draft and offline publication the command does.
+func newHeadlessBackupModel(store storage.Storage, configPath, user string) (*headlessModel, error) {
+	if user == "" {
+		return nil, errors.New("option=storage:value=blob needs option=session:user=<name>")
+	}
+	ed, err := cli.NewOfflineSessionEditor(store, configPath, user)
+	if err != nil {
+		return nil, fmt.Errorf("creating backup editor: %w", err)
+	}
+	model, err := cli.NewModel(ed, cli.FilesystemAuthorityOperatorLocal)
+	if err != nil {
+		return nil, fmt.Errorf("creating model: %w", err)
+	}
+	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	if m, ok := newModel.(cli.Model); ok {
+		model = m
+	}
+	hm := &headlessModel{
+		model:  model,
+		editor: ed,
+		store:  store,
+	}
+	hm.model.UpdateCompletions()
+	return hm, nil
+}
+
 // newHeadlessCommandModel creates a command-only headless model (no editor).
 // Used for testing ze cli behavior where no config file is loaded.
 //

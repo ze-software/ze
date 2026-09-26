@@ -40,6 +40,7 @@ const (
 	helpSectionExitCodes   = "Exit codes"
 
 	helpFlagDryRun = "--dry-run"
+	helpFlagBackup = "--backup <file>"
 
 	helpDescSuccess = "Success"
 )
@@ -152,7 +153,7 @@ func usage() {
 			{Title: "Storage", Entries: []helpfmt.HelpEntry{
 				{Name: "import [--dir folder] [--name n] <file>...", Desc: "Import files into an initialized store"},
 				{Name: "rename <old> <new>", Desc: "Rename a stored config"},
-				{Name: "list", Desc: "List stored and loose configs"},
+				{Name: "list [--backup <artifact>]", Desc: "List stored and loose configs, or an artifact's"},
 				{Name: "cat <key>", Desc: "Print a stored entry"},
 			}},
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
@@ -175,6 +176,7 @@ func usage() {
 			}},
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "-f", Desc: "Bypass database, use filesystem directly"},
+				{Name: helpFlagBackup, Desc: "edit, show, diff, set, list: work inside a backup artifact"},
 			}},
 		},
 		Examples: []string{

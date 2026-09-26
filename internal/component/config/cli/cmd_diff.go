@@ -29,6 +29,7 @@ func cmdDiff(args []string) int {
 
 func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
+	backupPath := fs.String(flagBackup, "", "Compare configs inside a backup artifact")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config diff",
@@ -36,6 +37,8 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 			Usage: []string{
 				"ze config diff <file1> <file2>",
 				"ze config diff <N> <file>",
+				"ze config diff --backup <artifact> <name1> <name2>",
+				"ze config diff --backup <artifact> <N> <name>",
 			},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
@@ -52,6 +55,16 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
+	}
+
+	if *backupPath != "" {
+		backup, err := openBackup(*backupPath, false)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return exitError
+		}
+		defer backup.Close() //nolint:errcheck // Read-only comparison.
+		store = backup
 	}
 
 	diff, code := resolveDiff(store, fs.Args())

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/cli"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/trace"
 )
@@ -130,7 +129,7 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	useHistoryStore := false // option=history:store -- persist history in the shared tree
 	editorMode := "config"   // option=mode:value=operational -- operational-only mode
 	monitorPing := ""        // option=monitor:ping=fake -- deterministic ping factory + resolvers
-	storageMode := ""        // option=storage:value=tree -- the only live storage format
+	storageMode := ""        // option=storage:value=tree|blob -- blob is a `ze config edit --backup` artifact
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -194,22 +193,12 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 
 	// Every session and restart shares one lifetime owner, just as daemon
 	// editors do. Fixtures seed config keys once, never on model restart.
-	if storageMode != "" && storageMode != "tree" {
-		result.Error = fmt.Sprintf("unknown option=storage:value=%s (want tree)", storageMode)
-		return result
-	}
-	configStore, storeErr := storage.Create(tmpDir)
+	configStore, storeErr := createRunnerStore(tmpDir, storageMode, tc.Tmpfs)
 	if storeErr != nil {
-		result.Error = fmt.Sprintf("creating tree storage: %v", storeErr)
+		result.Error = storeErr.Error()
 		return result
 	}
 	defer configStore.Close() //nolint:errcheck // test cleanup
-	for _, tf := range tc.Tmpfs {
-		if err := configStore.WriteFile(tf.Path, []byte(tf.Content), 0o600); err != nil {
-			result.Error = fmt.Sprintf("seeding config %s: %v", tf.Path, err)
-			return result
-		}
-	}
 
 	// createModel builds a HeadlessModel based on the current mode.
 	createModel := func() (*headlessModel, error) {
@@ -218,6 +207,9 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		}
 		if configPath == "" {
 			return nil, errNoConfigFileSpecifiedUseOption
+		}
+		if storageMode == storageModeBlob {
+			return newHeadlessBackupModel(configStore, configPath, sessionUser)
 		}
 		if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
 			return nil, fmt.Errorf("config file not found: %s", configPath)

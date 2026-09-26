@@ -1,0 +1,48 @@
+# Test: ze config edit --backup commits into the backup artifact
+# VALIDATES: spec-storage-2 AC-12: the editor opens on the artifact in session mode,
+#   and a commit writes a version, the pointers and file/active/* into it
+# VALIDATES: spec-storage-2 AC-13: show inside the session reads the artifact's config
+# PREVENTS: an offline commit that moves the file/active mirror but leaves the
+#   active pointer on the old version, so a restore of the edited backup would
+#   still apply the config from before the edit
+
+tmpfs=router.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=router.conf
+option=storage:value=blob
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+expect=dirty:false
+expect=key:path=meta/config/router.conf/active:absent
+
+input=type:text=show bgp session asn
+input=enter
+expect=viewport:contains=65000
+
+input=type:text=set bgp session asn local 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=commit
+input=enter
+expect=error:none
+expect=dirty:false
+expect=status:contains=and published
+
+# The commit published into the artifact: the active pointer exists, the
+# mirror carries the new value, and no candidate or draft is left behind.
+expect=key:path=meta/config/router.conf/active:exists
+expect=key:path=meta/config/router.conf/candidate:absent
+expect=key:path=file/active/router.conf:contains=65001
+expect=key:path=file/draft/router.conf:absent

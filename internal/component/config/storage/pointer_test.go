@@ -501,3 +501,42 @@ func TestWrappedStoreRefusesConfigOutsideFolder(t *testing.T) {
 		})
 	}
 }
+
+// TestPromoteAdoptsLegacyBeforeCandidate proves the config a first promotion
+// adopts from the pointer-less mirror is stamped just before the candidate
+// that replaces it, so history lists the commit as the newest version and the
+// adopted config as its rollback.
+//
+// VALIDATES: spec-storage-2 AC-12, an offline commit into a seed artifact
+// keeps history in commit order.
+// PREVENTS: the replaced config stamped by the clock after the candidate and
+// listed as newer than the commit that replaced it.
+func TestPromoteAdoptsLegacyBeforeCandidate(t *testing.T) {
+	for _, tt := range pointerTestStores() {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			store := tt.newStore(t, dir)
+			configPath := tt.configPath(dir)
+			require.NoError(t, store.WriteFile(configPath, []byte("seed"), 0o600))
+			stamp := time.Date(2026, 5, 24, 10, 0, 0, 0, time.Local)
+			candidate, err := WriteCandidateVersion(store, configPath, []byte("commit"), stamp)
+			require.NoError(t, err)
+			require.NoError(t, PromoteCandidate(store, configPath))
+
+			versions, err := store.ListVersions(configPath)
+			require.NoError(t, err)
+			require.Len(t, versions, 2)
+			newest, err := store.ReadFile(versions[0].Path)
+			require.NoError(t, err)
+			assert.Equal(t, "commit", string(newest))
+			rollback, ok, err := readPointer(store, configPath, pointerRollback)
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, FormatVersionStamp(stamp.Add(-time.Millisecond)), rollback)
+			active, ok, err := readPointer(store, configPath, pointerActive)
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, candidate, active)
+		})
+	}
+}

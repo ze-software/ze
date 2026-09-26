@@ -28,6 +28,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	reload := fs.Bool("reload", false, "notify the running daemon to reload after save")
 	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
 	fs.StringVar(user, "u", "", "Short alias for --user")
+	backupPath := fs.String(flagBackup, "", "Set the value in a config inside a backup artifact")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -42,6 +43,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: helpFlagDryRun, Desc: "Show what would change without writing"},
 					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
+					{Name: helpFlagBackup, Desc: "Set it in a config inside a backup artifact"},
 				}},
 			},
 			Examples: []string{
@@ -49,6 +51,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 				"ze config set config.conf bgp peer peer1 remote as 65001",
 				"ze config set config.conf bgp peer peer1 description \"my peer\"",
 				"ze config set --dry-run config.conf bgp peer peer1 timer receive-hold-time 90",
+				"ze config set --backup router.zefs router.conf bgp local as 65000",
 			},
 		}
 		p.WriteErr()
@@ -74,12 +77,29 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
+	if *backupPath != "" {
+		if *reload {
+			fmt.Fprintln(os.Stderr, "error: --backup and --reload cannot be combined: a backup artifact has no daemon to reload")
+			return exitError
+		}
+		backup, err := openBackup(*backupPath, !*dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return exitError
+		}
+		defer backup.Close() //nolint:errcheck // The editor closes first; this releases the artifact lock.
+		store = backup
+	}
+
 	ed, err := openEditableConfig(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 	defer ed.Close() //nolint:errcheck // best-effort cleanup
+	if *backupPath != "" {
+		ed.SetCommitWriter(publishInBackup(store, configPath))
+	}
 
 	// Validate value against YANG schema
 	completer := cli.NewCompleter()

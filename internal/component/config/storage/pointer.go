@@ -213,10 +213,16 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 	if !hasActive {
 		legacyData, readErr := guard.ReadFile(configPath)
 		if readErr == nil {
-			activeTime := time.Now()
-			if FormatVersionStamp(activeTime) == candidate {
-				activeTime = activeTime.Add(-time.Millisecond)
+			// The adopted config is the one the candidate replaces, so its
+			// version is stamped one millisecond BEFORE the candidate. A
+			// stamp taken from the clock here is later than the candidate,
+			// and history (newest first) would then list the replaced config
+			// as newer than the commit that replaced it.
+			candidateTime, parseErr := parseVersionStamp(candidate)
+			if parseErr != nil {
+				return fmt.Errorf("promote candidate: %w", parseErr)
 			}
+			activeTime := candidateTime.Add(-time.Millisecond)
 			active = FormatVersionStamp(activeTime)
 			if writeErr := guard.WriteVersion(configPath, legacyData, activeTime); writeErr != nil {
 				return fmt.Errorf("promote candidate: write rollback version: %w", writeErr)
