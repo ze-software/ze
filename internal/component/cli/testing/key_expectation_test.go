@@ -30,7 +30,8 @@ type keyErrorState struct {
 	readErr error
 }
 
-func (state *keyErrorState) ReadKey(string) ([]byte, error) { return nil, state.readErr }
+func (state *keyErrorState) ReadKey(string) ([]byte, error)    { return nil, state.readErr }
+func (state *keyErrorState) ListKeys(string) ([]string, error) { return nil, nil }
 
 // The expectation must read the model's current persistent value, including
 // mutations after the model was constructed, rather than the loose fixture.

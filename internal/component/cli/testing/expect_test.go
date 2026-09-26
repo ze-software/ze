@@ -374,6 +374,7 @@ func (m *MockState) Mode() cli.EditorMode                            { return m.
 func (m *MockState) InputValue() string                              { return m.inputValue }
 func (m *MockState) TmpDir() string                                  { return "" }
 func (m *MockState) ReadKey(string) ([]byte, error)                  { return nil, os.ErrNotExist }
+func (m *MockState) ListKeys(string) ([]string, error)               { return nil, nil }
 func (m *MockState) MessageHint() string                             { return m.messageHint }
 func (m *MockState) Explanation() string                             { return m.explanation }
 

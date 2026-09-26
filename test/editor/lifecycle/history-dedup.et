@@ -1,0 +1,49 @@
+# Test: history-dedup
+# VALIDATES: spec-storage-3 AC-2 through the editor: committing a config whose content history already holds adds a dated entry and no object, because an entry is sha256:<hex> of its bytes and object/<hex> is written once.
+# PREVENTS: each commit storing a full copy of a config history already holds.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=30s
+
+# Each commit keeps the version it replaces. Four commits A -> B -> A -> B -> A
+# keep A as loaded, B, A as the editor writes it, and B again: four entries,
+# and the two B entries share one object.
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=error:none
+input=type:text=set bgp router-id 1.2.3.4
+input=enter
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=error:none
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=error:none
+
+input=type:text=set bgp router-id 1.2.3.4
+input=enter
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=error:none
+
+expect=key:glob=file/2*/test.conf:count=4
+expect=key:glob=object/*:count=3

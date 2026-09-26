@@ -1,0 +1,7 @@
+# Test: history-restore-config-object
+# VALIDATES: spec-storage-3 AC-13 through the binary: `ze data restore <backup> config` commits the backup's active version read through entry -> object, and refuses a backup whose object is absent, naming the hash, before any write.
+# PREVENTS: a content-addressed history defect reaching the operator through the binary.
+option=timeout:value=120s
+cmd=foreground:seq=1:exec=le test fixture storage/history-restore-config-object:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: history-restore-config-object

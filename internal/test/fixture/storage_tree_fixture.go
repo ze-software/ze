@@ -681,7 +681,7 @@ func storageBackupScenario(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, want := range []string{"4 keys", "holds secrets"} {
+	for _, want := range []string{"5 keys", "holds secrets"} {
 		if !bytes.Contains(output, []byte(want)) {
 			return fmt.Errorf("backup output lacks %q:\n%s", want, output)
 		}

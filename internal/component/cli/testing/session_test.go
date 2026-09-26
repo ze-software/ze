@@ -221,6 +221,7 @@ type fileState struct {
 
 func (fs *fileState) TmpDir() string                                  { return fs.tmpDir }
 func (fs *fileState) ReadKey(string) ([]byte, error)                  { return nil, os.ErrNotExist }
+func (fs *fileState) ListKeys(string) ([]string, error)               { return nil, nil }
 func (fs *fileState) ContextPath() []string                           { return nil }
 func (fs *fileState) Completions() []cli.Completion                   { return nil }
 func (fs *fileState) GhostText() string                               { return "" }

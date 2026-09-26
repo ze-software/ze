@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -68,6 +69,7 @@ type State interface {
 	InputValue() string // Current text input value
 	TmpDir() string     // Temp directory for file expectations
 	ReadKey(string) ([]byte, error)
+	ListKeys(string) ([]string, error) // literal-prefix, recursive, sorted
 }
 
 // validExpectationTypes lists all recognized expectation types.
@@ -630,17 +632,22 @@ func checkFile(exp Expectation, state State) error {
 }
 
 // checkKey asserts on decoded store values, not netcapstring frame bytes.
+// A path names one key; a glob names every key it matches, as the .ci key
+// expectation does, and supports count as well as containment.
 func checkKey(exp Expectation, state State) error {
-	key := exp.Values["path"]
-	if key == "" {
-		return errors.New("key expectation requires 'path' key")
-	}
 	for name := range exp.Values {
 		switch name {
-		case "path", "contains", "not-contains", "absent", "exists":
+		case "path", "glob", "count", "contains", "not-contains", "absent", "exists":
 		default:
 			return fmt.Errorf("unknown key expectation field: %s", name)
 		}
+	}
+	if pattern, ok := exp.Values["glob"]; ok {
+		return checkKeyGlob(exp, state, pattern)
+	}
+	key := exp.Values["path"]
+	if key == "" {
+		return errors.New("key expectation requires 'path' or 'glob' key")
 	}
 	data, err := state.ReadKey(key)
 	if _, absent := exp.Values["absent"]; absent {
@@ -664,6 +671,57 @@ func checkKey(exp Expectation, state State) error {
 		if strings.Contains(string(data), needle) {
 			return fmt.Errorf("key %s contains forbidden %q", key, needle)
 		}
+	}
+	return nil
+}
+
+// checkKeyGlob matches pattern (path.Match syntax) against every key under
+// its literal prefix. count compares the number of matches; contains needs
+// one matched value holding the text; not-contains refuses every one.
+func checkKeyGlob(exp Expectation, state State, pattern string) error {
+	if _, err := path.Match(pattern, ""); err != nil {
+		return fmt.Errorf("key glob %q: %w", pattern, err)
+	}
+	prefix := pattern
+	if index := strings.IndexAny(pattern, "*?[\\"); index >= 0 {
+		prefix = pattern[:index]
+	}
+	keys, err := state.ListKeys(prefix)
+	if err != nil {
+		return fmt.Errorf("listing keys under %s: %w", prefix, err)
+	}
+	var matched []string
+	for _, key := range keys {
+		if ok, _ := path.Match(pattern, key); ok { // the pattern was validated above
+			matched = append(matched, key)
+		}
+	}
+	if expected, ok := exp.Values["count"]; ok {
+		count, err := strconv.Atoi(expected)
+		if err != nil {
+			return fmt.Errorf("invalid count value: %s", expected)
+		}
+		if len(matched) != count {
+			return fmt.Errorf("key glob %s matched %d keys %v, want %d", pattern, len(matched), matched, count)
+		}
+	}
+	needle, wantContains := exp.Values["contains"]
+	forbidden, wantAbsent := exp.Values["not-contains"]
+	found := false
+	for _, key := range matched {
+		data, err := state.ReadKey(key)
+		if err != nil {
+			return fmt.Errorf("reading key %s: %w", key, err)
+		}
+		if wantContains && strings.Contains(string(data), needle) {
+			found = true
+		}
+		if wantAbsent && strings.Contains(string(data), forbidden) {
+			return fmt.Errorf("key %s contains forbidden %q", key, forbidden)
+		}
+	}
+	if wantContains && !found {
+		return fmt.Errorf("no key matching %s contains %q", pattern, needle)
 	}
 	return nil
 }

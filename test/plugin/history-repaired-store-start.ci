@@ -1,0 +1,7 @@
+# Test: history-repaired-store-start
+# VALIDATES: spec-storage-3 AC-15 and AC-17 through the binary: on `ze data repair` output whose active S and candidate C entries were dropped, bare `ze start` exits 1 naming meta/config/ze.conf/active and S; `ze start <file>` clears C, serves F, logs the rebuild naming S, and rollback R still reads its bytes.
+# PREVENTS: a content-addressed history defect reaching the operator through the binary.
+option=timeout:value=120s
+cmd=foreground:seq=1:exec=le test fixture storage/history-repaired-store-start:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: history-repaired-store-start

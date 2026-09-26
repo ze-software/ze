@@ -196,6 +196,14 @@ func (hm *headlessModel) ReadKey(key string) ([]byte, error) {
 	return hm.store.ReadKey(key)
 }
 
+// ListKeys lists the model's lifetime store keys under a literal prefix.
+func (hm *headlessModel) ListKeys(prefix string) ([]string, error) {
+	if hm.store == nil {
+		return nil, errors.New("key expectation requires a store")
+	}
+	return hm.store.ListKeys(prefix)
+}
+
 // Model returns the underlying cli.Model.
 func (hm *headlessModel) Model() *cli.Model {
 	return &hm.model

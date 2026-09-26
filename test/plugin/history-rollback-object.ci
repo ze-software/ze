@@ -1,0 +1,7 @@
+# Test: history-rollback-object
+# VALIDATES: spec-storage-3 AC-3 through the binary: `ze config rollback` reads a version's bytes through entry -> object, and refuses a version whose object does not hash to its name, naming the hash.
+# PREVENTS: a content-addressed history defect reaching the operator through the binary.
+option=timeout:value=120s
+cmd=foreground:seq=1:exec=le test fixture storage/history-rollback-object:timeout=120s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: history-rollback-object

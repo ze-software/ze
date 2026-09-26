@@ -2781,6 +2781,7 @@ Editor tests run through `./le test functional editor`; select one with `./le jo
 | `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |
 | `expect=mode:is=` | `expect=mode:is=command` | Assert editor mode |
 | `expect=key:path=` | `expect=key:path=file/active/test.conf:contains=65001` | Assert a decoded persistent value |
+| `expect=key:glob=` | `expect=key:glob=object/*:count=3` | Match keys with `path.Match` under the glob's literal prefix; `count`, `contains` and `not-contains` apply to the matched set, as in `.ci` key expectations |
 | `restart=` | `restart=editor` | Simulate exit + relaunch with the same store |
 
 Config fixtures are seeded once, and session drafts, versions and history use

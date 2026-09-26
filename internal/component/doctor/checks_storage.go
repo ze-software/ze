@@ -123,6 +123,7 @@ func checkStoreHistory(storePath string) []diagnostic.Diagnostic {
 	}
 	return diags
 }
+
 func checkDiskSpace() []diagnostic.Diagnostic {
 	configDir := paths.DefaultConfigDir()
 	if configDir == "" {
