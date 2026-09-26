@@ -2,7 +2,7 @@
   "schema-version": 1,
   "stem": "rfc1877",
   "register": "manual-walk",
-  "register-reason": "RFC 1877 is Informational, was published in December 1995, and states no MUST-level obligation of its own, so both site scans return an empty inventory: the capitalised scan and the case-insensitive prose scan over must / must not / shall / shall not / required each find nothing in rfc/full/rfc1877.txt. The document's only RFC 2119 keyword is one SHOULD in section 1, 'an attempt SHOULD be made to resolve names using the primary address before using the secondary address'. The word 'Recommended' occurs once, inside the quoted option-list name \"IPCP Recommended Options\", and 'May' once as a date in the reference list. The four gated rows rfc/short/rfc1877.md declares are therefore read from this document's indicative prose plus the base documents it extends (RFC 1332 IPCP, RFC 1661 PPP), which is where the Configure-Ack and Configure-Reject rules are actually stated. No mechanical inventory can source them, so each is declared unsourced-ids on the section it was read from and this sign-off rests on the section walk below.",
+  "register-reason": "RFC 1877 is Informational, was published in December 1995, and states no MUST-level obligation of its own, so both site scans return an empty inventory: the capitalised scan and the case-insensitive prose scan over must / must not / shall / shall not / required each find nothing in rfc/full/rfc1877.txt. The document's only RFC 2119 keyword is one SHOULD in section 1, 'an attempt SHOULD be made to resolve names using the primary address before using the secondary address'. The word 'Recommended' occurs once, inside the quoted option-list name \"IPCP Recommended Options\", and 'May' once as a date in the reference list. Zero MUST-level requirements is a property of the text. The five rows rfc/short/rfc1877.md once declared were read from its indicative prose plus RFC 1661, which is where the Configure-Ack, Configure-Nak and Configure-Reject rules are stated, and all five were retired on 2026-09-26 (rfc/corrections/rfc1877.md). This sign-off rests on the section walk below.",
   "source-path": "rfc/full/rfc1877.txt",
   "source-sha": "868068cbe12bb56c",
   "signed-off": "2026-08-31",
@@ -19,27 +19,19 @@
       "id": "1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Additional IPCP Configuration Options. It introduces options 129 to 132, says primary and secondary addresses are negotiated independently, says the options are 'designed to be identical in format and behavior to option 3 (IP-Address)', and suggests they not be included in the list of \"IPCP Recommended Options\". It carries the document's only RFC 2119 keyword, the SHOULD quoted in the register-reason; SHOULD is not a gated level and is not a site under either scan, and rfc/short/rfc1877.md declares no row for it. The section directs no MUST at any speaker. Three of the summary's four gated rows are read from its indicative prose: RFC1877-x-1 from the 'not ... Recommended Options' suggestion together with the per-option 'Default: No address is provided', and RFC1877-x-3 and RFC1877-x-4 from the 'identical in format and behavior to option 3' sentence, which imports the Configure-Ack and Configure-Reject echo rules of RFC 1661 instead of stating them here. All three are declared unsourced.",
-      "unsourced-ids": [
-        "RFC1877-x-1",
-        "RFC1877-x-3",
-        "RFC1877-x-4"
-      ]
+      "reason": "Additional IPCP Configuration Options. It introduces options 129 to 132, says primary and secondary addresses are negotiated independently, says the options are 'designed to be identical in format and behavior to option 3 (IP-Address)', and suggests they not be included in the list of \"IPCP Recommended Options\". It carries the document's only RFC 2119 keyword, the SHOULD quoted in the register-reason; SHOULD is not a gated level and is not a site under either scan, and rfc/short/rfc1877.md declares no row for it. The section directs no MUST at any speaker. The 'identical in format and behavior to option 3' sentence imports the Configure-Ack and Configure-Reject rules of RFC 1661 Sections 5.2 and 5.4 instead of stating them here; RFC 1661's own rows carry them."
     },
     {
       "id": "1.1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Primary DNS Server Address: Description, packet diagram, Type 129, Length 6, field meaning and Default. Every sentence is indicative. It describes the option's format and what the remote peer typically does ('the remote peer specifies the address by NAKing this option, and returning the IP address of a valid DNS server'), and directs no MUST at a speaker. RFC1877-x-2, the summary's 'Option with Length other than 6 must be Configure-Rejected', is read from the Length value stated here, which sections 1.2, 1.3 and 1.4 then repeat, together with RFC 1661's rule for an option a receiver will not accept. RFC 1877 states no such rule, so the id is declared unsourced once, here, rather than four times.",
-      "unsourced-ids": [
-        "RFC1877-x-2"
-      ]
+      "reason": "Primary DNS Server Address: Description, packet diagram, Type 129, Length 6, field meaning and Default. Every sentence is indicative. It describes the option's format and what the remote peer typically does ('the remote peer specifies the address by NAKing this option, and returning the IP address of a valid DNS server'), and directs no MUST at a speaker. The Length value stated here, which sections 1.2, 1.3 and 1.4 repeat, carries no rule for an option received with another Length; RFC 1661 Section 6 states that rule, and it calls for a Configure-Nak."
     },
     {
       "id": "1.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Primary NBNS Server Address: Type 130, Length 6, and the same Description, diagram, field meaning and Default shape as 1.1, with NBNS in place of DNS. No sentence states an obligation. Its Length statement is one of the three repetitions RFC1877-x-2 was read from, and that id is declared unsourced on 1.1."
+      "reason": "Primary NBNS Server Address: Type 130, Length 6, and the same Description, diagram, field meaning and Default shape as 1.1, with NBNS in place of DNS. No sentence states an obligation."
     },
     {
       "id": "1.3",

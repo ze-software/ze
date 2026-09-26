@@ -57,6 +57,50 @@
       "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC1661-5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
+      "unit-sha": "983f98ab680a4c29",
+      "claim-sha": "fc7d5a95b0d549a5",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::evalIPCPRequest",
+      "producer-sha": "747da0042eb89b8e",
+      "break": "body of evalIPCPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
+      "unit-sha": "983f98ab680a4c29",
+      "claim-sha": "1ffb23a2223b29b4",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPConfigureAck",
+      "producer-sha": "0e651e6252e46abf",
+      "break": "body of sendNCPConfigureAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+      "unit-sha": "4119340d64a6de8c",
+      "claim-sha": "7dc8d088aff69a2e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ipcp.go::isKnownIPCPOption",
+      "producer-sha": "291b853605e765e8",
+      "break": "body of isKnownIPCPOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+      "unit-sha": "4119340d64a6de8c",
+      "claim-sha": "61dd98a992f415c2",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::copyUnknownOptions",
+      "producer-sha": "05fd231a9eff0b8e",
+      "break": "body of copyUnknownOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC1661-5.5-1",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld",

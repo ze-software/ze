@@ -296,10 +296,6 @@ func ipv6cpInterfaceIDOption(id [ipv6cpInterfaceIDLen]byte) []byte {
 
 // TestIPCPDNSIsOptional negotiates IPv4 with and without requested DNS options.
 // An invalid rejection of DNS options that Ze did not send cannot clear them.
-//
-// RFC requirement: RFC1877-x-1 positive -- IPv4 negotiation completes when the
-// peer requests the configured DNS addresses and when it requests only an
-// IP address. RFC 1877 Section 1.1: "By default, no primary DNS address is provided.".
 func TestIPCPDNSIsOptional(t *testing.T) {
 	t.Run("requested DNS addresses", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
@@ -386,11 +382,6 @@ func TestIPCPDNSIsOptional(t *testing.T) {
 // VALIDATES: rejecting the mandatory IP-Address option takes the session down
 // instead of absorbing it (fatal=true).
 // PREVENTS: treating IP-Address like DNS and continuing without an address.
-//
-// RFC requirement: RFC1877-x-1 negative -- the "usable with or without DNS" tolerance
-// is specific to DNS, not the IPv4 address: rejecting the IP-Address option is fatal
-// and tears the session down, so it is DNS (not IPv4 reachability) that is optional
-// (RFC 1877 Scope).
 func TestIPCPIPAddressRejectIsFatal(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()

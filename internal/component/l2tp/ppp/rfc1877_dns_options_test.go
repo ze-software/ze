@@ -1,6 +1,7 @@
-// VALIDATES: RFC 1877 IPCP DNS-option negotiation on the LNS side -- an acceptable
-// Configure-Request is Acked with its option Data echoed verbatim, and an unsupported
-// option is Configure-Rejected with only the offending option echoed.
+// VALIDATES: IPCP negotiation of a request carrying the RFC 1877 DNS options on the
+// LNS side -- an acceptable Configure-Request is Acked with its option Data echoed
+// verbatim, and an unsupported option is Configure-Rejected with only the offending
+// option echoed. RFC 1877 states neither rule: both are RFC 1661 Section 5.2 and 5.4.
 // PREVENTS: an Ack that rewrites the peer's option data, or a Reject that drops or
 // mangles the offending option (or wrongly echoes a recognized one).
 package ppp
@@ -10,11 +11,11 @@ import (
 	"testing"
 )
 
-// RFC requirement: RFC1877-x-3 positive -- when the peer's IPCP Configure-Request
+// RFC requirement: RFC1661-5.2-2 positive -- when the peer's IPCP Configure-Request
 // carries acceptable values, Ze's Configure-Ack echoes the option Data verbatim
 // (producer sendNCPConfigureAck writes req.Data unchanged,
-// internal/component/l2tp/ppp/ncp.go:567).
-// RFC requirement: RFC1877-x-3 negative -- Ze does not Ack an UNacceptable request:
+// internal/component/l2tp/ppp/ncp.go).
+// RFC requirement: RFC1661-5.2-1 negative -- Ze does not Ack an UNacceptable request:
 // an IP-Address that differs from the assigned peer address draws a Configure-Nak,
 // so the verbatim-echo Ack is confined to acceptable requests.
 func TestRFC1877ConfigureAckEchoesAcceptable(t *testing.T) {
@@ -63,10 +64,10 @@ func TestRFC1877ConfigureAckEchoesAcceptable(t *testing.T) {
 	})
 }
 
-// RFC requirement: RFC1877-x-4 positive -- a Configure-Reject echoes the offending
-// unsupported option verbatim (RFC 1877 / RFC 1661 sec 5.4; producer buildNakOrReject
-// -> copyUnknownOptions, internal/component/l2tp/ppp/ncp.go:590,619).
-// RFC requirement: RFC1877-x-4 negative -- only the unsupported option is echoed, NOT
+// RFC requirement: RFC1661-5.4-2 positive -- a Configure-Reject echoes the offending
+// unsupported option verbatim (producer buildNakOrReject -> copyUnknownOptions,
+// internal/component/l2tp/ppp/ncp.go).
+// RFC requirement: RFC1661-5.4-1 negative -- only the unsupported option is echoed, NOT
 // the recognized ones: copyUnknownOptions copies the unknown type and skips the known
 // IP-Address option.
 func TestRFC1877ConfigureRejectEchoesUnsupportedOnly(t *testing.T) {
