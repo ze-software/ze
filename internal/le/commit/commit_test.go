@@ -2,6 +2,7 @@ package commit
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/spec"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -468,6 +470,42 @@ func TestClosureStemStillRefusesAMalformedJournalRow(t *testing.T) {
 			"| 2026-08-27 | some-spec | cli | missing two cells |\n")
 	if _, err := closureStem(root, []string{journalPath}, nil); err == nil {
 		t.Fatal("closureStem accepted a malformed journal row; the shape check must outlive the closure inference")
+	}
+}
+
+// TestCreateRefusesAnAddedJournalRowOverTheCap drives the row cap through the
+// commit entry point. A long row HEAD already holds rides along with a new short
+// row, and a new row over specjournal.RowCharsMax is refused with its line and
+// length. The post-write hook sees only Write and Edit, so a row appended from a
+// shell lands unless this gate reads it.
+func TestCreateRefusesAnAddedJournalRowOverTheCap(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-journal-row-cap-fixture")
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "ai/.keep", "")
+	journalPath := "plan/journal/native.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+	row := func(date string, chars int) string {
+		prefix := "| " + date + " | - | cli | "
+		return prefix + strings.Repeat("s", chars-len(prefix)-len(" | fix |")) + " | fix |\n"
+	}
+	long := row("2026-08-01", specjournal.RowCharsMax+400)
+	writeCommitFixture(t, root, journalPath, header+long)
+	runCommitGit(t, root, "add", "--", journalPath)
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
+
+	writeCommitFixture(t, root, journalPath, header+long+row("2026-08-02", 80))
+	if _, err := Create(root, &Options{Subject: "journal: a short row", Files: []string{journalPath}}); err != nil {
+		t.Fatalf("Create refused a short row beside an unchanged long HEAD row: %v", err)
+	}
+
+	writeCommitFixture(t, root, journalPath, header+long+row("2026-08-02", specjournal.RowCharsMax+1))
+	_, err := Create(root, &Options{Subject: "journal: a long row", Files: []string{journalPath}, Replace: true})
+	if err == nil {
+		t.Fatal("Create accepted an added row over the cap")
+	}
+	want := fmt.Sprintf("row-too-long at line 4: added or rewritten row is %d characters", specjournal.RowCharsMax+1)
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("Create refusal = %q, want it to contain %q", err, want)
 	}
 }
 

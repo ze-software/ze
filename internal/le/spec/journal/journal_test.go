@@ -2,6 +2,8 @@ package specjournal
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -182,7 +184,8 @@ func TestActionsPublishTheNativeRegistryRows(t *testing.T) {
 	}
 	validate := list.Actions[1]
 	if validate.Verb != "validate" || validate.Writes ||
-		validate.Why != "validate one edited plan/journal class file's header, rows, dates, and Spec keys" {
+		validate.Why != "validate one edited plan/journal class file's header, rows, dates, Spec keys, "+
+			"and the 600-character cap on a row added or rewritten against HEAD" {
 		t.Fatalf("validate action = %#v", validate)
 	}
 }
@@ -318,23 +321,87 @@ func TestHeadSpecEvidenceNormalizesCellsAndRejectsUnreadableShard(t *testing.T) 
 	}
 }
 
-func TestAddedSpecEvidencePairsReformattedRowsBeforeReadingNewOnes(t *testing.T) {
-	path := "plan/journal/closure.md"
-	tree := journalFixture(t, map[string]string{
-		path: journalTableHead +
-			"| 2026-08-01 | same-spec | cli | symptom | fix |\n",
-	})
-	writeJournalFile(t, tree, path, journalTableHead+
-		"| 2026-08-01   | same-spec   | cli | symptom | fix |\n")
-	stems, malformed, err := AddedSpecEvidence(tree, []string{path})
-	if err != nil || len(malformed) != 0 || len(stems) != 0 {
-		t.Fatalf("reformatted evidence = %q, malformed %q, err %v", stems, malformed, err)
+// journalOfRows returns a journal class file holding rows dated rows.
+func journalOfRows(rows int) string {
+	body := journalTableHead
+	for day := 1; day <= rows; day++ {
+		body += fmt.Sprintf("| 2026-08-%02d | - | cli | symptom %d | fix |\n", day, day)
 	}
-	writeJournalFile(t, tree, path, journalTableHead+
-		"| 2026-08-01   | same-spec   | cli | symptom | fix |\n"+
-		"| 2026-08-27 | same-spec | cli | another symptom | another fix |\n")
-	stems, malformed, err = AddedSpecEvidence(tree, []string{path})
-	if err != nil || len(malformed) != 0 || !reflect.DeepEqual(stems, []string{"same-spec"}) {
-		t.Fatalf("new same-stem evidence = %q, malformed %q, err %v", stems, malformed, err)
+	return body
+}
+
+// TestCheckMarksDueClassesAndOrdersThemFirst validates the fix-pass threshold
+// at 9 and 10 rows, the order (due classes first by row count, the rest by
+// name), the DUE marker and count line in Text, and the json field.
+func TestCheckMarksDueClassesAndOrdersThemFirst(t *testing.T) {
+	tree := journalFixture(t, map[string]string{
+		"plan/journal/alpha.md":   journalOfRows(DueRowsMin - 1),
+		"plan/journal/beta.md":    journalOfRows(DueRowsMin),
+		"plan/journal/gamma.md":   journalOfRows(DueRowsMin + 2),
+		"plan/journal/delta.md":   journalOfRows(2),
+		"plan/journal/epsilon.md": journalOfRows(DueRowsMin),
+	})
+	report, err := Check(tree)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	want := []struct {
+		name string
+		rows int
+		due  bool
+	}{
+		{"gamma", DueRowsMin + 2, true},
+		{"beta", DueRowsMin, true},
+		{"epsilon", DueRowsMin, true},
+		{"alpha", DueRowsMin - 1, false},
+		{"delta", 2, false},
+	}
+	if len(report.Classes) != len(want) {
+		t.Fatalf("Classes = %#v, want %d", report.Classes, len(want))
+	}
+	for index, class := range report.Classes {
+		if class.Name != want[index].name || class.Rows != want[index].rows || class.Due != want[index].due {
+			t.Fatalf("Classes[%d] = %#v, want %+v", index, class, want[index])
+		}
+	}
+	if report.DueCount() != 3 {
+		t.Fatalf("DueCount = %d, want 3", report.DueCount())
+	}
+	text := report.Text()
+	if !strings.HasPrefix(text, "3 problem classes have 10+ rows and are due for a fix pass\nDUE gamma: 12 rows") {
+		t.Fatalf("Text() = %q, want the count line then DUE gamma", text)
+	}
+	if !strings.Contains(text, "\nalpha: 9 rows") || strings.Contains(text, "DUE alpha") {
+		t.Fatalf("Text() = %q, want alpha unmarked", text)
+	}
+	encoded, err := json.Marshal(report.Classes[0])
+	if err != nil || !strings.Contains(string(encoded), `"due":true`) {
+		t.Fatalf("json = %s, %v; want \"due\":true", encoded, err)
+	}
+	encoded, err = json.Marshal(report.Classes[3])
+	if err != nil || !strings.Contains(string(encoded), `"due":false`) {
+		t.Fatalf("json = %s, %v; want \"due\":false", encoded, err)
+	}
+}
+
+// TestHeadFilesReadsAMissingPathWithASpaceAsAbsent validates the cat-file
+// protocol reader. git echoes the object name back, so a missing path holding a
+// space answers a header with more than two fields. It proves that answer is
+// read as absent, and that the answers after it still pair with their paths.
+func TestHeadFilesReadsAMissingPathWithASpaceAsAbsent(t *testing.T) {
+	tree := journalFixture(t, map[string]string{
+		"plan/journal/seed.md": journalOfRows(1),
+		"plan/journal/tail.md": journalOfRows(2),
+	})
+	paths := []string{"plan/journal/seed.md", "plan/journal/a b.md", "plan/journal/tail.md"}
+	contents, err := headFiles(tree, paths)
+	if err != nil {
+		t.Fatalf("headFiles: %v", err)
+	}
+	if _, present := contents["plan/journal/a b.md"]; present {
+		t.Fatalf("a path HEAD does not carry was read: %#v", contents)
+	}
+	if contents["plan/journal/seed.md"] != journalOfRows(1) || contents["plan/journal/tail.md"] != journalOfRows(2) {
+		t.Fatalf("contents = %#v, want seed and tail at HEAD", contents)
 	}
 }

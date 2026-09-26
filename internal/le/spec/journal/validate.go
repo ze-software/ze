@@ -8,9 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+// RowCharsMax is the longest journal row, in characters, that may be added or
+// rewritten. A row names the symptom and the fix in one line; the detail
+// belongs in the fix commit, a spec, or ai/rationale/. Rows already at HEAD are
+// never measured, so the cap binds new writing only.
+const RowCharsMax = 600
 
 // ValidationProblem is one actionable defect in an edited journal shard.
 type ValidationProblem struct {
@@ -66,7 +73,9 @@ func (r ValidationReport) Text() string {
 }
 
 // ValidateFile validates exactly one edited journal class file without reading
-// other shards or creating commit/session artifacts.
+// other shards or creating commit/session artifacts. It reads the same file at
+// git HEAD to tell an added or rewritten row, which the length cap binds, from
+// a committed one, so the checkout MUST be a git repository.
 func ValidateFile(root, rawPath string) (ValidationReport, error) {
 	relative, err := journalRelativePath(root, rawPath)
 	if err != nil {
@@ -84,6 +93,13 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 	if closeErr != nil {
 		return ValidationReport{}, fmt.Errorf("close journal checkout: %w", closeErr)
 	}
+	// A row whose five cells match a HEAD row is unchanged, however it is
+	// spaced, and is exempt from the length cap.
+	committed, err := headFiles(root, []string{relative})
+	if err != nil {
+		return ValidationReport{}, err
+	}
+	held := newHeldRows(journalRows(committed[relative]))
 	report := ValidationReport{Path: relative}
 	headerFound := false
 	for number, line := range strings.Split(string(content), "\n") {
@@ -114,6 +130,19 @@ func ValidateFile(root, rawPath string) (ValidationReport, error) {
 			report.Problems = append(report.Problems, ValidationProblem{
 				Line: lineNumber, Kind: "unreadable-spec", Content: row.cells[1],
 				Message: "Spec names no safe spec stem; use - for no spec or a stem with an optional trailing (note)",
+			})
+		}
+		if held.claim(row.cells) {
+			continue
+		}
+		if chars := utf8.RuneCountInString(strings.TrimSpace(line)); chars > RowCharsMax {
+			var message textbuf.Buffer
+			message.Str("added or rewritten row is ").Int(int64(chars)).Str(" characters, over the ").
+				Int(RowCharsMax).Str(" cap; keep the symptom and the fix to one line and move the ").
+				Str("detail to the fix commit, a spec, or ai/rationale/")
+			report.Problems = append(report.Problems, ValidationProblem{
+				Line: lineNumber, Kind: "row-too-long", Content: row.cells[3],
+				Message: message.String(),
 			})
 		}
 	}

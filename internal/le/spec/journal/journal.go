@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -128,6 +129,20 @@ func Check(tree string) (Report, error) {
 	for _, class := range classes {
 		appendClass(&report, class)
 	}
+	// Due classes lead, the largest first. The sort is stable, so the classes
+	// that are not due keep the name order readClasses gave them.
+	slices.SortStableFunc(report.Classes, func(left, right Class) int {
+		if left.Due != right.Due {
+			if left.Due {
+				return -1
+			}
+			return 1
+		}
+		if left.Due {
+			return right.Rows - left.Rows
+		}
+		return 0
+	})
 	return report, nil
 }
 
@@ -200,20 +215,20 @@ func unreadPaths(head, onDisk []string) []string {
 }
 
 func readClasses(tree string, paths []string) ([]journalClass, error) {
+	contents, err := headFiles(tree, paths)
+	if err != nil {
+		return nil, err
+	}
 	classes := make([]journalClass, 0, len(paths))
 	for _, path := range paths {
-		answer := runGit(tree, "show", headObject(path))
-		if answer.startErr != nil {
+		content, present := contents[path]
+		if !present {
 			var tb textbuf.Buffer
-			return nil, errors.New(tb.Str("cannot run git in ").Str(tree).Str(": ").Err(answer.startErr).String())
-		}
-		if answer.code != 0 {
-			var prefix textbuf.Buffer
-			prefix.Str("git show HEAD:").Str(path).Str(" failed: ")
-			return nil, gitReadError(prefix.String(), answer)
+			return nil, errors.New(tb.Str("git ls-tree HEAD lists ").Str(path).
+				Str(" but git cat-file cannot read it at HEAD").String())
 		}
 
-		rows := journalRows(string(answer.stdout))
+		rows := journalRows(content)
 		if len(rows) == 0 {
 			continue
 		}
@@ -229,12 +244,76 @@ func headObject(path string) string {
 	return tb.Str("HEAD:").Str(path).String()
 }
 
+// headFiles reads every path's content at git HEAD in ONE git process. The
+// session-start hook reads the whole journal inside a 5 s budget, and one
+// `git show` for each of about 190 class files spent most of it. A path HEAD
+// does not carry, or a repository whose HEAD has no commit yet, is absent from
+// the map. A git that cannot run, or answers out of protocol, is an error.
+func headFiles(tree string, paths []string) (map[string]string, error) {
+	var request textbuf.Buffer
+	for _, path := range paths {
+		request.Str(headObject(path)).Byte('\n')
+	}
+	answer := runGitInput(tree, request.String(), "cat-file", "--batch")
+	if answer.startErr != nil {
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("cannot run git in ").Str(tree).Str(": ").Err(answer.startErr).String())
+	}
+	if answer.code != 0 {
+		return nil, gitReadError("git cat-file --batch over plan/journal failed: ", answer)
+	}
+
+	contents := make(map[string]string, len(paths))
+	output := answer.stdout
+	for _, path := range paths {
+		// Each answer is "<object> missing\n", or "<oid> <type> <size>\n"
+		// followed by <size> bytes of content and one newline.
+		end := bytes.IndexByte(output, '\n')
+		if end < 0 {
+			return nil, batchError(path, "a truncated header")
+		}
+		line := string(output[:end])
+		output = output[end+1:]
+		// The object name is echoed back and can hold a space, so "missing"
+		// is read as a suffix of the whole line before any field split.
+		if line == headObject(path)+" missing" {
+			continue
+		}
+		header := strings.Fields(line)
+		if len(header) != 3 || header[1] != "blob" {
+			return nil, batchError(path, "an unexpected header")
+		}
+		size, err := strconv.Atoi(header[2])
+		if err != nil || size < 0 || size+1 > len(output) {
+			return nil, batchError(path, "a size that does not match its content")
+		}
+		contents[path] = string(output[:size])
+		output = output[size+1:]
+	}
+	return contents, nil
+}
+
+func batchError(path, what string) error {
+	var tb textbuf.Buffer
+	return errors.New(tb.Str("git cat-file --batch answered ").Str(what).
+		Str(" for ").Str(headObject(path)).String())
+}
+
 func runGit(tree string, args ...string) gitAnswer {
+	return runGitInput(tree, "", args...)
+}
+
+// runGitInput runs git with input on its standard input. An empty input
+// leaves standard input closed.
+func runGitInput(tree, input string, args ...string) gitAnswer {
 	// Git is the gate's data source. The command is bounded by local repository
 	// I/O and has no network or lock wait. A timeout could turn a slow disk into
 	// a false report that HEAD has no journal.
 	cmd := exec.CommandContext(context.Background(), "git", args...) //nolint:gosec // fixed git verbs over a checkout chosen by lepath or a test
 	cmd.Dir = tree
+	if input != "" {
+		cmd.Stdin = strings.NewReader(input)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdout, err := cmd.Output()
@@ -390,6 +469,7 @@ func appendClass(report *Report, class journalClass) {
 	report.Classes = append(report.Classes, Class{
 		Name:     class.name,
 		Rows:     len(class.rows),
+		Due:      len(class.rows) >= DueRowsMin,
 		SpanDays: int(last.Sub(first).Hours() / 24),
 		First:    first.Format(time.DateOnly),
 		Last:     last.Format(time.DateOnly),
@@ -444,76 +524,26 @@ func validSpecStem(stem string) bool {
 	return stem != ""
 }
 
-// AddedSpecEvidence returns spec stems named by rows added or rewritten in the
-// selected worktree shards. Byte-level table reformatting does not count: rows
-// are paired by their five canonical cells against HEAD before new stems are read.
-func AddedSpecEvidence(tree string, paths []string) ([]string, []string, error) {
-	headPaths, err := classFilesAtHead(tree)
-	if err != nil {
-		return nil, nil, err
+// heldRows counts HEAD's rows by their five canonical cells, so a worktree row
+// that only reformats a committed row pairs with it and is not "added".
+type heldRows map[[5]string]int
+
+func newHeldRows(rows []journalRow) heldRows {
+	held := make(heldRows, len(rows))
+	for _, row := range rows {
+		held[row.cells]++
 	}
-	atHead := make(map[string]bool, len(headPaths))
-	for _, path := range headPaths {
-		atHead[path] = true
-	}
-	stems := make([]string, 0)
-	seen := make(map[string]bool)
-	malformed := make([]string, 0)
-	for _, path := range paths {
-		current, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(path))) //nolint:gosec // the path is a journal shard under the checkout root
-		if err != nil {
-			return nil, nil, fmt.Errorf("read journal shard %s: %w", path, err)
-		}
-		currentRows, valid := evidenceRows(string(current))
-		if !valid {
-			malformed = append(malformed, path)
-			continue
-		}
-		headRows := []journalRow(nil)
-		if atHead[path] {
-			answer := runGit(tree, "show", headObject(path))
-			if answer.startErr != nil || answer.code != 0 {
-				return nil, nil, gitReadError("read "+headObject(path), answer)
-			}
-			headRows, valid = evidenceRows(string(answer.stdout))
-			if !valid {
-				malformed = append(malformed, path)
-				continue
-			}
-		}
-		held := make(map[[5]string]int, len(headRows))
-		for _, row := range headRows {
-			held[row.cells]++
-		}
-		for _, row := range currentRows {
-			if held[row.cells] != 0 {
-				held[row.cells]--
-				continue
-			}
-			rowStems, _ := specStems(row.cells[1])
-			for _, stem := range rowStems {
-				if !seen[stem] {
-					seen[stem] = true
-					stems = append(stems, stem)
-				}
-			}
-		}
-	}
-	slices.Sort(malformed)
-	return stems, malformed, nil
+	return held
 }
 
-func evidenceRows(contents string) ([]journalRow, bool) {
-	rows := journalRows(contents)
-	for _, row := range rows {
-		if row.malformed {
-			return nil, false
-		}
-		if _, valid := specStems(row.cells[1]); !valid {
-			return nil, false
-		}
+// claim reports whether cells pair with a HEAD row, and consumes that row so a
+// duplicated worktree row pairs at most as often as HEAD holds it.
+func (held heldRows) claim(cells [5]string) bool {
+	if held[cells] == 0 {
+		return false
 	}
-	return rows, true
+	held[cells]--
+	return true
 }
 
 // HeadSpecEvidence returns the committed journal rows that name a spec stem.

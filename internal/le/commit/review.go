@@ -110,23 +110,23 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // one that fires on the exact case is the whole of the change (Thomas,
 // 2026-08-31).
 //
-// Journal paths are still READ, for their shape alone. A malformed row refuses
-// the commit here, where the file is in hand.
+// Journal paths are still READ, for their shape alone. Each one goes through
+// specjournal.ValidateFile, the check the post-write hook runs, so a row the
+// hook warns about refuses the commit here, where the file is in hand, however
+// it was written: a malformed row, a bad Date or Spec cell, or a row added or
+// rewritten against HEAD over specjournal.RowCharsMax.
 func closureStem(root string, paths, removed []string) (string, error) {
-	journalPaths := make([]string, 0)
 	for _, path := range paths {
-		if strings.HasPrefix(path, "plan/journal/") &&
-			strings.HasSuffix(path, ".md") && filepath.Base(path) != "README.md" {
-			journalPaths = append(journalPaths, path)
+		if !strings.HasPrefix(path, "plan/journal/") ||
+			!strings.HasSuffix(path, ".md") || filepath.Base(path) == "README.md" {
+			continue
 		}
-	}
-	if len(journalPaths) != 0 {
-		_, malformed, err := specjournal.AddedSpecEvidence(root, journalPaths)
+		report, err := specjournal.ValidateFile(root, path)
 		if err != nil {
-			return "", fmt.Errorf("read added journal evidence: %w", err)
+			return "", fmt.Errorf("validate journal %s: %w", path, err)
 		}
-		if len(malformed) != 0 {
-			return "", fmt.Errorf("journal has malformed row(s): %s", strings.Join(malformed, ", "))
+		if report.ExitCode() != 0 {
+			return "", fmt.Errorf("journal is not commit-readable:\n%s", strings.TrimSuffix(report.Text(), "\n"))
 		}
 	}
 

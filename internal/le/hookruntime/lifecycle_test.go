@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -51,13 +53,86 @@ func TestSessionHookCountsNoDischargedRowAsOwed(t *testing.T) {
 	}
 }
 
+// TestSessionStartNamesDueJournalClasses drives the due-class line through the
+// hook entry point over committed journals of 9 and 10 rows, and over a tree
+// git cannot read. It proves the line appears at the threshold, stays absent
+// below it, and that an unreadable journal prints nothing on stdout and says
+// why on stderr.
+func TestSessionStartNamesDueJournalClasses(t *testing.T) {
+	const line = "journal: 1 problem classes are due for a fix pass (./le spec journal report)"
+	tests := []struct {
+		name string
+		rows int
+		git  bool
+		want bool
+	}{
+		{name: "nine rows", rows: 9, git: true, want: false},
+		{name: "ten rows", rows: 10, git: true, want: true},
+		{name: "unreadable journal", rows: 10, git: false, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			// Seed every derived artifact so the hook renders nothing and this
+			// test stays about the journal line.
+			for _, artifact := range derived.All() {
+				writeHookFixture(t, root, artifact.Path, "# derived\n")
+			}
+			journal := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+			for day := 1; day <= test.rows; day++ {
+				journal += fmt.Sprintf("| 2026-09-%02d | - | cli | symptom %d | fix |\n", day, day)
+			}
+			writeHookFixture(t, root, "plan/journal/recurring.md", journal)
+			if test.git {
+				commitHookFixture(t, root)
+			}
+			printed, noted := runSessionStartStreams(t, root)
+			if strings.Contains(noted, "journal: due classes not counted: ") == test.git {
+				t.Fatalf("the hook wrote %q to stderr, want the unreadable-journal note only without git", noted)
+			}
+			if strings.Contains(printed, line) != test.want {
+				t.Fatalf("the hook printed %q, want the due line %v", printed, test.want)
+			}
+			if !test.want && strings.Contains(printed, "journal:") {
+				t.Fatalf("the hook printed %q, want no journal line on stdout", printed)
+			}
+		})
+	}
+}
+
+// commitHookFixture commits the whole fixture tree, because the journal
+// report reads git HEAD and never the working tree.
+func commitHookFixture(t *testing.T, root string) {
+	t.Helper()
+	for _, arguments := range [][]string{
+		{"init", "--quiet"},
+		{"add", "--all"},
+		{"-c", "user.email=test@example.com", "-c", "user.name=Ze Test", "-c", "commit.gpgsign=false",
+			"commit", "--quiet", "--message=seed"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", arguments...)
+		command.Dir = root
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s in the fixture: %v\n%s", arguments[0], err, output)
+		}
+	}
+}
+
 // runSessionStart runs the session-start hook over one throwaway root and
 // answers what it printed.
 func runSessionStart(t *testing.T, root string) string {
 	t.Helper()
-	var out bytes.Buffer
-	hookSessionStart(context{root: root, input: map[string]any{}}, &out)
-	return out.String()
+	printed, _ := runSessionStartStreams(t, root)
+	return printed
+}
+
+// runSessionStartStreams runs the session-start hook over one throwaway root
+// and answers its stdout and its stderr.
+func runSessionStartStreams(t *testing.T, root string) (string, string) {
+	t.Helper()
+	var out, errOut bytes.Buffer
+	hookSessionStart(context{root: root, input: map[string]any{}}, &out, &errOut)
+	return out.String(), errOut.String()
 }
 
 func writeHookFixture(t *testing.T, root, path, content string) {

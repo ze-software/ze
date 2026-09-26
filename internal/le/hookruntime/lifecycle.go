@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/spec"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
@@ -38,7 +39,7 @@ const gitTimeout = 60 * time.Second
 func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, bool) {
 	switch kind {
 	case "session-start":
-		return hookSessionStart(ctx, out), true
+		return hookSessionStart(ctx, out, errOut), true
 	case "compaction-reminder":
 		hookCompactionReminder(ctx, errOut)
 	case "session-id":
@@ -115,7 +116,7 @@ func hookUntilLSP(ctx context, errOut io.Writer) int {
 	return 2
 }
 
-func hookSessionStart(ctx context, out io.Writer) int {
+func hookSessionStart(ctx context, out, errOut io.Writer) int {
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
 		_ = os.Setenv("CLAUDE_CODE_SESSION_ID", id)
 		if environmentFile := os.Getenv("CLAUDE_ENV_FILE"); environmentFile != "" {
@@ -126,6 +127,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 			}
 		}
 	}
+	journalDue := countDueJournal(ctx.root)
 	id := resolvedSessionID(ctx)
 	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
 	if claim == specUnassigned {
@@ -200,6 +202,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 			}
 		}
 	}
+	printDueJournal(<-journalDue, out, errOut)
 	// Every derived artifact the tree does not hold is built here, and the
 	// registry is what says which they are. Two hardcoded os.Stat blocks named
 	// ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md until 2026-09-11, which made
@@ -691,4 +694,39 @@ func markdownSection(text, heading string) string {
 		}
 	}
 	return strings.Join(lines[:end], "\n")
+}
+
+// dueJournal is the journal's answer to the session-start hook: the count of
+// classes due for a fix pass, or the reason the journal could not be read.
+type dueJournal struct {
+	due int
+	err error
+}
+
+// countDueJournal starts reading the journal at HEAD and returns the channel
+// its one answer arrives on. It is a one-time step of this hook's single run:
+// the read costs about 0.3 s, the hook already spends 4.5 to 4.8 s of its 5 s
+// budget on this checkout, and overlapping the read with the git status and
+// ledger reads below keeps it off that path. The channel holds one answer, so
+// the goroutine never blocks and ends when the read does.
+func countDueJournal(root string) <-chan dueJournal {
+	answer := make(chan dueJournal, 1)
+	go func() {
+		report, err := specjournal.Check(root)
+		answer <- dueJournal{due: report.DueCount(), err: err}
+	}()
+	return answer
+}
+
+// printDueJournal prints one line when journal classes are due for a fix pass.
+// A journal it cannot read costs the session this line only: the reason goes
+// to errOut and the rest of the hook runs.
+func printDueJournal(journal dueJournal, out, errOut io.Writer) {
+	if journal.err != nil {
+		fmt.Fprintf(errOut, "journal: due classes not counted: %s\n", strings.ReplaceAll(journal.err.Error(), "\n", " ")) //nolint:errcheck // hook protocol
+		return
+	}
+	if journal.due != 0 {
+		fmt.Fprintf(out, "journal: %d problem classes are due for a fix pass (./le spec journal report)\n", journal.due) //nolint:errcheck // hook protocol
+	}
 }

@@ -9,7 +9,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
-const journalWhy = "every problem class in plan/journal/ with 2+ occurrences, its row count and the span between first and last date. Prints nothing when every class has one row"
+const journalWhy = "every problem class in plan/journal/ with 2+ occurrences, its row count and the span between first and last date; a class with 10+ rows is due for a fix pass and is listed first, marked DUE. Prints nothing when every class has one row"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "report", Why: journalWhy,
@@ -17,7 +17,7 @@ var actions = leaction.New(area,
 		Answer: reportHere},
 	leaction.Action{
 		Verb:       "validate",
-		Why:        "validate one edited plan/journal class file's header, rows, dates, and Spec keys",
+		Why:        "validate one edited plan/journal class file's header, rows, dates, Spec keys, and the 600-character cap on a row added or rewritten against HEAD",
 		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: validateHere,
 	},

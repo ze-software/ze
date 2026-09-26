@@ -25,7 +25,7 @@ Ask the question from Bash instead
 | Which `.go` files implement design doc Y? | `ai/DOCS-TO-CODE.md` (inverse of the per-file `// Design:` headers) |
 | Which docs describe code path Z? | `ai/CODE-TO-DOCS.md` (inverse of doc `<!-- source: -->` anchors) |
 | Why is the code shaped this way? | `plan/learned/DESIGN-HISTORY.md` |
-| Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows) |
+| Which problems recur? | `plan/journal/` (one file per class; `./le spec journal report` prints classes with 2+ rows, the 10+ row classes first as due for a fix pass) |
 | Which rule covers a topic? | `ai/rules/INDEX.md` |
 | How does data flow through a subsystem? | `docs/architecture/core-design.md` (START HERE), then the subsystem doc below |
 | Fast subsystem orientation (entry→exit, with `file:line`) | `ai/digests/<subsystem>.md` — living flow digests; index + list in `ai/digests/README.md`. Anchors gated by `./le ai digest` |

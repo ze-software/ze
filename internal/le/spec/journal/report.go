@@ -19,11 +19,19 @@ const (
 	ProblemUnparseableDate = "unparseable-date"
 )
 
+// DueRowsMin is the row count at which a class is due for a fix pass. A class
+// that has collected this many rows is a problem the journal keeps meeting,
+// and plan/journal/README.md says a class that collects rows earns its fix in
+// a deliberate pass. Due is information, not a refusal: the report still
+// exits 0.
+const DueRowsMin = 10
+
 // Class is one recurring problem class. Singleton classes are absent because a
-// second occurrence is the report threshold.
+// second occurrence is the report threshold. Due is true at DueRowsMin rows.
 type Class struct {
 	Name     string `json:"class"`
 	Rows     int    `json:"rows"`
+	Due      bool   `json:"due"`
 	SpanDays int    `json:"span-days"`
 	First    string `json:"first-date"`
 	Last     string `json:"last-date"`
@@ -47,11 +55,30 @@ type Report struct {
 	Problems []Problem `json:"problems,omitempty"`
 }
 
-// Text renders the producer-compatible report. An empty recurrence list stays
-// empty, with no heading or summary line.
+// DueCount returns the number of classes due for a fix pass.
+func (r Report) DueCount() int {
+	due := 0
+	for _, class := range r.Classes {
+		if class.Due {
+			due++
+		}
+	}
+	return due
+}
+
+// Text renders the report. Due classes come first, each marked DUE, under one
+// count line. An empty recurrence list stays empty, with no heading or summary
+// line, and a report with no due class carries no count line.
 func (r Report) Text() string {
 	var tb textbuf.Buffer
+	if due := r.DueCount(); due != 0 {
+		tb.Int(int64(due)).Str(" problem classes have ").Int(DueRowsMin).
+			Str("+ rows and are due for a fix pass\n")
+	}
 	for _, class := range r.Classes {
+		if class.Due {
+			tb.Str("DUE ")
+		}
 		tb.Str(class.Name).Str(": ").Int(int64(class.Rows)).Str(" rows, ").
 			Int(int64(class.SpanDays)).Str("d span (").Str(class.First).
 			Str(" .. ").Str(class.Last).Str(")\n")
