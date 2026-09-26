@@ -61,7 +61,8 @@ daemon started on a non-default folder, set `ZE_CONFIG_DIR` to that folder.
 the explicit file on every start. Its daemon commits update that file and stored
 history. Bare `ze start` reads the stored active configuration. A `database.zefs`
 beside the live location is refused without conversion. The diagnostic names
-`ze init --from <blob>`, which imports a local blob; the URL form is storage-2.
+`ze init --from <source>`, which imports a blob from a local path or from an
+`http` or `https` URL, optionally pinned with `--sha256 <hex>`.
 Appliance first boot already imports its seed explicitly.
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <!-- source: internal/plugins/init/main.go -- Run -->

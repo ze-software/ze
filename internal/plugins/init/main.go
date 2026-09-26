@@ -20,7 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/zefs"
 
@@ -56,13 +58,15 @@ func Run(args []string) int {
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
 	seedFlag := fs.Bool("seed", false, "Create a database.zefs appliance seed artifact without build-host interface discovery")
-	fromFlag := fs.String("from", "", "Import a local blob artifact into the live store instead of prompting for credentials")
+	fromFlag := fs.String("from", "", "Import a blob artifact from a local path or a URL into the live store instead of prompting for credentials")
+	sha256Flag := fs.String("sha256", "", "Refuse the --from source unless its bytes have this SHA-256 (64 hex digits)")
+	schemes := strings.Join(fetch.Schemes(), ", ")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze init",
 			ShortHelp: "Bootstrap the ze database with SSH credentials",
-			Usage:     []string{"ze init [options]", "ze init --from <blob> [--force [--yes]]"},
+			Usage:     []string{"ze init [options]", "ze init --from <source> [--sha256 <hex>] [--force [--yes]]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Input (stdin or interactive prompts)", Entries: []helpfmt.HelpEntry{
 					{Name: "Line 1: username", Desc: ""},
@@ -78,7 +82,8 @@ func Run(args []string) int {
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
 					{Name: "--seed", Desc: "Create a blob artifact for appliance builders; skip build-host interface discovery"},
-					{Name: "--from <blob>", Desc: "Import a local blob artifact (database.zefs) into the live store and retire it as .replaced-<date>; reads no credentials"},
+					{Name: "--from <source>", Desc: "Import a blob artifact (database.zefs) from a local path or a URL (" + schemes + ") into the live store; a local blob is retired as .replaced-<date>, a fetched copy is removed; reads no credentials"},
+					{Name: "--sha256 <hex>", Desc: "Check the --from source against this SHA-256 before a key is written"},
 				}},
 			},
 			Examples: []string{
@@ -87,6 +92,7 @@ func Run(args []string) int {
 				"ze init --force         (replace existing database)",
 				"ze init --force --yes   (replace without confirmation)",
 				"ze init --from database.zefs   (import a blob into the live store)",
+				"ze init --from https://provision.example.net/install/database.zefs --sha256 <hex>",
 			},
 		}
 		p.WriteErr()
@@ -96,6 +102,22 @@ func Run(args []string) int {
 		return 1
 	}
 
+	if *sha256Flag != "" && *fromFlag == "" {
+		fmt.Fprintf(os.Stderr, "error: --sha256 checks the --from source and needs --from\n")
+		return 1
+	}
+	if *sha256Flag != "" {
+		if err := fetch.ValidSHA256(*sha256Flag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: --sha256: %v\n", err)
+			return 1
+		}
+	}
+	if fetch.IsRemote(*fromFlag) {
+		if _, err := fetch.Resolve(*fromFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: --from %s: %v\n", redact.URL(*fromFlag), err)
+			return 1
+		}
+	}
 	if *fromFlag != "" && *seedFlag {
 		fmt.Fprintf(os.Stderr, "error: --from imports a blob into the live store; --seed creates one, so the two cannot be combined\n")
 		return 1
@@ -123,7 +145,7 @@ func Run(args []string) int {
 		if !confirmForce(dbPath, *forceFlag, *yesFlag) {
 			return 1
 		}
-		return runImport(*fromFlag, dbPath, *forceFlag)
+		return runImport(*fromFlag, *sha256Flag, dbPath, *forceFlag)
 	}
 
 	// When piped, read all data first so --force can prompt on /dev/tty.
@@ -171,25 +193,113 @@ func confirmForce(dbPath string, force, yes bool) bool {
 	return true
 }
 
-// runImport publishes a local blob as the live tree. storage.ImportBlob checks
-// the blob, holds the ownership lock (so a running daemon refuses it), refuses
-// an existing tree unless force moved it aside, and retires the blob.
-func runImport(from, dir string, force bool) int {
+// fetchStagePrefix names the private folder a remote --from source is fetched
+// into. It sits beside the store rather than in the system temp folder, so
+// the copy an unfinished import records survives a reboot and its recovery
+// command still finds it.
+const fetchStagePrefix = "database.fetch-"
+
+// fetchedName is the fetched copy's name inside its staging folder.
+const fetchedName = "fetched.zefs"
+
+// runImport publishes a blob as the live tree. A remote source is fetched
+// first, and a local one is read in place; with expectedSHA the bytes are
+// checked before storage.ImportBlob runs. ImportBlob checks the blob (zefs.Check)
+// before it writes a key, holds the ownership lock (so a running daemon refuses
+// it), refuses an existing tree unless force moved it aside, and retires the
+// blob.
+func runImport(from, expectedSHA, dir string, force bool) int {
+	if fetch.IsRemote(from) {
+		return runFetchImport(from, expectedSHA, dir, force)
+	}
+	if expectedSHA != "" {
+		if err := fetch.CheckSHA256(from, expectedSHA); err != nil {
+			fmt.Fprintf(os.Stderr, "error: import %s: %v\n", from, err)
+			return 1
+		}
+	}
+	return importSource(from, from, dir, force)
+}
+
+// runFetchImport fetches a remote source into a private staging folder beside
+// the store, imports the copy, and removes the folder: the fetched copy, the
+// retired name the import leaves for it, and its lock. A failed fetch, digest
+// or check imports nothing and removes the folder too. The one exception is an
+// import that stopped after recording its intent: the recovery command names
+// the fetched copy, so the copy stays and the error says where.
+func runFetchImport(from, expectedSHA, dir string, force bool) int {
+	shown := redact.URL(from)
+	fetcher, err := fetch.Resolve(from)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: --from %s: %v\n", shown, err)
+		return 1
+	}
+	// Absolute, because the import intent records its source absolute and the
+	// pending check below compares the fetched copy with that record.
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: resolve %s: %v\n", dir, err)
+		return 1
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		fmt.Fprintf(os.Stderr, "error: create %s: %v\n", dir, err)
+		return 1
+	}
+	staging, err := os.MkdirTemp(dir, fetchStagePrefix)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: create fetch folder in %s: %v\n", dir, err)
+		return 1
+	}
+	fetched := filepath.Join(staging, fetchedName)
+
+	if err := fetcher(from, fetched, expectedSHA); err != nil {
+		fmt.Fprintf(os.Stderr, "error: fetch %s: %v\n", shown, err)
+		return removeStaging(staging, 1)
+	}
+	code := importSource(fetched, shown, dir, force)
+	if code == 0 {
+		return removeStaging(staging, 0)
+	}
+	source, pending, err := storage.PendingImportSource(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: the fetched copy stays at %s: the import intent cannot be read: %v\n", fetched, err)
+		return code
+	}
+	if pending && source == fetched {
+		fmt.Fprintf(os.Stderr, "error: the fetched copy stays at %s: the unfinished import records it\n", fetched)
+		return code
+	}
+	return removeStaging(staging, code)
+}
+
+// removeStaging removes a fetch staging folder and returns code, or 1 when the
+// removal fails, so a left-behind copy of the credentials is never silent.
+func removeStaging(staging string, code int) int {
+	if err := os.RemoveAll(staging); err != nil {
+		fmt.Fprintf(os.Stderr, "error: remove fetched copy %s: %v\n", staging, err)
+		return 1
+	}
+	return code
+}
+
+// importSource runs the import of the blob at path and reports it as shown,
+// the operator's own spelling of the source with any URL userinfo redacted.
+func importSource(path, shown, dir string, force bool) int {
 	importer := storage.ImportBlob
 	if force {
 		importer = storage.ReplaceImportBlob
 	}
-	store, err := importer(from, dir)
+	store, err := importer(path, dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: import %s: %v\n", from, err)
+		fmt.Fprintf(os.Stderr, "error: import %s: %v\n", shown, err)
 		return 1
 	}
-	path := filepath.Join(dir, "database")
+	tree := filepath.Join(dir, "database")
 	if err := store.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: close %s: %v\n", path, err)
+		fmt.Fprintf(os.Stderr, "error: close %s: %v\n", tree, err)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "imported %s into %s\n", from, path) //nolint:errcheck // status output
+	fmt.Fprintf(os.Stdout, "imported %s into %s\n", shown, tree) //nolint:errcheck // status output
 	return 0
 }
 

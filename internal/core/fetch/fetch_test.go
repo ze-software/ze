@@ -1,7 +1,10 @@
+// Design: docs/architecture/appliance/on-device-installer.md -- download with retry and integrity check
+// Related: fetch.go -- ToFile, ToDisk, CheckSHA256
+
 // VALIDATES: AC-13 (partial transfer detected, retry, fail closed)
 // PREVENTS: truncated image written to disk as if complete
 
-package disk
+package fetch
 
 import (
 	"bytes"
@@ -25,8 +28,8 @@ func TestDownloadToFileSuccess(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "image.bin")
 
-	if err := downloadToFile(srv.URL, dest); err != nil {
-		t.Fatalf("downloadToFile: %v", err)
+	if err := ToFile(srv.URL, dest, ""); err != nil {
+		t.Fatalf("ToFile: %v", err)
 	}
 
 	got, err := os.ReadFile(dest)
@@ -54,8 +57,8 @@ func TestDownloadToFileRetriesOnError(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "image.bin")
 
-	if err := downloadToFile(srv.URL, dest); err != nil {
-		t.Fatalf("downloadToFile: %v", err)
+	if err := ToFile(srv.URL, dest, ""); err != nil {
+		t.Fatalf("ToFile: %v", err)
 	}
 	if attempts != 3 {
 		t.Fatalf("attempts = %d, want 3", attempts)
@@ -78,8 +81,8 @@ func TestDownloadToDiskWithSHA256(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := downloadToDisk(srv.URL, disk, expectedSHA); err != nil {
-		t.Fatalf("downloadToDisk: %v", err)
+	if err := ToDisk(srv.URL, disk, expectedSHA); err != nil {
+		t.Fatalf("ToDisk: %v", err)
 	}
 
 	got, err := os.ReadFile(disk)
@@ -104,9 +107,9 @@ func TestDownloadToDiskRejectsBadSHA(t *testing.T) {
 	}
 
 	wrongSHA := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-	err := downloadToDisk(srv.URL, disk, wrongSHA)
+	err := ToDisk(srv.URL, disk, wrongSHA)
 	if err == nil {
-		t.Fatal("downloadToDisk should reject SHA mismatch")
+		t.Fatal("ToDisk should reject SHA mismatch")
 	}
 }
 
@@ -137,9 +140,9 @@ func TestDownloadToDiskStallTimeout(t *testing.T) {
 	stallTimeout = 500 * time.Millisecond
 	defer func() { stallTimeout = origTimeout }()
 
-	err := downloadToDisk(srv.URL, disk, "")
+	err := ToDisk(srv.URL, disk, "")
 	if err == nil {
-		t.Fatal("downloadToDisk should fail on a stalled transfer")
+		t.Fatal("ToDisk should fail on a stalled transfer")
 	}
 }
 
@@ -170,8 +173,8 @@ func TestDownloadToDiskSlowTransferNotKilled(t *testing.T) {
 	stallTimeout = 2 * time.Second
 	defer func() { stallTimeout = origTimeout }()
 
-	if err := downloadToDisk(srv.URL, disk, expectedSHA); err != nil {
-		t.Fatalf("downloadToDisk should succeed for slow-but-steady: %v", err)
+	if err := ToDisk(srv.URL, disk, expectedSHA); err != nil {
+		t.Fatalf("ToDisk should succeed for slow-but-steady: %v", err)
 	}
 }
 
@@ -189,8 +192,8 @@ func TestDownloadToDiskPartialTransferFails(t *testing.T) {
 	}
 
 	goodSHA := fmt.Sprintf("%x", sha256.Sum256(make([]byte, 1000)))
-	err := downloadToDisk(srv.URL, disk, goodSHA)
+	err := ToDisk(srv.URL, disk, goodSHA)
 	if err == nil {
-		t.Fatal("downloadToDisk should detect partial transfer via SHA mismatch")
+		t.Fatal("ToDisk should detect partial transfer via SHA mismatch")
 	}
 }

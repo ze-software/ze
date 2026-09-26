@@ -40,7 +40,13 @@ The live opener validates the tree before it creates `database.lock`, so a
 refused open leaves no lock file behind.
 <!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, openLive, lockOwner, populateOwned -->
 
-`ze init --from <path>` imports a local blob through `ImportBlob`. Under
+`ze init --from <source>` imports a blob through `ImportBlob`. A local path is
+read in place. An `http` or `https` source is fetched first by the shared
+helper (`internal/core/fetch`) into a `database.fetch-*` folder beside the
+store, checked against `--sha256 <hex>` when given, then imported; the folder,
+with the fetched copy and its retired name, is removed afterwards. It stays only
+when the import stopped after recording its intent
+(`PendingImportSource`), because the recovery command names that copy. Under
 `--force --yes` it calls `ReplaceImportBlob`, which moves an existing tree, and
 an unrelated seed, to `.replaced-<stamp>` before publication. `--from` reads no
 credentials and refuses, each by name, the flags that shape a new store:

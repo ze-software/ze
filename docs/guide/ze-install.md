@@ -241,6 +241,14 @@ Set the target firmware to network boot. It then:
    `database.zefs.replaced-*`, and serves its configuration. A credential-only
    seed enters [bootstrap mode](#bootstrap-mode).
 
+A device that already runs Ze can take the same seed without reinstalling:
+`ze init --from http://<server>/install/database.zefs --sha256 <hex>` fetches
+it with the installer's download helper, checks the digest and every entry
+before a key is written, imports it into `database/`, and removes the fetched
+copy. A local path (`ze init --from ./backup.zefs`) imports a file in place and
+retires it as `.replaced-<stamp>`, as the appliance does with its seed.
+<!-- source: internal/plugins/init/main.go -- runImport, runFetchImport -->
+
 ### 5. Log in and configure
 
 ```bash

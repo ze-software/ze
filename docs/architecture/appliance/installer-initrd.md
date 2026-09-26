@@ -43,7 +43,7 @@ is what the install needs.
 |-----------|-----|-------|
 | Bring a link up, apply an address and a route | `github.com/vishvananda/netlink` behind `netlinkOps` (`internal/install/disk/netlink_linux.go`) | `ip link set`, `ip addr`, `ip route` |
 | DHCP lease | In-process `nclient4` (`internal/install/disk/dhcp_linux.go`) | `udhcpc` plus a lease script |
-| HTTP image or database download | `net/http` (`internal/install/disk/download.go`) | `wget`, `curl` |
+| HTTP image or database download | `net/http` (`internal/core/fetch/fetch.go`) | `wget`, `curl` |
 | mount, umount, loop, block-device ioctls, reboot, poweroff | `golang.org/x/sys/unix` syscalls and ioctls, each isolated in a named `_linux.go` helper (`mount_linux.go`, `loop_linux.go`, `blockdev_linux.go`, `unix.Reboot` in `rescue_linux.go`) | `mount`, `losetup`, `reboot` |
 
 The installer uses the upstream `vishvananda/netlink` package directly. It does

@@ -1,7 +1,7 @@
 // Design: docs/architecture/appliance/on-device-installer.md -- download with retry and integrity check
-// Related: download.go -- downloadToFile, downloadToDisk
+// Related: fetch.go -- ToFile, ToDisk
 
-package disk
+package fetch
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ func imageURLWithUserinfo(rawURL string) string {
 }
 
 // captureSlog installs a default logger over a buffer while fn runs.
-// download.go logs through the package-level slog functions.
+// fetch.go logs through the package-level slog functions.
 func captureSlog(t *testing.T, fn func()) string {
 	t.Helper()
 	var buf bytes.Buffer
@@ -51,7 +51,7 @@ func requireNoImageCredential(t *testing.T, surface, published string) {
 }
 
 // shortRetryDelay collapses the retry backoff for a test that has to reach
-// the retry log. The entry points are downloadToFile and downloadToDisk, and
+// the retry log. The entry points are ToFile and ToDisk, and
 // the Warn line lives in their retry loop rather than in the inner attempt.
 func shortRetryDelay(t *testing.T) {
 	t.Helper()
@@ -75,14 +75,14 @@ func TestInstallerDownloadNeverPublishesTheURLUserinfo(t *testing.T) {
 	dest := filepath.Join(t.TempDir(), "ze.img")
 
 	var err error
-	logged := captureSlog(t, func() { err = downloadToFile(rawURL, dest) })
+	logged := captureSlog(t, func() { err = ToFile(rawURL, dest, "") })
 	if err == nil {
 		t.Fatal("the download did not fail, so nothing was published to assert on")
 	}
 	requireNoImageCredential(t, "the returned error", err.Error())
 	requireNoImageCredential(t, "the log line", logged)
 
-	logged = captureSlog(t, func() { err = downloadToDisk(rawURL, dest, "") })
+	logged = captureSlog(t, func() { err = ToDisk(rawURL, dest, "") })
 	if err == nil {
 		t.Fatal("the stream did not fail, so nothing was published to assert on")
 	}
@@ -101,7 +101,7 @@ func TestInstallerDownloadStillNamesAURLWithNoUserinfo(t *testing.T) {
 
 	shortRetryDelay(t)
 	rawURL := refusing.URL + "/ze.img"
-	err := downloadToFile(rawURL, filepath.Join(t.TempDir(), "ze.img"))
+	err := ToFile(rawURL, filepath.Join(t.TempDir(), "ze.img"), "")
 	if err == nil {
 		t.Fatal("the download did not fail")
 	}

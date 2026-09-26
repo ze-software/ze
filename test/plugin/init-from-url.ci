@@ -1,0 +1,7 @@
+# Test: init-from-url
+# VALIDATES: `ze init --from http://.../install/database.zefs --sha256 <hex>` fetches the blob from a loopback web server, checks the digest and the blob, imports it, removes the fetched copy and its retired name, and `ze start` runs on the imported tree.
+# PREVENTS: a provisioning fetch that imports unchecked bytes or leaves a copy of the credentials in the store folder.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/init-from-url:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: init-from-url

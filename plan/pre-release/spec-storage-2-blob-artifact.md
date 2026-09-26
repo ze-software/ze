@@ -288,6 +288,8 @@ An unrelated canonical seed is never mistaken for the source, and an init source
 | AC-20 | `ze data restore <file> config` on a source holding two config names, no `name` keyword, and no config matching the device's name | refused before any write, listing both source names and the device's name; with `name <one-of-them>` that config is committed under the device's name and the rename is printed |
 | AC-19 | `ze data backup`, `restore`, `request data backup|restore`, `ze init --from` documented | `command-reference.md`, `operations.md` carry them; `./le site build` regenerates the website pages; `./le cli catalog update file ../wiki/command-catalog.md` separately regenerates the wiki catalog, which is committed in the wiki checkout |
 
+**Evidence, AC-9 to AC-11 (Phase 4, 2026-09-26):** unit tests green in `internal/plugins/init/init_from_test.go` (`TestInitFromSeed`, `TestInitFromBackup`, `TestInitFromRefusesExisting`, `TestInitFromScheme`, `TestInitFromURL`, `TestInitFromURLRefused`, `TestInitFromPathSHA256`) and `internal/core/fetch/scheme_test.go` (`TestFetchSHA256`, `TestFetchSchemeTable`, `TestFetchRedirectOtherHost`). `test/plugin/init-from-path.ci`, `init-from-url.ci` and `init-from-refused.ci` (fixtures `storage/init-from-*`) are written and NOT RUN: `./le test functional plugin` is owed. The pending-intent recovery path of AC-11 is storage-1's `TestImportResumesCrashBoundaries`; the URL form keeps its fetched copy while an intent records it (`storage.PendingImportSource`).
+
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |

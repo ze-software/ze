@@ -8,7 +8,7 @@ reimplementing the logic in shell.
 <!-- source: internal/install/disk/register.go -- command registration -->
 <!-- source: internal/install/disk/validate.go -- input validation, parity with the old shell validators -->
 <!-- source: internal/install/disk/detect.go -- target disk detection -->
-<!-- source: internal/install/disk/download.go -- HTTP download with SHA-256 and retry -->
+<!-- source: internal/core/fetch/fetch.go -- HTTP download with SHA-256 and retry, shared with ze init --from -->
 <!-- source: internal/install/disk/iso.go -- ISO media detection, Ventoy included -->
 <!-- source: internal/install/disk/cmdline.go -- kernel cmdline parsing -->
 <!-- source: internal/install/disk/network.go -- network fallback -->
@@ -21,6 +21,16 @@ transport failure goes through `redact.URLError`, so the userinfo is replaced
 with `<redacted>`. An installer console is read over a serial line and
 photographed, which is the worst place for a credential to appear.
 <!-- source: internal/core/redact/redact.go -- URL, URLError -->
+
+**The download helper is shared with `ze init --from`.** It lives in the core
+leaf package `internal/core/fetch`, which the installer and `ze init` both
+import. It follows a redirect only within the scheme and host of the first
+request: the SHA-256 is optional, so a redirect to another host is the one way
+a fetch would take bytes from a server the operator never named. A file fetch
+is written 0600 and bounded at 1 GiB. A stalled stream fails after 60 seconds
+with no data: a timer closes the response body, which ends the blocked read.
+<!-- source: internal/core/fetch/fetch.go -- ToFile, ToDisk, sameOrigin, stallReader -->
+<!-- source: internal/core/fetch/scheme.go -- the scheme table ze init --from resolves -->
 
 ## What this work exists to prevent
 

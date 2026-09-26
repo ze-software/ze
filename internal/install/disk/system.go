@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/core/fetch"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -84,7 +85,7 @@ func mountInjectDB(part4, baseURL, mountPoint string) error {
 	}
 
 	dbURL := tb.Reset().Str(baseURL).Str("/install/database.zefs").String()
-	if err := downloadToFile(dbURL, dbDest); err != nil {
+	if err := fetch.ToFile(dbURL, dbDest, ""); err != nil {
 		return fmt.Errorf("download database.zefs: %w", err)
 	}
 

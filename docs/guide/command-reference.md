@@ -1904,6 +1904,7 @@ ze init                          # Interactive setup
 ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
+ze init --from https://provision.example.net/install/database.zefs --sha256 <hex>
 ```
 
 Input fields are username, password, host, port, and instance name.
@@ -1918,11 +1919,21 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
-| `--from <blob>` | Import a local blob into the live store and retire it as `.replaced-<stamp>`; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store |
+| `--from <source>` | Import a blob from a local path or an `http` or `https` URL into the live store; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store. A local blob is retired as `.replaced-<stamp>`. A URL is fetched into a `database.fetch-*` folder beside the store, and that folder is removed after the import |
+| `--sha256 <hex>` | Refuse the `--from` source unless its bytes have this SHA-256, 64 hex digits; the check runs before a key is written |
+
+Every `--from` source is checked whole (`zefs.Check`) before a key is written.
+A digest mismatch, a body that is not a blob, or a corrupt entry imports
+nothing, and the error names the reason or the key. Any other scheme is refused
+with the supported list. A redirect is followed only within the scheme and host
+of the URL. When an import stops after it recorded its intent, the fetched copy
+stays and the error names it, because the recovery command
+`ze init --from <copy>` reads it.
 
 Replacement refuses a live store owner, regardless of the selected SSH target.
 Run maintenance as the store owner, including when you have root access.
-<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, defaultHost, defaultPort -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, runFetchImport, defaultHost, defaultPort -->
+<!-- source: internal/core/fetch/scheme.go -- Resolve, Schemes -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
 

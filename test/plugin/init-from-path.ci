@@ -1,0 +1,7 @@
+# Test: init-from-path
+# VALIDATES: `ze init --from ./backup.zefs` imports a `ze data backup` artifact byte-equal into database/, retires it as .replaced-<stamp>, and `ze start` runs on the imported tree with the seeded credentials and identity intact.
+# PREVENTS: a local-path import broken by the URL schemes, or a backup that does not rebuild a box.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/init-from-path:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: init-from-path
