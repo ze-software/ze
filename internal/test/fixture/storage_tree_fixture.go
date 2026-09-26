@@ -732,7 +732,7 @@ func storageBackupScenario(ctx context.Context) error {
 	if err == nil {
 		return errors.Join(fmt.Errorf("backup ran beside the owner:\n%s", output), closeErr)
 	}
-	for _, want := range []string{"127.0.0.1/2222", "request data backup"} {
+	for _, want := range []string{"127.0.0.1:2222", "request data backup"} {
 		if !bytes.Contains(output, []byte(want)) {
 			return errors.Join(fmt.Errorf("owner refusal lacks %q:\n%s", want, output), closeErr)
 		}

@@ -27,8 +27,12 @@ import (
 // one proves replay invents none of its own.
 const storageRestoreRetired = storageTreeName + ".replaced-20260101T000000.000000000"
 
-// storageRestoreEndpoint is the SSH endpoint an owner refusal names.
-const storageRestoreEndpoint = "127.0.0.1/2222"
+// storageRestoreEndpoint is the SSH endpoint the seed records, as host/port;
+// storageRestoreDialed is how an owner refusal prints it, as host:port.
+const (
+	storageRestoreEndpoint = "127.0.0.1/2222"
+	storageRestoreDialed   = "127.0.0.1:2222"
+)
 
 // The keys and interrupted states the restore scenarios share.
 const (
@@ -190,7 +194,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if err == nil {
 		return errors.Join(fmt.Errorf("restore ran beside the owner:\n%s", output), closeErr)
 	}
-	if err := storageRequireOutput(output, storageRestoreEndpoint, "stop the daemon"); err != nil {
+	if err := storageRequireOutput(output, storageRestoreDialed, "stop the daemon"); err != nil {
 		return errors.Join(err, closeErr)
 	}
 	if closeErr != nil {
@@ -221,7 +225,7 @@ func storageRestoreFullScenario(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := storageRequireOutput(output, "5 keys", "database.replaced-"); err != nil {
+	if err := storageRequireOutput(output, "6 keys", "database.replaced-"); err != nil {
 		return err
 	}
 	if err := storageTreeEquals(storageTreeName, backup); err != nil {
