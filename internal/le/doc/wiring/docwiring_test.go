@@ -677,3 +677,33 @@ func TestCheckDeclaresTheKeywordsItEnforces(t *testing.T) {
 		t.Errorf("check publishes %+v second, want %q as a switch that takes no value", dryRun, dryRunKeyword)
 	}
 }
+
+// VALIDATES: a file named as changed that holds no working-tree hunk answers
+// every line, as it did before changedLines read repochanged.WorkingTreeLines.
+// PREVENTS: a named file committed before the check runs answering "nothing
+// touched", which passes every claim about it.
+func TestChangedLinesNamedFileWithNoHunkIsWhollyChanged(t *testing.T) {
+	root := docDriftTree(t)
+
+	lines, ok := changedLines(root, "internal/x/x.go")
+	if !ok {
+		t.Fatal("a committed, unchanged file could not be diffed")
+	}
+	if !lines.Touches("internal/x/x.go", 1, 1) {
+		t.Errorf("the named file's first line is not touched: %v", lines)
+	}
+	if !lines.Touches("internal/x/x.go", 5, 5) {
+		t.Errorf("the named file's last line is not touched: %v", lines)
+	}
+
+	symbols, ok := touchedSymbols(root, "internal/x/x.go")
+	if !ok {
+		t.Fatal("touchedSymbols refused a readable file")
+	}
+	if !symbols["Documented"] {
+		t.Errorf("touched symbols = %v, want Documented and Other", symbols)
+	}
+	if !symbols["Other"] {
+		t.Errorf("touched symbols = %v, want Documented and Other", symbols)
+	}
+}

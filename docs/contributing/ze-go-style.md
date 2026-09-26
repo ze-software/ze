@@ -78,15 +78,49 @@ implementation stays free to change. Its contract does not.
 
 Write the guard, handle it, and return. A sequence of guard clauses followed by
 the main logic reads from top to bottom. A happy path wrapped in an `else` block
-does not.
+does not. The linter enforces this: revive's `early-return`, `indent-error-flow`
+and `superfluous-else` rules refuse an `else` that a guard makes unnecessary.
+<!-- source: .golangci.yml -- revive rules -->
 
 Split a compound condition into nested branches. A reader who meets
 `if a && b && !c` must hold three facts at once to decide whether every case is
 covered. Ask, for each `if`, whether the negative case also needs a branch or a
 guard.
 
+One guard states one fact. `if a || b { return err }` is two guards written as
+one, and it splits with no change in meaning: `||` tests `a` first and stops at
+the first true operand, and the body leaves either way. Write `if a { return
+err }`, then `if b { return err }`. `./le arch compound-guard check` refuses
+this shape on a changed line: a top-level `||` condition, no `else`, and a body
+whose last statement is a `return`, `continue`, `break` or `goto`. It does not
+judge `&&`, a condition with an `else`, or a body that falls through, because
+none of those splits without a design decision.
+
+The gate judges only changed lines, in shipped Go (not `_test.go`, `vendor/`,
+`testdata/`, or a dot directory). A changed line is one that differs between
+the working tree and the last pushed commit behind HEAD: the merge base of
+HEAD and the branch upstream, or of HEAD and `origin/main` when the branch
+tracks none. The gate is owed before a push, so the unpushed range is what it
+judges, and a guard committed without a verify is still judged by the next
+run. A clean checkout of pushed code judges nothing, which is correct, because
+that code was judged before its push. The base reads refs only, so the
+detached worktree `./le verify worktree` makes answers the same range. When no
+base resolves, the check exits 2 and names why. The tree held about 3,000 such
+guards when the gate was written, so a package or file scope would make every
+old guard due the moment a neighbor changed. A guard is due when a line of its
+condition changed, from the `if` keyword to the opening brace. An edit inside an
+old guard's body leaves it alone. `./le arch compound-guard selftest` proves the detection
+against fixtures.
+<!-- source: internal/le/arch/compoundguard/compoundguard.go -- Check -->
+<!-- source: internal/le/repo/changed/lines.go -- LinesSinceUpstream -->
+
 State an invariant positively. `if index < length` is easy to read. `if index >=
 length` states the failure of the invariant, and the reader must invert it.
+When a condition has an `else`, the linter refuses `if !c` and `if a != b`: swap
+the branches and test `c` or `a == b`. A comparison with `nil` stays, because
+`err != nil` is the Go guard idiom. The failure form of a bound, such as
+`x >= len(y)`, is not checked, because a terminating guard is its usual home.
+<!-- source: .golangci/ruleguard/modern.go -- negatedElse -->
 
 Recursion over a structure that an external peer controls is forbidden, because
 the peer chooses the depth. Recursion over a bounded internal structure is
@@ -256,6 +290,7 @@ that the software had already detected.
 So: no discarded error, no silent default, no fallback value invented at the
 point of failure. `f, _ := open()` is refused. When a discard is genuinely
 correct, write `//nolint:errcheck // <the reason>` and give the reason.
+`nolintlint` refuses a directive that names no linter or gives no reason.
 
 Fail early. A config that does not parse stops the load. A value that is absent
 is an error, never `0.0.0.0/0`.
@@ -486,7 +521,7 @@ rounds, so the reader knows that you thought about the case.
 |---------|-------|
 | Formatting | `gofmt` and `goimports`. Ze imports come last, under the local prefix |
 | Linting | `golangci-lint` MUST pass. Do not disable a linter. Fix the finding |
-| A `//nolint` | Carries the specific reason on the same line |
+| A `//nolint` | Carries the specific reason on the same line. `nolintlint` enforces it in `./le go lint run`, and `writeGoPatterns` also refuses it when the file is written |
 | Indentation | Tabs, because `gofmt` writes tabs. Every other file type is spaces, and `.editorconfig` at the repository root carries the width for each one |
 | Line length | 100 columns is the target, and it is advisory. The number is physical: two copies of the code fit beside each other on one screen |
 | File length | 1000 lines is the point at which you look for a second concern. It is the only threshold |

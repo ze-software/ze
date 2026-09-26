@@ -25,6 +25,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 const (
@@ -603,7 +604,7 @@ func touchedSymbols(root, rel string) (map[string]bool, bool) {
 		from := fset.Position(decl.Pos()).Line
 		to := fset.Position(decl.End()).Line
 		for _, name := range declaredNames(decl) {
-			if lines.overlaps(from, to) {
+			if lines.Touches(rel, from, to) {
 				touched[name] = true
 			}
 		}
@@ -672,76 +673,26 @@ func claimedSymbolsTouched(symbols []string, touched map[string]bool) []string {
 	return named
 }
 
-// lineRange is one contiguous run of changed lines.
-type lineRange struct{ from, to int }
-
-// lineRanges is one file's changed lines, as the hunks git reported.
-type lineRanges []lineRange
-
-// overlaps reports whether a declaration spanning from..to holds a changed line.
-func (r lineRanges) overlaps(from, to int) bool {
-	for _, one := range r {
-		if one.from <= to && from <= one.to {
-			return true
-		}
-	}
-	return false
-}
-
-// changedLines answers the lines of one file the diff touched, reading the
-// unstaged and staged hunks together. The second result reports a file git
-// could not diff.
+// changedLines answers the lines of one file the working tree changed against
+// HEAD. The second result reports a file git could not diff.
 //
-// A file with no hunk in either diff is untracked, so every line of it is new.
-// That is the one case where a whole-file answer is the right one.
-func changedLines(root, rel string) (lineRanges, bool) {
-	var ranges lineRanges
-	for _, argv := range [][]string{
-		{gitDiff, "-U0", "--", rel},
-		{gitDiff, "--cached", "-U0", "--", rel},
-	} {
-		out, err := gitLines(root, argv)
-		if err != nil {
-			return nil, false
-		}
-		ranges = append(ranges, hunkRanges(out)...)
+// repochanged parses the diff for this check and for `le arch compound-guard`
+// alike, but the two diff against different bases: this one against HEAD, the
+// gate against the last pushed commit (repochanged.LinesSinceUpstream).
+//
+// A file the caller named that holds no hunk answers every line. The caller
+// named it as changed (`changed-file <path>`, or a commit's file list), so
+// the change is in history git's working-tree diff cannot see, and "nothing
+// touched" would pass every claim about it.
+func changedLines(root, rel string) (repochanged.ChangedLines, bool) {
+	changed, err := repochanged.WorkingTreeLines(root, rel)
+	if err != nil {
+		return nil, false
 	}
-	if len(ranges) == 0 {
-		return lineRanges{{from: 1, to: math.MaxInt32}}, true
+	if len(changed[rel]) == 0 {
+		changed[rel] = []repochanged.LineSpan{{From: 1, To: math.MaxInt}}
 	}
-	return ranges, true
-}
-
-// hunkRe reads the new-side span of a unified diff hunk header.
-var hunkRe = regexp.MustCompile(`^@@ -\S+ \+(\d+)(?:,(\d+))? @@`)
-
-// hunkRanges answers the new-side line spans of one diff's hunk headers. A hunk
-// of zero new lines is a deletion, and it takes the line it deleted from, so a
-// declaration losing its body still counts as touched.
-func hunkRanges(lines []string) lineRanges {
-	var ranges lineRanges
-	for _, line := range lines {
-		match := hunkRe.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
-		from, err := strconv.Atoi(match[1])
-		if err != nil {
-			continue
-		}
-		count := 1
-		if match[2] != "" {
-			if parsed, err := strconv.Atoi(match[2]); err == nil {
-				count = parsed
-			}
-		}
-		if count == 0 {
-			ranges = append(ranges, lineRange{from: from, to: from})
-			continue
-		}
-		ranges = append(ranges, lineRange{from: from, to: from + count - 1})
-	}
-	return ranges
+	return changed, true
 }
 
 // changedGoSources answers the changed paths a page can carry a claim about.

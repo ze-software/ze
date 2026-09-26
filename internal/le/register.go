@@ -15,6 +15,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/ai/rules"
 	_ "github.com/ze-software/ze/internal/le/ai/sync"
 	_ "github.com/ze-software/ze/internal/le/ai/tokens"
+	_ "github.com/ze-software/ze/internal/le/arch/compoundguard"
 	_ "github.com/ze-software/ze/internal/le/arch/enumeration"
 	_ "github.com/ze-software/ze/internal/le/arch/fspersistence"
 	_ "github.com/ze-software/ze/internal/le/arch/ifaceresolution"

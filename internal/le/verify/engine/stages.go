@@ -103,6 +103,14 @@ func fullStages() []Stage {
 		// already in the tree are `le arch enumeration report`, and this stage's red
 		// means the change under test added one (owner decision, 2026-09-14).
 		stage("arch enumeration", "check"),
+		// arch compound-guard judges the LINES in the unpushed range, committed or
+		// not: the base is the merge base of HEAD and the upstream, or origin/main,
+		// read from refs, so this detached worktree answers the same range as its
+		// source. A clean pushed checkout judges nothing, correctly, because pushed
+		// code was judged before its push. No base exits 2. The tree held about
+		// 3,000 splittable || guards in shipped code when it was written, and a
+		// package scope would make a neighbor's old guards due on every touch.
+		stage("arch compound-guard", "check"),
 		stage("yang glue", "check"),
 		stage("repo feature-tags", "check"),
 		stage("doc check", "templ-output"),

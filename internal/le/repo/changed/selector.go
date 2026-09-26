@@ -488,8 +488,15 @@ func workingTreeQueries() [][]string {
 	return append(queries,
 		[]string{gitDiff, gitNameOnly, "-z"},
 		[]string{gitDiff, "--cached", gitNameOnly, "-z"},
-		[]string{"ls-files", "--others", "--exclude-standard", "-z"},
+		untrackedPathsQuery(),
 	)
+}
+
+// untrackedPathsQuery is the git query for every untracked, unignored path,
+// NUL-separated. WorkingTreePaths and WorkingTreeLines both read it, so the two
+// cannot come to disagree about which new files a change holds.
+func untrackedPathsQuery() []string {
+	return []string{"ls-files", "--others", "--exclude-standard", "-z", "--"}
 }
 
 // WorkingTreePaths answers every path this working tree changed against HEAD,
