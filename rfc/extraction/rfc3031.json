@@ -174,11 +174,7 @@
       "id": "3.24",
       "sites": 1,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC3031-3.24-1",
-        "RFC3031-3.24-2"
-      ],
-      "reason": "Loop Control. Its one site is the lower-case loop-detection sentence, excluded. RFC3031-3.24-1 (TTL decremented at each LSR) and RFC3031-3.24-2 (discard at TTL 0) were read from the indicative prose of section 3.23, \"Whenever a packet passes through a router, its TTL gets decremented by 1; if the TTL reaches 0 before the packet has reached its destination, the packet gets discarded.\" Section 3.23 states the shim TTL \"SHOULD be decremented at each LSR-hop\"; this document states no MUST for either row, and section 3.24 does not mention TTL handling."
+      "reason": "Loop Control. Its one site is the lower-case loop-detection sentence, excluded. Section 3.24 does not mention TTL handling. The two rows once listed here, RFC3031-3.24-1 and RFC3031-3.24-2, were retired 2026-09-26 (rfc/corrections/rfc3031.md): RFC 3032 section 2.4.2 states the label-stack TTL obligations."
     },
     {
       "id": "3.25",
