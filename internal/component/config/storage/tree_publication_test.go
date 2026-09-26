@@ -234,7 +234,7 @@ func TestImportPublicationRetainsRenamedParent(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "database"), 0o700))
 	decoy := filepath.Join(dir, "database", "unrelated")
 	require.NoError(t, os.WriteFile(decoy, []byte("retain"), 0o600))
-	s, err := importOwned(source, folder, owner, false)
+	s, err := importOwned(source, folder, owner, policyRetireSource, false)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.Close()) })
 	assertImportValues(t, s, values)

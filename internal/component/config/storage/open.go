@@ -29,6 +29,13 @@ const (
 	replacedInfix   = ".replaced-"
 )
 
+// TreeName and BlobName are the live tree's and the canonical seed's folder
+// entries, for a caller outside the package that must recognize them.
+const (
+	TreeName = treeName
+	BlobName = blobName
+)
+
 // Open opens a live tree for its sole writer. The caller MUST Close the handle.
 // Blob detection is stat-only and always refuses, including a both-present state.
 func Open(dir string) (Storage, error) { return openLive(dir, false) }
@@ -88,7 +95,14 @@ func splitStorePath(path string) (string, string, error) {
 	return dir, name, nil
 }
 
+// detect answers whether dir holds a live tree an ordinary opener may use. An
+// import intent is checked first, even beside an existing tree or canonical
+// seed: an unfinished import or restore reports ErrImportPending naming its
+// recovery command, and nothing is moved here.
 func detect(dir string) error {
+	if err := pendingImport(dir); err != nil {
+		return err
+	}
 	blob := filepath.Join(dir, blobName)
 	if _, err := os.Lstat(blob); err == nil {
 		return fmt.Errorf("blob artifact %s is not a live store; run ze init --from %s", blob, blob)
@@ -98,42 +112,11 @@ func detect(dir string) error {
 	path := filepath.Join(dir, treeName)
 	if _, err := os.Lstat(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return missingTree(dir, path)
-		}
-		return err
-	}
-	return nil
-}
-
-// missingTree answers for an absent tree. With no import intent beside it the
-// store is genuinely absent and Create may build one. With an intent beside it
-// an import crashed after moving the old tree to database.replaced-* and
-// before publishing its stage, so the answer is ErrImportPending, never
-// ErrNoStore: auto-creating an empty tree there would hide the operator's
-// store, and the next import would then be refused as "names another tree".
-// An intent that cannot be read refuses the same way, because a store whose
-// intent is unreadable is not known to be absent.
-func missingTree(dir, path string) error {
-	intentPath := filepath.Join(dir, importIntentName)
-	if _, err := os.Lstat(intentPath); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
 		}
 		return err
 	}
-	folder, err := openFolder(dir)
-	if err != nil {
-		return err
-	}
-	intent, exists, err := readImportIntent(folder)
-	err = errors.Join(err, folder.Close())
-	if err != nil {
-		return fmt.Errorf("%w: %s cannot be read and %s is absent: %w; the tree in place before the import sits in %s.replaced-*: re-run ze init --from with the original blob, or remove that intent file once %s holds the wanted tree", ErrImportPending, intentPath, path, err, path, path)
-	}
-	if !exists {
-		return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
-	}
-	return fmt.Errorf("%w: %s records an import of %s and %s is absent; the tree in place before the import sits in %s.replaced-*: finish the import with ze init --from %s, or remove that intent file once %s holds the wanted tree", ErrImportPending, intentPath, intent.Source, path, path, intent.Source, path)
+	return nil
 }
 
 func openLive(dir string, readonly bool) (Storage, error) {
@@ -155,6 +138,11 @@ func openLive(dir string, readonly bool) (Storage, error) {
 	owner, err := lockOwner(folder, lockName)
 	if err != nil {
 		return nil, errors.Join(err, result.Close())
+	}
+	// The intent check is repeated under the owner lock, so an import that
+	// started between detect and the lock is never handed a writer.
+	if err := pendingImport(dir); err != nil {
+		return nil, errors.Join(err, owner.Close(), result.Close())
 	}
 	result.owner = owner
 	return result, nil
@@ -264,21 +252,19 @@ func populateTree(dir string, populate func(Storage) error, replace bool) (Stora
 
 func populateOwned(folder, owner *os.File, populate func(Storage) error, replace bool) (_ *store, retErr error) {
 	if !replace {
+		// An unfinished import or restore refuses before the existence
+		// check, even beside an existing tree: publishing over it would bury
+		// the nodes its intent recorded. Replace is the operator's explicit
+		// choice and skips this.
+		if err := pendingImport(folder.Name()); err != nil {
+			return nil, err
+		}
 		for _, name := range []string{treeName, blobName} {
 			if err := nodeStat(folder, name); err == nil {
 				return nil, fmt.Errorf("database already exists: %s: %w", filepath.Join(folder.Name(), name), fs.ErrExist)
 			} else if !errors.Is(err, fs.ErrNotExist) {
 				return nil, err
 			}
-		}
-		// The tree is absent, so missingTree decides whether that absence is
-		// a store to create (ErrNoStore) or an import that crashed after
-		// moving the operator's tree to database.replaced-* (ErrImportPending).
-		// Publishing an empty tree over the second would bury that tree, so
-		// the same refusal detect gives every opener applies here. Replace is
-		// the operator's explicit choice and skips this.
-		if err := missingTree(folder.Name(), filepath.Join(folder.Name(), treeName)); !errors.Is(err, ErrNoStore) {
-			return nil, err
 		}
 	}
 	if replace {

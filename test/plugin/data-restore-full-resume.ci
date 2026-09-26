@@ -1,0 +1,7 @@
+# Test: data-restore-full-resume
+# VALIDATES: an interrupted full restore (before the old-tree move, with database absent, after publication) makes every opener print `ze data restore <file> full`, and that command alone finishes it with the source kept and the old tree at its recorded name; an unrelated tree at database is refused and kept.
+# PREVENTS: a crashed restore that a daemon starts over, that invents another stage or retirement name, or that moves an unrelated tree.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/tree data-restore-full-resume:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-full-resume

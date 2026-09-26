@@ -104,6 +104,7 @@ never the tree's framing bytes.
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination |
 | `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
 | `ze data restore <file> config [name <source-name>]` | Commit the artifact's config as a new active version; offline only |
+| `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |

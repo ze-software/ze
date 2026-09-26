@@ -23,18 +23,22 @@ multi-key snapshot guarantee.
 
 Both openers first stat `database.zefs`. Its presence, even beside a valid tree,
 refuses the open and names `ze init --from <blob>`; no blob contents are read and
-nothing is renamed. Absence of both forms returns `ErrNoStore` and names `ze init`,
-unless `database.import-intent` sits beside the absent tree: then an import
-crashed after moving the old tree to `database.replaced-<stamp>` and before
-publishing its stage, and every opener returns `ErrImportPending` naming the
-intent file, its source and `ze init --from <source>`. `Create` and
+nothing is renamed. Absence of both forms returns `ErrNoStore` and names `ze init`.
+Before either check, every opener reads `database.import-intent`: while one sits
+in the folder, beside an absent tree or an existing one, the import or restore it
+records is unfinished, and every opener returns `ErrImportPending` naming the
+intent file, its source and its recovery command (`ze init --from <source>` or
+`ze data restore <source> full`). An unreadable intent refuses the same way. The
+one exception is a retiring import whose new tree is published and whose source
+is already archived: that tree is the store, and the intent waits for the
+recovery command to remove it. `Create` and
 `CreatePopulated` refuse the same way, under the owner lock, so neither `ze
 start` nor a plain `ze init` publishes an empty tree over the operator's store;
 `ze init --from` resumes the import. Only `ReplacePopulated` (`ze init --force
 --yes`) proceeds, because replacing whatever sits there is its explicit order.
 The live opener validates the tree before it creates `database.lock`, so a
 refused open leaves no lock file behind.
-<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, missingTree, openLive, lockOwner, populateOwned -->
+<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, openLive, lockOwner, populateOwned -->
 
 `ze init --from <path>` imports a local blob through `ImportBlob`. Under
 `--force --yes` it calls `ReplaceImportBlob`, which moves an existing tree, and
@@ -152,21 +156,38 @@ removes the placeholder and re-runs the `ze init` that was interrupted.
 
 ## Import and artifacts
 
-`ImportBlob` is the only blob-to-live-tree operation. It checks the source,
-copies every raw key, and compares both key sets and every value before
-publication. Its durable `database.import-intent` records the source digest,
-private stage, destination device/inode and archive name. An interrupted import
-resumes its own published destination only when the tree's device and inode
-match the intent. While the source is not yet retired, every key and value is
-compared to it as well. Once the source is retired the import is finished apart
-from the intent, so a tree a daemon has changed since is accepted and only the
-intent is removed. An unrelated tree, a changed source, and an intent naming
-another source are refused; each refusal names `database.import-intent` and the
-repair: `ze init --from <source>`, or removing the intent once `database` holds
-the wanted tree. The unrelated-tree refusal also names the stage the intent
-holds, and an import removes every `database.import-tmp-*` stage before it
-builds a new one, so a stage left by a removed intent does not outlive the next
-import.
+`ImportBlob` (`ze init --from`) and `RestoreBlob` (`ze data restore <file> full`)
+are the two blob-to-live-tree operations, and they share one protocol. They
+differ only in the source policy the intent records: `retire-source` archives
+the artifact as `<source>.replaced-<stamp>`, and `keep-source` leaves it where it
+is. A restore always replaces; an import replaces only under `--force`.
+
+Each checks the source, copies every raw key into a private
+`database.import-tmp-*` stage, compares both key sets and every value, syncs the
+stage, and then writes one immutable `database.import-intent` before any
+destination moves. The intent records the policy, the source and its digest, the
+archive name (`retire-source` only), the stage name and its device/inode, and one
+descriptor for each previous destination: the old `database` tree and an
+unrelated `database.zefs`, each either `absent` or `present` with its device,
+inode and the exact `.replaced-<stamp>` name it will take. An init of the
+canonical seed itself records the seed as `source`. Every retirement name is
+chosen once and checked free before the intent is written. A missing or unknown
+field refuses: absence is never implied.
+
+Progress is never stored. Replay classifies where each recorded identity sits
+now: the old tree at `database` or at its retirement name, the seed likewise,
+the new tree at its stage or at `database`, and the source at its name or its
+archive. Only a state the protocol can produce is accepted, and it is accepted
+before anything moves. Replay then verifies the stage or the published tree
+against the source, moves the old tree and then the seed with a no-replace
+rename, publishes the stage, and completes by policy, syncing the folder after
+each effect. An identity at the wrong name, both or neither location of a
+recorded node, a missing stage without a published tree, a changed source, a
+policy or source that differs from the command, or an unrelated replacement
+refuses without moving or deleting anything; each refusal names
+`database.import-intent`, the conflict and the recovery command. A new import
+removes every `database.import-tmp-*` stage before it builds its own; a replay
+never does, and never chooses another stage or stamp.
 
 The importer alone retires the source to `.replaced-<stamp>`, moves the source's
 `.lock` file beside the archive (every blob artifact keeps its lock next to it, and
@@ -175,7 +196,8 @@ syncs its directory, and then removes the intent, in that order, so a crash betw
 the steps leaves a state the next import recognizes as finished. If a crash leaves both tree and
 seed, ordinary `Open` still refuses; repeating the explicit importer completes
 retirement. Incomplete private staging names never count as a live store.
-<!-- source: internal/component/config/storage/import.go -- ImportBlob, ReplaceImportBlob, importOwned, removeStaleStages, resumeImport, verifyImportIdentity, finishImport, retireSource -->
+<!-- source: internal/component/config/storage/import.go -- ImportBlob, ReplaceImportBlob, RestoreBlob, importOwned, startImport, removeStaleStages, retireSource -->
+<!-- source: internal/component/config/storage/import_replay.go -- importIntent, classifyImport, replayImport, finishImport, pendingImport -->
 
 `OpenBlob` and `CreateBlob` address explicit artifacts. Their format remains the
 ZeFS format documented in [zefs-format.md](zefs-format.md).

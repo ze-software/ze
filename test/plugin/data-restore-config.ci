@@ -1,0 +1,7 @@
+# Test: data-restore-config
+# VALIDATES: `ze data restore <file> config` offline commits the artifact config as the device new active version and leaves credentials and every other key unchanged.
+# PREVENTS: a config restore that copies the artifact secrets or moves no active pointer.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/tree data-restore-config:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-config

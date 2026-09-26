@@ -1,0 +1,7 @@
+# Test: data-restore-full
+# VALIDATES: `ze data restore <file> full` replaces the tree with every key of the artifact, keeps the old tree and an unrelated seed at their recorded .replaced- names and the artifact unchanged; a corrupt artifact, the canonical seed and an owned store are refused with the tree untouched.
+# PREVENTS: a restore that loses the old tree, retires the backup, runs beside a daemon, or publishes a store no opener accepts.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/tree data-restore-full:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-full

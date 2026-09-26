@@ -130,6 +130,12 @@ func storageTreeScenario(ctx context.Context, args []string) error {
 		err = storageDataScenario(ctx)
 	case "data-backup":
 		err = storageBackupScenario(ctx)
+	case "data-restore-full":
+		err = storageRestoreFullScenario(ctx)
+	case "data-restore-full-resume":
+		err = storageRestoreResumeScenario(ctx)
+	case "data-restore-config":
+		err = storageRestoreConfigScenario(ctx)
 	case "stdin-ephemeral-authority":
 		err = storageEphemeralScenario(ctx)
 	case "explicit-file-restart":
@@ -441,8 +447,8 @@ func storageRefusalLooseMode(ctx context.Context) ([]string, error) {
 }
 
 // storageRefusalUnfinishedImport installs the state of an import that crashed
-// after moving the old tree to database.replaced-* and before publishing its
-// stage: an intent beside no tree. start MUST refuse and name the intent file
+// after its intent became durable and before publishing its stage: an intent
+// beside no tree. start MUST refuse and name the intent file
 // and the import to finish, and MUST NOT auto-create an empty tree over the
 // operator's store.
 func storageRefusalUnfinishedImport(context.Context) ([]string, error) {
@@ -451,22 +457,19 @@ func storageRefusalUnfinishedImport(context.Context) ([]string, error) {
 		return nil, err
 	}
 	source := filepath.Join(cwd, "database.zefs")
-	// The layout mirrors storage's importIntent; the identity fields are never
-	// consulted here because no tree exists to compare them with.
-	intent := struct {
-		Source  string `json:"source"`
-		Digest  string `json:"digest"`
-		Stage   string `json:"stage"`
-		Archive string `json:"archive"`
-		Device  uint64 `json:"device"`
-		Inode   uint64 `json:"inode"`
-	}{
+	// The layout mirrors storage's importIntent: a retiring init of the
+	// canonical seed that moved no tree. The identities are never consulted
+	// here because neither the source nor any tree exists to compare them with.
+	intent := storageIntentFixture{
+		Policy:  "retire-source",
 		Source:  source,
 		Digest:  strings.Repeat("0", 64),
 		Stage:   "database.import-tmp-crashed",
 		Archive: source + ".replaced-20260101T000000.000000000",
 		Device:  1,
 		Inode:   1,
+		Tree:    storagePriorFixture{State: storagePriorAbsent},
+		Seed:    storagePriorFixture{State: storagePriorSource},
 	}
 	encoded, err := json.Marshal(intent)
 	if err != nil {

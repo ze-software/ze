@@ -2166,6 +2166,7 @@ ze data check
 ze data repair --output <new-path>
 ze data backup <file> [spare <n>]  # Copy every key to one blob artifact
 ze data restore <file> config [name <source-name>]  # Commit the artifact's config
+ze data restore <file> full        # Replace the whole tree with the artifact's keys
 ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
@@ -2201,6 +2202,20 @@ any other case is refused, listing the artifact's configs. A differing source
 name is printed. A staged candidate refuses the restore. It is offline only:
 while a daemon owns the store it names the live route, `request data restore
 path <file> config`.
+
+`ze data restore <file> full` replaces the whole live tree with every key of the
+artifact, history, credentials and identity included. The previous tree moves to
+`database.replaced-<stamp>`, and an unrelated `database.zefs` beside it moves to
+`database.zefs.replaced-<stamp>`. The artifact stays at its name, unchanged. An
+artifact that fails `ze data check` is refused before anything is written. The
+canonical seed name `<configdir>/database.zefs` is refused before the store lock,
+because the live store refuses that name: import it with `ze init --from`, or
+move it to another name and restore that. A full restore is offline only: while
+a daemon owns the store it names the daemon's SSH endpoint and asks you to stop
+the daemon; there is no live full restore. The restore records a durable
+`database.import-intent` before it moves anything. When it is interrupted, every
+opener, `ze start` included, refuses and prints `ze data restore <file> full`,
+and that command alone finishes the restore.
 
 The daemon answers two RPCs over SSH, for a file on its own host:
 

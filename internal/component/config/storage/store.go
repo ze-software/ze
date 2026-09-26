@@ -21,10 +21,10 @@ var (
 	ErrPermissions = fmt.Errorf("unsafe store permissions or node: %w", fs.ErrPermission)
 	ErrReadOnly    = errors.New("storage is read-only")
 	ErrBusy        = errors.New("store is owned by another process")
-	// ErrImportPending reports an import intent beside an absent tree: an import
-	// crashed after moving the old tree to database.replaced-* and before
-	// publishing its stage. It is never ErrNoStore, so nothing auto-creates an
-	// empty tree over the operator's store; the repair is ze init --from.
+	// ErrImportPending reports an unfinished or unreadable import intent,
+	// beside an absent tree or an existing one. It is never ErrNoStore, so
+	// nothing auto-creates an empty tree over the operator's store; the repair
+	// is the command the error names: ze init --from or ze data restore full.
 	ErrImportPending = errors.New("unfinished import")
 )
 

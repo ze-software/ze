@@ -20,7 +20,7 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-const defaultStoreName = "database"
+const defaultStoreName = storage.TreeName
 
 // subcommandHandlers maps subcommand names to their handler functions.
 // Each handler receives the store path and remaining args.
@@ -334,6 +334,7 @@ func usage() {
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "backup <file> [spare <n>]", Desc: "Copy every key to one blob artifact, exact-fit unless spare names a percentage (0-100); offline only"},
 				{Name: "restore <file> config [name <source-name>]", Desc: "Commit the artifact's config as a new active version of this device's config; offline only"},
+				{Name: "restore <file> full", Desc: "Replace the whole tree with the artifact's keys, keeping the previous tree as database.replaced-<stamp>; offline only"},
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
 				{Name: "import <file>...", Desc: "Import files into the store"},
 				{Name: "rm <key>...", Desc: "Remove entries from the store"},
@@ -358,6 +359,7 @@ func usage() {
 			"ze data registered",
 			"ze data backup /var/backups/router-1.zefs",
 			"ze data restore /var/backups/router-1.zefs config",
+			"ze data restore /var/backups/router-1.zefs full",
 			"ze data --path /tmp/test.zefs import router.conf",
 		},
 	}

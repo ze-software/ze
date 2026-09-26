@@ -138,6 +138,9 @@ func interruptedImport(t *testing.T, phase string) (string, string, map[string][
 	require.NoError(t, err)
 	digest := sha256.Sum256(data)
 	intent := importIntent{
+		Policy:  policyRetireSource,
+		Tree:    priorNode{State: priorAbsent},
+		Seed:    priorNode{State: priorAbsent},
 		Source:  path,
 		Digest:  hex.EncodeToString(digest[:]),
 		Stage:   "database.import-tmp-interrupted",
@@ -232,7 +235,11 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 				require.NoError(t, s.WriteKey("meta/changed/key", []byte("changed source")))
 				require.NoError(t, s.Close())
 			case "destination value", "destination keys":
-				s, err := Open(dir)
+				// Open refuses beside the unfinished intent, so the edit goes
+				// through the tree itself, as a crash-then-hand-edit would.
+				folder, err := openFolder(dir)
+				require.NoError(t, err)
+				s, err := openTree(folder, treeName, nil, false)
 				require.NoError(t, err)
 				key := "file/active/router.conf"
 				if change == "destination keys" {
@@ -261,7 +268,13 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 			require.NoFileExists(t, intent.Archive)
 			require.FileExists(t, filepath.Join(dir, "database.import-intent"))
 			if change == "destination inode" {
-				s, err := OpenReadOnly(dir)
+				// Every opener reports the unfinished intent, even beside this
+				// tree; the unrelated replacement is read through the tree itself.
+				_, err := OpenReadOnly(dir)
+				require.ErrorIs(t, err, ErrImportPending)
+				folder, err := openFolder(dir)
+				require.NoError(t, err)
+				s, err := openTree(folder, treeName, nil, true)
 				require.NoError(t, err)
 				defer s.Close() //nolint:errcheck // read-only fixture cleanup.
 				got, err := s.ReadKey("meta/unrelated/key")
