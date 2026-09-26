@@ -77,10 +77,10 @@ func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []u
 	// list overruns the inline array, so no under-provisioned Grow hint.
 	var b textbuf.Buffer
 	b.Reset().Str("update text origin ")
-	if originASN != 0 {
-		b.Str(originIGP).Str(" origin-as ").Uint32(originASN)
-	} else {
+	if originASN == 0 {
 		b.Str(originIncomplete)
+	} else {
+		b.Str(originIGP).Str(" origin-as ").Uint32(originASN)
 	}
 	if len(community) > 0 {
 		// Each uint32 renders as <asn>:<value> (high16:low16), which round-trips
@@ -96,10 +96,10 @@ func formatAnnounce(fam, nextHop, prefix string, originASN uint32, community []u
 		b.Byte(']')
 	}
 	b.Str(" nhop ")
-	if nextHop != "" {
-		b.Str(nextHop)
-	} else {
+	if nextHop == "" {
 		b.Str("self")
+	} else {
+		b.Str(nextHop)
 	}
 	b.Str(" nlri ").Str(fam).Str(" add ").Str(prefix)
 	return b.String()

@@ -643,11 +643,12 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 		}
 		rk := routeKeyFromStrings(fam, prefix, pathID)
 		var nlriHex string
-		if i == 0 {
-			nlriHex = rawNLRIHex
-		} else {
+		if i != 0 {
 			continue
 		}
+
+		nlriHex = rawNLRIHex
+
 		route := &RawRoute{
 			Family:  fam,
 			AttrHex: attrHex,

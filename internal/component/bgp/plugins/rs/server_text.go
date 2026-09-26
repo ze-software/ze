@@ -88,10 +88,10 @@ func buildNLRIEntries(tokens []string) []any {
 		for part := range strings.SplitSeq(tok, ",") {
 			part = strings.TrimSpace(part)
 			if part != "" {
-				if typePrefix != "" {
-					nlris = append(nlris, typePrefix+" "+part)
-				} else {
+				if typePrefix == "" {
 					nlris = append(nlris, part)
+				} else {
+					nlris = append(nlris, typePrefix+" "+part)
 				}
 			}
 		}

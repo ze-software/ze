@@ -40,18 +40,18 @@ func findPathAttr(b []byte, code byte) (flags byte, value []byte, ok bool) {
 		fl := b[pos]
 		tc := b[pos+1]
 		var hdr, ln int
-		if fl&0x10 != 0 { // extended length
-			if pos+4 > len(b) {
-				break
-			}
-			ln = int(b[pos+2])<<8 | int(b[pos+3])
-			hdr = 4
-		} else {
+		if fl&0x10 == 0 {
 			if pos+3 > len(b) {
 				break
 			}
 			ln = int(b[pos+2])
 			hdr = 3
+		} else { // extended length
+			if pos+4 > len(b) {
+				break
+			}
+			ln = int(b[pos+2])<<8 | int(b[pos+3])
+			hdr = 4
 		}
 		if pos+hdr+ln > len(b) {
 			break

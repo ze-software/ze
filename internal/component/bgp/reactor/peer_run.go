@@ -383,14 +383,8 @@ func (p *Peer) runOnce() error {
 
 			// Race: an inbound connection was accepted between Start() and Connect(),
 			// setting s.conn before we could dial. The inbound won; proceed to Run().
-			if errors.Is(err, ErrAlreadyConnected) && session.Conn() != nil {
-				peerLogger().Info("inbound connection accepted during dial, using inbound",
-					"peer", p.settings.Address,
-				)
-				if p.reactor != nil && p.reactor.rmetrics != nil {
-					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
-				}
-			} else {
+			inboundWon := errors.Is(err, ErrAlreadyConnected) && session.Conn() != nil
+			if !inboundWon {
 				peerLogger().Debug("timing: dial failed",
 					"peer", p.settings.Address,
 					"port", p.settings.Port,
@@ -401,6 +395,13 @@ func (p *Peer) runOnce() error {
 					p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
 				}
 				return err
+			}
+
+			peerLogger().Info("inbound connection accepted during dial, using inbound",
+				"peer", p.settings.Address,
+			)
+			if p.reactor != nil && p.reactor.rmetrics != nil {
+				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
 			}
 		} else {
 			dialElapsed := p.clock.Now().Sub(dialStart)
@@ -423,12 +424,12 @@ func (p *Peer) runOnce() error {
 		if conn := p.takeInboundConnection(); conn != nil {
 			if err := session.Accept(conn); err != nil {
 				closeConnQuietly(conn)
-				if errors.Is(err, ErrAlreadyConnected) {
-					peerLogger().Debug("discarding stale inbound, outbound dial won", "peer", p.settings.Address)
-				} else {
+				if !errors.Is(err, ErrAlreadyConnected) {
 					peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)
 					return fmt.Errorf("accepting buffered connection: %w", err)
 				}
+
+				peerLogger().Debug("discarding stale inbound, outbound dial won", "peer", p.settings.Address)
 			}
 		}
 	}

@@ -181,13 +181,13 @@ func TestNewDHCPClientValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			client, err := newDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, dHCPConfig{})
-			if tt.wantErr != "" {
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, client)
+			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 				assert.Nil(t, client)
-			} else {
-				require.NoError(t, err)
-				assert.NotNil(t, client)
 			}
 		})
 	}

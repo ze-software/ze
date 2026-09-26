@@ -267,10 +267,10 @@ func TestRTRUnknownNegotiationVersion(t *testing.T) {
 			})
 			s := newTestRTRSession(t, "127.0.0.1", port, 100, "", newROACache(), newASPACache(), make(chan struct{}))
 			err := s.syncOnce()
-			if version != 2 {
-				require.ErrorIs(t, err, errRtrUnsupportedProtocol)
-			} else {
+			if version == 2 {
 				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, errRtrUnsupportedProtocol)
 			}
 			got := <-observed
 			require.ErrorIs(t, got.err, io.EOF)

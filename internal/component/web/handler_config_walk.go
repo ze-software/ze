@@ -418,11 +418,11 @@ func validateUniqueOnSet(tree *config.Tree, schema *config.Schema, path []string
 			}
 			return ""
 		}
-		if sg, ok := node.(schemaGetter); ok {
-			current = sg
-		} else {
+		sg, ok := node.(schemaGetter)
+		if !ok {
 			return ""
 		}
+		current = sg
 	}
 	return ""
 }

@@ -829,12 +829,12 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 
 	exitCode := 0
 	if runErr != nil {
-		if exitErr, ok := errors.AsType[*exec.ExitError](runErr); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
+		exitErr, ok := errors.AsType[*exec.ExitError](runErr)
+		if !ok {
 			test.Error = fmt.Errorf("seq %d: command failed: %w", ci.Seq, runErr)
 			return false
 		}
+		exitCode = exitErr.ExitCode()
 	}
 
 	if ci.HasExitCode && exitCode != ci.ExpectExitCode {

@@ -675,10 +675,10 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 			item.HasChildren = true
 			item.AddURL = url
 			item.Count = len(collectListKeys(tree, schema, childPath))
-			if listNode.KeyName != "" {
-				col.NamedItems = append(col.NamedItems, item)
-			} else {
+			if listNode.KeyName == "" {
 				col.UnnamedItems = append(col.UnnamedItems, item)
+			} else {
+				col.NamedItems = append(col.NamedItems, item)
 			}
 		} else {
 			item.HasChildren = hasNonLeafChildren(child)
@@ -707,11 +707,11 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 			// For keyless lists, show a summary from the entry content
 			// instead of the meaningless numeric key.
 			entryTree := walkTree(tree, schema, append(append([]string{}, prefix...), k))
-			if summary := keylessEntrySummary(entryTree, listNode); summary != "" {
+			if summary := keylessEntrySummary(entryTree, listNode); summary == "" {
+				displayName = tb.Reset().Byte('#').Str(k).String()
+			} else {
 				displayName = summary
 				hasName = true
-			} else {
-				displayName = tb.Reset().Byte('#').Str(k).String()
 			}
 		}
 		item := ColumnItem{

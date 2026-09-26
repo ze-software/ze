@@ -402,15 +402,16 @@ func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool
 	sess.ServiceName = snap.ServiceName
 	sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
 	if val, ok := s.pendingAuth.Load(pendingAuthKey{ifindex: ifindex, sessionID: sid}); ok {
-		if info, valid := val.(pendingAuthInfo); valid {
-			if !found {
-				sess.Username = info.username
-			}
-			sess.AuthMethod = info.authMethod
-		} else {
+		info, valid := val.(pendingAuthInfo)
+		if !valid {
 			s.logger.Error("pppoe: invalid pending authentication state", "ifindex", ifindex, "session", sid)
 			return subscriber.Session{}, false
 		}
+
+		if !found {
+			sess.Username = info.username
+		}
+		sess.AuthMethod = info.authMethod
 	}
 	return sess, true
 }

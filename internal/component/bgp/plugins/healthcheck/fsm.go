@@ -55,14 +55,14 @@ func (f *fsm) step(success bool) {
 			f.state = f.trigger(StateFalling)
 		}
 	case StateFalling:
-		if !success {
+		if success {
+			f.count = 1
+			f.state = f.trigger(StateRising)
+		} else {
 			f.count++
 			if f.count >= f.fall {
 				f.state = StateDown
 			}
-		} else {
-			f.count = 1
-			f.state = f.trigger(StateRising)
 		}
 	case StateUp:
 		if !success {

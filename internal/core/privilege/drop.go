@@ -59,7 +59,12 @@ func resolveIDs(cfg DropConfig) (uid, gid int, suppGroups []int, err error) {
 		return 0, 0, nil, fmt.Errorf("parse uid %q: %w", u.Uid, err)
 	}
 
-	if cfg.Group != "" {
+	if cfg.Group == "" {
+		gid, err = strconv.Atoi(u.Gid)
+		if err != nil {
+			return 0, 0, nil, fmt.Errorf("parse gid %q: %w", u.Gid, err)
+		}
+	} else {
 		g, err := lookupGroup(cfg.Group)
 		if err != nil {
 			return 0, 0, nil, fmt.Errorf("lookup group %q: %w", cfg.Group, err)
@@ -67,11 +72,6 @@ func resolveIDs(cfg DropConfig) (uid, gid int, suppGroups []int, err error) {
 		gid, err = strconv.Atoi(g.Gid)
 		if err != nil {
 			return 0, 0, nil, fmt.Errorf("parse gid %q: %w", g.Gid, err)
-		}
-	} else {
-		gid, err = strconv.Atoi(u.Gid)
-		if err != nil {
-			return 0, 0, nil, fmt.Errorf("parse gid %q: %w", u.Gid, err)
 		}
 	}
 

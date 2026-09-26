@@ -165,17 +165,17 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	}
 
 	server := cfg.Server
-	if server != "" {
-		// Ensure server has a port.
-		if _, _, err := net.SplitHostPort(server); err != nil {
-			server = net.JoinHostPort(server, "53")
-		}
-	} else {
+	if server == "" {
 		resolvPath := cfg.ResolvConfPath
 		if resolvPath == "" {
 			resolvPath = "/etc/resolv.conf"
 		}
 		server = resolveSystemDNS(resolvPath)
+	} else {
+		// Ensure server has a port.
+		if _, _, err := net.SplitHostPort(server); err != nil {
+			server = net.JoinHostPort(server, "53")
+		}
 	}
 
 	dnssec := cfg.DNSSECValidation

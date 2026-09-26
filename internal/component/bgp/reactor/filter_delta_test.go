@@ -348,12 +348,12 @@ func TestDirtyTracking(t *testing.T) {
 		code := result[off+1]
 		var hdrLen int
 		var aLen uint16
-		if result[off]&0x10 != 0 {
-			aLen = binary.BigEndian.Uint16(result[off+2 : off+4])
-			hdrLen = 4
-		} else {
+		if result[off]&0x10 == 0 {
 			aLen = uint16(result[off+2])
 			hdrLen = 3
+		} else {
+			aLen = binary.BigEndian.Uint16(result[off+2 : off+4])
+			hdrLen = 4
 		}
 		if code == byte(attribute.AttrLocalPref) {
 			found = true

@@ -25,12 +25,12 @@ func countAttr(t *testing.T, attrs []byte, code attribute.AttributeCode) int {
 		flags := attrs[pos]
 		tc := attribute.AttributeCode(attrs[pos+1])
 		var attrLen int
-		if flags&0x10 != 0 {
-			require.LessOrEqual(t, pos+4, len(attrs))
-			attrLen = 4 + int(binary.BigEndian.Uint16(attrs[pos+2:]))
-		} else {
+		if flags&0x10 == 0 {
 			require.LessOrEqual(t, pos+3, len(attrs))
 			attrLen = 3 + int(attrs[pos+2])
+		} else {
+			require.LessOrEqual(t, pos+4, len(attrs))
+			attrLen = 4 + int(binary.BigEndian.Uint16(attrs[pos+2:]))
 		}
 		if tc == code {
 			n++

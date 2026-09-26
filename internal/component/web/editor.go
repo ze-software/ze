@@ -359,10 +359,10 @@ func (m *EditorManager) Diff(username string) (string, error) {
 			b.Str("~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
 		case contract.PendingChangeDelete:
 			b.Str("- ").Str(change.Path).Byte(' ')
-			if change.Member != "" {
-				b.Str(change.Member)
-			} else {
+			if change.Member == "" {
 				b.Str(previous)
+			} else {
+				b.Str(change.Member)
 			}
 			b.Byte('\n')
 		case contract.PendingChangeDeactivate:

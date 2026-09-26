@@ -608,15 +608,15 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 		if chk.SendFile != "" && !filepath.IsAbs(chk.SendFile) {
 			// Resolve against tmpfs temp dir first (tmpfs= files land there),
 			// then fall back to the .ci file directory.
-			if rec.TmpfsTempDir != "" {
+			if rec.TmpfsTempDir == "" {
+				chk.SendFile = filepath.Join(ciDir, chk.SendFile)
+			} else {
 				candidate := filepath.Join(rec.TmpfsTempDir, chk.SendFile)
 				if _, statErr := os.Stat(candidate); statErr == nil {
 					chk.SendFile = candidate
 				} else {
 					chk.SendFile = filepath.Join(ciDir, chk.SendFile)
 				}
-			} else {
-				chk.SendFile = filepath.Join(ciDir, chk.SendFile)
 			}
 		}
 		if err := r.executeOneHTTPCheck(ctx, client, chk, url); err != nil {

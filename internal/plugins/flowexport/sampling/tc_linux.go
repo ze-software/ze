@@ -48,13 +48,13 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 
 	filter := buildSampleFilter(linkIndex, rate, group, truncSize)
 	if err := netlink.FilterAdd(filter); err != nil {
-		if errors.Is(err, unix.EEXIST) {
-			_ = netlink.FilterDel(filter)
-			if err := netlink.FilterAdd(filter); err != nil {
-				return fmt.Errorf("sampling: replace sample filter on %q: %w", ifaceName, err)
-			}
-		} else {
+		if !errors.Is(err, unix.EEXIST) {
 			return fmt.Errorf("sampling: add sample filter on %q: %w", ifaceName, err)
+		}
+
+		_ = netlink.FilterDel(filter)
+		if err := netlink.FilterAdd(filter); err != nil {
+			return fmt.Errorf("sampling: replace sample filter on %q: %w", ifaceName, err)
 		}
 	}
 

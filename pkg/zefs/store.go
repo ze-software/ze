@@ -198,14 +198,7 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 	stored := make([]byte, len(data))
 	copy(stored, data)
 
-	if !s.root.has(name) {
-		s.keys = append(s.keys, name)
-		s.slots[name] = slotInfo{
-			name: netcapSlot{capacity: s.policy.capacity(len(name))},
-			data: netcapSlot{capacity: s.policy.capacity(len(data))},
-		}
-		s.added = append(s.added, name)
-	} else {
+	if s.root.has(name) {
 		sl := s.slots[name]
 		if len(data) > sl.data.capacity {
 			sl.data.capacity = s.policy.capacity(len(data))
@@ -213,6 +206,13 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 			s.layoutChanged = true
 		}
 		s.dirty[name] = true
+	} else {
+		s.keys = append(s.keys, name)
+		s.slots[name] = slotInfo{
+			name: netcapSlot{capacity: s.policy.capacity(len(name))},
+			data: netcapSlot{capacity: s.policy.capacity(len(data))},
+		}
+		s.added = append(s.added, name)
 	}
 
 	return s.root.set(name, stored)

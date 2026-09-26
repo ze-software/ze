@@ -294,7 +294,9 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 
 	// Parse mode
 	var mode fs.FileMode
-	if modeStr != "" {
+	if modeStr == "" {
+		mode = defaultModeForPath(path)
+	} else {
 		modeVal, err := strconv.ParseInt(modeStr, 8, 32)
 		if err != nil {
 			return nil, startLine, fmt.Errorf("invalid mode %q: %w", modeStr, err)
@@ -304,8 +306,6 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 			return nil, startLine, fmt.Errorf("invalid mode %q: must be 0-777 octal", modeStr)
 		}
 		mode = fs.FileMode(modeVal) //nolint:gosec // Range validated above
-	} else {
-		mode = defaultModeForPath(path)
 	}
 
 	// Read content until terminator

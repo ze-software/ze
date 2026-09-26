@@ -52,12 +52,12 @@ func nlriBearingFields(t *testing.T, body []byte) (int, []string) {
 		flags, code := attrs[pos], attrs[pos+1]
 		pos += 2
 		var l int
-		if flags&0x10 != 0 {
-			l = int(binary.BigEndian.Uint16(attrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			l = int(attrs[pos])
 			pos++
+		} else {
+			l = int(binary.BigEndian.Uint16(attrs[pos : pos+2]))
+			pos += 2
 		}
 		switch code {
 		case 14:

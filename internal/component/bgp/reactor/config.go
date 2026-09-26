@@ -195,10 +195,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	// Preserve the router's global local-as separately from any per-peer override.
 	// When localAS (global) differs from peerLocalAS (override), local-as modifiers
 	// control whether the outbound AS_PATH dual-prepends the real AS.
-	if localAS != 0 {
-		ps.GlobalLocalAS = localAS
-	} else {
+	if localAS == 0 {
 		ps.GlobalLocalAS = peerLocalAS
+	} else {
+		ps.GlobalLocalAS = localAS
 	}
 	ps.LocalASNoPrepend = localASNoPrepend
 	ps.LocalASReplaceAS = localASReplaceAS

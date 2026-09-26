@@ -123,10 +123,10 @@ func runHTTP(cfg installConfig) int {
 			}
 		}
 	}
-	if expectedSHA != "" {
-		slog.Info("expected image sha256", "sha", expectedSHA)
-	} else {
+	if expectedSHA == "" {
 		slog.Warn("no image checksum available, skipping verification")
+	} else {
+		slog.Info("expected image sha256", "sha", expectedSHA)
 	}
 
 	imageURL := tb.Reset().Str(baseURL).Str("/install/image/").Str(cfg.Image).String()

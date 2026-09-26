@@ -395,18 +395,18 @@ func findAttribute(payload []byte, code attribute.AttributeCode) (int, int, int,
 		attrCode := payload[pos+1]
 		pos += 2
 		var dataLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+2 > end {
-				break
-			}
-			dataLen = int(binary.BigEndian.Uint16(payload[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos >= end {
 				break
 			}
 			dataLen = int(payload[pos])
 			pos++
+		} else { // Extended length
+			if pos+2 > end {
+				break
+			}
+			dataLen = int(binary.BigEndian.Uint16(payload[pos : pos+2]))
+			pos += 2
 		}
 		dataStart := pos
 		if pos+dataLen > end {
@@ -473,15 +473,15 @@ func safeUpdateAttrDataLen(payload []byte, attrStart, newDataLen int) {
 		return
 	}
 	flags := payload[attrStart]
-	if flags&0x10 != 0 { // Extended length
-		if attrStart+4 > len(payload) || newDataLen > 65535 {
-			return
-		}
-		binary.BigEndian.PutUint16(payload[attrStart+2:], uint16(newDataLen)) //nolint:gosec // capped
-	} else {
+	if flags&0x10 == 0 {
 		if newDataLen > 255 {
 			return // Would need promotion; caller should use extended length.
 		}
 		payload[attrStart+2] = byte(newDataLen) //nolint:gosec // capped above
+	} else { // Extended length
+		if attrStart+4 > len(payload) || newDataLen > 65535 {
+			return
+		}
+		binary.BigEndian.PutUint16(payload[attrStart+2:], uint16(newDataLen)) //nolint:gosec // capped
 	}
 }

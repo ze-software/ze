@@ -77,18 +77,18 @@ func stripMPAttrs(payload []byte) (newPayload []byte, emptied, ok bool) {
 		flags := payload[off]
 		code := payload[off+1]
 		var hdrLen, dataLen int
-		if flags&0x10 != 0 { // Extended length.
-			if off+4 > attrEnd {
-				return nil, false, false
-			}
-			dataLen = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if off+3 > attrEnd {
 				return nil, false, false
 			}
 			dataLen = int(payload[off+2])
 			hdrLen = 3
+		} else { // Extended length.
+			if off+4 > attrEnd {
+				return nil, false, false
+			}
+			dataLen = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+			hdrLen = 4
 		}
 		total := hdrLen + dataLen
 		if off+total > attrEnd {

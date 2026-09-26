@@ -983,23 +983,24 @@ func ParseFromOptionalParams(optParams []byte, extended bool) ([]Capability, err
 		// RFC 5492 Section 4: Capability Optional Parameter value is a sequence
 		// of capability TLVs. Malformed Type 2 TLVs are protocol errors, not
 		// unknown capabilities to ignore.
-		if paramType == 2 {
-			// RFC 5492 Section 4: "The parameter contains one or more
-			// triples <Capability Code, Capability Length, Capability Value>".
-			if paramLen == 0 {
-				return nil, ErrInvalidLength
-			}
-			parsed, err := Parse(optParams[offset : offset+paramLen])
-			if err != nil {
-				return nil, err
-			}
-			caps = append(caps, parsed...)
-		} else {
+		if paramType != 2 {
 			// RFC 4271 Section 6.2: "If one of the Optional Parameters in
 			// the OPEN message is not recognized, then the Error Subcode
 			// MUST be set to Unsupported Optional Parameters."
 			return nil, ErrUnsupportedParameter
 		}
+
+		// RFC 5492 Section 4: "The parameter contains one or more
+		// triples <Capability Code, Capability Length, Capability Value>".
+		if paramLen == 0 {
+			return nil, ErrInvalidLength
+		}
+		parsed, err := Parse(optParams[offset : offset+paramLen])
+		if err != nil {
+			return nil, err
+		}
+		caps = append(caps, parsed...)
+
 		offset += paramLen
 	}
 

@@ -28,15 +28,15 @@ func findAttr(attrs []byte, code byte) []byte {
 		flags := attrs[off]
 		typ := attrs[off+1]
 		var vlen, hdr int
-		if flags&0x10 != 0 { // Extended Length
+		if flags&0x10 == 0 {
+			vlen = int(attrs[off+2])
+			hdr = 3
+		} else { // Extended Length
 			if off+4 > len(attrs) {
 				return nil
 			}
 			vlen = int(attrs[off+2])<<8 | int(attrs[off+3])
 			hdr = 4
-		} else {
-			vlen = int(attrs[off+2])
-			hdr = 3
 		}
 		if off+hdr+vlen > len(attrs) {
 			return nil

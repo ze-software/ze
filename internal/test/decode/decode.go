@@ -188,17 +188,17 @@ func decodePathAttributes(data []byte) []DecodedAttribute {
 		// Determine header length and value length
 		hdrLen := 3
 		var valueLen int
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 == 0 {
+			if offset+3 > len(data) {
+				break
+			}
+			valueLen = int(data[offset+2])
+		} else { // Extended length
 			if offset+4 > len(data) {
 				break
 			}
 			valueLen = int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
 			hdrLen = 4
-		} else {
-			if offset+3 > len(data) {
-				break
-			}
-			valueLen = int(data[offset+2])
 		}
 
 		if offset+hdrLen+valueLen > len(data) {

@@ -128,10 +128,10 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 
 	// Build edit URL
 	var tb textbuf.Buffer
-	if group != "" {
-		pe.EditURL = tb.Str("/show/bgp/group/").Str(group).Str("/peer/").Str(name).Byte('/').String()
-	} else {
+	if group == "" {
 		pe.EditURL = tb.Str(bgpPeerPathPrefix).Str(name).Byte('/').String()
+	} else {
+		pe.EditURL = tb.Str("/show/bgp/group/").Str(group).Str("/peer/").Str(name).Byte('/').String()
 	}
 
 	return pe

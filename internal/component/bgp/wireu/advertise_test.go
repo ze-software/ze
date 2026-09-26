@@ -76,10 +76,10 @@ func recordedASPath(t *testing.T, mods *filterapi.ModAccumulator, asn4 bool) ([]
 		return nil, false
 	}
 	var value []byte
-	if op.GenIdx != 0 {
-		value = materialize(t, recordedGen(t, mods, op))
-	} else {
+	if op.GenIdx == 0 {
 		value = op.Buf
+	} else {
+		value = materialize(t, recordedGen(t, mods, op))
 	}
 	parsed, err := attribute.ParseASPath(value, asn4)
 	require.NoError(t, err)

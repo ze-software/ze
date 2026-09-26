@@ -644,11 +644,11 @@ func transformQuotedText(content []byte, transform func(string) string) ([]byte,
 	var replacements []textReplacement
 	for index := 0; index < len(content); {
 		if index+1 < len(content) && content[index] == '/' && content[index+1] == '/' {
-			if newline := bytes.IndexByte(content[index+2:], '\n'); newline >= 0 {
-				index += newline + 3
-			} else {
+			newline := bytes.IndexByte(content[index+2:], '\n')
+			if newline < 0 {
 				break
 			}
+			index += newline + 3
 			continue
 		}
 		if index+1 < len(content) && content[index] == '/' && content[index+1] == '*' {
@@ -660,11 +660,11 @@ func transformQuotedText(content []byte, transform func(string) string) ([]byte,
 			continue
 		}
 		if content[index] == '#' && hashStartsComment(content, index) {
-			if newline := bytes.IndexByte(content[index+1:], '\n'); newline >= 0 {
-				index += newline + 2
-			} else {
+			newline := bytes.IndexByte(content[index+1:], '\n')
+			if newline < 0 {
 				break
 			}
+			index += newline + 2
 			continue
 		}
 		quote := content[index]

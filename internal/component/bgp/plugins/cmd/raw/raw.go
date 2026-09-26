@@ -104,10 +104,10 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 		"peer":  ctx.Peer,
 		"bytes": len(payload),
 	}
-	if msgType != rawFullPacket {
-		respData["type"] = msgTypeName(msgType)
-	} else {
+	if msgType == rawFullPacket {
 		respData["mode"] = "full-packet"
+	} else {
+		respData["type"] = msgTypeName(msgType)
 	}
 
 	return &plugin.Response{

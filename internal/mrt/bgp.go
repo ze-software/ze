@@ -302,18 +302,18 @@ func parseAttributes(data []byte) []PathAttribute {
 		off += 2
 
 		var attrLen int
-		if flags&0x10 != 0 {
-			if off+2 > len(data) {
-				break
-			}
-			attrLen = int(binary.BigEndian.Uint16(data[off : off+2]))
-			off += 2
-		} else {
+		if flags&0x10 == 0 {
 			if off >= len(data) {
 				break
 			}
 			attrLen = int(data[off])
 			off++
+		} else {
+			if off+2 > len(data) {
+				break
+			}
+			attrLen = int(binary.BigEndian.Uint16(data[off : off+2]))
+			off += 2
 		}
 		if off+attrLen > len(data) {
 			break

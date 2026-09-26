@@ -40,7 +40,9 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 	}
 	p := sdk.NewWithConn(owner, conn)
 	done := make(chan struct{})
-	if !direct {
+	if direct {
+		close(done)
+	} else {
 		pc := plugipc.NewPluginConn(engine, engine)
 		go func() {
 			defer close(done)
@@ -52,8 +54,6 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 				s.serveEngineOpJSON(proc, pc, req, lookupEngineOp(req.Method))
 			}
 		}()
-	} else {
-		close(done)
 	}
 	t.Cleanup(func() {
 		if err := p.Close(); err != nil {

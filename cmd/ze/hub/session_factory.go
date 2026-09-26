@@ -89,12 +89,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 				log.Warn("session editor creation failed", "user", username, "error", err)
 			} else {
 				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityUnknown)
-				if modelErr != nil {
-					log.Warn("session model creation failed", "user", username, "error", modelErr)
-					if request.Mode == sshclient.CLIModeEdit {
-						return nil, modelErr
-					}
-				} else {
+				if modelErr == nil {
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
 					m.SetHistory(cli.NewHistory(params.Store, username))
@@ -120,6 +115,11 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 						m.SetMode(cli.ModeOperational)
 					}
 					return m, nil
+				}
+
+				log.Warn("session model creation failed", "user", username, "error", modelErr)
+				if request.Mode == sshclient.CLIModeEdit {
+					return nil, modelErr
 				}
 			}
 		}

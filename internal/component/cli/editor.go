@@ -869,12 +869,12 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 	}
 
 	if e.meta != nil {
-		if sessionID != "" {
-			addEntries(e.meta.SessionEntries(sessionID))
-		} else {
+		if sessionID == "" {
 			for _, sid := range e.meta.AllSessions() {
 				addEntries(e.meta.SessionEntries(sid))
 			}
+		} else {
+			addEntries(e.meta.SessionEntries(sessionID))
 		}
 	}
 
@@ -920,15 +920,15 @@ func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []
 	}
 
 	if e.meta != nil {
-		if sessionID != "" {
-			for _, entry := range e.meta.SessionEntries(sessionID) {
-				addChange(config.PendingChangeFromSessionEntry(entry))
-			}
-		} else {
+		if sessionID == "" {
 			for _, sid := range e.meta.AllSessions() {
 				for _, entry := range e.meta.SessionEntries(sid) {
 					addChange(config.PendingChangeFromSessionEntry(entry))
 				}
+			}
+		} else {
+			for _, entry := range e.meta.SessionEntries(sessionID) {
+				addChange(config.PendingChangeFromSessionEntry(entry))
 			}
 		}
 	}

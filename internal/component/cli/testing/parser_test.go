@@ -212,11 +212,11 @@ func TestParseExpectContext(t *testing.T) {
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
 			assert.Equal(t, tt.wantType, exp.Type)
-			if tt.wantValue != "" {
-				assert.Equal(t, tt.wantValue, exp.Values["path"])
-			} else {
+			if tt.wantValue == "" {
 				_, hasRoot := exp.Values["root"]
 				assert.True(t, hasRoot, "should have root flag")
+			} else {
+				assert.Equal(t, tt.wantValue, exp.Values["path"])
 			}
 		})
 	}
@@ -271,11 +271,11 @@ func TestParseExpectCompletion(t *testing.T) {
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
 			assert.Equal(t, tt.wantType, exp.Type)
-			if tt.wantVal != "" {
-				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
-			} else {
+			if tt.wantVal == "" {
 				_, hasKey := exp.Values[tt.wantKey]
 				assert.True(t, hasKey, "should have %s flag", tt.wantKey)
+			} else {
+				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
 			}
 		})
 	}
@@ -396,11 +396,11 @@ func TestParseExpectGhost(t *testing.T) {
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
 			assert.Equal(t, "ghost", exp.Type)
-			if tt.wantVal != "" {
-				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
-			} else {
+			if tt.wantVal == "" {
 				_, hasKey := exp.Values[tt.wantKey]
 				assert.True(t, hasKey)
+			} else {
+				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
 			}
 		})
 	}
@@ -513,11 +513,11 @@ func TestParseWait(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, tc.Waits, 1)
 			w := tc.Waits[0]
-			if tt.wantVal != "" {
-				assert.Equal(t, tt.wantVal, w.Values[tt.wantKey])
-			} else {
+			if tt.wantVal == "" {
 				_, hasKey := w.Values[tt.wantKey]
 				assert.True(t, hasKey)
+			} else {
+				assert.Equal(t, tt.wantVal, w.Values[tt.wantKey])
 			}
 		})
 	}
@@ -656,11 +656,11 @@ func TestParseExpectStatus(t *testing.T) {
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
 			assert.Equal(t, "status", exp.Type)
-			if tt.wantVal != "" {
-				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
-			} else {
+			if tt.wantVal == "" {
 				_, hasKey := exp.Values[tt.wantKey]
 				assert.True(t, hasKey)
+			} else {
+				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
 			}
 		})
 	}
@@ -698,11 +698,11 @@ func TestParseExpectError(t *testing.T) {
 			require.Len(t, tc.Expects, 1)
 			exp := tc.Expects[0]
 			assert.Equal(t, "error", exp.Type)
-			if tt.wantVal != "" {
-				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
-			} else {
+			if tt.wantVal == "" {
 				_, hasKey := exp.Values[tt.wantKey]
 				assert.True(t, hasKey)
+			} else {
+				assert.Equal(t, tt.wantVal, exp.Values[tt.wantKey])
 			}
 		})
 	}

@@ -160,18 +160,18 @@ func findASPath(attrs []byte) ([]byte, bool) {
 		code := attrs[off+1]
 		off += 2
 		var vlen int
-		if flags&0x10 != 0 { // extended length
-			if off+2 > len(attrs) {
-				return nil, false
-			}
-			vlen = int(attrs[off])<<8 | int(attrs[off+1])
-			off += 2
-		} else {
+		if flags&0x10 == 0 {
 			if off+1 > len(attrs) {
 				return nil, false
 			}
 			vlen = int(attrs[off])
 			off++
+		} else { // extended length
+			if off+2 > len(attrs) {
+				return nil, false
+			}
+			vlen = int(attrs[off])<<8 | int(attrs[off+1])
+			off += 2
 		}
 		if off+vlen > len(attrs) {
 			return nil, false

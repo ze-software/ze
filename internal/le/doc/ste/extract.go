@@ -244,13 +244,13 @@ func unitsGo(lines []string) []unit {
 				line = strings.SplitN(line, "*/", 2)[0]
 			}
 			body := pyStrip(strings.TrimLeft(line, "*"))
-			if body != "" {
+			if body == "" {
+				flush()
+			} else {
 				if len(block) == 0 {
 					blockLine = number
 				}
 				block = append(block, scrub(body))
-			} else {
-				flush()
 			}
 			continue
 		}

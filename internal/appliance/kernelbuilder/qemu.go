@@ -302,14 +302,14 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 	}
 	fullCommand := "sh -c " + shellQuote(setup+" && CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G PATH=/usr/lib/ccache/bin:$PATH "+shellJoin(workerArgs))
 	tarball := filepath.Join(build, kernelTarballName(req.Version))
-	if !regularFile(tarball) {
+	if regularFile(tarball) {
+		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
+	} else {
 		fmt.Fprintf(req.Stderr, "  downloading %s on host...\n", filepath.Base(tarball)) //nolint:errcheck // progress output
 		if err := downloadFile(ctx, kernelTarballURL(req.Version), tarball); err != nil {
 			_ = os.Remove(tarball)
 			return fmt.Errorf("kernel tarball download failed: %w", err)
 		}
-	} else {
-		fmt.Fprintf(req.Stderr, "  %s cached on host\n", filepath.Base(tarball)) //nolint:errcheck // progress output
 	}
 	fmt.Fprintf(req.Stderr, "  building kernel (version=%s, arch=%s, profile=%s)...\n", req.Version, req.Arch, req.Profile) //nolint:errcheck // progress output
 	buildCtx, cancel := context.WithTimeout(ctx, buildTimeout)

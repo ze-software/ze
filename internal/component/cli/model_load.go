@@ -470,7 +470,16 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 		openBraces := strings.Count(trimmed, "{")
 		closeBraces := strings.Count(trimmed, "}")
 
-		if !inTarget {
+		if inTarget {
+			// Inside target - skip old content until closing brace
+			newDepth := currentDepth + openBraces - closeBraces
+			if newDepth < targetDepth {
+				// Found closing brace - write it
+				result.Str(line).Byte('\n')
+				inTarget = false
+			}
+			// Skip old content lines
+		} else {
 			// Looking for target block
 			if strings.Contains(trimmed, "{") {
 				blockPart := strings.TrimSuffix(trimmed, "{")
@@ -492,15 +501,6 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 				}
 			}
 			result.Str(line).Byte('\n')
-		} else {
-			// Inside target - skip old content until closing brace
-			newDepth := currentDepth + openBraces - closeBraces
-			if newDepth < targetDepth {
-				// Found closing brace - write it
-				result.Str(line).Byte('\n')
-				inTarget = false
-			}
-			// Skip old content lines
 		}
 
 		currentDepth += openBraces - closeBraces
@@ -536,7 +536,19 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 		openBraces := strings.Count(trimmed, "{")
 		closeBraces := strings.Count(trimmed, "}")
 
-		if !inTarget {
+		if inTarget {
+			newDepth := currentDepth + openBraces - closeBraces
+			if newDepth < targetDepth && !contentInserted {
+				// Insert merged content before closing brace
+				indent := strings.Repeat("  ", targetDepth)
+				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
+					result.Str(indent).Str(newLine).Byte('\n')
+				}
+				contentInserted = true
+				inTarget = false
+			}
+			result.Str(line).Byte('\n')
+		} else {
 			if strings.Contains(trimmed, "{") {
 				blockPart := strings.TrimSuffix(trimmed, "{")
 				blockPart = strings.TrimSpace(blockPart)
@@ -561,18 +573,6 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 					currentDepth += openBraces - closeBraces
 					continue
 				}
-			}
-			result.Str(line).Byte('\n')
-		} else {
-			newDepth := currentDepth + openBraces - closeBraces
-			if newDepth < targetDepth && !contentInserted {
-				// Insert merged content before closing brace
-				indent := strings.Repeat("  ", targetDepth)
-				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-					result.Str(indent).Str(newLine).Byte('\n')
-				}
-				contentInserted = true
-				inTarget = false
 			}
 			result.Str(line).Byte('\n')
 		}

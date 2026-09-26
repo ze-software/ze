@@ -105,10 +105,10 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 		// IP entry
 		var desc string
 		var tb textbuf.Buffer
-		if info.Name != "" {
-			desc = tb.Str("peer ip (").Str(info.Name).Str(" AS ").Str(asnStr).Byte(')').String()
-		} else {
+		if info.Name == "" {
 			desc = tb.Str("peer ip (AS ").Str(asnStr).Byte(')').String()
+		} else {
+			desc = tb.Str("peer ip (").Str(info.Name).Str(" AS ").Str(asnStr).Byte(')').String()
 		}
 		if _, err := fmt.Fprintf(w, "%s\t%s\n", ip, desc); err != nil { //nolint:errcheck // output
 			return 1
@@ -118,10 +118,10 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 		if !seenASN[info.RemoteAS.Value()] {
 			seenASN[info.RemoteAS.Value()] = true
 			var asnDesc string
-			if info.Name != "" {
-				asnDesc = tb.Reset().Str("peer asn (").Str(info.Name).Byte(' ').Str(ip).Byte(')').String()
-			} else {
+			if info.Name == "" {
 				asnDesc = tb.Reset().Str("peer asn (").Str(ip).Byte(')').String()
+			} else {
+				asnDesc = tb.Reset().Str("peer asn (").Str(info.Name).Byte(' ').Str(ip).Byte(')').String()
 			}
 			if _, err := fmt.Fprintf(w, "as%s\t%s\n", asnStr, asnDesc); err != nil { //nolint:errcheck // output
 				return 1

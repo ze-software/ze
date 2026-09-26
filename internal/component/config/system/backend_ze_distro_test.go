@@ -179,16 +179,16 @@ func TestGokrazyFirmwareUnsupported(t *testing.T) {
 		t.Fatalf("check result = %+v, want gokrazy managed status", res)
 	}
 
-	if res, err := backend.Restart(); !errors.Is(err, ErrFirmwareUnsupported) {
-		t.Fatalf("restart error = %v, want ErrFirmwareUnsupported", err)
-	} else {
+	if res, err := backend.Restart(); errors.Is(err, ErrFirmwareUnsupported) {
 		assertUnsupported(t, res)
+	} else {
+		t.Fatalf("restart error = %v, want ErrFirmwareUnsupported", err)
 	}
 
-	if res, err := backend.Rollback(); !errors.Is(err, ErrFirmwareUnsupported) {
-		t.Fatalf("rollback error = %v, want ErrFirmwareUnsupported", err)
-	} else {
+	if res, err := backend.Rollback(); errors.Is(err, ErrFirmwareUnsupported) {
 		assertUnsupported(t, res)
+	} else {
+		t.Fatalf("rollback error = %v, want ErrFirmwareUnsupported", err)
 	}
 }
 

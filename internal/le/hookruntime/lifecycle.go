@@ -599,9 +599,7 @@ func validateSpecText(root, text string) ([]string, []string) {
 	// hook blocks them, because the author is then claiming those sections are
 	// written."
 	status := ""
-	if !strings.Contains(text, "| Status |") {
-		errors = append(errors, "Missing metadata table. Add Status, Depends, Phase, Updated rows")
-	} else {
+	if strings.Contains(text, "| Status |") {
 		statusMatch := regexp.MustCompile(`(?m)^\| Status \| *([a-z-]+)`).FindStringSubmatch(text)
 		if len(statusMatch) > 1 {
 			status = statusMatch[1]
@@ -612,6 +610,8 @@ func validateSpecText(root, text string) ([]string, []string) {
 		if !regexp.MustCompile(`(?m)^\| Updated \| *\d{4}-\d{2}-\d{2}`).MatchString(text) {
 			warnings = append(warnings, "Metadata: Updated field should have a date (YYYY-MM-DD)")
 		}
+	} else {
+		errors = append(errors, "Missing metadata table. Add Status, Depends, Phase, Updated rows")
 	}
 	for _, section := range []string{"## Task", "## Required Reading", "## Current Behavior", "## Data Flow", "## Wiring Test", "## 🧪 TDD Test Plan", "### Unit Tests", "## Files to Modify", "## Implementation Steps", "## Checklist"} {
 		if !regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(section)).MatchString(text) {

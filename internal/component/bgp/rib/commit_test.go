@@ -346,12 +346,12 @@ func TestCommitService_TwoLevel_ExplicitASPathTakesPrecedence(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		code := update.PathAttributes[offset+1]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -631,12 +631,12 @@ func TestCommitService_NoGrouping_PreservesExplicitASPath(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		code := update.PathAttributes[offset+1]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH

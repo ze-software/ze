@@ -211,10 +211,10 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 		}
 
 		dispatch := wireToPath[rpc.WireMethod]
-		if dispatch != "" {
-			rw.Line(tb.Reset().Str("  ").PadRight(rpc.WireMethod, 44).Str(" (").PadRight(dispatch, 30).Str(") ").Str(desc).Str(ro).String())
-		} else {
+		if dispatch == "" {
 			rw.Line(tb.Reset().Str("  ").PadRight(rpc.WireMethod, 44).Byte(' ').PadRight("", 32).Byte(' ').Str(desc).Str(ro).String())
+		} else {
+			rw.Line(tb.Reset().Str("  ").PadRight(rpc.WireMethod, 44).Str(" (").PadRight(dispatch, 30).Str(") ").Str(desc).Str(ro).String())
 		}
 		for _, leaf := range rpc.Input {
 			req := ""
@@ -247,13 +247,13 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 		help := bi.WireMethod
 		ro := ""
 		dispatch := wireToPath[bi.WireMethod]
-		if dispatch != "" {
+		if dispatch == "" {
+			rw.Line(tb.Reset().Str("  ").PadRight(bi.WireMethod, 44).Byte(' ').PadRight("", 32).Byte(' ').Str(help).Str(ro).String())
+		} else {
 			if pluginserver.IsReadOnlyPath(dispatch) {
 				ro = " [read-only]"
 			}
 			rw.Line(tb.Reset().Str("  ").PadRight(bi.WireMethod, 44).Str(" (").PadRight(dispatch, 30).Str(") ").Str(help).Str(ro).String())
-		} else {
-			rw.Line(tb.Reset().Str("  ").PadRight(bi.WireMethod, 44).Byte(' ').PadRight("", 32).Byte(' ').Str(help).Str(ro).String())
 		}
 	}
 	rw.Line("")

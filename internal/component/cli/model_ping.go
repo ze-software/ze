@@ -296,12 +296,12 @@ func parsePingMonitorArgs(input string) (pingMonitorArgs, string) {
 			out.Size = n
 			i++
 		default:
-			if out.Target == "" {
-				out.Target = args[i]
-			} else {
+			if out.Target != "" {
 				var tb textbuf.Buffer
 				return pingMonitorArgs{}, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
 			}
+
+			out.Target = args[i]
 		}
 	}
 	return out, ""

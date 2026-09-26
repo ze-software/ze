@@ -88,7 +88,14 @@ func runInit(args []string) int {
 	}
 
 	var cfg applianceConfig
-	if *configFile != "" {
+	if *configFile == "" {
+		cfg = DefaultConfig(name)
+		cfg.Managed = *managedFlag
+		if err := promptConfig(&cfg, os.Stdin, pw); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return exitError
+		}
+	} else {
 		loaded, err := LoadConfig(*configFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -98,13 +105,6 @@ func runInit(args []string) int {
 		cfg.Identity.Name = name
 		if cfg.Identity.Hostname == "" {
 			cfg.Identity.Hostname = name
-		}
-	} else {
-		cfg = DefaultConfig(name)
-		cfg.Managed = *managedFlag
-		if err := promptConfig(&cfg, os.Stdin, pw); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return exitError
 		}
 	}
 
@@ -398,11 +398,11 @@ func runBatchInit(manifestPath string) int {
 			password = envPass
 		}
 
-		if code := initOneFromBatch(dir, entry, password, passphrase); code != exitOK {
+		if code := initOneFromBatch(dir, entry, password, passphrase); code == exitOK {
+			succeeded++
+		} else {
 			fmt.Fprintf(os.Stderr, "FAILED: %s\n", entry.Name)
 			failed++
-		} else {
-			succeeded++
 		}
 	}
 

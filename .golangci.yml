@@ -149,6 +149,9 @@ linters:
     # Modernization linters
     - intrange
     - modernize
+    # Style-guide rules a machine can check (docs/contributing/ze-go-style.md)
+    - revive
+    - nolintlint
 
   settings:
     errcheck:
@@ -216,6 +219,25 @@ linters:
         - G704 # SSRF via taint — false positive on URL construction from constants
         - G705 # XSS via taint — false positive on fmt.Fprintf to os.Stderr / io.Writer
         - G706 # Log injection via taint — false positive on slog structured logging
+
+    revive:
+      # Only the guard-then-continue rules from ze-go-style.md, "Control flow
+      # a reader can simulate". Listing rules turns off revive's defaults, so
+      # nothing else in revive runs.
+      rules:
+        - name: early-return
+        - name: indent-error-flow
+        - name: superfluous-else
+
+    nolintlint:
+      # ze-go-style.md, "By the numbers": a //nolint names its linter and
+      # carries the reason on the same line.
+      require-specific: true
+      require-explanation: true
+      # Sixteen lint flavors drop different build tags, so a directive that is
+      # needed in one flavor is unused in another. Reporting unused directives
+      # would be red in some flavor whatever the source says.
+      allow-unused: true
 
     misspell:
       # US spelling is the codebase convention (neighbor 1833:3, behavior 423:0, ...).

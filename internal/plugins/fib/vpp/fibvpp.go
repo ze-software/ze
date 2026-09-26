@@ -315,12 +315,12 @@ func (f *fibVPP) flushRoutes() {
 		if err != nil {
 			continue
 		}
-		if ir.tableID != 0 {
-			if err := f.backend.delRichRoute(prefix, ir.tableID); err != nil {
+		if ir.tableID == 0 {
+			if err := f.backend.delRoute(prefix); err != nil {
 				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
 			}
 		} else {
-			if err := f.backend.delRoute(prefix); err != nil {
+			if err := f.backend.delRichRoute(prefix, ir.tableID); err != nil {
 				logger().Warn("fib-vpp: flush del failed", "prefix", prefixStr, "error", err)
 			}
 		}

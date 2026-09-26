@@ -352,10 +352,10 @@ func buildToolDef(g toolGroup) map[string]any {
 		if len(namedActions) == 1 {
 			// One action means the tool IS that command, so its description is
 			// that command's own help page: the summary, then the explanation.
-			if text := commandText(namedActions[0]); text != "" {
-				desc.Str(text)
-			} else {
+			if text := commandText(namedActions[0]); text == "" {
 				desc.Str("Run '").Str(g.prefix).Byte(' ').Str(namedActions[0].name).Str("'.")
+			} else {
+				desc.Str(text)
 			}
 		} else {
 			desc.Str("Actions: ").Join(actionEnums, ", ").Byte('.')

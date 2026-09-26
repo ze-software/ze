@@ -78,10 +78,10 @@ func Resolve(rib *locrib.RIB, addr netip.Addr) Distance {
 			return distance
 		}
 		if path.IsBGP {
-			if !path.AIGPPresent {
-				distance.MissingAIGP = true
-			} else {
+			if path.AIGPPresent {
 				distance.Cost = Add(distance.Cost, path.AIGP)
+			} else {
+				distance.MissingAIGP = true
 			}
 		}
 		if !path.NextHop.IsValid() || path.NextHop == current {

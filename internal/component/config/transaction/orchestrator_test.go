@@ -181,15 +181,15 @@ func (tp *testParticipant) respondVerify(gw *testGateway, txID string) {
 		Plugin:          tp.name,
 		ApplyBudgetSecs: tp.applyBudget,
 	}
-	if tp.verifyErr != "" {
+	if tp.verifyErr == "" {
+		ack.Status = CodeOK
+		payload, _ := json.Marshal(ack)
+		gw.mustEmit(EventVerifyOK, payload)
+	} else {
 		ack.Status = CodeError
 		ack.Error = tp.verifyErr
 		payload, _ := json.Marshal(ack)
 		gw.mustEmit(EventVerifyFailed, payload)
-	} else {
-		ack.Status = CodeOK
-		payload, _ := json.Marshal(ack)
-		gw.mustEmit(EventVerifyOK, payload)
 	}
 }
 
@@ -200,7 +200,11 @@ func (tp *testParticipant) respondApply(gw *testGateway, txID string) {
 		VerifyBudgetSecs: tp.verifyBudget,
 		ApplyBudgetSecs:  tp.applyBudget,
 	}
-	if tp.applyErr != "" {
+	if tp.applyErr == "" {
+		ack.Status = CodeOK
+		payload, _ := json.Marshal(ack)
+		gw.mustEmit(EventApplyOK, payload)
+	} else {
 		ack.Status = CodeError
 		if tp.applyCode != "" {
 			ack.Status = tp.applyCode
@@ -208,10 +212,6 @@ func (tp *testParticipant) respondApply(gw *testGateway, txID string) {
 		ack.Error = tp.applyErr
 		payload, _ := json.Marshal(ack)
 		gw.mustEmit(EventApplyFailed, payload)
-	} else {
-		ack.Status = CodeOK
-		payload, _ := json.Marshal(ack)
-		gw.mustEmit(EventApplyOK, payload)
 	}
 }
 

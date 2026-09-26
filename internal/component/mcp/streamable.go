@@ -160,10 +160,10 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	// means "single shared bearer" (the Phase-1 behavior).
 	mode := cfg.AuthMode
 	if mode == AuthUnspecified {
-		if cfg.Token != "" {
-			mode = AuthBearer
-		} else {
+		if cfg.Token == "" {
 			mode = AuthNone
+		} else {
+			mode = AuthBearer
 		}
 	}
 	authRes, err := buildAuthForMode(mode, cfg)

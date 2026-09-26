@@ -248,11 +248,11 @@ func TestPerPeerCapabilityParsing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.wantCode, tt.cap.Code)
 
-			if tt.wantPeer != "" {
+			if tt.wantPeer == "" {
+				assert.Empty(t, tt.cap.Peers)
+			} else {
 				require.Len(t, tt.cap.Peers, 1)
 				assert.Equal(t, tt.wantPeer, tt.cap.Peers[0])
-			} else {
-				assert.Empty(t, tt.cap.Peers)
 			}
 		})
 	}

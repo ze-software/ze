@@ -802,10 +802,10 @@ func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
 
 	// Extract value: AFI(2) + SAFI(1) + NLRI.
 	var valStart int
-	if attrData[0]&0x10 != 0 {
-		valStart = 4
-	} else {
+	if attrData[0]&0x10 == 0 {
 		valStart = 3
+	} else {
+		valStart = 4
 	}
 	val := attrData[valStart:]
 	require.GreaterOrEqual(t, len(val), 3, "AFI+SAFI minimum")

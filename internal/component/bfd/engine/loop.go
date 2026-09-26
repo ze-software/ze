@@ -79,9 +79,7 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 	defer l.mu.Unlock()
 
 	var entry *sessionEntry
-	if c.YourDiscriminator != 0 {
-		entry = l.byDiscr[c.YourDiscriminator]
-	} else {
+	if c.YourDiscriminator == 0 {
 		// RFC 5880 Section 6.8.6: "If the Your Discriminator field
 		// is zero, the session MUST be selected based on some
 		// combination of other fields". The section names source
@@ -109,6 +107,8 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 				break
 			}
 		}
+	} else {
+		entry = l.byDiscr[c.YourDiscriminator]
 	}
 	if entry == nil {
 		return

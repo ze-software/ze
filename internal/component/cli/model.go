@@ -644,13 +644,13 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	case r.configView != nil:
 		m.setViewportData(*r.configView)
 	case r.output != "":
-		if !m.hasEditor() {
+		if m.hasEditor() {
+			m.setViewportText(r.output)
+		} else {
 			// Command-only mode: accumulate output in scroll-back buffer.
 			m.outputBuf.WriteString(r.output)
 			m.setViewportText(m.outputBuf.String())
 			m.viewport.GotoBottom()
-		} else {
-			m.setViewportText(r.output)
 		}
 	}
 

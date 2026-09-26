@@ -84,13 +84,12 @@ func walkTree(tree *zeconfig.Tree, segments []string) (*zeconfig.Tree, []string)
 		}
 		list := current.GetList(seg)
 		if list != nil {
-			if i+1 < len(segments) {
-				entry, ok := list[segments[i+1]]
-				if ok {
-					return walkTree(entry, segments[i+2:])
-				}
-			} else {
+			if i+1 >= len(segments) {
 				return listToTree(list), nil
+			}
+			entry, ok := list[segments[i+1]]
+			if ok {
+				return walkTree(entry, segments[i+2:])
 			}
 		}
 		if _, ok := current.Get(seg); ok && i == len(segments)-1 {

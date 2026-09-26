@@ -331,10 +331,10 @@ func buildNLRIEntries(tokens []string) []string {
 		for part := range strings.SplitSeq(tok, ",") {
 			part = strings.TrimSpace(part)
 			if part != "" {
-				if typePrefix != "" {
-					nlris = append(nlris, tb.Reset().Str(typePrefix).Byte(' ').Str(part).String())
-				} else {
+				if typePrefix == "" {
 					nlris = append(nlris, part)
+				} else {
+					nlris = append(nlris, tb.Reset().Str(typePrefix).Byte(' ').Str(part).String())
 				}
 			}
 		}

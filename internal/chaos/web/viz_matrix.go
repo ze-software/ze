@@ -159,7 +159,9 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	if latencyMode {
 		maxLatency = m.maxAvgLatency()
 	} else {
-		if opts.family != "" {
+		if opts.family == "" {
+			maxVal = m.maxCell()
+		} else {
 			// Compute max cell for filtered view.
 			for _, src := range peers {
 				for _, dst := range peers {
@@ -168,8 +170,6 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 					}
 				}
 			}
-		} else {
-			maxVal = m.maxCell()
 		}
 	}
 

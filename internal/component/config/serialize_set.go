@@ -713,10 +713,10 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 			continue
 		}
 		writeMetaPrefix(b, e)
-		if e.Value != "" {
-			b.Str("set ")
-		} else {
+		if e.Value == "" {
 			b.Str("delete ")
+		} else {
+			b.Str("set ")
 		}
 		b.Str(prefix)
 		b.Str(name)
@@ -750,13 +750,13 @@ func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPref
 				}
 				b.Str(cmd)
 				b.Str(pathPrefix)
-				if e.Value != "" {
+				if e.Value == "" {
+					b.Str(value)
+				} else {
 					if !strings.HasSuffix(pathPrefix, " ") {
 						b.Str(" ")
 					}
 					b.Str(quoteIfNeeded(e.Value))
-				} else {
-					b.Str(value)
 				}
 				b.Str("\n")
 			}
@@ -777,10 +777,10 @@ func serializeSetMetaContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 	var tb textbuf.Buffer
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
-			if v != configTrue {
-				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).Byte(' ').String(), quoteIfNeeded(v))
-			} else {
+			if v == configTrue {
 				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).String(), "")
+			} else {
+				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).Byte(' ').String(), quoteIfNeeded(v))
 			}
 		}
 		if child := tree.containers[name]; child != nil {
@@ -881,10 +881,10 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 	for _, k := range keys {
 		v := child.values[k]
 		keyPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(k).String()
-		if v != configTrue {
-			writeLine(b, childMeta, k, tb.Reset().Str(keyPrefix).Byte(' ').String(), quoteIfNeeded(v))
-		} else {
+		if v == configTrue {
 			writeLine(b, childMeta, k, keyPrefix, "")
+		} else {
+			writeLine(b, childMeta, k, tb.Reset().Str(keyPrefix).Byte(' ').String(), quoteIfNeeded(v))
 		}
 	}
 }
@@ -895,10 +895,10 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 func writeFlexLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, prefix string, writeLine leafLineWriter) {
 	var tb textbuf.Buffer
 	if v, ok := tree.values[name]; ok {
-		if v != configTrue {
-			writeLine(b, meta, name, prefix+name+" ", quoteIfNeeded(v))
-		} else {
+		if v == configTrue {
 			writeLine(b, meta, name, prefix+name, "")
+		} else {
+			writeLine(b, meta, name, prefix+name+" ", quoteIfNeeded(v))
 		}
 	}
 
@@ -1022,14 +1022,7 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 	for _, name := range names {
 		for _, e := range meta.entries[name] {
 			writeMetaPrefix(b, e)
-			if e.Value != "" {
-				// Session set a value, but tree lacks it (another session deleted).
-				b.Str("set ")
-				b.Str(prefix)
-				b.Str(name)
-				b.Str(" ")
-				b.Str(quoteIfNeeded(e.Value))
-			} else {
+			if e.Value == "" {
 				// Session deleted the value (one member for leaf-lists,
 				// the whole leaf otherwise).
 				b.Str("delete ")
@@ -1039,6 +1032,13 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 					b.Str(" ")
 					b.Str(quoteIfNeeded(e.Member))
 				}
+			} else {
+				// Session set a value, but tree lacks it (another session deleted).
+				b.Str("set ")
+				b.Str(prefix)
+				b.Str(name)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(e.Value))
 			}
 			b.Str("\n")
 		}

@@ -532,13 +532,13 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			if !facts.rsClient {
 				// RFC 4271 Section 9.1.2, with RFC 7705 Section 3.3 ordering: the
 				// override ends up outermost, so it is the LAST element.
-				if facts.secondaryAS != 0 {
+				if facts.secondaryAS == 0 {
+					prependBuf[0] = facts.localAS
+					intent.Prepend = prependBuf[:1]
+				} else {
 					prependBuf[0] = facts.secondaryAS
 					prependBuf[1] = facts.localAS
 					intent.Prepend = prependBuf[:2]
-				} else {
-					prependBuf[0] = facts.localAS
-					intent.Prepend = prependBuf[:1]
 				}
 			}
 			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
@@ -567,24 +567,24 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		if mods.IsWithdraw() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.outgoingPool(peerKey)
-			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
-				srcID := peerWire.SourceID()
-				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
-				// The conversion changes the BYTES, never the peer they came
-				// from. buildFwdBody keys ze's RFC 7911 Path Identifier on the
-				// ingress path, so a rebuilt wire that lost its source withdraws
-				// under an identifier the destination never received, and RFC
-				// 7911 Section 5 has it silently ignore the withdraw: the route
-				// stays for good. Every other rebuild site preserves it
-				// (reactor_api_forward.go, wireu/split.go, session_validation.go).
-				peerWire.SetSourceID(srcID)
-				modBufIdx = bufIdx
-				modPoolRef = modPool
-			} else {
+			withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool)
+			if withdrawal == nil {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
 					"peer", facts.addr)
 				continue
 			}
+			srcID := peerWire.SourceID()
+			peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+			// The conversion changes the BYTES, never the peer they came
+			// from. buildFwdBody keys ze's RFC 7911 Path Identifier on the
+			// ingress path, so a rebuilt wire that lost its source withdraws
+			// under an identifier the destination never received, and RFC
+			// 7911 Section 5 has it silently ignore the withdraw: the route
+			// stays for good. Every other rebuild site preserves it
+			// (reactor_api_forward.go, wireu/split.go, session_validation.go).
+			peerWire.SetSourceID(srcID)
+			modBufIdx = bufIdx
+			modPoolRef = modPool
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.outgoingPool(peerKey)

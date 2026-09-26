@@ -686,12 +686,13 @@ func (a *reactorAPIAdapter) Reload() error {
 // Peer parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the verify phase.
 func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
-	if peers, err := a.loadPeersFullOrTree(bgpTree); err != nil {
+	peers, err := a.loadPeersFullOrTree(bgpTree)
+	if err != nil {
 		return err
-	} else {
-		_ = peers // verify only — discard result
-		return nil
 	}
+
+	_ = peers // verify only — discard result
+	return nil
 }
 
 // ApplyConfigDiff applies peer changes from config.

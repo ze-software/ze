@@ -464,10 +464,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 			// leaving them to the serializer's orphan-intent fallback (which emits
 			// a duplicate line via writeDeleteMetaLines until the next round trip).
 			if treeTarget := walkPath(changeTree, e.schema, parentPath); treeTarget != nil {
-				if se.Entry.Member != "" {
-					treeTarget.RemoveMultiValueMember(leafName, se.Entry.Member)
-				} else {
+				if se.Entry.Member == "" {
 					treeTarget.Delete(leafName)
+				} else {
+					treeTarget.RemoveMultiValueMember(leafName, se.Entry.Member)
 				}
 			}
 		}

@@ -272,21 +272,7 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 		switch step.Type {
 		case StepSession:
 			sa := tc.Sessions[step.SessionIndex]
-			if sa.User != "" {
-				newHM, sessionErr := newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin)
-				result.Steps = append(result.Steps, trace.StepResult{
-					Step: stepNum, Kind: etSession, Assert: sa.Name,
-					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
-				})
-				if sessionErr != nil {
-					var tb textbuf.Buffer
-					result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (session ").Str(sa.Name).Str("): ").Err(sessionErr).String()
-					return result
-				}
-				newHM.setTmpDir(tmpDir)
-				sessions[sa.Name] = newHM
-				hm = newHM
-			} else {
+			if sa.User == "" {
 				existing, ok := sessions[sa.Name]
 				if !ok {
 					result.Steps = append(result.Steps, trace.StepResult{
@@ -301,6 +287,20 @@ func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 					Step: stepNum, Kind: etSession, Assert: sa.Name, Passed: true,
 				})
 				hm = existing
+			} else {
+				newHM, sessionErr := newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin)
+				result.Steps = append(result.Steps, trace.StepResult{
+					Step: stepNum, Kind: etSession, Assert: sa.Name,
+					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
+				})
+				if sessionErr != nil {
+					var tb textbuf.Buffer
+					result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (session ").Str(sa.Name).Str("): ").Err(sessionErr).String()
+					return result
+				}
+				newHM.setTmpDir(tmpDir)
+				sessions[sa.Name] = newHM
+				hm = newHM
 			}
 
 		case StepRestart:

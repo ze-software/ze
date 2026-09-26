@@ -941,14 +941,14 @@ func TestParseAttributesNLRI(t *testing.T) {
 			// Check AS_PATH
 			if tt.wantASPath != nil {
 				asPath := attrs.Attrs.ASPathSlice()
-				if len(asPath) != len(tt.wantASPath) {
-					t.Errorf("parseAttributesNLRI(%v) ASPath len = %d, want %d", tt.args, len(asPath), len(tt.wantASPath))
-				} else {
+				if len(asPath) == len(tt.wantASPath) {
 					for i, asn := range tt.wantASPath {
 						if asPath[i] != asn {
 							t.Errorf("parseAttributesNLRI(%v) ASPath[%d] = %d, want %d", tt.args, i, asPath[i], asn)
 						}
 					}
+				} else {
+					t.Errorf("parseAttributesNLRI(%v) ASPath len = %d, want %d", tt.args, len(asPath), len(tt.wantASPath))
 				}
 			}
 
@@ -1455,14 +1455,14 @@ func TestParseAttributesNlri(t *testing.T) {
 			// Check ASPath
 			if tt.wantASPath != nil {
 				asPath := attrs.Attrs.ASPathSlice()
-				if len(asPath) != len(tt.wantASPath) {
-					t.Errorf("parseAttributesNLRI(%q) ASPath = %v, want %v", tt.args, asPath, tt.wantASPath)
-				} else {
+				if len(asPath) == len(tt.wantASPath) {
 					for i, asn := range asPath {
 						if asn != tt.wantASPath[i] {
 							t.Errorf("parseAttributesNLRI(%q) ASPath[%d] = %d, want %d", tt.args, i, asn, tt.wantASPath[i])
 						}
 					}
+				} else {
+					t.Errorf("parseAttributesNLRI(%q) ASPath = %v, want %v", tt.args, asPath, tt.wantASPath)
 				}
 			}
 
@@ -1477,26 +1477,26 @@ func TestParseAttributesNlri(t *testing.T) {
 						break
 					}
 				}
-				if len(comms) != len(tt.wantComms) {
-					t.Errorf("parseAttributesNLRI(%q) Communities = %v, want %v", tt.args, comms, tt.wantComms)
-				} else {
+				if len(comms) == len(tt.wantComms) {
 					for i, comm := range comms {
 						if comm != tt.wantComms[i] {
 							t.Errorf("parseAttributesNLRI(%q) Communities[%d] = %08x, want %08x", tt.args, i, comm, tt.wantComms[i])
 						}
 					}
+				} else {
+					t.Errorf("parseAttributesNLRI(%q) Communities = %v, want %v", tt.args, comms, tt.wantComms)
 				}
 			}
 
 			// Check NLRIs
-			if len(nlris) != len(tt.wantNlris) {
-				t.Errorf("parseAttributesNLRI(%q) nlris count = %d, want %d", tt.args, len(nlris), len(tt.wantNlris))
-			} else {
+			if len(nlris) == len(tt.wantNlris) {
 				for i, prefix := range nlris {
 					if prefix.String() != tt.wantNlris[i] {
 						t.Errorf("parseAttributesNLRI(%q) nlris[%d] = %s, want %s", tt.args, i, prefix.String(), tt.wantNlris[i])
 					}
 				}
+			} else {
+				t.Errorf("parseAttributesNLRI(%q) nlris count = %d, want %d", tt.args, len(nlris), len(tt.wantNlris))
 			}
 		})
 	}

@@ -288,22 +288,22 @@ func tuneTCPConnectionForSettings(tcp *net.TCPConn, settings *PeerSettings) erro
 		}
 		if settings.OutTTL != 0 {
 			if err := network.SetIPTTL(intFD, addr.IP, settings.OutTTL); err != nil {
-				if network.IsIPTTLUnsupported(err) {
-					sessionLogger().Debug("GTSM outbound TTL not supported on this platform", "peer", settings.Name, "err", err)
-				} else {
+				if !network.IsIPTTLUnsupported(err) {
 					sysErr = err
 					return
 				}
+
+				sessionLogger().Debug("GTSM outbound TTL not supported on this platform", "peer", settings.Name, "err", err)
 			}
 		}
 		if settings.MinTTL != 0 {
 			if err := network.SetIPMinTTL(intFD, addr.IP, settings.MinTTL); err != nil {
-				if network.IsIPTTLUnsupported(err) {
-					sessionLogger().Debug("GTSM inbound TTL gate not supported on this platform", "peer", settings.Name, "err", err)
-				} else {
+				if !network.IsIPTTLUnsupported(err) {
 					sysErr = err
 					return
 				}
+
+				sessionLogger().Debug("GTSM inbound TTL gate not supported on this platform", "peer", settings.Name, "err", err)
 			}
 		}
 		// Set socket buffers for BGP burst throughput.

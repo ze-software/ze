@@ -172,15 +172,15 @@ func TestISISConnectedAdvertise(t *testing.T) {
 	if _, ok := byPfx[netip.MustParsePrefix("10.0.0.0/24")]; !ok {
 		t.Fatalf("connected prefix not masked to network 10.0.0.0/24: %+v", infos)
 	}
-	if in, ok := byPfx[netip.MustParsePrefix("172.16.5.8/30")]; !ok {
-		t.Fatalf("connected prefix not masked to network 172.16.5.8/30: %+v", infos)
-	} else {
+	if in, ok := byPfx[netip.MustParsePrefix("172.16.5.8/30")]; ok {
 		if in.Metric.Value() != 7 {
 			t.Fatalf("connected prefix metric = %d, want circuit metric 7", in.Metric.Value())
 		}
 		if in.UpDown {
 			t.Fatal("connected prefix up/down bit must be 0 (internal reachability)")
 		}
+	} else {
+		t.Fatalf("connected prefix not masked to network 172.16.5.8/30: %+v", infos)
 	}
 }
 

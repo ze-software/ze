@@ -547,11 +547,11 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 	// After a filter name, suggest arguments.
 	filter := tokens[len(tokens)-1]
 	if !endsWithSpace {
-		if len(tokens) >= 2 {
-			filter = tokens[len(tokens)-2]
-		} else {
+		if len(tokens) < 2 {
 			return nil
 		}
+
+		filter = tokens[len(tokens)-2]
 	}
 
 	switch filter {
@@ -834,11 +834,11 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 
 		// Container navigation
 		container := tree.GetContainer(part)
-		if container != nil {
-			tree = container
-		} else {
+		if container == nil {
 			return nil
 		}
+
+		tree = container
 	}
 
 	return tree
@@ -1104,11 +1104,11 @@ func (c *Completer) entryShortHelp(entry *gyang.Entry) string {
 	// A ze:help argument can span lines; collapse it to one line for the row.
 	desc := textbuf.Join(strings.Fields(yang.GetHelpExtension(entry.Exts)), " ")
 	if entry.Mandatory == gyang.TSTrue && !strings.Contains(desc, "(required)") {
-		if desc != "" {
+		if desc == "" {
+			desc = "required"
+		} else {
 			var tb textbuf.Buffer
 			desc = tb.Str(desc).Str(" (required)").String()
-		} else {
-			desc = "required"
 		}
 	}
 	return desc

@@ -877,11 +877,12 @@ func runCaptured(ctx context.Context, env []string, stdin string, argv ...string
 	err := command.Run()
 	code := 0
 	if err != nil {
-		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-			code = exit.ExitCode()
-		} else {
+		exit, ok := errors.AsType[*exec.ExitError](err)
+		if !ok {
 			return -1, stdout.String(), stderr.String(), err
 		}
+
+		code = exit.ExitCode()
 	}
 	return code, stdout.String(), stderr.String(), nil
 }

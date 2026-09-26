@@ -151,15 +151,15 @@ func parseUpdatePrefixes(body []byte, peerIndex int, buf *eventBuffer) {
 
 		// Attribute length: 1 byte normally, 2 bytes if extended-length flag set.
 		var aLen int
-		if flags&0x10 != 0 { // Extended length.
+		if flags&0x10 == 0 {
+			aLen = int(body[off])
+			off++
+		} else { // Extended length.
 			if off+2 > attrEnd {
 				break
 			}
 			aLen = int(binary.BigEndian.Uint16(body[off : off+2]))
 			off += 2
-		} else {
-			aLen = int(body[off])
-			off++
 		}
 		if off+aLen > attrEnd {
 			break

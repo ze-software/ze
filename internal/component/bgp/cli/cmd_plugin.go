@@ -246,10 +246,10 @@ func runInteractive(ctx context.Context, p *sdk.Plugin, scanner *bufio.Scanner) 
 // an answer the operator did give registers the plugin under settings nobody
 // chose. See scanErr for why Err is read back after a successful Scan.
 func promptWithDefault(scanner *bufio.Scanner, prompt, defaultVal string) (string, error) {
-	if defaultVal != "" {
-		fmt.Fprintf(os.Stderr, "%s (default: %s): ", prompt, defaultVal)
-	} else {
+	if defaultVal == "" {
 		fmt.Fprintf(os.Stderr, "%s: ", prompt)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s (default: %s): ", prompt, defaultVal)
 	}
 
 	ok := scanner.Scan()

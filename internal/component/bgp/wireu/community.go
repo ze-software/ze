@@ -76,18 +76,18 @@ func ParseCommunityPolicy(payload []byte, rsASN uint32) CommunityPolicy {
 		off += 2
 
 		var attrLen int
-		if flags&0x10 != 0 {
-			if off+2 > paEnd {
-				break
-			}
-			attrLen = int(payload[off])<<8 | int(payload[off+1])
-			off += 2
-		} else {
+		if flags&0x10 == 0 {
 			if off+1 > paEnd {
 				break
 			}
 			attrLen = int(payload[off])
 			off++
+		} else {
+			if off+2 > paEnd {
+				break
+			}
+			attrLen = int(payload[off])<<8 | int(payload[off+1])
+			off += 2
 		}
 
 		if off+attrLen > paEnd {
@@ -182,18 +182,18 @@ func StripControlCommunities(payload []byte, rsASN uint32) []byte {
 		code := payload[off+1]
 		off += 2
 		var attrLen int
-		if flags&0x10 != 0 {
-			if off+2 > paEnd {
-				break
-			}
-			attrLen = int(payload[off])<<8 | int(payload[off+1])
-			off += 2
-		} else {
+		if flags&0x10 == 0 {
 			if off+1 > paEnd {
 				break
 			}
 			attrLen = int(payload[off])
 			off++
+		} else {
+			if off+2 > paEnd {
+				break
+			}
+			attrLen = int(payload[off])<<8 | int(payload[off+1])
+			off += 2
 		}
 		if off+attrLen > paEnd {
 			break

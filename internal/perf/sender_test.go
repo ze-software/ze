@@ -61,12 +61,12 @@ func TestSenderInlineNLRI(t *testing.T) {
 		pos += 2
 
 		var aLen int
-		if flags&0x10 != 0 { // Extended length
-			aLen = int(data[pos])<<8 | int(data[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			aLen = int(data[pos])
 			pos++
+		} else { // Extended length
+			aLen = int(data[pos])<<8 | int(data[pos+1])
+			pos += 2
 		}
 
 		if code == 14 {
@@ -132,12 +132,12 @@ func TestSenderForceMP(t *testing.T) {
 		pos += 2
 
 		var aLen int
-		if flags&0x10 != 0 { // Extended length
-			aLen = int(data[pos])<<8 | int(data[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			aLen = int(data[pos])
 			pos++
+		} else { // Extended length
+			aLen = int(data[pos])<<8 | int(data[pos+1])
+			pos += 2
 		}
 
 		if code == 14 {
@@ -351,12 +351,12 @@ func TestSenderBatchIBGP(t *testing.T) {
 		pos += 2
 
 		var aLen int
-		if flags&0x10 != 0 {
-			aLen = int(body[pos])<<8 | int(body[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			aLen = int(body[pos])
 			pos++
+		} else {
+			aLen = int(body[pos])<<8 | int(body[pos+1])
+			pos += 2
 		}
 
 		if code == 5 { // LOCAL_PREF
@@ -493,12 +493,12 @@ func TestSenderIPv6(t *testing.T) {
 		pos += 2
 
 		var aLen int
-		if flags&0x10 != 0 {
-			aLen = int(data[pos])<<8 | int(data[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			aLen = int(data[pos])
 			pos++
+		} else {
+			aLen = int(data[pos])<<8 | int(data[pos+1])
+			pos += 2
 		}
 
 		if code == 14 && aLen >= 3 {

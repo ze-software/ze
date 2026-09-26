@@ -58,3 +58,22 @@ func crashlogExec(m dsl.Matcher) {
 		Report(`an execve past the crash-capture flush leaves the new image writing into a pipe nobody reads -- use crashlog.Exec($path, $argv, $environ)`).
 		Suggest(`crashlog.Exec($path, $argv, $environ)`)
 }
+
+// negatedElse asks for the positive form of a condition that has an else.
+//
+// With both branches present, the condition can be stated either way round, so
+// the negated form only adds an inversion the reader must undo. Swap the
+// branches and state the condition positively. A comparison with nil is left
+// alone, because `err != nil` is the Go guard idiom, and so is the failure form
+// of a bound such as `x >= len(y)`, which this rule does not match.
+//
+// ze-go-style.md, "Control flow a reader can simulate": state an invariant
+// positively.
+func negatedElse(m dsl.Matcher) {
+	m.Match(`if !$c { $*_ } else { $*_ }`, `if $init; !$c { $*_ } else { $*_ }`).
+		Report(`negated condition with an else -- swap the branches and test $c`)
+
+	m.Match(`if $x != $y { $*_ } else { $*_ }`, `if $init; $x != $y { $*_ } else { $*_ }`).
+		Where(!m["x"].Text.Matches(`^nil$`) && !m["y"].Text.Matches(`^nil$`)).
+		Report(`negated condition with an else -- swap the branches and test $x == $y`)
+}

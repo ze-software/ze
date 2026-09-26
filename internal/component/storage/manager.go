@@ -245,14 +245,12 @@ func (m *Manager) checkTemperature(name string, ds *DeviceStatus, info *smart.In
 }
 
 func (m *Manager) checkHealth(name string, ds *DeviceStatus, info *smart.Info) {
-	if !info.Healthy {
-		if !ds.healthReported {
-			report.RaiseError("storage", "smart-failing", name,
-				"SMART health status: FAILING")
-			ds.healthReported = true
-		}
-	} else {
+	if info.Healthy {
 		ds.healthReported = false
+	} else if !ds.healthReported {
+		report.RaiseError("storage", "smart-failing", name,
+			"SMART health status: FAILING")
+		ds.healthReported = true
 	}
 }
 

@@ -446,12 +446,12 @@ func printInvalidSubsystem(name string) int {
 	stderrLine(tb.Str("error: unknown subsystem ").Quoted(name).String())
 	stderrLine("valid subsystems:")
 	for _, info := range slogutil.Subsystems() {
-		if info.Description != "" {
-			tb.Reset()
-			stderrLine(tb.Str("  ").PadRight(info.Name, 30).Str(info.Description).String())
-		} else {
+		if info.Description == "" {
 			tb.Reset()
 			stderrLine(tb.Str("  ").Str(info.Name).String())
+		} else {
+			tb.Reset()
+			stderrLine(tb.Str("  ").PadRight(info.Name, 30).Str(info.Description).String())
 		}
 	}
 	stderrLine("\nhierarchical prefixes also work (e.g., \"bgp\" enables all bgp.* subsystems)")

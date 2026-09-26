@@ -406,11 +406,11 @@ func tunnelL2TPZeroTunnelID(ctx context.Context, args []string) error {
 	}
 	failures := make([]string, 0)
 	check := func(ok bool, message string) {
-		if !ok {
+		if ok {
+			fmt.Println("PASS:", message)
+		} else {
 			failures = append(failures, message)
 			fmt.Fprintln(os.Stderr, "FAIL:", message)
-		} else {
-			fmt.Println("PASS:", message)
 		}
 	}
 	check(int(binary.BigEndian.Uint16(bad[2:4])) == len(bad), "StopCCN Length field matches datagram")

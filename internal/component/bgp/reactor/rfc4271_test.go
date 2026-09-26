@@ -49,15 +49,15 @@ func rfc4271FindAttr(attrs []byte, code attribute.AttributeCode) ([]byte, bool) 
 		flags := attrs[pos]
 		typeCode := attribute.AttributeCode(attrs[pos+1])
 		var length, hdr int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			length = int(attrs[pos+2])
+			hdr = 3
+		} else {
 			if pos+4 > len(attrs) {
 				return nil, false
 			}
 			length = int(attrs[pos+2])<<8 | int(attrs[pos+3])
 			hdr = 4
-		} else {
-			length = int(attrs[pos+2])
-			hdr = 3
 		}
 		if pos+hdr+length > len(attrs) {
 			return nil, false

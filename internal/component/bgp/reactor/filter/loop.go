@@ -72,18 +72,18 @@ func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any)
 		pos += 2
 
 		var dataLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			dataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				break
 			}
 			dataLen = int(pathAttrs[pos])
 			pos++
+		} else { // Extended length
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			dataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
 		}
 
 		if pos+dataLen > len(pathAttrs) {

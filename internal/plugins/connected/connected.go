@@ -113,11 +113,12 @@ func (o *routeObserver) parsePayload(payload any) (addrPayload, bool) {
 	var p addrPayload
 	data, ok := payload.([]byte)
 	if !ok {
-		if s, ok2 := payload.(string); ok2 {
-			data = []byte(s)
-		} else {
+		s, ok2 := payload.(string)
+		if !ok2 {
 			return p, false
 		}
+
+		data = []byte(s)
 	}
 	if err := json.Unmarshal(data, &p); err != nil {
 		return p, false

@@ -792,18 +792,18 @@ func writeMPUnreachFromReach(buf, attrs []byte) int {
 		code := attrs[off+1]
 		var hdrLen int
 		var aLen uint16
-		if flags&0x10 != 0 { // Extended length.
-			if off+4 > len(attrs) {
-				return 0
-			}
-			aLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if off+3 > len(attrs) {
 				return 0
 			}
 			aLen = uint16(attrs[off+2])
 			hdrLen = 3
+		} else { // Extended length.
+			if off+4 > len(attrs) {
+				return 0
+			}
+			aLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
+			hdrLen = 4
 		}
 		valStart := off + hdrLen
 		valEnd := valStart + int(aLen)

@@ -267,10 +267,10 @@ func (s *Session) filterPathsLimit(dst, body []byte, changes *pathsLimitChanges)
 		n += count
 		reachable = reachable || count != 0
 		length := off + count
-		if flags&attribute.FlagExtLength != 0 {
-			binary.BigEndian.PutUint16(dst[outStart+2:], uint16(length))
-		} else {
+		if flags&attribute.FlagExtLength == 0 {
 			dst[outStart+2] = byte(length)
+		} else {
+			binary.BigEndian.PutUint16(dst[outStart+2:], uint16(length))
 		}
 		start = end
 	}

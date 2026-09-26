@@ -412,12 +412,12 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 					break
 				}
 			}
-			if !found {
+			if found {
+				m.fetchPeerDetail(m.activeDashboard().detailAddr)
+			} else {
 				m.activeDashboard().detailAddr = ""
 				m.activeDashboard().detailData = nil
 				m.statusMessage = "peer disconnected"
-			} else {
-				m.fetchPeerDetail(m.activeDashboard().detailAddr)
 			}
 		}
 	}
@@ -533,12 +533,12 @@ func (m Model) renderDashboard() string {
 	sb.Str(renderDashboardHeader(ds.snapshot, width)).Byte('\n')
 
 	// Peer table or detail view.
-	if ds.detailAddr != "" {
-		sb.Str(renderDashboardDetail(ds))
-	} else {
+	if ds.detailAddr == "" {
 		peers := ds.sortedPeers()
 		tableHeight := max(1, m.height-3) // header(1) + footer(1) + separator(1)
 		sb.Str(renderDashboardPeerTable(peers, ds, ds.sortColumn, ds.sortAsc, width, tableHeight))
+	} else {
+		sb.Str(renderDashboardDetail(ds))
 	}
 
 	sb.Byte('\n')

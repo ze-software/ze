@@ -577,12 +577,12 @@ func appendAttrDelta(b *textbuf.Buffer, prev, curr *Route) {
 		}
 	}
 	if prev.NextHop != curr.NextHop {
-		if curr.NextHop != "" {
+		if curr.NextHop == "" {
+			b.Str("del next-hop ")
+		} else {
 			b.Str("next-hop ")
 			b.Str(curr.NextHop)
 			b.Byte(' ')
-		} else {
-			b.Str("del next-hop ")
 		}
 	}
 }

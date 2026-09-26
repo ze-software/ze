@@ -566,18 +566,18 @@ func TestApplyAttrDiscardTransitivity(t *testing.T) {
 					return
 				}
 				pos += 2
-				if flags&0x10 != 0 {
-					if pos+2 > len(result) {
-						break
-					}
-					vl := int(binary.BigEndian.Uint16(result[pos : pos+2]))
-					pos += 2 + vl
-				} else {
+				if flags&0x10 == 0 {
 					if pos >= len(result) {
 						break
 					}
 					vl := int(result[pos])
 					pos += 1 + vl
+				} else {
+					if pos+2 > len(result) {
+						break
+					}
+					vl := int(binary.BigEndian.Uint16(result[pos : pos+2]))
+					pos += 2 + vl
 				}
 			}
 			t.Fatal("ATTR_DISCARD not found in result")
@@ -684,18 +684,18 @@ func TestApplyAttrDiscardUpstreamTransitivityMerge(t *testing.T) {
 					return
 				}
 				pos += 2
-				if flags&0x10 != 0 {
-					if pos+2 > len(result) {
-						break
-					}
-					vl := int(binary.BigEndian.Uint16(result[pos : pos+2]))
-					pos += 2 + vl
-				} else {
+				if flags&0x10 == 0 {
 					if pos >= len(result) {
 						break
 					}
 					vl := int(result[pos])
 					pos += 1 + vl
+				} else {
+					if pos+2 > len(result) {
+						break
+					}
+					vl := int(binary.BigEndian.Uint16(result[pos : pos+2]))
+					pos += 2 + vl
 				}
 			}
 			t.Fatal("ATTR_DISCARD not found in result")
@@ -748,20 +748,20 @@ func findAttrByCode(pathAttrs []byte, code uint8) []byte {
 
 		var valueLen int
 		var hdrLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				return nil
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			hdrLen = 4
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos >= len(pathAttrs) {
 				return nil
 			}
 			valueLen = int(pathAttrs[pos])
 			hdrLen = 3
 			pos++
+		} else {
+			if pos+2 > len(pathAttrs) {
+				return nil
+			}
+			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			hdrLen = 4
+			pos += 2
 		}
 
 		if attrCode == code {
@@ -786,18 +786,18 @@ func countAttrByCode(pathAttrs []byte, code uint8) int {
 		pos += 2
 
 		var valueLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				return count
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos >= len(pathAttrs) {
 				return count
 			}
 			valueLen = int(pathAttrs[pos])
 			pos++
+		} else {
+			if pos+2 > len(pathAttrs) {
+				return count
+			}
+			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
 		}
 
 		if attrCode == code {

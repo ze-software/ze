@@ -212,22 +212,22 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			continue
 		}
 
-		if tok.kind == tokenWord || tok.kind == tokenString {
-			if childIdx < lastIdx {
-				// Positional assignment for children before the last
-				if err := validateInlineListChildValue(node, children[childIdx], tok.value); err != nil {
-					return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
-				}
-				entry.Set(children[childIdx], tok.value)
-				childIdx++
-			} else if lastIdx >= 0 {
-				// Collect into last child
-				lastParts = append(lastParts, tok.value)
-			}
-			p.tok.next()
-		} else {
+		if tok.kind != tokenWord && tok.kind != tokenString {
 			return p.errorf(tok, "expected value or ';' in %s entry, got %s", name, tok.kind)
 		}
+
+		if childIdx < lastIdx {
+			// Positional assignment for children before the last
+			if err := validateInlineListChildValue(node, children[childIdx], tok.value); err != nil {
+				return p.errorf(tok, "invalid value for %s.%s: %v", name, children[childIdx], err)
+			}
+			entry.Set(children[childIdx], tok.value)
+			childIdx++
+		} else if lastIdx >= 0 {
+			// Collect into last child
+			lastParts = append(lastParts, tok.value)
+		}
+		p.tok.next()
 	}
 
 	// Store collected values in the last child
@@ -328,12 +328,12 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 			p.tok.next()
 			break
 		}
-		if tok.kind == tokenWord || tok.kind == tokenString {
-			words = append(words, tok.value)
-			p.tok.next()
-		} else {
+		if tok.kind != tokenWord && tok.kind != tokenString {
 			return p.errorf(tok, "expected value or ';' for %s, got %s", name, tok.kind)
 		}
+
+		words = append(words, tok.value)
+		p.tok.next()
 	}
 
 	joined := textbuf.Join(words, " ")
@@ -360,12 +360,12 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 			p.tok.next() // consume ]
 			break
 		}
-		if tok.kind == tokenWord || tok.kind == tokenString {
-			items = append(items, tok.value)
-			p.tok.next()
-		} else {
+		if tok.kind != tokenWord && tok.kind != tokenString {
 			return p.errorf(tok, "expected item or ']' in array %s, got %s", name, tok.kind)
 		}
+
+		items = append(items, tok.value)
+		p.tok.next()
 	}
 
 	// Expect semicolon
@@ -437,12 +437,12 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 				p.tok.next() // consume ]
 				break
 			}
-			if tok.kind == tokenWord || tok.kind == tokenString {
-				items = append(items, tok.value)
-				p.tok.next()
-			} else {
+			if tok.kind != tokenWord && tok.kind != tokenString {
 				return nil, bracket, tok, p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.kind)
 			}
+
+			items = append(items, tok.value)
+			p.tok.next()
 		}
 
 		// Expect semicolon
@@ -459,12 +459,12 @@ func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket 
 				p.tok.next() // consume ;
 				break
 			}
-			if tok.kind == tokenWord || tok.kind == tokenString {
-				items = append(items, tok.value)
-				p.tok.next()
-			} else {
+			if tok.kind != tokenWord && tok.kind != tokenString {
 				return nil, bracket, tok, p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.kind)
 			}
+
+			items = append(items, tok.value)
+			p.tok.next()
 		}
 	}
 	return items, bracket, tok, nil

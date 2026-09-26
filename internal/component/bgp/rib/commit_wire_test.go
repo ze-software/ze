@@ -51,18 +51,18 @@ func TestCommitService_IPv4_HasNextHop(t *testing.T) {
 		code := update.PathAttributes[offset+1]
 		flags := update.PathAttributes[offset]
 		var attrLen int
-		if flags&0x10 != 0 { // Extended length
-			if offset+4 > len(update.PathAttributes) {
-				break
-			}
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			offset += 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(update.PathAttributes) {
 				break
 			}
 			attrLen = int(update.PathAttributes[offset+2])
 			offset += 3
+		} else { // Extended length
+			if offset+4 > len(update.PathAttributes) {
+				break
+			}
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			offset += 4
 		}
 
 		if code == 3 { // NEXT_HOP
@@ -130,18 +130,18 @@ func TestCommitService_IPv6_UsesMPReachNLRI(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 { // Extended length
-			if offset+4 > len(update.PathAttributes) {
-				break
-			}
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(update.PathAttributes) {
 				break
 			}
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else { // Extended length
+			if offset+4 > len(update.PathAttributes) {
+				break
+			}
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 14 { // MP_REACH_NLRI
@@ -216,18 +216,18 @@ func TestCommitService_ASN4_EncodesASPath(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(update.PathAttributes) {
-				break
-			}
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(update.PathAttributes) {
 				break
 			}
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			if offset+4 > len(update.PathAttributes) {
+				break
+			}
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -284,12 +284,12 @@ func TestCommitService_iBGP_NoASPrepend(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -347,12 +347,12 @@ func TestCommitService_EVPN_UsesMPReachNLRI(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 14 { // MP_REACH_NLRI
@@ -426,12 +426,12 @@ func TestCommitService_iBGP_PreservesASPath(t *testing.T) {
 		flags := update.PathAttributes[offset]
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -640,18 +640,18 @@ func extractASPathLength(attrs []byte) int {
 		flags := attrs[offset]
 		code := attrs[offset+1]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(attrs) {
-				break
-			}
-			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(attrs) {
 				break
 			}
 			attrLen = int(attrs[offset+2])
 			hdrLen = 3
+		} else {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -672,18 +672,18 @@ func extractFirstASN(attrs []byte) uint32 {
 		flags := attrs[offset]
 		code := attrs[offset+1]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(attrs) {
-				break
-			}
-			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(attrs) {
 				break
 			}
 			attrLen = int(attrs[offset+2])
 			hdrLen = 3
+		} else {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -763,18 +763,18 @@ func extractFirstSegment(attrs []byte) (segType, segCount byte) {
 		flags := attrs[offset]
 		code := attrs[offset+1]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(attrs) {
-				break
-			}
-			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(attrs) {
 				break
 			}
 			attrLen = int(attrs[offset+2])
 			hdrLen = 3
+		} else {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH

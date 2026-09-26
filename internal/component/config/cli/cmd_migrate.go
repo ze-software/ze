@@ -95,13 +95,13 @@ func cmdMigrate(args []string) int {
 		return exitError
 	}
 
-	if *outputPath != "" {
-		fmt.Fprintf(os.Stderr, "Config migrated: %s\n", *outputPath)
-		printMigrateResult(result)
-		printMigrateWarnings(warnings)
-	} else {
+	if *outputPath == "" {
 		printMigrateResult(result)
 		fmt.Print(output)
+		printMigrateWarnings(warnings)
+	} else {
+		fmt.Fprintf(os.Stderr, "Config migrated: %s\n", *outputPath)
+		printMigrateResult(result)
 		printMigrateWarnings(warnings)
 	}
 

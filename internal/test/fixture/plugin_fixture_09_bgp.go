@@ -292,10 +292,10 @@ func rsObserver09(_ string, expectedPeers int) Driver {
 					mu.Unlock()
 					return seen && bgpEORSent09(dispatch09(ctx, plugin, "show bgp peer * detail"), expectedPeers)
 				})
-				if !complete {
-					result <- fmt.Errorf("route-server replay did not complete for %d peers and prefix %s", expectedPeers, prefix)
-				} else {
+				if complete {
 					result <- nil
+				} else {
+					result <- fmt.Errorf("route-server replay did not complete for %d peers and prefix %s", expectedPeers, prefix)
 				}
 				_, _, _ = plugin.DispatchCommand(context.Background(), "request shutdown")
 			}()
@@ -544,13 +544,13 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 				}
 				return true
 			}
-			if !Poll(ctx, 960, 250*time.Millisecond, served) {
+			if Poll(ctx, 960, 250*time.Millisecond, served) {
+				result <- nil
+			} else {
 				mu.Lock()
 				missing := fmt.Sprint(clients)
 				mu.Unlock()
 				result <- fmt.Errorf("forward did not reach every client: %s", missing)
-			} else {
-				result <- nil
 			}
 			_, _, _ = plugin.DispatchCommand(context.Background(), "request shutdown")
 		}()

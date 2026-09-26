@@ -302,9 +302,7 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 		if profile == "" {
 			profile = defaultKernelProfile
 		}
-		if p := isoKernelCachePath(cfg.Image.Arch, profile); p != "" {
-			kernelPath = p
-		} else {
+		if p := isoKernelCachePath(cfg.Image.Arch, profile); p == "" {
 			if _, err := resolveKernelProfile(kernelInstallerConfigDir, profile); err != nil {
 				return isoBuildInput{}, err
 			}
@@ -312,6 +310,8 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 				return isoBuildInput{}, fmt.Errorf("installer kernel for profile %q not found; run ze appliance kernel --profile %s or pass --kernel", profile, profile)
 			}
 			kernelPath = filepath.Join("build", "kernel", "Image")
+		} else {
+			kernelPath = p
 		}
 	}
 	kernel, err := resolveISOArtifact(kernelPath, "installer kernel", "build the installer kernel or pass --kernel")
@@ -466,12 +466,7 @@ func verifyKernelArch(path, arch string) error {
 }
 
 func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error) {
-	if builder != "" {
-		grubPath, err = resolveExecutable(builder)
-		if err != nil {
-			return "", "", err
-		}
-	} else {
+	if builder == "" {
 		var firstErr error
 		for _, candidate := range []string{grubStandalone, grubStandalone2} {
 			grubPath, err = isoLookPathFn(candidate)
@@ -487,6 +482,11 @@ func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error)
 				return "", "", errors.New("grub-mkstandalone not found; install GRUB EFI tooling or pass --builder")
 			}
 			return "", "", errors.New("grub-mkstandalone not found")
+		}
+	} else {
+		grubPath, err = resolveExecutable(builder)
+		if err != nil {
+			return "", "", err
 		}
 	}
 	xorrisoPath, err = resolveExecutable("xorriso")

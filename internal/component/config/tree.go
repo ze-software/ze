@@ -241,9 +241,7 @@ func (t *Tree) appendMembersLocked(name string, items []string, dedup bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	members := t.multiValues[name]
-	if !dedup {
-		members = append(members, items...)
-	} else {
+	if dedup {
 		seen := make(map[string]struct{}, len(members)+len(items))
 		for _, v := range members {
 			seen[v] = struct{}{}
@@ -255,6 +253,8 @@ func (t *Tree) appendMembersLocked(name string, items []string, dedup bool) {
 			seen[v] = struct{}{}
 			members = append(members, v)
 		}
+	} else {
+		members = append(members, items...)
 	}
 	t.multiValues[name] = members
 	t.syncMultiValueToValueLocked(name)

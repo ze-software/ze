@@ -71,15 +71,15 @@ func (it *AttrIterator) Next() (typeCode AttributeCode, flags AttributeFlags, va
 	// RFC 4271: Extended Length flag (bit 4) means 2-byte length
 	var length int
 	var hdrLen int
-	if flags&FlagExtLength != 0 {
+	if flags&FlagExtLength == 0 {
+		length = int(it.data[it.offset+2])
+		hdrLen = 3
+	} else {
 		if it.offset+4 > len(it.data) {
 			return 0, 0, nil, false // malformed
 		}
 		length = int(binary.BigEndian.Uint16(it.data[it.offset+2:]))
 		hdrLen = 4
-	} else {
-		length = int(it.data[it.offset+2])
-		hdrLen = 3
 	}
 
 	// Validate we have enough data
@@ -142,15 +142,15 @@ func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFla
 		tc := AttributeCode(data[offset+1])
 
 		var length, hdrLen int
-		if f&FlagExtLength != 0 {
+		if f&FlagExtLength == 0 {
+			length = int(data[offset+2])
+			hdrLen = 3
+		} else {
 			if offset+4 > len(data) {
 				return 0, 0, nil, false
 			}
 			length = int(binary.BigEndian.Uint16(data[offset+2:]))
 			hdrLen = 4
-		} else {
-			length = int(data[offset+2])
-			hdrLen = 3
 		}
 
 		valueStart := offset + hdrLen

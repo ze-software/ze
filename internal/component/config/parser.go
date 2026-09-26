@@ -243,12 +243,12 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	tok := p.tok.peek()
 
 	var value string
-	if tok.kind == tokenWord || tok.kind == tokenString {
-		value = tok.value
-		p.tok.next()
-	} else {
+	if tok.kind != tokenWord && tok.kind != tokenString {
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.kind)
 	}
+
+	value = tok.value
+	p.tok.next()
 
 	// Decode $9$-encoded values on sensitive leaves.
 	// Skipped for ze:bcrypt leaves: bcrypt is one-way, cannot share the

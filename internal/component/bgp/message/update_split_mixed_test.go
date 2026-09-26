@@ -121,18 +121,18 @@ func findAttr(pathAttrs []byte, code byte) bool {
 		flags, typeCode := pathAttrs[pos], pathAttrs[pos+1]
 		pos += 2
 		var l int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				return false
-			}
-			l = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				return false
 			}
 			l = int(pathAttrs[pos])
 			pos++
+		} else {
+			if pos+2 > len(pathAttrs) {
+				return false
+			}
+			l = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
+			pos += 2
 		}
 		if typeCode == code {
 			return true

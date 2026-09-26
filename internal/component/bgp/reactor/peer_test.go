@@ -306,18 +306,18 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		code := update.PathAttributes[offset+1]
 
 		var attrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(update.PathAttributes) {
-				break
-			}
-			attrLen = int(binary.BigEndian.Uint16(update.PathAttributes[offset+2 : offset+4]))
-			offset += 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(update.PathAttributes) {
 				break
 			}
 			attrLen = int(update.PathAttributes[offset+2])
 			offset += 3
+		} else {
+			if offset+4 > len(update.PathAttributes) {
+				break
+			}
+			attrLen = int(binary.BigEndian.Uint16(update.PathAttributes[offset+2 : offset+4]))
+			offset += 4
 		}
 
 		if code == byte(attribute.AttrMPReachNLRI) {
@@ -359,18 +359,18 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		code := update.PathAttributes[offset+1]
 
 		var attrLen int
-		if flags&0x10 != 0 {
-			if offset+4 > len(update.PathAttributes) {
-				break
-			}
-			attrLen = int(binary.BigEndian.Uint16(update.PathAttributes[offset+2 : offset+4]))
-			offset += 4
-		} else {
+		if flags&0x10 == 0 {
 			if offset+3 > len(update.PathAttributes) {
 				break
 			}
 			attrLen = int(update.PathAttributes[offset+2])
 			offset += 3
+		} else {
+			if offset+4 > len(update.PathAttributes) {
+				break
+			}
+			attrLen = int(binary.BigEndian.Uint16(update.PathAttributes[offset+2 : offset+4]))
+			offset += 4
 		}
 
 		if code == byte(attribute.AttrCommunity) {

@@ -160,18 +160,18 @@ func validateAttrSetDepth(
 		pos += 2
 
 		var innerLen int
-		if flags&attrFlagExtendedLn != 0 {
-			if pos+2 > len(attrData) {
-				return malformed("truncated inner extended length", -1)
-			}
-			innerLen = int(attrData[pos])<<8 | int(attrData[pos+1])
-			pos += 2
-		} else {
+		if flags&attrFlagExtendedLn == 0 {
 			if pos+1 > len(attrData) {
 				return malformed("truncated inner length", -1)
 			}
 			innerLen = int(attrData[pos])
 			pos++
+		} else {
+			if pos+2 > len(attrData) {
+				return malformed("truncated inner extended length", -1)
+			}
+			innerLen = int(attrData[pos])<<8 | int(attrData[pos+1])
+			pos += 2
 		}
 		if pos+innerLen > len(attrData) {
 			return malformed("inner attribute length exceeds the remaining data", int64(innerLen))

@@ -45,13 +45,13 @@ func rebuiltAttrs(t *testing.T, payload []byte) map[byte][]byte {
 		flags := section[off]
 		code := section[off+1]
 		var valLen, hdrLen int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			valLen = int(section[off+2])
+			hdrLen = 3
+		} else {
 			require.LessOrEqual(t, off+4, len(section), "truncated extended-length header")
 			valLen = int(binary.BigEndian.Uint16(section[off+2 : off+4]))
 			hdrLen = 4
-		} else {
-			valLen = int(section[off+2])
-			hdrLen = 3
 		}
 		require.LessOrEqual(t, off+hdrLen+valLen, len(section), "attribute runs past section end")
 		out[code] = section[off : off+hdrLen+valLen]

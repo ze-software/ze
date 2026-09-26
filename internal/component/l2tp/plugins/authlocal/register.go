@@ -180,9 +180,8 @@ func parseUsersFromTree(tree map[string]any) (map[string]userEntry, error) {
 		// name: {"alice": {"password": ...}, "bob": {...}}. The name is the map
 		// key, not a field. A single entry that carries an explicit "name" field
 		// (e.g. an array element delivered bare) is handled as one entry below.
-		if _, hasNameField := single["name"]; hasNameField {
-			entries = []any{single}
-		} else {
+		_, hasNameField := single["name"]
+		if !hasNameField {
 			for name, val := range single {
 				m, ok := val.(map[string]any)
 				if !ok {
@@ -193,6 +192,8 @@ func parseUsersFromTree(tree map[string]any) (map[string]userEntry, error) {
 			}
 			return users, nil
 		}
+
+		entries = []any{single}
 	}
 
 	for _, entry := range entries {

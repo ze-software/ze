@@ -253,12 +253,12 @@ func TestUnparsableCommunityStringsPackNoAttribute(t *testing.T) {
 		flags, code := packed[i], packed[i+1]
 		var valLen int
 		var hdr int
-		if flags&0x10 != 0 {
-			valLen = int(packed[i+2])<<8 | int(packed[i+3])
-			hdr = 4
-		} else {
+		if flags&0x10 == 0 {
 			valLen = int(packed[i+2])
 			hdr = 3
+		} else {
+			valLen = int(packed[i+2])<<8 | int(packed[i+3])
+			hdr = 4
 		}
 		if valLen == 0 {
 			t.Errorf("attribute type %d packed with length 0: a set-valued attribute "+

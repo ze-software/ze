@@ -91,14 +91,14 @@ func resolveInitrd() (string, error) {
 		var tb textbuf.Buffer
 		artifactURL := tb.Str(baseURL).Byte('/').Str(version).Byte('/').Str(initrdFileName).String()
 		checksumURL := tb.Reset().Str(artifactURL).Str(checksumSuffix).String()
-		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
+		downloadErr := downloadAndVerify(artifactURL, checksumURL, cached)
+		if downloadErr == nil {
 			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
 				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
 			}
 			return cached, nil
-		} else {
-			fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, err) //nolint:errcheck // CLI warning
 		}
+		fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, downloadErr) //nolint:errcheck // CLI warning
 	}
 
 	missing := checkInitrdBuildTools()

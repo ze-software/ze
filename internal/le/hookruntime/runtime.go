@@ -234,23 +234,23 @@ func Run(kind string, in io.Reader, out, errOut io.Writer) (code int) {
 	}
 
 	var results []verdict
-	if action, ok := nativeHookActions[kind]; ok {
-		if !oneOf(ctx.tool, action.tools...) {
-			return 0
-		}
-		results = make([]verdict, 0, len(action.checks))
-		for _, check := range action.checks {
-			if result := check(ctx); result != nil {
-				results = append(results, *result)
-			}
-		}
-	} else {
+	action, ok := nativeHookActions[kind]
+	if !ok {
 		code, known := runLifecycleHook(kind, ctx, out, errOut)
 		if !known {
 			fmt.Fprintf(errOut, "unknown hook runtime %q\n", kind) //nolint:errcheck // hook protocol
 			return 2
 		}
 		return code
+	}
+	if !oneOf(ctx.tool, action.tools...) {
+		return 0
+	}
+	results = make([]verdict, 0, len(action.checks))
+	for _, check := range action.checks {
+		if result := check(ctx); result != nil {
+			results = append(results, *result)
+		}
 	}
 
 	worst := 0

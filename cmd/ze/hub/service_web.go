@@ -280,7 +280,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	for _, u := range powerUsers {
 		powerUserNames = append(powerUserNames, u.Name)
 	}
-	if !insecureWeb {
+	if insecureWeb {
+		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
+	} else {
 		// Serve only when somebody can log in. Both the zefs power user and
 		// config-file users may, and an absent power user is not fatal while
 		// config users exist. The question is asked of the SAME source the
@@ -302,8 +304,6 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: no authenticatable users\n")
 			return nil, nil
 		}
-	} else {
-		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
 	}
 
 	// Persist the self-signed cert in zefs so browsers don't have to re-accept

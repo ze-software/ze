@@ -92,20 +92,20 @@ func streamInterfaceRate(ctx context.Context, _ *pluginserver.Server, w io.Write
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if filterName != "" {
-				rate, ok := iface.GetRate(filterName)
-				if !ok {
-					continue
-				}
-				if err := enc.Encode(rate); err != nil {
-					return err
-				}
-			} else {
+			if filterName == "" {
 				result := sortedRates()
 				if result == nil {
 					continue
 				}
 				if err := enc.Encode(result); err != nil {
+					return err
+				}
+			} else {
+				rate, ok := iface.GetRate(filterName)
+				if !ok {
+					continue
+				}
+				if err := enc.Encode(rate); err != nil {
 					return err
 				}
 			}

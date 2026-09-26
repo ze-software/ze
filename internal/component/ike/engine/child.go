@@ -275,23 +275,23 @@ func createFirstChildSA(
 	}
 
 	var inSPI, outSPI uint32
-	if sa.ChildInboundSPI != 0 {
-		inSPI = sa.ChildInboundSPI
-	} else {
+	if sa.ChildInboundSPI == 0 {
 		inSPI, err = generateESPSPI()
 		if err != nil {
 			keys.Clear()
 			return nil, fmt.Errorf("child-sa: generate inbound SPI: %w", err)
 		}
-	}
-	if sa.ChildOutboundSPI != 0 {
-		outSPI = sa.ChildOutboundSPI
 	} else {
+		inSPI = sa.ChildInboundSPI
+	}
+	if sa.ChildOutboundSPI == 0 {
 		outSPI, err = generateESPSPI()
 		if err != nil {
 			keys.Clear()
 			return nil, fmt.Errorf("child-sa: generate outbound SPI: %w", err)
 		}
+	} else {
+		outSPI = sa.ChildOutboundSPI
 	}
 
 	srcIP := net.ParseIP(localAddr)
@@ -377,12 +377,12 @@ func createFirstChildSA(
 
 	if err := installChildSA(child, prop, dp, log); err != nil {
 		log.Debug("child-sa: install error", "error", err, "xfrm_unsupported", isXFRMUnsupported(err))
-		if isXFRMUnsupported(err) {
-			warnDegraded(child, log, err)
-		} else {
+		if !isXFRMUnsupported(err) {
 			keys.Clear()
 			return nil, err
 		}
+
+		warnDegraded(child, log, err)
 	} else {
 		child.ESPInstalled = true
 	}

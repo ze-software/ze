@@ -398,13 +398,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				return 1
 			}
 		}
-		if ok {
-			loadResult = recovered
-		} else {
+		if !ok {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 			logStartupFailure("load config", err)
 			return 1
 		}
+
+		loadResult = recovered
 	}
 
 	// Phase 1b: Schema evolution. Apply registered evolutions newer than the

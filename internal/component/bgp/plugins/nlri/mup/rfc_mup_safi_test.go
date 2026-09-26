@@ -50,12 +50,12 @@ func mpReachAFISAFI(t *testing.T, update []byte) (uint16, uint8) {
 		flags := update[pos]
 		code := update[pos+1]
 		var valLen, hdrLen int
-		if flags&attrFlagExtLen != 0 {
-			valLen = int(binary.BigEndian.Uint16(update[pos+2:]))
-			hdrLen = 4
-		} else {
+		if flags&attrFlagExtLen == 0 {
 			valLen = int(update[pos+2])
 			hdrLen = 3
+		} else {
+			valLen = int(binary.BigEndian.Uint16(update[pos+2:]))
+			hdrLen = 4
 		}
 		val := update[pos+hdrLen : pos+hdrLen+valLen]
 		if code == attrCodeMPReach {

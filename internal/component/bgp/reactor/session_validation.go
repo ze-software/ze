@@ -751,18 +751,18 @@ func (s *Session) validateUpdateFamilies(body []byte) (drop bool, err error) {
 
 		// Determine length (1 or 2 bytes based on extended length flag)
 		var attrDataLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			attrDataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				break
 			}
 			attrDataLen = int(pathAttrs[pos])
 			pos++
+		} else { // Extended length
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			attrDataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
 		}
 
 		if pos+attrDataLen > len(pathAttrs) {

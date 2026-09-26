@@ -1004,15 +1004,15 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 	}
 
 	// "family" should be string type, with its summary as the title.
-	if fam, ok := schema.Properties["family"]; !ok {
-		t.Error("missing 'family' property from YANG params")
-	} else {
+	if fam, ok := schema.Properties["family"]; ok {
 		if fam.Type != "string" {
 			t.Errorf("family type = %q, want string", fam.Type)
 		}
 		if fam.Title != "Address family" {
 			t.Errorf("family title = %q, want 'Address family'", fam.Title)
 		}
+	} else {
+		t.Error("missing 'family' property from YANG params")
 	}
 
 	// "count" should be integer (mapped from uint32).

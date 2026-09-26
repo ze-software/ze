@@ -464,10 +464,10 @@ func (b *Browser) getHeadHTML() (string, error) {
 // warning is about this browser's own daemon, and it read as a shared daemon
 // that had lost the option.
 func (b *Browser) Close() {
-	if b.session != "" {
-		_ = b.runAgentEnsureDaemon("close")
-	} else {
+	if b.session == "" {
 		_ = b.runAgentEnsureDaemon("close", "--all")
+	} else {
+		_ = b.runAgentEnsureDaemon("close")
 	}
 	b.daemonStarted = false
 }
@@ -668,10 +668,10 @@ func RunWBFileWithSession(path, baseURL, session string) *WBTestResult {
 
 func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	var browser *Browser
-	if session != "" {
-		browser = newBrowserWithSession(baseURL, session)
-	} else {
+	if session == "" {
 		browser = newBrowser(baseURL)
+	} else {
+		browser = newBrowserWithSession(baseURL, session)
 	}
 	// Free this test's browser session when it finishes. Sessions are keyed per
 	// test. Without this close, more than 80 live pages accumulate and starve the

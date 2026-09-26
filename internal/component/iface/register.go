@@ -496,12 +496,12 @@ func runEngine(conn net.Conn) int {
 		bindResolverEvents(eb)
 
 		if err := b.StartMonitor(eb); err != nil {
-			if errors.Is(err, ErrBackendNotReady) {
-				log.Debug("iface monitor deferred, backend not ready")
-				// The vppevents.EventConnected handler retries StartMonitor.
-			} else {
+			if !errors.Is(err, ErrBackendNotReady) {
 				return fmt.Errorf("interface monitor start: %w", err)
 			}
+
+			log.Debug("iface monitor deferred, backend not ready")
+			// The vppevents.EventConnected handler retries StartMonitor.
 		} else {
 			log.Info("interface monitor started")
 		}
@@ -1074,10 +1074,10 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	for key, entry := range active {
 		newParams, stillDesired := desired[key]
 		if !stillDesired || newParams != entry.params {
-			if !stillDesired {
-				log.Info("interface: stopping DHCP client", "iface", key.ifaceName, "unit", key.unit)
-			} else {
+			if stillDesired {
 				log.Info("interface: restarting DHCP client (config changed)", "iface", key.ifaceName, "unit", key.unit)
+			} else {
+				log.Info("interface: stopping DHCP client", "iface", key.ifaceName, "unit", key.unit)
 			}
 			entry.client.Stop()
 			delete(active, key)

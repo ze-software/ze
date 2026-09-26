@@ -285,10 +285,10 @@ func appendExtCommLayer2Info(buf []byte, e ExtendedCommunity) []byte {
 // community came back as "0x010c:010203040000", which that parser refuses, so
 // a FlowSpec redirect an operator configured could not be read back.
 func appendExtCommRedirectToIPv4(buf []byte, e ExtendedCommunity) []byte {
-	if binary.BigEndian.Uint16(e[6:8])&0x01 != 0 {
-		buf = append(buf, "copy-to-nexthop "...)
-	} else {
+	if binary.BigEndian.Uint16(e[6:8])&0x01 == 0 {
 		buf = append(buf, "redirect-to-nexthop "...)
+	} else {
+		buf = append(buf, "copy-to-nexthop "...)
 	}
 	return netip.AddrFrom4([4]byte{e[2], e[3], e[4], e[5]}).AppendTo(buf)
 }
@@ -415,10 +415,10 @@ func (e IPv6ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 		return appendExtCommIPv6Specific(buf, "redirect:", e)
 	}
 	if e[1] == flowSpecSubtypeRedirectToIP {
-		if binary.BigEndian.Uint16(e[18:20])&0x01 != 0 {
-			buf = append(buf, "copy-to-nexthop "...)
-		} else {
+		if binary.BigEndian.Uint16(e[18:20])&0x01 == 0 {
 			buf = append(buf, "redirect-to-nexthop "...)
+		} else {
+			buf = append(buf, "copy-to-nexthop "...)
 		}
 		return netip.AddrFrom16([16]byte(e[2:18])).AppendTo(buf)
 	}

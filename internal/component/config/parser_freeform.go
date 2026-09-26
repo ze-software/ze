@@ -72,12 +72,12 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 			if tok.kind == tokenRBrace || tok.kind == tokenEOF {
 				break
 			}
-			if tok.kind == tokenWord || tok.kind == tokenString {
-				words = append(words, tok.value)
-				p.tok.next()
-			} else {
+			if tok.kind != tokenWord && tok.kind != tokenString {
 				return p.errorf(tok, "unexpected token in %s block: %s", name, tok.kind)
 			}
+
+			words = append(words, tok.value)
+			p.tok.next()
 		}
 
 		if len(words) > 0 {
@@ -274,12 +274,12 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 	tok := p.tok.peek()
 	var key string
 	keyLine := tok.line
-	if tok.kind == tokenWord || tok.kind == tokenString {
-		key = tok.value
-		p.tok.next()
-	} else {
+	if tok.kind != tokenWord && tok.kind != tokenString {
 		return p.errorf(tok, "expected key for %s, got %s", name, tok.kind)
 	}
+
+	key = tok.value
+	p.tok.next()
 
 	// Validate key type
 	if err := ValidateValue(node.KeyType, key); err != nil {

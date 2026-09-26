@@ -58,18 +58,18 @@ func extractCommunities(payload []byte) []uint32 {
 		code := payload[pos+1]
 		pos += 2
 		var dataLen int
-		if flags&0x10 != 0 {
-			if pos+2 > end {
-				break
-			}
-			dataLen = int(binary.BigEndian.Uint16(payload[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > end {
 				break
 			}
 			dataLen = int(payload[pos])
 			pos++
+		} else {
+			if pos+2 > end {
+				break
+			}
+			dataLen = int(binary.BigEndian.Uint16(payload[pos : pos+2]))
+			pos += 2
 		}
 		if pos+dataLen > end {
 			break

@@ -19,13 +19,13 @@ func findAttrFlags(t *testing.T, wire []byte, code byte) byte {
 		flags := wire[pos]
 		typeCode := wire[pos+1]
 		var length, hdr int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			length = int(wire[pos+2])
+			hdr = 3
+		} else {
 			require.LessOrEqual(t, pos+4, len(wire))
 			length = int(wire[pos+2])<<8 | int(wire[pos+3])
 			hdr = 4
-		} else {
-			length = int(wire[pos+2])
-			hdr = 3
 		}
 		if typeCode == code {
 			return flags

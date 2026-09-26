@@ -402,12 +402,12 @@ func countMPReachNLRI(attrs []byte) int {
 		flags := attrs[i]
 		typ := attrs[i+1]
 		var hdr, attrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(binary.BigEndian.Uint16(attrs[i+2 : i+4]))
-			hdr = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(attrs[i+2])
 			hdr = 3
+		} else {
+			attrLen = int(binary.BigEndian.Uint16(attrs[i+2 : i+4]))
+			hdr = 4
 		}
 		value := attrs[i+hdr : i+hdr+attrLen]
 		if typ == 14 {

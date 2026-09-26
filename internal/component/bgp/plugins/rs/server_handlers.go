@@ -189,10 +189,10 @@ func (rs *routeServer) sendBatchedWithdrawals(peerAddr string, entries map[withd
 	byGroup := make(map[withdrawalGroup][]string)
 	for wk := range entries {
 		g := withdrawalGroup{fam: wk.fam.String(), wireForm: wk.wireForm, addPath: wk.addPath}
-		if wk.nlriStr != "" {
-			byGroup[g] = append(byGroup[g], wk.nlriStr)
-		} else {
+		if wk.nlriStr == "" {
 			byGroup[g] = append(byGroup[g], tb.Reset().Str("prefix ").Prefix(wk.prefix).String())
+		} else {
+			byGroup[g] = append(byGroup[g], wk.nlriStr)
 		}
 	}
 

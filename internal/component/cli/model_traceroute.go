@@ -199,12 +199,12 @@ func parseTracerouteMonitorArgs(input string) (target string, maxHops int, errMs
 				i++
 			}
 		default:
-			if target == "" {
-				target = args[i]
-			} else {
+			if target != "" {
 				var tb textbuf.Buffer
 				return "", maxHops, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
 			}
+
+			target = args[i]
 		}
 	}
 	return target, maxHops, ""
@@ -1017,10 +1017,10 @@ func (m Model) renderTraceroutePiped() string {
 	sb.Byte('\n')
 	sb.Byte('\n')
 
-	if ps.lastOutput != "" {
-		sb.Str(ps.lastOutput)
-	} else {
+	if ps.lastOutput == "" {
 		sb.Str(trDimStyle.Render("  waiting for data..."))
+	} else {
+		sb.Str(ps.lastOutput)
 	}
 	sb.Byte('\n')
 	sb.Byte('\n')

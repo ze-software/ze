@@ -108,7 +108,9 @@ func extractMeta(line string) (MetaEntry, string) {
 				val = remaining[1:end]
 				remaining = strings.TrimSpace(remaining[end+1:])
 			}
-			if entry.Source != "" {
+			if entry.Source == "" {
+				entry.Source = capMetaField(val)
+			} else {
 				// Source already populated (legacy #user@origin split).
 				// Try parsing as time -- old format used @ISO8601 for timestamp.
 				if t, err := time.Parse(time.RFC3339, val); err == nil {
@@ -117,8 +119,6 @@ func extractMeta(line string) (MetaEntry, string) {
 					entry.Time = t
 				}
 				// If not parseable as time, discard (don't overwrite Source).
-			} else {
-				entry.Source = capMetaField(val)
 			}
 			continue
 		}
@@ -316,7 +316,14 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			tree.AddMultiValueMember(name, item)
 		}
 		if hasMetadata {
-			if entry.Source != "" {
+			if entry.Source == "" {
+				// Committed annotation (no @source): one entry for the leaf,
+				// matching the bracket-form line buildCommitMeta writes. No
+				// Value: the tree's member list is the source of truth, and a
+				// joined Value would be re-emitted as one quoted token by the
+				// contested-leaf serializer when annotations accumulate.
+				meta.SetEntry(name, entry)
+			} else {
 				// Session line: one entry per member so concurrent sessions
 				// can add/remove independent members without contesting the
 				// whole leaf.
@@ -326,13 +333,6 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 					memberEntry.Value = item
 					meta.SetEntry(name, memberEntry)
 				}
-			} else {
-				// Committed annotation (no @source): one entry for the leaf,
-				// matching the bracket-form line buildCommitMeta writes. No
-				// Value: the tree's member list is the source of truth, and a
-				// joined Value would be re-emitted as one quoted token by the
-				// contested-leaf serializer when annotations accumulate.
-				meta.SetEntry(name, entry)
 			}
 		}
 		return nil

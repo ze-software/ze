@@ -950,13 +950,13 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				// RFC 7705 Section 3.3: the globally configured AS is appended first
 				// and the override immediately after, so the override ends up
 				// outermost. The intent carries innermost first.
-				if facts.secondaryAS != 0 {
+				if facts.secondaryAS == 0 {
+					prependBuf[0] = facts.localAS
+					intent.Prepend = prependBuf[:1]
+				} else {
 					prependBuf[0] = facts.secondaryAS
 					prependBuf[1] = facts.localAS
 					intent.Prepend = prependBuf[:2]
-				} else {
-					prependBuf[0] = facts.localAS
-					intent.Prepend = prependBuf[:1]
 				}
 			}
 			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
@@ -991,22 +991,22 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		if mods.IsWithdraw() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.outgoingPool(peerKey)
-			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
-				srcID := peerWire.SourceID()
-				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
-				// The conversion changes the BYTES, never the peer they came
-				// from, and the same reasoning as the modification branch below
-				// applies: a withdraw that lost its source leaves under an
-				// identifier the destination never received, and RFC 7911
-				// Section 5 has it silently ignore that withdraw.
-				peerWire.SetSourceID(srcID)
-				modBufIdx = bufIdx
-				modPoolRef = modPool
-			} else {
+			withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool)
+			if withdrawal == nil {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
 					"peer", facts.addr)
 				continue
 			}
+			srcID := peerWire.SourceID()
+			peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+			// The conversion changes the BYTES, never the peer they came
+			// from, and the same reasoning as the modification branch below
+			// applies: a withdraw that lost its source leaves under an
+			// identifier the destination never received, and RFC 7911
+			// Section 5 has it silently ignore that withdraw.
+			peerWire.SetSourceID(srcID)
+			modBufIdx = bufIdx
+			modPoolRef = modPool
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.outgoingPool(peerKey)

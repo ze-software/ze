@@ -46,12 +46,12 @@ func TestCommitService_DefaultOrigin(t *testing.T) {
 		code := sender.updates[0].PathAttributes[offset+1]
 		flags := sender.updates[0].PathAttributes[offset]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(sender.updates[0].PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 1 { // ORIGIN
@@ -114,12 +114,12 @@ func TestCommitService_PreservesExistingASPath(t *testing.T) {
 		code := sender.updates[0].PathAttributes[offset+1]
 		flags := sender.updates[0].PathAttributes[offset]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(sender.updates[0].PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 2 { // AS_PATH
@@ -194,12 +194,12 @@ func TestCommitService_VPNNextHopHasRD(t *testing.T) {
 		code := sender.updates[0].PathAttributes[offset+1]
 		flags := sender.updates[0].PathAttributes[offset]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(sender.updates[0].PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 14 { // MP_REACH_NLRI
@@ -272,12 +272,12 @@ func TestCommitService_IPv4WithIPv6NextHop(t *testing.T) {
 		code := update.PathAttributes[offset+1]
 		flags := update.PathAttributes[offset]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(update.PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(update.PathAttributes[offset+2])<<8 | int(update.PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 3 { // NEXT_HOP
@@ -389,12 +389,12 @@ func TestCommitService_IPv6_NLRIInMPReach(t *testing.T) {
 		code := sender.updates[0].PathAttributes[offset+1]
 		flags := sender.updates[0].PathAttributes[offset]
 		var attrLen, hdrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
-			hdrLen = 4
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(sender.updates[0].PathAttributes[offset+2])
 			hdrLen = 3
+		} else {
+			attrLen = int(sender.updates[0].PathAttributes[offset+2])<<8 | int(sender.updates[0].PathAttributes[offset+3])
+			hdrLen = 4
 		}
 
 		if code == 14 { // MP_REACH_NLRI

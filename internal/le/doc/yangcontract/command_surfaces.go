@@ -929,11 +929,7 @@ func validateWikiCatalogStructure(
 	}
 
 	headings := wikiVerbHeadings(content)
-	if len(headings) != len(expected) {
-		issues = append(issues, generatedCommandContractIssue(
-			surface, "<wiki catalog>", "wiki verb headings",
-		))
-	} else {
+	if len(headings) == len(expected) {
 		for index, group := range expected {
 			want := "## " + markdownLiteralProse(group.verb)
 			if headings[index] != want {
@@ -943,6 +939,10 @@ func validateWikiCatalogStructure(
 				break
 			}
 		}
+	} else {
+		issues = append(issues, generatedCommandContractIssue(
+			surface, "<wiki catalog>", "wiki verb headings",
+		))
 	}
 
 	wantTotal := fmt.Sprintf("*%d commands total.*", len(live))
@@ -3536,11 +3536,7 @@ func validatePrimaryCommandContract(
 ) []Issue {
 	var issues []Issue
 	visible, visibleValid := primaryHTMLCommandValues(document, row)
-	if !visibleValid {
-		issues = append(issues, malformedCommandContainerIssue(
-			path, command.Path, "primary CLI HTML visible command fields",
-		))
-	} else {
+	if visibleValid {
 		for _, field := range []struct {
 			name     string
 			expected string
@@ -3558,6 +3554,10 @@ func validatePrimaryCommandContract(
 				))
 			}
 		}
+	} else {
+		issues = append(issues, malformedCommandContainerIssue(
+			path, command.Path, "primary CLI HTML visible command fields",
+		))
 	}
 
 	var marker textbuf.Buffer
@@ -3912,11 +3912,7 @@ func validatePrimaryMarkdownContract(
 ) []Issue {
 	var issues []Issue
 	visible, visibleValid := primaryMarkdownCommandValues(row)
-	if !visibleValid {
-		issues = append(issues, malformedCommandContainerIssue(
-			path, command.Path, "primary CLI Markdown visible command fields",
-		))
-	} else {
+	if visibleValid {
 		for _, field := range []struct {
 			name     string
 			expected string
@@ -3933,6 +3929,10 @@ func validatePrimaryMarkdownContract(
 				))
 			}
 		}
+	} else {
+		issues = append(issues, malformedCommandContainerIssue(
+			path, command.Path, "primary CLI Markdown visible command fields",
+		))
 	}
 
 	var marker textbuf.Buffer

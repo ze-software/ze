@@ -325,18 +325,18 @@ func ValidateUpdateRFC7606AddPath(
 
 		// Determine attribute length
 		var attrLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+2 > len(pathAttrs) {
-				return structuralError(attrCode, "RFC 7606 Section 4: insufficient data for extended length")
-			}
-			attrLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				return structuralError(attrCode, "RFC 7606 Section 4: insufficient data for length")
 			}
 			attrLen = int(pathAttrs[pos])
 			pos++
+		} else { // Extended length
+			if pos+2 > len(pathAttrs) {
+				return structuralError(attrCode, "RFC 7606 Section 4: insufficient data for extended length")
+			}
+			attrLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
 		}
 
 		// Check attribute data bounds

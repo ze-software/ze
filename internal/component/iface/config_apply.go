@@ -1371,9 +1371,9 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 			}); err != nil {
 				record(osName+" remove stale address "+addr, err)
 				return errs, false
-			} else {
-				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
 			}
+
+			log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
 		}
 	}
 
@@ -1411,9 +1411,9 @@ func reconcileOnReadyWithJournal(cfg *ifaceConfig, b Backend, journal *sdk.Journ
 		}); err != nil {
 			record("delete "+name+" ("+linkType+")", err)
 			return errs, false
-		} else {
-			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 		}
+
+		log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 	}
 
 	// Reached only when every add/remove/delete step above succeeded (each

@@ -388,7 +388,40 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 			}
 		}
 
-		if !queued {
+		if queued {
+			if !queuedEVPNChecked && batch.Wire == nil &&
+				batch.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
+				if err := validateQueuedEVPNOrigin(batch, attrs); err != nil {
+					return err
+				}
+				queuedEVPNChecked = true
+			}
+			// Session not established or queue draining: queue to preserve order
+			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
+			// path builds AS_PATH inside the UPDATE wire bytes directly.
+			asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, localASPrependFor(peer.Settings()))
+			// A queue that is full DROPS the route rather than delaying it, and
+			// the caller is told: past the cap this route never reaches the
+			// peer, so counting it as accepted would report success for a RIB
+			// the peer will never receive. The startup convergence hold is what
+			// made this reachable in normal operation, because it keeps the
+			// queueing gate closed for up to `max-delay` (update_delay.go).
+			queued := true
+			for _, n := range batch.NLRIs {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
+				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf()); err != nil {
+					lastErr = err
+					queued = false
+					break
+				}
+			}
+			if queued {
+				acceptedCount++ // Queued counts as accepted
+			}
+		} else {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -436,39 +469,6 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 				if sendErr != nil {
 					lastErr = sendErr
 				}
-			}
-		} else {
-			if !queuedEVPNChecked && batch.Wire == nil &&
-				batch.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
-				if err := validateQueuedEVPNOrigin(batch, attrs); err != nil {
-					return err
-				}
-				queuedEVPNChecked = true
-			}
-			// Session not established or queue draining: queue to preserve order
-			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
-			// path builds AS_PATH inside the UPDATE wire bytes directly.
-			asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, localASPrependFor(peer.Settings()))
-			// A queue that is full DROPS the route rather than delaying it, and
-			// the caller is told: past the cap this route never reaches the
-			// peer, so counting it as accepted would report success for a RIB
-			// the peer will never receive. The startup convergence hold is what
-			// made this reachable in normal operation, because it keeps the
-			// queueing gate closed for up to `max-delay` (update_delay.go).
-			queued := true
-			for _, n := range batch.NLRIs {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf()); err != nil {
-					lastErr = err
-					queued = false
-					break
-				}
-			}
-			if queued {
-				acceptedCount++ // Queued counts as accepted
 			}
 		}
 	}
@@ -1891,12 +1891,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		}
 		nlriBytes := nlriHandle.Buf[:off]
 
-		if fam == ipv4Unicast {
-			// IPv4 unicast: use WithdrawnRoutes field
-			update = &message.Update{
-				WithdrawnRoutes: nlriBytes,
-			}
-		} else {
+		if fam != ipv4Unicast {
 			// Other families: use MP_UNREACH_NLRI attribute
 			mpUnreach := &attribute.MPUnreachNLRI{
 				AFI:  attribute.AFI(fam.AFI),
@@ -1926,6 +1921,11 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 			putBuildBuf(attrHandle)
 			putBuildBuf(nlriHandle)
 			continue
+		}
+
+		// IPv4 unicast: use WithdrawnRoutes field
+		update = &message.Update{
+			WithdrawnRoutes: nlriBytes,
 		}
 
 		outcome.record(peer.SendUpdate(update), len(nlris))

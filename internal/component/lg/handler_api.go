@@ -1089,12 +1089,12 @@ func asPathNumbers(value any) any {
 func setNeighborAS(protocol, peer map[string]any, key, name string) {
 	value := getVal(peer, key)
 	number, ok := asn.FromJSON(value)
-	if !ok {
+	if ok {
+		report.ClearWarning(reportSourceLG, reportCodeUnreadableAS, name)
+	} else {
 		report.RaiseWarning(reportSourceLG, reportCodeUnreadableAS, name,
 			"a peer row carries no readable AS number, so its neighbor_as is 0",
 			map[string]any{"field": key, "value": fmt.Sprint(value)})
-	} else {
-		report.ClearWarning(reportSourceLG, reportCodeUnreadableAS, name)
 	}
 	protocol["neighbor_as"] = number
 }

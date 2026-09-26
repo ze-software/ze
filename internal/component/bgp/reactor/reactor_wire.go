@@ -538,21 +538,7 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 	}
 
 	// NLRI handling - MP_REACH_NLRI (14) goes at end per our pattern
-	if !isIPv6 {
-		// AS4_PATH (17) last, after every lower-numbered attribute, when the
-		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
-		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
-
-		// IPv4: Write NLRI directly after attributes (zero-alloc)
-		// Backfill attr length first
-		attrLen := off - attrStart
-		buf[attrLenPos] = byte(attrLen >> 8)
-		buf[attrLenPos+1] = byte(attrLen)
-
-		// RFC 7911: WriteNLRI handles ADD-PATH encoding
-		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0)
-		off += nlri.WriteNLRI(inet, buf, off, addPath)
-	} else {
+	if isIPv6 {
 		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
 		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16 or 32) + Reserved(1) + NLRI(var)
 		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
@@ -611,6 +597,20 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 		attrLen := off - attrStart
 		buf[attrLenPos] = byte(attrLen >> 8)
 		buf[attrLenPos+1] = byte(attrLen)
+	} else {
+		// AS4_PATH (17) last, after every lower-numbered attribute, when the
+		// two-octet AS_PATH above had to carry AS_TRANS toward an OLD peer.
+		off += writeAS4PathForASNs(buf, off, asn4, asPathASNs)
+
+		// IPv4: Write NLRI directly after attributes (zero-alloc)
+		// Backfill attr length first
+		attrLen := off - attrStart
+		buf[attrLenPos] = byte(attrLen >> 8)
+		buf[attrLenPos+1] = byte(attrLen)
+
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding
+		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0)
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
 	}
 
 	// Backfill total message length

@@ -101,10 +101,10 @@ func writeAnnotatedGutter(b *textbuf.Buffer, e MetaEntry, columns ShowColumns) {
 		fmt.Fprintf(b, "%-*s  ", annotatedAuthorWidth, user) //nolint:errcheck // output
 	}
 	if columns.Date {
-		if !e.Time.IsZero() {
-			b.Str(e.Time.Format("01-02 15:04"))
-		} else {
+		if e.Time.IsZero() {
 			b.Str(strings.Repeat(" ", annotatedDateWidth))
+		} else {
+			b.Str(e.Time.Format("01-02 15:04"))
 		}
 		b.Str("  ")
 	}

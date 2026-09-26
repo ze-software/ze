@@ -559,14 +559,14 @@ Control:
 
 	// Config-only mode: output config and exit (no orchestrator).
 	if *configOnly {
-		if *configOut != "" {
+		if *configOut == "" {
+			fmt.Print(daemonConfig)
+		} else {
 			// "-" writes to stdout, same as omitting --config-out.
 			if err := cliio.WriteFile(*configOut, []byte(daemonConfig), 0o600); err != nil {
 				fmt.Fprintf(os.Stderr, "error: writing config: %v\n", err)
 				return 1
 			}
-		} else {
-			fmt.Print(daemonConfig)
 		}
 		if !*quiet {
 			fmt.Fprint(os.Stderr, scenario.PeerSummary(configParams))
@@ -888,12 +888,7 @@ Control:
 // start parsing immediately. Stdout stays open — when this process exits,
 // the pipe closes and Ze treats the EOF as a shutdown signal.
 func writeConfig(config string, params scenario.ConfigParams, path string, quiet bool) error {
-	if path != "" {
-		// Explicit destination: a real file, or stdout when "-".
-		if err := cliio.WriteFile(path, []byte(config), 0o600); err != nil {
-			return err
-		}
-	} else {
+	if path == "" {
 		// Default: write config to stdout for piping (le chaos run | ze -).
 		if _, err := fmt.Fprint(os.Stdout, config); err != nil {
 			return err
@@ -902,6 +897,11 @@ func writeConfig(config string, params scenario.ConfigParams, path string, quiet
 		// Stdout stays open — Ze monitors it for EOF as a shutdown signal.
 		if _, err := os.Stdout.Write([]byte{0}); err != nil {
 			return fmt.Errorf("writing config sentinel: %w", err)
+		}
+	} else {
+		// Explicit destination: a real file, or stdout when "-".
+		if err := cliio.WriteFile(path, []byte(config), 0o600); err != nil {
+			return err
 		}
 	}
 	if !quiet {

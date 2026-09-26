@@ -114,12 +114,12 @@ func decodeBodyAttrs(t *testing.T, body []byte) map[byte][]byte {
 		flags := body[off]
 		code := body[off+1]
 		var vlen, hdr int
-		if flags&0x10 != 0 {
-			vlen = int(body[off+2])<<8 | int(body[off+3])
-			hdr = 4
-		} else {
+		if flags&0x10 == 0 {
 			vlen = int(body[off+2])
 			hdr = 3
+		} else {
+			vlen = int(body[off+2])<<8 | int(body[off+3])
+			hdr = 4
 		}
 		require.LessOrEqual(t, off+hdr+vlen, end)
 		attrs[code] = body[off+hdr : off+hdr+vlen]

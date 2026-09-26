@@ -311,19 +311,19 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 		// silently corrupting the wire on exactly the malformed input the walk gave up on.
 		lenWidth := 1
 		var attrLen int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			if pos+1 > len(pathAttrs) {
+				pos = attrStart
+				break
+			}
+			attrLen = int(pathAttrs[pos])
+		} else {
 			if pos+2 > len(pathAttrs) {
 				pos = attrStart
 				break
 			}
 			lenWidth = 2
 			attrLen = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
-		} else {
-			if pos+1 > len(pathAttrs) {
-				pos = attrStart
-				break
-			}
-			attrLen = int(pathAttrs[pos])
 		}
 		pos += lenWidth
 		if pos+attrLen > len(pathAttrs) {

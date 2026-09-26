@@ -15,10 +15,10 @@ import (
 func newTestStore(t *testing.T, dirs ...string) storage.Storage {
 	t.Helper()
 	var dir string
-	if len(dirs) != 0 {
-		dir = dirs[0]
-	} else {
+	if len(dirs) == 0 {
 		dir = t.TempDir()
+	} else {
+		dir = dirs[0]
 	}
 	store, err := storage.Create(dir)
 	if err != nil {

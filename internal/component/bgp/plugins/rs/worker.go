@@ -280,11 +280,11 @@ func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
 		wp.backpressure.Store(key, true)
 
 		var shouldLog bool
-		if lastRaw, ok := wp.bpLastLog.Load(key); !ok {
-			shouldLog = true // First backpressure event for this key.
-		} else {
+		if lastRaw, ok := wp.bpLastLog.Load(key); ok {
 			last, _ := lastRaw.(time.Time)
 			shouldLog = time.Since(last) >= wp.cfg.bpReminderInterval
+		} else {
+			shouldLog = true // First backpressure event for this key.
 		}
 		if shouldLog {
 			logger().Warn("backpressure",

@@ -619,11 +619,11 @@ func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retr
 				return ifi
 			}
 		}
-		if !warned {
+		if warned {
+			log.Debug("ldp: discovery interface still not available", "interface", ifName)
+		} else {
 			log.Warn("ldp: discovery interface not available, retrying", "interface", ifName, "retry", retry)
 			warned = true
-		} else {
-			log.Debug("ldp: discovery interface still not available", "interface", ifName)
 		}
 		timer := time.NewTimer(retry)
 		select {

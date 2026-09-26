@@ -910,14 +910,14 @@ func driveCommands(options ptyOptions, stdout io.Writer) error {
 		if directive == tapeSleepDirective || following == tapeWaitDirective {
 			continue
 		}
-		if !last {
-			chunk, err := readForPTY(master, options.delay)
+		if last {
+			chunk, err := readUntilPTY(master, closePattern, options.timeout, nil, true)
 			if err != nil {
 				return err
 			}
 			captured = append(captured, chunk...)
 		} else {
-			chunk, err := readUntilPTY(master, closePattern, options.timeout, nil, true)
+			chunk, err := readForPTY(master, options.delay)
 			if err != nil {
 				return err
 			}

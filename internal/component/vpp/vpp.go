@@ -183,7 +183,10 @@ func (m *VPPManager) Run(ctx context.Context) error {
 	}
 
 	confPath := filepath.Join(m.confDir, "startup.conf")
-	if !m.settings.External {
+	if m.settings.External {
+		lg.Info("vpp: external mode, skipping startup.conf + DPDK bind",
+			"reason", "external supervisor owns VPP lifecycle")
+	} else {
 		if err := m.writeStartupConf(confPath); err != nil {
 			return fmt.Errorf("vpp: write startup.conf: %w", err)
 		}
@@ -193,9 +196,6 @@ func (m *VPPManager) Run(ctx context.Context) error {
 			return fmt.Errorf("vpp: dpdk bind: %w", err)
 		}
 		lg.Info("vpp: DPDK NICs bound", "count", len(m.settings.DPDK.Interfaces))
-	} else {
-		lg.Info("vpp: external mode, skipping startup.conf + DPDK bind",
-			"reason", "external supervisor owns VPP lifecycle")
 	}
 
 	// Register connector so dependent plugins can access it via GetActiveConnector().
@@ -253,7 +253,9 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	lg := logger()
 
 	var cmd *exec.Cmd
-	if !m.settings.External {
+	if m.settings.External {
+		lg.Info("vpp: external mode, not execing VPP binary", "socket", m.settings.APISocket)
+	} else {
 		cmd = exec.CommandContext(ctx, m.vppBinary, "-c", confPath) //nolint:gosec // vppBinary is set at registration, not user input
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -262,8 +264,6 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 			return fmt.Errorf("start vpp: %w", err)
 		}
 		lg.Info("vpp: process started", "pid", cmd.Process.Pid)
-	} else {
-		lg.Info("vpp: external mode, not execing VPP binary", "socket", m.settings.APISocket)
 	}
 
 	// Give VPP time to initialize and create the API socket.

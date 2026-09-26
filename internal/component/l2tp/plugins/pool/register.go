@@ -141,18 +141,13 @@ func (p *poolPlugin) onSessionDown(payload *subevents.SessionDownPayload) {
 	if ok {
 		sa, ok2 := val.(sessionAddr)
 		if ok2 {
-			if !sa.fromPool {
-				logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
-					"session", payload.Session.ID, "address", sa.addr)
-			} else {
+			if sa.fromPool {
 				p.mu.RLock()
 				var pool *ipv4Pool
-				if sa.poolName != "" {
-					if p.namedPools != nil {
-						pool = p.namedPools[sa.poolName]
-					}
-				} else {
+				if sa.poolName == "" {
 					pool = p.pool
+				} else if p.namedPools != nil {
+					pool = p.namedPools[sa.poolName]
 				}
 				p.mu.RUnlock()
 				if pool != nil {
@@ -161,6 +156,9 @@ func (p *poolPlugin) onSessionDown(payload *subevents.SessionDownPayload) {
 						"session", payload.Session.ID,
 						"address", sa.addr, "pool", sa.poolName)
 				}
+			} else {
+				logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
+					"session", payload.Session.ID, "address", sa.addr)
 			}
 		}
 	}
@@ -192,12 +190,10 @@ func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
 
 	p.v6mu.RLock()
 	var pool *ipv6PrefixPool
-	if poolName != "" {
-		if p.v6namedPools != nil {
-			pool = p.v6namedPools[poolName]
-		}
-	} else {
+	if poolName == "" {
 		pool = p.v6pool
+	} else if p.v6namedPools != nil {
+		pool = p.v6namedPools[poolName]
 	}
 	p.v6mu.RUnlock()
 
@@ -239,12 +235,10 @@ func (p *poolPlugin) releasePrefix(tunnelID, sessionID uint16) {
 	}
 	p.v6mu.RLock()
 	var pool *ipv6PrefixPool
-	if sp.poolName != "" {
-		if p.v6namedPools != nil {
-			pool = p.v6namedPools[sp.poolName]
-		}
-	} else {
+	if sp.poolName == "" {
 		pool = p.v6pool
+	} else if p.v6namedPools != nil {
+		pool = p.v6namedPools[sp.poolName]
 	}
 	p.v6mu.RUnlock()
 	if pool != nil {

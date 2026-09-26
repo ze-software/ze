@@ -39,18 +39,18 @@ func (u *Update) IsEndOfRIBAnyFamily() bool {
 		flags := attrs[off]
 		code := attrs[off+1]
 		var hdrLen, dataLen int
-		if flags&byte(attribute.FlagExtLength) != 0 {
-			if off+4 > len(attrs) {
-				return false
-			}
-			dataLen = int(binary.BigEndian.Uint16(attrs[off+2 : off+4]))
-			hdrLen = 4
-		} else {
+		if flags&byte(attribute.FlagExtLength) == 0 {
 			if off+3 > len(attrs) {
 				return false
 			}
 			dataLen = int(attrs[off+2])
 			hdrLen = 3
+		} else {
+			if off+4 > len(attrs) {
+				return false
+			}
+			dataLen = int(binary.BigEndian.Uint16(attrs[off+2 : off+4]))
+			hdrLen = 4
 		}
 		if off+hdrLen+dataLen > len(attrs) {
 			return false

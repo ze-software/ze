@@ -642,12 +642,12 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 			continue // Only resend to up peers
 		}
 		var groups []replayGroup
-		if famStr != "" {
+		if famStr == "" {
+			groups = r.collectGroupedRibOutRoutes(peer)
+		} else {
 			if fam, ok := family.LookupFamily(famStr); ok {
 				groups = r.collectGroupedRibOutRoutesForFamily(peer, fam)
 			}
-		} else {
-			groups = r.collectGroupedRibOutRoutes(peer)
 		}
 		if len(groups) > 0 {
 			peersToResend = append(peersToResend, peer)
@@ -990,18 +990,7 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 	var affected []staleNLRI
 
 	if peerRIB != nil {
-		if familyFilter != "" {
-			ap := peerRIB.IsAddPath(filtered)
-			peerRIB.IterateFamily(filtered, func(nlriBytes []byte, entry storage.RouteEntry) bool {
-				if entry.StaleLevel > storage.StaleLevelFresh {
-					cp := make([]byte, len(nlriBytes))
-					copy(cp, nlriBytes)
-					affected = append(affected, staleNLRI{fam: filtered, nlri: cp, addPath: ap})
-				}
-				return true
-			})
-			purged = peerRIB.PurgeFamilyStale(filtered)
-		} else {
+		if familyFilter == "" {
 			for _, fam := range peerRIB.Families() {
 				ap := peerRIB.IsAddPath(fam)
 				peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
@@ -1014,6 +1003,17 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 				})
 			}
 			purged = peerRIB.PurgeAllStale()
+		} else {
+			ap := peerRIB.IsAddPath(filtered)
+			peerRIB.IterateFamily(filtered, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+				if entry.StaleLevel > storage.StaleLevelFresh {
+					cp := make([]byte, len(nlriBytes))
+					copy(cp, nlriBytes)
+					affected = append(affected, staleNLRI{fam: filtered, nlri: cp, addPath: ap})
+				}
+				return true
+			})
+			purged = peerRIB.PurgeFamilyStale(filtered)
 		}
 	}
 

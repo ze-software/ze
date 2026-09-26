@@ -51,11 +51,11 @@ func handleShowAS112(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 // configured, since a registry failure from another consumer is visible
 // regardless of as112's own enabled state.
 func addRegistryStatus(data plugin.Map) {
-	if ok, at, errMsg := iface.RegistryReconcileStatus(); !ok {
+	if ok, at, errMsg := iface.RegistryReconcileStatus(); ok {
+		data["address-registry-ok"] = true
+	} else {
 		data["address-registry-ok"] = false
 		data["address-registry-error"] = errMsg
 		data["address-registry-error-at"] = at.UTC().Format(time.RFC3339)
-	} else {
-		data["address-registry-ok"] = true
 	}
 }

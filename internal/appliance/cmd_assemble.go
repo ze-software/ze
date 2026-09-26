@@ -62,11 +62,11 @@ func runAssemble(args []string) int {
 		return code
 	}
 
-	if !*keepFlag {
+	if *keepFlag {
+		fmt.Fprintf(os.Stderr, "WARNING: database.zefs retained (contains plaintext secrets, delete when done)\n")
+	} else {
 		os.Remove(dbPath) //nolint:errcheck // best-effort
 		fmt.Fprintf(os.Stderr, "database.zefs assembled (contains plaintext secrets, auto-deleted)\n")
-	} else {
-		fmt.Fprintf(os.Stderr, "WARNING: database.zefs retained (contains plaintext secrets, delete when done)\n")
 	}
 
 	return exitOK

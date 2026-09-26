@@ -339,11 +339,11 @@ func runBGP(args []string) int {
 	// Load SSH credentials to connect to daemon
 	var creds sshclient.Credentials
 	var err error
-	if *remote != "" {
+	if *remote == "" {
+		creds, err = sshclient.LoadCredentialsWithFlags(*user)
+	} else {
 		host, port := parseRemote(*remote)
 		creds, err = sshclient.LoadCredentialsForRemote(*user, host, port)
-	} else {
-		creds, err = sshclient.LoadCredentialsWithFlags(*user)
 	}
 	if err != nil {
 		// No usable credentials means no daemon to talk to. Read-only commands

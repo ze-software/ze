@@ -161,11 +161,11 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 	// Append constraint annotations.
 	constraints := formatConstraints(node)
 	if constraints != "" {
-		if desc != "" {
+		if desc == "" {
+			desc = constraints
+		} else {
 			var tb textbuf.Buffer
 			desc = tb.Str(desc).Byte(' ').Str(constraints).String()
-		} else {
-			desc = constraints
 		}
 	}
 

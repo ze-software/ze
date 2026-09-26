@@ -791,17 +791,17 @@ func appendAttrHexFilterMP(buf, packed []byte) []byte {
 
 		var attrLen int
 		headerLen := 3
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 == 0 {
+			if offset+3 > len(packed) {
+				break
+			}
+			attrLen = int(packed[offset+2])
+		} else { // Extended length
 			if offset+4 > len(packed) {
 				break
 			}
 			attrLen = int(packed[offset+2])<<8 | int(packed[offset+3])
 			headerLen = 4
-		} else {
-			if offset+3 > len(packed) {
-				break
-			}
-			attrLen = int(packed[offset+2])
 		}
 
 		totalLen := headerLen + attrLen

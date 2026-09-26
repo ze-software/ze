@@ -477,10 +477,10 @@ func (r *decodingRunner) runTest(ctx context.Context, test *decodingTest) bool {
 		args = append(args, "--open")
 	case "nlri":
 		// --nlri takes the family as its value
-		if test.Family != "" {
-			args = append(args, "--nlri", test.Family)
-		} else {
+		if test.Family == "" {
 			args = append(args, "--nlri", "unknown/unknown")
+		} else {
+			args = append(args, "--nlri", test.Family)
 		}
 	case msgTypeUpdate:
 		args = append(args, "--update")

@@ -42,17 +42,17 @@ func GenerateConfig(params ConfigParams) string {
 	if !params.NoPlugin {
 		fmt.Fprintf(&b, "plugin {\n")              //nolint:errcheck // config output
 		fmt.Fprintf(&b, "    external bgp-rs {\n") //nolint:errcheck // config output
-		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "        run \"ze.bgp-rs\";\n") //nolint:errcheck // config output
-		} else {
+		if params.PprofAddr == "" {
 			fmt.Fprintf(&b, "        run \"%s plugin bgp-rs\";\n", zeBin) //nolint:errcheck // config output
+		} else {
+			fmt.Fprintf(&b, "        run \"ze.bgp-rs\";\n") //nolint:errcheck // config output
 		}
 		fmt.Fprintf(&b, "    }\n")                  //nolint:errcheck // config output
 		fmt.Fprintf(&b, "    external bgp-rib {\n") //nolint:errcheck // config output
-		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "        run \"ze.bgp-rib\";\n") //nolint:errcheck // config output
-		} else {
+		if params.PprofAddr == "" {
 			fmt.Fprintf(&b, "        run \"%s plugin bgp-rib\";\n", zeBin) //nolint:errcheck // config output
+		} else {
+			fmt.Fprintf(&b, "        run \"ze.bgp-rib\";\n") //nolint:errcheck // config output
 		}
 		fmt.Fprintf(&b, "    }\n") //nolint:errcheck // config output
 		fmt.Fprintf(&b, "}\n\n")   //nolint:errcheck // config output

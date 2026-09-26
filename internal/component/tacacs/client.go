@@ -459,13 +459,13 @@ func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowP
 	// the server echoed FlagSingleConnect, promote the conn to the pool;
 	// otherwise close it.
 	if !reused {
-		if respHdr.Flags&FlagSingleConnect != 0 {
-			c.storeConn(srv.Address, conn)
-		} else {
+		if respHdr.Flags&FlagSingleConnect == 0 {
 			if closeErr := conn.Close(); closeErr != nil {
 				c.logger.Debug("TACACS+ close non-reusable connection",
 					"server", srv.Address, "error", closeErr)
 			}
+		} else {
+			c.storeConn(srv.Address, conn)
 		}
 	}
 	// When reused == true the connection is already in the pool and stays

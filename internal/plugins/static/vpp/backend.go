@@ -66,16 +66,16 @@ func (b *Backend) routeAddDel(isAdd bool, r Route) error {
 		},
 	}
 
-	if !isAdd {
-		req.Route.NPaths = 0
-		req.Route.Paths = nil
-	} else {
+	if isAdd {
 		paths := buildFibPaths(r)
 		if len(paths) > 255 {
 			return fmt.Errorf("too many paths (%d, max 255)", len(paths))
 		}
 		req.Route.NPaths = uint8(len(paths))
 		req.Route.Paths = paths
+	} else {
+		req.Route.NPaths = 0
+		req.Route.Paths = nil
 	}
 
 	reply := &ip.IPRouteAddDelReply{}

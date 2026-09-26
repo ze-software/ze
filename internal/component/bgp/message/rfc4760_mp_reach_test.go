@@ -48,18 +48,18 @@ func attrCodesInBlob(pathAttrs []byte) map[uint8]bool {
 		code := pathAttrs[pos+1]
 		pos += 2
 		var attrLen int
-		if flags&0x10 != 0 { // extended length
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			attrLen = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				break
 			}
 			attrLen = int(pathAttrs[pos])
 			pos++
+		} else { // extended length
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			attrLen = int(pathAttrs[pos])<<8 | int(pathAttrs[pos+1])
+			pos += 2
 		}
 		codes[code] = true
 		pos += attrLen

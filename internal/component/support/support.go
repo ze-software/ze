@@ -407,13 +407,7 @@ func collectConfig(opts *collectOptions) (any, error) {
 	var configName string
 	var err error
 
-	if opts.ConfigPath != "" {
-		configData, err = cliio.ReadFile(opts.ConfigPath) // "-" reads stdin
-		if err != nil {
-			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("config file: ").Err(err).String()}, nil
-		}
-		configName = opts.ConfigPath
-	} else {
+	if opts.ConfigPath == "" {
 		store, openErr := storage.OpenReadOnly(resolve.StoreDir(""))
 		if openErr != nil {
 			return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(openErr).String()}, nil
@@ -424,6 +418,12 @@ func collectConfig(opts *collectOptions) (any, error) {
 		if err != nil {
 			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("no config found: ").Err(err).String()}, nil
 		}
+	} else {
+		configData, err = cliio.ReadFile(opts.ConfigPath) // "-" reads stdin
+		if err != nil {
+			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("config file: ").Err(err).String()}, nil
+		}
+		configName = opts.ConfigPath
 	}
 
 	result, parseErr := config.LoadConfig(string(configData), configName, nil)

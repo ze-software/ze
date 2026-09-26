@@ -136,42 +136,41 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		case flagStartCLI:
 			cliEnabled = true
 		case flagStartWeb:
-			if i+1 < len(args) {
-				i++
-				if !validPort(args[i]) {
-					fmt.Fprintf(os.Stderr, "error: --web port must be 1-65535, got %q\n", args[i])
-					return 1
-				}
-				webPort = args[i]
-			} else {
+			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
 				return 1
 			}
+
+			i++
+			if !validPort(args[i]) {
+				fmt.Fprintf(os.Stderr, "error: --web port must be 1-65535, got %q\n", args[i])
+				return 1
+			}
+			webPort = args[i]
 		case flagStartWebOnly:
 			webOnly = true
 		case flagStartInsecureWeb:
 			insecureWeb = true
 		case flagStartMCP:
-			if i+1 < len(args) {
-				i++
-				if !validPort(args[i]) {
-					fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[i])
-					return 1
-				}
-				var tb textbuf.Buffer
-				mcpAddr = tb.Str("127.0.0.1:").Str(args[i]).String()
-			} else {
+			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
 				return 1
 			}
+			i++
+			if !validPort(args[i]) {
+				fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[i])
+				return 1
+			}
+			var tb textbuf.Buffer
+			mcpAddr = tb.Str("127.0.0.1:").Str(args[i]).String()
 		case flagStartMCPToken:
-			if i+1 < len(args) {
-				i++
-				mcpToken = args[i]
-			} else {
+			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "error: --mcp-token requires a value\n")
 				return 1
 			}
+
+			i++
+			mcpToken = args[i]
 		}
 	}
 

@@ -406,10 +406,10 @@ func actionSummary(actions []firewall.Action) string {
 		case firewall.Drop:
 			parts = append(parts, "drop")
 		case firewall.Reject:
-			if v.Type != "" {
-				parts = append(parts, "reject ("+v.Type+")")
-			} else {
+			if v.Type == "" {
 				parts = append(parts, "reject")
+			} else {
+				parts = append(parts, "reject ("+v.Type+")")
 			}
 		case firewall.Jump:
 			parts = append(parts, "jump "+v.Target)
@@ -433,10 +433,10 @@ func actionSummary(actions []firewall.Action) string {
 		case firewall.Counter:
 			parts = append(parts, "counter")
 		case firewall.Log:
-			if v.Prefix != "" {
-				parts = append(parts, "log "+v.Prefix)
-			} else {
+			if v.Prefix == "" {
 				parts = append(parts, "log")
+			} else {
+				parts = append(parts, "log "+v.Prefix)
 			}
 		case firewall.SetMark:
 			parts = append(parts, fmt.Sprintf("mark 0x%x", v.Value))

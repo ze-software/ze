@@ -358,10 +358,10 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 			}
 			fieldStr := textbuf.Join(reqPath, "/")
 			var tb textbuf.Buffer
-			if groupName != "" {
-				tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
-			} else {
+			if groupName == "" {
 				tb.Str("set bgp peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
+			} else {
+				tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
 			}
 			setHint := tb.String()
 			*warns = append(*warns, ConfigValidationError{

@@ -184,18 +184,18 @@ func sourceDigest(source string, files []string) (string, error) {
 		}
 		hash.Write([]byte(filepath.ToSlash(name)))
 		hash.Write([]byte{0})
-		if info.Mode()&os.ModeSymlink != 0 {
-			target, readErr := os.Readlink(path)
-			if readErr != nil {
-				return "", readErr
-			}
-			hash.Write([]byte(filepath.ToSlash(target)))
-		} else {
+		if info.Mode()&os.ModeSymlink == 0 {
 			content, readErr := os.ReadFile(path) //nolint:gosec // a site build reads the checkout it was pointed at
 			if readErr != nil {
 				return "", readErr
 			}
 			hash.Write(content)
+		} else {
+			target, readErr := os.Readlink(path)
+			if readErr != nil {
+				return "", readErr
+			}
+			hash.Write([]byte(filepath.ToSlash(target)))
 		}
 		hash.Write([]byte{0})
 	}

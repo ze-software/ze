@@ -161,10 +161,10 @@ func extSubTLVRows(reg map[uint16]extSubTLVCodec, subs []packet.ExtSubTLV) []ext
 	out := make([]extSubTLVRow, 0, len(subs))
 	for _, s := range subs {
 		row := extSubTLVRow{Type: s.Type, Length: len(s.Value)}
-		if str := renderExtSubTLV(reg, s); str != "" {
-			row.Value = str
-		} else {
+		if str := renderExtSubTLV(reg, s); str == "" {
 			row.Hex = hex.EncodeToString(s.Value)
+		} else {
+			row.Value = str
 		}
 		out = append(out, row)
 	}

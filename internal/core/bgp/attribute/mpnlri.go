@@ -529,13 +529,12 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 		}
 
 	default: // Unknown AFI -- parse by length (16/32-byte IPv6 already handled above)
-		if len(data) == 4 {
-			var ip [4]byte
-			copy(ip[:], data)
-			hops = append(hops, netip.AddrFrom4(ip))
-		} else {
+		if len(data) != 4 {
 			return nil, ErrInvalidNextHopLen
 		}
+		var ip [4]byte
+		copy(ip[:], data)
+		hops = append(hops, netip.AddrFrom4(ip))
 	}
 
 	return hops, nil

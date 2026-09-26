@@ -58,11 +58,11 @@ func runParallel(names []string, parallel int, op func(name string) int) int {
 
 	succeeded, failed := 0, 0
 	for r := range results {
-		if r.Code != exitOK {
+		if r.Code == exitOK {
+			succeeded++
+		} else {
 			fmt.Fprintf(os.Stderr, "FAILED: %s\n", r.Name)
 			failed++
-		} else {
-			succeeded++
 		}
 	}
 
@@ -76,11 +76,11 @@ func runParallel(names []string, parallel int, op func(name string) int) int {
 func runSequential(names []string, op func(name string) int) int {
 	succeeded, failed := 0, 0
 	for _, name := range names {
-		if code := op(name); code != exitOK {
+		if code := op(name); code == exitOK {
+			succeeded++
+		} else {
 			fmt.Fprintf(os.Stderr, "FAILED: %s\n", name)
 			failed++
-		} else {
-			succeeded++
 		}
 	}
 

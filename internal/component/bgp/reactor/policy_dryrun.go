@@ -181,10 +181,10 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		// but exhaustive switch requires coverage.
 		actionStr = dryRunActionModify
 	case PolicyAccept:
-		if textAfter != textBefore {
-			actionStr = dryRunActionModify
-		} else {
+		if textAfter == textBefore {
 			actionStr = dryRunActionAccept
+		} else {
+			actionStr = dryRunActionModify
 		}
 	}
 

@@ -694,10 +694,10 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 		}
 		results := s.dispatcher.Registry().Register(proc, defs)
 		for _, r := range results {
-			if !r.OK {
-				logger().Warn("command registration rejected", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
-			} else {
+			if r.OK {
 				logger().Debug("command registered", "plugin", proc.Name(), "command", r.Name)
+			} else {
+				logger().Warn("command registration rejected", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
 			}
 		}
 		for canonicalName, oldNames := range reg.CommandDeprecatedNames {

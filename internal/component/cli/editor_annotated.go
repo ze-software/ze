@@ -254,10 +254,10 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 			if entry.User != username {
 				continue
 			}
-			if entry.Previous != "" {
-				tree.Set(name, entry.Previous)
-			} else {
+			if entry.Previous == "" {
 				tree.Delete(name)
+			} else {
+				tree.Set(name, entry.Previous)
 			}
 		}
 	}

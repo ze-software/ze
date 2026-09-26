@@ -557,7 +557,9 @@ func (su *selfUpdater) manualDownload(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("download: %w", err)
 	}
 
-	if manifest.SHA256 != "" {
+	if manifest.SHA256 == "" {
+		logger.Warn("no checksum available, binary will not be verified")
+	} else {
 		actualHash, hashErr := hashFile(tempPath)
 		if hashErr != nil {
 			os.Remove(tempPath) //nolint:errcheck // best-effort cleanup on hash failure
@@ -570,8 +572,6 @@ func (su *selfUpdater) manualDownload(ctx context.Context) (string, error) {
 		su.mu.Lock()
 		su.downloadSHA256 = actualHash
 		su.mu.Unlock()
-	} else {
-		logger.Warn("no checksum available, binary will not be verified")
 	}
 
 	su.mu.Lock()
@@ -610,7 +610,9 @@ func (su *selfUpdater) manualApply(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("download: %w", err)
 	}
 
-	if manifest.SHA256 != "" {
+	if manifest.SHA256 == "" {
+		logger.Warn("no checksum available, binary will not be verified")
+	} else {
 		actualHash, hashErr := hashFile(tempPath)
 		if hashErr != nil {
 			os.Remove(tempPath) //nolint:errcheck // best-effort cleanup on hash failure
@@ -624,8 +626,6 @@ func (su *selfUpdater) manualApply(ctx context.Context) (string, error) {
 		su.mu.Lock()
 		su.downloadSHA256 = actualHash
 		su.mu.Unlock()
-	} else {
-		logger.Warn("no checksum available, binary will not be verified")
 	}
 
 	if err := su.stageBinary(tempPath); err != nil {

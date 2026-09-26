@@ -51,18 +51,18 @@ func countAttrCode(pathAttrs []byte, want uint8) (count int, firstValue []byte) 
 		code := pathAttrs[pos+1]
 		pos += 2
 		var vlen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			vlen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
+		if flags&0x10 == 0 {
 			if pos+1 > len(pathAttrs) {
 				break
 			}
 			vlen = int(pathAttrs[pos])
 			pos++
+		} else {
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			vlen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
 		}
 		if pos+vlen > len(pathAttrs) {
 			break

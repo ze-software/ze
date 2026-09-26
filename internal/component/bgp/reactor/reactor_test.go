@@ -46,15 +46,15 @@ func findMPAttribute(t *testing.T, data []byte, targetCode attribute.AttributeCo
 		code := attribute.AttributeCode(data[1])
 		var length int
 		var hdrLen int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			length = int(data[2])
+			hdrLen = 3
+		} else {
 			if len(data) < 4 {
 				break
 			}
 			length = int(data[2])<<8 | int(data[3])
 			hdrLen = 4
-		} else {
-			length = int(data[2])
-			hdrLen = 3
 		}
 
 		if code == targetCode {
@@ -605,15 +605,15 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 		code := attribute.AttributeCode(data[1])
 		var length int
 		var hdrLen int
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 == 0 {
+			length = int(data[2])
+			hdrLen = 3
+		} else { // Extended length
 			if len(data) < 4 {
 				break
 			}
 			length = int(data[2])<<8 | int(data[3])
 			hdrLen = 4
-		} else {
-			length = int(data[2])
-			hdrLen = 3
 		}
 
 		if code == attribute.AttrASPath {
@@ -685,15 +685,15 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 		code := attribute.AttributeCode(data[1])
 		var length int
 		var hdrLen int
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 == 0 {
+			length = int(data[2])
+			hdrLen = 3
+		} else { // Extended length
 			if len(data) < 4 {
 				break
 			}
 			length = int(data[2])<<8 | int(data[3])
 			hdrLen = 4
-		} else {
-			length = int(data[2])
-			hdrLen = 3
 		}
 
 		if code == attribute.AttrCommunity {

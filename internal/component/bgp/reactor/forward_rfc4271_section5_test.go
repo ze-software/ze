@@ -107,13 +107,13 @@ func s5Attr(attrs []byte, code byte) []byte {
 	for off := 0; off+3 <= len(attrs); {
 		flags, typ := attrs[off], attrs[off+1]
 		var length, hdr int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			length, hdr = int(attrs[off+2]), 3
+		} else {
 			if off+4 > len(attrs) {
 				return nil
 			}
 			length, hdr = int(attrs[off+2])<<8|int(attrs[off+3]), 4
-		} else {
-			length, hdr = int(attrs[off+2]), 3
 		}
 		if off+hdr+length > len(attrs) {
 			return nil

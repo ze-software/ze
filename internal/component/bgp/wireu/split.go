@@ -148,10 +148,10 @@ func separateMPAttributes(attrs []byte) (base []byte, mpReaches, mpUnreaches [][
 		}
 
 		var attrLen int
-		if flags&0x10 != 0 {
-			attrLen = int(binary.BigEndian.Uint16(attrs[pos+2 : pos+4]))
-		} else {
+		if flags&0x10 == 0 {
 			attrLen = int(attrs[pos+2])
+		} else {
+			attrLen = int(binary.BigEndian.Uint16(attrs[pos+2 : pos+4]))
 		}
 
 		totalLen := headerLen + attrLen

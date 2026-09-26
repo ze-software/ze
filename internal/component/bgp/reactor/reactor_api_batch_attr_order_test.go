@@ -56,11 +56,11 @@ func attrCodes(t *testing.T, b []byte) []int {
 	for pos+3 <= len(b) {
 		flags := b[pos]
 		var hdr, ln int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			hdr, ln = 3, int(b[pos+2])
+		} else {
 			require.LessOrEqual(t, pos+4, len(b), "truncated extended-length attribute header")
 			hdr, ln = 4, int(b[pos+2])<<8|int(b[pos+3])
-		} else {
-			hdr, ln = 3, int(b[pos+2])
 		}
 		require.LessOrEqual(t, pos+hdr+ln, len(b), "attribute length runs past the block")
 		out = append(out, int(b[pos+1]))

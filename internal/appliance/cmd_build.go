@@ -599,11 +599,11 @@ func buildAll() int {
 	succeeded, failed := 0, 0
 	for _, name := range names {
 		fmt.Fprintf(os.Stderr, "building %s...\n", name)
-		if code := buildOne(name); code != exitOK {
+		if code := buildOne(name); code == exitOK {
+			succeeded++
+		} else {
 			fmt.Fprintf(os.Stderr, "FAILED: %s\n", name)
 			failed++
-		} else {
-			succeeded++
 		}
 	}
 

@@ -48,16 +48,16 @@ func countPrefixes(body []byte) int {
 		off += 2
 
 		var aLen int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			aLen = int(body[off])
+			off++
+		} else {
 			if off+2 > attrEnd {
 				break
 			}
 
 			aLen = int(binary.BigEndian.Uint16(body[off : off+2]))
 			off += 2
-		} else {
-			aLen = int(body[off])
-			off++
 		}
 
 		if off+aLen > attrEnd {
@@ -179,15 +179,15 @@ func extractPrefixes(body []byte) []netip.Prefix {
 
 		// Attribute length: 1 byte normally, 2 bytes if extended-length flag set.
 		var aLen int
-		if flags&0x10 != 0 {
+		if flags&0x10 == 0 {
+			aLen = int(body[off])
+			off++
+		} else {
 			if off+2 > attrEnd {
 				break
 			}
 			aLen = int(binary.BigEndian.Uint16(body[off : off+2]))
 			off += 2
-		} else {
-			aLen = int(body[off])
-			off++
 		}
 		if off+aLen > attrEnd {
 			break

@@ -188,10 +188,10 @@ func (installer *Installer) qemuBase(needsBIOS bool) []string {
 			bios := installer.Options.AArch64BIOS
 			if bios == "" {
 				found := (&Run{ops: installer.ops.runOps}).brewFiles("share/qemu/edk2-aarch64-code.fd")
-				if len(found) != 0 {
-					bios = found[0]
-				} else {
+				if len(found) == 0 {
 					bios = InstallAArch64BIOSFallback
+				} else {
+					bios = found[0]
 				}
 			}
 			argv = append(argv, "-bios", bios)

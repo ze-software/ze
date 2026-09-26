@@ -684,16 +684,16 @@ func (b *vppBackendImpl) GetStats(name string) (*iface.InterfaceStats, error) {
 // layer skips the baseline path.
 func (b *vppBackendImpl) ResetCounters(name string) error {
 	req := &interfaces.SwInterfaceClearStats{SwIfIndex: allSwIfIndex}
-	if name != "" {
+	if name == "" {
+		if err := b.ensureChannel(); err != nil {
+			return err
+		}
+	} else {
 		idx, err := b.resolveIndex(name)
 		if err != nil {
 			return err
 		}
 		req.SwIfIndex = idx
-	} else {
-		if err := b.ensureChannel(); err != nil {
-			return err
-		}
 	}
 	reply := &interfaces.SwInterfaceClearStatsReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {

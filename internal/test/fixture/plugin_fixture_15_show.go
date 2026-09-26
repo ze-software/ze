@@ -322,22 +322,18 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 		fmt.Fprintf(os.Stderr, "OK inject-%d: status=done\n", i)
 	}
 	best := plugin15Dispatch(ctx, p, "show bgp rib best")
-	if !plugin15Done(best) {
-		failures = append(failures, fmt.Sprintf("best: expected status=done, got=%s data=%s", best.status, best.text()))
-	} else {
+	if plugin15Done(best) {
 		fmt.Fprintln(os.Stderr, "OK best: status=done")
 		data, err := plugin15Map(best)
 		if err != nil {
 			failures = append(failures, "best: invalid document: "+err.Error())
 		} else {
 			entries, ok := data["best-path"].([]any)
-			if !ok {
-				failures = append(failures, "best: no best-path envelope")
-			} else {
-				if len(entries) != routes {
-					failures = append(failures, fmt.Sprintf("best: expected %d rows, got %d", routes, len(entries)))
-				} else {
+			if ok {
+				if len(entries) == routes {
 					fmt.Fprintf(os.Stderr, "OK best: %d rows\n", len(entries))
+				} else {
+					failures = append(failures, fmt.Sprintf("best: expected %d rows, got %d", routes, len(entries)))
 				}
 				gotPrefixes := make([]string, 0, len(entries))
 				for _, value := range entries {
@@ -351,10 +347,10 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 				}
 				slices.Sort(gotPrefixes)
 				slices.Sort(wantPrefixes)
-				if !reflect.DeepEqual(gotPrefixes, wantPrefixes) {
-					failures = append(failures, fmt.Sprintf("best: prefixes %v != %v", gotPrefixes, wantPrefixes))
-				} else {
+				if reflect.DeepEqual(gotPrefixes, wantPrefixes) {
 					fmt.Fprintln(os.Stderr, "OK best: every injected prefix is a row")
+				} else {
+					failures = append(failures, fmt.Sprintf("best: prefixes %v != %v", gotPrefixes, wantPrefixes))
 				}
 				if len(entries) != 0 {
 					first, _ := entries[0].(map[string]any)
@@ -364,39 +360,43 @@ func plugin15RIBBestWalk(ctx context.Context, p *sdk.Plugin) error {
 						}
 					}
 					attributes, _ := first["attributes"].(map[string]any)
-					if attributes["next-hop"] != addrPeerOne {
-						failures = append(failures, fmt.Sprintf("best: row lost its next-hop: %v", attributes))
-					} else {
+					if attributes["next-hop"] == addrPeerOne {
 						fmt.Fprintln(os.Stderr, "OK best: the row carries the attributes it was selected with")
+					} else {
+						failures = append(failures, fmt.Sprintf("best: row lost its next-hop: %v", attributes))
 					}
 				}
+			} else {
+				failures = append(failures, "best: no best-path envelope")
 			}
 		}
+	} else {
+		failures = append(failures, fmt.Sprintf("best: expected status=done, got=%s data=%s", best.status, best.text()))
 	}
 	first := plugin15Dispatch(ctx, p, "show bgp rib best first 2")
-	if !plugin15Done(first) {
-		failures = append(failures, fmt.Sprintf("best-first: expected status=done, got=%s", first.status))
-	} else {
+	if plugin15Done(first) {
 		fmt.Fprintln(os.Stderr, "OK best-first: status=done")
 		data, _ := plugin15Map(first)
 		entries, _ := data["best-path"].([]any)
-		if len(entries) != 2 {
-			failures = append(failures, fmt.Sprintf("best-first: expected 2 rows, got %d", len(entries)))
-		} else {
+		if len(entries) == 2 {
 			fmt.Fprintln(os.Stderr, "OK best-first: the walk stopped at two rows")
+		} else {
+			failures = append(failures, fmt.Sprintf("best-first: expected 2 rows, got %d", len(entries)))
 		}
+	} else {
+		failures = append(failures, fmt.Sprintf("best-first: expected status=done, got=%s", first.status))
 	}
 	count := plugin15Dispatch(ctx, p, "show bgp rib best count")
-	if !plugin15Done(count) {
-		failures = append(failures, fmt.Sprintf("best-count: expected status=done, got=%s", count.status))
-	} else {
+	if plugin15Done(count) {
 		fmt.Fprintln(os.Stderr, "OK best-count: status=done")
 		data, _ := plugin15Map(count)
-		if plugin15Number(data["count"]) != routes {
-			failures = append(failures, fmt.Sprintf("best-count: expected count=%d, got %v", routes, data))
-		} else {
+		if plugin15Number(data["count"]) == routes {
 			fmt.Fprintf(os.Stderr, "OK best-count: count=%d\n", routes)
+		} else {
+			failures = append(failures, fmt.Sprintf("best-count: expected count=%d, got %v", routes, data))
 		}
+	} else {
+		failures = append(failures, fmt.Sprintf("best-count: expected status=done, got=%s", count.status))
 	}
 	if len(failures) != 0 {
 		return fmt.Errorf("%d best-path walk assertions failed: %s", len(failures), strings.Join(failures, "; "))
@@ -474,17 +474,17 @@ func plugin15RIBUnderLoad(ctx context.Context, p *sdk.Plugin) error {
 				if docTimedOut {
 					return fmt.Errorf("`show bgp rib` did not answer within 20s at document: the walk is wedged against the UPDATE path")
 				}
-				if !plugin15Done(doc) {
-					failures = append(failures, fmt.Sprintf("document: expected status=done, got=%s", doc.status))
-				} else {
+				if plugin15Done(doc) {
 					var value any
 					if err := doc.value(&value); err != nil {
 						failures = append(failures, "document: no adj-rib-in map in the answer")
-					} else if documentTotal, ok := plugin15RIBDocumentTotal(value); !ok {
-						failures = append(failures, "document: no adj-rib-in map in the answer")
-					} else {
+					} else if documentTotal, ok := plugin15RIBDocumentTotal(value); ok {
 						fmt.Fprintf(os.Stderr, "OK document: dumped %d routes while the peer was still sending\n", documentTotal)
+					} else {
+						failures = append(failures, "document: no adj-rib-in map in the answer")
 					}
+				} else {
+					failures = append(failures, fmt.Sprintf("document: expected status=done, got=%s", doc.status))
 				}
 			}
 		}
