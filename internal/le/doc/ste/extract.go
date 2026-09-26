@@ -198,11 +198,8 @@ var goMarkers = []string{
 	"go:", "nolint", "Design:", "Related:", "Detail:", "Overview:", "RFC:",
 	"RFC requirement:", "VALIDATES:", "PREVENTS:", "source:",
 	"test-asserts-nothing:", "ste:", "Code generated",
-	// Alone on its line, and the ORDER must not change: the Python holds the
-	// same list and TestEveryPlainListHoldsThePythonValues compares them by
-	// value. c_string_concat reads the comma and space between two literals
-	// as a string, sees the `+` opening this one, and refuses a
-	// concatenation nobody wrote.
+	// The ORDER must not change: the Python holds the same list and
+	// TestEveryPlainListHoldsThePythonValues compares them by value.
 	"+build",
 	"TODO",
 	"FIXME", "Deprecated:",

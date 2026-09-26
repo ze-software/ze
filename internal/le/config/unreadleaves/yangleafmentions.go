@@ -40,13 +40,10 @@ var containerRE = regexp.MustCompile(`(?m)^[\t ]*(?:container|list|grouping)[\t 
 // keyRE matches a list's `key "name";` statement. A key leaf carries the list
 // entry's name, which arrives as the MAP KEY in the delivered config, so no
 // plugin ever names it as a literal. Reporting one is always noise.
-// The pattern is assembled in a const, and both halves of that are
-// deliberate. Written whole, the `+` sits beside a quote and
-// c_string_concat refuses the commit, because it cannot tell a REGEX
-// from a concatenation. Written as `{1,}` -- identical in RE2 -- the
-// linter objects to the longer spelling. A const line is exempt from
-// the concatenation rule, so splitting the literal satisfies both and
-// leaves the compiled pattern byte-for-byte what it always was.
+// The pattern is split into two literals in a const. The `+` quantifier
+// stays as written, because the linter objects to the longer `{1,}`
+// spelling (identical in RE2). The compiled pattern is byte-for-byte
+// what one literal gives.
 const keyPattern = `(?m)^[\t ]*key[\t ]` + `+"([^"]+)"`
 
 var keyRE = regexp.MustCompile(keyPattern)

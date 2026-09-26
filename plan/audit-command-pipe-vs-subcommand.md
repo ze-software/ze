@@ -576,9 +576,9 @@ writer actually produces. RPKI does this with `summaryFieldNames`,
 Two smaller costs, both measured on that conversion. A plugin cannot declare a
 column order, so a converted plugin command and its pipe form sort
 alphabetically and read differently; the pipe form reads better, because
-`display` orders what it names. And `c_string_concat` refuses the obvious
+`display` orders what it names. And house style avoids the obvious
 spelling of a derived expansion, `"display " + join(...)`, even in a
-package-level `var`, so it has to be built through a `textbuf.Buffer` in a
+package-level `var`, so it is built through a `textbuf.Buffer` in a
 function.
 
 Note also that `ai/rules/cli.md` already says "Every command that produces

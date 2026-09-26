@@ -379,8 +379,7 @@ func parseSuccessor(body, where string) (*Successor, error) {
 	}
 	if successorTargeted[disposition] {
 		names := "successor section"
-		// textbuf rather than `+`: c_string_concat refuses a `+` beside a string
-		// literal in any compiled Go file.
+		// textbuf rather than `+`: Ze builds strings with textbuf by house style.
 		var tb textbuf.Buffer
 		example := tb.Str(successorUnextracted).Str(" §8.2.3").String()
 		if disposition == successorRestated {

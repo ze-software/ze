@@ -341,9 +341,8 @@ func buildLevelAlternation() string {
 
 // The patterns that read a Compliance Checklist line.
 //
-// Each is assembled from a const rather than written inline, because
-// c_string_concat refuses a `+` beside a quote in non-test Go and a regex is
-// the one literal where that shape is unavoidable.
+// The two that splice in the shared levelAlternation are assembled with
+// textbuf by a function rather than written inline.
 var (
 	// checklistPattern parses the whole line. Sections carry lowercase letters
 	// (S3.b, S7.11), so the id must too.

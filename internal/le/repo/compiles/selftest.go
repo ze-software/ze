@@ -225,8 +225,7 @@ func WriteFixture(ctx context.Context, root string) (selftestEnv, error) {
 		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", env.probe}, args...)...) //nolint:gosec // fixed argument list
 		// No global or system git config, so the probe inherits no commit
 		// signing, which would fail in a throwaway repository.
-		// textbuf rather than `+`: `performance.md` bans building strings by
-		// concatenation, and c_string_concat enforces it on every compiled file.
+		// textbuf rather than `+`: Ze builds strings with textbuf by house style.
 		var gk, sk textbuf.Buffer
 		cmd.Env = append(os.Environ(),
 			gk.Str("GIT_CONFIG_GLOBAL=").Str(os.DevNull).String(),

@@ -976,10 +976,9 @@ func firstFailure(gates []CheckResult) int {
 
 // underDir reports whether rel names dir or a descendant.
 //
-// It avoids `strings.HasPrefix(rel, dir+"/")` for two reasons.
-// c_string_concat refuses `+` beside string literals in compiled Go.
-// performance.md explains the second reason: concatenation allocates a string
-// for each query. This implementation allocates nothing.
+// It avoids `strings.HasPrefix(rel, dir+"/")` because the concatenation
+// allocates a string for each query (`ai/rules/performance.md`). This
+// implementation allocates nothing.
 func underDir(rel, dir string) bool {
 	if rel == dir {
 		return true
