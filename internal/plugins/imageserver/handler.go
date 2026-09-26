@@ -124,7 +124,7 @@ func logRequest(next http.HandlerFunc) http.HandlerFunc {
 
 func buildZefsDB(dir, username, passwordHash string) (string, error) {
 	path := filepath.Join(dir, "database.zefs")
-	store, err := storage.CreateBlob(path)
+	store, err := storage.CreateBlob(path, zefs.Spare(0))
 	if err != nil {
 		return "", err
 	}

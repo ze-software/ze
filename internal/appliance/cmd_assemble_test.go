@@ -365,3 +365,28 @@ func TestAssembleIncludesAuthorizedKeys(t *testing.T) {
 		t.Error("authorized keys should be in ZeFS")
 	}
 }
+
+// TestAssembleExactFit verifies AC-18: the assembled seed is an artifact, so
+// every key slot and data slot is written exact-fit.
+//
+// VALIDATES: AC-18, runAssemble writes with zefs.Spare(0).
+// PREVENTS: a seed carrying padding that only an in-place editor could use.
+func TestAssembleExactFit(t *testing.T) {
+	dir := assembleTestAppliance(t, "fit", nil)
+	if code := runAssemble([]string{"--keep", "fit"}); code != exitOK {
+		t.Fatalf("assemble returned %d", code)
+	}
+	report, err := zefs.Check(databasePath(dir, "fit"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.TotalEntries == 0 || report.CorruptEntries != 0 {
+		t.Fatalf("seed check: %d entries, %d corrupt", report.TotalEntries, report.CorruptEntries)
+	}
+	for _, entry := range report.Entries {
+		if entry.KeyCapacity != len(entry.Key) || entry.Capacity != entry.Size {
+			t.Errorf("%s: key capacity %d for %d bytes, data capacity %d for %d bytes",
+				entry.Key, entry.KeyCapacity, len(entry.Key), entry.Capacity, entry.Size)
+		}
+	}
+}

@@ -4516,11 +4516,11 @@ func TestBlobStoreNoFlock(t *testing.T) {
 	}
 }
 
-// TestKeyCapacityFileActive verifies that file/active/ keys get extra capacity
-// for in-place rename (backup timestamp suffix).
+// TestKeyCapacityFileActive verifies that a file/active/ key slot follows the
+// one spare rule every key follows, with no namespace-specific allowance.
 //
-// VALIDATES: Key capacity pre-allocation for file/active/ keys.
-// PREVENTS: Rename requiring reallocation for backup suffix.
+// VALIDATES: AC-16, key slot capacity is len + len/10 at the default policy.
+// PREVENTS: one caller's namespace spelled inside the generic store (A-2).
 func TestKeyCapacityFileActive(t *testing.T) {
 	s, err := Create(filepath.Join(t.TempDir(), "cap.zefs"))
 	if err != nil {
@@ -4537,18 +4537,15 @@ func TestKeyCapacityFileActive(t *testing.T) {
 	if !ok {
 		t.Fatal("slot not found for key")
 	}
-
-	// Key capacity should be len(key) + 20 for the date suffix.
-	expectedCap := len(key) + 20
-	if sl.name.capacity != expectedCap {
-		t.Errorf("key capacity = %d, want %d (len %d + 20)", sl.name.capacity, expectedCap, len(key))
+	if want := len(key) + len(key)/10; sl.name.capacity != want {
+		t.Errorf("key capacity = %d, want %d (len %d + 10%%)", sl.name.capacity, want, len(key))
 	}
 }
 
-// TestKeyCapacityNonFileActive verifies that non-file/active/ keys have exact capacity.
+// TestKeyCapacityNonFileActive verifies that every other key gets the same rule.
 //
-// VALIDATES: Only file/active/ keys get extra capacity.
-// PREVENTS: Wasting space on meta/ or other namespace keys.
+// VALIDATES: AC-16, one rule for every key slot.
+// PREVENTS: a namespace-dependent key capacity.
 func TestKeyCapacityNonFileActive(t *testing.T) {
 	s, err := Create(filepath.Join(t.TempDir(), "cap2.zefs"))
 	if err != nil {
@@ -4565,10 +4562,239 @@ func TestKeyCapacityNonFileActive(t *testing.T) {
 	if !ok {
 		t.Fatal("slot not found for key")
 	}
+	if want := len(key) + len(key)/10; sl.name.capacity != want {
+		t.Errorf("key capacity = %d, want %d (len %d + 10%%)", sl.name.capacity, want, len(key))
+	}
+}
 
-	// Non-file/active/ key should have exact capacity.
-	if sl.name.capacity != len(key) {
-		t.Errorf("key capacity = %d, want %d (exact)", sl.name.capacity, len(key))
+// reopenSlot opens path with opts, closes it again, and returns the on-disk
+// slot of key, so the capacities are the ones the file carries.
+func reopenSlot(t *testing.T, path, key string, opts ...Option) slotInfo {
+	t.Helper()
+	s, err := Open(path, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+	sl, ok := s.slot(key)
+	if !ok {
+		t.Fatalf("slot %s not found", key)
+	}
+	return sl
+}
+
+// containerFit returns the container's capacity and used length as the file
+// carries them.
+func containerFit(t *testing.T, path string) (capacity, used int) {
+	t.Helper()
+	raw, err := os.ReadFile(path) //nolint:gosec // test temp file
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, next, err := DecodeNetcapstringRef(raw, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, capacity, _, err := DecodeNetcapstringRef(raw, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return capacity, len(data)
+}
+
+// TestSpareZeroExactFit verifies AC-15: a store written with Spare(0) is
+// exact-fit on both slot kinds, an equal-length write reuses the file in
+// place, and a one-byte growth rewrites the file and leaves it exact-fit.
+//
+// VALIDATES: AC-15, the reopen states Spare(0) because the policy is not persisted.
+// PREVENTS: artifacts carrying padding nobody asked for.
+func TestSpareZeroExactFit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fit.zefs")
+	key := "file/active/ze.conf"
+	s, err := Create(path, Spare(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, key, []byte("0123456789"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	sl := reopenSlot(t, path, key, Spare(0))
+	if sl.name.capacity != len(key) || sl.data.capacity != 10 {
+		t.Fatalf("slot capacity key %d data %d, want %d and 10", sl.name.capacity, sl.data.capacity, len(key))
+	}
+
+	s, err = Open(path, Spare(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, key, []byte("abcdefghij"))
+	same, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, same) {
+		t.Fatal("equal-length write replaced the file; want in place")
+	}
+	writeOrFatal(t, s, key, []byte("abcdefghijk"))
+	grown, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.SameFile(before, grown) {
+		t.Fatal("growing write kept the file; want a full rewrite")
+	}
+	if sl, _ := s.slot(key); sl.data.capacity != 11 {
+		t.Fatalf("grown data capacity %d, want 11", sl.data.capacity)
+	}
+	if capacity, used := containerFit(t, path); capacity != used {
+		t.Fatalf("container capacity %d, used %d; want exact-fit", capacity, used)
+	}
+}
+
+// TestSpareZeroGrowthRewrites verifies R-5: at spare 0 every growing write is
+// a full rewrite, and every shrinking or equal write is in place.
+//
+// VALIDATES: R-5, the documented cost of an exact-fit artifact opened for editing.
+// PREVENTS: an in-place write past a slot's capacity.
+func TestSpareZeroGrowthRewrites(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "grow.zefs")
+	s, err := Create(path, Spare(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+	writeOrFatal(t, s, "k", []byte("aaaa"))
+	for size := 5; size <= 8; size++ {
+		before, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeOrFatal(t, s, "k", bytes.Repeat([]byte("b"), size))
+		after, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if os.SameFile(before, after) {
+			t.Fatalf("growth to %d bytes stayed in place", size)
+		}
+	}
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "k", []byte("c"))
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("shrinking write rewrote the file; want in place")
+	}
+}
+
+// TestSparePolicyBoundaries verifies AC-2's arithmetic and the 0 to 100 range
+// on every entry point that takes the option.
+//
+// VALIDATES: AC-2, AC-15, boundary rows of the spare field.
+// PREVENTS: a writer opened with a policy outside the range.
+func TestSparePolicyBoundaries(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		percent int
+		valid   bool
+	}{{-1, false}, {0, true}, {25, true}, {100, true}, {101, false}}
+	for _, tc := range cases {
+		path := filepath.Join(dir, fmt.Sprintf("b%d.zefs", tc.percent+1))
+		s, err := Create(path, Spare(tc.percent))
+		if !tc.valid {
+			if err == nil || !strings.Contains(err.Error(), "0 to 100") {
+				t.Fatalf("Create(Spare(%d)) = %v, want a range refusal", tc.percent, err)
+			}
+			if _, err := Open(path, Spare(tc.percent)); err == nil {
+				t.Fatalf("Open(Spare(%d)) accepted", tc.percent)
+			}
+			if _, err := os.Stat(path); !os.IsNotExist(err) {
+				t.Fatalf("Create(Spare(%d)) left a file: %v", tc.percent, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("Create(Spare(%d)): %v", tc.percent, err)
+		}
+		key := "file/active/router.conf"
+		data := bytes.Repeat([]byte("x"), 37)
+		writeOrFatal(t, s, key, data)
+		if err := s.Close(); err != nil {
+			t.Fatal(err)
+		}
+		sl := reopenSlot(t, path, key)
+		wantKey := len(key) + len(key)*tc.percent/100
+		wantData := len(data) + len(data)*tc.percent/100
+		if sl.name.capacity != wantKey || sl.data.capacity != wantData {
+			t.Fatalf("spare %d: key %d data %d, want %d and %d",
+				tc.percent, sl.name.capacity, sl.data.capacity, wantKey, wantData)
+		}
+	}
+}
+
+// TestSpareDefaultPolicy verifies AC-16: no option pads both slot kinds by 10%
+// on Create and on Open, whatever policy wrote the file.
+//
+// VALIDATES: AC-16, A-3 (the policy is not persisted).
+// PREVENTS: a reopen silently inheriting an artifact's exact-fit policy.
+func TestSpareDefaultPolicy(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "default.zefs")
+	s, err := Create(path, Spare(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, s, "meta/instance/name", []byte("r1"))
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+	key := "file/active/edge-router.conf"
+	data := bytes.Repeat([]byte("y"), 250)
+	writeOrFatal(t, s, key, data)
+	sl, _ := s.slot(key)
+	if want := len(key) + len(key)/10; sl.name.capacity != want {
+		t.Fatalf("key capacity %d, want %d", sl.name.capacity, want)
+	}
+	if want := len(data) + len(data)/10; sl.data.capacity != want {
+		t.Fatalf("data capacity %d, want %d", sl.data.capacity, want)
+	}
+}
+
+// TestContainerExactFit verifies that the container is exact-fit whatever the
+// slot policy is.
+//
+// VALIDATES: A-2, the policy governs key and data slots only.
+// PREVENTS: a container reserve nothing reads.
+func TestContainerExactFit(t *testing.T) {
+	for _, percent := range []int{0, 10, 100} {
+		path := filepath.Join(t.TempDir(), "container.zefs")
+		s, err := Create(path, Spare(percent))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeOrFatal(t, s, "a/b", []byte("value"))
+		writeOrFatal(t, s, "c", bytes.Repeat([]byte("z"), 99))
+		if err := s.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if capacity, used := containerFit(t, path); capacity != used {
+			t.Fatalf("spare %d: container capacity %d, used %d", percent, capacity, used)
+		}
 	}
 }
 

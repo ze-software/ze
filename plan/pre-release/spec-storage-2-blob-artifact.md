@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | cli |
 | Depends | storage-1-backend-parity |
-| Phase | - |
+| Phase | 2/6 |
 | Handoff | verify |
-| Updated | 2026-09-18 |
+| Updated | 2026-09-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,7 +33,7 @@ treats a blob as a portable object:
 |---|---|
 | Back up a device's whole store to one file, consistently, while it runs | nothing: `zefs.Export` writes the raw bytes of an OPEN store and has no CLI; `ze data` is registered offline-only (`Mode: modeOffline`) and no daemon command writes a file |
 | Restore in two modes: the backup's last config becomes the live config, or the whole store including history is replaced (owner, review answer 4) | storage-1's `ImportBlob` does the whole-store walk into an empty folder only |
-| Start a device from a blob published on a web server or given as a path (owner, review answer 6) | the installer downloads `/install/database.zefs` (`downloadToFile`, `internal/install/disk`) for the appliance only; no `ze init` path does it |
+| Start a device from a blob published on a web server or given as a path (owner, review answer 6) | the installer downloads `/install/database.zefs` (`downloadToFile`, `internal/install/disk/download.go`) for the appliance only; `ze init --from <path>` (storage-1, `runImport`) imports a LOCAL blob, and no `ze init` path fetches a URL or checks a digest |
 | Edit a backup offline, no daemon | `ze config edit` opens the store in the config's folder; the blob backend cannot be named on the command line |
 | Choose the spare capacity a blob is written with | `growCapacity` (`pkg/zefs/netcapstring.go`) hard-codes data length plus 10%; `writeFileNoFlush` adds 20 bytes to `file/active/` key slots; `encode` writes the container exact-fit |
 
@@ -92,6 +92,14 @@ addressing of history (`spec-storage-3-content-addressed-history`).
 - [ ] `internal/component/config/storage/open.go` - `lockStoreFile` (openat with `O_NOFOLLOW`, `secureNode`, `unix.Flock` with `LOCK_NB`, `ErrBusy`), `detect` (refuses every live open while `database.zefs` exists), `OpenBlob` and `CreateBlobPopulated` taking the `<artifact>.lock` sidecar
 - [ ] `internal/component/config/storage/import.go` - `importOwned`, `finishImport`, `retireSource` (renames the source to `<source>.replaced-<stamp>` in BOTH `ImportBlob` and `ReplaceImportBlob`), `equalImport`, the durable `database.import-intent`, `resumeImport` and `verifyImportIdentity`
 - [ ] `cmd/ze/hub/main_reload.go` `handleSIGHUPReload`, `runReloadContext`, and `cmd/ze/hub/config_source.go` `promoteConfigCandidate` - promotion is the LAST step, after the whole acceptance chain, with `clearUncommittedCandidate` and `rollbackReload` on every earlier failure
+
+**HEAD corrections (2026-09-26, against `5d9e4011a3`):** where a line above disagrees, this list is what HEAD holds.
+- `daemonRunning` does not exist in any package. storage-1 refuses offline maintenance while a daemon runs through the ownership lock alone: `lockOwner` on `database.lock` fails with `ErrBusy` (`internal/component/config/storage/ownership.go`, `open.go`). Every "refuses while a daemon runs (`daemonRunning`)" in this spec means that refusal. AC-3's "naming the daemon's SSH address" therefore needs a read the refusal permits, decided in Phase 3.
+- `downloadToFile` and the digest-checking `downloadToDisk(url, disk, expectedSHA)` live in `internal/install/disk/download.go`, not `system.go`; `downloadToDiskWithSHA256` does not exist. `downloadToDisk` writes a block device, so the file-with-digest form `ze init --from` needs is new code in the moved helper.
+- `ze init --from <blob>` ships (storage-1): `runImport` in `internal/plugins/init/main.go` calls `storage.ImportBlob`, or `storage.ReplaceImportBlob` under `--force`, and `--seed` and the new-store flags are refused beside it. The import intent (`importIntent`: source, digest, stage, archive, device, inode), `readImportIntent`, `resumeImport`, `verifyImportIdentity`, `finishImport`, `retireSource` and `equalImport` exist in `import.go` as this spec describes.
+- The seed builders do not call `zefs.Create`: `buildZefsDB` and `runAssemble` call `storage.CreateBlob`. The spare option therefore flows through the storage openers, which take `...zefs.Option`: `OpenBlob(path, writable, opts...)`, `CreateBlob(path, opts...)`, `CreateBlobPopulated(path, populate, replace, opts...)`. `OpenBlob` already holds the `<artifact>.lock` sidecar through `lockStoreFile` (shared for a reader, exclusive for a writer).
+- `ze data repair` calls `zefs.RepairPath`, which dispatches a blob to `Repair` and a framed tree to `repairFrameTree`; `RepairPath` takes the option too and passes it to the blob branch (a tree frame is rewritten whole and is exact-fit).
+- `zefs.Check`'s `EntryStatus` carried no capacity. Phase 2 adds `KeyCapacity` and `Capacity`, so an exact-fit claim (AC-1, AC-18) is observable from outside `pkg/zefs`.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The blob format byte-for-byte; a blob written with any spare value opens with every existing reader

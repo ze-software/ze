@@ -531,3 +531,48 @@ func TestRepairRefusesExistingOutput(t *testing.T) {
 		t.Fatal("source evidence changed")
 	}
 }
+
+// TestRepairTakesSpare verifies AC-17: Repair writes its output with the
+// Spare option it is given, and at SpareDefault without one, because it never
+// opens the source and cannot learn the policy that wrote it.
+//
+// VALIDATES: AC-17.
+// PREVENTS: a repaired artifact padded against the operator's policy.
+func TestRepairTakesSpare(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.zefs")
+	s, err := Create(src, Spare(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := "file/active/ze.conf"
+	data := bytes.Repeat([]byte("r"), 40)
+	writeOrFatal(t, s, key, data)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name    string
+		opts    []Option
+		percent int
+	}{{"exact", []Option{Spare(0)}, 0}, {"quarter", []Option{Spare(25)}, 25}, {"default", nil, SpareDefault}}
+	for _, tc := range cases {
+		dst := filepath.Join(dir, tc.name+".zefs")
+		if _, err := Repair(src, dst, tc.opts...); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		sl := reopenSlot(t, dst, key)
+		wantKey := len(key) + len(key)*tc.percent/100
+		wantData := len(data) + len(data)*tc.percent/100
+		if sl.name.capacity != wantKey || sl.data.capacity != wantData {
+			t.Fatalf("%s: key %d data %d, want %d and %d", tc.name, sl.name.capacity, sl.data.capacity, wantKey, wantData)
+		}
+	}
+	if _, err := Repair(src, filepath.Join(dir, "bad.zefs"), Spare(101)); err == nil {
+		t.Fatal("Repair accepted Spare(101)")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bad.zefs")); !os.IsNotExist(err) {
+		t.Fatalf("refused Repair left an output: %v", err)
+	}
+}

@@ -14,8 +14,10 @@ import (
 )
 
 // OpenBlob opens an explicitly named artifact; it never detects a live backend.
-// Writable artifacts take a stable sibling lock. Caller MUST Close the result.
-func OpenBlob(path string, writable bool) (Storage, error) {
+// Writable artifacts take a stable sibling lock. opts set the spare policy the
+// artifact's writes use; without one they pad by zefs.SpareDefault percent.
+// Caller MUST Close the result.
+func OpenBlob(path string, writable bool, opts ...zefs.Option) (Storage, error) {
 	dir, name, err := splitStorePath(path)
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func OpenBlob(path string, writable bool) (Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	blob, err := zefs.Open(path)
+	blob, err := zefs.Open(path, opts...)
 	if err != nil {
 		return nil, errors.Join(err, owner.Close())
 	}
@@ -49,14 +51,16 @@ func OpenBlob(path string, writable bool) (Storage, error) {
 }
 
 // CreateBlob creates an empty explicit artifact without replacing an existing
-// file. Caller MUST Close the returned handle.
-func CreateBlob(path string) (Storage, error) {
-	return CreateBlobPopulated(path, func(Storage) error { return nil }, false)
+// file. opts set the spare policy of the returned handle's writes. Caller MUST
+// Close the returned handle.
+func CreateBlob(path string, opts ...zefs.Option) (Storage, error) {
+	return CreateBlobPopulated(path, func(Storage) error { return nil }, false, opts...)
 }
 
 // CreateBlobPopulated publishes a completely seeded artifact. Replacement keeps
-// a .replaced-<stamp> backup. Caller MUST Close the returned handle.
-func CreateBlobPopulated(path string, populate func(Storage) error, replace bool) (Storage, error) {
+// a .replaced-<stamp> backup. opts set the spare policy of the seeding writes
+// and of the returned handle. Caller MUST Close the returned handle.
+func CreateBlobPopulated(path string, populate func(Storage) error, replace bool, opts ...zefs.Option) (Storage, error) {
 	dir, name, err := splitStorePath(path)
 	if err != nil {
 		return nil, err
@@ -84,14 +88,14 @@ func CreateBlobPopulated(path string, populate func(Storage) error, replace bool
 	if err != nil {
 		return nil, err
 	}
-	result, err := populateBlob(folder, owner, filepath.Base(path), populate, replace)
+	result, err := populateBlob(folder, owner, filepath.Base(path), populate, replace, opts)
 	if err != nil {
 		return nil, errors.Join(err, owner.Close())
 	}
 	return result, nil
 }
 
-func populateBlob(folder, owner *os.File, name string, populate func(Storage) error, replace bool) (Storage, error) {
+func populateBlob(folder, owner *os.File, name string, populate func(Storage) error, replace bool, opts []zefs.Option) (Storage, error) {
 	path := filepath.Join(folder.Name(), name)
 	if replace {
 		existing, err := openNode(folder, name, false)
@@ -118,7 +122,7 @@ func populateBlob(folder, owner *os.File, name string, populate func(Storage) er
 		return nil, err
 	}
 	defer os.Remove(stage.Name()) //nolint:errcheck // private artifact staging.
-	blob, err := zefs.Create(stage.Name())
+	blob, err := zefs.Create(stage.Name(), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +148,7 @@ func populateBlob(folder, owner *os.File, name string, populate func(Storage) er
 	if err := folder.Sync(); err != nil {
 		return nil, err
 	}
-	blob, err = zefs.Open(path)
+	blob, err = zefs.Open(path, opts...)
 	if err != nil {
 		return nil, err
 	}

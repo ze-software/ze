@@ -19,11 +19,17 @@ const (
 )
 
 // EntryStatus describes the integrity state of a single store entry.
+// KeyCapacity and Capacity are the slot capacities the file carries, so
+// Capacity minus Size is the entry's spare. A framed tree stores its key as a
+// file name, which has no slot, so a tree entry's KeyCapacity is the key's
+// length.
 type EntryStatus struct {
-	Key    string
-	Size   int
-	Status string // "ok", "crc-mismatch", "parse-error", "truncated"
-	Error  string // detail when Status is not "ok"
+	Key         string
+	Size        int
+	KeyCapacity int
+	Capacity    int
+	Status      string // "ok", "crc-mismatch", "parse-error", "truncated"
+	Error       string // detail when Status is not "ok"
 }
 
 // CheckReport is the result of a store integrity check.
@@ -127,7 +133,7 @@ func Check(path string) (*CheckReport, error) {
 			report.ContainerError = fmt.Sprintf("%s at offset %d: entry count exceeds maximum %d", path, dataOff+off, maxEntryCount)
 			break
 		}
-		nameData, _, nameNext, nameErr := DecodeNetcapstringRef(containerData, off)
+		nameData, nameCapacity, nameNext, nameErr := DecodeNetcapstringRef(containerData, off)
 		if nameErr != nil {
 			report.Entries = append(report.Entries, EntryStatus{
 				Key:    fmt.Sprintf("%s <offset %d>", path, dataOff+off),
@@ -137,8 +143,11 @@ func Check(path string) (*CheckReport, error) {
 			off = skipToNextEntry(containerData, skipToNextEntry(containerData, off))
 			continue
 		}
-		valueData, _, valueNext, valueErr := DecodeNetcapstringRef(containerData, nameNext)
-		status := EntryStatus{Key: string(nameData), Size: len(valueData), Status: "ok"}
+		valueData, valueCapacity, valueNext, valueErr := DecodeNetcapstringRef(containerData, nameNext)
+		status := EntryStatus{
+			Key: string(nameData), Size: len(valueData),
+			KeyCapacity: nameCapacity, Capacity: valueCapacity, Status: "ok",
+		}
 		if valueErr != nil {
 			status.Status = integrityStatus(valueErr)
 			status.Error = fmt.Sprintf("%s at offset %d: %v", path, dataOff+nameNext, valueErr)
@@ -165,8 +174,13 @@ func Check(path string) (*CheckReport, error) {
 }
 
 // Repair reads a potentially corrupt store and writes all recoverable
-// entries to a new store at outputPath. The source file is never modified.
-func Repair(srcPath, dstPath string) (report *RepairReport, retErr error) {
+// entries to a new store at outputPath. The source file is never modified and
+// never opened as a store, so its writer's policy is unknown here: the output
+// is written with opts, and without a Spare option at SpareDefault percent.
+func Repair(srcPath, dstPath string, opts ...Option) (report *RepairReport, retErr error) {
+	if _, err := newWritePolicy(opts); err != nil {
+		return nil, fmt.Errorf("zefs: repair: %w", err)
+	}
 	if srcPath == dstPath {
 		return nil, fmt.Errorf("zefs: repair: source and output paths must differ")
 	}
@@ -209,7 +223,7 @@ func Repair(srcPath, dstPath string) (report *RepairReport, retErr error) {
 	}
 	defer func() { retErr = errors.Join(retErr, os.RemoveAll(stage)) }()
 	artifact := filepath.Join(stage, "repaired.zefs")
-	dst, createErr := Create(artifact)
+	dst, createErr := Create(artifact, opts...)
 	if createErr != nil {
 		return nil, fmt.Errorf("zefs: repair: create output: %w", createErr)
 	}
@@ -340,13 +354,13 @@ func CheckPath(path string) (*CheckReport, error) {
 	if info.IsDir() {
 		report := &CheckReport{Path: path, MagicOK: true, ContainerOK: true}
 		err := walkFrameTree(path, func(key string, frame []byte) error {
-			data, _, next, decodeErr := DecodeNetcapstringRef(frame, 0)
+			data, capacity, next, decodeErr := DecodeNetcapstringRef(frame, 0)
 			if decodeErr == nil {
 				if next != len(frame) {
 					decodeErr = fmt.Errorf("trailing bytes at offset %d", next)
 				}
 			}
-			entry := EntryStatus{Key: key, Size: len(data), Status: "ok"}
+			entry := EntryStatus{Key: key, Size: len(data), KeyCapacity: len(key), Capacity: capacity, Status: "ok"}
 			if decodeErr != nil {
 				entry.Status = integrityStatus(decodeErr)
 				entry.Error = fmt.Sprintf("%s: %v", filepath.Join(path, key), decodeErr)
@@ -370,7 +384,9 @@ func CheckPath(path string) (*CheckReport, error) {
 
 // RepairPath salvages a blob or framed tree into a new destination of the same
 // shape. The source is never changed, and the destination MUST NOT exist.
-func RepairPath(srcPath, dstPath string) (*RepairReport, error) {
+// opts govern a blob destination. A framed tree is written exact-fit, because
+// every frame write replaces the whole frame file.
+func RepairPath(srcPath, dstPath string, opts ...Option) (*RepairReport, error) {
 	info, err := os.Lstat(filepath.Clean(srcPath))
 	if err != nil {
 		return nil, fmt.Errorf("zefs: repair %s: %w", srcPath, err)
@@ -387,5 +403,5 @@ func RepairPath(srcPath, dstPath string) (*RepairReport, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("zefs: repair %s: refusing non-regular node %s", srcPath, info.Mode())
 	}
-	return Repair(srcPath, dstPath)
+	return Repair(srcPath, dstPath, opts...)
 }

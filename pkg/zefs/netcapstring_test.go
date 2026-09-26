@@ -287,31 +287,6 @@ func TestNetcapstringDecodeRefZeroCopy(t *testing.T) {
 	}
 }
 
-// VALIDATES: growCapacity adds 10% to dataLen
-// PREVENTS: incorrect growth or undersized allocation
-
-func TestGrowCapacity(t *testing.T) {
-	tests := []struct {
-		name    string
-		dataLen int
-		want    int
-	}{
-		{"zero data", 0, 0},
-		{"small data", 10, 11},
-		{"medium data", 100, 110},
-		{"large data", 1000, 1100},
-		{"very large", 1_000_000, 1_100_000},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := growCapacity(tt.dataLen)
-			if got != tt.want {
-				t.Errorf("growCapacity(%d) = %d, want %d", tt.dataLen, got, tt.want)
-			}
-		})
-	}
-}
-
 // VALIDATES: decodeNetcapstringRef returns errors for malformed input
 // PREVENTS: panic or silent corruption on bad data in zero-copy path
 
@@ -520,18 +495,6 @@ func TestNetcapstringHeaderLen(t *testing.T) {
 		wantLen := netcapstringTotalLen(cap_)
 		if len(encoded) != wantLen {
 			t.Errorf("cap=%d: len(encoded)=%d, totalLen=%d", cap_, len(encoded), wantLen)
-		}
-	}
-}
-
-// VALIDATES: growCapacity always returns >= dataLen
-// PREVENTS: allocated capacity smaller than needed
-
-func TestGrowCapacityAlwaysFits(t *testing.T) {
-	for _, dataLen := range []int{0, 1, 63, 64, 65, 100, 1000, 100000, 1000000} {
-		cap_ := growCapacity(dataLen)
-		if cap_ < dataLen {
-			t.Errorf("growCapacity(%d) = %d, must be >= dataLen", dataLen, cap_)
 		}
 	}
 }

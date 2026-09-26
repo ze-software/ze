@@ -327,9 +327,3 @@ func (s *netcapSlot) writeAt(buf []byte, localOff int, data []byte) error {
 	writeNetcapstringHeader(buf, s.offset, s.capacity, s.used, dataCRC)
 	return nil
 }
-
-// growCapacity returns a new capacity for data that outgrew currentCap.
-// Adds 10% to dataLen so the entry has room to grow before the next reallocation.
-func growCapacity(dataLen int) int {
-	return dataLen + dataLen/10
-}

@@ -33,6 +33,9 @@ ZeFS database.
 - **The ZeFS database is built when the server is configured**, not per request,
   and only when both an SSH username and a password hash are configured. It is
   written to a temporary directory that is removed on stop and on reconfigure.
+  It is an artifact, so `buildZefsDB` writes every key and data slot exact-fit
+  (`zefs.Spare(0)`, `docs/architecture/zefs-format.md`): the installer copies
+  it whole, and padding would only enlarge the download.
 - The plugin imports no other provisioning plugin. It is independent of the web
   component, the DHCP server, and the TFTP server.
 - Server timeouts are set explicitly (read, write, and header size) so a

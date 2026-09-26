@@ -108,7 +108,7 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 	}
 	defer os.RemoveAll(staging) //nolint:errcheck // Remove private staging on every error path.
 	stagedPath := filepath.Join(staging, "database.zefs")
-	store, err := storage.CreateBlob(stagedPath)
+	store, err := storage.CreateBlob(stagedPath, zefs.Spare(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: create database: %v\n", err)
 		return exitError

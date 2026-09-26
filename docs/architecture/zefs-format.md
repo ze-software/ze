@@ -67,8 +67,28 @@ The total header length for a given capacity is: `3 + digitCount(digitCount(cap)
 
 ### Capacity growth
 
-New keys are exact fit except under `file/active/`, where `writeFileNoFlush` reserves 20 extra bytes. Data capacity is data length + 10%, both on first write and on growth. `encode` uses exact-fit container capacity for the encoded entries plus their terminating newline.
+The spare policy is a property of the writer, not of the file. `Create`,
+`Open` and `Repair` take a `Spare(percent)` option, with a range of 0 to 100
+and a default of 10 (`SpareDefault`). A new key's key slot and data slot, and a
+data slot that a larger value outgrows, get a capacity of `used + used*percent/100`,
+rounded down. Every key follows the same rule, whatever its namespace. `encode`
+uses exact-fit container capacity for the encoded entries plus their
+terminating newline, whatever the policy.
+
+The policy is never persisted. Every header carries its own capacity, so a
+file written with any policy opens with every reader. A reopen without a
+`Spare` option pads at the default, whatever policy wrote the file.
+
+| Policy | Used by | Effect |
+|--------|---------|--------|
+| `Spare(0)` | artifacts: the appliance seed (`runAssemble`), the image-server seed (`buildZefsDB`) | exact-fit; an equal or shorter write stays in place, and the first growth of a value is a full rewrite |
+| default, 10 | every other writer | 10% room to grow before the next full rewrite |
+
+`Check` reports each entry's key and data slot capacity beside its size, so
+the spare of a file is visible without opening it for writing.
+<!-- source: pkg/zefs/spare.go -- Spare, writePolicy.capacity -->
 <!-- source: pkg/zefs/store.go -- writeFileNoFlush, encode -->
+<!-- source: pkg/zefs/check.go -- EntryStatus, Repair -->
 
 ### Parsing
 

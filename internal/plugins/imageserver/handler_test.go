@@ -719,3 +719,29 @@ func TestServeDynamicBootIPXEImageDetection(t *testing.T) {
 		}
 	})
 }
+
+// TestImageServerSeedExactFit verifies AC-18: the seed served at
+// /install/database.zefs is an artifact, so every slot is exact-fit.
+//
+// VALIDATES: AC-18, buildZefsDB writes with zefs.Spare(0).
+// PREVENTS: a served seed carrying padding nobody edits in place.
+func TestImageServerSeedExactFit(t *testing.T) {
+	t.Parallel()
+	path, err := buildZefsDB(t.TempDir(), "admin", "$2a$10$examplehash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := zefs.Check(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.TotalEntries == 0 || report.CorruptEntries != 0 {
+		t.Fatalf("seed check: %d entries, %d corrupt", report.TotalEntries, report.CorruptEntries)
+	}
+	for _, entry := range report.Entries {
+		if entry.KeyCapacity != len(entry.Key) || entry.Capacity != entry.Size {
+			t.Errorf("%s: key capacity %d for %d bytes, data capacity %d for %d bytes",
+				entry.Key, entry.KeyCapacity, len(entry.Key), entry.Capacity, entry.Size)
+		}
+	}
+}

@@ -50,15 +50,22 @@ type BlobStore struct {
 	dirty         map[string]bool // entries modified since last flush
 	added         []string        // new entries since last flush (ordered)
 	layoutChanged bool            // set on remove or capacity overflow
+	policy        writePolicy     // spare capacity for new and grown slots
 }
 
-// Create creates a new empty store at the given path.
-func Create(path string) (*BlobStore, error) {
+// Create creates a new empty store at the given path. Without a Spare option
+// the store pads new and grown slots by SpareDefault percent.
+func Create(path string, opts ...Option) (*BlobStore, error) {
+	policy, err := newWritePolicy(opts)
+	if err != nil {
+		return nil, err
+	}
 	s := &BlobStore{
-		path:  path,
-		root:  newDirNode(),
-		slots: make(map[string]slotInfo),
-		dirty: make(map[string]bool),
+		path:   path,
+		root:   newDirNode(),
+		slots:  make(map[string]slotInfo),
+		dirty:  make(map[string]bool),
+		policy: policy,
 	}
 	if err := s.flush(); err != nil {
 		return nil, fmt.Errorf("zefs: create %s: %w", path, err)
@@ -67,12 +74,19 @@ func Create(path string) (*BlobStore, error) {
 }
 
 // Open opens an existing store, memory-mapping the file for zero-copy reads.
-func Open(path string) (*BlobStore, error) {
+// The policy is not read from the file: without a Spare option the store pads
+// the slots it writes by SpareDefault percent, whatever the file was written with.
+func Open(path string, opts ...Option) (*BlobStore, error) {
+	policy, err := newWritePolicy(opts)
+	if err != nil {
+		return nil, err
+	}
 	s := &BlobStore{
-		path:  path,
-		root:  newDirNode(),
-		slots: make(map[string]slotInfo),
-		dirty: make(map[string]bool),
+		path:   path,
+		root:   newDirNode(),
+		slots:  make(map[string]slotInfo),
+		dirty:  make(map[string]bool),
+		policy: policy,
 	}
 	if err := s.load(); err != nil {
 		return nil, fmt.Errorf("zefs: open %s: %w", path, err)
@@ -186,19 +200,15 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 
 	if !s.root.has(name) {
 		s.keys = append(s.keys, name)
-		keyCap := len(name)
-		if strings.HasPrefix(name, KeyFileActive.Prefix()) {
-			keyCap += 20
-		}
 		s.slots[name] = slotInfo{
-			name: netcapSlot{capacity: keyCap},
-			data: netcapSlot{capacity: growCapacity(len(data))},
+			name: netcapSlot{capacity: s.policy.capacity(len(name))},
+			data: netcapSlot{capacity: s.policy.capacity(len(data))},
 		}
 		s.added = append(s.added, name)
 	} else {
 		sl := s.slots[name]
 		if len(data) > sl.data.capacity {
-			sl.data.capacity = growCapacity(len(data))
+			sl.data.capacity = s.policy.capacity(len(data))
 			s.slots[name] = sl
 			s.layoutChanged = true
 		}
