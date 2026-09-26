@@ -132,10 +132,12 @@ protocol version, quoted in the checklist.
 
 ## Historical Requirement Correspondence
 
-`RFC9582-` below identifies the historical rows retained in `rfc9582.md`.
-The destination prefix is `DRAFT-IETF-SIDROPS-8210BIS-`. These are candidate
-identity corrections for the existing reattribution design, not a claim of
-completed tag migration.
+`RFC9582-` below identifies the historical rows of `rfc9582.md`. The
+destination prefix is `DRAFT-IETF-SIDROPS-8210BIS-`. Every row with a
+destination was retired from `rfc9582.md` on 2026-09-26, naming it in
+`rfc/corrections/rfc9582.md`, and its tags carry the destination id. The four
+rows with no destination (`5.12-2`, `5.12-6`, `5.12-7`, `5.12-9`) stay in
+`rfc9582.md`.
 
 | Historical suffix | Current clause or destination | Correction |
 |-------------------|-------------------------------|------------|
