@@ -94,7 +94,7 @@ means the evidence held rather than that nobody looked.
 | Enrolment is monotonic | `checkEnrolment` | an RFC whose MUSTs were gated stops being gated |
 | Proof is monotonic | `checkCoverageRatchet` | a requirement loses a polarity it had at HEAD. A `{gap}` is NOT an escape: it is the move being blocked |
 | Gating is monotonic | `checkLevelRatchet` | a requirement leaves the MUST-level population, because its level was gated at `HEAD^` and is advisory now. The baseline is `HEAD^`, not HEAD, so the ratchet sees a demotion the commit under test made in the detached verify worktree. That is the cheapest route from red to green, cheaper than `{gap}` and cheaper than deleting the row, because the id and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md`, naming the id and quoting at least 24 characters of the RFC verbatim, matched against the same page-stripped haystack as a row quote. The record lives beside the summary rather than in it, because a summary carries what the RFC obliges and not a log of what this repository once got wrong. A row GAINING a gated level is never reported |
-| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC that `HEAD^` holds disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
+| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC that `HEAD^` holds disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed. The one accepted disappearance is a row no sentence of the RFC states: a `Retired <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md` names the id in backticks and every section read as `§<n>`, after the tags have moved (`retiredIDs`, format in `rfc/corrections/README.md`). A `Correction` paragraph does not retire a row, and `checkIDAllocation` refuses any row that carries a retired id again |
 | Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since `HEAD^` declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
@@ -395,7 +395,7 @@ these is true:
 |---------|-----------|
 | No source | the RFC's text is not in `rfc/full/` or `rfc/drafts/` |
 | Too short | the quote is under 24 characters, which names no single sentence |
-| Unresolved anchor | the cited section is not a heading of the RFC, and no heading ancestor of it is. A row that cites no section is refused the same way |
+| Unresolved anchor | the RFC has headings, and the cited section is not one of them, and no heading ancestor of it is. A row that cites no section is refused the same way. An RFC with no heading is never refused this way (below) |
 | Wrong section | the quote is verbatim in the RFC, but not in the cited section or its subsections. The refusal names the section that holds it |
 | Not verbatim | the quote is in no section of the RFC |
 
@@ -404,6 +404,38 @@ The cited section resolves to its nearest heading ancestor: `3.b` resolves to
 is then made in that section and in every subsection, one section body at a
 time, so a span that joins two sections never matches. The lookup never falls
 back to the whole document.
+
+Headings are read one of two ways, decided once for each text, and the site
+inventory and this check share the reading (`sectionBodies`). A text with a
+heading at column 0 is read at column 0 only, and every heading-shaped line
+indented below it is body text. A text with no column-0 heading is read at its
+body margin, the indentation most of its lines share (owner decision D-5,
+2026-09-26). There a heading is a clause number with no trailing dot, two
+blanks and a title (`6.17  Checksum`), a dotted number alone on its line
+(`1.3`), an annex (`ANNEX B - CHECKSUM ALGORITHMS`) or an annex clause
+(`B.1  SYMBOLS`), and it must begin a paragraph that holds no contents line, a
+line ending in dot leaders and a page number. The narrow shape is what keeps a
+note numbered `1.`, a justified line that starts with a number, and the table
+of contents out of the section list. In the corpus of 2026-09-26 only RFC 905 is
+read at its margin and finds headings there: 329 sections, in the order of its
+table of contents. Every other text derives the sections and site ids it did
+before.
+
+An RFC with no heading under either reading is the one exception (owner
+decision D-1, 2026-09-26). Its whole text is one citable section, and every
+citation resolves to it, whether the row cites an unnumbered title such as
+`(§Echo)` or no section at all. There is no section for the citation to be wrong
+about, so the check judges only whether the quote is verbatim, and a refusal
+names that section `front`. This is not a fallback: an RFC with one heading or
+more resolves exactly as above, and a citation of its front matter, the text
+before the first heading, is refused as an unresolved anchor. In the corpus of
+2026-09-26 the texts without a heading are RFC 792, 1997, 2347, 2348, 2349 and
+2782.
+<!-- source: internal/le/rfc/inventory.go -- quoteSource.wholeText, quoteSource.resolve -->
+<!-- source: internal/le/rfc/inventory.go -- sectionHeadingRE -->
+<!-- source: internal/le/rfc/inventory.go -- indentedHeadings -->
+<!-- source: internal/le/rfc/inventory.go -- sectionBodies -->
+
 
 One haystack builder serves every quote path: `quoteHaystack`
 (`internal/le/rfc/inventory.go`) strips the page furniture and collapses the
@@ -459,7 +491,7 @@ passes. A failed test puts the row on the review list, with its kind:
 | `lead-in` | the site sentence ends in `:`, and the obligation is in the list after it |
 | `short-sentence` | the sentence is shorter than the row check's minimum |
 | `qualified` | the row quotes an RFC sentence and adds its own words, such as "the A half" |
-| `unresolved-anchor` | the cited section names no heading of the RFC |
+| `unresolved-anchor` | the cited section names no heading of the RFC. An RFC with no heading never gives this kind, because its whole text is the cited section |
 | `outside-section` | the sentence is not in the cited section or its subsections. The citation is never rewritten |
 | `level-differs` | the sentence does not state the row's level. SHALL and REQUIRED count as MUST, and MUST NOT is its own level |
 | `partial` | the sentence states more RFC 2119 keywords than the row, so the whole sentence widens what the row claims |

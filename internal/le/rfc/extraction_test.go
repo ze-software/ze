@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -961,5 +962,67 @@ func TestTheTitleLineFallsBetweenANameAndASentence(t *testing.T) {
 			t.Errorf("%q is a sentence about the section and the deriver named it %q",
 				want.lead, got)
 		}
+	}
+}
+
+// indentedHeadingSource is an RFC laid out as RFC 905 is: every heading indented to the
+// body margin, a table of contents with dot leaders and an entry that wraps, a justified
+// line inside a paragraph that starts with a clause number, notes numbered "1." at the
+// margin, a clause with no title, a label off the margin, and an annex.
+const indentedHeadingSource = "Test RFC 9999\n\n" +
+	"     1   INTRODUCTION.................................. 3\n" +
+	"     2   WIDGETS AND THE WAY\n" +
+	"       THEY ARE SENT................................... 4\n\n" +
+	"     Front matter a reader MUST see.\n\n" +
+	"     1  Introduction\n\n" +
+	"     This document describes widgets.\n\n" +
+	"     2  Widgets\n\n" +
+	"     2.1  Sending\n\n" +
+	"     A speaker MUST send the widget, following the rules in\n" +
+	"     2.2  that  apply  to  every  widget.\n\n" +
+	"     1.  A note that MUST stay in 2.1.\n\n" +
+	"                        4  Diagram label\n\n" +
+	"     2.3\n\n" +
+	"     A clause MUST have a body.\n\n" +
+	"     ANNEX B - CHECKSUM\n\n" +
+	"     B.1  SYMBOLS\n\n" +
+	"     A receiver MUST NOT drop the widget.\n"
+
+// VALIDATES: owner decision D-5 -- a text with no column-0 heading is read for headings
+// indented to its body margin, so it has sections to cite. A table-of-contents entry, a
+// justified line inside a paragraph, a note numbered "1." and a line off the margin are not
+// headings, so each sentence stays in the section it is written in.
+// METHOD: sectionBodies and sitesFor over indentedHeadingSource, compared in document order.
+func TestAnIndentedOnlyTextHasSectionsAtItsBodyMargin(t *testing.T) {
+	var ids []string
+	for _, one := range sectionBodies(indentedHeadingSource) {
+		ids = append(ids, one.id)
+	}
+	want := []string{frontSection, "1", "2", "2.1", "2.3", "B", "B.1"}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("sections %v, want %v", ids, want)
+	}
+	var located []string
+	for _, site := range sitesFor(indentedHeadingSource, siteKeywordRE) {
+		located = append(located, site.ID)
+	}
+	wantSites := []string{"front:1", "2.1:1", "2.1:2", "2.3:1", "B.1:1"}
+	if !slices.Equal(located, wantSites) {
+		t.Errorf("sites %v, want %v", located, wantSites)
+	}
+}
+
+// VALIDATES: owner decision D-5 -- the indented reading is only for a text that has no
+// column-0 heading. A text with one keeps the column-0 reading, so an indented line shaped
+// like a heading stays body text and no site id of such a text moves.
+// METHOD: one column-0 heading followed by an indented lookalike at the body margin.
+func TestAColumnZeroTextIgnoresIndentedLookalikes(t *testing.T) {
+	text := "Test RFC 9999\n\n1.  Introduction\n\n     2  Lookalike Heading\n\n     A speaker MUST send it.\n\n     2.1  Another One\n"
+	var ids []string
+	for _, one := range sectionBodies(text) {
+		ids = append(ids, one.id)
+	}
+	if want := []string{frontSection, "1"}; !slices.Equal(ids, want) {
+		t.Errorf("sections %v, want %v", ids, want)
 	}
 }

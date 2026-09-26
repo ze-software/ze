@@ -438,6 +438,13 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		return CheckReport{}, err
 	}
 
+	// Read at the tree under check, as the level corrections are: the record
+	// that retires a row lands in the same commit that deletes it.
+	retired, err := retiredIDs(tree)
+	if err != nil {
+		return CheckReport{}, err
+	}
+
 	var findings []Finding
 	findings = append(findings, notes(checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, signedSet))...)
 	findings = append(findings, notes(checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
@@ -448,7 +455,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 			return CheckReport{}, err
 		}
 		findings = append(findings, notes(checkRetiredRequirements(collected.Requirements, collected.Enrolled,
-			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem))...)
+			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem, retired))...)
 		findings = append(findings, notes(checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
 			levels, baseEnrolled))...)
 		findings = append(findings, notes(checkCoverageRatchet(collected.Requirements, collected.Tags,
@@ -457,7 +464,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
 	}
 	findings = append(findings, notes(collected.ParseErrors)...)
-	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, levelsKnown))...)
+	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, retired, levelsKnown))...)
 	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
 	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)
 	successors := successorsFrom(collected.Metas)

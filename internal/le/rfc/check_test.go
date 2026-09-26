@@ -427,6 +427,110 @@ func TestRFCCheckCitationCorrectionPreservesRetirementGuard(t *testing.T) {
 	assertPermanentIDCoverage(t, root)
 }
 
+// retireFixtureChecklist is an enrolled summary holding a gated row and an
+// advisory row that the retirement tests below delete.
+const retireFixtureChecklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
+	"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+
+const retireFixtureRow = "- [ ] [RFC9999-2-3] [SHOULD] A speaker SHOULD count widgets (§2)\n"
+
+var retireFixtureRecord = filepath.ToSlash(filepath.Join(correctionRel, "rfc9999.md"))
+
+// VALIDATES: AC-5 refuse, D-2 -- deleting an enrolled id with no retirement
+// paragraph is refused, and so is deleting it under a paragraph that does not
+// retire it: one naming a neighbor, a level correction, or one that records
+// no section read.
+// PREVENTS: the retirement route becoming the cheap silent delete that
+// checkRetiredRequirements exists to stop.
+func TestCheckRefusesRetiredRowWithoutCorrection(t *testing.T) {
+	for _, one := range []struct {
+		name   string
+		record string
+	}{
+		{"no record", ""},
+		{"a neighbor", "Retired 2026-09-26: `RFC9999-2-2` read §2 and §3.\n"},
+		{"a level correction", "Correction 2026-09-26: `RFC9999-2-3` read §2: \"A speaker MUST send the widget\".\n"},
+		{"no section read", "Retired 2026-09-26: `RFC9999-2-3` states nothing the RFC carries.\n"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			files := fixtureCorpus()
+			files[selftestSummaryRel] = retireFixtureChecklist + retireFixtureRow
+			root := commitFixtureTree(t, files, nil)
+			commitFixtureEmptyTip(t, root)
+			working := map[string]string{selftestSummaryRel: retireFixtureChecklist}
+			if one.record != "" {
+				working[retireFixtureRecord] = one.record
+			}
+			writeFixtureFiles(t, root, working)
+			report, code := Check(root)
+			violations := strings.Join(report.Violations, "\n")
+			if report.CannotRun != "" || code != 2 ||
+				!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD^ and is now gone") ||
+				!strings.Contains(violations, "Retired <YYYY-MM-DD>:") {
+				t.Fatalf("the unretired delete was not refused with the retirement route named, exit %d:\n%s",
+					code, report.Text())
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-5 accept, D-2 -- deleting an enrolled id is accepted when
+// rfc/corrections/<stem>.md carries a dated retirement paragraph naming it.
+func TestCheckAcceptsRetiredRowWithCorrection(t *testing.T) {
+	files := fixtureCorpus()
+	files[selftestSummaryRel] = retireFixtureChecklist + retireFixtureRow
+	root := commitFixtureTree(t, files, nil)
+	commitFixtureEmptyTip(t, root)
+	writeFixtureFiles(t, root, map[string]string{
+		selftestSummaryRel:  retireFixtureChecklist,
+		retireFixtureRecord: retirementParagraph,
+	})
+	report, code := Check(root)
+	if report.CannotRun != "" || code != 0 || strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3") {
+		t.Fatalf("the recorded retirement was refused, exit %d:\n%s", code, report.Text())
+	}
+}
+
+// VALIDATES: AC-5 reuse, D-2 -- a retired id is never allocated again: not in
+// a later commit, and not by keeping the row in the commit that retires it.
+// PREVENTS: the high-water hole. The allocation mark is derived from the ids
+// HEAD^ holds, so retiring the highest ordinal of a section lowers the mark
+// and the next commit could take that id back, re-pointing every test and
+// record that ever named it at a different obligation.
+func TestCheckRefusesRetiredIDReuse(t *testing.T) {
+	t.Run("a later commit", func(t *testing.T) {
+		files := fixtureCorpus()
+		files[selftestSummaryRel] = retireFixtureChecklist + retireFixtureRow
+		root := commitFixtureTree(t, files, nil)
+		writeFixtureFiles(t, root, map[string]string{
+			selftestSummaryRel:  retireFixtureChecklist,
+			retireFixtureRecord: retirementParagraph,
+		})
+		commitFixture(t, root, "retire RFC9999-2-3")
+		commitFixtureEmptyTip(t, root)
+		writeFixtureFiles(t, root, map[string]string{
+			selftestSummaryRel: retireFixtureChecklist + retireFixtureRow,
+		})
+		report, code := Check(root)
+		if report.CannotRun != "" || code != 2 ||
+			!strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3 reuses a retired id") {
+			t.Fatalf("the retired id was allocated again, exit %d:\n%s", code, report.Text())
+		}
+	})
+	t.Run("the retiring commit", func(t *testing.T) {
+		files := fixtureCorpus()
+		files[selftestSummaryRel] = retireFixtureChecklist + retireFixtureRow
+		root := commitFixtureTree(t, files, nil)
+		commitFixtureEmptyTip(t, root)
+		writeFixtureFiles(t, root, map[string]string{retireFixtureRecord: retirementParagraph})
+		report, code := Check(root)
+		if report.CannotRun != "" || code != 2 ||
+			!strings.Contains(strings.Join(report.Violations, "\n"), "RFC9999-2-3 reuses a retired id") {
+			t.Fatalf("a row kept its id after the record retired it, exit %d:\n%s", code, report.Text())
+		}
+	})
+}
+
 func TestRFCCheckReportsUnknownRequirementInCommandTests(t *testing.T) {
 	const path = "cmd/widget/widget_test.go"
 	const requirement = "RFC9999-99-1"

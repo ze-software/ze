@@ -623,7 +623,10 @@ Step-by-step, pseudocode if RFC provides it.
   annotation does not substitute for proof that already existed
 - A requirement id of an enrolled RFC cannot be deleted from its summary
   (`check_retired_requirements`). Fix a misquoted requirement by editing its TEXT under the
-  same id; deleting the line retires the obligation silently
+  same id; deleting the line retires the obligation silently. The one exception is a row
+  no sentence of the RFC states: after reading the whole RFC and moving its tags, retire it
+  with a `Retired <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md` that names the id
+  and the sections read (`rfc/corrections/README.md`). The id is never allocated again
 
 ## Related
 

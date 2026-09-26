@@ -6,6 +6,9 @@
 package rfc
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"slices"
@@ -19,9 +22,10 @@ import (
 const minCorrectionQuote = 24
 
 var (
-	correctionOpenRE  = regexp.MustCompile(`^Correction\s+(\d{4}-\d{2}-\d{2})\s*:`)
-	correctionRIDRE   = regexp.MustCompile("`([A-Za-z0-9][A-Za-z0-9.\\-]*-\\d+)`")
-	correctionQuoteRE = regexp.MustCompile(`"([^"]+)"`)
+	correctionOpenRE    = regexp.MustCompile(`^(Correction|Retired)\s+(\d{4}-\d{2}-\d{2})\s*:`)
+	correctionRIDRE     = regexp.MustCompile("`([A-Za-z0-9][A-Za-z0-9.\\-]*-\\d+)`")
+	correctionQuoteRE   = regexp.MustCompile(`"([^"]+)"`)
+	correctionSectionRE = regexp.MustCompile(`§\s*([0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)`)
 )
 
 func requirementWhere(req Requirement) string {
@@ -50,14 +54,32 @@ func highWater(ids map[string]bool) map[string]int {
 // checkIDAllocation anchors new IDs to their citations and preserves allocated
 // IDs through citation corrections. The section encoded in a permanent ID also
 // keeps its original high-water mark, even when the citation changes.
-func checkIDAllocation(requirements []Requirement, baseline, unreadable map[string]bool, known bool) []string {
-	if !known {
-		return nil
-	}
-	marks := highWater(baseline)
+//
+// A retired id (retired, from retiredIDs) is refused wherever a row carries it,
+// including a row HEAD^ already held. The high-water mark alone cannot catch
+// it: the mark is derived from the ids HEAD^ holds, so retiring the highest
+// ordinal of a section lowers the mark, and the next commit could allocate
+// that id again. Only the retirement record still remembers it.
+func checkIDAllocation(requirements []Requirement, baseline, unreadable, retired map[string]bool, known bool) []string {
 	var errs []string
 	for _, req := range requirements {
+		if !retired[req.RID] {
+			continue
+		}
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(requirementWhere(req)).Str(": ").Str(req.RID).
+			Str(" reuses a retired id. A `Retired` paragraph in ").Str(correctionRel).Byte('/').Str(req.RFC).
+			Str(".md retired it, and a retired id is never allocated again: every test, extraction mapping and audit verdict that ever named it would silently point at a different obligation. Take the next free ordinal of the section").String())
+	}
+	if !known {
+		return errs
+	}
+	marks := highWater(baseline)
+	for _, req := range requirements {
 		if baseline[req.RID] || unreadable[req.RFC] {
+			continue
+		}
+		if retired[req.RID] {
 			continue
 		}
 		match := idRE.FindStringSubmatch(req.RID)
@@ -197,8 +219,14 @@ func checkEvidenceRatchet(requirements []Requirement, tags []Tag, enrolled map[s
 	return errs
 }
 
+// checkRetiredRequirements refuses an id of an enrolled RFC that HEAD^ held and
+// the summary no longer carries. The one accepted disappearance is an id in
+// retired (retiredIDs): a row no sentence of the RFC states, retired by a
+// dated paragraph that records the sections read (owner decision D-2,
+// 2026-09-26).
 func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
-	baselineEnrolled, stems, baselineStems map[string]bool, parseByStem map[string]string) []string {
+	baselineEnrolled, stems, baselineStems map[string]bool, parseByStem map[string]string,
+	retired map[string]bool) []string {
 	live := map[string]bool{}
 	for _, req := range requirements {
 		live[req.RID] = true
@@ -226,6 +254,9 @@ func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
 		if live[rid] {
 			continue
 		}
+		if retired[rid] {
+			continue
+		}
 		stem := ""
 		for _, candidate := range ordered {
 			if hasRIDStem(rid, candidate) {
@@ -238,7 +269,8 @@ func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(rid).Str(" was in rfc/short/").Str(stem).
-			Str(".md at ").Str(priorRevision).Str(" and is now gone. Requirement ids are permanent: deleting the line retires the obligation silently, which is exactly the move that makes a compliance claim rot. Restore the line (edit its TEXT under the same id if the wording was wrong), and annotate it if it is not met").String())
+			Str(".md at ").Str(priorRevision).Str(" and is now gone. Requirement ids are permanent: deleting the line retires the obligation silently, which is exactly the move that makes a compliance claim rot. Restore the line (edit its TEXT under the same id if the wording was wrong), and annotate it if it is not met. A row that no sentence of the RFC states is retired by a `Retired <YYYY-MM-DD>:` paragraph in ").
+			Str(correctionRel).Byte('/').Str(stem).Str(".md naming the id in backticks and every section read as §<n>, after its tags have moved (rfc/corrections/README.md)").String())
 	}
 	return errs
 }
@@ -268,6 +300,61 @@ func loadCorrections(tree, stem string) []correction {
 	return parseCorrections(string(text))
 }
 
+// retires reports whether this paragraph retires rid: a `Retired` paragraph
+// that names the id in backticks and records at least one section read. No
+// quote is asked for, because the row is retired for having no sentence to
+// quote; the § references are the record of the search that found none.
+func (c *correction) retires(rid string) bool {
+	if c.Kind != correctionRetirement {
+		return false
+	}
+	if len(c.Sections) == 0 {
+		return false
+	}
+	return slices.Contains(c.RIDs, rid)
+}
+
+// retiredIDs reads every rfc/corrections/<stem>.md of the tree and answers the
+// ids a retirement paragraph there retires. An id counts only from the record
+// of its own stem, so a paragraph filed under another RFC retires nothing. An
+// absent directory is no retirement; any other read failure is an error,
+// because an unread record would turn every retirement into a refusal and,
+// worse, every retired id back into a free one.
+func retiredIDs(tree string) (map[string]bool, error) {
+	retired := map[string]bool{}
+	entries, err := os.ReadDir(treePath(tree, correctionRel))
+	if errors.Is(err, fs.ErrNotExist) {
+		return retired, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", correctionRel, err)
+	}
+	for _, entry := range entries {
+		stem, isRecord := strings.CutSuffix(entry.Name(), ".md")
+		if !isRecord {
+			continue
+		}
+		if entry.IsDir() {
+			continue
+		}
+		if stem == "README" {
+			continue
+		}
+		text, err := os.ReadFile(treePath(tree, correctionRel, entry.Name())) // #nosec G304 -- a record under the checkout
+		if err != nil {
+			return nil, fmt.Errorf("read %s/%s: %w", correctionRel, entry.Name(), err)
+		}
+		for _, correction := range parseCorrections(string(text)) {
+			for _, rid := range correction.RIDs {
+				if hasRIDStem(rid, stem) && correction.retires(rid) {
+					retired[rid] = true
+				}
+			}
+		}
+	}
+	return retired, nil
+}
+
 func parseCorrections(text string) []correction {
 	lines := strings.Split(text, "\n")
 	var out []correction
@@ -287,12 +374,18 @@ func parseCorrections(text string) []correction {
 		open := correctionOpenRE.FindStringSubmatch(body[0])
 		if open != nil {
 			joined := strings.Join(body, " ")
-			correction := correction{Date: open[1], Line: start + 1}
+			correction := correction{Kind: correctionLevel, Date: open[2], Line: start + 1}
+			if open[1] == "Retired" {
+				correction.Kind = correctionRetirement
+			}
 			for _, match := range correctionRIDRE.FindAllStringSubmatch(joined, -1) {
 				correction.RIDs = append(correction.RIDs, match[1])
 			}
 			for _, match := range correctionQuoteRE.FindAllStringSubmatch(joined, -1) {
 				correction.Quotes = append(correction.Quotes, match[1])
+			}
+			for _, match := range correctionSectionRE.FindAllStringSubmatch(joined, -1) {
+				correction.Sections = append(correction.Sections, match[1])
 			}
 			out = append(out, correction)
 		}
@@ -306,6 +399,9 @@ func squashWhitespace(text string) string { return strings.Join(strings.Fields(t
 func correctionAuthorizes(rid string, corrections []correction, source string) bool {
 	haystack := quoteHaystack(source)
 	for _, correction := range corrections {
+		if correction.Kind != correctionLevel {
+			continue
+		}
 		named := false
 		for _, one := range correction.RIDs {
 			if one == rid {

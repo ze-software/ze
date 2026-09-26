@@ -385,3 +385,23 @@ func TestQuoteBackfillRefusesStemOutsideSummaries(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: owner decision D-1 in the backfill -- a row in a stem with no numbered heading
+// is judged against the whole text, so its unnumbered citation no longer sends it to review
+// as unresolved-anchor; the same citation over a text with a heading still does.
+// METHOD: one row and one sentence, judged over the text with and without a heading.
+func TestQuoteBackfillWholeTextAnchorsUnnumberedStem(t *testing.T) {
+	const sentence = "A speaker MUST send the widget to every peer."
+	req := &Requirement{RFC: selftestStem, RID: "RFC9999-Echo-1", Level: levelMust,
+		Text: "A speaker MUST send widgets to all peers (§Echo)", Section: "Echo"}
+	for _, tc := range []struct {
+		name, source, want string
+	}{
+		{"unnumbered", "Test RFC 9999\n\nEcho\n\n    " + sentence + "\n", ""},
+		{"numbered", "Test RFC 9999\n\n2.  Echo\n\n    " + sentence + "\n", backfillNoAnchor},
+	} {
+		if kind, reason := backfillPairRefusal(req, sentence, newQuoteSource(tc.source)); kind != tc.want {
+			t.Errorf("%s: kind %q (%s), want %q", tc.name, kind, reason, tc.want)
+		}
+	}
+}

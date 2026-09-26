@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Handoff | - |
 | Updated | 2026-09-26 |
 
@@ -102,6 +102,8 @@ names the rows.
 | D-1 | In a stem with no numbered heading at all, the whole text is one citable section. A stem that has numbered sections still refuses a citation of the front matter |
 | D-2 | A row that no RFC sentence states is retired through a dated paragraph in `rfc/corrections/<stem>.md`. That paragraph says why no sentence states the row. The tags move off it first, and the id is never reused |
 | D-4 | Design approved. In every stem, a second agent that did not do the quoting re-derives a blind 10% sample, with at least one row. Any disagreement sends the whole stem back to be read again. No tool proposes a candidate sentence |
+| D-5 | rfc905 has numbered headings indented five spaces, which the column-0 `sectionHeadingRE` misses, so D-1 would have made it a whole-text stem. The heading detector instead learns indented headings for a text with no column-0 heading, so rfc905 gets real sections. Its inventory site ids and extraction artifact change and are re-walked in phase 1 |
+| D-5a | Main-thread call (2026-09-26), inside D-5. rfc905 rows that cite "(Annex B.N)" parse to section `x` (`sectionRE`, `summary.go`), so they are unresolved-anchor now that rfc905 has sections. They are rewritten to cite §B.N in the quoting phases, like the other 257 `x` rows. `sectionRE` does not learn "Annex", because that would change row parsing across the whole corpus for seven rows |
 | D-3 | A row backed only by prose without an RFC 2119 keyword, or by a lowercase "must", is quoted verbatim and keeps its level. The level changes only when the sentence carries a different 2119 keyword. A demotion from MUST carries its correction paragraph |
 
 ## Required Reading
@@ -191,6 +193,7 @@ Summary file, then RFC text, then `./le rfc check` violations and JSON (`unquote
 | R-5 | a level demotion from MUST owes a correction paragraph and changes the ledger's MUST count | `checkLevelRatchet` refusal | the correction paragraph quotes the sentence and lands in the same commit; the per-stem table records the count of level changes |
 | R-6 | a retired row drops tags, an extraction mapping, or an audit verdict that still names it | "unknown RFC requirement" (`check_core.go:evaluate`); `signoff.go` refusing a `mapped-to` or `unsourced-ids` entry that names a missing id; `checkAuditSchema` refusing a verdict on a missing id | the retire commit moves the tags to the row that states the obligation, or deletes a tag whose only claim was the fabricated row. It also drops the id from the extraction and the audit file, and D-2's correction paragraph names each move |
 | R-7 | an R-7 re-read finds a test that proves less than its sentence, and the fix is a code change, not a test change | the audit verdict is `wrong` or `unimplemented` | the verdict is recorded and disclosed on the status page (`checkAuditDisclosure`). A defect in an implemented capability is fixed under `ai/rules/completion.md`; an absent feature is recorded as a gap (`ai/rules/rfc-compliance.md`). The spec stays open until each one has a home |
+| R-9 | a retired id is remembered only by its `Retired` paragraph, so deleting that paragraph frees the id again, and no ratchet guards `rfc/corrections` | a `Retired` paragraph present at `HEAD^` and gone at HEAD | found in phase 1b (2026-09-26). The retirement records are reviewed in each stem commit; a ratchet on the paragraphs is recorded as a journal row, not built here |
 | R-8 | the row-count figures shift under other sessions (3706 in the skeleton, 3672 measured; 1821 in the backfill commit message, 1855 measured) | the phase-start dry run disagrees with the figure in this spec | each phase starts from a fresh dry run; the spec's figures are a baseline, and AC-1 is the end condition, not a count |
 
 ## Blast Radius

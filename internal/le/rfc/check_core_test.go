@@ -24,7 +24,7 @@ func TestFeatureDeclinedQuoteAcrossPageBreak(t *testing.T) {
 		t.Errorf("a feature-declined quote across a page break was refused: %v", errs)
 	}
 
-	corrections := []correction{{RIDs: []string{"RFC9999-2-1"}, Quotes: []string{sentence}}}
+	corrections := []correction{{Kind: correctionLevel, RIDs: []string{"RFC9999-2-1"}, Quotes: []string{sentence}}}
 	if !correctionAuthorizes("RFC9999-2-1", corrections, quoteFixtureSource) {
 		t.Error("a correction quoting a sentence across a page break did not authorize")
 	}

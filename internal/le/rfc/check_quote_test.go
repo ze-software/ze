@@ -312,3 +312,126 @@ func TestCheckQuoteMatchIsCaseSensitive(t *testing.T) {
 		}
 	}
 }
+
+// unnumberedFixtureSource is an RFC text with no numbered or lettered heading at all, at
+// column 0 or at its margin: the shape of RFC 792, RFC 1997 and the TFTP options.
+const unnumberedFixtureSource = "Test RFC 9999\n\nWidgets\n\n" +
+	"   A speaker MUST send the widget. A receiver MUST NOT drop the widget.\n"
+
+// wholeTextRows are the rows both D-1 tests add: one citing an unnumbered title, and one
+// citing no section at all. Both quote a sentence of the text verbatim.
+var wholeTextRows = []string{
+	"- [ ] [RFC9999-Widgets-1] [SHOULD] A receiver MUST NOT drop the widget. (§Widgets)",
+	"- [ ] [RFC9999-x-1] [SHOULD] A receiver MUST NOT drop the widget.",
+}
+
+// wholeTextFixtureBase is the base corpus over source, with an extraction sign-off that maps
+// the first site of the front matter to the fixture's one MUST row. The shared fixture maps
+// site "2:1", which a text without headings does not have, so without this the sign-off
+// would be the only violation either D-1 test answers.
+func wholeTextFixtureBase(t *testing.T, source string) map[string]string {
+	t.Helper()
+
+	scratch := checkFixtureTree(t, map[string]string{selftestSourceRel: source})
+	inventory, err := NewDeriver(scratch).Inventory(selftestStem, 1)
+	if err != nil || inventory == nil {
+		t.Fatalf("derive the fixture inventory: %v", err)
+	}
+	document := extractionSelftestArtifact(inventory)
+	sites, isSites := document[keySites].([]map[string]any)
+	if !isSites {
+		t.Fatalf("the selftest artifact holds %T sites", document[keySites])
+	}
+	for i, site := range sites {
+		if site["id"] == frontSection+":1" {
+			sites[i] = map[string]any{"id": site["id"], keyQuote: site[keyQuote],
+				keyDisposition: DispositionMapped, "mapped-to": selftestRIDSend}
+		}
+	}
+	artifact, err := marshalSelftestJSON(document)
+	if err != nil {
+		t.Fatalf("marshal the fixture artifact: %v", err)
+	}
+	base := fixtureCorpus()
+	base[selftestSourceRel] = source
+	base[checkFixtureExtractionRel] = artifact
+	return base
+}
+
+// VALIDATES: AC-4 accept, owner decision D-1 -- in a stem whose RFC text has no numbered
+// heading, the whole text is one citable section, so a verbatim row passes whatever section
+// it cites, an unnumbered title or none.
+// METHOD: the base commit holds the unnumbered RFC text; the tip adds the two rows, and the
+// tree is checked out detached as `./le verify worktree` does.
+func TestCheckAcceptsWholeTextQuoteInUnnumberedStem(t *testing.T) {
+	base := wholeTextFixtureBase(t, unnumberedFixtureSource)
+	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(wholeTextRows...)}, nil)
+	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+	if report, code := Check(root); code != 0 {
+		t.Fatalf("verbatim rows in a stem with no numbered heading answered %d:\n%s", code, report.Text())
+	}
+}
+
+// VALIDATES: AC-4 refuse, owner decision D-1 -- a stem that has a numbered heading keeps
+// refusing a citation that names none of its headings, even when the quote is verbatim in
+// the front matter before the first heading.
+// METHOD: the same rows as the accept test, over the same sentences followed by one numbered
+// heading, so the only difference between the two trees is that heading.
+func TestCheckRefusesFrontCitationInNumberedStem(t *testing.T) {
+	base := wholeTextFixtureBase(t, unnumberedFixtureSource+"\n1.  Introduction\n\n   This document describes widgets.\n")
+	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(wholeTextRows...)}, nil)
+	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+	report, code := Check(root)
+	if code != 2 {
+		t.Fatalf("front-matter citations in a numbered stem answered %d:\n%s", code, report.Text())
+	}
+	for _, rid := range []string{"RFC9999-Widgets-1", "RFC9999-x-1"} {
+		refused := false
+		for _, violation := range report.Violations {
+			if strings.Contains(violation, rid) && strings.Contains(violation, "unresolved anchor") {
+				refused = true
+			}
+		}
+		if !refused {
+			t.Errorf("no unresolved-anchor refusal names %s:\n%s", rid, report.Text())
+		}
+	}
+}
+
+// indentedFixtureSource is the selftest RFC laid out as RFC 905 is: no heading at column 0,
+// every heading indented to the body margin.
+const indentedFixtureSource = "Test RFC 9999\n\n" +
+	"     1  Introduction\n\n" +
+	"     This document describes widgets.\n\n" +
+	"     2  Widgets\n\n" +
+	"     A speaker MUST send the widget. A receiver MUST NOT drop the widget.\n"
+
+// VALIDATES: owner decision D-5 -- a stem whose headings are all indented has real sections,
+// so D-1's whole-text reading does not apply to it: a verbatim row citing the section it is
+// in passes, and a row citing a section the text does not have is refused as an unresolved
+// anchor, whereas a whole-text stem would have accepted it.
+// METHOD: the base commit holds the indented RFC text; the tip adds one row citing §2 and
+// one citing §7, both quoting a sentence of section 2 verbatim, checked out detached.
+func TestCheckRefusesMissingSectionInIndentedStem(t *testing.T) {
+	base := wholeTextFixtureBase(t, indentedFixtureSource)
+	root := commitFixtureTip(t, base, map[string]string{selftestSummaryRel: quoteFixtureSummary(
+		"- [ ] [RFC9999-2-3] [SHOULD] A receiver MUST NOT drop the widget. (§2)",
+		"- [ ] [RFC9999-7-1] [SHOULD] A receiver MUST NOT drop the widget. (§7)")}, nil)
+	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+	report, code := Check(root)
+	if code != 2 {
+		t.Fatalf("a citation of a section the indented text lacks answered %d:\n%s", code, report.Text())
+	}
+	refused := false
+	for _, violation := range report.Violations {
+		if strings.Contains(violation, "RFC9999-2-3") {
+			t.Errorf("the row citing the section it is in was refused: %s", violation)
+		}
+		if strings.Contains(violation, "RFC9999-7-1") && strings.Contains(violation, "unresolved anchor") {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Errorf("no unresolved-anchor refusal names RFC9999-7-1:\n%s", report.Text())
+	}
+}

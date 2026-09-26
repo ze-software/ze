@@ -63,3 +63,90 @@ func TestAnAbsentCorrectionRecordIsNotAnError(t *testing.T) {
 		t.Fatalf("an absent record answered %v, want nothing", got)
 	}
 }
+
+// retirementParagraph is the shape checkRetiredRequirements accepts: the
+// dated opener, the id in backticks, and the sections read, as § references.
+const retirementParagraph = "Retired 2026-09-26: `RFC9999-2-3` states no obligation RFC 9999 carries.\n" +
+	"Read §2 and §3, then the whole text: no sentence says a speaker counts widgets.\n" +
+	"It carried no tag.\n"
+
+// VALIDATES: D-2 -- a retirement paragraph retires the id it names, and a
+// malformed one retires nothing.
+// PREVENTS: the retirement route turning into a silent delete. A paragraph
+// with no date, no backticked id or no section reference records no search,
+// and a paragraph that names a neighbor says nothing about this row.
+func TestARetirementParagraphRetiresOnlyWhatItNames(t *testing.T) {
+	for _, one := range []struct {
+		name    string
+		text    string
+		retires bool
+	}{
+		{"well formed", retirementParagraph, true},
+		{"quoted, after a blank line", "\n> Retired 2026-09-26: `RFC9999-2-3` read §2.1.\n", true},
+		{"no date", "Retired: `RFC9999-2-3` read §2 and §3.\n", false},
+		{"malformed date", "Retired 26-09-2026: `RFC9999-2-3` read §2 and §3.\n", false},
+		{"no backticked id", "Retired 2026-09-26: RFC9999-2-3 read §2 and §3.\n", false},
+		{"no section reference", "Retired 2026-09-26: `RFC9999-2-3` read the whole text.\n", false},
+		{"a neighbor", "Retired 2026-09-26: `RFC9999-2-2` read §2 and §3.\n", false},
+		{"a longer id sharing the prefix", "Retired 2026-09-26: `RFC9999-2-33` read §2.\n", false},
+		{"a level correction", "Correction 2026-09-26: `RFC9999-2-3` read §2: \"A speaker SHOULD count widgets\".\n", false},
+		{"opener not first", "Note.\nRetired 2026-09-26: `RFC9999-2-3` read §2.\n", false},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			retires := false
+			for _, correction := range parseCorrections(one.text) {
+				retires = retires || correction.retires("RFC9999-2-3")
+			}
+			if retires != one.retires {
+				t.Fatalf("%q retires RFC9999-2-3: %v, want %v", one.text, retires, one.retires)
+			}
+		})
+	}
+}
+
+// VALIDATES: D-2 -- a retirement never authorizes a level demotion, even
+// when it quotes the RFC.
+// PREVENTS: one paragraph doing both jobs, so a demotion recorded as a
+// retirement would pass checkLevelRatchet with no correction ever written.
+func TestARetirementDoesNotAuthorizeALevelCorrection(t *testing.T) {
+	const quote = "A speaker SHOULD send the widget when it can"
+	text := "Retired 2026-09-26: `RFC9999-2-1` read §2: \"" + quote + "\".\n"
+	if correctionAuthorizes("RFC9999-2-1", parseCorrections(text), quote+".\n") {
+		t.Fatal("a Retired paragraph authorized a level correction")
+	}
+	level := "Correction 2026-09-26: `RFC9999-2-1` read §2: \"" + quote + "\".\n"
+	if !correctionAuthorizes("RFC9999-2-1", parseCorrections(level), quote+".\n") {
+		t.Fatal("the matching Correction paragraph no longer authorizes the demotion")
+	}
+}
+
+// VALIDATES: D-2 -- retiredIDs takes an id only from the record of its own
+// stem, skips the README, and treats an absent directory as no retirement.
+// PREVENTS: a paragraph filed under the wrong RFC retiring a row of another,
+// and the README's worked example retiring the fixture id it shows.
+func TestRetiredIDsReadsOnlyTheOwnStemRecord(t *testing.T) {
+	if got, err := retiredIDs(t.TempDir()); err != nil || len(got) != 0 {
+		t.Fatalf("an absent record directory answered %v, %v; want no retirement and no error", got, err)
+	}
+	tree := t.TempDir()
+	dir := filepath.Join(tree, correctionRel)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("the fixture directory: %v", err)
+	}
+	for name, body := range map[string]string{
+		"rfc9999.md": retirementParagraph,
+		"rfc9998.md": "Retired 2026-09-26: `RFC9999-2-1` read §2.\n",
+		"README.md":  "Retired 2026-09-26: `RFC9999-2-2` read §2.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("the fixture record %s: %v", name, err)
+		}
+	}
+	got, err := retiredIDs(tree)
+	if err != nil {
+		t.Fatalf("read the records: %v", err)
+	}
+	if len(got) != 1 || !got["RFC9999-2-3"] {
+		t.Fatalf("retired %v, want only RFC9999-2-3 from rfc9999.md", got)
+	}
+}

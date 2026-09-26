@@ -544,14 +544,33 @@ func (s RollupState) String() string {
 	}
 }
 
-// correction is one `correction <date>:` paragraph in a summary: the recorded
+// correctionKind says which change a paragraph of rfc/corrections/<stem>.md
+// authorizes. The zero value authorizes nothing, so a paragraph whose opener
+// was not recognized can never pass as either kind.
+type correctionKind uint8
+
+const (
+	// The zero value is no kind, so an unrecognized opener authorizes nothing.
+	_ correctionKind = iota
+	// correctionLevel opens with `Correction <date>:` and authorizes a row
+	// leaving the gated level population (checkLevelRatchet).
+	correctionLevel
+	// correctionRetirement opens with `Retired <date>:` and authorizes an
+	// enrolled id disappearing from its summary (checkRetiredRequirements).
+	correctionRetirement
+)
+
+// correction is one dated paragraph of rfc/corrections/<stem>.md: the recorded
 // authorisation for a change to the rows it names. Quotes holds every
-// double-quoted span in the paragraph, unverified.
+// double-quoted span in the paragraph and Sections every § reference, both
+// unverified: the check that consumes the paragraph judges them.
 type correction struct {
-	Date   string   `json:"date"`
-	RIDs   []string `json:"rids"`
-	Quotes []string `json:"quotes"`
-	Line   int      `json:"line"`
+	Kind     correctionKind `json:"kind"`
+	Date     string         `json:"date"`
+	RIDs     []string       `json:"rids"`
+	Quotes   []string       `json:"quotes"`
+	Sections []string       `json:"sections"`
+	Line     int            `json:"line"`
 }
 
 // Tag is one `RFC requirement: <ID> <polarity>` comment found in a test.

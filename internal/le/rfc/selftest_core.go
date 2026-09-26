@@ -350,7 +350,7 @@ var Gating = []string{suiteParse, suiteUI}
 	req := Requirement{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Section: "2", Source: selftestSummaryRel, Line: 5}
 	enrolled := map[string]bool{selftestStem: true}
 	baselineEnrolled := map[string]bool{selftestStem: true}
-	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true}, nil, true)
+	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true}, nil, nil, true)
 	coverageLoss := checkCoverageRatchet(
 		[]Requirement{req}, nil, enrolled,
 		map[string]map[string]bool{req.RID: {PolarityNegative: true}}, baselineEnrolled,
@@ -362,7 +362,7 @@ var Gating = []string{suiteParse, suiteUI}
 	retired := checkRetiredRequirements(
 		[]Requirement{req}, enrolled,
 		map[string]bool{req.RID: true, selftestRIDDrop: true}, baselineEnrolled,
-		map[string]bool{selftestStem: true}, map[string]bool{selftestStem: true}, map[string]string{},
+		map[string]bool{selftestStem: true}, map[string]bool{selftestStem: true}, map[string]string{}, nil,
 	)
 	demoted := req
 	demoted.Level = levelShould

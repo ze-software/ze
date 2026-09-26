@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -86,6 +87,24 @@ func reBoilerplate() string {
 // to prevent one -- see sectionBodies.
 var sectionHeadingRE = regexp.MustCompile(
 	`^(?:Appendix\s+)?(?:(\d+(?:\.\d+)*)\.?|([A-Z](?:\.\d+)*)\.)[ \t]+(\S.*)$`)
+
+// indentedHeadingRE matches a heading once the body margin is cut off its line,
+// in a text where sectionHeadingRE finds nothing (owner decision D-5,
+// 2026-09-26). RFC 905 is the case: its clauses are numbered at the same
+// five-space margin as its prose. Because a heading there shares the margin
+// with every other line, the shape is narrower than the column-0 one: a number
+// with no trailing dot, because "1.  When ..." is how such a text numbers the
+// notes inside a clause; two blanks, because a justified line wrapped at a
+// number has one; and a title that starts with a letter, which a diagram ruler
+// does not. An annex is "ANNEX B - TITLE", and its clauses are "B.1  TITLE".
+// A clause with no title ("1.3" alone on its line) is dotted, so a bare page
+// number is not read as one.
+var indentedHeadingRE = regexp.MustCompile(
+	`^(?:(?:ANNEX|Annex|Appendix)[ \t]+([A-Z])\b[ \t]*(.*)|(\d+(?:\.\d+)*|[A-Z](?:\.\d+)+)[ \t]{2,}([A-Za-z].*)|(\d+(?:\.\d+)+)[ \t]*)$`)
+
+// tocLeaderRE matches a table-of-contents line: dot leaders then a page number,
+// arabic or roman. indentedHeadings reads no heading in a paragraph holding one.
+var tocLeaderRE = regexp.MustCompile(`\.{3,}[ \t]*\S+[ \t]*$`)
 
 // pageFooterRE matches the "[Page N]" furniture that would otherwise land
 // inside any quote whose sentence crosses a page boundary.
@@ -245,7 +264,14 @@ type sectionBody struct {
 	body string
 }
 
-// sectionBodies answers every section, with a leading front entry.
+// sectionBodies answers every section, with a leading front entry. It is the
+// one heading derivation: the site inventory (sitesFor) and the row quote check
+// (newQuoteSource) both cut the text here.
+//
+// The reading is chosen once for the whole text. A text with any column-0
+// heading is read at column 0 only, so its sections and site ids are the ones
+// it always had. A text with none is read at its body margin (indentedHeadings,
+// owner decision D-5).
 //
 // Every id appears EXACTLY ONCE and every input line lands in exactly one body.
 // Both are load-bearing, because the heading pattern over-matches:
@@ -259,19 +285,21 @@ type sectionBody struct {
 // parser refuses, and each body would restart the per-section site counter at
 // 1, so both would produce a site "7:1" and one would silently disappear.
 func sectionBodies(text string) []sectionBody {
+	lines := strings.Split(text, "\n")
+	heading := columnZeroHeading
+	if !hasColumnZeroHeading(lines) {
+		heading = indentedHeadings(lines)
+	}
 	order := []string{frontSection}
 	bodies := map[string][]string{frontSection: {}}
 	current := frontSection
-	for line := range strings.SplitSeq(text, "\n") {
-		found := sectionHeadingRE.FindStringSubmatch(line)
-		if found == nil {
+	for at, line := range lines {
+		id, title, found := heading(lines, at)
+		if !found {
 			bodies[current] = append(bodies[current], line)
 			continue
 		}
-		current = found[1]
-		if current == "" {
-			current = found[2]
-		}
+		current = id
 		if _, seen := bodies[current]; !seen {
 			order = append(order, current)
 			bodies[current] = []string{}
@@ -280,13 +308,126 @@ func sectionBodies(text string) []sectionBody {
 			// than a continuation of a sentence written elsewhere.
 			bodies[current] = append(bodies[current], "")
 		}
-		bodies[current] = append(bodies[current], found[3], "")
+		bodies[current] = append(bodies[current], title, "")
 	}
 	out := make([]sectionBody, 0, len(order))
 	for _, id := range order {
 		out = append(out, sectionBody{id: id, body: strings.Join(bodies[id], "\n")})
 	}
 	return out
+}
+
+// headingReader answers whether lines[at] opens a section, and its id and
+// title when it does.
+type headingReader func(lines []string, at int) (string, string, bool)
+
+// hasColumnZeroHeading answers whether any line matches sectionHeadingRE. One
+// such line decides the reading of the whole text, so a text that has always
+// been cut at column 0 keeps every site id it had.
+func hasColumnZeroHeading(lines []string) bool {
+	return slices.ContainsFunc(lines, sectionHeadingRE.MatchString)
+}
+
+// columnZeroHeading reads lines[at] by sectionHeadingRE alone.
+func columnZeroHeading(lines []string, at int) (string, string, bool) {
+	found := sectionHeadingRE.FindStringSubmatch(lines[at])
+	if found == nil {
+		return "", "", false
+	}
+	if found[1] != "" {
+		return found[1], found[3], true
+	}
+	return found[2], found[3], true
+}
+
+// indentedHeadings answers the reader for a text with no column-0 heading. A
+// heading there is a line at the body margin that indentedHeadingRE matches,
+// with two more conditions, because at the margin a heading has the shape of
+// other lines:
+//
+//   - It begins a paragraph. A justified line inside a paragraph can start
+//     with a clause number and two blanks ("12.2.3.8.4  are  optional ...",
+//     RFC 905), and read as a heading it would cut the paragraph in two.
+//   - Its paragraph holds no table-of-contents line, one ending in dot leaders
+//     and a page number. Read as headings, the contents would open every
+//     section in contents order and hand the introduction that follows them
+//     to the last entry. The paragraph, not the line, because a long entry
+//     wraps and only its last line carries the leaders.
+func indentedHeadings(lines []string) headingReader {
+	margin := bodyMargin(lines)
+	contents := make([]bool, len(lines))
+	for first := 0; first < len(lines); {
+		last := first
+		for last < len(lines) && strings.TrimSpace(lines[last]) != "" {
+			last++
+		}
+		listed := false
+		for at := first; at < last; at++ {
+			if tocLeaderRE.MatchString(lines[at]) {
+				listed = true
+			}
+		}
+		for at := first; at < last; at++ {
+			contents[at] = listed
+		}
+		first = last + 1
+	}
+	return func(lines []string, at int) (string, string, bool) {
+		if contents[at] {
+			return "", "", false
+		}
+		if at > 0 && strings.TrimSpace(lines[at-1]) != "" {
+			return "", "", false
+		}
+		return marginHeading(lines[at], margin)
+	}
+}
+
+// marginHeading reads line as a heading written at the body margin, answering
+// its id and title. A line indented more or less than the margin is body text,
+// which keeps a label in a diagram or a table out of the section list.
+func marginHeading(line string, margin int) (string, string, bool) {
+	if len(line) <= margin {
+		return "", "", false
+	}
+	if strings.TrimLeft(line[:margin], " ") != "" {
+		return "", "", false
+	}
+	if line[margin] == ' ' {
+		return "", "", false
+	}
+	found := indentedHeadingRE.FindStringSubmatch(line[margin:])
+	if found == nil {
+		return "", "", false
+	}
+	if found[1] != "" {
+		return found[1], found[2], true
+	}
+	if found[3] != "" {
+		return found[3], found[4], true
+	}
+	return found[5], "", true
+}
+
+// bodyMargin answers the indentation, in leading spaces, that more non-blank
+// lines share than any other, the smaller on a tie. In RFC 905 that is the
+// five spaces its prose and its headings are both written at.
+func bodyMargin(lines []string) int {
+	counts := map[int]int{}
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " ")
+		if strings.TrimSpace(trimmed) == "" {
+			continue
+		}
+		counts[len(line)-len(trimmed)]++
+	}
+	margin, most := 0, 0
+	for indent, count := range counts {
+		if count > most || (count == most && indent < margin) {
+			margin, most = indent, count
+		}
+	}
+	return margin
 }
 
 // quoteHaystack is the ONE text a quote is matched against: the source with its
@@ -310,9 +451,17 @@ type quoteSource struct {
 	sections []sectionBody
 }
 
+// wholeText answers whether the RFC has no heading under either reading
+// sectionBodies makes, so its front matter is its whole text. Owner decision D-1 (2026-09-26): such a
+// text is one citable section, because a row has no numbered section to cite.
+// RFC 792, RFC 1997 and the TFTP option RFCs are written this way.
+func (q *quoteSource) wholeText() bool {
+	return len(q.sections) == 1
+}
+
 // newQuoteSource cuts the RAW source into sections and builds each body's
 // haystack by quoteHaystack. Cutting first is safe because no page footer or
-// running header matches sectionHeadingRE, and a page break landing between two
+// running header is read as a heading, and a page break landing between two
 // sections leaves its furniture in the earlier body, where quoteHaystack strips
 // it.
 func newQuoteSource(source string) *quoteSource {
@@ -328,7 +477,16 @@ func newQuoteSource(source string) *quoteSource {
 // resolves to "3"). The second result is false when no heading answers, and the
 // caller MUST refuse the anchor: a whole-document fallback would let a quote
 // pass under a section that does not exist.
+//
+// A text with no heading at all is the one exception, and it is not a
+// fallback: every citation resolves to its single section, the front matter,
+// because there is no section for the citation to be wrong about. A text with
+// one heading or more never reaches this branch, so its front matter stays
+// uncitable.
 func (q *quoteSource) resolve(cited string) (string, bool) {
+	if q.wholeText() {
+		return frontSection, true
+	}
 	if cited == noSection {
 		return "", false
 	}
@@ -344,8 +502,9 @@ func (q *quoteSource) resolve(cited string) (string, bool) {
 	}
 }
 
-// has answers whether a section of this id exists. The front matter is not a
-// section a row can cite, so it never answers.
+// has answers whether a section of this id exists. The front matter of a text
+// with headings is not a section a row can cite, so it never answers; resolve
+// handles the text that has no heading before asking.
 func (q *quoteSource) has(id string) bool {
 	if id == frontSection {
 		return false
