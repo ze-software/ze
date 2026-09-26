@@ -103,7 +103,11 @@ func storageHistoryRollback(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	at := time.Date(2026, 9, 26, 10, 0, 0, 0, time.Local)
+	// History lists newest first, and each rollback first backs up the
+	// current config stamped with the wall clock. Both versions sit in the
+	// past, so that backup always sorts first and the revision numbers below
+	// never depend on the time of day the test runs.
+	at := time.Now().Add(-48 * time.Hour).Truncate(time.Second)
 	err = errors.Join(
 		store.WriteVersion("router.conf", older, at),
 		store.WriteVersion("router.conf", newer, at.Add(time.Hour)),
@@ -143,7 +147,9 @@ func storageHistoryRollback(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	output, err = storageCommand(ctx, "", "config", "rollback", "2", "router.conf")
+	// The first rollback backed up 10.0.0.3 as revision 1, so the newer
+	// version is revision 2 and the older one is revision 3.
+	output, err = storageCommand(ctx, "", "config", "rollback", "3", "router.conf")
 	if err == nil {
 		return fmt.Errorf("rollback restored a version whose object does not hash to its name\n%s", output)
 	}
