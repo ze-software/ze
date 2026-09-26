@@ -359,7 +359,7 @@ func removeVersionLocked(store Storage, guard WriteGuard, configPath, stamp stri
 		return false, fmt.Errorf("remove config version %s: %w", stamp, err)
 	}
 	if digestErr != nil {
-		return true, nil
+		return true, nil //nolint:nilerr // the entry is deleted; a malformed value names no object to sweep
 	}
 	return true, sweepObject(guard, digest)
 }

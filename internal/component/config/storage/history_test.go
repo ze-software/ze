@@ -99,7 +99,8 @@ func (r recordingAccess) WriteFile(key string, data []byte, mode fs.FileMode) er
 // and never a dangling entry.
 func TestWriteVersionObjectFirst(t *testing.T) {
 	dir := t.TempDir()
-	s := newTreeStorage(t, dir).(*store)
+	s, ok := newTreeStorage(t, dir).(*store)
+	require.True(t, ok, "tree storage is not *store")
 	g, err := s.acquire()
 	require.NoError(t, err)
 	var writes []string

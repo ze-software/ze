@@ -2197,8 +2197,10 @@ ze data encode [--crc|--header] [--cap N] <string|->
 Without it, commands use `database/` under the configured directory.
 Data commands never initialize a missing live store.
 
-`check` verifies every frame and names corrupt keys. It then walks config
-history, where each dated entry `file/<stamp>/<name>` holds `sha256:<hex>` and
+`check` verifies every frame and names corrupt keys. A corrupt frame exits `1`
+before the history walk, because a frame that does not read cannot be told
+apart from a missing one: run `repair`, then `check` the output. With every frame
+intact, it walks config history, where each dated entry `file/<stamp>/<name>` holds `sha256:<hex>` and
 the bytes live once under `object/<hex>`. Each finding is one row,
 `<severity>: <kind>: <key>: <detail>`:
 

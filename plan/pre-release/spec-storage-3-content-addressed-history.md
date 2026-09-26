@@ -519,3 +519,100 @@ Design documents declared by the `// Design:` headers of files in scope:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `history.go`: `writeVersionObject` (object before entry, an existing object verified), `readVersionEntry` and `verifyObject` (hash verified on every read), `entryDigest` (strict `sha256:` plus 64 lowercase hex), `sweepObject` (deletes an object only when no dated entry of any name names it), `objectsFirst`, `ReadVersionEntry`.
+- `history_check.go`: `CheckHistory` and `RepairHistory` over one walk (`inspectHistory`) that fails closed on an unreadable key, wired into `ze data check` and `ze data repair` (`cmd_integrity.go`) and `ze doctor` (`checkStoreHistory`).
+- `store.go`: `ReadVersion` on both encodings, and the guard's `WriteKey` and `RemoveKey`. `pointer.go`: `ErrActiveUnresolved`, `removeVersionLocked` reports a real deletion before the sweep, recovery-aware `PromoteCandidate` (`preserveRollback`).
+- Readers moved to `ReadVersion`: `stamp.go`, `editor.go`, `cmd_diff.go`, `web/cli_terminal.go`. `pkg/zefs/keys.go` registers `object/{hex}`. Hub startup logs the rebuild (`initializeConfigSource`).
+
+### Bugs Found/Fixed
+- Closure review: `ze data check` exited 2 ("the check could not run") on a tree whose history frame was corrupt. `cmdCheck` walked history after the frame check had found the corruption, and the walk refuses a key it cannot read. `cmdCheck` now answers exit 1 from the frame verdict before the walk. Test: `TestCheckCorruptHistoryFrameIsCorruption` (tree RED with exit 2 before the fix, GREEN after; blob GREEN both ways, because the blob reports a container error first).
+- Implement agent 3: `inspectHistory` skipped an unreadable key, so repair could drop history whose object was present. Test: `TestInspectHistoryRefusesUnreadableKey`.
+
+### Documentation Updates
+- `docs/architecture/storage-backends.md` (content-addressed history section, `CheckHistory` row; closure added the check-order sentence), `docs/architecture/zefs-format.md` (`object/` namespace), `docs/guide/command-reference.md` (`ze data check` kinds and exits; closure added the corrupt-frame sentence), `docs/guide/operations.md`, `docs/guide/status.md`, `docs/features.md`, `ai/INDEX.md`, `ai/CODE-TO-DOCS.md`. Each claim carries its `<!-- source: -->` anchor.
+- `./le site build` and the wiki catalog: not owed. The catalog lists the `show data registered` command, not the key patterns it prints, so the new `object/{hex}` pattern changes no catalog row.
+
+### Deviations from Plan
+- `data-restore-config-object.ci` is `history-restore-config-object.ci`. `data-registered-object.ci` was added for AC-14. `blob.go` and `tree.go` needed no edit: the guard methods live on the shared `guard` in `store.go`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The fail-closed history walk was added without re-reading its CLI caller, which ran the walk after the frame check had found corruption | an unreadable frame is corruption the frame check already graded, exit 1 | closure review, logic lens over `cmdCheck` | `cmdCheck` answers before the walk; test added |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| version bytes stored once under `object/<hex>` | Done | `history.go` `writeVersionObject` | |
+| dated entry holds `sha256:<hex>` | Done | `history.go` `writeVersionObject`, `entryDigest` | |
+| CRC frame kept, identity proven by the hash | Done | `history.go` `verifyObject`; frames unchanged in `pkg/zefs` | |
+| same operations, pointers and `ListVersions` answer | Done | `store.go` `ListVersions`, `ReadVersion`; `pointer.go` | |
+| no migration (pre-release) | Done | A-1 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestWriteVersionStoresObject`, `TestWriteVersionObjectFirst` | |
+| AC-2 | Done | `TestWriteVersionDedups`, `history-dedup.et` | |
+| AC-3 | Done | `TestReadVersionVerifiesHash`, `TestReadVersionMissingObject`, `TestReadVersionRejectsBadEntry`, `history-rollback-object.ci` | |
+| AC-4 | Done | `TestReadFileEntryRaw` | |
+| AC-5 | Done | `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestPointedVersionRetainedWithObject` | |
+| AC-6 | Done | `TestClearCandidateDeletesObject`, `TestClearCandidateMissingEntry` | |
+| AC-7 | Done | `TestStorageConformance` | |
+| AC-8 | Done | `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock` | |
+| AC-9 | Done | `TestStorageConformance`, `TestOpenBlobConformance` | |
+| AC-10 | Done | `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestCheckReportsDanglingPointer`, `TestCheckStoreIntegrityReportsHistory`, `TestCheckCorruptHistoryFrameIsCorruption`, `data-check-history.ci` | |
+| AC-11 | Done | `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestCheckOnRepairedOutputStillReportsPointer`, `data-check-history.ci` | |
+| AC-12 | Done | `TestImportObjectsFirst`; `copyKeys` and `buildStage` call `objectsFirst` | |
+| AC-13 | Done | `TestRestoreConfigRefusesMissingObject`, `history-restore-config-object.ci` | |
+| AC-14 | Done | `TestObjectKeyRegistered`, `data-registered-object.ci` | |
+| AC-15 | Done | `TestActiveMissingTargetClassification`, `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource`, `history-repaired-store-start.ci` | |
+| AC-16 | Done | `TestWriteVersionRefusesWrongObject` | |
+| AC-17 | Done | `TestRebuildPreservesValidRollback`, `history-repaired-store-start.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit test in the TDD plan | Done | `history_test.go`, `history_check_test.go`, `storage_test.go`, `config_source_repaired_test.go`, `checks_storage_history_test.go`, `registry_test.go` | |
+| `history-dedup.et` and the five `.ci` | Done | `test/editor/lifecycle/`, `test/plugin/` | each RED under its break (Discrimination) |
+| `TestCheckCorruptHistoryFrameIsCorruption` | Done | `internal/component/config/storage/cli/cmd_integrity_test.go` | added at closure |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | `blob.go` and `tree.go` unchanged, see Deviations |
+
+### Audit Summary
+- **Total items:** 17 ACs, 5 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (test file name, in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| a version's bytes are stored once under `object/<hex>`, and the entry holds `sha256:<hex>` | functional | `history-dedup.et`: four commits, three of them distinct, give 4 entries and 3 objects; RED (`matched 4 keys, want 3`) when the reuse path writes an extra object |
+| bit rot is caught on read and identity is proven by the hash | functional + unit | `history-rollback-object.ci` refuses a rollback to a wrong-hash object (RED when `verifyObject` accepts any bytes); `TestCheckCorruptHistoryFrameIsCorruption` grades a CRC-corrupt object frame as corruption on both encodings |
+| the same operations, pointers and `ListVersions` answer over objects | unit + functional | `TestStorageConformance` on both encodings; `history-repaired-store-start.ci` drives both daemon launches over a repaired store and keeps rollback R readable |
+| no migration: a pre-release store is re-initialised | owner decision | A-1, confirmed 2026-09-26 |
+| interop | N-A | no wire protocol: history is a local store format that no other implementation reads |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is implemented and tested | none |
+
+<!-- CLOSURE-TAIL -->
+

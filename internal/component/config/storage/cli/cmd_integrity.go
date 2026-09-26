@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -33,15 +34,21 @@ func cmdCheck(storePath string, _ []string) int {
 	if report.ContainerError != "" {
 		return 1
 	}
+	if report.CorruptEntries > 0 {
+		// A corrupt frame does not read, and the history walk refuses a key it
+		// cannot read rather than report it absent. The frame verdict is the
+		// answer; history is checked over the readable frames repair writes.
+		var tb textbuf.Buffer
+		tb.Int(int64(report.CorruptEntries)).Byte('/').Int(int64(report.TotalEntries + report.CorruptEntries)).
+			Str(" entries corrupt; history not checked, run ze data repair --output <path>\n")
+		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
+		return 1
+	}
 
 	historyErrors, err := checkStoreHistory(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
-	}
-	if report.CorruptEntries > 0 {
-		fmt.Fprintf(os.Stderr, "%d/%d entries corrupt\n", report.CorruptEntries, report.TotalEntries+report.CorruptEntries)
-		return 1
 	}
 	if historyErrors > 0 {
 		fmt.Fprintf(os.Stderr, "%d history errors\n", historyErrors)

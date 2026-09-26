@@ -192,7 +192,7 @@ func parseRestoreArgs(args []string) (restoreArgs, error) {
 	}
 	rest := args[2:]
 	for len(rest) > 0 {
-		if rest[0] != "name" {
+		if rest[0] != keywordName {
 			return restoreArgs{}, fmt.Errorf("unknown keyword %q", rest[0])
 		}
 		if parsed.mode == restoreModeFull {

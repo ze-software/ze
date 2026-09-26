@@ -377,24 +377,32 @@ func storageHistoryRecovered(path, explicit, name, stampR, stampS, stampC string
 	}
 	var problems []error
 	active, err := storage.ReadActiveConfig(store, name)
-	if err != nil || !bytes.Equal(active, configF) {
-		problems = append(problems, fmt.Errorf("active = %q (read error: %v); want F", active, err))
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read active: %w", err))
+	} else if !bytes.Equal(active, configF) {
+		problems = append(problems, fmt.Errorf("active = %q; want F", active))
 	}
 	if _, err := store.ReadKey(zefs.KeyConfigCandidate.Key(name)); err == nil {
 		problems = append(problems, errors.New("the stale candidate pointer survived startup"))
 	}
 	rollback, err := store.ReadKey(zefs.KeyConfigRollback.Key(name))
-	if err != nil || strings.TrimSpace(string(rollback)) != stampR {
-		problems = append(problems, fmt.Errorf("rollback = %q (read error: %v); want %s", rollback, err, stampR))
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read rollback pointer: %w", err))
+	} else if strings.TrimSpace(string(rollback)) != stampR {
+		problems = append(problems, fmt.Errorf("rollback = %q; want %s", rollback, stampR))
 	}
 	digest := historyDigest(configR)
 	entry, err := store.ReadKey("file/" + stampR + "/" + name)
-	if err != nil || string(entry) != "sha256:"+digest {
-		problems = append(problems, fmt.Errorf("rollback entry = %q (read error: %v); want sha256:%s", entry, err, digest))
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read rollback entry: %w", err))
+	} else if string(entry) != "sha256:"+digest {
+		problems = append(problems, fmt.Errorf("rollback entry = %q; want sha256:%s", entry, digest))
 	}
 	object, err := store.ReadKey(zefs.KeyObject.Key(digest))
-	if err != nil || !bytes.Equal(object, configR) || historyDigest(object) != digest {
-		problems = append(problems, fmt.Errorf("rollback object = %q (read error: %v)", object, err))
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read rollback object: %w", err))
+	} else if !bytes.Equal(object, configR) {
+		problems = append(problems, fmt.Errorf("rollback object = %q; want R's bytes", object))
 	}
 	for _, dropped := range []string{stampS, stampC} {
 		if _, err := store.ReadKey("file/" + dropped + "/" + name); err == nil {
@@ -405,8 +413,10 @@ func storageHistoryRecovered(path, explicit, name, stampR, stampS, stampC string
 		problems = append(problems, err)
 	}
 	disk, err := os.ReadFile(explicit) //nolint:gosec // the fixture wrote this path
-	if err != nil || !bytes.Equal(disk, configF) {
-		problems = append(problems, fmt.Errorf("explicit file = %q (read error: %v); want F", disk, err))
+	if err != nil {
+		problems = append(problems, fmt.Errorf("read explicit file: %w", err))
+	} else if !bytes.Equal(disk, configF) {
+		problems = append(problems, fmt.Errorf("explicit file = %q; want F", disk))
 	}
 	return errors.Join(problems...)
 }

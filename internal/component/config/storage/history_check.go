@@ -43,8 +43,10 @@ type HistoryFinding struct {
 // malformed or names an absent object, an object no entry names (a warning,
 // the residue of an interrupted write), and a config pointer naming a stamp
 // whose entry does not resolve. zefs.Check is key-agnostic by design; the
-// MEANING of a key is this walk's question. A frame that fails to read is left
-// to the frame check, which already reports it corrupt.
+// MEANING of a key is this walk's question. A listed key that fails to read
+// stops the walk with an error naming it, because reporting it absent would
+// call its entries dangling; `ze data check` therefore walks history only
+// when the frame check found no corrupt frame.
 func CheckHistory(s Storage) ([]HistoryFinding, error) {
 	return inspectHistory(s.ListKeys, s.ReadKey)
 }
@@ -151,9 +153,8 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 		}
 		value, err := read(key)
 		if err != nil {
-			// A listed key that does not read is not evidence of absence:
-			// skipping it would report its entries dangling, and repair
-			// would then drop history whose object is present.
+			// A pointer that does not read is not a pointer that resolves:
+			// skipping it would pass a store whose pointer nobody checked.
 			return nil, fmt.Errorf("check history: read %s: %w", key, err)
 		}
 		stamp := strings.TrimSpace(string(value))

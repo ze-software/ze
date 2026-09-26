@@ -92,6 +92,9 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 	file1 := args[0]
 	file2 := args[1]
 	var revisionStore storage.Storage
+	// fromRevision names the revision branch: an empty revision reads back
+	// as zero bytes, so revisionData alone cannot say whether one was read.
+	fromRevision := false
 	var revisionData []byte
 	if n, err := strconv.Atoi(file1); err == nil {
 		if store == nil {
@@ -111,6 +114,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		}
 		file1 = resolved
 		revisionData = data
+		fromRevision = true
 	}
 
 	schema, err := config.YANGSchema()
@@ -124,7 +128,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		firstStore = revisionStore
 	}
 	var tree1 map[string]any
-	if revisionData != nil {
+	if fromRevision {
 		tree1, err = parseAndResolve(schema, revisionData)
 	} else {
 		tree1, err = loadAndResolve(firstStore, schema, file1)

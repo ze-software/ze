@@ -41,10 +41,12 @@ var dataRPC atomic.Pointer[DataRPCTarget]
 func InstallDataRPC(target *DataRPCTarget) { dataRPC.Store(target) }
 
 // keywordPath names the artifact path keyword of both RPCs, and the answer key
-// that echoes it. keywordClient does the same for the restore's client target.
+// that echoes it. keywordClient does the same for the restore's client target, and
+// keywordName names the source config a config restore reads.
 const (
 	keywordPath   = "path"
 	keywordClient = "client"
+	keywordName   = "name"
 )
 
 // dataBackupArgs is one parsed `request data backup` line.
@@ -223,7 +225,7 @@ func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 			configMode = true
 			continue
 		}
-		if keyword != keywordPath && keyword != "name" && keyword != keywordClient {
+		if keyword != keywordPath && keyword != keywordName && keyword != keywordClient {
 			return dataRestoreArgs{}, fmt.Errorf("unknown keyword %q: the keywords are path, config, name and client", keyword)
 		}
 		if i+1 >= len(args) {
@@ -233,7 +235,7 @@ func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 		switch keyword {
 		case keywordPath:
 			parsed.path = args[i]
-		case "name":
+		case keywordName:
 			parsed.sourceName = args[i]
 		case keywordClient:
 			parsed.client = args[i]
