@@ -46,8 +46,9 @@ const (
 		"tag makes is unproven."
 	// The two facts the index and one stem's page both label. Named once, so a
 	// reader following a link from the index meets the same words on the page.
-	rfcDeclaredGapsLabel = "Declared gaps"
-	rfcTestTagsLabel     = "Test tags"
+	rfcDeclaredGapsLabel     = "Declared gaps"
+	rfcDemonstratedGapsLabel = "Declared gaps a test demonstrates"
+	rfcTestTagsLabel         = "Test tags"
 	// rfcEnrolmentLabel is the summary's own Meta label, spelled as the Meta
 	// table spells it. The three surfaces that print it read it from here, so
 	// none of them can drift into the American spelling the label does not use.
@@ -106,7 +107,8 @@ func rfcDetailDescription(entry *rfcLedgerStem) string {
 	}
 	out.Str(". ").Int(int64(entry.Coverage.Gated)).
 		Str(" gated MUST-level requirements, ").Int(int64(entry.Coverage.Gaps)).
-		Str(" declared gaps, ").Int(int64(entry.Coverage.Missing)).Str(" with no test.")
+		Str(" declared gaps (").Int(int64(entry.Coverage.DemonstratedGaps)).
+		Str(" demonstrated by a test), ").Int(int64(entry.Coverage.Missing)).Str(" with no test.")
 	return out.String()
 }
 
@@ -283,6 +285,7 @@ func rfcGlanceFacts(entry *rfcLedgerStem) [][2]string {
 		{"Gated MUST-level", strconv.Itoa(entry.Coverage.Gated)},
 		{"Not applicable, so out of scope", strconv.Itoa(entry.Coverage.NotApplicable)},
 		{rfcDeclaredGapsLabel, strconv.Itoa(entry.Coverage.Gaps)},
+		{rfcDemonstratedGapsLabel, strconv.Itoa(entry.Coverage.DemonstratedGaps)},
 		{"Gated with no test", strconv.Itoa(entry.Coverage.Missing)},
 		{"Nightly-only evidence", strconv.Itoa(entry.Coverage.NightlyOnly)},
 		{rfcTestTagsLabel, strconv.Itoa(entry.Coverage.Tags)},

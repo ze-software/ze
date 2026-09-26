@@ -186,7 +186,8 @@ func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 		})
 	}
 
-	// Order attributes: MP_UNREACH first, regular attrs by code, MP_REACH last.
+	// Order attributes as attribute.OrderAttributes does: MP_UNREACH first,
+	// then every other attribute by code, MP_REACH included.
 	// Matches the wire-byte order used by ExaBGP fixture round-trip tests.
 	attrBytes := ub.packAttributesOrderedInto(attrs, nil)
 

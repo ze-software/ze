@@ -92,19 +92,24 @@ peer upstream1 {
 > non-empty Withdrawn Routes field, non-empty Network Layer Reachability
 > Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
 
-**Decision:** Half-compliant. MP_UNREACH first (compliant). MP_REACH last
-(intentionally non-compliant -- better for streaming parsers).
+**Decision:** Half-compliant. MP_UNREACH first (compliant). MP_REACH at its
+type-code position (non-compliant).
 
 **Implementation:**
-Ze orders attributes as: MP_UNREACH_NLRI (15) first (when present), regular
-attributes by type code, MP_REACH_NLRI (14) last (when present). RFC 7606
-prohibits both in the same UPDATE, so only one is present per message.
+`attribute.OrderAttributes` puts MP_UNREACH_NLRI (15) first when present, then
+every other attribute by type code, MP_REACH_NLRI (14) included, so ORIGIN and
+AS_PATH precede MP_REACH. RFC 7606 prohibits both in the same UPDATE, so only
+one is present per message.
 
-MP_UNREACH is placed first per RFC 7606. MP_REACH is placed last to maintain
-the withdrawal-first principle from ze's original design. RFC 7606 says
-MP_REACH SHALL be first, and other implementations are optimized for that
-ordering. Ze's non-compliance may prevent fast-path optimizations in receivers
-that expect MP_REACH first. This is a conscious trade-off.
+MP_UNREACH is placed first per RFC 7606. MP_REACH once went last, and moved to
+its type-code position so that the three builders emitting the same route
+produce one byte string. RFC 7606 says MP_REACH SHALL be first, and other
+implementations are optimized for that ordering, so Ze's order can prevent
+fast-path optimizations in receivers that expect MP_REACH first.
+`TestRFC7606Section51MPAttributeEncodedFirst` demonstrates the gap
+(RFC7606-5.1-1) and fails the day MP_REACH is encoded first.
+
+<!-- source: internal/core/bgp/attribute/origin.go -- OrderAttributes -->
 
 **History:** RFC 4271 Section 5 recommended (SHOULD) ordering by type code.
 RFC 4760 assigned type code 14 to MP_REACH (announcements) and 15 to

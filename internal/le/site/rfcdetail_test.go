@@ -2622,3 +2622,40 @@ func TestThePartitionSentenceReadsTheSharesItAddsUp(t *testing.T) {
 		t.Error("a partition that adds up and one that does not read the same")
 	}
 }
+
+// VALIDATES: spec-rfc-demonstrated-gap AC-11 -- a declared gap a test
+// demonstrates names that test's unit in place of "no test", and the stem's
+// counters carry it as a demonstrated gap beside the declared ones.
+// PREVENTS: a demonstrated gap published exactly as a described one, which
+// would leave the split the gate counts invisible on the page.
+func TestADemonstratedGapNamesItsTest(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	const unit = "internal/widget/counter_test.go::TestCounter"
+	found := false
+	for index := range entry.Requirements {
+		if entry.Requirements[index].RID == "RFC9999-5-1" {
+			entry.Requirements[index].DemonstratedBy = unit
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("the fixture's declared gap is gone, so this proves nothing")
+	}
+	listed := false
+	for _, row := range rfcGapRows(&entry) {
+		if row.RID != "RFC9999-5-1" {
+			continue
+		}
+		listed = true
+		if want := "{" + rfc.AnnotationGap + "}, demonstrated by " + unit; row.Kind != want {
+			t.Errorf("the row states %q, want %q", row.Kind, want)
+		}
+	}
+	if !listed {
+		t.Error("the gaps table does not list RFC9999-5-1, so its demonstrating test is named nowhere")
+	}
+	coverage := rfcLedgerCoverageOf(rfc.CoverageRow{}, entry.Requirements)
+	if coverage.DemonstratedGaps != 1 || coverage.Gaps < 1 {
+		t.Errorf("counters hold %d demonstrated of %d gaps, want 1 demonstrated", coverage.DemonstratedGaps, coverage.Gaps)
+	}
+}

@@ -190,10 +190,12 @@ func tagCovers(reader *sourceReader, index *scopeIndex, tags []Tag) (map[Cover][
 // tagCoversIn scans one tree and answers the same map, for a caller holding
 // nothing but a checkout.
 func tagCoversIn(tree string) (map[Cover][]Tag, error) {
-	tags, err := scanTreeWith(tree, coverCarriers(tree))
+	scanned, err := scanTreeWith(tree, coverCarriers(tree))
 	if err != nil {
 		return nil, err
 	}
+	// A gap tag covers nothing: it proves no polarity and owes no record.
+	tags, _ := splitGapTags(scanned)
 	return tagCovers(newSourceReader(tree), newScopeIndex(), tags)
 }
 

@@ -188,7 +188,11 @@ artifact boundary and can seed it from the current complete Pages checkout.
   per summary stem at `/quality/rfc-compliance/<stem>/`. Every cell of a
   requirement row is `rfc.RequirementRows`, which is also what
   `rfc/requirements/<stem>.md` is rendered from, so the site and the repository
-  cannot state different things about one requirement. The producer retires a
+  cannot state different things about one requirement. A `{gap}` row that a
+  test demonstrates through `rfcgap.Demonstrate` carries that test's unit
+  (`demonstrated-by`, from `rfc.RenderInput.Demonstrated`), the gaps table names
+  it in place of "no test", and each stem counts `demonstrated-gaps` beside its
+  declared gaps. The producer retires a
   page AFTER it has written this run's, and it deletes only a directory carrying
   a page this family wrote: on a real build the output is the published
   checkout, so a removal keyed on "a name that is not a live stem" would take

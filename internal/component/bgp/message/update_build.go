@@ -600,8 +600,9 @@ func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
 	return r.WriteTo(buf, off), nil
 }
 
-// packAttributesOrderedInto packs attributes with MP_UNREACH first, regular
-// attrs by type code, then MP_REACH last. Matches ExaBGP output ordering.
+// packAttributesOrderedInto packs attributes in the order
+// attribute.OrderAttributes decides: MP_UNREACH first, then every other
+// attribute by type code, MP_REACH included.
 // Appends rawAttrs after the ordered block, pass-through for raw config bytes.
 //
 // Result is a sub-slice of ub.scratch. See the Update type doc for the

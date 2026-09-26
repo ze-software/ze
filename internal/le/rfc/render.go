@@ -41,6 +41,9 @@ type RenderInput struct {
 	Deriver      *Deriver
 	Requirements []Requirement
 	Tags         []Tag
+	// Demonstrated is the accepted gap tag of every `{gap}` row a test
+	// demonstrates, keyed by requirement id (demonstratedGaps).
+	Demonstrated map[string]Tag
 	Enrolled     map[string]bool
 	Stems        map[string]bool
 	Carriers     []Carrier
@@ -77,6 +80,7 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 		Deriver:      NewDeriver(tree),
 		Requirements: collected.Requirements,
 		Tags:         collected.Tags,
+		Demonstrated: demonstratedGaps(collected.Requirements, collected.GapTags),
 		Enrolled:     collected.Enrolled,
 		Rows:         rows,
 		Dispositions: dispositions,

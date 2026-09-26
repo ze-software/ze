@@ -39,32 +39,31 @@ Result:
 
 ### Goal: Restore Parsing Efficiency
 
-Pack attributes in this order (within the RFC attribute section):
+Pack attributes in the order `attribute.OrderAttributes` decides (within the
+RFC attribute section):
 
 ```
 +---------------------------+
 | Traditional Withdrawn     |  ← RFC 4271 withdraw section (IPv4 unicast)
 +---------------------------+
-| Regular Attributes        |  ← ORIGIN, AS_PATH, NEXT_HOP, MED, etc.
-|  (type codes 1-13, 16+    |    Excludes MP_REACH (14), MP_UNREACH (15)
-|   except 14, 15)          |    CACHEABLE - same for route groups
+| MP_UNREACH_NLRI (15)      |  ← Withdrawals, first
 +---------------------------+
-| MP_REACH_NLRI (14)        |  ← Announces (shifted to end)
-+---------------------------+
-| MP_UNREACH_NLRI (15)      |  ← Withdrawals (shifted to end)
+| Every other attribute     |  ← ORIGIN, AS_PATH, NEXT_HOP, MED, ...
+|  by type code             |    MP_REACH_NLRI (14) included, between
+|                           |    CLUSTER_LIST (10) and EXT. COMMUNITIES (16)
 +---------------------------+
 | Traditional NLRI          |  ← RFC 4271 NLRI section (IPv4 unicast)
 +---------------------------+
 ```
 
 <!-- source: internal/component/bgp/message/update_build.go -- UPDATE attribute ordering -->
+<!-- source: internal/core/bgp/attribute/origin.go -- OrderAttributes -->
 
 ### Why This Order
 
 1. **MP_UNREACH first**: Withdrawals logically precede announcements
-2. **Regular attributes second**: Cacheable blob, shared between updates with same path
-3. **MP_REACH last**: Announcements follow the attributes that describe them
-4. **Preserves RFC compliance**: Just reorders within attribute section (allowed)
+2. **Everything else by type code**: one order for every build path, so a static route and the same route sent through `update text` produce the same bytes
+3. **Not RFC 7606 §5.1**: §5.1 requires the MP attribute to be the very first path attribute. MP_REACH_NLRI sorts by type code instead, so an announcement with ORIGIN or AS_PATH does not meet it. This is the `{gap}` on RFC7606-5.1-1, demonstrated by `TestRFC7606Section51MPAttributeEncodedFirst`
 
 ### Benefits
 

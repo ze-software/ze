@@ -620,7 +620,10 @@ func baselineTaggedAt(tree, revision string, carriers []Carrier) ([]Tag, map[str
 		return nil, nil, false
 	}
 	for rel, blob := range blobs {
-		out = append(out, scanTagsTolerant(blob, rel, carriers)...)
+		// The baseline is a proof corpus like Collect's, so a gap tag stays
+		// out of it for the same reason (splitGapTags).
+		proof, _ := splitGapTags(scanTagsTolerant(blob, rel, carriers))
+		out = append(out, proof...)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].File != out[j].File {

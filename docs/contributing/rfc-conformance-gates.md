@@ -270,6 +270,61 @@ index, with the reason that names the implementer.
 
 <!-- source: internal/le/rfc/meta.go -- readImplementation, Meta.Enrolled, implementationCounts -->
 
+## Demonstrated gaps
+
+A `{gap}` row is prose. It says Ze does not meet the requirement, and nothing
+runs it, so nothing notices the day the behavior lands. A demonstrated gap is a
+Go test that asserts the RFC-correct behavior and is tagged with the word `gap`
+in the polarity's place:
+
+```go
+// RFC requirement: RFC7606-5.1-1 gap -- the MP_REACH_NLRI attribute is encoded first.
+func TestMPReachEncodedFirst(t *testing.T) {
+	rfcgap.Demonstrate(t, "RFC7606-5.1-1", func(tb testing.TB) {
+		// assertions against tb, written for the correct behavior
+	})
+}
+```
+
+`rfcgap.Demonstrate` (`internal/test/rfcgap`) runs the body and inverts the
+result. A body that records an assertion failure passes the test, because the
+gap stands. A body that records none fails the test with the id, the summary
+file and the two edits owed: remove `{gap}` from the row, and retag the test
+`positive` or `negative`. A panic in the body fails the test as a panic, and is
+never read as the gap standing. The row keeps its `{gap}` annotation: the
+annotation stays the one summary fact, and the tag adds the evidence.
+<!-- source: internal/test/rfcgap/rfcgap.go -- Demonstrate -->
+
+`./le rfc check` never runs the test. It checks the tie, and refuses a gap tag
+in three cases (`gapTagRefusal`, `internal/le/rfc/gaps.go`):
+
+| Refusal | Why |
+|---------|-----|
+| The row is not annotated `{gap}` | The gap closed, or the annotation was lost. The message names the row and the retag owed |
+| The function around the tag does not call `rfcgap.Demonstrate` with the tag's id as a string literal | A gap tag that nothing runs is a description, not a demonstration. The call is read with `go/ast` inside the unit `UnitAt` answers, so a commented-out call or another id does not count |
+| The tag is in a `.ci` or `.et` file | Only a Go test can invert its own result |
+
+<!-- source: internal/le/rfc/gaps.go -- gapTagRefusal, gapDemonstration -->
+
+A `positive` or `negative` tag on a `{gap}` row stays refused as a stale
+annotation. A gap tag proves no polarity, so `Collect` keeps it out of the proof
+corpus (`splitGapTags`): it is not counted as coverage, no ratchet reads it, and
+it owes no discrimination record. Its green half cannot be observed until the
+gap closes, and the retag to `positive` or `negative` owes the normal record
+then. Its package is type-checked with the tagged packages, because a gap test
+is evidence only when it compiles.
+<!-- source: internal/le/rfc/gaps.go -- splitGapTags -->
+<!-- source: internal/le/rfc/check.go -- check -->
+
+The gate publishes the split. `./le rfc check` prints a `gaps:` line with the
+demonstrated and the described counts over every `{gap}` row, and names each
+summary that holds a demonstrated one; the JSON report carries
+`gaps-demonstrated`, `gaps-described` and `gaps-by-stem`. The per-RFC page names
+the demonstrating test's unit on the gap's row in place of "no test", and counts
+the demonstrated gaps beside the declared ones.
+<!-- source: internal/le/rfc/gaps.go -- gapCounts -->
+<!-- source: internal/le/site/rfcevidence.go -- rfcGapRows -->
+
 ## The lower-layer annotation
 
 `{lower-layer}` says a layer UNDER Ze performs the behavior, on state Ze

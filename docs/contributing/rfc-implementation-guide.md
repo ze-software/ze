@@ -530,6 +530,32 @@ inside a `terminator=` block):
   facts their gates check: the layer and the producer, the quoted sentence and
   the producer, or the target list
   (`docs/contributing/rfc-conformance-gates.md`).
+- **Demonstrate a `{gap}` rather than only describe it.** A test that asserts
+  the correct behavior Ze does not have yet takes the word `gap` in the
+  polarity's place, and runs its assertions inside `rfcgap.Demonstrate`
+  (`internal/test/rfcgap`), which passes while they fail and fails the day they
+  pass:
+
+  ```go
+  // RFC requirement: RFC7606-5.1-1 gap -- the MP_REACH_NLRI attribute is encoded first.
+  rfcgap.Demonstrate(t, "RFC7606-5.1-1", func(tb testing.TB) { /* assert against tb */ })
+  ```
+
+  The row keeps its `{gap}`. The tag must sit in the same Go function as the
+  call, and the call names the id as a string literal. When the test fails
+  because the behavior landed, remove `{gap}` from the row and retag the test
+  `positive` or `negative`. The gate's three refusals are in
+  `docs/contributing/rfc-conformance-gates.md`, "Demonstrated gaps".
+
+  Worked example: `TestRFC7606Section51MPAttributeEncodedFirst`
+  (`internal/component/bgp/message/rfc7606_mp_first_test.go`). It builds an
+  IPv6 announcement through `BuildUnicast` and walks the attribute block
+  outside the body, so a malformed block or a missing MP_REACH_NLRI fails the
+  test instead of reading as the gap standing. Only the ordering assertion runs
+  inside `Demonstrate`. Today it logs
+  `gap RFC7606-5.1-1 stands: first path attribute is type 1, ...`. With
+  `OrderAttributes` changed to put MP_REACH_NLRI first, it fails with
+  `gap RFC7606-5.1-1 closed: the behavior now conforms. Remove {gap} from rfc/short/rfc7606.md ...`.
 - **Place the tag inline at the table case** when one function covers many
   requirements. One id per line, polarity mandatory. The tag is the only authored
   half of the binding, so it dies with the test.

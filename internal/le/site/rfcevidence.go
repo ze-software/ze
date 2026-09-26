@@ -50,7 +50,12 @@ func rfcGapRows(entry *rfcLedgerStem) []rfcGapRow {
 		if declared {
 			states = append(states, "{"+rfc.AnnotationGap+"}")
 		}
-		if untested {
+		// A demonstrated gap names the test that asserts it in place of "no
+		// test": the test covers no polarity, and it is the row's evidence.
+		switch {
+		case declared && requirement.DemonstratedBy != "":
+			states = append(states, "demonstrated by "+requirement.DemonstratedBy)
+		case untested:
 			states = append(states, "no test")
 		}
 		rows = append(rows, rfcGapRow{RID: requirement.RID, Text: requirement.Text,

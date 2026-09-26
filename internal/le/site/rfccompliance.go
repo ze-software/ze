@@ -2059,10 +2059,11 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 			html.EscapeString(rfcIndexStatus(entry)),
 			strconv.Itoa(entry.Coverage.Gated),
 			strconv.Itoa(entry.Coverage.Gaps),
+			strconv.Itoa(entry.Coverage.DemonstratedGaps),
 			strconv.Itoa(entry.Coverage.Missing)))
 	}
 	return rfcTableHTML(rfcHeadCells("RFC", "Public status", "Gated MUSTs",
-		rfcDeclaredGapsLabel, "Gated with no test"), body.String())
+		rfcDeclaredGapsLabel, rfcDemonstratedGapsLabel, "Gated with no test"), body.String())
 }
 
 // rfcDeclinedIndexHTML links every summary that is not enrolled, with the kind
@@ -2141,8 +2142,8 @@ func rfcIndexMirror(ledger rfcLedger) string {
 	if len(enrolled) == 0 {
 		out.Str("No summary is enrolled.\n")
 	} else {
-		out.Str("| RFC | Public status | Gated MUSTs | Declared gaps | ").
-			Str("Gated with no test |\n|---|---|---:|---:|---:|\n")
+		out.Str("| RFC | Public status | Gated MUSTs | ").Str(rfcDeclaredGapsLabel).Str(" | ").
+			Str(rfcDemonstratedGapsLabel).Str(" | Gated with no test |\n|---|---|---:|---:|---:|---:|\n")
 		for index := range enrolled {
 			entry := enrolled[index]
 			out.Str("| [`").Str(entry.Display).Str("`](").Str(rfcStemHref(entry.Stem)).
@@ -2150,6 +2151,7 @@ func rfcIndexMirror(ledger rfcLedger) string {
 				Str(rfc.TableCell(rfcIndexStatus(entry))).Str(" | ").
 				Int(int64(entry.Coverage.Gated)).Str(" | ").
 				Int(int64(entry.Coverage.Gaps)).Str(" | ").
+				Int(int64(entry.Coverage.DemonstratedGaps)).Str(" | ").
 				Int(int64(entry.Coverage.Missing)).Str(" |\n")
 		}
 	}

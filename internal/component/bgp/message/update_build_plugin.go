@@ -49,7 +49,7 @@ const (
 // a legacy NEXT_HOP (code 3) attribute (IPv4 MUP/MVPN) supplies it via RawAttrs.
 //
 // Wire order is fixed by OrderAttributes (MP_UNREACH first, regular attrs by
-// code, MP_REACH last), so the order attributes are added here is irrelevant.
+// code, MP_REACH included), so the order attributes are added here is irrelevant.
 func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 	ub.resetScratch()
 

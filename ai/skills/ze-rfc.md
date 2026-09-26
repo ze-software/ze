@@ -343,7 +343,7 @@ rejected by `./le rfc check`.
 
 ```
 - [ ] [RFC5303-3-1] [MUST] <text> (§3) {not-applicable: Ze does not implement IS-IS mesh groups}
-- [ ] [RFC7606-5.1-1] [MUST] <text> (§5.1) {gap: Ze emits MP_UNREACH first, MP_REACH last; docs/architecture/wire/mp-nlri-ordering.md}
+- [ ] [RFC7606-5.1-1] [MUST] <text> (§5.1) {gap: Ze emits MP_REACH at its type-code position, after ORIGIN; docs/architecture/wire/mp-nlri-ordering.md}
 - [ ] [RFC7606-4-1] [MUST] <text> (§4) {single-polarity: negative; no conforming input exists to assert positively}
 - [ ] [RFC4302-2.3-1] [MUST] <text> (§2.3) {lower-layer: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the AH SA and the kernel builds every header, so no value Ze writes decides this field}
 - [ ] [RFC4302-2.5.1-1] [MUST] <text> (§2.5.1) {feature-declined: "a new option for sequence numbers SHOULD be offered, as an extension to the current, 32-bit sequence number field"; ze offers no ESN. internal/plugins/ospf/ipsec_install.go::buildIPsecSA builds one manually keyed state with no ESN in it}
@@ -361,6 +361,18 @@ rejected by `./le rfc check`.
 yet, that is not `not-applicable` — write the test, or leave the RFC un-enrolled.
 `{not-applicable}`, `{gap}`, `{lower-layer}` and `{feature-declined}` each FAIL the gate
 the moment a test tags the requirement (a stale annotation is a lie the ratchet catches).
+The one tag a `{gap}` row accepts is a gap tag.
+
+**Demonstrate a `{gap}` rather than describe it.** Tag a Go test
+`RFC requirement: <ID> gap -- <claim>` and wrap its assertions of the RFC-correct behavior in
+`rfcgap.Demonstrate(t, "<ID>", func(tb testing.TB) {...})` (`internal/test/rfcgap`). The test
+passes while the body fails, and fails the day the behavior lands, naming the two edits owed:
+remove `{gap}`, retag `positive` or `negative`. Keep setup and sanity checks outside the body,
+because every failure inside it reads as the gap standing. `./le rfc check` refuses a gap tag
+on a row that is not `{gap}`, in a function that does not call `Demonstrate` with that id, and
+in a `.ci` or `.et` file. A gap tag counts as no coverage and owes no discrimination record.
+Worked example: `TestRFC7606Section51MPAttributeEncodedFirst`. Contract:
+`docs/contributing/rfc-conformance-gates.md`, "Demonstrated gaps".
 
 **When to reach for `{lower-layer}`, and when not to.** Four questions decide it, in this
 order. Does the obligation BIND Ze? If it binds no role Ze fills, the kind is

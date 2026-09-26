@@ -16,35 +16,38 @@ Path attributes (ORIGIN, AS_PATH, NEXT_HOP, COMMUNITIES, etc.) **apply to** NLRI
 Attributes → describe → NLRI
 ```
 
-The RFC 4271 ordering requirement for attributes is noted as overly strict, since the attributes describe the NLRI that follows. Placing MP_REACH/MP_UNREACH at the end makes logical sense.
+This was the original argument for placing MP_REACH_NLRI after the attributes
+that describe it. Ze no longer does that: see Generation Strategy.
 
 ## Generation Strategy
 
-When building UPDATE messages:
+When building UPDATE messages, `attribute.OrderAttributes` decides the order:
 
 1. **MP_UNREACH_NLRI first** (withdrawals)
-2. **Regular path attributes** (ordered by type code per RFC 4271)
-3. **MP_REACH_NLRI last** (announcements)
+2. **Every other attribute in type-code order**, MP_REACH_NLRI included
 
 ```
 ┌─────────────────────────────────────────┐
 │ MP_UNREACH_NLRI (15) - withdrawals      │
 ├─────────────────────────────────────────┤
-│ Regular Path Attributes (ordered)       │
+│ Other attributes, by type code          │
 │   - ORIGIN (1)                          │
 │   - AS_PATH (2)                         │
 │   - NEXT_HOP (3) - for IPv4 only        │
-│   - ... other attributes in order ...   │
-├─────────────────────────────────────────┤
-│ MP_REACH_NLRI (14) - announcements      │
+│   - ... CLUSTER_LIST (10) ...           │
+│   - MP_REACH_NLRI (14) - announcements  │
+│   - EXTENDED_COMMUNITIES (16) ...       │
 └─────────────────────────────────────────┘
 ```
 
-<!-- source: internal/component/bgp/message/update_build.go -- attribute ordering in UPDATE building -->
+<!-- source: internal/core/bgp/attribute/origin.go -- OrderAttributes, WriteAttributesOrdered -->
+<!-- source: internal/component/bgp/message/update_build.go -- BuildUnicast writes through WriteAttributesOrdered -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI encoding -->
 
-**Rationale:** Withdrawals logically precede announcements. Regular path
-attributes describe the NLRI in MP_REACH, so they appear between the two.
+**Rationale:** Withdrawals logically precede announcements. MP_REACH_NLRI once
+went last, but the three builders that emit the same route disagreed on it, so
+one route left the daemon as two byte strings. It now takes its type-code
+position in every builder, and the comment above `OrderAttributes` records why.
 
 ## RFC Compliance Analysis
 
@@ -183,14 +186,16 @@ it. A withdrawal loses the record of the discard, never the discard.
 - **MP_UNREACH first:** Compliant. Withdrawal is the first attribute, matching
   both RFC 7606's SHALL and RFC 4271's withdrawal-first wire format.
 
-- **MP_REACH last:** Intentionally non-compliant. RFC 7606 says it SHALL be
-  first, but ze places it after all regular path attributes. In theory, a
-  streaming parser could benefit from having attributes parsed before NLRI
-  arrives. In practice, receivers are optimized for MP_REACH first (what
-  RFC 7606 mandates and what other implementations send). Ze's ordering
-  may prevent those fast-path optimizations. This is a conscious trade-off
-  that prioritizes the withdrawal-first principle from ze's original design
-  over alignment with receiver expectations.
+- **MP_REACH at its type-code position:** Non-compliant. RFC 7606 says it
+  SHALL be first, but ze places it after ORIGIN, AS_PATH and every other
+  attribute with a lower type code. Receivers are optimized for MP_REACH first
+  (what RFC 7606 mandates and what other implementations send), so Ze's order
+  can prevent those fast-path optimizations. `rfc/short/rfc7606.md` keeps
+  RFC7606-5.1-1 annotated `{gap}`, and
+  `TestRFC7606Section51MPAttributeEncodedFirst` demonstrates the gap: it
+  asserts the RFC order and fails the day Ze encodes MP_REACH first.
+
+<!-- source: internal/component/bgp/message/rfc7606_mp_first_test.go -- TestRFC7606Section51MPAttributeEncodedFirst -->
 
 ## Compatibility
 

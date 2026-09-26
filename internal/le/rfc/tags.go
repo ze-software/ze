@@ -41,7 +41,7 @@ const (
 )
 
 // parseTagRest reads the words after the marker: the id, then the mandatory
-// polarity, then the claim.
+// polarity or the gap marker, then the claim.
 //
 // Polarity is never inferred, because a negative-only test passes if the code
 // rejects everything and a positive-only one passes if it accepts everything.
@@ -64,10 +64,18 @@ func parseTagRest(rest, where string) (Tag, error) {
 			Str("'RFC requirement: ").Str(rid).Str(" positive|negative -- note'"))
 	}
 	polarity := strings.TrimRight(strings.ToLower(parts[1]), tagPunct)
+	// The gap marker is the annotation's own word, because the tag demonstrates
+	// that annotation: the row stays `{gap}`, and the test asserts the correct
+	// behavior Ze lacks. It takes the polarity's place since it proves neither
+	// direction.
+	if polarity == AnnotationGap {
+		return Tag{RID: rid, Gap: true, Claim: strings.Join(parts[2:], " ")}, nil
+	}
 	if !polarities[polarity] {
 		return Tag{}, parseErr(tb.Str(where).Str(": tag for ").Str(rid).
 			Str(" has invalid polarity ").Str(pyRepr(parts[1])).Str("; expected one of ").
-			Str(pyRepr(Polarities())))
+			Str(pyRepr(Polarities())).Str(", or '").Str(AnnotationGap).
+			Str("' for a test that demonstrates a {gap} row"))
 	}
 	return Tag{RID: rid, Polarity: polarity, Claim: strings.Join(parts[2:], " ")}, nil
 }
@@ -117,7 +125,8 @@ func tagWhere(path string, line int) string {
 }
 
 // scanGoTags finds `// RFC requirement: <ID> <polarity>` anywhere in a Go test
-// file.
+// file, and `// RFC requirement: <ID> gap`, whose Demonstration it resolves
+// from the function around it (gapDemonstration).
 //
 // Deliberately not limited to doc comments: one function can cover a dozen
 // requirements across a hundred table cases, so tags must be placeable inline
@@ -137,6 +146,9 @@ func scanGoTags(src, path string) ([]Tag, error) {
 		}
 		tag.File, tag.Line = path, i+1
 		tag.Claim = extendClaim(tag.Claim, lines, i, goComment)
+		if tag.Gap {
+			tag.Demonstration = gapDemonstration(path, src, tag.Line, tag.RID)
+		}
 		out = append(out, tag)
 	}
 	return out, nil

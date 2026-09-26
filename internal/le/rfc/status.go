@@ -114,7 +114,12 @@ type Collected struct {
 	Requirements []Requirement
 	ParseErrors  []string
 	ParseByStem  map[string]string
-	Tags         []Tag
+	// Tags is the proof corpus: every positive and negative tag. GapTags is
+	// every `RFC requirement: <ID> gap` tag, held apart because it proves no
+	// polarity (splitGapTags). Only evaluateGapTags and the demonstrated-gap
+	// counts read it.
+	Tags    []Tag
+	GapTags []Tag
 	// Metas is what every summary's `## Meta` table declares: its enrolment,
 	// its disposition, its public row, its title and its forward lineage.
 	// The three maps below are DERIVED from it, and are kept as fields
@@ -175,8 +180,10 @@ func Collect(tree string) (Collected, error) {
 		}
 		out.Requirements = append(out.Requirements, reqs...)
 	}
-	if out.Tags, err = ScanTree(tree); err != nil {
+	scanned, err := ScanTree(tree)
+	if err != nil {
 		return Collected{}, err
 	}
+	out.Tags, out.GapTags = splitGapTags(scanned)
 	return out, nil
 }

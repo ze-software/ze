@@ -288,7 +288,8 @@ requirement id in the proof-state section.
 
 Under it the page carries the requirement table `rfc/requirements/<stem>.md`
 carries, cell for cell, plus the requirement text, the per-RFC coverage
-counters, every declared gap and every gated MUST with no test, the recorded
+counters, every declared gap (naming the test that demonstrates it, where one
+does) and every gated MUST with no test, the recorded
 audit verdict and its freshness, what stands behind each tagged unit, the
 extraction sign-off, and where a superseded obligation now lives.
 

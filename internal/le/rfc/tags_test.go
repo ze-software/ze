@@ -338,3 +338,26 @@ func TestACarrierFixtureBlockIsNotTestedBehavior(t *testing.T) {
 // idiom guards `staleLeReferences` against its own corpus in
 // `internal/le/contract_test.go`.
 const rfcTagMarker = "RFC requi" + "rement:"
+
+// VALIDATES: AC-4 -- `gap` in the polarity's place parses as a gap tag with no
+// polarity and keeps its claim; a word that is neither polarity nor `gap` stays
+// refused, and the refusal names `gap` as the third word it accepts.
+// PREVENTS: a marker word that swallows the claim, or one that widens the
+// closed polarity set so any other word parses.
+func TestParseTagGapMarker(t *testing.T) {
+	tag, err := parseTagRest("RFC1-1-1 gap -- the speaker sends it", "x_test.go:3")
+	if err != nil {
+		t.Fatalf("gap tag refused: %v", err)
+	}
+	if !tag.Gap || tag.Polarity != "" || tag.RID != "RFC1-1-1" || tag.Claim != "-- the speaker sends it" {
+		t.Fatalf("gap tag parsed as %+v", tag)
+	}
+	proof, err := parseTagRest("RFC1-1-1 positive -- sends it", "x_test.go:4")
+	if err != nil || proof.Gap {
+		t.Fatalf("positive tag parsed as %+v, %v", proof, err)
+	}
+	_, err = parseTagRest("RFC1-1-1 gaps -- sends it", "x_test.go:5")
+	if err == nil || !strings.Contains(err.Error(), "invalid polarity 'gaps'") || !strings.Contains(err.Error(), "'gap'") {
+		t.Fatalf("an unknown second word answered %v, want a refusal naming 'gap'", err)
+	}
+}

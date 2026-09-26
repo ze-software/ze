@@ -82,21 +82,29 @@ type CheckReport struct {
 	CannotRun string `json:"cannot-run,omitempty"`
 	// Findings is every violation, in parts. Violations is rendered from it, so
 	// the two cannot hold different populations.
-	Findings         []Finding      `json:"findings,omitempty"`
-	Violations       []string       `json:"violations,omitempty"`
-	Gated            int            `json:"gated,omitempty"`
-	Enrolled         int            `json:"enrolled,omitempty"`
-	Tags             int            `json:"tags,omitempty"`
-	Evidence         map[string]int `json:"evidence,omitempty"`
-	Signed           int            `json:"signed,omitempty"`
-	SignedByRegister map[string]int `json:"signed-by-register,omitempty"`
-	Unsigned         int            `json:"unsigned,omitempty"`
-	SignedUnenrolled []string       `json:"signed-unenrolled,omitempty"`
-	AuditProven      int            `json:"audit-proven,omitempty"`
-	AuditFindings    int            `json:"audit-findings,omitempty"`
-	AuditVerdicts    int            `json:"audit-verdicts,omitempty"`
-	AuditDone        int            `json:"audit-done,omitempty"`
-	AuditTotal       int            `json:"audit-total,omitempty"`
+	Findings   []Finding `json:"findings,omitempty"`
+	Violations []string  `json:"violations,omitempty"`
+	Gated      int       `json:"gated,omitempty"`
+	Enrolled   int       `json:"enrolled,omitempty"`
+	Tags       int       `json:"tags,omitempty"`
+	// The two gap figures render even at zero, for the reason the
+	// discrimination figures below do: they are published debt. A demonstrated
+	// gap is a `{gap}` row a test asserts through rfcgap.Demonstrate, which goes
+	// red the day the behavior lands; a described gap is the annotation's prose
+	// alone. GapsByStem carries the same split for each summary.
+	GapsDemonstrated int                 `json:"gaps-demonstrated"`
+	GapsDescribed    int                 `json:"gaps-described"`
+	GapsByStem       map[string]GapCount `json:"gaps-by-stem,omitempty"`
+	Evidence         map[string]int      `json:"evidence,omitempty"`
+	Signed           int                 `json:"signed,omitempty"`
+	SignedByRegister map[string]int      `json:"signed-by-register,omitempty"`
+	Unsigned         int                 `json:"unsigned,omitempty"`
+	SignedUnenrolled []string            `json:"signed-unenrolled,omitempty"`
+	AuditProven      int                 `json:"audit-proven,omitempty"`
+	AuditFindings    int                 `json:"audit-findings,omitempty"`
+	AuditVerdicts    int                 `json:"audit-verdicts,omitempty"`
+	AuditDone        int                 `json:"audit-done,omitempty"`
+	AuditTotal       int                 `json:"audit-total,omitempty"`
 	// The three discrimination figures render even at zero, unlike every count
 	// above them. They are published DEBT, and an absent key would let a
 	// consumer read "nothing is proven yet" as "this gate has no such stage".
@@ -162,6 +170,27 @@ type CheckReport struct {
 	QuoteHistoryUnread bool `json:"quote-history-unread,omitempty"`
 }
 
+// demonstratedStemsPhrase names the summaries that hold a demonstrated gap,
+// with each one's count, and answers "" when none does. The described side is
+// not listed per stem: it is most of the corpus, and the JSON report carries
+// every stem's split.
+func demonstratedStemsPhrase(byStem map[string]GapCount) string {
+	var tb textbuf.Buffer
+	for _, stem := range sortedKeysOf(byStem) {
+		count := byStem[stem]
+		if count.Demonstrated == 0 {
+			continue
+		}
+		if tb.Len() == 0 {
+			tb.Str("; demonstrated in ")
+		} else {
+			tb.Str(", ")
+		}
+		tb.Str(stem).Byte(' ').Int(int64(count.Demonstrated))
+	}
+	return tb.String()
+}
+
 // Text renders the diagnostics and success summary the Python gate prints.
 func (r *CheckReport) Text() string {
 	var tb textbuf.Buffer
@@ -175,7 +204,9 @@ func (r *CheckReport) Text() string {
 		}
 		tb.Str("\nRules: every MUST-level requirement of an enrolled RFC needs\n").
 			Str("a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`,\n").
-			Str("or an annotation saying why not. See ai/skills/ze-rfc.md.\n")
+			Str("or an annotation saying why not. A {gap} row can also carry a\n").
+			Str("`RFC requirement: <ID> gap` tag on a Go test that calls rfcgap.Demonstrate.\n").
+			Str("See ai/skills/ze-rfc.md.\n")
 		return tb.String()
 	}
 	percentage := 0.0
@@ -185,6 +216,10 @@ func (r *CheckReport) Text() string {
 	tb.Str("rfc-requirements OK: ").Int(int64(r.Gated)).Str(" gated MUST-level requirement(s) across ").
 		Int(int64(r.Enrolled)).Str(" enrolled RFC(s); ").Int(int64(r.Tags)).Str(" test tag(s) resolved.\n")
 	tb.Str("evidence: ").Str(evidencePhrase(r.Evidence)).Str(" (unit evidence proves the algorithm; only a running non-unit test proves the daemon or a peer).\n")
+	tb.Str("gaps: ").Int(int64(r.GapsDemonstrated)).Str(" demonstrated by a test, ").
+		Int(int64(r.GapsDescribed)).Str(" described by the annotation alone, of ").
+		Int(int64(r.GapsDemonstrated + r.GapsDescribed)).Str(" {gap} row(s) in every summary").
+		Str(demonstratedStemsPhrase(r.GapsByStem)).Str(".\n")
 	tb.Str("extraction: ").Str(registerPhrase(r.SignedByRegister)).Str(" signed off of ").Int(int64(r.Enrolled)).
 		Str(" enrolled; ").Int(int64(r.Unsigned)).Str(" unsigned (grandfathered backlog).\n")
 	// The line above counts the ENROLLED set, so a completed walk for a stem
@@ -424,13 +459,16 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	findings = append(findings, notes(collected.ParseErrors)...)
 	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, levelsKnown))...)
 	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
+	findings = append(findings, evaluateGapTags(collected.Requirements, collected.GapTags)...)
 	successors := successorsFrom(collected.Metas)
 	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
 	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	compileErrors, err := checkTagPackagesCompile(tree, collected.Tags, carriers)
+	// A gap test is evidence only when it runs, exactly as a proof test is, so
+	// its package is type-checked with theirs.
+	compileErrors, err := checkTagPackagesCompile(tree, slices.Concat(collected.Tags, collected.GapTags), carriers)
 	if err != nil {
 		return CheckReport{}, err
 	}
@@ -524,6 +562,11 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	credited := credited(signed, collected.Enrolled)
 	report.Enrolled = len(collected.Enrolled)
 	report.Tags = len(collected.Tags)
+	report.GapsByStem = gapCounts(collected.Requirements, demonstratedGaps(collected.Requirements, collected.GapTags))
+	for _, count := range report.GapsByStem {
+		report.GapsDemonstrated += count.Demonstrated
+		report.GapsDescribed += count.Described
+	}
 	report.Evidence = evidenceCounts(collected.Tags, carriers)
 	report.Signed = len(credited)
 	report.SignedByRegister = registerCounts(credited)

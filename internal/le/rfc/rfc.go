@@ -561,12 +561,24 @@ type correction struct {
 // promise an assertion its body never makes. discriminate.go fingerprints the
 // claim as its own field of a record, which is what makes rewording it stale
 // the proof rather than widen it.
+//
+// Gap marks the other shape, `RFC requirement: <ID> gap`: a test that asserts
+// the RFC-correct behavior Ze does not have yet, through rfcgap.Demonstrate.
+// It proves no polarity, so Polarity is empty and Collect keeps it out of the
+// proof corpus every coverage reader walks (splitGapTags).
+//
+// Demonstration is the unit key (`path::Func`) of the test function around a
+// gap tag that calls rfcgap.Demonstrate with the tag's own id. Empty on a gap
+// tag says the scan found no such call, and the gate refuses the tag
+// (gapTagRefusal): a gap tag nothing runs is a description, not a demonstration.
 type Tag struct {
-	RID      string `json:"rid"`
-	Polarity string `json:"polarity"`
-	File     string `json:"file"`
-	Line     int    `json:"line"`
-	Claim    string `json:"claim,omitempty"`
+	RID           string `json:"rid"`
+	Polarity      string `json:"polarity"`
+	Gap           bool   `json:"gap,omitempty"`
+	Demonstration string `json:"demonstration,omitempty"`
+	File          string `json:"file"`
+	Line          int    `json:"line"`
+	Claim         string `json:"claim,omitempty"`
 }
 
 // Prefix answers the id prefix of a summary stem: rfc7606 -> RFC7606,

@@ -102,6 +102,9 @@ type rfcLedgerCoverage struct {
 	// population every ratio is taken over.
 	Gaps      int `json:"gaps"`
 	GatedGaps int `json:"gated-gaps"`
+	// DemonstratedGaps counts the declared gaps, at any level, that a test
+	// demonstrates. Gaps minus this is the gaps described by prose alone.
+	DemonstratedGaps int `json:"demonstrated-gaps"`
 	// NotApplicable counts the gated requirements whose `{not-applicable}`
 	// annotation says the obligation does not bind Ze at all. It is SCOPE, and
 	// it is a NAMED share of the gated population rather than a subtraction
@@ -207,6 +210,11 @@ type rfcLedgerRequirement struct {
 	Superseded  *rfcLedgerSuccessor  `json:"superseded,omitempty"`
 	Covers      []rfcLedgerCover     `json:"covers,omitempty"`
 	Audit       *rfcLedgerVerdict    `json:"audit,omitempty"`
+	// DemonstratedBy is the unit (`path::Func`) of the test that demonstrates
+	// this row's `{gap}` through rfcgap.Demonstrate, and empty when the gap is
+	// described by its annotation alone. It is never a cover: the test proves
+	// the gap stands, not the requirement.
+	DemonstratedBy string `json:"demonstrated-by,omitempty"`
 }
 
 // rfcLedgerAnnotation is a `{kind: reason}` marker: why this requirement owes
@@ -505,6 +513,9 @@ func rfcLedgerRequirementOf(in *rfcLedgerInput, requirement *rfc.Requirement,
 			entry.Covers[index].Proof = &proof
 		}
 	}
+	if tag, held := in.Render.Demonstrated[requirement.RID]; held {
+		entry.DemonstratedBy = tag.Demonstration
+	}
 	entry.NightlyOnly = rfcRequirementIsNightlyOnly(in, requirement.RID)
 	entry.Audit = rfcLedgerVerdictOf(in, requirement)
 	return entry
@@ -557,6 +568,9 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 		requirement := &requirements[index]
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
 			coverage.Gaps++
+			if requirement.DemonstratedBy != "" {
+				coverage.DemonstratedGaps++
+			}
 		}
 		if requirement.Gated && requirement.Annotation != nil {
 			bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind)
