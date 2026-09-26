@@ -67,7 +67,7 @@ Capability Code: 73 (0x49). Capability Length: variable.
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1] [SHOULD] "The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier" (§4)
+- [ ] [DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1] [SHOULD] The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier. (§4)
 
 ## Notes
 
