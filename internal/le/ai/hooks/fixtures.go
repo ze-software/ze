@@ -25,39 +25,48 @@ import (
 )
 
 const (
-	fixtureSitesExpected       = 450
-	fixtureChecksExpected      = 609
-	fixtureUniqueNamesExpected = 608
-	fixtureCategoriesExpected  = 26
+	fixtureSitesExpected       = 392
+	fixtureChecksExpected      = 537
+	fixtureUniqueNamesExpected = 537
+	fixtureCategoriesExpected  = 24
 )
 
 var (
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: one site message names
 	// `./le ai rules index-update`. No exit code changed.
+	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
+	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
+	// and the two per-prompt reminders are gone with their fixtures.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0xa8, 0xd7, 0xa9, 0x51, 0x58, 0xd5, 0x4a, 0x31,
-		0x86, 0x6c, 0x71, 0x1c, 0x95, 0xce, 0xaf, 0xdf,
-		0xd8, 0xdb, 0x82, 0xa4, 0x2d, 0xf8, 0x46, 0xf1,
-		0x58, 0x99, 0x91, 0x6d, 0xb4, 0xb3, 0x65, 0x3e,
+		0x81, 0x44, 0xd2, 0xeb, 0x3e, 0x4b, 0x71, 0x72,
+		0xee, 0x0c, 0x0e, 0xa4, 0xa9, 0x63, 0x83, 0x6e,
+		0x02, 0x1d, 0x62, 0x0a, 0xc6, 0x30, 0x10, 0xbf,
+		0x31, 0x8d, 0xaf, 0xb9, 0xb3, 0x3c, 0x9c, 0xf8,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
+	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
+	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
+	// and the two per-prompt reminders are gone with their fixtures.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0xb8, 0x92, 0xaf, 0x11, 0x12, 0x11, 0x4d, 0xdf,
-		0xb6, 0x54, 0x10, 0x33, 0x4d, 0x11, 0x3b, 0x45,
-		0x3c, 0xad, 0xa9, 0x2b, 0x53, 0xbe, 0x84, 0x0a,
-		0x5b, 0xe6, 0xdf, 0x8b, 0x09, 0xe9, 0x74, 0x87,
+		0xb1, 0x38, 0xf7, 0xcb, 0x63, 0x56, 0x93, 0xab,
+		0x34, 0x36, 0x7b, 0x98, 0x19, 0x9a, 0xc9, 0x44,
+		0xb4, 0x76, 0x06, 0x7e, 0x98, 0xbc, 0x32, 0xe5,
+		0x3c, 0x46, 0xd8, 0xac, 0x37, 0x3d, 0xe8, 0x01,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
 	// internal/le/doc/consistency. One producer path, no category or verdict.
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: the raw-job-admission
 	// category's allowed example is `./le test unit core`.
+	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
+	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
+	// and the two per-prompt reminders are gone with their fixtures.
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0x36, 0xf9, 0x6f, 0x67, 0x19, 0x7f, 0x5b, 0x30,
-		0xb8, 0x9a, 0x50, 0xe4, 0x42, 0xfa, 0x24, 0x61,
-		0xf9, 0x50, 0x60, 0xac, 0xee, 0x82, 0xf1, 0xdd,
-		0x07, 0x48, 0x75, 0xbe, 0x08, 0x28, 0x04, 0xbb,
+		0x5d, 0x67, 0x7d, 0x99, 0x74, 0x70, 0x43, 0x84,
+		0x85, 0x8c, 0xfa, 0xa7, 0xb9, 0x99, 0x02, 0x47,
+		0xca, 0xcf, 0xfd, 0x46, 0x5a, 0xc1, 0x14, 0x3b,
+		0xc5, 0xe1, 0x82, 0x41, 0xf1, 0x8c, 0x48, 0x42,
 	}
 	// Re-sealed 2026-09-25 for spec-le-subject-first-command-tree:
 	// the weakened-test action and proposed-edit owners moved from
@@ -138,11 +147,17 @@ var (
 	// names. Import lines only, no hook decision changed.
 	// Re-sealed 2026-09-25 at closure: the heavyArea comment in
 	// hookruntime/bash.go lost stale text. Comment only, no hook decision changed.
+	// Re-sealed 2026-09-26: the owner removed the hooks that judged wording. The
+	// Stop hook no longer matches phrases, and the agent-brief gate, the LSP gate
+	// and the two per-prompt reminders are gone with their fixtures. The same
+	// seal covers bash.go, whose test-deletion check now reads each command's own
+	// operands.
+	// Re-sealed 2026-09-26 again: the bash.go test-deletion check is line-wide and fail-closed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x38, 0xdb, 0x57, 0x09, 0x58, 0x16, 0xd3, 0xf8,
-		0x9f, 0x31, 0x36, 0x8c, 0x39, 0x21, 0xc3, 0x6f,
-		0xb8, 0x2c, 0xba, 0x28, 0xf5, 0xbc, 0x10, 0x02,
-		0x56, 0x52, 0x62, 0x84, 0x7b, 0x3d, 0x99, 0x4f,
+		0x06, 0x37, 0xdb, 0x1c, 0x98, 0xe1, 0x9e, 0x63,
+		0x70, 0x6c, 0x8a, 0x41, 0x75, 0xb6, 0xbb, 0x95,
+		0xd2, 0xe6, 0x9c, 0x55, 0x73, 0x63, 0x66, 0x73,
+		0x75, 0xab, 0xf2, 0x4f, 0x91, 0xc4, 0x2c, 0xcf,
 	}
 )
 
@@ -199,12 +214,10 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
 	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/probe/probe.go", "docs/probe.md"},
 	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "source-read", "no-source-read"},
-	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "Implemented AC-1 and ran the unit gate.", "Would you like me to continue?"},
+	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "no-claimed-spec", "claimed-spec"},
 	{categorySessionState, "run_session_state", hookLifecycleFile, "func hookEndSummary(", sessionStateKept, sessionStateRotated},
 	{categorySessionStateLocation, "run_session_state_location", hookLifecycleFile, "func stateFile(", "/state/session-state-", "tmp/session/shared/"},
 	{categorySubagentContext, "run_subagent_context", hookLifecycleFile, "func hookSubagentContext(", "claimed-spec", "no-claimed-spec"},
-	{categoryDelegationReminder, "run_delegation_reminder", hookLifecycleFile, "case \"delegation-reminder\":", "no permission request is needed", "permission denied"},
-	{categoryPhaseGates, "run_phase_gates", "internal/le/hookruntime/agent.go", "func coveredSkill(", exploreSkill, "raw research agent"},
 	{categoryRawJobAdmission, "run_raw_job_admission", hookBashFile, "func bashRawHeavy(", "./le test unit core", "go test ./..."},
 	{categoryJournalRowShape, "run_journal_row_shape", hookPostWriteFile, "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
 	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
@@ -250,7 +263,6 @@ var hookSourcePaths = [...]string{
 	hookBashFile,
 	hookWriteEditFile,
 	hookPostWriteFile,
-	"internal/le/hookruntime/agent.go",
 	hookLifecycleFile,
 	weakenedActionsFile,
 	weakenedProposedFile,
@@ -843,11 +855,19 @@ func draftIncubatorTree(string) (string, error) {
 // journalTree builds a checkout holding one journal file: the header row every
 // journal owes, and the row under test beneath it. postJournal re-reads the
 // file from disk, so the row has to be written there rather than passed.
+// specjournal.ValidateFile also reads the file at git HEAD to tell a new row,
+// which the length cap binds, from one already committed, so the tree is a git
+// repository. Its HEAD has no commit, so the row under test is a new row and the
+// cap binds it.
 func journalTree(value string) (string, error) {
-	return probeTree("journal", map[string]string{
+	root, err := probeTree("journal", map[string]string{
 		probeJournalPath: "| Date | Spec | Surface | Symptom | Fix |\n" +
 			"| --- | --- | --- | --- | --- |\n" + value + "\n",
 	})
+	if err != nil {
+		return root, err
+	}
+	return root, initProbeRepository(root)
 }
 
 // probeCompleteSpec is a spec body that satisfies every section, citation and
@@ -924,14 +944,15 @@ func validateSpecTree(value string) (string, error) {
 	return probeTree("validate-spec", map[string]string{"plan/" + probeSpecName: value})
 }
 
-// subagentContextTree builds a checkout whose session claims a spec, or claims
+// claimedSpecTree builds a checkout whose session claims a spec, or claims
 // none. Naming the parent's spec is the one thing in the subagent context that
-// the tree decides.
-func subagentContextTree(value string) (string, error) {
+// the tree decides, and a claim with no subagent spawned is the open state the
+// stop hook warns about.
+func claimedSpecTree(value string) (string, error) {
 	if value != "claimed-spec" {
-		return probeTree("subagent-context", nil)
+		return probeTree("claimed-spec", nil)
 	}
-	return probeTree("subagent-context", map[string]string{
+	return probeTree("claimed-spec", map[string]string{
 		"tmp/session/.session-" + probeSession: probeSpecName + "\n",
 	})
 }
@@ -1051,8 +1072,6 @@ const (
 	slotContent   = "content"
 	slotPath      = "path"
 	slotCommand   = "command"
-	slotPrompt    = "prompt"
-	slotMessage   = "last-message"
 	slotSessionID = "session-id"
 	// slotOffPayload says the value never reaches the payload at all: it shapes
 	// the throwaway tree, or the answer looks for it in what the hook wrote. It
@@ -1078,7 +1097,6 @@ var categoryProbes = map[string]categoryProbe{
 	categoryCommitGate:           {check: "postDeferral", tool: toolWriteName, file: "docs/probe.md", slot: slotContent},
 	categoryTestFirst:            {check: "writeSpecStatus", tool: toolWriteName, file: probeGoPath, slot: slotOffPayload, session: probeSession, tree: specStatusTree},
 	categoryJournalRowShape:      {check: "postJournal", tool: toolWriteName, file: probeJournalPath, slot: slotOffPayload, tree: journalTree},
-	categoryPhaseGates:           {check: "agentSkill", tool: "Agent", slot: slotPrompt},
 	categoryRFCTestGuard:         {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcGuardTree},
 	categoryRFCApproval:          {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcApprovalTree},
 	categoryWeakenedHatch:        {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: weakenedHatchTree},
@@ -1086,9 +1104,8 @@ var categoryProbes = map[string]categoryProbe{
 	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
 	categorySessionID:            {lifecycle: "session-id", slot: slotSessionID},
 	categoryMarkSourceRead:       {lifecycle: "mark-source-read", slot: slotPath, session: probeSession, tree: blankProbeTree, answer: wroteASourceMarker},
-	categoryDelegation:           {lifecycle: "block-premature-stop", slot: slotMessage, session: probeSession, tree: blankProbeTree},
-	categoryDelegationReminder:   {lifecycle: "delegation-reminder", slot: slotOffPayload, answer: saidTheValue},
-	categorySubagentContext:      {lifecycle: "subagent-context", slot: slotOffPayload, session: probeSession, tree: subagentContextTree, answer: namedTheClaimedSpec},
+	categoryDelegation:           {lifecycle: "block-premature-stop", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree},
+	categorySubagentContext:      {lifecycle: "subagent-context", slot: slotOffPayload, session: probeSession, tree: claimedSpecTree, answer: namedTheClaimedSpec},
 	categorySessionStateLocation: {lifecycle: "pre-compact-save", slot: slotOffPayload, tree: blankProbeTree, answer: saidTheValue},
 	categorySessionState:         {lifecycle: "session-end-summary", slot: slotOffPayload, tree: sessionSummaryTree, answer: keptTheStateText},
 	categoryDesignRef:            {finding: "design-refs", slot: slotOffPayload, tree: designRefTree},
@@ -1180,10 +1197,6 @@ func probePayload(probe categoryProbe, value string) hookruntime.Payload {
 		input["content"] = "probe"
 	case slotCommand:
 		input["command"] = value
-	case slotPrompt:
-		input["prompt"] = value
-	case slotMessage:
-		payload.LastMessage = value
 	case slotSessionID:
 		payload.SessionID = value
 	}
@@ -1227,8 +1240,6 @@ const (
 	categoryDraftIncubator       = "draft-incubator"
 	categoryGovernedDocEdit      = "governed-doc-edit"
 	categoryDelegation           = "delegation"
-	categoryDelegationReminder   = "delegation-reminder"
-	categoryPhaseGates           = "phase-gates"
 	categoryDesignGate           = "design-gate"
 	categoryRFCTestGuard         = "rfc-test-guard"
 	categoryJournalRowShape      = "journal-row-shape"
@@ -1246,7 +1257,6 @@ const (
 	delegationHeading            = "Delegation:"
 	planningRule                 = "planning.md"
 	goSuffix                     = ".go"
-	exploreSkill                 = "/ze-explore"
 	governedPrefix               = "governed-"
 	kindMakefile                 = "makefile"
 	kindShell                    = "shell"
@@ -1256,7 +1266,6 @@ const (
 	writeWeakeningAnchor         = "func writeWeakening("
 	removingExpectations         = "removing expectations"
 	statesNoRFCLevel             = "states no RFC 2119 level"
-	wouldYouLikeMe               = "would you like me to"
 )
 
 // The remaining producer files and repeated fixture strings.

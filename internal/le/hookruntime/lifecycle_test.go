@@ -206,7 +206,7 @@ func TestSessionStartBuildsEveryArtifactDeclaredForIt(t *testing.T) {
 // second timeout: measured at 2.68s and 2.03s with all eight present and 5.32s
 // with the five absent. Absent is the common state, because their predicate
 // covers every `*.go` write in every session. A hook killed at its timeout
-// loses the whole session-start message, the BLOCKING LSP notice included.
+// loses the whole session-start message.
 //
 // The corpus is what makes this a decision rather than an inability: the last
 // step renders one of the deferred artifacts by hand and requires it to land.
@@ -265,8 +265,8 @@ func rfcCorpusFixture(t *testing.T, root string) {
 // The rebuild is ABSENT-ONLY because the hook has a budget: `.claude/settings.json`
 // gives `le ai hooks session-start` 5 seconds, and rendering all three
 // artifacts does not fit inside it. A hook killed at its timeout loses the
-// whole session-start message with it, the BLOCKING LSP notice and the
-// verification-debt warning included, and leaves every artifact after the kill
+// whole session-start message with it, the verification-debt warning
+// included, and leaves every artifact after the kill
 // point exactly as it found them. Measure it before changing this:
 //
 //	dir=$(./le session scratch ensure)
@@ -301,12 +301,12 @@ func TestSessionStartLeavesAPresentArtifactAlone(t *testing.T) {
 // TestSessionStartPrintsItsNoticeWhenAStepOverruns drives the hook with a step
 // that outlasts the budget, the shape a loaded machine gives the ledger read.
 //
-// VALIDATES: the BLOCKING LSP notice is the first line whatever a step costs,
+// VALIDATES: the fixed notice is the first line whatever a step costs,
 // the hook returns at its budget instead of waiting for the step, one stderr
 // line names the step that ran out and every step after it, and no report
 // after the cut reaches stdout.
 // PREVENTS: the harness killing the hook at its 5 s timeout and dropping the
-// whole message, the LSP notice included.
+// whole message, the fixed notice included.
 func TestSessionStartPrintsItsNoticeWhenAStepOverruns(t *testing.T) {
 	root := t.TempDir()
 	for _, artifact := range derived.All() {
@@ -327,8 +327,8 @@ func TestSessionStartPrintsItsNoticeWhenAStepOverruns(t *testing.T) {
 	if elapsed := time.Since(started); elapsed > 2*time.Second {
 		t.Fatalf("the hook returned after %s, want it cut at its %s budget", elapsed, sessionStartBudget)
 	}
-	if !strings.HasPrefix(printed, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\"") {
-		t.Fatalf("the hook printed %q, want the LSP notice first", printed)
+	if !strings.HasPrefix(printed, "Warning: RULE: Read spec + source files BEFORE writing any code") {
+		t.Fatalf("the hook printed %q, want the fixed notice first", printed)
 	}
 	names := make([]string, 0, len(sessionStartSteps))
 	for _, step := range sessionStartSteps {

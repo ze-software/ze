@@ -21,32 +21,11 @@
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/le ai hooks compaction-reminder",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le ai hooks verify-claim-reminder",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le ai hooks delegation-reminder",
-            "timeout": 5
           }
         ]
       }
     ],
     "PreToolUse": [
-      {
-        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|ToolSearch|Task|Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le ai hooks block-until-lsp",
-            "timeout": 5,
-            "blocking": true
-          }
-        ]
-      },
       {
         "matcher": "Bash",
         "hooks": [
@@ -64,17 +43,6 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/le ai hooks pretool-writeedit",
-            "timeout": 30,
-            "blocking": true
-          }
-        ]
-      },
-      {
-        "matcher": "Task|Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/le ai hooks pretool-agent-skill",
             "timeout": 30,
             "blocking": true
           }

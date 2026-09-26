@@ -15,4 +15,4 @@ directives ## Directives
   the-answer-to-an-exemption-argument-is-always-no
   verification-debt-is-not-defect-debt
   finish-the-task-then-report-what-was-done
-  how-the-stop-hook-scans-for-banned-phrases
+  finish-what-was-asked-drop-what-you-offered

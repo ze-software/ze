@@ -24,7 +24,6 @@ this page names but that registry does not hold is a defect in this page.
 | Bash command guards | `internal/le/hookruntime/bash.go` |
 | Write/Edit guards | `internal/le/hookruntime/writeedit.go` |
 | Post-write formatting and advisories | `internal/le/hookruntime/postwrite.go` |
-| Agent skill and style checks | `internal/le/hookruntime/agent.go` |
 | Session identity and parent propagation | `internal/le/hookruntime/session.go` |
 | Session, marker, compaction, stop, and validation hooks | `internal/le/hookruntime/lifecycle.go` |
 | JSON dispatch and shared scratch identity | `internal/le/hookruntime/runtime.go` |
@@ -42,11 +41,9 @@ in-process rather than launching a second implementation.
 | Event | Matcher | Action |
 |---|---|---|
 | SessionStart | every | `session-start` |
-| UserPromptSubmit | every | `compaction-reminder`, `verify-claim-reminder`, `delegation-reminder` |
-| PreToolUse | `Bash\|Write\|Edit\|MultiEdit\|NotebookEdit\|ToolSearch\|Task\|Agent` | `block-until-lsp` |
+| UserPromptSubmit | every | `compaction-reminder` |
 | PreToolUse | `Bash` | `pretool-bash` |
 | PreToolUse | `Write\|Edit\|MultiEdit\|NotebookEdit` | `pretool-writeedit` |
-| PreToolUse | `Task\|Agent` | `pretool-agent-skill` |
 | PostToolUse | `LSP` | `mark-lsp-invoked` |
 | PostToolUse | `Read` | `mark-source-read` |
 | PostToolUse | `Task\|Agent` | `mark-agent-spawned` |
@@ -79,7 +76,7 @@ check's row cannot survive it.
 | `bashPollLoop` | `commands.md` | An unbounded wait loop. A loop with no timeout holds the session captive. |
 | `bashSystemTmp` | `testing.md` | The system temporary directory. Session scratch belongs under the per-session directory, which is reaped with the session. |
 | `bashScratch` | `commands.md` | Ad-hoc scratch written at the `tmp/` root. Sessions share that tree, so an unqualified name collides. |
-| `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. |
+| `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. It fails closed and judges the whole line: it asks when a word, quoted or not, is `rm`, ends in `/rm`, or is `-delete`, AND any word is a test path. A test path is a `*_test.go`, `.ci` or `.et` file, a path with a `test` or `testdata` element, or, inside `internal/` or `test/`, a path with any element whose name contains `test` (`internal/component/cli/testing`, `internal/foo/*test*`); `test/draft/` is exempt, and outside those two trees a name that only contains "test", such as `docs/architecture/testing/`, is not one. Words break at whitespace and at `; & | ( ) { } ! < >`, so a redirect glued to a path leaves the path whole. A line with an unclosed quote that runs `rm` is asked about. A line that names `rm` without running it, such as `grep rm x_test.go`, is asked about too. Known gaps: a bare word at the checkout root with no `/`, such as `rm -r test` or `rm -r test*`, because on a whole line `test` is `go test` or the test builtin far more often than the directory; a command inside a `bash -c` string or inside `$(...)` in double quotes; `find ... -delete` with no test word on the line; `rm -rf` of a directory that holds tests but has no element naming `test`; `git clean`; `mv`; and truncation or a redirect that overwrites a test. |
 | `bashGovernedWrite` | `commands.md` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
 | `preMaterializeDerived` | `principles.md` | A command naming a derived artifact the tree does not hold. It rebuilds the artifact first, and refuses the command when the rebuild fails, because a grep of an absent file answers "no match" for a tree nobody rendered. |
 
@@ -121,15 +118,6 @@ it, a read-only agent cut mid-review would lose coverage, and the main thread
 carries no `agent_id`. Read and ToolSearch pass unhooked, so the count is of
 the calls the hook sees, under a tenth short of the agent's total.
 
-## PreToolUse: Task/Agent (`internal/le/hookruntime/agent.go`)
-
-<!-- source: internal/le/hookruntime/agent.go -- agentSkill, agentStyleGuide -->
-
-| Check | Enforces | What it does |
-|---|---|---|
-| `agentSkill` | `cli.md` | Refuses a hand-written prompt that a `ze-*` skill already covers. |
-| `agentStyleGuide` | `go-standards.md` | Warns when a brief will produce Go and names no style guide. |
-
 ## PostToolUse: Write/Edit (`internal/le/hookruntime/postwrite.go`)
 
 <!-- source: internal/le/hookruntime/postwrite.go -- postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader, postTestDocs, postFuzz, postVague, postBoundary, postInvalidateDerived -->
@@ -157,11 +145,8 @@ These return hook protocol output directly rather than a check verdict, so
 |---|---|---|
 | `session-start` | SessionStart | Validates the raw session ID, publishes the accepted ID, and prints status. It deletes nothing; `./le session reap` owns proof-based cleanup. |
 | `compaction-reminder` | UserPromptSubmit | Detects compaction and reminds the session to read the post-compaction rule. |
-| `verify-claim-reminder` | UserPromptSubmit | One stdout line: read the producing function before a code claim. |
-| `delegation-reminder` | UserPromptSubmit | One stdout line: requested parallel delegation needs no permission. |
-| `block-until-lsp` | PreToolUse | Blocks the eight matched tools while this session has not run `ToolSearch query="select:LSP"`. |
 | `pre-compact-save` | PreCompact | Saves session state before compaction. |
-| `block-premature-stop` | Stop | Runs the stop-phrase and spec-closure checks. Blocking. |
+| `block-premature-stop` | Stop | Refuses the stop while the claimed spec is implemented but not closed. Warns in one line when the claim is `in-progress` or no subagent was spawned. It never reads the last message. |
 | `rule-coverage-report` | Stop | Reports which rule points this session's transcript exercised. |
 | `session-end-summary` | Stop | Calls `./le session end-summary`. It preserves handoffs and never releases a spec claim. |
 | `session-end-deferrals` | Stop | Prints the open deferral count. Advisory. |
@@ -171,11 +156,11 @@ These return hook protocol output directly rather than a check verdict, so
 | `mark-agent-spawned` | PostToolUse `Task\|Agent` | Writes the session-scoped agent marker. |
 | `validate-spec` | PostToolUse `Write\|Edit` | `hookValidateSpec` validates the spec's Wiring Test table. |
 
-`writeDesignEvidence` in `writeedit.go` consumes the three markers before a
-design or spec write. Reads never block.
+`writeDesignEvidence` in `writeedit.go` consumes the LSP and source-read markers
+before a design or spec write, and `hookStop` reads the agent marker. Reads never
+block.
 
-`UserPromptSubmit` stdout reaches the model and its stderr does not, which is why
-the three reminders are one line each.
+`UserPromptSubmit` stdout reaches the model and its stderr does not.
 
 ## Commit-time gates (`internal/le/commit`)
 

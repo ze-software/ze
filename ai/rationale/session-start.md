@@ -43,3 +43,4 @@ Why: `.claude/rules/session-start.md`
 - From `.claude/rules/session-start.md`, "A loaded schema is not a working server": "Working on without a server, having seen it is absent, is the failure this paragraph exists to name."
 - From `.claude/rules/session-start.md`, "Mechanical rule": "the first `ToolSearch` / `Bash` / `Read` / `Edit` / anything in a new session must be `ToolSearch query=\"select:LSP\"`. If it is not, you have violated this rule. Apologize, load it, proceed."
 - From `.claude/rules/session-start.md`, "Session Focus": "measured 2026-09-15, one session averaged 375k tokens over 335 calls and the main thread was 19% of eight sessions' spend (`ai/rationale/context-economy.md`)."
+- 2026-09-26: the `block-until-lsp` gate and the LSP-first checklist step were removed (owner decision: hooks keep only mechanical checks). The quotes above describe them as they were.

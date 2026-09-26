@@ -23,7 +23,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Moved to ai/rules/ or .claude/rules/
 
-- feedback_autonomous_work -> ai/rules/completion.md. Enforced by `hookStop` in `internal/le/hookruntime/lifecycle.go`, which blocks a stop on permission-seeking phrases. The retired `block-premature-stop.sh` was unwired from 2026-06-29 (`41e5fa44f`) to 2026-07-31
+- feedback_autonomous_work -> ai/rules/completion.md. No hook enforces it: the Stop hook stopped matching phrases on 2026-09-26.
 - feedback_memory_is_in_repo -> derivable from project structure
 - feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
 - feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)

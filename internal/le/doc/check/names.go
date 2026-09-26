@@ -23,7 +23,6 @@ var nameLintFiles = [...]string{
 }
 
 var nameLintSources = [...]string{
-	"internal/le/hookruntime/agent.go",
 	"internal/le/hookruntime/bash.go",
 	"internal/le/hookruntime/lifecycle.go",
 	"internal/le/hookruntime/postwrite.go",

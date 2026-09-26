@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -76,44 +77,6 @@ func TestWriteRuntimeUsesOneScratchIdentityPolicy(t *testing.T) {
 	code, _, _ = runHook(t, root, "pretool-writeedit", payload("tmp/session/x/out.log"))
 	if code != 0 {
 		t.Fatalf("nested scratch code = %d, want 0", code)
-	}
-}
-
-func TestAgentRuntimeBlocksCoveredRawTask(t *testing.T) {
-	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "ai", "skills"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "ai", "skills", "ze-review.md"), []byte("skill"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	code, _, message := runHook(t, root, "pretool-agent-skill", map[string]any{
-		"tool_name": "Agent", "tool_input": map[string]any{"prompt": "Review this implementation for bugs"},
-	})
-	if code != 2 || !strings.Contains(message, "Use /ze-review") {
-		t.Fatalf("code=%d message=%q", code, message)
-	}
-}
-
-func TestLSPRuntimeWritesOnlyCurrentSessionMarker(t *testing.T) {
-	root := t.TempDir()
-	payload := map[string]any{
-		"session_id": "session-a", "tool_name": "ToolSearch",
-		"tool_input": map[string]any{"query": "select:LSP"},
-	}
-	code, _, _ := runHook(t, root, "block-until-lsp", payload)
-	if code != 0 {
-		t.Fatalf("ToolSearch code = %d", code)
-	}
-	marker := filepath.Join(root, "tmp", "session", ".lsp-loaded-session-a")
-	if _, err := os.Stat(marker); err != nil {
-		t.Fatalf("marker: %v", err)
-	}
-	code, _, message := runHook(t, root, "block-until-lsp", map[string]any{
-		"session_id": "session-b", "tool_name": "Read", "tool_input": map[string]any{},
-	})
-	if code != 2 || !strings.Contains(message, "LSP tool must be loaded") {
-		t.Fatalf("isolated gate: code=%d message=%q", code, message)
 	}
 }
 
@@ -344,5 +307,53 @@ func TestValidateSpecRefusesASpecItCannotRead(t *testing.T) {
 	})
 	if code != 0 {
 		t.Fatalf("a readable spec was refused with code = %d: %q", code, message)
+	}
+}
+
+// TestStopHookJudgesStateNotWording drives block-premature-stop through its
+// entry point with a permission-seeking last message.
+//
+// VALIDATES: with no claimed spec the stop passes whatever the message says,
+// and a claimed spec that is implemented but not closed refuses the stop
+// whatever the message says.
+// PREVENTS: phrase matching coming back into the Stop hook, and the closure
+// block going with it.
+func TestStopHookJudgesStateNotWording(t *testing.T) {
+	const asking = "Would you like me to continue?"
+	const finished = "The commit landed."
+
+	root := t.TempDir()
+	code, _, message := runHook(t, root, "block-premature-stop", map[string]any{
+		"session_id": "sess-free", "last_assistant_message": asking,
+	})
+	if code != 0 || message != "" {
+		t.Fatalf("no claimed spec: code=%d message=%q, want 0 and silence", code, message)
+	}
+
+	closed := t.TempDir()
+	writeHookFixture(t, closed, "plan/spec-widget.md",
+		"| Field | Value |\n|-------|-------|\n| Status | in-progress |\n\n## Goal\n")
+	writeHookFixture(t, closed, "plan/learned/900-widget.md", "# Widget\n")
+	writeHookFixture(t, closed, "tmp/session/.session-sess-owed", "spec-widget.md\n")
+	// The closure inventory reads the journal at HEAD, so the fixture owes one
+	// commit. The learned summary is tracked, which is what makes it evidence.
+	for _, arguments := range [][]string{
+		{"init", "--quiet"},
+		{"add", "plan/learned/900-widget.md"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline"},
+	} {
+		command := exec.CommandContext(t.Context(), "git", arguments...)
+		command.Dir = closed
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v in the fixture: %v\n%s", arguments, err, output)
+		}
+	}
+	for _, last := range []string{asking, finished} {
+		code, _, message := runHook(t, closed, "block-premature-stop", map[string]any{
+			"session_id": "sess-owed", "last_assistant_message": last,
+		})
+		if code != 2 || !strings.Contains(message, "implemented but not closed") {
+			t.Fatalf("unclosed spec, message %q: code=%d message=%q, want the closure block", last, code, message)
+		}
 	}
 }

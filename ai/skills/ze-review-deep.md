@@ -17,9 +17,6 @@ parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
 Launch the agents this skill defines, all in ONE message, using the session's model unless the user requests another.
-**Start every agent prompt with `Serving /ze-review-deep:`.** The native agent
-routing gate in `internal/le/hookruntime/agent.go` blocks a raw agent when a skill
-covers the ask, and these fan-out prompts ask for exactly that.
 Never trade their model down for cost; cut their NUMBER instead
 (`ai/rules/planning.md`). You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).

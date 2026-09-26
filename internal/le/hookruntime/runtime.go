@@ -1,7 +1,6 @@
 // Design: docs/architecture/core-design.md -- hook policy executes in the native le process
 // Detail: bash.go -- command guards
 // Detail: writeedit.go -- edit guards
-// Detail: agent.go -- delegation guards
 // Detail: postwrite.go -- post-edit guards
 //
 // Package hookruntime implements the Claude hook JSON protocol without an
@@ -105,10 +104,6 @@ var nativeHookActions = map[string]hookAction{
 			postFormatGo, postFileSize, postDeferral, postJournal, postRFCHeader,
 			postTestDocs, postFuzz, postVague, postBoundary, postInvalidateDerived,
 		},
-	},
-	"pretool-agent-skill": {
-		tools:  []string{"Agent", "Task"},
-		checks: []hookCheck{agentSkill, agentStyleGuide},
 	},
 }
 

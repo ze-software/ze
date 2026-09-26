@@ -42,12 +42,4 @@
 
 **You MUST finish the explicitly agreed work and report its result without asking permission to start it.** Ask when the scope is genuinely ambiguous, a destructive action requires authorization under `ai/rules/never-destroy-work.md`, or an agreed acceptance criterion needs to change. A verification session does not authorize finishing preserved work or implementing disclosed gaps; that requires separately agreed scope.
 
-**`hookStop` (`internal/le/hookruntime/lifecycle.go`) reads your last message and refuses the stop on any phrase below. These are the words the gate matches, case-insensitively, and you MUST NOT end a turn on one.**
-
-| Scanned | Phrases |
-|---------|---------|
-| Always | `let me know if you`, `would you like me to`, `feel free to`, `if you'd like me to`, `if you want me to`, `happy to help`, `I can <verb> ... if you`, `I'll stop here`, `I'll pause here`, `that's all for now`, `I'll leave ... to you`, `should I proceed/continue/go ahead`, `do you want me to`, `want me to`, `want me to ... or`, `shall I proceed/continue/go ahead/start/keep`, `before I proceed`, `ready for me to`, `or leave/skip/ignore it`, `or should I`, `or something else` |
-| Only while a claimed spec is `in-progress` | `what would you like`, `what do you want to do`, `what's next`, `what next` |
-
-**A blocked Stop is not an instruction to do the work you just offered.** Answer one question: who asked for it? The user did, so finish it and do not ask again. You thought of it, so drop it, and MUST NOT start it, size it, or offer it a second time.
-**A phrase inside backticks or a closed fence is quoted and does not block, and the list is not exhaustive, so a green Stop is no proof you followed this rule.**
+**Before you offer more work, ask who asked for it.** When the user asked for it, you MUST finish it and MUST NOT ask permission again. When you thought of it yourself, you MUST drop it, and you MUST NOT start it, size it, or offer it a second time.

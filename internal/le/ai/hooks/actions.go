@@ -29,8 +29,7 @@ const payloadWait = 10 * time.Second
 
 var actions = func() leaction.Area {
 	verbs := [...]string{
-		"session-start", "compaction-reminder", "verify-claim-reminder", categoryDelegationReminder,
-		"block-until-lsp", "pretool-bash", "pretool-writeedit", "pretool-agent-skill",
+		"session-start", "compaction-reminder", "pretool-bash", "pretool-writeedit",
 		"pre-compact-save", "block-premature-stop", "rule-coverage-report", "session-end-summary",
 		categorySubagentContext, "mark-lsp-invoked", categoryMarkSourceRead,
 		"mark-agent-spawned", categoryValidateSpec, "posttool-writeedit", categorySessionID,

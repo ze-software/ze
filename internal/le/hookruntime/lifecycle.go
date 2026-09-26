@@ -45,12 +45,6 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 		hookCompactionReminder(ctx, errOut)
 	case "session-id":
 		return runSessionID(ctx, out, errOut), true
-	case "verify-claim-reminder":
-		fmt.Fprintln(out, "Reminder: verify a claim about code by reading the function that PRODUCES it, not the caller. Unread means unverified. Cite file + symbol.") //nolint:errcheck // hook protocol
-	case "delegation-reminder":
-		fmt.Fprintln(out, "Reminder: delegation is pre-approved. For 2+ independent tasks, parallelize with subagents; no permission request is needed.") //nolint:errcheck // hook protocol
-	case "block-until-lsp":
-		return hookUntilLSP(ctx, errOut), true
 	case "pre-compact-save":
 		hookPreCompact(ctx, errOut)
 	case "block-premature-stop":
@@ -90,37 +84,9 @@ func writeSessionMarker(ctx context, prefix, body string) int {
 	return 0
 }
 
-// lspBlockedMessage is the refusal the LSP gate prints. It is a constant so the
-// call that writes it fits on one line with its errcheck exemption.
-const lspBlockedMessage = "❌ Blocked: LSP tool must be loaded before any other tool call.\n\n" +
-	"   First tool call of every session MUST be:\n       ToolSearch query=\"select:LSP\"\n\n" +
-	"   See .claude/rules/session-start.md, \"LSP Load (step 1) -- no-exceptions clause\".\n" +
-	"   No task-type exception (shell-only, docs-only, trivial, etc.) applies.\n"
-
-func hookUntilLSP(ctx context, errOut io.Writer) int {
-	id := resolvedSessionID(ctx)
-	if id == "" {
-		return 0
-	}
-	marker := filepath.Join(ctx.root, "tmp", "session", ".lsp-loaded-"+id)
-	if ctx.tool == "ToolSearch" {
-		if strings.Contains(strings.ToLower(stringInput(ctx.input, "query")), "lsp") {
-			_ = os.MkdirAll(filepath.Dir(marker), 0o750)
-			_ = os.WriteFile(marker, []byte(time.Now().Format(time.RFC3339)+"\n"), 0o600)
-		}
-		return 0
-	}
-	if _, err := os.Stat(marker); err == nil {
-		return 0
-	}
-	fmt.Fprint(errOut, lspBlockedMessage) //nolint:errcheck // hook protocol
-	return 2
-}
-
 // sessionStartBudget is how long the session-start hook reports before it cuts
 // what is left. `.claude/settings.json` gives the hook 5 s, and a hook the
-// harness kills at that timeout loses everything it printed, the BLOCKING LSP
-// notice included. The 1.5 s between the two is the margin for starting the
+// harness kills at that timeout loses everything it printed. The 1.5 s between the two is the margin for starting the
 // binary on a loaded machine. Measured 2026-09-26 on this checkout, the whole
 // hook took 3.4 to 4.9 s at a load average near 28, and the ledger read was 2.7
 // to 3.0 s of it. Once commit.ListDebt stopped forking git four times for each
@@ -167,9 +133,6 @@ type sessionStartReport struct {
 // on stderr with the ones after it, instead of the harness dropping the whole
 // message at its timeout.
 func hookSessionStart(ctx context, out, errOut io.Writer) int {
-	fmt.Fprintln(out, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call.")                                 //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial.")                                                          //nolint:errcheck // hook protocol
-	fmt.Fprintln(out, "Warning:   See .claude/rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'.")                                                //nolint:errcheck // hook protocol
 	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                           //nolint:errcheck // hook protocol
 	fmt.Fprintln(out, "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers") //nolint:errcheck // hook protocol
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
@@ -481,106 +444,37 @@ func hookPreCompact(ctx context, errOut io.Writer) {
 	fmt.Fprintf(errOut, "Session state saved to %s\n", path) //nolint:errcheck // hook protocol
 }
 
-func stripStopMarkup(text string) string {
-	var out textbuf.Buffer
-	out.Reset()
-	fence := false
-	fenceLength := 0
-	pending := make([]string, 0)
-	for line := range strings.SplitSeq(text, "\n") {
-		trimmed := strings.TrimLeft(line, " \t")
-		ticks := 0
-		for ticks < len(trimmed) && trimmed[ticks] == '`' {
-			ticks++
-		}
-		if ticks >= 3 {
-			if !fence {
-				fence, fenceLength, pending = true, ticks, pending[:0]
-				continue
-			}
-			if ticks >= fenceLength {
-				fence, pending = false, pending[:0]
-				continue
-			}
-		}
-		if fence {
-			pending = append(pending, line)
-			continue
-		}
-		if strings.Count(line, "`")%2 == 0 {
-			line = regexp.MustCompile("`[^`]*`").ReplaceAllString(line, "")
-		}
-		out.Str(line).Byte('\n')
-	}
-	if fence {
-		out.Join(pending, "\n")
-	}
-	// String detaches the heap slice over 128 bytes, so the buffer is read once
-	// and the result is what both branches below answer with.
-	stripped := out.String()
-	if strings.TrimSpace(stripped) == "" {
-		return text
-	}
-	return stripped
-}
-
+// hookStop judges the session's state when it stops, never the words of its
+// last message. A claimed spec that is implemented but not closed refuses the
+// stop, because the closure commit is the work still owed. An in-progress
+// claim, or a claim with no subagent spawned, is reported in one warning line
+// and does not refuse.
 func hookStop(ctx context, errOut io.Writer) int {
-	text := ctx.payload.LastMessage
-	if text == "" {
+	id := resolvedSessionID(ctx)
+	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
+	if claim == "" || claim == specUnassigned {
 		return 0
 	}
-	reasons := make([]string, 0, 3)
-	openWork := false
-	id := resolvedSessionID(ctx)
-	claimPath := filepath.Join(ctx.root, "tmp", "session", ".session-"+id)
-	claim := readFirstLine(claimPath)
-	if claim != "" && claim != specUnassigned {
-		if report, _, closureErr := specstatus.CheckClosure(ctx.root, claim); closureErr == nil && report.Blocked() {
-			fmt.Fprintln(errOut, "BLOCKED: spec implemented but not closed.") //nolint:errcheck // hook protocol
-			fmt.Fprint(errOut, report.Text())                                 //nolint:errcheck // hook protocol
-			return 2
-		}
-		specBody, err := readClaimedSpec(ctx.root, claim)
-		if err == nil && regexp.MustCompile(`(?m)^\|[ \t]*Status[ \t]*\|.*in-progress`).Match(specBody) {
-			openWork = true
-			reasons = append(reasons, "Spec '"+claim+"' in-progress")
-		}
-		if _, err := os.Stat(filepath.Join(ctx.root, "tmp", "session", ".agent-spawned-"+id)); err != nil {
-			reasons = append(reasons, "Delegation: no subagent spawned")
-		}
-	}
-	if !ctx.payload.StopHookActive {
-		scan := stripStopMarkup(text)
-		patterns := []string{"let me know if you", "would you like me to", "feel free to", "if you.d like me to", "if you want me to", "happy to help", "I can [a-z]+ .* if you", "I.ll stop here", "I will stop here", "I.ll pause here", "I will pause here", "that.s all for now", "I.ll leave .* to you", "I will leave .* to you", "should I (proceed|continue|go ahead)", "do you want me to", "(?m)^want me to", "want me to .* or", "shall I (proceed|continue|go ahead|start|keep)", "before I proceed", "ready for me to", "or (leave|skip|ignore) (them|it|this|that)", "or should I", "or something else"}
-		if openWork {
-			patterns = append(patterns, "what would you like", "what do you want to do", "what.s next", "what next")
-		}
-		for _, pattern := range patterns {
-			if regexp.MustCompile("(?i)" + pattern).MatchString(scan) {
-				reasons = append(reasons, "Stop phrase: "+pattern)
-				break
-			}
-		}
-	}
-	phrase := false
-	for _, reason := range reasons {
-		phrase = phrase || strings.HasPrefix(reason, "Stop phrase:")
-	}
-	if phrase {
-		fmt.Fprintln(errOut, "BLOCKED: Premature stop detected.") //nolint:errcheck // hook protocol
-		for _, reason := range reasons {
-			fmt.Fprintln(errOut, "  - "+reason) //nolint:errcheck // hook protocol
-		}
-		fmt.Fprintln(errOut, "Delete the sentence that asked, then answer one question: who asked for that work?\n  The user did: finish it now, and do not ask permission again.\n  You did: DROP IT. Do not start it, size it, or offer it again.\nThis block is not an instruction to do the work you just offered.") //nolint:errcheck // hook protocol
+	if report, _, closureErr := specstatus.CheckClosure(ctx.root, claim); closureErr == nil && report.Blocked() {
+		fmt.Fprintln(errOut, "BLOCKED: spec implemented but not closed.") //nolint:errcheck // hook protocol
+		fmt.Fprint(errOut, report.Text())                                 //nolint:errcheck // hook protocol
 		return 2
 	}
-	if len(reasons) != 0 {
-		// One line. The transcript renders a non-blocking hook exit verbatim, so a
-		// header plus one bullet per reason spends three lines to say what one says.
-		fmt.Fprintln(errOut, "Warning: open session state -- "+strings.Join(reasons, "; ")) //nolint:errcheck // hook protocol
-		return 1
+	reasons := make([]string, 0, 2)
+	specBody, err := readClaimedSpec(ctx.root, claim)
+	if err == nil && regexp.MustCompile(`(?m)^\|[ \t]*Status[ \t]*\|.*in-progress`).Match(specBody) {
+		reasons = append(reasons, "Spec '"+claim+"' in-progress")
 	}
-	return 0
+	if _, err := os.Stat(filepath.Join(ctx.root, "tmp", "session", ".agent-spawned-"+id)); err != nil {
+		reasons = append(reasons, "Delegation: no subagent spawned")
+	}
+	if len(reasons) == 0 {
+		return 0
+	}
+	// One line. The transcript renders a non-blocking hook exit verbatim, so a
+	// header plus one bullet per reason spends three lines to say what one says.
+	fmt.Fprintln(errOut, "Warning: open session state -- "+strings.Join(reasons, "; ")) //nolint:errcheck // hook protocol
+	return 1
 }
 
 func hookRuleCoverage(ctx context, errOut io.Writer) int {

@@ -232,10 +232,10 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		identities[identity] = struct{}{}
 		names[fixture.name]++
 	}
-	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 316, 0: 184, 1: 13, 2: 96}) {
+	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 286, 0: 164, 1: 12, 2: 75}) {
 		t.Fatalf("fixture exit populations = %v", exitCounts)
 	}
-	wantMessages := map[string]int{"contains": 101, "not-contains": 13, "equals": 6, "suffix": 3}
+	wantMessages := map[string]int{"contains": 82, "not-contains": 11, "equals": 3, "suffix": 3}
 	if !reflect.DeepEqual(messageCounts, wantMessages) {
 		t.Fatalf("fixture message populations = %v, want %v", messageCounts, wantMessages)
 	}
@@ -243,12 +243,8 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		t.Fatalf("unique fixture names = %d, want %d", len(names), fixtureUniqueNamesExpected)
 	}
 	for name, count := range names {
-		want := 1
-		if name == "review-model-verb-implementation" {
-			want = 2
-		}
-		if count != want {
-			t.Fatalf("fixture name %q occurs %d times, want %d", name, count, want)
+		if count != 1 {
+			t.Fatalf("fixture name %q occurs %d times, want 1", name, count)
 		}
 	}
 }
@@ -405,7 +401,7 @@ func TestRunFailsClosedWhenHookPopulationIsMissing(t *testing.T) {
 
 func TestActionOwnsUnitAndEveryRuntimeHook(t *testing.T) {
 	listing := Actions()
-	if listing.Area != area || len(listing.Actions) != 20 {
+	if listing.Area != area || len(listing.Actions) != 16 {
 		t.Fatalf("listing = %+v", listing)
 	}
 	verbs := make(map[string]bool, len(listing.Actions))
@@ -416,7 +412,7 @@ func TestActionOwnsUnitAndEveryRuntimeHook(t *testing.T) {
 		verbs[row.Verb] = true
 	}
 	for _, required := range []string{"unit", "pretool-bash", "pretool-writeedit",
-		"posttool-writeedit", "pretool-agent-skill", "session-start", "validate-spec"} {
+		"posttool-writeedit", "session-start", "validate-spec"} {
 		if !verbs[required] {
 			t.Errorf("missing hook action %q", required)
 		}
@@ -452,8 +448,8 @@ func TestEveryConfiguredHookUsesRegisteredNativeAction(t *testing.T) {
 		}
 		configured++
 	}
-	if configured != 18 {
-		t.Fatalf("configured native hooks = %d, want 18", configured)
+	if configured != 14 {
+		t.Fatalf("configured native hooks = %d, want 14", configured)
 	}
 }
 
