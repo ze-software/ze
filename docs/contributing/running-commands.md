@@ -668,8 +668,22 @@ names a governed tree beside a write call: a write mode passed to `open`, a
 write method, `writeFileSync`, or a rename, copy or move. A payload that only
 reads passes. The tier over-matches on purpose, so a heredoc that merely NAMES those trees beside a write
 primitive is refused too. A wrong refusal is answered with
-`ZE_ADMIT_GOVERNED_WRITE="<reason>"`, never by rewording the command. Reading
-stays free: `grep`, `cat`, `sed -n` and `./le commit create file plan/spec-x.md
+`ZE_ADMIT_GOVERNED_WRITE="<reason>"`, never by rewording the command.
+
+A path that reaches the writer at run time is followed as a taint
+(`internal/le/hookruntime/bash_governed_taint.go`). A variable is tainted when
+it is assigned a governed path, when a `for` loop iterates over one, or when a
+`while read` loop is fed from a command that lists or searches a governed tree
+(`find plan`, `git ls-files ai/rules`, `done < <(find plan ...)`). A write
+through a tainted `$f` or `${f}` is refused: an in-place editor, a redirect,
+`tee`, or a `cp` or `mv` target. The guard also refuses an in-place editor run
+by `xargs` or `find -exec` after a command that names a governed tree, one
+handed its files by `$(find plan ...)`, and, after a `cd` or `pushd` into a
+governed tree, any in-place editor or a relative redirect, `tee`, copy or move
+target. A read into scratch passes, because the scratch variable never held a
+governed path: `grep x plan/a.md > "$S/out"` is free. A file list read from a
+file that is not itself governed, such as `sed -i x $(cat list.txt)`, is not
+seen. Reading stays free: `grep`, `cat`, `sed -n` and `./le commit create file plan/spec-x.md
 dry-run` bind on the write, not on the path.
 
 ## What a fork and a poll cost

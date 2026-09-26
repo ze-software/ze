@@ -34,9 +34,16 @@ var (
 	// made unreachable. It can also be bundled with its neighbors: `perl -0pi`,
 	// `perl -pi`, `sed -Ei`, `sed -i.bak` and `sed --in-place` all edit in place,
 	// and a standalone `-i` saw none of them.
-	governedSed  = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl|ruby)[ \t]+(?:[^|;&\n]*[ \t])?-[-A-Za-z0-9]*i[^|;&\n]*(?:plan/|ai/rules/)`)
-	governedTee  = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
-	governedCopy = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+[^|;&\n]*[ \t]["']?(?:plan/|ai/rules/)`)
+	//
+	// governedArgs is one segment's arguments with a quoted word taken whole,
+	// because a sed script such as 's/a/b/;s/c/d/' carries a semicolon that
+	// ended the segment before the path when the class stopped at every `;`.
+	// governedQuoteOpen lets the path sit inside a quoted word: "./plan/x".
+	governedArgs      = `(?:'[^']*'|"[^"]*"|[^|;&\n'"])*`
+	governedQuoteOpen = `(?:["'][^"'\n]*)?`
+	governedSed       = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:sed|perl|ruby)[ \t]+(?:` + governedArgs + `[ \t])?-[-A-Za-z0-9]*i` + governedArgs + governedQuoteOpen + `(?:plan/|ai/rules/)`)
+	governedTee       = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])tee[ \t]+(?:-a[ \t]+)?["']?(?:plan/|ai/rules/)`)
+	governedCopy      = regexp.MustCompile(`(?:^|[\s;&|(` + "`" + `])(?:mv|cp)[ \t]+` + governedArgs + `[ \t]["']?(?:plan/|ai/rules/)`)
 	// The interpreter tier names every script runtime whose write calls
 	// governedWrite can recognize, because a runtime missing here writes freely:
 	// `python3 -c "open('plan/x','w').write(...)"` passed while the list held perl
@@ -746,8 +753,10 @@ func governedReason(command string) bool {
 }
 
 // governedShellWrite reports whether the command writes into a governed tree by
-// any of the five routes: a redirect, an in-place editor, tee, a copy or move,
-// or a Perl, Ruby, Python, Node, Deno or Bun script that writes a file.
+// any of the six routes: a redirect, an in-place editor, tee, a copy or move,
+// a Perl, Ruby, Python, Node, Deno or Bun script that writes a file, or a write
+// through a variable, pipe or cd that holds a governed path
+// (bash_governed_taint.go).
 //
 // Each route is its own named test rather than one compound condition, so a
 // reader can see which route fired and a new route is a new line.
@@ -762,6 +771,9 @@ func governedShellWrite(command string) bool {
 		return true
 	}
 	if governedCopy.MatchString(command) {
+		return true
+	}
+	if governedTaintWrite(command) {
 		return true
 	}
 	return governedRuntime.MatchString(command) &&
