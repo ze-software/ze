@@ -200,6 +200,51 @@ func TestGovernedWriteLeavesReadsAlone(t *testing.T) {
 	}
 }
 
+// TestGovernedWriteCatchesEveryScriptRuntime drives the pretool-bash hook with a
+// script payload for each runtime the interpreter tier names. The method is the
+// hook's own entry point, so the runtime list, the write-call list and the
+// escape are judged together.
+//
+// It exists because the runtime list held perl and ruby alone, so a
+// `python3 -c` or `python3 - <<EOF` payload wrote spec files with none of the
+// Write/Edit checks having run, and Node had the same hole.
+func TestGovernedWriteCatchesEveryScriptRuntime(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		blocked bool
+	}{
+		{"python3-c-open-write", `python3 -c "open('plan/spec-x.md','w').write('x')"`, true},
+		{"python3-heredoc-write-text", "python3 - <<'EOF'\nfrom pathlib import Path\nPath('plan/spec-x.md').write_text('x')\nEOF", true},
+		{"python3.12-os-replace", `python3.12 -c "import os; os.replace('scratch/x','ai/rules/commands.md')"`, true},
+		{"python-shutil-copy", `python -c "import shutil; shutil.copy('x', 'plan/spec-x.md')"`, true},
+		{"node-write-file-sync", `node -e "require('fs').writeFileSync('plan/spec-x.md', 'x')"`, true},
+		{"node-append-file-sync", `node -e "require('fs').appendFileSync('ai/rules/commands.md', 'x')"`, true},
+		{"perl-open-truncate-mode", `perl -e 'open(my $f, ">", "plan/spec-x.md"); print $f "x"'`, true},
+		{"python3-read-plan", `python3 -c "print(open('plan/spec-x.md').read())"`, false},
+		{"python3-read-ai-rules", `python3 -c "print(open('ai/rules/commands.md').read())"`, false},
+		{"node-read-plan", `node -e "console.log(require('fs').readFileSync('plan/spec-x.md', 'utf8'))"`, false},
+		{"python3-write-admitted", `ZE_ADMIT_GOVERNED_WRITE="reads plan/, writes scratch" python3 -c "open('plan/spec-x.md','w').write('x')"`, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
+				"tool_name":  "Bash",
+				"tool_input": map[string]any{"command": test.command},
+			})
+			refused := strings.Contains(message, "shell write to plan/ or ai/rules/")
+			if refused != test.blocked {
+				t.Fatalf("command %q: refused = %v (code %d), want %v: %s",
+					test.command, refused, code, test.blocked, message)
+			}
+			if test.blocked && code != 2 {
+				t.Fatalf("command %q: code = %d, want 2", test.command, code)
+			}
+		})
+	}
+}
+
 // TestLossyPipeReadsTheTwoWordArea drives the pretool-bash hook with one piped
 // command for each side of the area boundary. The method is the hook's own
 // entry point, so the tokenizer, heavyArea and bashLossyPipe are judged
@@ -501,57 +546,87 @@ func TestBashHookReadsHarnessSuitesAsHeavy(t *testing.T) {
 	}
 }
 
-// TestGovernedWriteCatchesEveryScriptRuntime drives the pretool-bash hook with a
-// script payload for each runtime the interpreter tier names. The method is the
-// hook's own entry point, so the runtime list, the write-call list and the
-// escape are judged together.
-//
-// It exists because the runtime list held perl and ruby alone, so a
-// `python3 -c` or `python3 - <<EOF` payload wrote spec files with none of the
-// Write/Edit checks having run, and Node had the same hole.
-func TestGovernedWriteCatchesEveryScriptRuntime(t *testing.T) {
-	tests := []struct {
-		name    string
-		command string
-		blocked bool
-	}{
-		{"python3-c-open-write", `python3 -c "open('plan/spec-x.md','w').write('x')"`, true},
-		{"python3-heredoc-write-text", "python3 - <<'EOF'\nfrom pathlib import Path\nPath('plan/spec-x.md').write_text('x')\nEOF", true},
-		{"python3.12-os-replace", `python3.12 -c "import os; os.replace('scratch/x','ai/rules/commands.md')"`, true},
-		{"python-shutil-copy", `python -c "import shutil; shutil.copy('x', 'plan/spec-x.md')"`, true},
-		{"node-write-file-sync", `node -e "require('fs').writeFileSync('plan/spec-x.md', 'x')"`, true},
-		{"node-append-file-sync", `node -e "require('fs').appendFileSync('ai/rules/commands.md', 'x')"`, true},
-		{"perl-open-truncate-mode", `perl -e 'open(my $f, ">", "plan/spec-x.md"); print $f "x"'`, true},
-		{"python3-read-plan", `python3 -c "print(open('plan/spec-x.md').read())"`, false},
-		{"python3-read-ai-rules", `python3 -c "print(open('ai/rules/commands.md').read())"`, false},
-		{"node-read-plan", `node -e "console.log(require('fs').readFileSync('plan/spec-x.md', 'utf8'))"`, false},
-		{"python3-write-admitted", `ZE_ADMIT_GOVERNED_WRITE="reads plan/, writes scratch" python3 -c "open('plan/spec-x.md','w').write('x')"`, false},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := t.TempDir()
-			code, _, message := runHook(t, root, "pretool-bash", map[string]any{
-				"tool_name":  "Bash",
-				"tool_input": map[string]any{"command": test.command},
-			})
-			refused := strings.Contains(message, "shell write to plan/ or ai/rules/")
-			if refused != test.blocked {
-				t.Fatalf("command %q: refused = %v (code %d), want %v: %s",
-					test.command, refused, code, test.blocked, message)
-			}
-			if test.blocked && code != 2 {
-				t.Fatalf("command %q: code = %d, want 2", test.command, code)
-			}
-		})
-	}
+// testDeletionAsked drives the pretool-bash hook with one command and reports
+// whether the test-deletion check asked about it.
+func testDeletionAsked(t *testing.T, command string) (bool, string) {
+	t.Helper()
+	_, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": command},
+	})
+	return strings.Contains(message, "Test deletion - user approval required"), message
 }
 
-// TestLossyPipeReadsTheTwoWordArea drives the pretool-bash hook with one piped
-// command for each side of the area boundary. The method is the hook's own
-// entry point, so the tokenizer, heavyArea and bashLossyPipe are judged
-// together.
+// TestTestDeletionAsksOnlyForATestPath drives the pretool-bash hook with lines
+// that delete a test and lines that do not. The method is the hook entry point,
+// so the word split, the delete detection and the path test are judged together.
 //
-// It exists because `le verify-status` became `le verify status` when the
-// commands were grouped, and the guard read only the first word: a certificate
-// read piped into `tail` was refused with the message the verification gate
-// owns, while nothing in the tree said the area had changed meaning.
+// It exists because the check matched regexps across the whole line: an
+// `rm -rf bin/le-hookchk` followed by a `git status` that named
+// docs/architecture/testing was asked about as a recursive test deletion. The
+// fix narrows only what a test PATH is, so every way of reaching an rm that the
+// line-wide check caught, through eval, a loop, a brace group or a redirect, is
+// still asked about.
+func TestTestDeletionAsksOnlyForATestPath(t *testing.T) {
+	allowed := []string{
+		`cd /Users/thomas/Code/github.com/ze-software/ze/main; rm -rf bin/le-hookchk; git status --short internal/le/commit internal/le/hookruntime docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md | cat; git diff --stat docs/contributing/navigating-the-code.md docs/architecture/testing/verify-freshness-scope.md`,
+		`rm -rf bin/le-latest`,
+		`rm -rf docs/architecture/testing/old`,
+		`rm -f bin/x && go test ./internal/foo`,
+		`rm -rf test/draft/wip.ci`,
+		`echo 'rm internal/foo/foo_test.go'`,
+		`rm -f bin/x # test/old`,
+		`echo 'an unclosed quote with no delete`,
+	}
+	for _, command := range allowed {
+		if asked, message := testDeletionAsked(t, command); asked {
+			t.Errorf("%q was asked about as a test deletion: %s", command, message)
+		}
+	}
+	asked := []string{
+		`rm -rf internal/foo/foo_test.go`,
+		`rm -r test/x`,
+		`rm -r test/`,
+		`rm -r testdata`,
+		`ls; rm internal/x/testdata/y`,
+		`rm 'a b_test.go'`,
+		`rm "test/plugin/x.ci"`,
+		`git rm test/editor/y.et`,
+		`git -C /repo rm --cached internal/foo/foo_test.go`,
+		`LC_ALL=C rm internal/foo/foo_test.go`,
+		`rm -rf bin/x && rm -rf internal/foo/testdata`,
+		`(cd internal && rm x/foo_test.go)`,
+		`find . -name '*_test.go' | xargs rm`,
+		`find internal -name '*_test.go' -exec rm {} +`,
+		`sudo /bin/rm -rf /repo/test/x`,
+		`git checkout -- internal/foo/foo_test.go`,
+		`rm 'unclosed_quote`,
+		`rm bin/x \`,
+		// The line-wide check cannot tell a named rm from a run one, and asks.
+		`grep -n rm internal/foo/foo_test.go`,
+		`git log -- internal/foo/foo_test.go | grep rm`,
+		// Ways of reaching an rm that a per-command parser missed.
+		`eval rm internal/x/foo_test.go`,
+		`if true; then rm internal/x/foo_test.go; fi`,
+		`for f in internal/x/*_test.go; do rm "$f"; done`,
+		`{ rm internal/x/foo_test.go; }`,
+		`! rm internal/x/foo_test.go`,
+		`rm internal/x/foo_test.go>/dev/null`,
+		`rm 2>&1 internal/x/foo_test.go`,
+		`rm -r internal/foo/*test*`,
+		`find internal -name '*_test.go' -delete`,
+		// Inside internal/ or test/, a directory whose name contains "test".
+		`rm -rf internal/component/cli/testing`,
+		`rm -rf internal/component/web/testing`,
+		`rm -rf internal/le/chaos/selftest`,
+		`rm -rf /repo/internal/le/chaos/selftest`,
+		// A quoted rm is still the rm the shell runs.
+		`'rm' internal/x/foo_test.go`,
+		`"rm" -rf internal/component/cli/testing`,
+	}
+	for _, command := range asked {
+		if asked, message := testDeletionAsked(t, command); !asked {
+			t.Errorf("%q was not asked about as a test deletion: %s", command, message)
+		}
+	}
+}

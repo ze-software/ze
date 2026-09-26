@@ -25,7 +25,7 @@ var (
 	sleepCall        = regexp.MustCompile(`(?:^|[;&|(\s./])sleep\s*[0-9$"'(]`)
 	loopPGrep        = regexp.MustCompile(`\b(while|until)\s+(?:!\s*)?(?:\[\[?\s*)?pgrep\b`)
 	timeoutBound     = regexp.MustCompile(`(^|[^-A-Za-z0-9_])timeout\s+(?:-\S+\s+)*[0-9]+(?:\.[0-9]+)?[smhd]?\b`)
-	rootTestPath     = regexp.MustCompile(`[^\s'\"]*(?:test/|_test\.go)[^\s'\"]*`)
+	rmWord           = regexp.MustCompile(`(^|[\s;&|(/` + "`" + `])rm\s`)
 	governedPath     = regexp.MustCompile(`(?:plan/|ai/rules/)`)
 	governedRedirect = regexp.MustCompile(`>>?[ \t]*["']?(?:plan/|ai/rules/)`)
 	// The in-place flag is matched with an OPTIONAL argument prefix and inside a
@@ -574,38 +574,155 @@ func bashScratch(ctx context) *verdict {
 		"  -- ai/rules/commands.md, 'Write Ad-Hoc Scratch Under Your Per-Session Dir'"}
 }
 
-func draftOnly(command string) bool {
-	targets := rootTestPath.FindAllString(command, -1)
-	if len(targets) == 0 {
-		return false
+// lineWords splits a whole shell line into words with their quotes removed, so
+// `'rm'` and `"rm"` are the word rm, as the shell runs them. It does not split the line
+// into commands: whitespace and the operators `; & | ( ) { } ! < >` all break a
+// word, so `2>&1`, `>/dev/null` and `{ rm x; }` leave the paths as words of
+// their own. A `#` that starts a word comments out the rest of its line. It
+// returns false when the line ends inside a quote or after a lone backslash,
+// because a caller that cannot see where a word ends cannot judge it.
+func lineWords(line string) ([]string, bool) {
+	words := make([]string, 0, 16)
+	var word textbuf.Buffer
+	word.Reset()
+	// quoted marks a word that opened with a quote, so `''#x` is a word and
+	// not a comment.
+	quoted := false
+	flush := func() {
+		if word.Len() != 0 {
+			words = append(words, word.String())
+		}
+		quoted = false
 	}
-	for _, target := range targets {
-		clean := filepath.ToSlash(filepath.Clean(target))
-		if clean != "test/draft" && !strings.HasPrefix(clean, "test/draft/") {
-			return false
+	quote := rune(0)
+	escaped := false
+	comment := false
+	for _, character := range line {
+		if comment {
+			comment = character != '\n'
+			continue
+		}
+		if escaped {
+			// A backslash before a newline continues the line and adds nothing.
+			if character != '\n' {
+				word.WriteRune(character)
+			}
+			escaped = false
+			continue
+		}
+		if character == '\\' && quote != '\'' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if character == quote {
+				quote = 0
+			} else {
+				word.WriteRune(character)
+			}
+			continue
+		}
+		switch {
+		case character == '\'' || character == '"':
+			quote = character
+			quoted = true
+		case character == '#' && word.Len() == 0 && !quoted:
+			comment = true
+		case unicode.IsSpace(character) || strings.ContainsRune(";&|(){}!<>", character):
+			flush()
+		default:
+			word.WriteRune(character)
 		}
 	}
-	return true
+	if quote != 0 {
+		return nil, false
+	}
+	if escaped {
+		return nil, false
+	}
+	flush()
+	return words, true
+}
+
+// runsDeletion reports whether a line runs a delete: a word that is `rm` or
+// ends in `/rm`, which also covers `git rm`, or find's `-delete`. It does not
+// ask WHICH command runs it, so an rm reached through eval, a loop, a brace
+// group or xargs still counts.
+func runsDeletion(words []string) bool {
+	for _, word := range words {
+		if word == "rm" || strings.HasSuffix(word, "/rm") || word == "-delete" {
+			return true
+		}
+	}
+	return false
+}
+
+// testPath reports whether a word names content the testing rule guards: a
+// `*_test.go`, `.ci` or `.et` file, a `test` or `testdata` directory and
+// anything under one, or, inside internal/ or test/, any path element whose
+// name contains "test", such as internal/component/cli/testing or a glob like
+// internal/foo/*test*. Outside those trees a name that only contains "test",
+// such as docs/architecture/testing or bin/le-latest, is not a test path.
+// test/draft holds unfinished tests, which carry no coverage yet, so it is not
+// guarded.
+func testPath(path string) bool {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if clean == "test/draft" || strings.HasPrefix(clean, "test/draft/") {
+		return false
+	}
+	for _, suffix := range []string{"_test.go", ".ci", ".et"} {
+		if strings.HasSuffix(clean, suffix) {
+			return true
+		}
+	}
+	if clean == "testdata" {
+		return true
+	}
+	// A bare `test` is judged on the whole line, where it is far more often
+	// `go test` or the test builtin than the directory, so the element counts
+	// only inside a path.
+	if !strings.Contains(path, "/") {
+		return false
+	}
+	anchored := "/" + clean + "/"
+	testTree := strings.Contains(anchored, "/internal/") || strings.Contains(anchored, "/test/")
+	for element := range strings.SplitSeq(clean, "/") {
+		if element == "test" || element == "testdata" {
+			return true
+		}
+		if testTree && strings.Contains(element, "test") {
+			return true
+		}
+	}
+	return false
 }
 
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
-// bashTestDeletion refuses deleting a test without approval. A deleted test is
+// bashTestDeletion asks before a command deletes a test. A deleted test is
 // indistinguishable from a test that never existed, and its coverage goes with it.
+// It fails closed: it asks when the line runs a delete ANYWHERE and names a test
+// path ANYWHERE, without deciding which command deletes which path, because a
+// shell has more ways to reach an rm than a hook can parse. Only the path test is
+// exact, so a test path is a path the rule guards and not any path spelling
+// "test". A line that cannot be split into words, and that runs rm, is asked about.
 func bashTestDeletion(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
 	errors := make([]string, 0, 2)
-	if regexp.MustCompile(`(^|\s|&&|\|)(rm|git rm)\s`).MatchString(command) {
-		if strings.Contains(command, "_test.go") || strings.Contains(command, ".ci") {
-			errors = append(errors, "Attempting to delete test file via: "+command)
-		}
-		if regexp.MustCompile(`rm.*-r.*test/|rm.*-r.*internal/.*test`).MatchString(command) {
-			errors = append(errors, "Attempting recursive deletion in test directory: "+command)
+	words, parsed := lineWords(command)
+	if !parsed && rmWord.MatchString(command) {
+		errors = append(errors, "Cannot split the command into words (an unclosed quote or a trailing backslash), so what its rm deletes is unknown: "+command)
+	}
+	if runsDeletion(words) {
+		for _, word := range words {
+			if testPath(word) {
+				errors = append(errors, "Attempting to delete test path "+word+" via: "+command)
+			}
 		}
 	}
 	if regexp.MustCompile(`git checkout.*(_test\.go|\.ci)`).MatchString(command) && regexp.MustCompile(`git checkout (--|[.])`).MatchString(command) {
 		errors = append(errors, "Attempting to discard test file changes: "+command)
 	}
-	if len(errors) == 0 || draftOnly(command) {
+	if len(errors) == 0 {
 		return nil
 	}
 	lines := []string{yellow + bold + "❓ Test deletion - user approval required" + reset, ""}
