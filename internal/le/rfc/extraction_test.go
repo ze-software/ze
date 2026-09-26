@@ -505,19 +505,21 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly seven actions change the tree, and each one owns its output:
+	// Exactly eight actions change the tree, and each one owns its output:
 	// extraction-create and extraction-classify own one rfc/extraction
 	// artifact between them, the first deriving it and the second applying an
 	// authored walk to it; discriminate-record owns one rfc/discrimination
-	// artifact, re-seal owns rfc/audit/, the generator owns
+	// artifact, re-seal owns the re-stamp of a verdict already in rfc/audit/,
+	// audit-stamp owns the first fingerprints of a verdict an author just
+	// wrote there, the generator owns
 	// ai/RFC-REQUIREMENTS.md plus rfc/requirements/, and approve owns the
 	// session's tmp/commit-rfc-approved-<session>.md. quote-backfill owns the
 	// checklist rows of rfc/short/<stem>.md it rewrites, and only under apply. Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
-	if len(writes) != 7 || !writes["extraction-create"] || !writes["extraction-classify"] ||
+	if len(writes) != 8 || !writes["extraction-create"] || !writes["extraction-classify"] ||
 		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] ||
-		!writes["approve"] || !writes["quote-backfill"] {
-		t.Errorf("the actions that write are %v, want exactly [approve discriminate-record "+
+		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] {
+		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp discriminate-record "+
 			"extraction-classify extraction-create index-update quote-backfill reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {

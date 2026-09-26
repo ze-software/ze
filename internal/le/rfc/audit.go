@@ -74,8 +74,19 @@ func AuditVerdictMeaning(verdict string) (string, bool) {
 	return meaning, held
 }
 
+// The audit file's own fields and a verdict's authored ones, named once
+// because the loader reads them, the stamp writes them, and the selftest
+// builds a file from them.
+const (
+	auditFieldRFC          = "rfc"
+	auditFieldAudited      = "audited"
+	auditFieldRequirements = "requirements"
+	verdictFieldVerdict    = "verdict"
+	verdictFieldNote       = "note"
+)
+
 var auditFileKeys = map[string]bool{
-	"rfc": true, "audited": true, "requirements": true,
+	auditFieldRFC: true, auditFieldAudited: true, auditFieldRequirements: true,
 	"reaudit_note": true, "reaudit_history": true,
 }
 
@@ -88,7 +99,7 @@ const (
 )
 
 var verdictKeys = map[string]bool{
-	"verdict": true, "note": true, "requirement_sha": true,
+	verdictFieldVerdict: true, verdictFieldNote: true, "requirement_sha": true,
 	fingerprintTests: true, fingerprintUnits: true, fingerprintCode: true,
 	"upgrade_reason": true, "no_code_path": true,
 }
@@ -290,7 +301,7 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 			Str(". The vocabulary is closed (ai/skills/ze-rfc-audit.md): a fifth word is ").
 			Str("drift, and drift in this field is a compliance claim nobody can read"))
 	}
-	if _, err := strField(data, "note", at, true); err != nil {
+	if _, err := strField(data, verdictFieldNote, at, true); err != nil {
 		return err
 	}
 	// strField runs first, so a wrong TYPE keeps its own message; the shape
@@ -394,7 +405,7 @@ func (a Audit) Record(rid string) (VerdictRecord, bool) {
 		Units:   recordedMap(verdict, fingerprintUnits),
 		Code:    recordedMap(verdict, fingerprintCode),
 	}
-	record.Note, _ = verdict["note"].(string)
+	record.Note, _ = verdict[verdictFieldNote].(string)
 	record.RequirementSHA, _ = verdict["requirement_sha"].(string)
 	record.UpgradeReason, _ = verdict["upgrade_reason"].(string)
 	record.NoCodePath, _ = verdict["no_code_path"].(string)
@@ -464,7 +475,7 @@ func loadAudit(tree, rfcStem string) (Audit, error) {
 			Str(" but the filename says ").Str(pyRepr(rfcStem)).
 			Str(". The record names the RFC it judges; the two can never drift apart"))
 	}
-	if _, err := strField(data, "audited", rel, true); err != nil {
+	if _, err := strField(data, auditFieldAudited, rel, true); err != nil {
 		return Audit{}, err
 	}
 	if history, held := data["reaudit_history"]; held && history != nil {

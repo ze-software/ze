@@ -1,9 +1,11 @@
 // Design: docs/architecture/core-design.md -- the one writer of rfc/audit/
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// reseal.go is `./le rfc reseal`: the ONLY thing that writes rfc/audit/
-// without a human editing it. freshness.go says which verdicts merely
-// shifted, and audit.go holds the schema a re-stamp must still satisfy.
+// reseal.go is `./le rfc reseal`: the ONLY thing that re-stamps a verdict
+// already in rfc/audit/ without a human editing it. freshness.go says which
+// verdicts merely shifted, and audit.go holds the schema a re-stamp must still
+// satisfy. audit_stamp.go adds the verdicts an author has just judged, and
+// refuses a requirement that already has one.
 //
 // Deliberately not folded into the coverage gate (a check that writes cannot be
 // trusted to report) nor into the ledger generator (which runs routinely, for
@@ -225,7 +227,16 @@ func writeAudit(tree, rfcStem string, audit Audit, note string) error {
 		data["reaudit_history"] = append(history, previous)
 	}
 	data["reaudit_note"] = note
+	return replaceAudit(tree, rfcStem, audit)
+}
 
+// replaceAudit validates every verdict of one audit document and replaces the
+// file with it, leaving the re-stamp note alone.
+//
+// `./le rfc audit-stamp` writes through here directly: completing a verdict an
+// author has just written is not a re-stamp, so it records no reaudit_note.
+func replaceAudit(tree, rfcStem string, audit Audit) error {
+	data := audit.Document
 	var staged textbuf.Buffer
 	rel := staged.Str(auditRel).Byte('/').Str(rfcStem).Str(".json (staged)").String()
 	for _, rid := range audit.Order {

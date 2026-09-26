@@ -7,6 +7,7 @@ package rfc
 
 import (
 	"errors"
+	"time"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -115,6 +116,21 @@ var actions = leaction.New(area,
 		"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
 		Writes: true,
 		Answer: resealAnswer},
+	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>.json. " +
+		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
+		"pending file OUTSIDE rfc/audit/, shaped like an audit file, because an unstamped verdict " +
+		"there stops every load of the audits. This computes requirement_sha from the row's " +
+		"text, tests and units from the row's tags, and each cited code sha, then merges the " +
+		"entries in, creating the file when absent. It refuses, naming the id and writing " +
+		"nothing, an id that already has a verdict (re-judging is /ze-rfc-audit's work), an " +
+		"id that is no row, a word outside the closed vocabulary, 'enforced' over no tag, and " +
+		"'not-applicable' over a tagged row",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
+			{Keyword: keyFrom, Value: keyPath, Requirement: leaction.Required},
+		},
+		AnswerArgs: auditStampAnswer},
 	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
 		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
 		"tests themselves carry. It DELETES a table the render no longer produces, " +
@@ -278,6 +294,33 @@ func resealAnswer() (any, int) {
 		return nil, 2
 	}
 	report, err := resealTree(tree)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
+
+// auditStampAnswer stamps the new verdicts of one stem in this checkout.
+//
+// It answers 0 when every pending verdict was stamped and merged, and 2 for a
+// refusal as well as for a tree it could not read: a refused verdict is a claim
+// the author must correct, and nothing was written.
+func auditStampAnswer(args leaction.Arguments) (any, int) {
+	if !args.Has(keyStem) {
+		leaction.ReportError(errors.New("rfc audit-stamp requires stem <stem>"))
+		return nil, 2
+	}
+	if !args.Has(keyFrom) {
+		leaction.ReportError(errors.New("rfc audit-stamp requires from <path>, the pending verdicts file"))
+		return nil, 2
+	}
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), time.Now())
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

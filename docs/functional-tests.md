@@ -1090,12 +1090,12 @@ The gate needs no re-render after either one: `./le rfc check` judges the
 summaries, the tags and the audits, and reads no generated page.
 
 The five derived outputs are a separate question, and they need one step.
-`rfc/audit/` and `rfc/discrimination/` are inputs to them, but `reseal` and
-`discriminate-record` write those directories from Go. The invalidation hook
+`rfc/audit/` and `rfc/discrimination/` are inputs to them, but `reseal`,
+`audit-stamp` and `discriminate-record` write those directories from Go. The invalidation hook
 runs for an agent's `Write` or `Edit` alone (`postInvalidateDerived`,
 `internal/le/hookruntime/postwrite.go`), so it never sees a write a native
 action made. An output the tree happens to hold is therefore left present and
-stale. Run `./le rfc index-update` after either command to re-render the five.
+stale. Run `./le rfc index-update` after any of them to re-render the five.
 An output the tree does NOT hold is unaffected: the next shell command that
 names one builds it from the tree as it now stands.
 
@@ -1112,7 +1112,11 @@ depend on this page being read.
 moved. The unit is the enclosing top-level Go function or the whole `.ci`,
 `.et`, or native interop fixture.
 
-`./le rfc reseal` is the only thing that writes `rfc/audit/` without a human edit.
+`./le rfc reseal` is the only thing that re-stamps a recorded verdict without a
+human edit. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts an
+author judged in a pending file outside `rfc/audit/`, computing their
+fingerprints, and refuses a requirement that already has one.
+<!-- source: internal/le/rfc/audit_stamp.go -- auditStamp -->
 `./le rfc check` is read-only, and `./le rfc index-update` writes the five derived
 outputs alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and

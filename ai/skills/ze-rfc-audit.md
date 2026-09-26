@@ -27,7 +27,9 @@ audit; everything below serves it.
    step is owed, and nothing here belongs in a commit. See "The ledger is DERIVED, never
    committed" in `ai/skills/ze-rfc.md`.
 5. For EACH gated requirement, open every tagged test and judge it (see below).
-6. WRITE `rfc/audit/$ARGUMENTS.json`.
+6. WRITE each new verdict to a pending file OUTSIDE `rfc/audit/` (this session's scratch),
+   then run `./le rfc audit-stamp stem $ARGUMENTS from <pending file>`. It computes the
+   fingerprints and merges the verdicts into `rfc/audit/$ARGUMENTS.json`.
 7. Run `./le rfc check`.
 
 ## The judgement
@@ -65,9 +67,9 @@ Then the polarity pair:
     "RFC7606-7.1-1": {
       "verdict": "enforced",
       "note": "negative asserts the exact TreatAsWithdraw + AttrCode 1; positive pins all three valid ORIGIN values",
-      "requirement_sha": "<from the tool>",
-      "tests": {"internal/component/bgp/message/rfc7606_test.go:10": "<whole-file sha>"},
-      "units": {"internal/component/bgp/message/rfc7606_test.go:10": "<enclosing-func sha>"}
+      "requirement_sha": "<from ./le rfc audit-stamp>",
+      "tests": {"<path>::<TestFunc>": "<whole-file sha>"},
+      "units": {"<path>::<TestFunc>": "<enclosing-func sha>"}
     }
   }
 }
@@ -108,10 +110,23 @@ bare `<path>` when the whole file is the unit (a `.ci`, a `.et`, or a native int
 ordinal: `<path>::<FuncName>#2`, `#3`, in tag order. The retired `<path>:<line>` form is refused,
 because no generator kept that line current and it rotted at the next edit above it.
 
-**Compute the keys and the shas with the tool, never by hand:**
-`requirement_sha(text)`, `test_sha(source)`, `tag_keys(tags)` (the keys), `tagged_unit_shas(tags)`
-(the `tests` map) and `unit_shas(keys)` (the `units` and `code` maps) in
-`internal/le/rfc/rfc.go`.
+**Never compute a key or a sha by hand: `./le rfc audit-stamp` computes them.** Write the
+judgement in a pending file OUTSIDE `rfc/audit/`, shaped like the audit file: `rfc`, an
+optional `audited` date, and `requirements` whose entries carry only `verdict`, `note`,
+`no_code_path`, and a `code` map whose keys you name with their values left `""`. Then run
+`./le rfc audit-stamp stem <stem> from <path>`. It fills `requirement_sha` from the row's text,
+`tests` and `units` from the row's tags, and each `code` sha, and merges the verdicts into
+`rfc/audit/<stem>.json`, creating the file when absent.
+
+Never write an unstamped verdict into `rfc/audit/` itself. The load refuses a verdict with no
+`requirement_sha`, and that load feeds `./le rfc check` and the shell hook of every session in
+the checkout, so one half-written verdict stops them all.
+
+The stamp refuses the whole file, naming each id and writing nothing, when an entry names an id
+that already has a verdict, an id that is no row, a word outside the vocabulary, a field it
+computes, `enforced` over a row no test tags, or `not-applicable` over a row a test tags. It
+never re-stamps a recorded verdict: that would declare a judgement fresh that nobody re-made.
+<!-- source: internal/le/rfc/audit_stamp.go -- auditStamp, stampRefusal -->
 
 ## Recording a finding never fails the build
 
@@ -155,7 +170,10 @@ were hand re-stamps in which no verdict changed. Each one cost a human a mechani
 written note. And each one taught the reflex that re-stamping is what you do when this gate goes
 red. That is the failure mode at fleet scale, so the class is now automated away.
 
-`./le rfc reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
+Two commands write `rfc/audit/`, and neither one judges anything. `./le rfc audit-stamp` adds
+the verdicts an author has just judged, with their fingerprints, and refuses a requirement that
+already has one. `./le rfc reseal` is the ONLY thing that re-stamps a recorded verdict without
+a human editing it.
 `./le rfc check` is read-only, and `./le rfc index-update` writes the five DERIVED outputs
 alone (`IndexUpdate`, `internal/le/rfc/write.go`): `ai/RFC-REQUIREMENTS.md`,
 `rfc/requirements/`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
@@ -190,6 +208,7 @@ in a commit.
 | The backlog over every RFC | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
 | Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
+| Record new verdicts | a pending file, then `./le rfc audit-stamp stem <stem> from <path>`, then `./le rfc index-update` |
 | Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc index-update` renders `docs/features/rfc-status.md` from them |

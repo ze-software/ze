@@ -65,16 +65,16 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		return nil, err
 	}
 	auditDocument := map[string]any{
-		"rfc":     selftestStem,
-		"audited": selftestCorrectionDate,
-		"requirements": map[string]any{
+		auditFieldRFC:     selftestStem,
+		auditFieldAudited: selftestCorrectionDate,
+		auditFieldRequirements: map[string]any{
 			rid: map[string]any{
-				"verdict":         VerdictEnforced,
-				"note":            "TestWidget exercises accepted and rejected widget input.",
-				"requirement_sha": RequirementSHA(requirement.Text),
-				fingerprintTests:  tests,
-				fingerprintUnits:  units,
-				fingerprintCode:   map[string]string{},
+				verdictFieldVerdict: VerdictEnforced,
+				verdictFieldNote:    "TestWidget exercises accepted and rejected widget input.",
+				"requirement_sha":   RequirementSHA(requirement.Text),
+				fingerprintTests:    tests,
+				fingerprintUnits:    units,
+				fingerprintCode:     map[string]string{},
 			},
 		},
 	}

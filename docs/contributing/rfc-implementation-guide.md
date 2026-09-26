@@ -612,6 +612,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
     prints the `mv` that ends the walk.
   - `./le rfc extraction-status` prints the sign-off counts.
   - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
+  - `./le rfc audit-stamp stem <stem> from <path>` adds new audit verdicts from a
+    pending file, computing their fingerprints.
 
   For an enrolled RFC the gate fails unless every MUST has its pair or a
   reasoned annotation. Writing a summary does not enrol an RFC.
@@ -673,8 +675,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
-  `./le rfc reseal` then `./le rfc index-update`. It is the only command that writes
-  `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
+  `./le rfc reseal` then `./le rfc index-update`. It is the only command that
+  re-stamps a recorded verdict, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored
   judgements during unrelated work.
   <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->

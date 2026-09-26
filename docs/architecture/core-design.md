@@ -206,8 +206,9 @@ its 5 second budget. The zero value is invalid, so a new registration cannot
 default into either class. Both hooks build only what the tree does not hold
 WHOLE, so a write that reaches an input with no hook in its path leaves the
 artifact present and stale until the next hooked write removes it. A native
-action writing from Go is such a write: `./le rfc reseal` edits an input of the
-five RFC outputs and no hook sees it, so `./le rfc index-update` follows it.
+action writing from Go is such a write: `./le rfc reseal` and
+`./le rfc audit-stamp` edit an input of the five RFC outputs and no hook sees
+it, so `./le rfc index-update` follows either one.
 
 A READER inside Go is the same gap on the other side. The write hook watches an
 editing tool and the Bash hook reads a command line, so neither one sees a Go
