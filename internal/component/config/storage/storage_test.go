@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -340,4 +341,162 @@ func TestCheckNameAcceptsAnotherSpellingOfTheStoreFolder(t *testing.T) {
 		"another spelling of the store folder is the same directory")
 	require.Error(t, store.CheckName(filepath.Join(t.TempDir(), "ze.conf")),
 		"a config in another directory stays refused")
+}
+
+// guardRawKeys is the key set the guarded raw-key tests seed: nested history,
+// a namespace outside meta/ and file/, and names that share a partial prefix.
+var guardRawKeys = map[string]string{
+	"meta/instance/name":              "r1",
+	"meta/instances":                  "partial-prefix sibling",
+	"file/active/router.conf":         "active",
+	"file/20260926-101500.000/r.conf": "history",
+	"file/draft/router.conf":          "draft",
+	"filer/other":                     "shares fil",
+	"object/ab/cdef":                  "future namespace",
+}
+
+func seedGuardRawKeys(t *testing.T, s Storage) {
+	t.Helper()
+	for key, value := range guardRawKeys {
+		require.NoError(t, s.WriteKey(key, []byte(value)))
+	}
+}
+
+// withinDeadline runs call and fails the test when it does not return in
+// time: a guard method that re-takes the store's lock blocks forever, so a
+// deadlock surfaces as this timeout.
+func withinDeadline(t *testing.T, what string, call func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		call()
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("%s did not return while the guard is held: deadlock", what)
+	}
+}
+
+// TestGuardReadKeyNoDeadlock verifies AC-21: WriteGuard.ReadKey answers what
+// Storage.ReadKey answers, inside a held guard, on both encodings.
+//
+// VALIDATES: AC-21, the guarded raw read reaches the encoding without locking again.
+// PREVENTS: a backup walk that deadlocks on its own guard.
+func TestGuardReadKeyNoDeadlock(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.newStore(t, t.TempDir())
+			seedGuardRawKeys(t, s)
+			g, err := s.AcquireLock("backup")
+			require.NoError(t, err)
+			for key, value := range guardRawKeys {
+				var got []byte
+				var readErr error
+				withinDeadline(t, "ReadKey", func() { got, readErr = g.ReadKey(key) })
+				require.NoError(t, readErr, key)
+				assert.Equal(t, value, string(got), key)
+			}
+			_, err = g.ReadKey("meta/absent")
+			require.ErrorIs(t, err, fs.ErrNotExist)
+			_, err = g.ReadKey("../escape")
+			require.Error(t, err)
+			require.NoError(t, g.Release())
+			_, err = g.ReadKey("meta/instance/name")
+			require.ErrorIs(t, err, fs.ErrClosed)
+		})
+	}
+}
+
+// TestGuardListKeysRecursive verifies AC-21: WriteGuard.ListKeys answers the
+// whole key space, nested history and unknown namespaces included, exactly as
+// Storage.ListKeys does outside the guard, and sees the guard's own writes.
+//
+// VALIDATES: AC-21, the backup walk's enumeration.
+// PREVENTS: a walk built on List, which answers only immediate file children.
+func TestGuardListKeysRecursive(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.newStore(t, t.TempDir())
+			seedGuardRawKeys(t, s)
+			for _, prefix := range []string{"", "file/", "meta/", "object/"} {
+				want, err := s.ListKeys(prefix)
+				require.NoError(t, err)
+				g, err := s.AcquireLock("backup")
+				require.NoError(t, err)
+				var got []string
+				var listErr error
+				withinDeadline(t, "ListKeys", func() { got, listErr = g.ListKeys(prefix) })
+				require.NoError(t, listErr, prefix)
+				require.NoError(t, g.Release())
+				assert.Equal(t, want, got, "prefix %q", prefix)
+			}
+			all, err := s.ListKeys("")
+			require.NoError(t, err)
+			assert.Len(t, all, len(guardRawKeys))
+
+			g, err := s.AcquireLock("backup")
+			require.NoError(t, err)
+			require.NoError(t, g.WriteFile("meta/added/inside", []byte("x"), 0))
+			got, err := g.ListKeys("meta/added/")
+			require.NoError(t, err)
+			assert.Equal(t, []string{"meta/added/inside"}, got)
+			require.NoError(t, g.Release())
+		})
+	}
+}
+
+// TestGuardListKeysPartialPrefix verifies AC-21: the prefix is literal, so a
+// partial name segment matches every key that string-starts with it.
+//
+// VALIDATES: AC-21, ListKeys("fil") and ListKeys("meta/inst").
+// PREVENTS: a prefix resolved to a directory name, as List resolves it.
+func TestGuardListKeysPartialPrefix(t *testing.T) {
+	cases := map[string][]string{
+		"fil": {
+			"file/20260926-101500.000/r.conf", "file/active/router.conf",
+			"file/draft/router.conf", "filer/other",
+		},
+		"meta/inst": {"meta/instance/name", "meta/instances"},
+		"absent/":   {},
+	}
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.newStore(t, t.TempDir())
+			seedGuardRawKeys(t, s)
+			g, err := s.AcquireLock("backup")
+			require.NoError(t, err)
+			defer func() { require.NoError(t, g.Release()) }()
+			for prefix, want := range cases {
+				got, err := g.ListKeys(prefix)
+				require.NoError(t, err, prefix)
+				assert.ElementsMatch(t, want, got, "prefix %q", prefix)
+			}
+			_, err = g.ListKeys("../")
+			require.Error(t, err)
+		})
+	}
+}
+
+// TestGuardListKeysSorted verifies AC-21: both encodings answer the same keys
+// in the same sorted order.
+//
+// VALIDATES: AC-21, ordering is part of the contract.
+// PREVENTS: a backup whose key order depends on the source encoding.
+func TestGuardListKeysSorted(t *testing.T) {
+	var answers [][]string
+	for _, backend := range pointerTestStores() {
+		s := backend.newStore(t, t.TempDir())
+		seedGuardRawKeys(t, s)
+		g, err := s.AcquireLock("backup")
+		require.NoError(t, err)
+		got, err := g.ListKeys("")
+		require.NoError(t, err)
+		require.NoError(t, g.Release())
+		assert.True(t, slices.IsSorted(got), "%s: %v", backend.name, got)
+		answers = append(answers, got)
+	}
+	require.Len(t, answers, 2)
+	assert.Equal(t, answers[0], answers[1])
 }

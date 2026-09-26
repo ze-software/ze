@@ -56,4 +56,11 @@ type WriteGuard interface {
 	Release() error
 	SetModifier(string)
 	WriteVersion(string, []byte, time.Time) error
+	// ReadKey and ListKeys are the raw-key pair Storage carries, answered
+	// under the held guard. Storage.ReadKey and Storage.ListKeys take the
+	// store's lock again, so a caller holding a guard MUST use these instead.
+	// ListKeys is literal-prefix, recursive and sorted; List answers only the
+	// immediate file children of a resolved name.
+	ReadKey(string) ([]byte, error)
+	ListKeys(string) ([]string, error)
 }

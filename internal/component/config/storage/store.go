@@ -210,10 +210,8 @@ func (s *store) Stat(name string) (FileMeta, error) {
 func (s *store) SetWriteObserver(fn func(string)) { s.mu.Lock(); s.observer = fn; s.mu.Unlock() }
 
 func (s *store) ListKeys(prefix string) ([]string, error) {
-	if prefix != "" {
-		if err := validKey(strings.TrimSuffix(prefix, "/")); err != nil {
-			return nil, err
-		}
+	if err := validPrefix(prefix); err != nil {
+		return nil, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -223,7 +221,22 @@ func (s *store) ListKeys(prefix string) ([]string, error) {
 	if s.tree != nil {
 		return s.tree.list(prefix)
 	}
-	keys := s.blob.List("")
+	return keysWithPrefix(s.blob.List(""), prefix), nil
+}
+
+// validPrefix refuses a ListKeys prefix that no key can start with. The empty
+// prefix names the whole store, and a trailing slash names a directory.
+func validPrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+	return validKey(strings.TrimSuffix(prefix, "/"))
+}
+
+// keysWithPrefix filters every blob key to the ones that string-start with
+// prefix, and sorts them, so a blob answers ListKeys in the order the tree
+// encoding answers it. It reuses keys' backing array.
+func keysWithPrefix(keys []string, prefix string) []string {
 	result := keys[:0]
 	for _, key := range keys {
 		if strings.HasPrefix(key, prefix) {
@@ -231,7 +244,7 @@ func (s *store) ListKeys(prefix string) ([]string, error) {
 		}
 	}
 	slices.Sort(result)
-	return result, nil
+	return result
 }
 func (s *store) List(prefix string) ([]string, error) {
 	key := resolveDirKey(prefix)
@@ -412,6 +425,37 @@ func (g *guard) List(prefix string) ([]string, error) {
 	}
 	return immediateChildren(keys, key), nil
 }
+// ReadKey reads one raw key through the held guard. It reaches the encoding
+// directly, because the guard already holds the store's mutex and
+// Storage.ReadKey would wait on it forever. On a blob the bytes are valid only
+// until Release.
+func (g *guard) ReadKey(key string) ([]byte, error) {
+	if g.released {
+		return nil, fs.ErrClosed
+	}
+	if err := validKey(key); err != nil {
+		return nil, err
+	}
+	return g.access.ReadFile(key)
+}
+
+// ListKeys answers what Storage.ListKeys answers, through the held guard: every
+// raw key that string-starts with prefix, at any depth, sorted. The blob route
+// lists through the held WriteLock, because BlobStore.List takes the blob's
+// mutex again.
+func (g *guard) ListKeys(prefix string) ([]string, error) {
+	if g.released {
+		return nil, fs.ErrClosed
+	}
+	if err := validPrefix(prefix); err != nil {
+		return nil, err
+	}
+	if g.blobLock != nil {
+		return keysWithPrefix(g.blobLock.List(""), prefix), nil
+	}
+	return g.parent.tree.list(prefix)
+}
+
 func (g *guard) WriteFile(name string, data []byte, _ fs.FileMode) error {
 	if err := g.parent.CheckName(name); err != nil {
 		return err

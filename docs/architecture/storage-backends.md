@@ -91,12 +91,20 @@ all keys.
 Unlocked reads return caller-owned bytes. A guard's reads may reference the blob
 mapping and MUST NOT outlive `Release`. All operations inside a guarded section
 MUST use that guard, including existence checks and `List`. Guarded lists see
-pending writes without acquiring the store lock again. In-process metadata records
+pending writes without acquiring the store lock again. The guard carries the
+raw-key read pair too: `guard.ReadKey` and `guard.ListKeys` answer what
+`Storage.ReadKey` and `Storage.ListKeys` answer, literal-prefix, recursive and
+sorted, in the same order on both encodings. A caller holding a guard MUST use
+them: the `Storage` methods take the store mutex the guard already holds, so
+calling one inside a guard deadlocks. A walk over the whole store, such as a
+backup, is `guard.ListKeys("")` then `guard.ReadKey` for each key; `List` cannot
+serve it, because it answers only the immediate file children of a resolved
+name. In-process metadata records
 modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
 release, so a callback may read the store again.
 <!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile, treeEncoding.list -->
-<!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.Release -->
+<!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.ReadKey, guard.ListKeys, guard.Release -->
 
 ## Durable publication
 
