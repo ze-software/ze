@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Handoff | - |
 | Updated | 2026-09-26 |
 
@@ -130,29 +130,28 @@ HEAD blob (git) to baseline for change scoping.
 | # | Assumption | Basis | If wrong | Validation | State |
 |---|------------|-------|----------|------------|-------|
 | A-1 | `squashWhitespace(stripPageFurniture(source))` finds every derived site quote | 0 of 3572 single-site quotes matched neither raw nor stripped text | valid quotes refused | unit test over a quote crossing a page break | validated by measurement |
-| A-2 | A derived site sentence is a correct quote for a single-site row | site quotes are re-derived by `evaluateExtraction` | the row mapping itself is wrong (sample rows 1-6, 9) and the auto-quote exposes it rather than hides it | backfill prints rows whose paraphrase shares little with the quote | open |
-| A-3 | Case-sensitive match is right | ExaBGP and both Ze matchers are case-sensitive | a quote with changed case of MUST passes or fails wrongly | test | open |
+| A-2 | A derived site sentence is a correct quote for a single-site row | site quotes are re-derived by `evaluateExtraction` | the row mapping itself is wrong (sample rows 1-6, 9) and the auto-quote exposes it rather than hides it | backfill prints rows whose paraphrase shares little with the quote | confirmed for the sentence, broken for the paraphrase: a derived site sentence is always in the RFC (every applied row passes `rowQuoteRefusal`), but about 1 in 15 applied rows had a paraphrase that meant something else (A-6); owner accepted 2026-09-26, the hand spec re-reads their tests |
+| A-3 | Case-sensitive match is right | ExaBGP and both Ze matchers are case-sensitive | a quote with changed case of MUST passes or fails wrongly | test | confirmed: `quoteSource.inSection` matches with `strings.Contains`; `TestCheckQuoteMatchIsCaseSensitive` refuses a row that lowers MUST |
 
 ### Risks
 
 | # | Risk | Early signal | Mitigation |
 |---|------|--------------|------------|
-| R-1 | Arming the rule reds the whole corpus | `./le rfc check` fails on 6354 rows | change-scoped (new or edited row since HEAD) plus a published backlog count, the same model as `checkIDAllocation` |
-| R-2 | Adding a quote re-stales audit verdicts | `checkAuditFreshness` violations after backfill | quote lives in its own field, outside `RequirementSHA(Text)` |
+| R-1 | Arming the rule reds the whole corpus | `./le rfc check` fails on 6354 rows | change-scoped (row added or edited by the commit under test, HEAD^ against HEAD) plus a published backlog count |
+| R-2 | Replacing row text re-stales audit verdicts | `checkAuditFreshness` violations after backfill | accepted by the owner (text IS the quote, 2026-09-26): the rfc7606 and draft verdicts are re-run in phase 5 (AC-14) |
 | R-3 | Auto-backfill writes a correct quote on a wrongly mapped row, making the wrong mapping look verified | a quote whose words the paraphrase does not share | backfill emits a low-overlap review list; the quote proves the SENTENCE exists, never that the paraphrase matches it |
-| R-4 | A quote with `(`, `)` or `{` breaks section or marker parsing | parse errors or moved sections in tests | the quote is read by its own delimiters inside its own marker |
-
+| R-4 | A quote with `(`, `)` or `{` breaks section or marker parsing | parse errors or moved sections in tests | the section is read only from the trailing `(§…)` parenthetical and markers only from trailing `{…}` groups; the quote is everything before them (`TestQuoteWithParenthesesKeepsTrailingSection`) |
 | R-5 | A short generic sentence ("MUST be set to 0.") matches in the wrong place | a quote found in a section the row does not cite | match is scoped to the cited section and its subsections; minimum 24 characters |
-| R-6 | Under `./le verify worktree` the tree equals HEAD, so the change-scoped rule judges nothing | verify green over a commit that added an unquoted row | same limit as `checkIDAllocation`; the per-stem ratchet compares counts and is read by the pre-commit run in the live tree (A-5) |
+| R-6 | Under `./le verify worktree` the tree equals HEAD, so the change-scoped rule judges nothing | verify green over a commit that added an unquoted row | A-5 broke, so the scope is HEAD^ against HEAD (owner, 2026-09-26), the model `checkDiscriminationRatchet` uses, which fires inside the detached verify worktree. A row still uncommitted is judged once committed. Phase 3 also reads `checkIDAllocation` and `checkLevelRatchet`, which share the HEAD-scoped `baselineLevels`, and fixes them if they are blind the same way (journal: `check-cannot-see-the-change-it-looks-for`) |
 | R-7 | Replacing a low-overlap row's text changes the obligation its tagged tests claim to prove | tests tagged to a row whose new quote they do not exercise | low-overlap rows are never auto-applied; they go to the review list and to the hand-quote spec |
 
 Additional assumptions:
 
 | # | Assumption | Basis | If wrong | Validation | State |
 |---|------------|-------|----------|------------|-------|
-| A-4 | A row whose quote carries a lowercase "must" can keep level `[MUST]` through the existing level-correction record in `rfc/corrections/` | `correctionAuthorizes` authorizes a level against a verbatim quote | policy rows need a new marker | read `checkLevelRatchet` and `correctionAuthorizes` producers in phase 1 | open |
-| A-5 | The pre-commit route runs `./le rfc check` in the live tree, where HEAD differs from the tree | `baselineLevels` is HEAD-scoped and `checkIDAllocation` is enforced in practice | the ratchet never fires | read the commit route's check invocation in phase 1 | open |
-| A-6 | An auto-apply threshold (content-word overlap at least 0.5, every number in the row present in the sentence, NOT/MUST NOT polarity equal) keeps wrongly mapped rows out | measurement sample rows 1-10 all fall below it | wrong rows get auto-quoted | run the backfill in dry mode and hand-check the 10 sample rows land in the review list | open |
+| A-4 | A row whose quote carries a lowercase "must" can keep level `[MUST]` through the existing level-correction record in `rfc/corrections/` | `correctionAuthorizes` authorizes a level against a verbatim quote | policy rows need a new marker | read `checkLevelRatchet` and `correctionAuthorizes` producers in phase 1 | validated 2026-09-26, by another route: `correctionAuthorizes` is reached only from `checkLevelRatchet`, which fires only when a HEAD-gated level becomes non-gated; no check compares a row's level with its text, so a [MUST] row quoting a lowercase "must" passes with no record |
+| A-5 | The pre-commit route runs `./le rfc check` in the live tree, where HEAD differs from the tree | `baselineLevels` is HEAD-scoped and `checkIDAllocation` is enforced in practice | the ratchet never fires | read the commit route's check invocation in phase 1 | BROKEN 2026-09-26: `./le verify worktree` runs the `rfc check` stage in a detached worktree at the commit under test (`internal/le/verify/lifecycle.go`, `worktree add --detach`), where tree equals HEAD; `./le commit create` and the git hooks run no `rfc check`; `ai/rules/precommit-verify.md` forbids a working-tree gate run |
+| A-6 | An auto-apply threshold (content-word overlap at least 0.5, every number in the row present in the sentence, NOT/MUST NOT polarity equal) keeps wrongly mapped rows out | measurement sample rows 1-10 all fall below it | wrong rows get auto-quoted | run the backfill in dry mode and hand-check the 10 sample rows land in the review list | VALID for mapping errors, with two rules added (2026-09-26): a dry run over 6354 rows puts all 10 sample rows in review (unresolved-anchor 2, number-absent 2, partial 2, polarity 1, low-overlap 1, outside-section 1, level 1 by first failing test). The hand-read of 15 quoted rows (evenly spaced over the sorted quote list) found two that covered half of a two-MUST sentence, so `qualified` and `partial` were added and pinned by TestQuoteBackfillRealCorpusReviewsSampleRows. Overlap cannot see a paraphrase whose words match and whose meaning differs: RFC7432-6.3-3, RFC9552-5.2-6, RFC5880-6.7.3-4 are still quoted (backfillKnownMisses), so each rewritten row owes a read of its tagged tests (R-7) |
 
 ## Blast Radius
 
@@ -166,7 +165,7 @@ Additional assumptions:
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le rfc check` over a fixture tree whose summary gains an unquoted row since HEAD | → | row quote check called from `check()` | `TestCheckRefusesNewRowNotVerbatimInSection` in `internal/le/rfc/check_quote_test.go` |
+| `./le rfc check` over a fixture repo whose tip commit adds an unquoted row against HEAD^ | → | row quote check called from `check()` | `TestCheckRefusesNewRowNotVerbatimInSection` in `internal/le/rfc/check_quote_test.go` |
 | `./le rfc check` over a fixture whose per-stem unquoted count rises | → | unquoted-count ratchet in `check()` | `TestCheckRefusesUnquotedCountRise` in `internal/le/rfc/check_quote_test.go` |
 | `./le rfc quote-backfill stem <stem>` | → | backfill action registered in `actions.go` | `TestQuoteBackfillAppliesSingleSiteRowAndListsLowOverlap` in `internal/le/rfc/quote_backfill_test.go` |
 
@@ -174,19 +173,19 @@ Additional assumptions:
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A row new since HEAD whose text (before the trailing section parenthetical and markers) is not one contiguous span of its cited section after whitespace collapse and page-furniture strip | `./le rfc check` exits 2 naming the stem, the row id, the cited section and the first 70 characters of the text |
+| AC-1 | A row the commit under test adds or edits (HEAD^ against HEAD) whose text (before the trailing section parenthetical and markers) is not one contiguous span of its cited section after whitespace collapse and page-furniture strip | `./le rfc check` exits 2 naming the stem, the row id, the cited section and the first 70 characters of the text |
 | AC-2 | Same row, text is a verbatim span of the cited section or one of its subsections, including a span crossing a page break | passes |
 | AC-3 | Row text is verbatim but only in a DIFFERENT section than the one cited | refused, naming the section where it was found |
 | AC-4 | Cited section is not a heading (`3.b`) | resolved to the nearest heading ancestor (`3`) and matched there |
 | AC-5 | Cited section resolves to no heading of the RFC | refused as an unresolved anchor |
 | AC-6 | Row text shorter than 24 characters | refused |
-| AC-7 | A row unchanged since HEAD and unquoted | not refused; counted in the stem's unquoted figure printed by `./le rfc check` |
-| AC-8 | A change raises a stem's unquoted count over HEAD | refused, naming the stem and both counts |
+| AC-7 | A row the commit under test leaves unchanged, unquoted | not refused; counted in the stem's unquoted figure printed by `./le rfc check` |
+| AC-8 | The commit under test raises a stem's unquoted count over HEAD^ | refused, naming the stem and both counts |
 | AC-9 | `featureDeclinedQuote` and `correctionAuthorizes` | use the same page-stripped haystack as the row check (one matcher), and a feature-declined quote crossing a page break now passes |
 | AC-10 | `./le rfc quote-backfill stem <stem>` dry run | prints rows it would quote and a review list; writes nothing |
 | AC-11 | `./le rfc quote-backfill stem <stem> apply` | rewrites only rows mapped to exactly one non-lead-in site that meet the A-6 threshold, keeping id, level, section and markers; every rewritten row passes AC-2 |
 | AC-12 | The ten sample rows in Current Behavior (RFC7432-10-1, RFC4456-x-2 and the others) | appear in the review list, never rewritten |
-| AC-13 | Corpus after backfill | `./le rfc check` clean on the quote rules; unquoted total printed and at most the measured human bucket (about 2870) |
+| AC-13 | Corpus after backfill | `./le rfc check` clean on the quote rules; unquoted total printed and at most the review plus human buckets of the phase 4 dry run (3706: 1271 review, 2435 human; the earlier 2870 estimate did not count the review kinds). Owner, 2026-09-26: apply all 1821 rows the tool quotes, knowing about 1 in 15 had a paraphrase whose meaning differed from its sentence; the hand-quote spec re-reads the tagged tests of applied rows |
 | AC-14 | `rfc/short/rfc7606.md` | every row quoted (hand-quoting the rows backfill cannot), and the 79 audit verdicts in `rfc/audit/` re-run fresh |
 | AC-15 | Public ledger page for a quoted row | shows the RFC sentence as the requirement text |
 
@@ -354,6 +353,7 @@ Additional assumptions:
 | Row text IS the quote (owner, 2026-09-26) | quote marker beside the paraphrase | a quote beside a wrong paraphrase makes the wrong row look verified |
 | Match over page-stripped text | ExaBGP's ban on quoting across a page | 2.6% of RFC sentences cross a page; the inventory already strips furniture |
 | Match scoped to the cited section | whole-document match | verifies the section anchor too (absorbs `spec-rfc-anchor-resolution-check`) and stops generic sentences matching elsewhere |
+| Scope is the commit under test against HEAD^ (owner, 2026-09-26, after A-5 broke) | tree against HEAD (blind in the detached verify worktree); both scopes (two comparisons for one rule) | the only scope that fires at the gate, and the one the discrimination ratchet already uses |
 | Change-scoped rule plus per-stem ratchet | arm over all rows at once | 2870 rows need a human; the ratchet stops the backlog growing while the hand spec drains it |
 | Keep the markdown ledger | ExaBGP-style TOML | 201 files and every parser rewritten for no gain the containment check does not already give |
 | Low-overlap rows never auto-applied | apply every single-site row | a wrong mapping would change the obligation under the tagged tests |
@@ -399,3 +399,146 @@ Additional assumptions:
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** remove the spec, in the same `./le commit create` script
+
+## Implementation Summary
+
+### What Was Implemented
+- Row quote rule: `Requirement.Quote` (`summary.go`), `quoteHaystack` and `quoteSource` with heading-ancestor `resolve` (`inventory.go`), `checkRowQuotes`, `rowQuoteRefusal`, `readQuoteRevisions`, `checkUnquotedRatchet`, `unquotedFigures` (`check_quote.go`), wired in `check()` with the `unquoted` figures on `CheckReport` (`check.go`).
+- One haystack for three quote paths: `featureDeclinedQuote` (`check_core.go`) and `correctionAuthorizes` (`check_ratchets.go`) call `quoteHaystack`.
+- Scope HEAD^ against HEAD: `baselineLevels`, `baselineMetas`, `baselineMetasBeforeMigration` and `baselineSummaryStems` read `HEAD^` (`check_baseline.go`), so the id, level, retirement, enrolment, public-row and new-summary ratchets see the tip commit in the detached verify worktree.
+- `./le rfc quote-backfill stem <stem> [apply]` (`quote_backfill.go`, registered in `actions.go`), and the selftest stage `quote` (`selftest_core.go`).
+- Corpus: 1821 rows quoted by the backfill over 153 summaries, 34 rfc7606 rows quoted by hand, 53 audit verdicts judged again (`rfc/audit/rfc7606.json`, `rfc/audit/draft-abraitis-idr-addpath-paths-limit.json`).
+
+### Bugs Found/Fixed
+- The id, level and retirement ratchets read HEAD and were blind in the detached verify worktree. Fixed by the HEAD^ move: `TestCheckBaselineRatchetsSeeTipCommit`, `TestCheckMetaRatchetsSeeTipCommit` (journal `check-cannot-see-the-change-it-looks-for`).
+- Closure review: the ratchet's RFC-text path had no test (`TestCheckRefusesUnquotedCountRiseFromRFCTextChange`), and quote-backfill used an unchecked stem as a path (`TestQuoteBackfillRefusesStemOutsideSummaries`).
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md`: new "The row quote" section with `<!-- source: internal/le/rfc/quote_backfill.go -- quoteBackfill -->`; the baseline rows now say `HEAD^`.
+- Rule point `ai/rules/points/rfc-compliance/directives/quote-each-requirement-row-verbatim.md`, generated `ai/rules/rfc-compliance.md` and `ai/rules/CORE.md`. `ai/skills/ze-rfc.md` has one wording: quote verbatim.
+- `./le doc check verify`: every stage passes except validate-commands, which names `ze-data:backup` and `ze-data:restore` with no handler. That is another session's uncommitted `cmd/ze/hub` work, not this spec.
+
+### Deviations from Plan
+- The scope is HEAD^ against HEAD, not the tree against HEAD (A-5 broke; owner decision 2026-09-26).
+- The AC-13 bound is 3706 (review plus human), not the earlier 2870 estimate. The tree is at 3662.
+- `.claude/skills/ze-rfc/SKILL.md` is a generated mirror. The canonical edit is `ai/skills/ze-rfc.md`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: the commit route runs `./le rfc check` in the live tree | verify runs it detached at the commit, where the tree equals HEAD | phase 1 read `internal/le/verify/lifecycle.go` | scope moved to HEAD^ (owner), siblings fixed, journal row |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Every row carries its RFC sentence | Partial | `rfc/short/*.md` | 3662 rows remain, owned by `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` (the owner-agreed design: ratchet plus hand spec) |
+| `./le rfc check` refuses a row whose quote is not in the RFC | Done | `check_quote.go` `checkRowQuotes` | change-scoped, plus the ratchet |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCheckRefusesNewRowNotVerbatimInSection` | the message names stem, id, section and 70 characters |
+| AC-2 | Done | `TestCheckAcceptsQuoteAcrossPageBreak`, `TestCheckAcceptsQuoteInSubsection` | |
+| AC-3 | Done | `TestCheckRefusesQuoteFoundInOtherSection` | |
+| AC-4 | Done | `TestQuoteSectionResolvesToHeadingAncestor` | |
+| AC-5 | Done | `TestCheckRefusesUnresolvedSectionAnchor` | |
+| AC-6 | Done | `TestCheckRefusesQuoteUnderMinimum` | 23 refused, 24 passes |
+| AC-7 | Done | `TestCheckCountsUnchangedUnquotedRow` | |
+| AC-8 | Done | `TestCheckRefusesUnquotedCountRise`, `TestCheckRefusesUnquotedCountRiseFromRFCTextChange` | |
+| AC-9 | Done | `TestFeatureDeclinedQuoteAcrossPageBreak` | |
+| AC-10 | Done | `TestQuoteBackfillDryRunWritesNothing` | |
+| AC-11 | Done | `TestQuoteBackfillAppliesSingleSiteRowAndListsLowOverlap`, `TestQuoteBackfillSkipsLeadInAndMultiSite` | |
+| AC-12 | Done | `TestQuoteBackfillRealCorpusReviewsSampleRows`, `TestQuoteBackfillReviewsInvertedNumber` | |
+| AC-13 | Done | phase 5B `unquotedFigures`: 3662 over 187 stems, under 3706; rfc8326 and rfc9129 unjudged | 1821 applied rows by owner decision |
+| AC-14 | Done | rfc7606 is absent from the unquoted figures; the live `./le rfc check` names no stale verdict | 4 verdicts moved from enforced to weak, routed to the hand spec |
+| AC-15 | Done | `rfcLedgerRequirementOf` publishes `requirement.Text` (`internal/le/site/rfcledger.go`), which is now the quote | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the 15 planned unit tests | Done | `check_quote_test.go`, `check_core_test.go`, `quote_backfill_test.go` | pass under `-race` |
+| selftest fabricated row | Done | `TestRFCSelftestQuoteStageRefusesFabricatedRow` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| every file in Files to Modify and Files to Create | Done | the skill through its canonical `ai/skills/ze-rfc.md` |
+
+### Audit Summary
+- **Total items:** 15 AC, 2 task requirements, 16 tests, 19 files
+- **Done:** all but one
+- **Partial:** "every row" (3662 rows): the owner-approved design drains them in the hand spec
+- **Skipped:** none
+- **Changed:** scope HEAD^ (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A requirement the RFC does not contain cannot be committed | functional (selftest through the public check) | `TestRFCSelftestQuoteStageRefusesFabricatedRow`: a committed fabricated MUST is refused, and the verbatim row passes |
+| Rows carry the RFC's own sentence | corpus measurement | 1855 rows rewritten; the unquoted total went from 3696 to 3662 after rfc7606; for every stem the figure equals review plus human, so every applied row passes `rowQuoteRefusal` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Quote the 3662 rows the backfill could not, then arm the rule over every row | each needs a human | `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` |
+| Read the tagged tests of the 1821 applied rows again (R-7), and tag the four rfc7606 rows now weak | the owner accepted the apply with this follow-up | `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-requirement-verbatim-quote-ba98bd2b-fe38-40c5-80a7-24aae0c73001.md` (186 files, verdict clean) |
+| `./le spec review check` | clean over the same 186 files |
+| Rounds | 2 |
+| Reviewer lenses used | wiring, logic, edge cases, security (path input), style pass, removed behavior (HEAD to HEAD^), docs, citers |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The ratchet's own path (RFC text changes under an untouched row) had no test; the rise test also tripped the row check | `check_quote.go` `quoteChangedStems` | `TestCheckRefusesUnquotedCountRiseFromRFCTextChange`, red with the RFC-text case disabled |
+| 2 | ISSUE | `QuoteBackfillReport` and `QuoteBackfillRow` exported with no cross-package caller (`./le repo check`) | `quote_backfill.go` | unexported |
+| 3 | ISSUE | `quote-backfill` rewrote the file its stem names without checking that the stem is a stem | `quote_backfill.go` `quoteBackfill` | `stemRE` guard, `TestQuoteBackfillRefusesStemOutsideSummaries`, red without the guard |
+
+NOTEs (recorded, not blocking): figures read zero on a failing `./le rfc check`, the existing pattern for every figure; `backfillRewrite` has one compound condition; a two-commit script is verified only at its tip, so the gate judges commit A's rows only when A itself is verified; `./le repo check` also names five older exports in `inventory.go` and `rfc.go`.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/rfc/check_quote.go`, `check_quote_test.go`, `quote_backfill.go`, `quote_backfill_test.go` | yes | `wc -l` at closure |
+| `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` | yes | 171 lines |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-12 | tests pass | closure run `go test -race -run 'Quote|FeatureDeclinedQuote|SeeTipCommit|RatchetsFireWhenEnrolmentMoves|PublicRowDeleted|Extraction|Selftest[^R]' ./internal/le/rfc`: exit 0 |
+| AC-13, AC-14 | figure and freshness | `phase5b/figures.json` total 3662, rfc7606 absent; the live `./le rfc check` has one violation, the `cmd/ze/hub` type check (another session) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` | none: le tooling, `Check(root)` over a committed fixture repository | `TestCheckRefusesNewRowNotVerbatimInSection` and `TestCheckRefusesUnquotedCountRise` read |
+| `./le rfc quote-backfill` | none | registered in `actions.go`; `TestQuoteBackfillAppliesSingleSiteRowAndListsLowOverlap` read |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestCheckAcceptsQuoteAcrossPageBreak` |
+| A-2 | confirmed for the sentence, broken for the paraphrase | the A-6 row; owner accepted |
+| A-3 | confirmed | `TestCheckQuoteMatchIsCaseSensitive` |
+| A-4 | confirmed by another route | `correctionAuthorizes` is reached only from `checkLevelRatchet` |
+| A-5 | broken | Mistake Log, Deviations |
+| A-6 | confirmed with two added kinds | `TestQuoteBackfillRealCorpusReviewsSampleRows` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| "The row quote" refusals and scope | `rowQuoteRefusal`, `readQuoteRevisions`, `checkUnquotedRatchet` | yes |
+| baseline at `HEAD^` | `baselineLevels`, `baselineMetas`, `baselineSummaryStems` | yes |
+| RFC status page | `./le rfc index-update` rewrote no tracked file | yes |

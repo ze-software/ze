@@ -236,7 +236,7 @@ coverage.
 
 Format:
 ```
-- [ ] [RFC7606-2-1] [MUST] <requirement quoted or tightly paraphrased> (§2)
+- [ ] [RFC7606-2-1] [MUST] <the RFC's own sentence, verbatim, from §2> (§2)
 - [ ] [RFC7606-2-2] [MUST NOT] <prohibition> (§2)
 - [ ] [RFC7606-5.3-1] [MUST] <another obligation, different section> (§5.3)
 - [ ] [RFC7606-5.3-2] [SHOULD] <recommendation> (§5.3)
@@ -248,17 +248,29 @@ Rules:
 - One line per distinct requirement, not per sentence. If a sentence
   contains two independent obligations, split them.
 - Merge duplicates: if the same requirement appears in multiple sections,
-  list it once with all section references.
+  list it once. The row quotes the FIRST section it cites, because the
+  check looks for the quote there.
 - Group by keyword level: all MUST/MUST NOT first, then SHOULD/SHOULD NOT,
   then MAY.
 - Within each group, order by section number.
 - The checkbox is always `[ ]` (unchecked). It is a template marker, NOT
   coverage state. Coverage is DERIVED from test tags and rendered in
   `rfc/requirements/<stem>.md` — never tick a box to claim a requirement is met.
-- Quote the RFC text when short enough; paraphrase only when the original
-  is too long for a single line.
-- Include the section reference so the implementer can find the normative
-  text.
+- The row text IS the RFC's sentence, copied verbatim. Never paraphrase and
+  never add words. A sentence with two obligations gives two rows, and each
+  row copies the verbatim span of its own obligation. A long sentence stays
+  on one line. Copy
+  the words exactly; the RFC's line wrapping and page breaks do not matter.
+- The row format is `- [ ] [<ID>] [<LEVEL>] <verbatim sentence> (§<section>)`,
+  with any `{...}` marker after the parenthetical. The quote is at least 24
+  characters and sits in the cited section or one of its subsections.
+- `./le rfc check` refuses a row a commit adds or edits whose quote is not
+  in its cited section, and a stem whose count of unquoted rows rises.
+  The rules are in `docs/contributing/rfc-conformance-gates.md`, "The row quote".
+- To find the site sentence of an existing row, run
+  `./le rfc quote-backfill stem <stem>`. Without `apply` it writes nothing
+  and lists each row with the sentence it maps to, or the reason a human
+  must quote it.
 
 ## Requirement IDs
 
@@ -577,7 +589,7 @@ Step-by-step, pseudocode if RFC provides it.
 ## Rules
 - MUST read file, never from memory
 - ASCII diagrams: copy EXACTLY (spacing matters for field boundaries)
-- Requirements: quote verbatim, cite section number
+- Requirements: quote verbatim, never paraphrase, cite the section (see Compliance Checklist)
 - Tables: prefer over prose for structured data
 - Skip sections that don't apply (no empty sections)
 - Skip: abstract, introduction (unless defines terms), acknowledgments, full IANA section (keep just the values)

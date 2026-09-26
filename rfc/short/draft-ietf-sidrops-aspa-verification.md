@@ -348,12 +348,12 @@ The new ordering requirement keeps its distinct ID `5.1-2`.
 ## Compliance Checklist
 
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1] [MUST] An unexpected presence of AS 0 in a SPAS has no influence on the AS_PATH verification procedures (Section 4)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2] [MUST] If the prerequisite AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification (Section 5.1) {gap: entrypoint coverage for this newly explicit ordering obligation is unverified; Session.processMessage applies existing checks before semantic UPDATE delivery, but the prior neighbor-AS tests have not been established as ordering proof}
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2] [MUST] If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification. (Section 5.1) {gap: entrypoint coverage for this newly explicit ordering obligation is unverified; Session.processMessage applies existing checks before semantic UPDATE delivery, but the prior neighbor-AS tests have not been established as ordering proof}
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1] [MUST] The COMPRESSED_AS_PATH is the AS_PATH after removing consecutive duplicate ASNs (Section 5.2)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1] [MUST] The upstream verification algorithm is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS (Section 5.5)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2] [MUST] If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1] [MUST] A route whose AS_PATH is determined to be Invalid MUST be kept in the Adj-RIB-In for potential future re-evaluation (Section 5.7)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1] [MUST] The verification procedures described in this document MUST be applied to BGP routes with {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} (Section 6.2)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1] [MUST] The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2] [MUST NOT] The procedures MUST NOT be applied to other address families by default (Section 6.2)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2] [SHOULD] If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.7)
 - [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3] [SHOULD] When a route is evaluated as Unknown, it SHOULD be treated at the same preference level as a route evaluated as Valid (Section 5.7)

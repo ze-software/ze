@@ -121,8 +121,8 @@ func gitCatBlobs(tree, revision string, paths []string) (map[string]string, bool
 	return out, true
 }
 
-func gitTreePaths(tree, dir, suffix string) ([]string, bool) {
-	raw, ok := gitOutput(tree, "ls-tree", "-r", "-z", "--name-only", "HEAD", dir)
+func gitTreePaths(tree, revision, dir, suffix string) ([]string, bool) {
+	raw, ok := gitOutput(tree, "ls-tree", "-r", "-z", "--name-only", revision, dir)
 	if !ok {
 		return nil, false
 	}
@@ -135,7 +135,13 @@ func gitTreePaths(tree, dir, suffix string) ([]string, bool) {
 	return paths, true
 }
 
-// baselineMetas answers what every summary at HEAD declares about itself.
+// baselineMetas answers what every summary at HEAD^ declares about itself.
+//
+// HEAD^ and not HEAD, for the reason baselineLevels gives: `./le verify
+// worktree` checks the commit under test out detached, where the tree equals
+// HEAD, so an un-enrolment, a new enrolment or a dropped public row that commit
+// made was already in a HEAD baseline and nothing fired at the gate. A tree with
+// no HEAD^ answers false.
 //
 // This is what the four gated ratchets stand on. `check` runs
 // checkRetiredRequirements, checkLevelRatchet, checkCoverageRatchet and
@@ -144,15 +150,18 @@ func gitTreePaths(tree, dir, suffix string) ([]string, bool) {
 // right for a checkout git cannot answer about, and would have been a hole at
 // the one commit that moved enrolment into the summaries.
 //
-// A summary at HEAD that does not parse is SKIPPED rather than failing the
-// whole baseline. HEAD is not this change's to fix, and one unreadable summary
+// A summary at HEAD^ that does not parse is SKIPPED rather than failing the
+// whole baseline. HEAD^ is not this change's to fix, and one unreadable summary
 // must not take the other 190 out of every ratchet's population.
 func baselineMetas(tree string) (map[string]Meta, bool) {
-	paths, ok := gitTreePaths(tree, summaryRel, ".md")
+	if !revisionExists(tree, priorRevision) {
+		return nil, false
+	}
+	paths, ok := gitTreePaths(tree, priorRevision, summaryRel, ".md")
 	if !ok {
 		return nil, false
 	}
-	blobs, known := gitCatBlobs(tree, headRevision, paths)
+	blobs, known := gitCatBlobs(tree, priorRevision, paths)
 	if !known {
 		return nil, false
 	}
@@ -175,18 +184,18 @@ func baselineMetas(tree string) (map[string]Meta, bool) {
 	return baselineMetasBeforeMigration(tree)
 }
 
-// baselineMetasBeforeMigration reads an enrolment HEAD states in the shape it
+// baselineMetasBeforeMigration reads an enrolment HEAD^ states in the shape it
 // used before 2026-09-01: rfc/enrolled.txt and rfc/not-enrolled.txt.
 //
 // It reads GIT HISTORY, never the working tree, and it is reached only when no
-// summary at HEAD declares an enrolment at all. That is not a fallback inside
+// summary at HEAD^ declares an enrolment at all. That is not a fallback inside
 // the live path -- the tree has exactly one shape and one reader
 // (ai/rules/no-layering.md) -- it is the ability to compare against a commit
 // written before the shape changed. Without it the migration commit is the one
 // commit whose baseline is unreadable, and four ratchets stop running over
 // exactly the change they exist to judge.
 func baselineMetasBeforeMigration(tree string) (map[string]Meta, bool) {
-	blobs, known := gitCatBlobs(tree, headRevision, []string{enrolledRel, notEnrolledRel})
+	blobs, known := gitCatBlobs(tree, priorRevision, []string{enrolledRel, notEnrolledRel})
 	if !known {
 		return nil, false
 	}
@@ -238,7 +247,10 @@ func cutFirstWord(line string) (string, string) {
 }
 
 func baselineSummaryStems(tree string) (map[string]bool, bool) {
-	paths, ok := gitTreePaths(tree, summaryRel, ".md")
+	if !revisionExists(tree, priorRevision) {
+		return nil, false
+	}
+	paths, ok := gitTreePaths(tree, priorRevision, summaryRel, ".md")
 	if !ok {
 		return nil, false
 	}
@@ -249,14 +261,26 @@ func baselineSummaryStems(tree string) (map[string]bool, bool) {
 	return out, true
 }
 
-// baselineLevels keeps unreadable summaries separate from known-empty history.
-// A listed path without a readable checklist cannot establish that an ID is new.
+// baselineLevels answers the level of every requirement id at HEAD^, the
+// commit before the one under test. It keeps unreadable summaries separate from
+// known-empty history: a listed path without a readable checklist cannot
+// establish that an ID is new.
+//
+// HEAD^ and not HEAD, because `./le verify worktree` checks the commit under
+// test out detached, where the tree equals HEAD: an id or a demotion that
+// commit made is already in a HEAD baseline, so the id allocation and level
+// ratchets built on it saw nothing at the one gate that runs. Against HEAD^ they
+// judge the tip commit and whatever the tree adds over it. A tree with no HEAD^
+// answers false, and both ratchets then judge nothing.
 func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
-	paths, ok := gitTreePaths(tree, summaryRel, ".md")
+	if !revisionExists(tree, priorRevision) {
+		return nil, nil, false
+	}
+	paths, ok := gitTreePaths(tree, priorRevision, summaryRel, ".md")
 	if !ok {
 		return nil, nil, false
 	}
-	blobs, ok := gitCatBlobs(tree, headRevision, paths)
+	blobs, ok := gitCatBlobs(tree, priorRevision, paths)
 	if !ok {
 		return nil, nil, false
 	}
@@ -379,9 +403,9 @@ func headCarriers(tree string) ([]Carrier, error) {
 	if err != nil {
 		return nil, err
 	}
-	paths, ok := gitTreePaths(tree, workflowsRel, ".yml")
+	paths, ok := gitTreePaths(tree, headRevision, workflowsRel, ".yml")
 	if ok {
-		yamlPaths, yamlOK := gitTreePaths(tree, workflowsRel, ".yaml")
+		yamlPaths, yamlOK := gitTreePaths(tree, headRevision, workflowsRel, ".yaml")
 		if yamlOK {
 			paths = append(paths, yamlPaths...)
 		}
@@ -531,7 +555,7 @@ func coversAt(tree, revision string, carriers []Carrier, index *scopeIndex) (map
 // malformed committed record is a violation the working-tree loader raises
 // against the file itself.
 func baselineDiscrimination(tree string) (map[Cover]bool, bool) {
-	paths, ok := gitTreePaths(tree, discriminationRel, jsonSuffix)
+	paths, ok := gitTreePaths(tree, headRevision, discriminationRel, jsonSuffix)
 	if !ok {
 		return nil, false
 	}
@@ -642,7 +666,7 @@ func baselineEvidence(tree string, tags []Tag) map[string]map[string]bool {
 }
 
 func baselineAudits(tree string) (map[string]map[string]map[string]any, bool) {
-	paths, ok := gitTreePaths(tree, auditRel, ".json")
+	paths, ok := gitTreePaths(tree, headRevision, auditRel, ".json")
 	if !ok {
 		return nil, false
 	}
@@ -677,7 +701,7 @@ func baselineAudits(tree string) (map[string]map[string]map[string]any, bool) {
 }
 
 func baselineExtractions(tree string) (map[string]baselineExtraction, bool) {
-	paths, ok := gitTreePaths(tree, extractionRel, ".json")
+	paths, ok := gitTreePaths(tree, headRevision, extractionRel, ".json")
 	if !ok {
 		return nil, false
 	}

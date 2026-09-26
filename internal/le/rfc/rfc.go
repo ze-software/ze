@@ -63,18 +63,23 @@ func specDirNames() []string { return specpath.Dirs() }
 // testRoots are the source trees that can contain requirement tags.
 var testRoots = [...]string{"cmd", "internal", "pkg", "test"}
 
-// levelMust is the gated keyword a checklist row carries most often, and the
-// one the fixtures and the ratchet messages spell.
-const levelMust = "MUST"
+// The RFC 2119 levels more than one reader names. Each spelling is declared
+// once. levelMust is the gated keyword a checklist row carries most often, and
+// the one the fixtures and the ratchet messages spell.
+const (
+	levelMust    = "MUST"
+	levelMustNot = "MUST NOT"
+	levelShould  = "SHOULD"
+)
 
 // The RFC 2119 keywords that create an obligation the gate enforces.
 // SHOULD/MAY are listed in the ledger and may be tagged, but never gate.
 var gatedLevels = map[string]bool{
-	levelMust:   true,
-	"MUST NOT":  true,
-	"SHALL":     true,
-	"SHALL NOT": true,
-	"REQUIRED":  true,
+	levelMust:    true,
+	levelMustNot: true,
+	"SHALL":      true,
+	"SHALL NOT":  true,
+	"REQUIRED":   true,
 }
 
 // IsGatedLevel reports whether an RFC 2119 keyword creates an obligation this
@@ -89,7 +94,7 @@ var gatedLevels = map[string]bool{
 func IsGatedLevel(level string) bool { return gatedLevels[level] }
 
 var advisoryLevels = map[string]bool{
-	"SHOULD":          true,
+	levelShould:       true,
 	"SHOULD NOT":      true,
 	"MAY":             true,
 	"RECOMMENDED":     true,

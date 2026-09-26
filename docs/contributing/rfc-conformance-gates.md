@@ -85,30 +85,36 @@ standing, so the seed is what makes the case able to fail.
 
 `./le rfc check` reads the WORKING TREE to judge coverage, and a tree cannot
 tell "never proven" from "stopped being proven". Eight comparisons against git
-HEAD supply that difference. Each fires only on a real downgrade, so a green run
+supply that difference, against HEAD or, where the change the commit under test
+made is what is judged, against `HEAD^`. Each fires only on a real downgrade, so a green run
 means the evidence held rather than that nobody looked.
 
 | Ratchet | Producer | Fires when |
 |---------|----------|-----------|
 | Enrolment is monotonic | `checkEnrolment` | an RFC whose MUSTs were gated stops being gated |
 | Proof is monotonic | `checkCoverageRatchet` | a requirement loses a polarity it had at HEAD. A `{gap}` is NOT an escape: it is the move being blocked |
-| Gating is monotonic | `checkLevelRatchet` | a requirement leaves the MUST-level population, because its level was gated at HEAD and is advisory now. That is the cheapest route from red to green, cheaper than `{gap}` and cheaper than deleting the row, because the id and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md`, naming the id and quoting at least 24 characters of the RFC verbatim. The record lives beside the summary rather than in it, because a summary carries what the RFC obliges and not a log of what this repository once got wrong. A row GAINING a gated level is never reported |
-| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
-| Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since HEAD declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
+| Gating is monotonic | `checkLevelRatchet` | a requirement leaves the MUST-level population, because its level was gated at `HEAD^` and is advisory now. The baseline is `HEAD^`, not HEAD, so the ratchet sees a demotion the commit under test made in the detached verify worktree. That is the cheapest route from red to green, cheaper than `{gap}` and cheaper than deleting the row, because the id and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md`, naming the id and quoting at least 24 characters of the RFC verbatim, matched against the same page-stripped haystack as a row quote. The record lives beside the summary rather than in it, because a summary carries what the RFC obliges and not a log of what this repository once got wrong. A row GAINING a gated level is never reported |
+| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC that `HEAD^` holds disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
+| Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since `HEAD^` declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
 | A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit the tip commit added against `HEAD^` carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
 
-`checkIDAllocation` and `checkAuditVerdictRatchet` (`internal/le/rfc/check_ratchets.go`,
-`check_audit.go`) compare against HEAD on the same footing, for requirement id
-allocation and recorded audit verdicts.
+`checkIDAllocation` (`internal/le/rfc/check_ratchets.go`) compares against
+`HEAD^`, for requirement id allocation, and `checkAuditVerdictRatchet`
+(`check_audit.go`) compares against HEAD, for recorded audit verdicts.
 
 Requirement IDs are permanent. `parseChecklistLine` checks every row's ID form,
 summary stem and positive ordinal, and `parseSummaryText` rejects duplicate IDs.
-`checkIDAllocation` requires an ID known to be absent from the HEAD baseline to
-match the row's cited section, using `x` when it has no citation. A readable
-baseline with no requirements still enforces this rule. When the baseline
-cannot be read, allocation comparisons judge nothing; when only one summary's
+`checkIDAllocation` requires an ID known to be absent from the `HEAD^` baseline
+to match the row's cited section, using `x` when it has no citation. A readable
+baseline with no requirements still enforces this rule. The baseline is
+`HEAD^` and not HEAD because `./le verify worktree` checks the commit under test
+out detached, where the tree equals HEAD: a HEAD baseline already held every id
+that commit added, so the guard judged nothing at the one gate that runs. The
+id, level and retirement ratchets share that baseline, `baselineLevels`
+(`internal/le/rfc/check_baseline.go`). When `HEAD^` does not resolve or the
+baseline cannot be read, allocation comparisons judge nothing; when only one summary's
 blob is missing or unparsable, only that summary's allocation history is unknown.
 The baseline reader carries these states to the guard without another Git probe,
 and structural validation still runs over every current row.
@@ -126,16 +132,20 @@ than obeyed. Where git cannot answer, every ratchet judges nothing rather than
 judging everything.
 
 The enrolled baseline is `baselineMetas` (`internal/le/rfc/check_baseline.go`).
-It parses the `## Meta` table of every summary git HEAD holds. A summary that
-does not parse there is skipped rather than emptying the baseline. One
-unreadable file at HEAD must not empty every ratchet's population.
+It parses the `## Meta` table of every summary `HEAD^` holds, for the reason
+`baselineLevels` reads `HEAD^`: in the detached verify worktree the tree equals
+HEAD, so an un-enrolment, a new unenrolled summary or a dropped public row made
+by the commit under test was already in a HEAD baseline. `baselineSummaryStems`,
+which `checkNewSummaries` reads, is at `HEAD^` for the same reason. A summary
+that does not parse there is skipped rather than emptying the baseline. One
+unreadable file at `HEAD^` must not empty every ratchet's population.
 `checkRetiredRequirements`, `checkLevelRatchet`, `checkCoverageRatchet` and
 `checkEvidenceRatchet` run only where the current enrolled set intersects that
 baseline. A baseline nobody can read disarms all four.
 
 `baselineMetasBeforeMigration` reads the retired `rfc/enrolled.txt` and
 `rfc/not-enrolled.txt` out of GIT HISTORY. It is reached only when no summary at
-HEAD declares an enrolment at all. That is the ability to compare against a
+`HEAD^` declares an enrolment at all. That is the ability to compare against a
 commit written before the declaration moved, and never a fallback in the live
 path. Without it, the commit that moved the declaration is the one commit whose
 baseline is unreadable, over exactly the change those four ratchets judge.
@@ -315,6 +325,104 @@ silently relabeled. That is the same reason `{superseded}` was kept out of the
 register: a way out of the gated population must not be creatable by writing a
 second marker beside the one already there.
 
+## The row quote
+
+A requirement row states the RFC's own sentence, copied verbatim. The row's
+quote is its text before the trailing section parenthetical, after the trailing
+`{...}` markers are peeled (`Requirement.Quote`, `internal/le/rfc/summary.go`).
+Only the LAST parenthetical is cut, and only when it cites a section, so a quote
+that carries `(in octets)` or a brace keeps it.
+
+`checkRowQuotes` (`internal/le/rfc/check_quote.go`) refuses a row when one of
+these is true:
+
+| Refusal | Condition |
+|---------|-----------|
+| No source | the RFC's text is not in `rfc/full/` or `rfc/drafts/` |
+| Too short | the quote is under 24 characters, which names no single sentence |
+| Unresolved anchor | the cited section is not a heading of the RFC, and no heading ancestor of it is. A row that cites no section is refused the same way |
+| Wrong section | the quote is verbatim in the RFC, but not in the cited section or its subsections. The refusal names the section that holds it |
+| Not verbatim | the quote is in no section of the RFC |
+
+The cited section resolves to its nearest heading ancestor: `3.b` resolves to
+`3`, and `2.1.4` resolves to `2.1` when `2.1` is the deepest heading. The match
+is then made in that section and in every subsection, one section body at a
+time, so a span that joins two sections never matches. The lookup never falls
+back to the whole document.
+
+One haystack builder serves every quote path: `quoteHaystack`
+(`internal/le/rfc/inventory.go`) strips the page furniture and collapses the
+whitespace. The row check, `checkFeatureDeclined` and the level correction read
+by `checkLevelRatchet` all match against it, so a sentence one of them finds,
+the others find too. The strip is necessary because 163 of 6243 keyword
+sentences in the corpus cross a page break. The match is case-sensitive.
+
+The rule judges the rows that the commit under test adds or edits: a row HEAD
+holds and `HEAD^` does not, or holds with another quote or another cited
+section. Both sides are COMMITTED, the scope `checkDiscriminationRatchet` uses,
+because `./le verify worktree` checks the commit out detached, where the tree
+equals HEAD. A row still uncommitted is judged once it is committed.
+`readQuoteRevisions` (`internal/le/rfc/check_quote.go`) reads only the stems
+whose summary or RFC text the commit changed, at both revisions.
+
+`checkUnquotedRatchet` refuses a stem whose count of unquoted rows rose from
+`HEAD^` to HEAD, and names the stem and both counts. The row check already
+refuses each row the commit added or edited. The ratchet also catches a row the
+commit left alone that stopped being verbatim because its RFC text changed.
+
+Where git cannot answer, the quote rules judge nothing and say so. When `HEAD^`
+does not resolve, or git cannot name the changed paths, `./le rfc check` prints
+that the row quote rule and the ratchet judged nothing. A touched stem whose
+summary does not parse at one revision, or that has rows and no RFC text at one
+revision, is named as unjudged with its reason. It is never counted as zero.
+
+On success, `./le rfc check` prints the unquoted backlog of the tree: the total,
+the number of stems, the count of each stem that has one, and each stem with rows
+and no RFC text, which is counted in no figure. The figure is a measurement and
+not a violation. The JSON carries `unquoted`, `unquoted-total` and
+`unquoted-unjudged`.
+
+`./le rfc quote-backfill stem <stem>` rewrites the rows whose quote can be taken
+mechanically from the extraction walk. Without `apply` it writes nothing: it
+prints the rows it would quote, the review list and the human list. With `apply`
+it writes the summary. A row that already passes the row check is counted as
+verbatim and left alone.
+<!-- source: internal/le/rfc/quote_backfill.go -- quoteBackfill -->
+
+The rewrite replaces only the text before the trailing section parenthetical with
+the site sentence. The id, the level, the parenthetical and every trailing `{...}`
+marker stay byte for byte. The tool parses the new line back and does not write
+it unless the id, the level and the section are unchanged and the row check
+accepts the quote.
+
+A row is rewritten only when exactly one site maps it and every test below
+passes. A failed test puts the row on the review list, with its kind:
+
+| Kind | The row goes to review when |
+|------|-----------------------------|
+| `several-sites` | more than one site maps it, so a human chooses the sentence |
+| `lead-in` | the site sentence ends in `:`, and the obligation is in the list after it |
+| `short-sentence` | the sentence is shorter than the row check's minimum |
+| `qualified` | the row quotes an RFC sentence and adds its own words, such as "the A half" |
+| `unresolved-anchor` | the cited section names no heading of the RFC |
+| `outside-section` | the sentence is not in the cited section or its subsections. The citation is never rewritten |
+| `level-differs` | the sentence does not state the row's level. SHALL and REQUIRED count as MUST, and MUST NOT is its own level |
+| `partial` | the sentence states more RFC 2119 keywords than the row, so the whole sentence widens what the row claims |
+| `number-absent` | a number in the row is not in the sentence |
+| `polarity-differs` | one of the row and the sentence says "not" or "never" and the other does not |
+| `low-overlap` | the sentence carries less than half of the row's content words |
+| `rewrite-refused` | the new line fails its parse-back or the row check |
+
+The human list holds the rows that no site maps: `unsourced` (the extraction
+declares them), `unmapped`, `no-extraction` (the stem has no artifact) and
+`no-rfc-text`.
+
+The review list catches a wrong MAPPING, not every wrong PARAPHRASE. A row whose
+words match the sentence and whose meaning does not is still rewritten, and the
+quote then states the RFC's obligation in place of the row's. That is the
+purpose of the rewrite, but the tests tagged to the row still prove the old
+claim. So read each rewritten row's tagged tests against its new text.
+
 ## The feature-declined annotation
 
 `{feature-declined}` says the obligation is CONDITIONAL on a feature the RFC
@@ -333,7 +441,7 @@ The reason states two facts, and the gate checks both:
 
 | Fact | Written as | Checked by |
 |------|-----------|------------|
-| The RFC's own sentence making the feature OPTIONAL | a double-quoted span, first, before the `;` | `parseFeatureDeclined` refuses a body that opens with anything else and a quote under 24 characters; `checkFeatureDeclined` then refuses one that is not in `rfc/full/<stem>.txt`, comparing with whitespace collapsed so the RFC's line wrapping does not matter |
+| The RFC's own sentence making the feature OPTIONAL | a double-quoted span, first, before the `;` | `parseFeatureDeclined` refuses a body that opens with anything else and a quote under 24 characters; `checkFeatureDeclined` then refuses one that is not in `rfc/full/<stem>.txt`, matching against the same page-stripped haystack as a row quote (see "The row quote"), so neither the RFC's line wrapping nor a page break matters |
 | The PRODUCER in Ze that does the narrower thing | `<path>.go::<Symbol>` anywhere in the reason | `parseFeatureDeclined` refuses a reason naming none, and one naming a `_test.go` file; `checkFeatureDeclined` then refuses one the tree cannot show |
 
 The quote is the stronger of the two, and it is what a free-text reason cannot

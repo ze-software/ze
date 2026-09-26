@@ -37,6 +37,7 @@ func selftestStages() []selftestStage {
 		{name: "render", run: runRenderSelftest},
 		{name: "baseline", run: runBaselineSelftest},
 		{name: "check", run: runCheckSelftest},
+		{name: "quote", run: runQuoteSelftest},
 		{name: "real-tree", run: runRealTreeSelftest},
 	}
 }

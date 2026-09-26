@@ -89,6 +89,26 @@ func extractSection(text string) string {
 	return noSection
 }
 
+// Quote answers the part of the row's text that states the RFC's own sentence:
+// everything before the trailing section parenthetical. Text keeps the
+// parenthetical, because extractSection and RequirementSHA read it there.
+//
+// Only the LAST parenthetical is cut, and only when it cites a section, so a
+// quote carrying "(in octets)" keeps it. Markers are already gone: stripMarkers
+// peels only trailing `{...}` groups, so a brace inside the quote stays in it.
+// A row whose trailing parenthetical cites no section answers its whole text,
+// and the check then refuses it for the missing anchor.
+func (r *Requirement) Quote() string {
+	loc := trailingParenRE.FindStringSubmatchIndex(r.Text)
+	if len(loc) < 4 {
+		return r.Text
+	}
+	if firstSection(r.Text[loc[2]:loc[3]]) == "" {
+		return r.Text
+	}
+	return strings.TrimSpace(r.Text[:loc[0]])
+}
+
 // parseAnnotation reads one `{kind: reason}` body.
 func parseAnnotation(body, where string) (*Annotation, error) {
 	var tb textbuf.Buffer

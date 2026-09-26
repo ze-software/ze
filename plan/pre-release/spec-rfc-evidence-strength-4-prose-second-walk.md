@@ -324,3 +324,20 @@ The 794 unsourced entries in rfc2119-register walks are D-6 and are outside this
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + artifacts + docs + edited spec
 - [ ] **Commit B:** `remove plan/pre-release/spec-rfc-evidence-strength-4-prose-second-walk.md` only
+
+## Scope Note (2026-09-26)
+
+Deliverable 1, the quoted form for every unsourced requirement, moved out of this
+spec by owner decision on 2026-09-26. Two specs own it now:
+
+- `spec-rfc-requirement-verbatim-quote` (closed; the rule is in
+  `docs/contributing/rfc-conformance-gates.md`, "The row quote") makes the row text the
+  RFC's verbatim sentence for EVERY row, checked in its cited section, and adds a
+  ratchet so the unquoted count per stem cannot rise.
+- `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` quotes the rows the
+  backfill tool cannot quote, the unsourced rows among them, until the count is zero.
+
+This spec keeps deliverables 2 to 4: the blind second walk, the comparison tool
+with its adjudication, and the published measure. Its wiring phase, acceptance
+criteria and files for the quote check are superseded by the two specs above, and
+MUST be removed from this spec before its design is approved.

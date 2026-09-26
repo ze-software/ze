@@ -128,3 +128,26 @@ that found the class.
 | R-1 | The resolver reports a real anchor as unresolvable because the RFC's own heading format differs (`N.0` vs `N`, appendices, RFCs with no numbered sections) | Report first, over the whole enrolled corpus, and read the false positives before arming anything |
 | R-2 | (b) lets a rename launder a requirement out of existence | The map is append-only and audited: a rename records both ids, and the ratchet checks the NEW id is present |
 | R-3 | Arming (a) makes a large number of enrolled RFCs red at once | The corpus report from (a) sizes this before the decision. Grandfathering is SCOPE (new-since-HEAD), the shape `check_new_summaries` already uses, never an allowlist file |
+
+## Scope Note (2026-09-26)
+
+The summary half of (a) is now covered by
+`spec-rfc-requirement-verbatim-quote` (closed; its AC-3 to AC-5, described in
+`docs/contributing/rfc-conformance-gates.md`, "The row quote"), by
+owner decision on 2026-09-26. `checkRowQuotes` resolves each row's cited section
+to its nearest heading ancestor and looks for the quote only there. It refuses a
+row whose section is not a heading of the RFC, and a row whose quote is in
+another section, which is the "real section but the wrong one" half. It judges the
+rows a commit adds or edits. A row that is not yet quoted, a bad anchor included,
+counts toward the stem's unquoted figure, which `checkUnquotedRatchet` does not
+let rise. `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` takes that
+figure to zero.
+
+What remains for this spec:
+
+- Anchors in source: the `// RFC NNNN Section X.Y` comments and the `// RFC:` file
+  headers. The verbatim-quote spec does not read Go source. The two-sided header
+  property in (a) and the l2tp counts in the Task are all this half.
+- (b), the audited id-rename map, which the verbatim-quote spec does not touch.
+- The corpus report at rest is now the unquoted figure `./le rfc check` prints for
+  summary rows. A separate report is owed only for anchors in source.

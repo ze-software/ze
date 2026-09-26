@@ -234,6 +234,7 @@ func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
 			files := fixtureCorpus()
 			files[selftestSummaryRel] = checklist + one.baseline + highWater
 			root := commitFixtureTree(t, files, nil)
+			commitFixtureEmptyTip(t, root)
 			baseline, baselineCode := Check(root)
 			if baseline.CannotRun != "" {
 				t.Fatalf("the baseline fixture could not run: %s", baseline.CannotRun)
@@ -320,6 +321,7 @@ func TestRFCCheckIDAllocationUnknownHistory(t *testing.T) {
 					gitFixture(t, root, []string{"-c", "user.email=fixture@example.invalid",
 						"-c", "user.name=rfc-fixture", "commit", "-q", "-m", "unreadable summary"})
 				}
+				commitFixtureEmptyTip(t, root)
 			}
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + original})
 			baseline, baselineCode := Check(root)
@@ -357,6 +359,7 @@ func TestRFCCheckIDAllocationKnownEmptyHistory(t *testing.T) {
 			}
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: body})
 			commitFixture(t, root, "known empty allocation history")
+			commitFixtureEmptyTip(t, root)
 			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist +
 				"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2.1)\n"})
 			report, code := Check(root)
@@ -384,6 +387,7 @@ func TestRFCCheckIDAllocationScopesUnreadableHistory(t *testing.T) {
 		otherRel:           other,
 	})
 	commitFixture(t, root, "partially unreadable allocation history")
+	commitFixtureEmptyTip(t, root)
 	writeFixtureFiles(t, root, map[string]string{
 		selftestSummaryRel: checklist + strings.Replace(original, "(§2)", "(§2.1)", 1),
 		otherRel: other +
@@ -409,13 +413,14 @@ func TestRFCCheckCitationCorrectionPreservesRetirementGuard(t *testing.T) {
 	files[selftestSummaryRel] = checklist + original +
 		"- [ ] [RFC9999-2-3] [SHOULD] A speaker SHOULD count widgets (§2)\n"
 	root := commitFixtureTree(t, files, nil)
+	commitFixtureEmptyTip(t, root)
 	writeFixtureFiles(t, root, map[string]string{
 		selftestSummaryRel: checklist + strings.Replace(original, "(§2)", "(§2.1)", 1),
 	})
 	report, code := Check(root)
 	violations := strings.Join(report.Violations, "\n")
 	if report.CannotRun != "" || code != 2 ||
-		!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD and is now gone") ||
+		!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD^ and is now gone") ||
 		strings.Contains(violations, "new id 'RFC9999-2-1'") {
 		t.Fatalf("citation correction lost the retirement guard, exit %d:\n%s", code, report.Text())
 	}
@@ -1162,6 +1167,16 @@ func commitFixtureTree(t *testing.T, committed, working map[string]string) strin
 	commitFixture(t, root, "fixture")
 	layFixture(t, root, working)
 	return root
+}
+
+// commitFixtureEmptyTip commits nothing on top of what the fixture holds, so
+// its last commit becomes HEAD^: the revision the id allocation, level and
+// retirement ratchets read as their baseline (baselineLevels).
+func commitFixtureEmptyTip(t *testing.T, root string) {
+	t.Helper()
+
+	gitFixture(t, root, []string{"-c", "user.email=fixture@example.invalid",
+		"-c", "user.name=rfc-fixture", "commit", "-q", "--allow-empty", "-m", "empty tip"})
 }
 
 // commitFixtureTip commits base, commits tip on top of it, then lays working
@@ -1948,6 +1963,7 @@ func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
 	})
 	gitFixture(t, root, []string{"init", "-q"})
 	commitFixture(t, root, "before the migration")
+	commitFixtureEmptyTip(t, root)
 
 	// The baseline reads that shape rather than answering empty, which is the
 	// one fact the ratchets stand on here.
@@ -2240,9 +2256,9 @@ func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 		retired = strings.Replace(retired, cell, "", 1)
 	}
 
-	root := commitFixtureTree(t,
-		map[string]string{selftestSummaryRel: declared},
-		map[string]string{selftestSummaryRel: retired})
+	root := commitFixtureTree(t, map[string]string{selftestSummaryRel: declared}, nil)
+	commitFixtureEmptyTip(t, root)
+	layFixture(t, root, map[string]string{selftestSummaryRel: retired})
 
 	report, code := Check(root)
 	if code == 0 {
@@ -2383,5 +2399,83 @@ func TestTheEmptyChecklistEscapesDoNotReachAnUnprovenChecklist(t *testing.T) {
 		map[string]string{}, coverage)
 	if len(walked) != 1 {
 		t.Errorf("a manual-walk sign-off excused an unproven checklist: %v", walked)
+	}
+}
+
+// VALIDATES: the id allocation and level ratchets see what the COMMIT UNDER TEST did.
+// `./le verify worktree` checks that commit out detached, where the tree equals HEAD, so a
+// baseline read at HEAD already held the new id and the demotion, and both ratchets judged
+// nothing at the one gate that runs (plan/journal/check-cannot-see-the-change-it-looks-for.md).
+// METHOD: the tip commit adds a misanchored id, or demotes the one gated row, and the fixture
+// is checked out detached with no working-tree edit.
+func TestCheckBaselineRatchetsSeeTipCommit(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	for _, one := range []struct{ name, rows, violation string }{
+		{
+			name: "misanchored id", violation: "new id 'RFC9999-5.3-1'",
+			rows: "- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n" +
+				"- [ ] [RFC9999-5.3-1] [SHOULD] A speaker MUST send the widget. (§2)\n",
+		},
+		{
+			name: "demotion", violation: selftestRIDSend + " (section 2) moved [MUST] -> [SHOULD]",
+			rows: "- [ ] [" + selftestRIDSend + "] [SHOULD] A speaker MUST send the widget (§2)\n",
+		},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			root := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: checklist + one.rows}, nil)
+			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+			report, code := Check(root)
+			if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), one.violation) {
+				t.Fatalf("the tip commit's change was not seen, want %q, exit %d:\n%s", one.violation, code, report.Text())
+			}
+		})
+	}
+}
+
+// VALIDATES: the enrolment, new-summary and public-row ratchets see what the COMMIT UNDER
+// TEST did. baselineMetas and baselineSummaryStems read HEAD until 2026-09-26, and in the
+// detached verify worktree the tree equals HEAD, so each of these answered clean at the gate
+// (plan/journal/check-cannot-see-the-change-it-looks-for.md).
+// METHOD: the tip commit makes the change, and the fixture is checked out detached with no
+// working-tree edit.
+func TestCheckMetaRatchetsSeeTipCommit(t *testing.T) {
+	base := "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
+		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
+	unrowed := strings.Replace(base, "| Support | bgp-base 10 |", "| Support | - |", 1)
+	for _, cell := range []string{"| Support area | Widgets |\n", "| Support status | Partial |\n",
+		"| Support coverage | unit tests |\n", "| Support remaining | Zero MUST gaps. |\n"} {
+		unrowed = strings.Replace(unrowed, cell, "", 1)
+	}
+	second := strings.NewReplacer("RFC 9999", "RFC 8888", "RFC9999", "RFC8888",
+		"| Enrolment | enrolled |", "| Enrolment | non-normative |").Replace(unrowed)
+	for _, one := range []struct {
+		name, violation string
+		tip             map[string]string
+	}{
+		{
+			name: "un-enrolment", violation: selftestStem + " was un-enrolled",
+			tip: map[string]string{selftestSummaryRel: strings.Replace(base,
+				"| Enrolment | enrolled |", "| Enrolment | non-normative |", 1)},
+		},
+		{
+			name: "new summary", violation: "does not declare `| Enrolment | enrolled |`",
+			tip: map[string]string{selftestSummaryRelSecond: second,
+				"rfc/full/rfc8888.txt": checkFixtureSource},
+		},
+		{
+			name: "public row dropped", violation: "rfc9999.md rendered a row on",
+			tip: map[string]string{selftestSummaryRel: unrowed},
+		},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			files := fixtureCorpus()
+			files[selftestSummaryRel] = base
+			root := commitFixtureTip(t, files, one.tip, nil)
+			gitFixture(t, root, []string{"checkout", "-q", "--detach"})
+			report, code := Check(root)
+			if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), one.violation) {
+				t.Fatalf("the tip commit's change was not seen, want %q, exit %d:\n%s", one.violation, code, report.Text())
+			}
+		})
 	}
 }

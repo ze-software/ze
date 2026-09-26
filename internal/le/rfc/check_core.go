@@ -727,7 +727,7 @@ func featureDeclinedQuote(where string, req Requirement, sources map[string]stri
 			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt or ").Str(draftsRel).Byte('/').
 			Str(req.RFC).Str(".txt").String()}
 	}
-	if strings.Contains(squashWhitespace(source), squashWhitespace(req.Annotation.Quote)) {
+	if strings.Contains(quoteHaystack(source), squashWhitespace(req.Annotation.Quote)) {
 		return nil
 	}
 	var tb textbuf.Buffer
@@ -735,7 +735,7 @@ func featureDeclinedQuote(where string, req Requirement, sources map[string]stri
 		Str(" is annotated {feature-declined} and quotes ").
 		Str(pyRepr(truncateRunes(req.Annotation.Quote, 60))).
 		Str(", which is not in ").Str(fullRel).Byte('/').Str(req.RFC).
-		Str(".txt. The kind rests on the DOCUMENT making the feature optional, so the sentence has to be the RFC's own: quote it verbatim (line breaks are ignored), or the obligation is unconditional and this is a {gap}").String()}
+		Str(".txt. The kind rests on the DOCUMENT making the feature optional, so the sentence has to be the RFC's own: quote it verbatim (line breaks and page breaks are ignored), or the obligation is unconditional and this is a {gap}").String()}
 }
 
 // declaresFunction answers whether a Go file declares a top-level function of

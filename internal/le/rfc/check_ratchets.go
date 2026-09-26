@@ -238,7 +238,7 @@ func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(rid).Str(" was in rfc/short/").Str(stem).
-			Str(".md at HEAD and is now gone. Requirement ids are permanent: deleting the line retires the obligation silently, which is exactly the move that makes a compliance claim rot. Restore the line (edit its TEXT under the same id if the wording was wrong), and annotate it if it is not met").String())
+			Str(".md at ").Str(priorRevision).Str(" and is now gone. Requirement ids are permanent: deleting the line retires the obligation silently, which is exactly the move that makes a compliance claim rot. Restore the line (edit its TEXT under the same id if the wording was wrong), and annotate it if it is not met").String())
 	}
 	return errs
 }
@@ -304,7 +304,7 @@ func parseCorrections(text string) []correction {
 func squashWhitespace(text string) string { return strings.Join(strings.Fields(text), " ") }
 
 func correctionAuthorizes(rid string, corrections []correction, source string) bool {
-	haystack := squashWhitespace(source)
+	haystack := quoteHaystack(source)
 	for _, correction := range corrections {
 		named := false
 		for _, one := range correction.RIDs {

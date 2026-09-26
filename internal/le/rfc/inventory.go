@@ -289,6 +289,103 @@ func sectionBodies(text string) []sectionBody {
 	return out
 }
 
+// quoteHaystack is the ONE text a quote is matched against: the source with its
+// page furniture stripped and its whitespace collapsed. Three readers hold a
+// quote against an RFC, a requirement row (checkRowQuotes), a {feature-declined}
+// annotation (featureDeclinedQuote) and a level correction
+// (correctionAuthorizes), and all three call this, so a sentence one of them
+// finds the others find too.
+//
+// The strip is load-bearing: 163 of 6243 keyword sentences in the corpus cross
+// a page break (measured 2026-09-26), and a raw collapse leaves the footer and
+// the running header inside each of them.
+func quoteHaystack(source string) string {
+	return squashWhitespace(stripPageFurniture(source))
+}
+
+// quoteSource is one RFC's text cut into sections, each body already a quote
+// haystack, for the row check that scopes a quote to the section it cites.
+// Safe for concurrent use once built: nothing writes to it after newQuoteSource.
+type quoteSource struct {
+	sections []sectionBody
+}
+
+// newQuoteSource cuts the RAW source into sections and builds each body's
+// haystack by quoteHaystack. Cutting first is safe because no page footer or
+// running header matches sectionHeadingRE, and a page break landing between two
+// sections leaves its furniture in the earlier body, where quoteHaystack strips
+// it.
+func newQuoteSource(source string) *quoteSource {
+	bodies := sectionBodies(source)
+	for i := range bodies {
+		bodies[i].body = quoteHaystack(bodies[i].body)
+	}
+	return &quoteSource{sections: bodies}
+}
+
+// resolve answers the heading a cited section anchors to: the cited id when
+// the RFC has a heading of that id, else its nearest heading ancestor ("3.b"
+// resolves to "3"). The second result is false when no heading answers, and the
+// caller MUST refuse the anchor: a whole-document fallback would let a quote
+// pass under a section that does not exist.
+func (q *quoteSource) resolve(cited string) (string, bool) {
+	if cited == noSection {
+		return "", false
+	}
+	for id := cited; ; {
+		if q.has(id) {
+			return id, true
+		}
+		cut := strings.LastIndexByte(id, '.')
+		if cut < 0 {
+			return "", false
+		}
+		id = id[:cut]
+	}
+}
+
+// has answers whether a section of this id exists. The front matter is not a
+// section a row can cite, so it never answers.
+func (q *quoteSource) has(id string) bool {
+	if id == frontSection {
+		return false
+	}
+	for _, section := range q.sections {
+		if section.id == id {
+			return true
+		}
+	}
+	return false
+}
+
+// inSection answers whether quote is one contiguous span of the section id or
+// of one of its subsections. Each body is searched on its own, because a span
+// joining the end of one section to the start of the next is no sentence of
+// the RFC.
+func (q *quoteSource) inSection(id, quote string) bool {
+	prefix := id + "."
+	for _, section := range q.sections {
+		if section.id != id && !strings.HasPrefix(section.id, prefix) {
+			continue
+		}
+		if strings.Contains(section.body, quote) {
+			return true
+		}
+	}
+	return false
+}
+
+// sectionOf answers the first section whose body carries quote, so a refusal
+// can name where the sentence really is. False when no section carries it.
+func (q *quoteSource) sectionOf(quote string) (string, bool) {
+	for _, section := range q.sections {
+		if strings.Contains(section.body, quote) {
+			return section.id, true
+		}
+	}
+	return "", false
+}
+
 // boilerplateEnd answers the offset one past the first terminator at or after
 // start: end punctuation with whitespace after it.
 //

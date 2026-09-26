@@ -521,7 +521,7 @@ func checkPublicRowMonotonic(metas, baseMetas map[string]Meta, baselineKnown boo
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(summaryRel).Byte('/').Str(stem).
 			Str(".md rendered a row on ").Str(statusRel).
-			Str(" at HEAD and declares `| Support | - |` now, while the summary is still here. Deleting the row retires a public claim without retiring the obligation behind it, and it takes the stem out of every check that reads the public page -- the unproven-support guard and the extraction sign-off guard among them. Restore the section, or correct the row's cells in place. To retire the RFC itself, delete rfc/short/").String())
+			Str(" at ").Str(priorRevision).Str(" and declares `| Support | - |` now, while the summary is still here. Deleting the row retires a public claim without retiring the obligation behind it, and it takes the stem out of every check that reads the public page -- the unproven-support guard and the extraction sign-off guard among them. Restore the section, or correct the row's cells in place. To retire the RFC itself, delete rfc/short/").String())
 	}
 	return errs
 }

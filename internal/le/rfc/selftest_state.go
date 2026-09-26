@@ -142,8 +142,8 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-extraction-", map[string]string{
 
-		selftestSummaryRel:     selftestSummary,
-		"rfc/full/rfc9999.txt": selftestRFCSource,
+		selftestSummaryRel: selftestSummary,
+		selftestSourceRel:  selftestRFCSource,
 	})
 	if err != nil {
 		return nil, err
@@ -240,7 +240,7 @@ func runRenderSelftest() ([]leroot.SelftestResult, error) {
 		selftestWorkflowRel: selftestWorkflow,
 
 		selftestSummaryRel:            selftestSummary,
-		"rfc/full/rfc9999.txt":        selftestRFCSource,
+		selftestSourceRel:             selftestRFCSource,
 		"docs/features/rfc-status.md": "| RFC 9999 | Widgets | Partial | selftest | one MUST gap |\n",
 	})
 	if err != nil {

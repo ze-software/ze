@@ -122,6 +122,16 @@ var actions = leaction.New(area,
 		"be absent from the render and its file removed as an orphan",
 		Writes: true,
 		Answer: indexUpdateAnswer},
+	leaction.Action{Verb: "quote-backfill", Why: "rewrite the requirement rows of one RFC whose text can be the RFC's own " +
+		"sentence mechanically: a row mapped to exactly one site that is not a lead-in, and whose " +
+		"paraphrase shares enough with the sentence. It keeps id, level, section and markers. " +
+		"Every other row is listed for a human to quote. Without apply it writes nothing",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
+			{Keyword: keyApply},
+		},
+		AnswerArgs: quoteBackfillAnswer},
 )
 
 // Actions answers the command surface as data, so the listing, the Subs line

@@ -8,8 +8,10 @@ package rfc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"os"
+	"os/exec"
 	"strings"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -23,6 +25,7 @@ import (
 const (
 	selftestStem           = "rfc9999"
 	selftestSummaryRel     = "rfc/short/rfc9999.md"
+	selftestSourceRel      = "rfc/full/rfc9999.txt"
 	selftestWorkflowRel    = ".github/workflows/nightly.yml"
 	selftestTestPath       = "internal/sample/widget_test.go"
 	selftestRIDSend        = "RFC9999-2-1"
@@ -124,7 +127,7 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 	return []leroot.SelftestResult{
 		selftestResult("summary/checklist-id", len(requirements) == 2 && first.RID == fixture.expectedRID,
 			"the checklist id or requirement count changed"),
-		selftestResult("summary/level-and-section", first.Level == levelMust && first.Section == "2" && second.Level == "MUST NOT",
+		selftestResult("summary/level-and-section", first.Level == levelMust && first.Section == "2" && second.Level == levelMustNot,
 			"the level or trailing section anchor changed"),
 		selftestResult("summary/annotation", annotationOK,
 			"the single-polarity annotation did not retain its polarity and reason"),
@@ -362,7 +365,7 @@ var Gating = []string{suiteParse, suiteUI}
 		map[string]bool{selftestStem: true}, map[string]bool{selftestStem: true}, map[string]string{},
 	)
 	demoted := req
-	demoted.Level = "SHOULD"
+	demoted.Level = levelShould
 	levelLoss := checkLevelRatchet(root, []Requirement{demoted}, enrolled,
 		map[string]string{req.RID: levelMust}, baselineEnrolled)
 	newSummary := checkNewSummaries(
@@ -901,4 +904,94 @@ func discriminationStaleVerdicts(records []DiscriminationRecord) (map[string]sta
 type staleReplay struct {
 	verdict DiscriminationVerdict
 	files   map[string]string
+}
+
+// selftestQuoteRID is the row the quote selftest commits on top of its fixture.
+const selftestQuoteRID = "RFC9999-2-3"
+
+// runQuoteSelftest drives the row quote rule through the public check, the way
+// an author meets it: a MUST the RFC does not contain, committed as a new row on
+// top of a fixture, is refused, and the same commit carrying the RFC's own
+// sentence is not. The pair is what makes the first result discriminate: a
+// check that refused every new row would fail the second.
+func runQuoteSelftest() ([]leroot.SelftestResult, error) {
+	fabricated, err := selftestQuoteCheck("rfc-selftest-quote-fabricated-", "A speaker MUST encrypt every widget it sends")
+	if err != nil {
+		return nil, err
+	}
+	verbatim, err := selftestQuoteCheck("rfc-selftest-quote-verbatim-", "A receiver MUST NOT drop the widget.")
+	if err != nil {
+		return nil, err
+	}
+	return []leroot.SelftestResult{
+		selftestResult("quote/fabricated-row-refused", selftestQuoteRefused(&fabricated),
+			"a MUST the RFC does not contain, committed as a new row, passed the public check"),
+		selftestResult("quote/verbatim-row-accepted", verbatim.CannotRun == "" && !selftestQuoteRefused(&verbatim),
+			"a new row copying the RFC's own sentence was refused by the row quote rule, or the check could not run"),
+	}, nil
+}
+
+// selftestQuoteCheck commits the fixture corpus, commits one new row carrying
+// text on top of it, and answers the public check over the result.
+func selftestQuoteCheck(prefix, text string) (CheckReport, error) {
+	summary := "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
+		"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
+	root, err := newSelftestTree(prefix, map[string]string{
+		selftestWorkflowRel:    selftestWorkflow,
+		selftestSummaryRel:     summary,
+		selftestSourceRel:      selftestRFCSource,
+		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
+		"feature-gates.txt":    "ze_widget  internal/widget\n",
+	})
+	if err != nil {
+		return CheckReport{}, err
+	}
+	defer os.RemoveAll(root) //nolint:errcheck // temporary fixture checkout
+
+	if err := selftestGit(root, "init", "-q"); err != nil {
+		return CheckReport{}, err
+	}
+	if err := selftestCommit(root, "base"); err != nil {
+		return CheckReport{}, err
+	}
+	row := "- [ ] [" + selftestQuoteRID + "] [MUST] " + text + " (§2)\n"
+	if err := writeSelftestFiles(root, map[string]string{selftestSummaryRel: summary + row}); err != nil {
+		return CheckReport{}, err
+	}
+	if err := selftestCommit(root, "a new row"); err != nil {
+		return CheckReport{}, err
+	}
+	report, _ := Check(root)
+	return report, nil
+}
+
+// selftestQuoteRefused reports whether the row quote rule refused the new row.
+func selftestQuoteRefused(report *CheckReport) bool {
+	for _, violation := range report.Violations {
+		if strings.Contains(violation, selftestQuoteRID) && strings.Contains(violation, "not a verbatim span") {
+			return true
+		}
+	}
+	return false
+}
+
+// selftestCommit stages and commits everything the fixture checkout holds.
+func selftestCommit(root, message string) error {
+	if err := selftestGit(root, "add", "-A"); err != nil {
+		return err
+	}
+	return selftestGit(root, "-c", "user.email=selftest@example.invalid", "-c", "user.name=rfc-selftest",
+		"commit", "-q", "-m", message)
+}
+
+// selftestGit runs one git command in the selftest's own fixture repository,
+// with the user's and the system's git configuration shut out so a signing or
+// hook setting on this machine cannot change what the fixture holds.
+func selftestGit(root string, args ...string) error {
+	cmd := exec.Command("git", append([]string{"-C", root}, args...)...) //nolint:gosec,noctx // the selftest's own throwaway fixture repository
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, out)
+	}
+	return nil
 }

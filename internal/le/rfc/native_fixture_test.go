@@ -347,7 +347,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	if err != nil {
 		t.Skipf("resolve checkout: %v", err)
 	}
-	paths, ok := gitTreePaths(root, "internal/le/rfc", ".go")
+	paths, ok := gitTreePaths(root, headRevision, "internal/le/rfc", ".go")
 	if !ok {
 		t.Skip("git cannot list HEAD, so there is no committed state to seal")
 	}
