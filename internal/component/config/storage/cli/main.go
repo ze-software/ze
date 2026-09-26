@@ -99,6 +99,11 @@ func extractPathFlag(args []string) (string, []string) {
 // The caller MUST close the returned handle, releasing ownership for writers.
 func openStore(storePath string, writable bool) (storage.Storage, error) {
 	info, err := os.Stat(storePath)
+	if errors.Is(err, os.ErrNotExist) && filepath.Base(storePath) == storage.TreeName {
+		// An absent live tree is the store's to explain: no store at all, or
+		// an unfinished import or restore whose recovery command it names.
+		return storage.OpenTree(storePath, writable)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", storePath, err)
 	}
