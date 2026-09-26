@@ -1,0 +1,96 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC2181-10.3-1": {
+      "note": "TestRFC2181_NSCanonicalWithGlue asserts the NS targets have an ns<n>.<zone> shape and that no CNAME appears in the NS answer or glue; it never queries the target name for a CNAME, so the name-shape check asserts what the code does rather than that the target is not an alias.",
+      "requirement_sha": "75ffaa10a6a26d83",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+      },
+      "verdict": "weak"
+    },
+    "RFC2181-10.3-2": {
+      "note": "TestRFC2181_NSCanonicalWithGlue asserts every synthesized NS target has an A record in the additional section of the same answer.",
+      "requirement_sha": "1db0bcd911557a99",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2181-11-1": {
+      "note": "TestRFC2181_WireNameLimits proves the codec refuses a 64-octet label, but the emitted-name checks run over a short configured name and cannot fail, and the 255-octet full-name limit is never exercised against the codec or geodns config.",
+      "requirement_sha": "d43524fede9c8602",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_WireNameLimits": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_WireNameLimits": "6073646896eb83a9"
+      },
+      "verdict": "weak"
+    },
+    "RFC2181-4.1-1": {
+      "note": "TestRFC2181_UDPReplySourceAndPort sends to 127.0.0.1 on loopback and asserts the reply source is 127.0.0.1; a wildcard-bound listener would also source a loopback reply from 127.0.0.1, so the assertion cannot fail for the regression the row guards (reply sourced from another address on a multi-homed host).",
+      "requirement_sha": "84c208957ee84346",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
+      },
+      "verdict": "weak"
+    },
+    "RFC2181-4.2-2": {
+      "note": "TestRFC2181_UDPReplySourceAndPort reads the reply on the client's own ephemeral socket and matches the query id; a reply sent to any other destination port never arrives and the read fails.",
+      "requirement_sha": "6c75ce71dc5f1e92",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_UDPReplySourceAndPort": "ae9591c46acae9f9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2181-5.2-1": {
+      "note": "TestRFC2181_RRSetEqualTTL drives answerQuestions for a three-address host and asserts every A record in the emitted RRSet carries the one configured TTL (120).",
+      "requirement_sha": "4c7cf3e64f87228d",
+      "tests": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_RRSetEqualTTL": "462d70baffe48085"
+      },
+      "units": {
+        "internal/plugins/geodns/server_test.go::TestRFC2181_RRSetEqualTTL": "922b30324bbe96bc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2181-5.4-2": {
+      "note": "TestRFC2181_CacheReplacesRRSetNoMerge: the assertion carrying this tag only checks one cache entry exists, which a merge into the same entry also satisfies; the discard of the whole cached RRSet is proven only by the RFC2181-5.4-1 assertions above it (same assertion wearing two hats).",
+      "requirement_sha": "c4c14a1cf07a1756",
+      "tests": {
+        "internal/component/resolve/dns/cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "a285c638f6f3738a"
+      },
+      "units": {
+        "internal/component/resolve/dns/cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge": "5136742d11beb09c"
+      },
+      "verdict": "weak"
+    },
+    "RFC2181-8-1": {
+      "note": "TestRFC2181_TTLSignBitBound: parseTTL accepts 2147483647 with the sign bit clear and rejects 2147483648; the configured value is the one packed into the 32-bit TTL field. The 0 lower bound is not exercised, but a uint parse cannot go below it.",
+      "requirement_sha": "0ede5207edff953a",
+      "tests": {
+        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "609bb27b7d22e156",
+        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound#2": "609bb27b7d22e156"
+      },
+      "units": {
+        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
+        "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2181"
+}
