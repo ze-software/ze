@@ -153,12 +153,14 @@ func storageRestoreFullScenario(ctx context.Context) error {
 		zefs.KeySSHDefault.Pattern: []byte(storageRestoreEndpoint),
 		storageKeyActive:           []byte("old config\n"),
 	}
+	historyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("history")))
 	backup := map[string][]byte{
 		zefs.KeySSHDefault.Pattern:        []byte(storageRestoreEndpoint),
 		storageKeyActive:                  []byte("bgp { }\n"),
 		storageKeyPassword:                {0, 1, 2, 0xff},
 		"custom/unregistered/nested/key":  []byte("unknown keys survive"),
-		"file/20260926-101500.000/r.conf": []byte("history"),
+		"file/20260926-101500.000/r.conf": []byte("sha256:" + historyDigest),
+		"object/" + historyDigest:         []byte("history"),
 	}
 	if err := storageWriteTree(".", old); err != nil {
 		return err

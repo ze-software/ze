@@ -1216,9 +1216,10 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 	return backups, nil
 }
 
-// readBackupContent reads the content of a backup by its path.
+// readBackupContent reads the content of a backup by its history entry key,
+// through the entry's object with the hash verified.
 func (e *Editor) readBackupContent(path string) ([]byte, error) {
-	return e.store.ReadFile(path)
+	return storage.ReadVersionEntry(e.store, e.originalPath, path)
 }
 
 // HasDraft returns true if a draft file exists for this config.
@@ -1264,8 +1265,8 @@ func (e *Editor) deleteLive() {
 // Rollback restores the configuration from a backup file.
 // Creates a backup of the current config first, so the rollback itself can be undone.
 func (e *Editor) Rollback(backupPath string) error {
-	// Read backup content
-	data, err := e.store.ReadFile(backupPath)
+	// Read backup content through its object, hash verified.
+	data, err := e.readBackupContent(backupPath)
 	if err != nil {
 		return fmt.Errorf("cannot read backup: %w", err)
 	}

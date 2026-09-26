@@ -350,7 +350,8 @@ func removeVersion(store Storage, configPath, stamp string) (err error) {
 		return err
 	}
 	defer func() { err = releaseGuard(guard, err) }()
-	return removeVersionLocked(store, guard, configPath, stamp)
+	_, err = removeVersionLocked(store, guard, configPath, stamp)
+	return err
 }
 
 func mustParseVersionStamp(t *testing.T, stamp string) time.Time {
@@ -526,7 +527,7 @@ func TestPromoteAdoptsLegacyBeforeCandidate(t *testing.T) {
 			versions, err := store.ListVersions(configPath)
 			require.NoError(t, err)
 			require.Len(t, versions, 2)
-			newest, err := store.ReadFile(versions[0].Path)
+			newest, err := store.ReadVersion(configPath, versions[0].Stamp)
 			require.NoError(t, err)
 			assert.Equal(t, "commit", string(newest))
 			rollback, ok, err := readPointer(store, configPath, pointerRollback)

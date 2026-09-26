@@ -128,6 +128,8 @@ func storageTreeScenario(ctx context.Context, args []string) error {
 		err = storageDoctorScenario(ctx, true)
 	case "data-check-tree":
 		err = storageDataScenario(ctx)
+	case "data-check-history":
+		err = storageHistoryCheckScenario(ctx)
 	case "data-backup":
 		err = storageBackupScenario(ctx)
 	case "data-restore-full":
@@ -595,6 +597,57 @@ func storageDataScenario(ctx context.Context) error {
 	return nil
 }
 
+// storageHistoryCheckScenario drives `ze data check` and `ze data repair`
+// over content-addressed history through the binary: an entry whose object
+// is gone is an error, an object nothing names is a warning, repair drops the
+// dangling entry and keeps the orphan, and the repaired tree checks clean but
+// for the orphan warning.
+func storageHistoryCheckScenario(ctx context.Context) error {
+	store, err := storage.Create(".")
+	if err != nil {
+		return err
+	}
+	kept := time.Date(2026, 9, 26, 10, 0, 0, 0, time.Local)
+	lost := kept.Add(time.Hour)
+	lostDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("lost\n")))
+	orphanDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("orphan\n")))
+	err = errors.Join(
+		store.WriteVersion("router.conf", []byte("kept\n"), kept),
+		store.WriteVersion("router.conf", []byte("lost\n"), lost),
+	)
+	if err == nil {
+		err = errors.Join(store.RemoveKey("object/"+lostDigest), store.WriteKey("object/"+orphanDigest, []byte("orphan\n")))
+	}
+	if err := errors.Join(err, store.Close()); err != nil {
+		return err
+	}
+	dangling := "file/" + storage.FormatVersionStamp(lost) + "/router.conf"
+	output, err := storageCommand(ctx, "", "data", "check", "--path", storageTreeName)
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+		return errors.Join(fmt.Errorf("data check accepted a dangling entry\n%s", output), err)
+	}
+	for _, want := range []string{"error: dangling-entry: " + dangling, "warning: orphan-object: object/" + orphanDigest, lostDigest} {
+		if !bytes.Contains(output, []byte(want)) {
+			return fmt.Errorf("data check did not report %q\n%s", want, output)
+		}
+	}
+	output, err = storageCommand(ctx, "", "data", "repair", "--path", storageTreeName, "--output", "repaired")
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+		return errors.Join(fmt.Errorf("repair did not report the dropped entry\n%s", output), err)
+	}
+	if !bytes.Contains(output, []byte("dropped: dangling-entry: "+dangling)) {
+		return fmt.Errorf("repair did not name the dropped entry\n%s", output)
+	}
+	output, err = storageRequireCommand(ctx, "", "data", "check", "--path", "repaired")
+	if err != nil {
+		return err
+	}
+	if !bytes.Contains(output, []byte("warning: orphan-object: object/"+orphanDigest)) {
+		return fmt.Errorf("repair dropped the orphan object\n%s", output)
+	}
+	return nil
+}
+
 // storageBackupScenario drives `ze data backup` through the binary: a tree
 // holding nested history and an unknown namespace is copied to one exact-fit
 // artifact that `ze data check` accepts; an existing file, a store-owned name
@@ -602,11 +655,15 @@ func storageDataScenario(ctx context.Context) error {
 // daemon holds, refuses the backup naming the recorded SSH endpoint and the
 // live route.
 func storageBackupScenario(ctx context.Context) error {
+	// A history entry holds sha256:<hex> of its object, so `ze data check`
+	// accepts the artifact; future/ab/cdef is a nested unknown namespace.
+	historyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte("history")))
 	values := map[string][]byte{
 		"meta/ssh/default":                []byte("127.0.0.1/2222"),
 		"file/active/router.conf":         []byte("bgp { }\n"),
-		"file/20260926-101500.000/r.conf": []byte("history"),
-		"object/ab/cdef":                  []byte("future namespace"),
+		"file/20260926-101500.000/r.conf": []byte("sha256:" + historyDigest),
+		"object/" + historyDigest:         []byte("history"),
+		"future/ab/cdef":                  []byte("future namespace"),
 	}
 	store, err := storage.Create(".")
 	if err != nil {

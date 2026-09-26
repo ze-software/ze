@@ -83,7 +83,7 @@ func copyKeys(source WriteGuard, seed Storage, keys []string) (err error) {
 	}
 	defer func() { err = releaseGuard(target, err) }()
 	stamp := time.Now()
-	for _, key := range keys {
+	for _, key := range objectsFirst(keys) {
 		data, err := source.ReadKey(key)
 		if err != nil {
 			return fmt.Errorf("read %s: %w", key, err)

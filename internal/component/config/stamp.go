@@ -78,7 +78,7 @@ func RecoverConfig(store storage.Storage, configPath string, currentData []byte,
 	}
 
 	for _, v := range versions {
-		raw, readErr := store.ReadFile(v.Path)
+		raw, readErr := store.ReadVersion(configPath, v.Stamp)
 		if readErr != nil {
 			continue
 		}

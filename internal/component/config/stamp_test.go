@@ -128,7 +128,7 @@ func TestRecoverConfigFindsCompatibleRollback(t *testing.T) {
 			}
 			foundBackup := false
 			for _, entry := range versions {
-				backup, readErr := store.ReadFile(entry.Path)
+				backup, readErr := store.ReadVersion(configPath, entry.Stamp)
 				if readErr != nil {
 					t.Fatal(readErr)
 				}

@@ -194,7 +194,8 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
 | `file/draft/` | Live edits in progress | `file/draft/router.conf` |
-| `file/<date>/` | Historical config versions | `file/20260318-100000.000/router.conf` |
+| `file/<date>/` | Historical config version entries, each holding `sha256:<hex>` | `file/20260318-100000.000/router.conf` |
+| `object/` | Config version bytes, named by their lowercase SHA-256; reached by raw key only | `object/9f86d081884c7d65...` |
 <!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername -->
 
 The configuration storage layer maps config paths into this key space and also

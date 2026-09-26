@@ -102,11 +102,13 @@ Unlocked reads return caller-owned bytes. A guard's reads may reference the blob
 mapping and MUST NOT outlive `Release`. All operations inside a guarded section
 MUST use that guard, including existence checks and `List`. Guarded lists see
 pending writes without acquiring the store lock again. The guard carries the
-raw-key read pair too: `guard.ReadKey` and `guard.ListKeys` answer what
+raw-key pairs too: `guard.ReadKey` and `guard.ListKeys` answer what
 `Storage.ReadKey` and `Storage.ListKeys` answer, literal-prefix, recursive and
-sorted, in the same order on both encodings. A caller holding a guard MUST use
-them: the `Storage` methods take the store mutex the guard already holds, so
-calling one inside a guard deadlocks. A walk over the whole store, such as a
+sorted, in the same order on both encodings, and `guard.WriteKey` and
+`guard.RemoveKey` do what `Storage.WriteKey` and `Storage.RemoveKey` do. A
+caller holding a guard MUST use them: the `Storage` methods take the store
+mutex the guard already holds, so calling one inside a guard hangs the process
+rather than returning an error. A walk over the whole store, such as a
 backup, is `guard.ListKeys("")` then `guard.ReadKey` for each key; `List` cannot
 serve it, because it answers only the immediate file children of a resolved
 name. In-process metadata records
@@ -114,7 +116,7 @@ modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
 release, so a callback may read the store again.
 <!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile, treeEncoding.list -->
-<!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.ReadKey, guard.ListKeys, guard.Release -->
+<!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.ReadKey, guard.ListKeys, guard.WriteKey, guard.RemoveKey, guard.Release -->
 
 ## Durable publication
 
@@ -226,8 +228,12 @@ opener and the same owner lock.
 `OpenBlob`, and selects one config: the name the operator gave, else the only
 config, else the one named like the device, else a refusal listing every name.
 A config is a name with a `meta/config/<name>/active` pointer or a
-`file/active/<name>` mirror; the bytes are the active version, or the mirror
-when there is no pointer. Offline, `RestoreConfig` writes the candidate and
+`file/active/<name>` mirror; the bytes are the active version, read entry to
+object with the hash verified, or the mirror when there is no pointer. A source
+whose active entry names an object the artifact lacks is refused before any
+write, naming the hash. `Backup` and import write every `object/*` key before
+any other key, so an interrupted walk leaves an unreferenced object, never an
+entry naming a missing one. Offline, `RestoreConfig` writes the candidate and
 promotes it under ONE guard, so a crash leaves either nothing or a normal
 candidate; a failure before the active pointer moves withdraws the candidate
 and its version. The daemon's `request data restore` stages the same bytes as
@@ -240,19 +246,48 @@ through `BindConfigSource`), under the lock every commit takes.
 ## Version pointers and recovery
 
 Pointers are per configuration name: `meta/config/<name>/active`, `candidate`,
-`rollback` and `recovery`. Historical content is `file/<stamp>/<name>`. A durable
-version precedes its pointer. Promotion records rollback before publishing
-active, then refreshes the active mirror and clears candidate. Repeating a
-promotion after active was published preserves the existing rollback reference.
-Candidate cleanup retains any version still referenced by active, rollback or
-recovery, including after a crash between pointer publications. Nameless legacy
-pointers are never read.
+`rollback` and `recovery`. A durable version precedes its pointer. Promotion
+records rollback before publishing active, then refreshes the active mirror and
+clears candidate. Repeating a promotion after active was published preserves
+the existing rollback reference. When the active pointer names a version whose
+entry or object is absent (a repaired store), promotion leaves rollback where it
+is instead of recording the unresolvable stamp; any other resolution failure
+aborts the promotion. Candidate cleanup retains any version still referenced by
+active, rollback or recovery, including after a crash between pointer
+publications, and clears a candidate pointer whose entry is already absent.
+Nameless legacy pointers are never read.
+
+### Content-addressed history
+
+History is content-addressed. A version's bytes are stored once, under
+`object/<hex>`, where `<hex>` is the lowercase SHA-256 of the bytes. The dated
+entry `file/<stamp>/<name>` holds `sha256:<hex>` (71 characters), never a copy.
+Two commits of an unchanged config, or two names holding equal bytes, share one
+object. Only dated history is content-addressed: `file/active`, `file/draft`,
+`file/template` and `meta/` stay direct keys. Every key, objects included,
+keeps its frame CRC. The CRC proves a frame holds the bytes that were written;
+the hash proves they are the content the entry promised.
+
+| Operation | Behavior |
+|-----------|----------|
+| `WriteVersion` | Hash the bytes, write the object when absent, then the entry. An existing object is reused only when its stored bytes hash to its name, else `ErrHistoryObject` names the key and both hashes and no entry is written. Object before entry, so a crash leaves an orphan object, never a dangling entry |
+| `ReadVersion(name, stamp)` | Entry, then object, then the hash verified over the bytes. A missing entry or object keeps `fs.ErrNotExist`; a malformed entry value or a wrong-hash object is `ErrHistoryObject`. `ReadActiveConfig` names `meta/config/<name>/active` and the stamp, and never falls back to the mirror while the pointer exists |
+| Removal | Under the caller's guard: a stamp a pointer names is retained, entry and object. Otherwise the entry is deleted, then every dated entry of every name is read through `guard.ListKeys("file/")` and `guard.ReadKey`, and the object is deleted only when none names it. Mutable `file/active` values never retain an object |
+| `ReadFile`, `ReadKey` | Stay raw: an entry reads as `sha256:<hex>`, so `ze data cat`, backup, import and check see what is stored |
+
+Objects are reached by raw key only, from inside package `storage`. The
+name-based API would move them: `resolveKey` maps a name outside `meta/` and
+`file/` to `file/active/<base>`. `VersionInfo.Path` stays the entry key, so
+`ze config history` prints it; callers holding it read the bytes through
+`ReadVersionEntry`. There is no migration and no reader for copy-style entries:
+Ze is pre-release, and a store written before this format is re-initialised.
 
 Explicit-file source selection is retained by the runtime. `WriteConfigFile`
 provides durable loose-file publication through a no-follow parent traversal;
 the caller owns conflict detection and the persistent file-commit intent.
 Bare stored-config startup reads
 the active pointer, falling back to the active mirror only when no pointer exists.
-<!-- source: internal/component/config/storage/pointer.go -- PromoteCandidate, ClearCandidate, ReadActiveConfig, pointerPath -->
+<!-- source: internal/component/config/storage/pointer.go -- PromoteCandidate, ClearCandidate, ReadActiveConfig, pointerPath, removeVersionLocked -->
+<!-- source: internal/component/config/storage/history.go -- writeVersionObject, readVersionEntry, sweepObject, objectsFirst, ReadVersionEntry -->
 <!-- source: internal/component/config/storage/open.go -- WriteConfigFile -->
 <!-- source: pkg/zefs/keys.go -- KeyConfigActive, KeyConfigFileCommit -->

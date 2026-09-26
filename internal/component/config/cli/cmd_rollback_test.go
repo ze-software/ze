@@ -105,7 +105,7 @@ func TestCmdRollbackRestores(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(entries), "rollback should create a backup of the current config")
 
-	backupData, err := store.ReadFile(entries[0].Path)
+	backupData, err := store.ReadVersion(configPath, entries[0].Stamp)
 	require.NoError(t, err)
 	assert.Equal(t, currentContent, string(backupData), "pre-rollback backup should contain the overwritten config")
 }

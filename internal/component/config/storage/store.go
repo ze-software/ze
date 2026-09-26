@@ -275,21 +275,37 @@ func (s *store) ListVersions(name string) ([]VersionInfo, error) {
 	base := filepath.Base(name)
 	var result []VersionInfo
 	for _, key := range keys {
-		parts := strings.Split(key, "/")
-		if len(parts) != 3 {
+		stamp, entryName, ok := historyEntry(key)
+		if !ok {
 			continue
 		}
-		if parts[2] != base {
+		if entryName != base {
 			continue
 		}
-		stamp, err := parseVersionStamp(parts[1])
+		date, err := parseVersionStamp(stamp)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("list versions: %s: %w", key, err)
 		}
-		result = append(result, VersionInfo{Stamp: parts[1], Date: stamp, Path: key})
+		result = append(result, VersionInfo{Stamp: stamp, Date: date, Path: key})
 	}
 	slices.SortFunc(result, func(a, b VersionInfo) int { return b.Date.Compare(a.Date) })
 	return result, nil
+}
+
+// ReadVersion resolves the history entry of name at stamp to its object and
+// verifies the hash. It holds the store's read lock for both reads, so no
+// removal can delete the object between them.
+func (s *store) ReadVersion(name, stamp string) ([]byte, error) {
+	key, err := versionPath(s, name, stamp)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed {
+		return nil, fs.ErrClosed
+	}
+	return readVersionEntry(s.access().ReadFile, key)
 }
 func (s *store) WriteVersion(name string, data []byte, stamp time.Time) (err error) {
 	g, err := s.acquire()
@@ -457,6 +473,18 @@ func (g *guard) ListKeys(prefix string) ([]string, error) {
 	return g.parent.tree.list(prefix)
 }
 
+// WriteKey writes one raw key through the held guard, as Storage.WriteKey
+// does outside one. Storage.WriteKey would acquire the store again and hang.
+func (g *guard) WriteKey(key string, data []byte) error {
+	return g.write(key, data, time.Now())
+}
+
+// RemoveKey removes one raw key through the held guard, as Storage.RemoveKey
+// does outside one. Storage.RemoveKey would acquire the store again and hang.
+func (g *guard) RemoveKey(key string) error {
+	return g.remove(key)
+}
+
 func (g *guard) WriteFile(name string, data []byte, _ fs.FileMode) error {
 	if err := g.parent.CheckName(name); err != nil {
 		return err
@@ -515,7 +543,7 @@ func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
 	if err := g.parent.CheckName(name); err != nil {
 		return err
 	}
-	return g.write(zefs.KeyFileVersion.Key(FormatVersionStamp(stamp), filepath.Base(name)), data, stamp)
+	return writeVersionObject(g, zefs.KeyFileVersion.Key(FormatVersionStamp(stamp), filepath.Base(name)), data, stamp)
 }
 
 // Release MUST follow AcquireLock. Observers run only after durability and unlock.

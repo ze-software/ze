@@ -254,7 +254,7 @@ func storageConformance(t *testing.T, backend pointerTestStore) {
 		assert.Equal(t, VersionInfo{Stamp: "20260319-113000.500", Date: newer, Path: "file/20260319-113000.500/router.conf"}, versions[0])
 		assert.Equal(t, VersionInfo{Stamp: "20260318-100000.000", Date: older, Path: "file/20260318-100000.000/router.conf"}, versions[1])
 		for i, want := range []string{"new", "old"} {
-			got, readErr := s.ReadFile(versions[i].Path)
+			got, readErr := s.ReadVersion("router.conf", versions[i].Stamp)
 			require.NoError(t, readErr)
 			assert.Equal(t, want, string(got))
 		}
@@ -440,6 +440,59 @@ func TestGuardReadKeyNoDeadlock(t *testing.T) {
 			require.NoError(t, g.Release())
 			_, err = g.ReadKey("meta/instance/name")
 			require.ErrorIs(t, err, fs.ErrClosed)
+		})
+	}
+}
+
+// TestGuardWriteKeyNoDeadlock verifies storage-3 AC-8: WriteGuard.WriteKey
+// does what Storage.WriteKey does, inside a held guard, on both encodings, and
+// the guarded ReadKey and ListKeys see the write. It fails by timing out,
+// which is what calling Storage.WriteKey there would do.
+func TestGuardWriteKeyNoDeadlock(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.newStore(t, t.TempDir())
+			g, err := s.AcquireLock("history")
+			require.NoError(t, err)
+			var writeErr error
+			withinDeadline(t, "WriteKey", func() { writeErr = g.WriteKey("object/aa", []byte("bytes")) })
+			require.NoError(t, writeErr)
+			got, err := g.ReadKey("object/aa")
+			require.NoError(t, err)
+			assert.Equal(t, "bytes", string(got))
+			keys, err := g.ListKeys("object/")
+			require.NoError(t, err)
+			assert.Equal(t, []string{"object/aa"}, keys)
+			require.Error(t, g.WriteKey("../escape", nil))
+			require.NoError(t, g.Release())
+			require.ErrorIs(t, g.WriteKey("object/bb", nil), fs.ErrClosed)
+			stored, err := s.ReadKey("object/aa")
+			require.NoError(t, err)
+			assert.Equal(t, "bytes", string(stored))
+		})
+	}
+}
+
+// TestGuardRemoveKeyNoDeadlock verifies storage-3 AC-8 for the removal half.
+func TestGuardRemoveKeyNoDeadlock(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			s := backend.newStore(t, t.TempDir())
+			require.NoError(t, s.WriteKey("object/aa", []byte("bytes")))
+			g, err := s.AcquireLock("history")
+			require.NoError(t, err)
+			var removeErr error
+			withinDeadline(t, "RemoveKey", func() { removeErr = g.RemoveKey("object/aa") })
+			require.NoError(t, removeErr)
+			_, err = g.ReadKey("object/aa")
+			require.ErrorIs(t, err, fs.ErrNotExist)
+			keys, err := g.ListKeys("object/")
+			require.NoError(t, err)
+			assert.Empty(t, keys)
+			require.ErrorIs(t, g.RemoveKey("object/aa"), fs.ErrNotExist)
+			require.NoError(t, g.Release())
+			_, err = s.ReadKey("object/aa")
+			require.ErrorIs(t, err, fs.ErrNotExist)
 		})
 	}
 }

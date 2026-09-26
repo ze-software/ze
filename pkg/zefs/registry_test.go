@@ -306,3 +306,21 @@ func TestPrivateKeysMarked(t *testing.T) {
 		}
 	}
 }
+
+// TestObjectKeyRegistered verifies spec-storage-3 AC-14: the content-addressed
+// history namespace is registered, so `ze data registered` lists it. Discovery
+// only: no read, write or check path consults the registry.
+func TestObjectKeyRegistered(t *testing.T) {
+	found := false
+	for _, entry := range Entries() {
+		if entry.Pattern == "object/{hex}" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("object/{hex} is not registered")
+	}
+	if got := KeyObject.Key("ab"); got != "object/ab" {
+		t.Fatalf("KeyObject.Key = %q", got)
+	}
+}

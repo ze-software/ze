@@ -22,6 +22,10 @@ type Storage interface {
 	Close() error
 	WriteVersion(string, []byte, time.Time) error
 	ListVersions(string) ([]VersionInfo, error)
+	// ReadVersion reads the version of a config name at a stamp: the
+	// history entry, then the object it names, with the SHA-256 verified.
+	// A missing entry or object keeps fs.ErrNotExist in the error chain.
+	ReadVersion(name, stamp string) ([]byte, error)
 	SetWriteObserver(func(string))
 	ReadKey(string) ([]byte, error)
 	WriteKey(string, []byte) error
@@ -38,7 +42,9 @@ type FileMeta struct {
 	ModifiedBy string
 }
 
-// VersionInfo describes a historical configuration.
+// VersionInfo describes a historical configuration. Path is the history
+// entry key file/<stamp>/<name>, whose stored value is `sha256:<hex>`, never
+// the config bytes: read the bytes with ReadVersion.
 type VersionInfo struct {
 	Stamp string
 	Date  time.Time
@@ -63,4 +69,9 @@ type WriteGuard interface {
 	// immediate file children of a resolved name.
 	ReadKey(string) ([]byte, error)
 	ListKeys(string) ([]string, error)
+	// WriteKey and RemoveKey are the raw-key write pair, under the held
+	// guard, for the same reason: Storage.WriteKey and Storage.RemoveKey
+	// acquire the store again and a caller holding a guard would hang.
+	WriteKey(string, []byte) error
+	RemoveKey(string) error
 }

@@ -232,7 +232,9 @@ func buildStage(folder *os.File, stage string, source *zefs.BlobStore) (nodeIden
 		return nodeIdentity{}, errors.Join(err, stageFolder.Close())
 	}
 	defer result.Close() //nolint:errcheck // the stage is reopened by replayImport.
-	for _, key := range source.List("") {
+	// Objects go first, so an interrupted walk never leaves an entry naming
+	// an object the stage does not hold.
+	for _, key := range objectsFirst(source.List("")) {
 		value, err := source.ReadFile(key)
 		if err != nil {
 			return nodeIdentity{}, err

@@ -19,6 +19,12 @@ import (
 // ErrCandidateExists is returned when a new candidate would overwrite one already staged.
 var ErrCandidateExists = errors.New("candidate config already staged")
 
+// ErrActiveUnresolved marks a ReadActiveConfig failure where the active
+// pointer EXISTS and names a version that does not resolve. It tells a
+// repaired store apart from a store that never had an active version: both
+// can carry fs.ErrNotExist, and only the first is a rebuild worth logging.
+var ErrActiveUnresolved = errors.New("active config version does not resolve")
+
 // pointerName identifies a named config version pointer.
 type pointerName string
 
@@ -109,7 +115,7 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 		return "", fmt.Errorf("write candidate version: %w", err)
 	}
 	if err := writePointerLocked(store, guard, configPath, pointerCandidate, stampStr); err != nil {
-		removeErr := removeVersionLocked(store, guard, configPath, stampStr)
+		_, removeErr := removeVersionLocked(store, guard, configPath, stampStr)
 		return "", errors.Join(fmt.Errorf("write candidate pointer: %w", err), removeErr)
 	}
 	return stampStr, nil
@@ -134,26 +140,24 @@ func EnsureActiveVersion(store Storage, configPath string, data []byte, stamp ti
 		return "", false, fmt.Errorf("write active version: %w", err)
 	}
 	if err := writePointerLocked(store, guard, configPath, pointerActive, stampStr); err != nil {
-		removeErr := removeVersionLocked(store, guard, configPath, stampStr)
+		_, removeErr := removeVersionLocked(store, guard, configPath, stampStr)
 		return "", false, errors.Join(fmt.Errorf("write active pointer: %w", err), removeErr)
 	}
 	return stampStr, true, nil
 }
 
-// readVersion reads a timestamped config version.
+// readVersion reads a timestamped config version through its object.
 func readVersion(store Storage, configPath, stamp string) ([]byte, error) {
-	path, err := versionPath(store, configPath, stamp)
-	if err != nil {
-		return nil, err
-	}
-	data, err := store.ReadFile(path)
+	data, err := store.ReadVersion(configPath, stamp)
 	if err != nil {
 		return nil, fmt.Errorf("read config version %s: %w", stamp, err)
 	}
 	return data, nil
 }
 
-// ClearCandidate removes the transient pointer and an otherwise unreferenced version.
+// ClearCandidate removes the transient pointer and an otherwise unreferenced
+// version, and that version's object when no remaining entry names it. A
+// candidate whose entry is already absent (a repaired store) clears cleanly.
 func ClearCandidate(store Storage, configPath string) (err error) {
 	guard, err := store.AcquireLock(configPath)
 	if err != nil {
@@ -168,7 +172,8 @@ func ClearCandidate(store Storage, configPath string) (err error) {
 	if err := clearPointerLocked(store, guard, configPath, pointerCandidate); err != nil {
 		return err
 	}
-	return removeVersionLocked(store, guard, configPath, stamp)
+	_, err = removeVersionLocked(store, guard, configPath, stamp)
+	return err
 }
 
 // PromoteCandidate promotes candidate to active and stores the previous active in rollback.
@@ -210,6 +215,19 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 			return clearPointerLocked(store, guard, configPath, pointerCandidate)
 		}
 	}
+	// An active pointer whose version no longer resolves (repair dropped its
+	// entry or object) is not a version anyone can go back to. Recording it
+	// as rollback would overwrite the rollback that DOES resolve, so the
+	// rollback pointer is left as it is. Any other failure aborts.
+	preserveRollback := false
+	if hasActive {
+		if _, err := readVersionLocked(store, guard, configPath, active); err != nil {
+			if !isNotExist(err) {
+				return fmt.Errorf("promote candidate: resolve active %s: %w", active, err)
+			}
+			preserveRollback = true
+		}
+	}
 	if !hasActive {
 		legacyData, readErr := guard.ReadFile(configPath)
 		if readErr == nil {
@@ -233,12 +251,16 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 		}
 	}
 
-	if hasActive {
+	switch {
+	case preserveRollback:
+	case hasActive:
 		if err := writePointerLocked(store, guard, configPath, pointerRollback, active); err != nil {
 			return err
 		}
-	} else if err := clearPointerLocked(store, guard, configPath, pointerRollback); err != nil {
-		return err
+	default:
+		if err := clearPointerLocked(store, guard, configPath, pointerRollback); err != nil {
+			return err
+		}
 	}
 	if err := writePointerLocked(store, guard, configPath, pointerActive, candidate); err != nil {
 		return err
@@ -282,41 +304,64 @@ func clearPointerLocked(store Storage, guard WriteGuard, configPath string, poin
 	return nil
 }
 
+// readVersionLocked is readVersion under a held guard. It reads through the
+// guard's raw-key reader, because Storage.ReadVersion would wait forever on
+// the lock this caller holds.
 func readVersionLocked(store Storage, guard WriteGuard, configPath, stamp string) ([]byte, error) {
 	path, err := versionPath(store, configPath, stamp)
 	if err != nil {
 		return nil, err
 	}
-	data, err := guard.ReadFile(path)
+	data, err := readVersionEntry(guard.ReadKey, path)
 	if err != nil {
 		return nil, fmt.Errorf("read config version %s: %w", stamp, err)
 	}
 	return data, nil
 }
 
-func removeVersionLocked(store Storage, guard WriteGuard, configPath, stamp string) error {
+// removeVersionLocked deletes the history entry of configPath at stamp, then
+// its object when no remaining entry of any name references it. It reports
+// whether it deleted the entry. It deletes nothing, and reports false, when a
+// pointer still names the stamp (the version is retained, entry and object)
+// or when the entry is already absent. The object step runs only after a real
+// deletion of an entry whose digest was read: a sweep regardless would delete
+// the object of a version that is still there.
+func removeVersionLocked(store Storage, guard WriteGuard, configPath, stamp string) (bool, error) {
 	path, err := versionPath(store, configPath, stamp)
 	if err != nil {
-		return err
+		return false, err
 	}
 	for _, pointer := range []pointerName{pointerActive, pointerRollback, pointerRecovery, pointerCandidate} {
 		reference, present, err := readPointerLocked(store, guard, configPath, pointer)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if present {
 			if reference == stamp {
-				return nil
+				return false, nil
 			}
 		}
 	}
-	if err := guard.Remove(path); err != nil {
+	value, err := guard.ReadKey(path)
+	if err != nil {
 		if isNotExist(err) {
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("remove config version %s: %w", stamp, err)
+		return false, fmt.Errorf("remove config version %s: %w", stamp, err)
 	}
-	return nil
+	// A malformed entry names no object, so its removal has nothing to sweep;
+	// `ze data check` reports any object it leaves unreferenced.
+	digest, digestErr := entryDigest(path, value)
+	if err := guard.RemoveKey(path); err != nil {
+		if isNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("remove config version %s: %w", stamp, err)
+	}
+	if digestErr != nil {
+		return true, nil
+	}
+	return true, sweepObject(guard, digest)
 }
 
 func releaseGuard(guard WriteGuard, err error) error {
@@ -333,9 +378,21 @@ func ReadActiveConfig(store Storage, configPath string) ([]byte, error) {
 		return nil, err
 	}
 	if ok {
-		return readVersion(store, configPath, stamp)
+		data, err := store.ReadVersion(configPath, stamp)
+		if err != nil {
+			// An existing active pointer never falls back to the mirror: the
+			// error names the pointer and the stamp that did not resolve, and
+			// keeps fs.ErrNotExist when the entry or object is absent.
+			return nil, fmt.Errorf("%w: %s names %s: %w", ErrActiveUnresolved, activePointerKey(configPath), stamp, err)
+		}
+		return data, nil
 	}
 	return store.ReadFile(configPath)
+}
+
+// activePointerKey names the active pointer of configPath for an error.
+func activePointerKey(configPath string) string {
+	return zefs.KeyConfigActive.Key(filepath.Base(configPath))
 }
 
 // ReadCandidateConfig reads the config version referenced by candidate.

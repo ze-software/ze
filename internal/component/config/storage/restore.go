@@ -144,7 +144,7 @@ func RestoreConfig(target Storage, deviceName string, data []byte) (stamp string
 			}
 		}
 		clearErr := clearPointerLocked(target, guard, deviceName, pointerCandidate)
-		removeErr := removeVersionLocked(target, guard, deviceName, stamp)
+		_, removeErr := removeVersionLocked(target, guard, deviceName, stamp)
 		return "", errors.Join(fmt.Errorf("restore config %s: %w", deviceName, err), clearErr, removeErr)
 	}
 	return stamp, nil

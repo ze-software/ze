@@ -115,7 +115,12 @@ func TestTreeDirectoryBarrierFailureDoesNotPublishCandidate(t *testing.T) {
 			_, err = WriteCandidateVersion(s, "router.conf", []byte("candidate"), mustParseVersionStamp(t, newStamp))
 			require.ErrorIs(t, err, failure)
 			require.True(t, failed, "the selected durability barrier must be reached")
-			assert.Empty(t, observed)
+			// The object is written before the entry, so a failed entry
+			// publication leaves at most an unreferenced object (R-1), which
+			// is durable and observed. No entry and no pointer is published.
+			for _, key := range observed {
+				assert.True(t, strings.HasPrefix(key, "object/"), key)
+			}
 			_, present, err := readPointer(s, "router.conf", pointerCandidate)
 			require.NoError(t, err)
 			assert.False(t, present, "a failed version barrier must never be followed by a candidate pointer")

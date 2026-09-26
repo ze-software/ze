@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -33,13 +34,52 @@ func cmdCheck(storePath string, _ []string) int {
 		return 1
 	}
 
+	historyErrors, err := checkStoreHistory(storePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 2
+	}
 	if report.CorruptEntries > 0 {
 		fmt.Fprintf(os.Stderr, "%d/%d entries corrupt\n", report.CorruptEntries, report.TotalEntries+report.CorruptEntries)
+		return 1
+	}
+	if historyErrors > 0 {
+		fmt.Fprintf(os.Stderr, "%d history errors\n", historyErrors)
 		return 1
 	}
 
 	fmt.Fprintf(os.Stdout, "ok: %d entries, magic ok, container ok\n", report.TotalEntries) //nolint:errcheck // CLI output
 	return 0
+}
+
+// checkStoreHistory runs the history reachability walk over the store at
+// storePath, prints every finding, and returns how many are errors.
+func checkStoreHistory(storePath string) (int, error) {
+	s, err := openStore(storePath, false)
+	if err != nil {
+		return 0, err
+	}
+	defer s.Close() //nolint:errcheck // read-only check handle.
+	findings, err := storage.CheckHistory(s)
+	if err != nil {
+		return 0, err
+	}
+	return printHistoryFindings(findings), nil
+}
+
+// printHistoryFindings prints one row per finding, `<kind>: <key>: <detail>`,
+// errors on stderr and warnings on stdout, and returns the error count.
+func printHistoryFindings(findings []storage.HistoryFinding) int {
+	errorCount := 0
+	for _, finding := range findings {
+		if finding.Severity == storage.HistorySeverityWarning {
+			fmt.Fprintf(os.Stdout, "warning: %s: %s: %s\n", finding.Kind, finding.Key, finding.Detail) //nolint:errcheck // CLI output
+			continue
+		}
+		errorCount++
+		fmt.Fprintf(os.Stderr, "error: %s: %s: %s\n", finding.Kind, finding.Key, finding.Detail) //nolint:errcheck // CLI output
+	}
+	return errorCount
 }
 
 func cmdRepair(storePath string, args []string) int {
@@ -73,12 +113,51 @@ func cmdRepair(storePath string, args []string) int {
 	for _, e := range report.Skipped {
 		fmt.Fprintf(os.Stderr, "skipped: %s: %s\n", e.Key, e.Error) //nolint:errcheck // CLI output
 	}
+	historyIssues, err := repairStoreHistory(outputPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 2
+	}
 
 	fmt.Fprintf(os.Stdout, "%d recovered, %d skipped -> %s\n", report.RecoveredCount, report.SkippedCount, outputPath) //nolint:errcheck // CLI output
 	if report.SkippedCount > 0 {
 		return 1
 	}
+	if historyIssues > 0 {
+		return 1
+	}
 	return 0
+}
+
+// repairStoreHistory drops the dangling and malformed entries and wrong-hash
+// objects of the repaired output, reports each finding, and returns how many
+// dropped keys and remaining errors there are. A pointer left naming a
+// dropped entry is an error the operator resolves; it is never retargeted.
+func repairStoreHistory(outputPath string) (int, error) {
+	s, err := openStore(outputPath, true)
+	if err != nil {
+		return 0, err
+	}
+	findings, err := storage.RepairHistory(s)
+	closeErr := s.Close()
+	if err != nil {
+		return 0, err
+	}
+	if closeErr != nil {
+		return 0, closeErr
+	}
+	unresolved := 0
+	var remaining []storage.HistoryFinding
+	for _, finding := range findings {
+		switch finding.Kind {
+		case storage.HistoryWrongHashObject, storage.HistoryDanglingEntry, storage.HistoryMalformedEntry:
+			unresolved++
+			fmt.Fprintf(os.Stderr, "dropped: %s: %s: %s\n", finding.Kind, finding.Key, finding.Detail) //nolint:errcheck // CLI output
+		default:
+			remaining = append(remaining, finding)
+		}
+	}
+	return unresolved + printHistoryFindings(remaining), nil
 }
 
 func cmdEncode(_ string, args []string) int {

@@ -77,7 +77,7 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 	}
 	foundBackup := false
 	for _, e := range entries {
-		backupData, rErr := store.ReadFile(e.Path)
+		backupData, rErr := store.ReadVersion(configPath, e.Stamp)
 		if rErr != nil {
 			continue
 		}

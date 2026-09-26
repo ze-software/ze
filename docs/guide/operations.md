@@ -64,6 +64,16 @@ beside the live location is refused without conversion. The diagnostic names
 `ze init --from <source>`, which imports a blob from a local path or from an
 `http` or `https` URL, optionally pinned with `--sha256 <hex>`.
 Appliance first boot already imports its seed explicitly.
+
+Stored history keeps each committed config once, named by its SHA-256, and every
+read of a version checks that hash. A store that `ze data repair` salvaged can
+keep an active pointer whose version was dropped. Bare `ze start` then exits 1
+and names `meta/config/<name>/active` and the stamp; it never serves the mirror,
+the rollback or an empty config. `ze start <file>` rebuilds the active version
+from the file, leaves `rollback` on the version that still reads, and logs the
+stamp that would not resolve. `ze data check` lists what repair left behind.
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, PromoteCandidate -->
+<!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource -->
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
 <!-- source: internal/plugins/init/main.go -- Run -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->

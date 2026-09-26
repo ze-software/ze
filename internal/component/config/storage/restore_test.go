@@ -69,10 +69,11 @@ func TestRestoreConfigTouchesOnlyConfig(t *testing.T) {
 	after := snapshotKeys(t, target)
 	versionKey := zefs.KeyFileVersion.Key(stamp, "ze.conf")
 	changed := map[string]string{
-		versionKey:                            "restored",
-		zefs.KeyConfigActive.Key("ze.conf"):   stamp + "\n",
-		zefs.KeyConfigRollback.Key("ze.conf"): previous + "\n",
-		zefs.KeyFileActive.Key("ze.conf"):     "restored",
+		versionKey: "sha256:" + contentDigest([]byte("restored")),
+		objectKey(contentDigest([]byte("restored"))): "restored",
+		zefs.KeyConfigActive.Key("ze.conf"):          stamp + "\n",
+		zefs.KeyConfigRollback.Key("ze.conf"):        previous + "\n",
+		zefs.KeyFileActive.Key("ze.conf"):            "restored",
 	}
 	for key, want := range changed {
 		assert.Equal(t, want, after[key], key)
@@ -91,7 +92,7 @@ func TestRestoreConfigTouchesOnlyConfig(t *testing.T) {
 			added++
 		}
 	}
-	assert.Len(t, after, len(before)+added, "only the version and pointer keys are new")
+	assert.Len(t, after, len(before)+added, "only the version entry, its object and the pointer keys are new")
 }
 
 // TestRestoreConfigFromMirror verifies R-3: an artifact with no active

@@ -287,7 +287,7 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
 	if assert.NotEmpty(t, backups, "should have at least one backup") {
-		backupData, readErr := store.ReadFile(backups[0].Path)
+		backupData, readErr := storage.ReadVersionEntry(store, configPath, backups[0].Path)
 		require.NoError(t, readErr)
 		backupRelease := config.ScanStampRelease(backupData)
 		assert.NotEmpty(t, backupRelease,

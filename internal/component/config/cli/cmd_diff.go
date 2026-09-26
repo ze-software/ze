@@ -92,6 +92,7 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 	file1 := args[0]
 	file2 := args[1]
 	var revisionStore storage.Storage
+	var revisionData []byte
 	if n, err := strconv.Atoi(file1); err == nil {
 		if store == nil {
 			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2))
@@ -103,12 +104,13 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		} else {
 			revisionStore = store
 		}
-		resolved, err := resolveRollbackPath(revisionStore, file2, n)
+		resolved, data, err := resolveRollbackVersion(revisionStore, file2, n)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return nil, exitError
 		}
 		file1 = resolved
+		revisionData = data
 	}
 
 	schema, err := config.YANGSchema()
@@ -121,7 +123,12 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 	if revisionStore != nil {
 		firstStore = revisionStore
 	}
-	tree1, err := loadAndResolve(firstStore, schema, file1)
+	var tree1 map[string]any
+	if revisionData != nil {
+		tree1, err = parseAndResolve(schema, revisionData)
+	} else {
+		tree1, err = loadAndResolve(firstStore, schema, file1)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
 		return nil, exitError
@@ -138,17 +145,21 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 	return diff, exitOK
 }
 
-// resolveRollbackPath resolves a revision number to a rollback file path.
-func resolveRollbackPath(store storage.Storage, configPath string, n int) (string, error) {
+// resolveRollbackVersion resolves a revision number to its history entry key
+// and its bytes, read through the entry's object with the hash verified.
+func resolveRollbackVersion(store storage.Storage, configPath string, n int) (string, []byte, error) {
 	backups, err := store.ListVersions(configPath)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if n < 1 || n > len(backups) {
-		return "", fmt.Errorf("revision %d not found (have %d revisions)", n, len(backups))
+		return "", nil, fmt.Errorf("revision %d not found (have %d revisions)", n, len(backups))
 	}
-
-	return backups[n-1].Path, nil
+	data, err := store.ReadVersion(configPath, backups[n-1].Stamp)
+	if err != nil {
+		return "", nil, err
+	}
+	return backups[n-1].Path, data, nil
 }
 
 // loadAndResolve parses one source and resolves its BGP tree.
@@ -164,7 +175,11 @@ func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (
 	if err != nil {
 		return nil, err
 	}
+	return parseAndResolve(schema, data)
+}
 
+// parseAndResolve parses config bytes and resolves their BGP tree.
+func parseAndResolve(schema *config.Schema, data []byte) (map[string]any, error) {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | storage-1-backend-parity, storage-2-blob-artifact |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | verify |
-| Updated | 2026-09-18 |
+| Updated | 2026-09-26 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -80,6 +80,22 @@ after a release the same change would owe a migration under operators.
 - [ ] `cmd/ze/hub/main.go` `run`, `clearStaleCandidateOnBoot`, `runYANGConfig`; `config_source.go` `recoverFileCommit`, `initializeConfigSource`; `internal/component/config/storage/source.go` `ReadConfigSource` - startup recovers file-commit intent, reads the selected source, clears the stale candidate, then initializes the active version after config validation. Stored-source reads fail before cleanup when active is missing. Explicit-file initialization rebuilds only when the active read preserves `fs.ErrNotExist`
   → Constraint: `ClearCandidate` currently tolerates an absent version through `removeVersionLocked`. The new hash read must preserve that behavior when repair retained the candidate pointer but dropped its entry, or startup stops before rebuilding
 
+### HEAD corrections (2026-09-26)
+
+Re-checked against HEAD 46c730af7f before implementation.
+
+| # | Spec said | HEAD holds | Effect |
+|---|-----------|-----------|--------|
+| 1 | three byte readers of `VersionInfo.Path` | a fourth: `internal/component/web/cli_terminal.go` `rollbackTree` read `mgr.store.ReadFile(backups[n-1].Path)` | moved to the verified read |
+| 2 | the readers "call `ReadVersion` by stamp" | the editor's rollback carries the ENTRY KEY through `contract.Editor.Rollback(backupPath)`, reached by `cmd_rollback.go`, the TUI (`model_commands_commit.go`, `model_load.go`, `model_commands_show.go`), `web/editor.go` and `cmd/ze/hub/editor_adapter.go` | `storage.ReadVersionEntry(store, name, key)` resolves the key through `ListVersions` to its stamp and calls `ReadVersion`; a key that is not a version of that name is refused with `fs.ErrNotExist`. The contract keeps its path argument. `stamp.go` and `cmd_diff.go` hold the stamp and call `ReadVersion` directly |
+| 3 | `restore config` needs its own entry to object read | `ReadRestoreSource` already reads through `ReadActiveConfig` | the refusal comes from `ReadVersion`; no restore-specific read code |
+| 4 | `ImportBlob` and `restore full` are two walks | `restore full` is `RestoreBlob`, which runs `importBlob` and `buildStage` like `ImportBlob`; the backup walk is `copyKeys` | object-first ordering is applied in `buildStage` and `copyKeys` through one helper, `objectsFirst` |
+| 5 | A-6 depends on storage-2 | storage-2 shipped `guard.ReadKey` and `guard.ListKeys` (literal-prefix, recursive, sorted, both encodings) | A-6 confirmed; the sweep uses `guard.ListKeys("file/")` |
+| 6 | `TestGuardListNoDeadlock` (R-4, Phase 3, Deliverables) | the sweep never calls `guard.List`; storage-2's `TestGuardListKeysRecursive` and `TestGuardReadKeyNoDeadlock` cover the read pair | the write pair is proved by `TestGuardWriteKeyNoDeadlock` and `TestGuardRemoveKeyNoDeadlock` |
+| 7 | tests in `conformance_test.go` | the conformance table is `storageConformance` in `storage_test.go` | the guard rows live there |
+| 8 | a failed candidate publishes nothing to write observers | the object is durable before the entry write fails, so the observer sees `object/<hex>` (R-1) | `TestTreeDirectoryBarrierFailureDoesNotPublishCandidate` asserts no entry or pointer is observed, and only object keys may be |
+| 9 | Behavior to preserve: `ListVersions` skips an unparsable stamp | classification is shared with the sweep through `historyEntry` | unchanged answer |
+
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - Every exported function in `pointer.go` and the `Storage` version methods keep their observable results
 - `ListVersions` order (date descending), `VersionInfo.Stamp` and `Date`
@@ -150,12 +166,12 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No store needs migrating: Ze is pre-release and stores on `main` are re-initialised | `ai/rules/pre-release.md`, owner directive 2026-08-30 | a migration spec is written then; nothing in this design forecloses one, because entries and objects are ordinary keys | owner confirmation at the gate | unvalidated |
-| A-2 | Only history is content-addressed; `file/active/*`, `file/draft/*`, `file/template/*` and `meta/*` stay direct keys | design 2026-09-16: mutable keys addressed by content would make every edit an object plus a rename | nothing else in the model changes | owner confirmation | unvalidated |
-| A-3 | Every object reference is a history entry found by recursive raw `ListKeys("file/")`. Classification uses the same rule as transformation step 3 and `ListVersions`: three components with the middle component accepted by `parseVersionStamp`. Mutable `active`, `draft` and `template` values are excluded even if they contain a digest | `internal/component/config/storage/store.go` `ListVersions`; `pkg/zefs/keys.go` `KeyConfigActiveHash` and `KeyConfigLastKnownGood` hold config digests, not object references | a reference outside dated history would be missed by removal, and `ze data check` would report its object as orphaned | `TestRemoveChecksEveryName` | unvalidated |
-| A-4 | SHA-256 over configs of a few KB per commit is not a performance concern | commit is an operator action | none | `BenchmarkWriteVersion` | unvalidated |
+| A-1 | No store needs migrating: Ze is pre-release and stores on `main` are re-initialised | `ai/rules/pre-release.md`, owner directive 2026-08-30 | a migration spec is written then; nothing in this design forecloses one, because entries and objects are ordinary keys | owner confirmation at the gate | confirmed: owner ordered the full spec 2026-09-26; pre-release, no migration |
+| A-2 | Only history is content-addressed; `file/active/*`, `file/draft/*`, `file/template/*` and `meta/*` stay direct keys | design 2026-09-16: mutable keys addressed by content would make every edit an object plus a rename | nothing else in the model changes | owner confirmation | confirmed: owner ordered the full spec 2026-09-26 |
+| A-3 | Every object reference is a history entry found by recursive raw `ListKeys("file/")`. Classification uses the same rule as transformation step 3 and `ListVersions`: three components with the middle component accepted by `parseVersionStamp`. Mutable `active`, `draft` and `template` values are excluded even if they contain a digest | `internal/component/config/storage/store.go` `ListVersions`; `pkg/zefs/keys.go` `KeyConfigActiveHash` and `KeyConfigLastKnownGood` hold config digests, not object references | a reference outside dated history would be missed by removal, and `ze data check` would report its object as orphaned | `TestRemoveChecksEveryName` | confirmed: `historyEntry` is shared by `ListVersions` and `sweepObject`; a `file/active` decoy holding the digest does not retain the object |
+| A-4 | SHA-256 over configs of a few KB per commit is not a performance concern | commit is an operator action | none | `BenchmarkWriteVersion` | confirmed by design: one SHA-256 over a few KB per operator commit; benchmark added, not yet run |
 | A-5 | Adding the raw-key write pair to `WriteGuard` is safe on both encodings: the guard already reaches the in-memory tree and the tree encoding without re-locking, as `Has`, `List` and `ReadFile` do (`guard.List` → `blobLock.List` → `node.walk`; the tree arm → `tree.list`) | `internal/component/config/storage/store.go` guard methods, `pkg/zefs/lock.go` | the sweep would need to run after `Release`, outside the guard, with its own lock, and the removal would stop being atomic | `TestGuardWriteKeyNoDeadlock` | confirmed by the producer |
-| A-6 | The sweep relies on storage-2's `guard.ListKeys` literal-prefix, recursive and sorted contract on both encodings, so `guard.ListKeys("file/")` returns every history entry | storage-2 AC-21. Existing `guard.List` calls `resolveDirKey`, which trims a trailing slash, then returns immediate file children through `immediateChildren`. That directory-list contract cannot enumerate nested history entries | implement or correct storage-2's required `ListKeys` contract before the sweep can delete objects safely | storage-2's conformance rows, re-run here | depends on storage-2 |
+| A-6 | The sweep relies on storage-2's `guard.ListKeys` literal-prefix, recursive and sorted contract on both encodings, so `guard.ListKeys("file/")` returns every history entry | storage-2 AC-21. Existing `guard.List` calls `resolveDirKey`, which trims a trailing slash, then returns immediate file children through `immediateChildren`. That directory-list contract cannot enumerate nested history entries | implement or correct storage-2's required `ListKeys` contract before the sweep can delete objects safely | storage-2's conformance rows, re-run here | confirmed: `guard.ListKeys` shipped in storage-2; `TestGuardListKeysRecursive` green in this package run |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/paths"
@@ -76,6 +77,48 @@ func checkStoreIntegrity(configDir string) []diagnostic.Diagnostic {
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("store key ").Str(entry.Key).Str(": ").Str(entry.Error).String(),
 			Path:     filepath.Join(storePath, filepath.FromSlash(entry.Key)),
+		})
+	}
+	return append(diags, checkStoreHistory(storePath)...)
+}
+
+// checkStoreHistory raises the findings `ze data check` prints for
+// content-addressed history: a dangling or malformed entry, a wrong-hash
+// object and a pointer naming an unresolvable stamp as errors, an orphan
+// object as a warning. A store that cannot be opened is an error, never the
+// healthy empty answer.
+func checkStoreHistory(storePath string) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+	store, err := storage.OpenTree(storePath, false)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("store history unreadable at ").Str(storePath).Str(": ").Err(err).String(),
+			Path:     storePath,
+		}}
+	}
+	defer store.Close() //nolint:errcheck // read-only doctor handle.
+	findings, err := storage.CheckHistory(store)
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
+			Severity: diagnostic.SeverityError,
+			Message:  tb.Str("store history check failed: ").Err(err).String(),
+			Path:     storePath,
+		}}
+	}
+	var diags []diagnostic.Diagnostic
+	for _, finding := range findings {
+		severity := diagnostic.SeverityError
+		if finding.Severity == storage.HistorySeverityWarning {
+			severity = diagnostic.SeverityWarning
+		}
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
+			Severity: severity,
+			Message:  tb.Reset().Str(finding.Kind).Str(": ").Str(finding.Key).Str(": ").Str(finding.Detail).String(),
+			Path:     filepath.Join(storePath, filepath.FromSlash(finding.Key)),
 		})
 	}
 	return diags

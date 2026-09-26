@@ -190,7 +190,7 @@ func TestExplicitRuntimeCommitPublishesBothAuthorities(t *testing.T) {
 	}
 	retained := false
 	for _, version := range versions {
-		content, err := store.ReadFile(version.Path)
+		content, err := store.ReadVersion(path, version.Stamp)
 		if err != nil {
 			t.Fatal(err)
 		}

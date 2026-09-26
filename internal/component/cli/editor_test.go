@@ -140,7 +140,7 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	assert.Len(t, backups, 1)
 
 	// Verify backup contains original content
-	backupData, err := store.ReadFile(backups[0].Path)
+	backupData, err := storage.ReadVersionEntry(store, configPath, backups[0].Path)
 	require.NoError(t, err)
 	assert.Equal(t, initial, string(backupData))
 }
@@ -180,7 +180,7 @@ func TestEditorBackupInRollbackDir(t *testing.T) {
 	require.Len(t, backups, 1)
 	assert.True(t, strings.HasPrefix(backups[0].Path, "file/"))
 	assert.False(t, strings.HasPrefix(backups[0].Path, "file/active/"))
-	data, err := store.ReadFile(backups[0].Path)
+	data, err := storage.ReadVersionEntry(store, configPath, backups[0].Path)
 	require.NoError(t, err)
 	assert.Equal(t, "router-id 1.2.3.4;", string(data))
 }
@@ -298,7 +298,7 @@ func TestEditorRollback(t *testing.T) {
 	require.Len(t, backups, 2, "rollback should create a backup of the current config before restoring")
 
 	// The newest backup (index 0) should contain version2
-	backupData, err := store.ReadFile(backups[0].Path) //nolint:gosec // Test path
+	backupData, err := storage.ReadVersionEntry(store, configPath, backups[0].Path) //nolint:gosec // Test path
 	require.NoError(t, err)
 	assert.Equal(t, version2, string(backupData), "pre-rollback backup should preserve the overwritten config")
 }
@@ -4052,7 +4052,7 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 	backups, err := ed2.ListBackups()
 	require.NoError(t, err)
 	require.NotEmpty(t, backups, "commits must preserve rollback history")
-	backupData, err := store.ReadFile(backups[0].Path)
+	backupData, err := storage.ReadVersionEntry(store, configPath, backups[0].Path)
 	require.NoError(t, err)
 	assert.Contains(t, string(backupData), "10.0.0.1",
 		"backup should contain alice's committed value, not stale original")

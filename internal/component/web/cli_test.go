@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -877,10 +878,9 @@ func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
 
-	backupPath := "file/20260101-120000.000/" + filepath.Base(configPath)
 	backupContent := strings.ReplaceAll(terminalScopedConfig, "1.2.3.4", "7.7.7.7")
 	backupContent = strings.ReplaceAll(backupContent, "committed uplink", "rollback uplink")
-	require.NoError(t, mgr.store.WriteFile(backupPath, []byte(backupContent), 0o600))
+	require.NoError(t, mgr.store.WriteVersion(configPath, []byte(backupContent), time.Date(2026, 1, 1, 12, 0, 0, 0, time.Local)))
 
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))

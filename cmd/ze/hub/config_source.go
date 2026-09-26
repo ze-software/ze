@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -38,10 +39,20 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
+	unresolved := err
 	if _, err := storage.WriteCandidateVersion(store, path, content, time.Now()); err != nil {
 		return err
 	}
-	return storage.PromoteCandidate(store, path)
+	if err := storage.PromoteCandidate(store, path); err != nil {
+		return err
+	}
+	// A repaired store keeps an active pointer whose version repair dropped.
+	// Promotion left rollback where it was; the operator learns which stamp
+	// would not resolve and which file replaced it.
+	if errors.Is(unresolved, storage.ErrActiveUnresolved) {
+		slogutil.Logger("hub.config").Warn("rebuilt active config from explicit file", "unresolved", unresolved.Error(), "source", path)
+	}
+	return nil
 }
 
 func promoteConfigCandidate(store storage.Storage, path string) error {

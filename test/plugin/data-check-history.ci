@@ -1,0 +1,7 @@
+# Test: data-check-history
+# VALIDATES: spec-storage-3 AC-10 and AC-11 through the binary: `ze data check` reports an entry whose object is gone as an error and an unreferenced object as a warning; `ze data repair` drops the dangling entry, keeps the orphan, and its output checks clean but for the orphan warning.
+# PREVENTS: a history store whose entry names a missing object passing the integrity check.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=le test fixture storage/tree data-check-history:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: data-check-history

@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -682,7 +683,7 @@ func rollbackTree(mgr *EditorManager, username string, schema *config.Schema, ta
 	if n > len(backups) {
 		return nil, fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
 	}
-	data, err := mgr.store.ReadFile(backups[n-1].Path)
+	data, err := storage.ReadVersionEntry(mgr.store, mgr.configPath, backups[n-1].Path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read backup %d: %w", n, err)
 	}

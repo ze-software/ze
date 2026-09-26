@@ -132,7 +132,7 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, version := range versions {
-		data, err := store.ReadFile(version.Path)
+		data, err := store.ReadVersion(configPath, version.Stamp)
 		if err != nil {
 			t.Fatal(err)
 		}
