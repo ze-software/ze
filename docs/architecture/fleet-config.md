@@ -166,7 +166,7 @@ config client <name>`: the RPC writes a version of `client-<name>.conf` and
 promotes it under the store guard, with no reload of the hub, so the write
 observer below pushes `config-changed`. It refuses a client that no serving
 block names, because that key would be written and never served.
-<!-- source: cmd/ze/hub/data_rpc.go -- restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreClientConfig -->
 
 The hub's `Storage.SetWriteObserver` callback maps a written client-config key
 back to the client's name and queues `config-changed` without blocking the

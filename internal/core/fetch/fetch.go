@@ -105,8 +105,9 @@ func ToFile(url, dest, expectedSHA string) error {
 
 func toFileRetry(url, dest string) error {
 	delay := retryDelay
+	var err error
 	for attempt := 1; attempt <= retryMax; attempt++ {
-		err := doToFile(url, dest)
+		err = doToFile(url, dest)
 		if err == nil {
 			return nil
 		}
@@ -116,7 +117,9 @@ func toFileRetry(url, dest string) error {
 			delay *= 2
 		}
 	}
-	return fmt.Errorf("download %s failed after %d attempts", redact.URL(url), retryMax)
+	// The last attempt's error names the reason (a status, a refused
+	// redirect, a size bound); a CLI caller never sees the log lines above.
+	return fmt.Errorf("download %s failed after %d attempts: %w", redact.URL(url), retryMax, err)
 }
 
 func doToFile(url, dest string) error {
@@ -200,8 +203,9 @@ func CheckSHA256(path, expectedSHA string) error {
 // caught by the SHA mismatch. Retries on failure.
 func ToDisk(url, disk, expectedSHA string) error {
 	delay := retryDelay
+	var err error
 	for attempt := 1; attempt <= retryMax; attempt++ {
-		err := doToDisk(url, disk, expectedSHA)
+		err = doToDisk(url, disk, expectedSHA)
 		if err == nil {
 			return nil
 		}
@@ -211,7 +215,7 @@ func ToDisk(url, disk, expectedSHA string) error {
 			delay *= 2
 		}
 	}
-	return fmt.Errorf("stream %s to %s failed after %d attempts", redact.URL(url), disk, retryMax)
+	return fmt.Errorf("stream %s to %s failed after %d attempts: %w", redact.URL(url), disk, retryMax, err)
 }
 
 // stallReader closes a response body when no Read returns within the

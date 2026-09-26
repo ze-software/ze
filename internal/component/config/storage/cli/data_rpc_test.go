@@ -1,4 +1,4 @@
-package hub
+package cli
 
 import (
 	"context"
@@ -27,9 +27,9 @@ func dataRPCStore(t *testing.T, reload func(context.Context) error) (storage.Sto
 	configPath := filepath.Join(dir, "ze.conf")
 	_, _, err = storage.EnsureActiveVersion(store, configPath, []byte("current"), time.Now().Add(-time.Second))
 	require.NoError(t, err)
-	installDataRPC(&dataRPCTarget{store: store, configPath: configPath, reload: reload})
+	InstallDataRPC(&DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reload})
 	t.Cleanup(func() {
-		installDataRPC(nil)
+		InstallDataRPC(nil)
 		require.NoError(t, store.Close())
 	})
 	return store, configPath
@@ -203,10 +203,10 @@ func TestRestoreClientConfigLive(t *testing.T) {
 			pushed = append(pushed, name)
 		}
 	})
-	installDataRPC(&dataRPCTarget{store: store, configPath: configPath, reload: func(context.Context) error {
+	InstallDataRPC(&DataRPCTarget{Store: store, ConfigPath: configPath, Reload: func(context.Context) error {
 		reloads++
 		return nil
-	}, servesClient: func(name string) bool { return name == "edge" }})
+	}, ServesClient: func(name string) bool { return name == "edge" }})
 
 	response = dataCall(t, handleDataRestore, "path", artifact, "config", "client", "core")
 	require.Equal(t, zePlugin.StatusError, response.Status)

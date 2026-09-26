@@ -118,7 +118,7 @@ The hub refuses `client <name>` when it has no `client <name>` entry under
 `plugin hub server`.
 
 <!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey, Serves -->
-<!-- source: cmd/ze/hub/data_rpc.go -- restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreClientConfig -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->

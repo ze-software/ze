@@ -1,7 +1,7 @@
 // Design: docs/architecture/hub-architecture.md -- request data RPCs beside request reload.
 // Related: data_rpc.go -- the handlers registered here.
 
-package hub
+package cli
 
 import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"

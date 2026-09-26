@@ -108,6 +108,8 @@ func TestFetchRedirectOtherHost(t *testing.T) {
 			http.Redirect(w, r, "/blob", http.StatusFound)
 		case "/other":
 			http.Redirect(w, r, other.URL+"/blob", http.StatusFound)
+		case "/missing":
+			http.NotFound(w, r)
 		default:
 			w.Write([]byte("local")) //nolint:errcheck // test
 		}
@@ -118,7 +120,17 @@ func TestFetchRedirectOtherHost(t *testing.T) {
 	if err := ToFile(srv.URL+"/same", dest, ""); err != nil {
 		t.Fatalf("same-host redirect: %v", err)
 	}
-	if err := ToFile(srv.URL+"/other", dest, ""); err == nil {
+	err := ToFile(srv.URL+"/other", dest, "")
+	if err == nil {
 		t.Fatal("redirect to another host was followed")
+	}
+	// The operator of `ze init --from` sees only this error, never the retry
+	// log lines, so the error itself names why the fetch failed.
+	if !strings.Contains(err.Error(), "it leaves host") {
+		t.Fatalf("refusal does not name the reason: %v", err)
+	}
+	err = ToFile(srv.URL+"/missing", dest, "")
+	if err == nil || !strings.Contains(err.Error(), "status 404") {
+		t.Fatalf("a 404 is not named in the error: %v", err)
 	}
 }

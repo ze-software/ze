@@ -101,7 +101,7 @@ addressing of history (`spec-storage-3-content-addressed-history`).
 - `ze data repair` calls `zefs.RepairPath`, which dispatches a blob to `Repair` and a framed tree to `repairFrameTree`; `RepairPath` takes the option too and passes it to the blob branch (a tree frame is rewritten whole and is exact-fit).
 - There is no `internal/component/config/storage/conformance_test.go`. The two-encoding table is `TestStorageConformance` in `storage_test.go`, driven by `pointerTestStores` (`pointer_test.go`); the AC-21 tests and `TestOpenBlobConformance` live beside it in `storage_test.go`.
 - `zefs.Check`'s `EntryStatus` carried no capacity. Phase 2 adds `KeyCapacity` and `Capacity`, so an exact-fit claim (AC-1, AC-18) is observable from outside `pkg/zefs`.
-- (2026-09-26, Phase 3) The daemon's store is a `BindConfigSource` wrapper, so `Backup` reaches the store through `ownedStore`. The RPC handlers live in `cmd/ze/hub/data_rpc.go`, and their `init()` registration is `cmd/ze/hub/register_data_rpc.go` because the write hook admits an `init()` that registers only in a `register*` file. The YANG module is `internal/component/config/storage/yang/ze-data-cmd.yang`, whose `config` and `force` are `type empty` keyword leaves. `Backup` takes `replace bool` for the RPC's `force`. The live restore reuses the commit reload (`reloadAfterCommitContext`, which runs `doReloadContext`), published to the handlers through `installDataRPC`.
+- (2026-09-26, Phase 3) The daemon's store is a `BindConfigSource` wrapper, so `Backup` reaches the store through `ownedStore`. The RPC handlers live in `internal/component/config/storage/cli/data_rpc.go` and register in `register_data_rpc.go` beside it (moved from `cmd/ze/hub` at closure, so the YANG contract sees a handler for each RPC); the hub installs the target through `InstallDataRPC`. The YANG module is `internal/component/config/storage/yang/ze-data-cmd.yang`, whose `config` and `force` are `type empty` keyword leaves. `Backup` takes `replace bool` for the RPC's `force`. The live restore reuses the commit reload (`reloadAfterCommitContext`, which runs `doReloadContext`), published to the handlers through `InstallDataRPC`.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - The blob format byte-for-byte; a blob written with any spare value opens with every existing reader
@@ -320,7 +320,7 @@ An unrelated canonical seed is never mistaken for the source, and an init source
 | `TestImportAtomicPublicationLinux` | `internal/component/config/storage/import_test.go` | AC-23: exercise actual Linux `renameat2(RENAME_NOREPLACE)` for files and directories; interrupt each recorded rename before and after its directory sync, resume every recognized state, and refuse an unrelated empty or populated replacement without changing it. Run on Linux; mocks and cross-compilation alone are insufficient | |
 | `TestRestoreFullRefusesLiveBlobName`, `TestImportIntentPolicyValidation`, `TestImportIntentDestinationValidation`, `TestImportRetainsStageAfterIntentError` | `internal/component/config/storage/import_test.go` | AC-22, AC-23: no-lock canonical-source refusal; missing/unknown/mismatched policy and invalid descriptor refusal; keep-source rejects archive fallback; sync/publication errors retain every stage an intent can reference | |
 | `TestRestoreFullReplaces`, `TestRestoreFullRefusesCorrupt`, `TestRestoreConfigTouchesOnlyConfig`, `TestRestoreConfigFromMirror`, `TestRestoreConfigName`, `TestRestoreConfigAmbiguousSource` | `storage/restore_test.go` | AC-5 to AC-8, AC-20, R-3, R-4 | |
-| `TestRestoreConfigLive`, `TestBackupRPCPath`, `TestRestoreClientConfigLive` | `cmd/ze/hub/data_rpc_test.go` | AC-4, AC-8, R-10 | |
+| `TestRestoreConfigLive`, `TestBackupRPCPath`, `TestRestoreClientConfigLive` | `internal/component/config/storage/cli/data_rpc_test.go` | AC-4, AC-8, R-10 | |
 | `TestDaemonAddress` | `internal/component/config/storage/cli/cmd_backup_test.go` | AC-3 | |
 | `TestInitFromSeed`, `TestInitFromBackup`, `TestInitFromRefusesExisting`, `TestInitFromScheme` | `internal/plugins/init/main_test.go` | AC-9, AC-11, A-7 | |
 | `TestFetchSHA256`, `TestFetchSchemeTable` | `internal/core/fetch/fetch_test.go` | AC-10 | |
@@ -363,7 +363,7 @@ An unrelated canonical seed is never mistaken for the source, and an init source
 - `internal/core/fetch/fetch.go`, `fetch_test.go` - the download helper moved from `internal/install/disk`, with the scheme table and SHA-256 option
 - `internal/component/config/storage/backup.go`, `restore.go` and their tests - the walks and the config-mode commit
 - `internal/component/config/storage/cli/cmd_backup.go`, `cmd_restore.go` - the offline verbs
-- `cmd/ze/hub/data_rpc.go`, `data_rpc_test.go` - the daemon-side handlers
+- `internal/component/config/storage/cli/data_rpc.go`, `data_rpc_test.go`, `register_data_rpc.go` - the daemon-side handlers
 - `test/plugin/data-backup.ci`, `data-backup-live.ci`, `data-backup-refused-live.ci`, `data-restore-full.ci`, `data-restore-full-refused-live.ci`, `data-restore-config.ci`, `data-restore-config-live.ci`, `init-from-path.ci`, `init-from-url.ci`, `init-from-refused.ci`
 - `test/plugin/data-restore-full-resume.ci`
 - `test/editor/edit-backup.et`
@@ -562,3 +562,164 @@ Design documents declared by the `// Design:` headers of files in scope:
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- Spare policy: `zefs.Spare(percent)` on `Create`, `Open`, `Repair`/`RepairPath` (`pkg/zefs/spare.go` `writePolicy.capacity`); the `+20` `file/active/` key allowance and the `growCapacity` constant are deleted; seeds (`buildZefsDB`, `runAssemble`) write spare 0 (71b880b52b).
+- `WriteGuard.ReadKey` and `ListKeys` on both encodings (04afec0dd0).
+- `ze data backup` and the backup walk `storage.Backup` under the store guard (03a2a99546); `ze data restore config`, `request data backup|restore` RPCs (80b6b61ce3); `ze data restore full` over one restartable keep-source/retire-source import protocol (`import_replay.go`, 816ca5b570, 7f6ec9e03d).
+- `ze init --from http|https|path [--sha256]` over `internal/core/fetch` (moved from `internal/install/disk`, 75181c6a3c, eac4cec21f).
+- `ze config edit|show|diff|set|list --backup <artifact>` through `storage.OpenBlob` and its `<artifact>.lock` sidecar (8bfaca1732).
+- The live restore's `client <c>` target and `command.ArgFlag` for YANG `type empty` leaves (3a8b1ba9d0).
+
+### Bugs Found/Fixed
+- `promoteCandidateLocked` stamped an adopted pointer-less config after its candidate (`TestPromoteAdoptsLegacyBeforeCandidate`, 8bfaca1732).
+- YANG `type empty` leaves were dropped from `ArgDefs`, so `force` was validated as a value of `spare` (`TestValidateCommandArgsFlag`, 3a8b1ba9d0).
+- Closure: `fetch.ToFile` and `fetch.ToDisk` returned "failed after 3 attempts" without the cause, so `ze init --from` never named a 404 or a refused redirect (`TestFetchRedirectOtherHost` now asserts both).
+- Closure: the RPC handlers registered from `cmd/ze/hub`, which the YANG/handler contract (`internal/le/doc/yangcontract`, reading `plugin/all`) never links, so `./le doc check verify` reported `ze-data:backup` and `ze-data:restore` as commands with no handler. Handlers moved to their owner, `internal/component/config/storage/cli/data_rpc.go` + `register_data_rpc.go`; the hub installs the target through `InstallDataRPC`.
+- `TestOpenRejectsForeignOwnerEvenForRoot/folder` asserted a rule the owner removed on 2026-09-17 (54118e71d1).
+
+### Documentation Updates
+- `docs/architecture/zefs-format.md`, `storage-backends.md`, `hub-architecture.md`, `api/commands.md`, `fleet-config.md`, `appliance/on-device-installer.md`, `provisioning/image-server.md`, `docs/guide/command-reference.md`, `operations.md`, `config-editor.md`, `ze-install.md`, `fleet-config.md`, `docs/features.md` (Backup and restore row). Closure repointed every `<!-- source: cmd/ze/hub/data_rpc.go -->` anchor to `internal/component/config/storage/cli/data_rpc.go` and ran `./le doc index write`.
+- `./le site build` and `./le cli catalog update file ../wiki/command-catalog.md` rerun after the `client` leaf; see Pre-Commit Verification.
+
+### Deviations from Plan
+- RPC handlers live in `internal/component/config/storage/cli`, not a new YANG-package handler file; the daemon target is installed by `cmd/ze/hub/main.go`.
+- AC-8 gained `client <c>` (owner, 2026-09-26, Key Design Decisions).
+- `daemonRunning` never existed at HEAD; refusal is the ownership lock `ErrBusy`, and AC-3 reads `meta/ssh/default` (`daemonAddress`).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | RPC handlers registered in `cmd/ze/hub` | the command contract links `plugin/all` only, so the handlers were invisible to it and the doc gate went red | closure `./le doc check verify` | moved to the owner package |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Backup of the whole store, consistent, live | Done | `storage.Backup` (backup.go), `handleDataBackup` (storage/cli/data_rpc.go) | |
+| Restore in two modes | Done | `RestoreConfig` (restore.go), `RestoreBlob` (import.go) | |
+| Start a device from a blob by URL or path | Done | `runImport`, `runFetchImport` (plugins/init/main.go) | |
+| Edit a backup offline | Done | `cmdEditBackup` (config/cli/cmd_edit.go) | |
+| Spare capacity per writer | Done | `zefs.Spare` (pkg/zefs/spare.go) | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBackupCarriesEveryKey`, `TestBackupExactFit`, `data-backup.ci` | |
+| AC-2 | Done | `TestSparePolicyBoundaries`, `data-backup.ci` | |
+| AC-3 | Done | `TestDaemonAddress`, `data-backup-refused-live.ci` | |
+| AC-4 | Done | `TestBackupRPCPath`, `TestBackupUnderLock`, `data-backup-live.ci` | |
+| AC-5 | Done | `TestRestoreBlobReplacesTree`, `data-restore-full.ci` | |
+| AC-6 | Done | `data-restore-full.ci`, `data-restore-full-refused-live.ci` | |
+| AC-7 | Done | `TestRestoreConfigTouchesOnlyConfig`, `data-restore-config.ci` | |
+| AC-8 | Done | `TestRestoreConfigLive`, `TestRestoreConfigRejectedLeavesPointers`, `TestRestoreClientConfigLive`, `data-restore-config-live.ci`, `test/managed/data-restore-client-live.ci` | serves the new config proven by an added peer; a changed router-id is not applied by reload, journaled in `plan/journal/reload-rolls-back-instead-of-applying.md` |
+| AC-9 | Done | `TestInitFromSeed`, `TestInitFromBackup`, `init-from-path.ci` | |
+| AC-10 | Done | `TestInitFromURL`, `TestInitFromURLRefused`, `TestFetchSHA256`, `init-from-url.ci` | |
+| AC-11 | Done | `TestInitFromRefusesExisting`, `TestInitFromScheme`, `init-from-refused.ci` | |
+| AC-12 | Done | `TestEditBackupNoDaemon`, `TestOpenBlobLockSurvivesRewrite`, `edit-backup.et` | |
+| AC-13 | Done | `TestConfigBackupFamily` | |
+| AC-14 | Done | `TestEditBackupFlagConflicts` | |
+| AC-15 | Done | `TestSpareZeroExactFit`, `TestSpareZeroGrowthRewrites` | |
+| AC-16 | Done | `TestSpareDefaultPolicy`, `TestKeyCapacityFileActive`, `TestKeyCapacityNonFileActive` | |
+| AC-17 | Done | `TestRepairTakesSpare` | |
+| AC-18 | Done | `TestAssembleExactFit`, `TestImageServerSeedExactFit` | |
+| AC-19 | Done | command-reference.md, operations.md; `./le site build`; wiki catalog commit | |
+| AC-20 | Done | `TestRestoreConfigAmbiguousSource`, `TestRestoreConfigName` | |
+| AC-21 | Done | `TestGuardReadKeyNoDeadlock`, `TestGuardListKeysRecursive` | |
+| AC-22 | Done | `TestRestoreBlobRefusesCanonicalSeed`, `data-restore-full.ci` | |
+| AC-23 | Done | `TestRestoreResumesInterrupted`, `TestRestoreReplayRefusesBeforeMutation`, `TestImportResumesCrashBoundaries` (Linux guest), `data-restore-full-resume.ci` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| unit rows of the TDD plan | Done | files named in the plan; RPC tests now in `internal/component/config/storage/cli/data_rpc_test.go` | some names changed, see AC table |
+| functional rows | Done | `test/plugin/data-*.ci`, `init-from-*.ci`, `test/managed/data-restore-client-live.ci`, `test/editor/session/edit-backup.et` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify / Create | Done | `cmd/ze/hub/data_rpc.go` moved to `internal/component/config/storage/cli/` at closure |
+
+### Audit Summary
+- **Total items:** 23 AC, 5 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** RPC handler location, AC-8 client target (Deviations)
+
+## Goal Validation (BLOCKING)
+
+Interop: N-A. The spec changes no wire protocol: the blob format is byte-for-byte unchanged, the RPCs ride the existing SSH command channel, and the fetch is a plain HTTP GET. `ai/rules/interop-and-goal-validation.md` exempts tooling with no protocol peer.
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A backup writes one CRC-protected exact-fit blob of the whole store, live and offline | functional | `data-backup.ci` (offline, `ze data check` exit 0), `data-backup-live.ci` (live RPC, 0600, key equality, every path refusal) |
+| A restore reads the blob in `config` or `full` mode | functional | `data-restore-config.ci`, `data-restore-config-live.ci` (peer applied through reload), `data-restore-full.ci`, `data-restore-full-resume.ci` |
+| `ze init --from <source>` fetches and imports | functional | `init-from-path.ci`, `init-from-url.ci` (loopback HTTP, `ze start` on the imported tree), `init-from-refused.ci` |
+| The offline editor opens a blob | functional | `test/editor/session/edit-backup.et` |
+| Every blob writer takes a spare policy; artifacts carry no padding | unit | `TestSpareZeroExactFit`, `TestBackupExactFit`, `TestAssembleExactFit`, `TestImageServerSeedExactFit` |
+| A restore reaches a managed client through its hub | functional | `test/managed/data-restore-client-live.ci` (two daemons; client serves the restored config) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is implemented | none |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/storage-2-blob-artifact-d1bd1f18-5c01-4a2c-a017-f3bc659c5b7a.md` (115 files, verdict clean) |
+| `./le spec review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and command contract, security (RPC path, fetch, restore source), logic (reload chain, restore commit point), style |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | fetch retry drops the last error, so `ze init --from` never names why a fetch failed | `internal/core/fetch/fetch.go` `toFileRetry`, `ToDisk` | wrap the last attempt's error; `TestFetchRedirectOtherHost` asserts the reason and a 404 |
+| 2 | ISSUE | `request data` handlers registered outside the component discovery set; the command contract reports both RPCs as unhandled | `cmd/ze/hub/data_rpc.go` | moved to `internal/component/config/storage/cli`, hub calls `InstallDataRPC` |
+
+Run 2 (over both fixes): 0 BLOCKER, 0 ISSUE. NOTEs: `parseDataRestoreArgs` accepts a repeated keyword (last wins) where the backup parser refuses it; `RestoreConfig` returns an error after the active pointer moved if the mirror write fails (the version stays active, as its comment states); the web admin form renders a flag as a text box whose non-empty value sets it.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/storage/{backup,restore,import_replay,import_pending}.go`, `storage/cli/{cmd_backup,cmd_restore,data_rpc,register_data_rpc}.go`, `internal/core/fetch/{fetch,scheme}.go` | Yes | ls at closure |
+| `test/plugin/{data-backup,data-backup-live,data-backup-refused-live,data-restore-full,data-restore-full-refused-live,data-restore-full-resume,data-restore-config,data-restore-config-live,init-from-path,init-from-url,init-from-refused}.ci`, `test/managed/data-restore-client-live.ci`, `test/editor/session/edit-backup.et` | Yes | ls at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-23 | unit proof | closure `go test -race` over pkg/zefs, config/storage/..., config/cli, command/..., plugin/server, appliance, imageserver, core/fetch, install/disk, plugins/init: see `close-units.log` in the session scratch |
+| AC-10 | fetch names the reason | `TestFetchRedirectOtherHost` PASS after the closure fix |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| every Wiring Test row | the .ci/.et named there | each file read by the implementing agents and run green (session state handoffs, agents 3, 5, 6, 7) |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | owner; `TestRestoreConfigTouchesOnlyConfig`, `TestRestoreBlobReplacesTree` |
+| A-2 | confirmed | `pkg/zefs/spare.go` `writePolicy.capacity`; the `+20` literal is gone from `store.go` |
+| A-3 | confirmed | `writePolicy` is never written to the file; AC-15's reopen test states `Spare(0)` |
+| A-4 | confirmed | storage-1 `detect` refuses a blob for every live open; `--backup` opens through `OpenBlob` only |
+| A-5 | confirmed | `handleDataRestore` stages with `WriteCandidateVersion` and calls `reloadAfterCommitContext` (runs `runReloadContext`: promote last, clear on failure) |
+| A-6 | confirmed | `fetch.schemes` holds http and https; another scheme is one map entry (Known Limitations) |
+| A-7 | confirmed | `TestInitFromSeed`, `TestInitFromBackup` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| hub-architecture.md `request data` paragraph | `InstallDataRPC`, `register_data_rpc.go` in storage/cli; `cmd/ze/hub/main.go` installs | Yes |
+| command-reference, fleet-config, features anchors | repointed to `storage/cli/data_rpc.go` | Yes |
+| comparison.md | no backup row (grep) | No update needed |

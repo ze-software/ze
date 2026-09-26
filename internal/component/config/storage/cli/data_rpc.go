@@ -1,8 +1,8 @@
 // Design: docs/architecture/hub-architecture.md -- request data RPCs beside request reload.
 // Related: register_data_rpc.go -- registers the two handlers.
-// Related: main_reload.go -- the candidate and reload sequence a live restore runs.
+// Related: cmd/ze/hub/main.go -- the daemon installs the target, with the reload a SIGHUP runs (main_reload.go).
 
-package hub
+package cli
 
 import (
 	"context"
@@ -19,26 +19,26 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// dataRPCTarget is what the request data RPCs act on: the daemon's own live
+// DataRPCTarget is what the request data RPCs act on: the daemon's own live
 // store, the config it serves, the reload that accepts and promotes a staged
 // candidate (the SIGHUP chain), and the managed clients it serves as a hub.
-type dataRPCTarget struct {
-	store      storage.Storage
-	configPath string
-	reload     func(context.Context) error
-	// servesClient reports whether this hub serves the named managed client. It
+type DataRPCTarget struct {
+	Store      storage.Storage
+	ConfigPath string
+	Reload     func(context.Context) error
+	// ServesClient reports whether this hub serves the named managed client. It
 	// is nil when the daemon serves no managed client at all.
-	servesClient func(name string) bool
+	ServesClient func(name string) bool
 }
 
 // dataRPC holds the target once the daemon has built its reload. Until then,
 // and in a daemon with no store, it is nil and both RPCs refuse.
-var dataRPC atomic.Pointer[dataRPCTarget]
+var dataRPC atomic.Pointer[DataRPCTarget]
 
-// installDataRPC publishes the target the RPCs act on. The daemon MUST call it
+// InstallDataRPC publishes the target the RPCs act on. The daemon MUST call it
 // after its reload function exists, and MUST call it with nil before it closes
 // the store.
-func installDataRPC(target *dataRPCTarget) { dataRPC.Store(target) }
+func InstallDataRPC(target *DataRPCTarget) { dataRPC.Store(target) }
 
 // keywordPath names the artifact path keyword of both RPCs, and the answer key
 // that echoes it. keywordClient does the same for the restore's client target.
@@ -67,7 +67,7 @@ func handleDataBackup(_ *pluginserver.CommandContext, args []string) (*zePlugin.
 	if err := storage.CheckArtifactPath(parsed.path); err != nil {
 		return dataRefusal(fmt.Errorf("request data backup: %w", err)), nil
 	}
-	result, err := storage.Backup(target.store, parsed.path, parsed.force, zefs.Spare(parsed.spare))
+	result, err := storage.Backup(target.Store, parsed.path, parsed.force, zefs.Spare(parsed.spare))
 	if err != nil {
 		return dataRefusal(fmt.Errorf("request data backup: %w", err)), nil
 	}
@@ -147,19 +147,19 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 	if parsed.client != "" {
 		return restoreClientConfig(target, parsed), nil
 	}
-	deviceName := filepath.Base(target.configPath)
+	deviceName := filepath.Base(target.ConfigPath)
 	selected, err := storage.ReadRestoreSource(parsed.path, parsed.sourceName, deviceName)
 	if err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: %w", err)), nil
 	}
-	stamp, err := storage.WriteCandidateVersion(target.store, target.configPath, selected.Data, time.Now())
+	stamp, err := storage.WriteCandidateVersion(target.Store, target.ConfigPath, selected.Data, time.Now())
 	if errors.Is(err, storage.ErrCandidateExists) {
 		return dataRefusal(errors.New("request data restore: a config change is already staged; commit or discard it first")), nil
 	}
 	if err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: stage candidate: %w", err)), nil
 	}
-	if err := target.reload(ctx.Context()); err != nil {
+	if err := target.Reload(ctx.Context()); err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: the reload refused the config, the active config is unchanged: %w", err)), nil
 	}
 	return &zePlugin.Response{
@@ -180,11 +180,11 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 // config-changed to the client, which fetches the new config and applies it
 // through its own reload. A daemon that is not a hub serving that client
 // refuses, because the key would be written and never served.
-func restoreClientConfig(target *dataRPCTarget, parsed dataRestoreArgs) *zePlugin.Response {
-	if target.servesClient == nil {
+func restoreClientConfig(target *DataRPCTarget, parsed dataRestoreArgs) *zePlugin.Response {
+	if target.ServesClient == nil {
 		return dataRefusal(fmt.Errorf("request data restore: client %s: this daemon serves no managed client; only a hub with a client entry under plugin hub server serves one", parsed.client))
 	}
-	if !target.servesClient(parsed.client) {
+	if !target.ServesClient(parsed.client) {
 		return dataRefusal(fmt.Errorf("request data restore: client %s: this hub has no client entry named %s under plugin hub server", parsed.client, parsed.client))
 	}
 	clientName := pluginserver.ClientConfigKey(parsed.client)
@@ -192,7 +192,7 @@ func restoreClientConfig(target *dataRPCTarget, parsed dataRestoreArgs) *zePlugi
 	if err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: %w", err))
 	}
-	stamp, err := storage.RestoreConfig(target.store, clientName, selected.Data)
+	stamp, err := storage.RestoreConfig(target.Store, clientName, selected.Data)
 	if errors.Is(err, storage.ErrCandidateExists) {
 		return dataRefusal(fmt.Errorf("request data restore: a change to %s is already staged; commit or discard it first", clientName))
 	}

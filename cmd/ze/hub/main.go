@@ -32,6 +32,7 @@ import (
 	commandregistry "github.com/ze-software/ze/internal/component/command/registry"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	storagecli "github.com/ze-software/ze/internal/component/config/storage/cli"
 	"github.com/ze-software/ze/internal/component/config/system"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/iface"
@@ -1051,11 +1052,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// deferred clear runs before the store closes, so no RPC reaches a closed one.
 	// The managed clients this hub serves are published once the managed
 	// server starts, below.
-	var dataTarget *dataRPCTarget
+	var dataTarget *storagecli.DataRPCTarget
 	if store != nil {
-		dataTarget = &dataRPCTarget{store: store, configPath: configPath, reload: reloadAfterCommitContext}
-		installDataRPC(dataTarget)
-		defer installDataRPC(nil)
+		dataTarget = &storagecli.DataRPCTarget{Store: store, ConfigPath: configPath, Reload: reloadAfterCommitContext}
+		storagecli.InstallDataRPC(dataTarget)
+		defer storagecli.InstallDataRPC(nil)
 	}
 	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
 		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit)
@@ -1457,8 +1458,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// A live config restore targets a served client through this server only.
 	if managedServer := startManagedServer(managedCtx, store, hubConfig); managedServer != nil && dataTarget != nil {
 		serving := *dataTarget
-		serving.servesClient = managedServer.Serves
-		installDataRPC(&serving)
+		serving.ServesClient = managedServer.Serves
+		storagecli.InstallDataRPC(&serving)
 	}
 
 	if managedClient != nil && store != nil {
