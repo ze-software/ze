@@ -43,7 +43,6 @@ var (
 	discBcastMAC  = [pppoe.EthALen]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 )
 
-// RFC requirement: RFC2516-x-3 positive -- a frame whose ver/type octet is 0x11 (VER=1, TYPE=1) parses successfully instead of being discarded.
 // RFC requirement: RFC2516-x-7 positive -- a discovery frame with a unicast source MAC is accepted.
 func TestParsePADI(t *testing.T) {
 	hostUniq := []byte{0xDE, 0xAD}
@@ -123,7 +122,6 @@ func TestParsePADR(t *testing.T) {
 }
 
 // RFC requirement: RFC2516-5.2-1 positive -- BuildPADO echoes the Host-Uniq from the PADI unchanged in the PADO.
-// RFC requirement: RFC2516-5.2-3 positive -- the PADO carries the Host-Uniq that was present in the PADI.
 func TestBuildPADO(t *testing.T) {
 	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
@@ -301,7 +299,6 @@ func TestParseShortPacket(t *testing.T) {
 }
 
 // RFC requirement: RFC2516-x-1 negative -- a frame whose VER nibble is not 1 (ver/type 0x21) is rejected with ErrBadVersion, not parsed.
-// RFC requirement: RFC2516-x-3 negative -- a frame with ver/type other than 0x11 is silently discarded (ParseDiscovery returns ErrBadVersion rather than a Packet).
 func TestParseBadVersion(t *testing.T) {
 	frame := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, nil)
 	frame[pppoe.EthHdrLen] = 0x21 // bad version
@@ -504,8 +501,6 @@ func TestBuildPADIDiscovery(t *testing.T) {
 }
 
 // RFC requirement: RFC2516-5.3-1 positive -- BuildPADR echoes the AC-Cookie from the PADO unchanged in the PADR.
-// RFC requirement: RFC2516-5.3-3 positive -- the PADR carries the AC-Cookie that was in the selected PADO.
-// RFC requirement: RFC2516-5.3-4 positive -- BuildPADR includes the Host-Uniq (the value the Host used in its PADI) in the PADR.
 // RFC requirement: RFC2516-5.3-2 positive -- BuildPADR writes exactly one Service-Name tag.
 func TestBuildPADREchoesTags(t *testing.T) {
 	cookie := []byte("ac-cookie-1234567890")
@@ -547,8 +542,6 @@ func TestBuildPADREchoesTags(t *testing.T) {
 }
 
 // RFC requirement: RFC2516-5.3-1 negative -- when the PADO carried no AC-Cookie, BuildPADR emits no AC-Cookie tag (it does not invent one).
-// RFC requirement: RFC2516-5.3-3 negative -- a PADR built from a cookieless PADO carries no AC-Cookie tag.
-// RFC requirement: RFC2516-5.3-4 negative -- with no Host-Uniq supplied, BuildPADR emits no Host-Uniq tag.
 func TestBuildPADRNoOptionalTags(t *testing.T) {
 	// PADO is sent BY the AC: source = AC MAC, destination = Host MAC.
 	pado := buildDiscFrame(discClientMAC, discACMAC, pppoe.CodePADO, []pppoe.Tag{
@@ -578,7 +571,6 @@ func TestBuildPADRNoOptionalTags(t *testing.T) {
 }
 
 // RFC requirement: RFC2516-5.2-1 negative -- when the PADI/PADR carried no Host-Uniq, BuildPADO and BuildPADS emit no Host-Uniq tag.
-// RFC requirement: RFC2516-5.2-3 negative -- a PADO built from a PADI without Host-Uniq carries no Host-Uniq tag.
 func TestBuildNoHostUniqEcho(t *testing.T) {
 	padi := buildDiscFrame(discBcastMAC, discClientMAC, pppoe.CodePADI, []pppoe.Tag{
 		{Type: pppoe.TagServiceName, Value: []byte("internet")},
