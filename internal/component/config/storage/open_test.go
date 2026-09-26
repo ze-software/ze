@@ -196,18 +196,36 @@ func TestOpenRejectsSymlinksAndSpecialFiles(t *testing.T) {
 	}
 }
 
+// TestOpenRejectsForeignOwnerEvenForRoot proves root gets no exemption from the
+// owner check on every node that IS the store: the root, a directory, a frame
+// file and the lock. The containing folder is not the store: the root's own
+// owner check bounds it (owner decision, 2026-09-17), so a folder owned by
+// another uid opens and keeps its owner. Only root can chown, so only root runs it.
 func TestOpenRejectsForeignOwnerEvenForRoot(t *testing.T) {
 	if os.Geteuid() != 0 {
 		t.Skip("changing file ownership requires root")
 	}
-	for _, node := range []string{"folder", "root", "directory", "key", "lock"} {
+	t.Run("folder-accepted", func(t *testing.T) {
+		dir := t.TempDir()
+		s := newTreeStorage(t, dir)
+		require.NoError(t, s.WriteKey("meta/secret/key", []byte("secret")))
+		require.NoError(t, s.Close())
+		require.NoError(t, os.Chown(dir, 1, -1))
+		t.Cleanup(func() { require.NoError(t, os.Chown(dir, 0, -1)) })
+		reopened, err := Open(dir)
+		require.NoError(t, err)
+		require.NoError(t, reopened.Close())
+		var st unix.Stat_t
+		require.NoError(t, unix.Stat(dir, &st))
+		assert.Equal(t, uint32(1), st.Uid)
+	})
+	for _, node := range []string{"root", "directory", "key", "lock"} {
 		t.Run(node, func(t *testing.T) {
 			dir := t.TempDir()
 			s := newTreeStorage(t, dir)
 			require.NoError(t, s.WriteKey("meta/secret/key", []byte("secret")))
 			require.NoError(t, s.Close())
 			paths := map[string]string{
-				"folder":    dir,
 				"root":      filepath.Join(dir, "database"),
 				"directory": filepath.Join(dir, "database", "meta", "secret"),
 				"key":       filepath.Join(dir, "database", "meta", "secret", "key"),
