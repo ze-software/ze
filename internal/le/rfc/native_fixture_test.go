@@ -327,7 +327,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// action through workflowCommand (carriers.go): a binary that links only
 	// part of le now reads `test integration interop` by its declared tree.
 	// It is an intended change its commit states.
-	const want = "19ff9afe6709fb16d2ac7f8c8ac80a42f6acae4a41954b9b1620e2469cb604e6"
+	//
+	// Re-sealed 2026-09-26 for 3387d4bab0, which splits compound || guards in
+	// check_quote.go and quote_backfill.go into one guard per fact, in the
+	// original order. No verdict moved.
+	const want = "6db62319743f0f60f64b4bb13f206df21429cbf8a80a8a6a63312af13413d645"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
