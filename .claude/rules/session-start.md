@@ -18,19 +18,6 @@ Rationale: `ai/rationale/session-start.md`
 [ ] 9. Start working
 ```
 
-## Documentation First (step 8)
-
-`ai/rules/documentation.md` is always-on, so its directives are already in this
-session's context. Two of them decide what you do next, and both are easy to
-skip while a task looks urgent:
-
-- The page comes BEFORE the investigation. `ai/CODE-TO-DOCS.md` turns a file
-  into its pages, `ai/DOCS-TO-CODE.md` turns a page into its files, `ai/INDEX.md`
-  turns a keyword into a page. An agent or a grep is authorized by what the page
-  leaves silent or gets wrong, and you name which before you spawn it.
-- The page edit lands with the code edit, in the same piece of work. `/ze-close`
-  VERIFIES those edits and finds the gaps. It is not where they get written.
-
 ## Style Read (step 2) -- owner directive, 2026-08-18
 
 **BLOCKING, every session, whatever the task looks like.** Read

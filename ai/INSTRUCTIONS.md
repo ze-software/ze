@@ -1,60 +1,27 @@
 <!-- DO NOT EDIT GENERATED COPIES. Edit ai/INSTRUCTIONS.md and run: ./le ai sync write -->
 
-# DANGER -- ABSOLUTE PROHIBITIONS
+# Ze - Agent Instructions
 
-**These rules override everything. No exceptions. No rationalization. No "the task requires it."**
+This file carries the hard bans, the owner's standing decisions, and the map to
+every rule. Each rule is stated once, in its own file. A line here that names a
+rule is a pointer, and the rule file wins where the two differ.
 
-## Ze is PRE-RELEASE
-- There is no release, version, tag, or user of `main`. A red gate on `main`
-  reaches no deployment. Report its effect on the agreed task.
-- The deliverable follows the agreed task. Product implementation delivers
-  software. A verification task delivers evidence, missing tests, and fixes for
-  exposed defects in implemented capabilities (`ai/rules/completion.md`).
-- **A red test while you develop is NORMAL and is not a stop.** Commit the product
-  work with the test red, and say in the message which test is red and why. A green
-  tree is owed at NO commit.
-- **NEVER re-run a check to reconfirm a result you already read.** One run, read the
-  output, act. Re-running a gate that passed, re-reading a log you read, and
-  re-verifying a tree that has not changed are each forbidden.
-- Test and gate repair MUST stay within the agreed task. During product
-  implementation, stop before a third unrelated scaffolding repair and report
-  what remains red. A commissioned baseline verification task owns the repairs
-  needed for trustworthy proof (`ai/rules/pre-release.md`).
-- Correctness and interoperability of implemented capabilities remain required.
-  Never delete or weaken a test to hide a defect. Absent RFC features follow
-  the scope and gap policy in `ai/rules/rfc-compliance.md`.
-- Full rule: `ai/rules/pre-release.md`
+# Hard Bans
 
-## git push is FORBIDDEN as a bare Bash call
-- NEVER type `git push`. The hook refuses it, on every branch, in every tree.
-- Push ONLY via `./le commit create ... push "<owner authorisation>"`, and ONLY
-  when the owner ordered that push. Never add `push` on your own initiative.
-- Why: sessions share the index, so a loose add/commit/push carries another
-  session's work. The native commit command bundles all three into one atomic run.
-- A throwaway script carrying a push, deleted after, is NOT that path: banned.
+These override every other instruction, including "the task requires it". On a
+violation, STOP.
 
-## git commit, git add, git rm, git mv: FORBIDDEN as bare Bash tool calls
-- NEVER invoke `git commit`, `git add`, `git rm`, `git mv`, `git restore --staged`,
-  or `git stash` as a direct Bash tool call. Sessions share staging;
-  cross-commits result. Commit only via the script that `./le commit create`
-  prepares, then run it yourself with `bash` and the exact `script=` path the
-  command prints. Committing is allowed. Committing outside that route is not.
-- `git add`, `git rm` and `git mv` are the three verbs that STAGE, and a staged
-  path stops every other session's commit script until its owner clears it.
-  To delete a tracked file use plain `rm` and pass the path to `remove`; to
-  rename one use `rm` plus a new file, and name both.
-- **The command's `script=` line is the only authoritative script path. Copy it;
-  never construct the path from the session id.** Every prepared commit gets its
-  own script, and its name carries a random suffix so no guess can reach another
-  agent's.
-- Use `./le commit create` for every commit. It creates the session ID, message
-  file, executable script, ignored-path checks, and journal-row gate. Full rules
-  live in `ai/rules/git-safety.md` under "Commit Rules". Read them first.
-- When the user asks for a commit, prepare the commit script and run it
-  immediately. Do not perform a late review or rerun gates just because
-  commit was requested. If `./le verify status check` is FRESH, never rerun
-  `./le verify worktree`.
+## git commit, add, rm, mv, and push only through `./le commit create`
+- NEVER run `git commit`, `git add`, `git rm`, `git mv`, `git restore --staged`,
+  `git stash` or `git push` as a direct Bash call. Sessions share the index, so a
+  loose command carries another session's work.
+- Commit with `./le commit create`, then run the script at the exact `script=`
+  path it prints. Never construct that path.
+- To delete a tracked file, use plain `rm` and pass the path to `remove`.
+- Push ONLY when the owner ordered it, through `./le commit create ... push "<owner
+  authorisation>"`. A throwaway script that carries a push is the same ban.
 - Never `--no-verify`, never `--no-gpg-sign`.
+- Full rule: `ai/rules/git-safety.md`, `docs/contributing/committing.md`.
 
 ## Destructive git commands are FORBIDDEN
 - NEVER: `git reset`, `git checkout -- <file>`, `git restore`, `git clean`, `git revert`
@@ -62,175 +29,96 @@
 - NEVER: `git stash drop`, `git stash clear`
 - To undo something: write the command to `tmp/delete-SESSION.sh`, tell the user, and STOP.
 
-## Worktree agents must not touch main
-- Work on your own branch. Commit there. Done.
-- NEVER merge, cherry-pick, rebase, or copy into main.
+## Worktrees
+- NEVER spawn a worktree agent unless the user instructs it.
+- Work that started in a worktree stays in that worktree.
+- A worktree agent works and commits on its own branch. It NEVER merges,
+  cherry-picks, rebases or copies into main.
 
-## Worktrees: only on instruction or to keep worktree work on worktree
-- NEVER spawn a worktree agent on your own initiative. Only use worktrees when the user explicitly instructs it.
-- If work originated in a worktree, keep it there. Do not move worktree work to the main working tree.
+## Done means done, and a blocker gets fixed
+- NEVER claim "done" while agreed work remains. "Deferred" is not done. Scope
+  reduction needs the owner's approval.
+- A defect that blocks the goal of your work is fixed, whether or not it is
+  pre-existing. Never park it, never offer to drop a test or reduce coverage.
+- When genuinely blocked, say so with evidence and keep the spec open. A forced
+  question asks "which way do I fix it", never "may I skip it".
+- Never delete or weaken a test to clear a red.
+- Full rule: `ai/rules/completion.md`, `ai/rules/testing.md`.
 
-## Claiming "done" with incomplete work is FORBIDDEN
-- NEVER say "done", "ready to commit", "implementation complete" while in-scope work remains.
-- "Deferred" is not "done." Named in a `Work Not Done` row is not "done."
-- Every agreed acceptance criterion must be satisfied before you claim completion.
-  Verification criteria require evidence. Implementation criteria require working
-  product code. State all remaining defects and unverified behavior separately.
-- If you cannot finish an item: say so, keep the spec open, ask the user. Do not ship partial work as complete.
-- Scope reduction requires explicit user approval. You may not unilaterally drop ACs.
-- Full rule: `ai/rules/completion.md`
+# Standing Decisions
 
-## Parking a blocker or reducing coverage to reach green is FORBIDDEN
-- When a defect blocks a goal your work exists to achieve, FIX IT. Do not park it,
-  move it to `tmp/`, write it up as a spec of its own, or offer to drop the
-  deliverable.
-- A bug being "pre-existing" is NOT an escape hatch. The moment your work depends on
-  that path working, the bug is in scope: you are the entry point that reached it.
-- Correctness and interoperability of implemented capabilities stay in scope.
-  An absent RFC feature is recorded under `ai/rules/rfc-compliance.md`.
-- NEVER offer the user "drop the interop/functional test" as an option. Reducing
-  coverage to reach green is the failure, not a choice to present.
-- If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
-  reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
-- A record does not fix a defect in an implemented capability. Fix defects that
-  block the agreed goal. Record absent RFC requirements as explicit gaps without
-  treating that record as authorization to implement them.
-- Full rule: `ai/rules/completion.md`
+## Ze is pre-release
+- No release, version, tag or user consumes `main`. A red test does not hold a
+  commit: commit the work and name the red test and its cause in the body.
+- A check that ran is not re-run to reconfirm what its output said.
+- When the user asks for a commit, prepare the script and run it. Do not review
+  again or rerun gates for the commit. If `./le verify status check` is FRESH,
+  never rerun `./le verify worktree`.
+- Full rule: `ai/rules/pre-release.md`.
 
-## A problem you FIND gets a JOURNAL ROW (owner directive, 2026-08-10)
-- This REPLACES the 2026-08-08 spec-first route. Writing a spec for a defect you
-  walked into is now BANNED, and so is asking Thomas whether to implement one.
+## A problem you FIND gets a journal row
 - A defect you walk into while working on something else gets ONE row in
-  `plan/journal/<class>.md`: `| Date | Spec | Surface | Symptom | Fix |`.
-  Then close the work in hand and stop. No spec, no row anywhere else, no ask.
-- Two finds are FIXED on the spot, and only these two: a test that is wrong about
-  what it ASSERTS, and code RELATED to the problem in hand, edited or not.
-- A red test or a red gate is NOT on that list. Read it once. When the red says the
-  PRODUCT is wrong, the product defect is the find and the rules above govern it.
-  When the red is scaffolding, `ai/rules/pre-release.md` distinguishes a repair
-  needed for agreed verification from an unrelated failure.
-- Fix the whole in-scope defect, including sibling call sites and tests that
-  assert the affected behavior.
-- An unrelated defect's size or proximity to edited code does not authorize
-  repair. Record it without expanding the agreed task.
-- The defect that BLOCKS the goal your work exists to achieve is governed by the
-  section above: FIX IT. There is no closing the work in hand around it.
-- Record enough evidence to distinguish an existing-capability defect from an
-  absent feature. Report findings that limit the claimed baseline, including
-  unresolved defects and unverified behavior, without an unrelated investigation.
-- Grep `plan/journal/` before adding a row. Many sessions share this checkout and
-  meet the same defect. A class file that collects rows is what earns a fix, in a
-  deliberate pass over the journal, not by whoever tripped over it.
-- Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`
-
-## On violation: STOP immediately
-"The task requires it" is not valid. Nothing overrides these prohibitions.
-
----
-
-# Ze - Agent Instructions
-
-## Ze publishes in Simplified Technical English
-
-**Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15).**
-**This is a GUIDELINE, not a law and not a gate.** It exists to make text clearer
-for a reader. Never rewrite a sentence only to satisfy a word count: an edit that
-changes no meaning is overhead, which is the thing the guideline removes.
-The six habits below apply to all project text, including `docs/`, code comments,
-error messages, CLI output, YANG descriptions, `ai/` rules, `plan/` specs, and
-commit messages. Repository prose routes to `ai/rules/writing.md`. Before
-documentation work, a deep prose review, or resolving an STE finding, read the
-committed guide at `docs/contributing/writing-style.md`. Owner reports route to
-the existing "Say it once, say it short" instruction below, not the full writing
-rule.
-
-Six habits are banned. Each one has a numbered STE rule behind it:
-
-| # | Habit | Instead |
-|---|-------|---------|
-| 1 | **Synonym rotation** -- one concept with three names | Give each concept one name and repeat it (Rules 1.3, 1.11, 9.4) |
-| 2 | **Hedging** -- `may`, `should`, `typically`, `in most cases` | CAN for a possibility, MUST for an obligation, WILL for a future event (Rule 1.1) |
-| 3 | **Frozen verbs** -- `do the installation of` | Use the verb: `install` (Rule 3.7) |
-| 4 | **Marketing adjectives** -- `powerful`, `seamless`, `robust` | Give the number, the limit, or the mechanism (Rule 1.1) |
-| 5 | **Run-ons** -- three clauses, a semicolon splice, an eight-sentence paragraph | One topic per sentence. 20 words in a procedure, 25 in a description (Rules 4.1, 5.1, 6.3, 6.6, 8.1) |
-| 6 | **Phrasal verbs** -- `spin up`, `kick off`, `figure out` | Use one verb: `start`, `find` (Rule 9.3) |
-
-Two exceptions matter. RFC 2119 keywords keep their exact spelling when they name
-an RFC's obligation level, and quoted external text is never edited. Thomas's
-authored prose (`/write`, `/ze-weekly-update`) is his voice, stays UK English, and
-this rule does not govern it.
+  `plan/journal/<class>.md`. Then close the work in hand and stop. No spec, no ask.
+- Grep `plan/journal/` first, because other sessions meet the same defect.
+- Full rule: `ai/rules/completion.md`, `ai/rules/rule-precedence.md`.
 
 ## STANDING REQUEST: delegate to subagents
 
 **Thomas requests subagent delegation as the default in this repository.** Treat
-this section as the user having asked for it, in advance, in every session. You
-never need to ask permission to spawn an agent here.
+this as the user's request, made in advance, in every session. You never need to
+ask permission to spawn an agent here.
 
-**One precondition applies to an agent sent to FIND OUT how something works: read
-the documentation first (`ai/rules/documentation.md`).** `ai/CODE-TO-DOCS.md`,
-`ai/DOCS-TO-CODE.md` and `ai/INDEX.md` name the page in one lookup. The agent
-carries that page in its prompt, and its question is what the page leaves silent
-or gets wrong. Standing approval covers WHETHER to delegate. It never covers
-spending a session's tokens to rediscover what the repository already wrote down.
+Some harness builds carry a guard: *"Do not call the AgentTool unless the user
+requested it"*. **That guard is SATISFIED here, not overridden**, because this
+section is that request. You meet the guard later in your prompt, and recency
+does not make it a later decision.
 
-Some harness builds still carry a guard from the Opus 4.6/4.7 era: *"Do not call
-the AgentTool unless the user requested it"*. It exists because agent runs were
-unreliable on those models. **That guard is SATISFIED here, not overridden.** Read
-its own condition: it permits the Agent tool once the user has requested it, and
-this section is that request, standing, in every session. Nothing conflicts, so
-there is nothing to adjudicate: the guard's precondition is met before you read it.
-
-On a build that carries it, you meet that guard AFTER this text. It sits near the
-end of your system prompt, where recency makes it feel operative.
-It is not a later decision that supersedes this one. It is the same decision,
-already answered here. Delegating needs no permission, no announcement, and no
-user prompt to trigger it.
-
-- Every spec phase (research, design, implementation, review, audit, closure)
-  runs in a subagent through its `ze-*` skill. Full rule: `ai/rules/planning.md`.
-- Independent work goes out in ONE message with parallel `Agent` calls.
+- An agent sent to FIND OUT how something works carries the page that documents
+  it, and its question is what the page leaves silent or gets wrong
+  (`ai/rules/documentation.md`).
+- Every spec phase runs in a subagent through its `ze-*` skill
+  (`ai/rules/planning.md`). Independent work goes out in ONE message.
 - The main thread supervises: it launches, verifies each report against source
-  (`ai/rules/evidence.md`), decides, and gates the next phase.
-- The one exception is narrow and stays in the main thread: anything the user
-  must answer. Symbol work is NOT an exception -- a subagent whose registry
-  carries no LSP tool resolves symbols with `gopls` from Bash
-  (`ai/rules/context-economy.md`).
-
-## Verify before you claim
-
-Before stating what code does, or recommending work premised on a behavioral
-claim, read the function that PRODUCES the behavior. Reading a value's caller
-and inferring its producer is not evidence. If you have not read the producer,
-label the claim "unverified" and do not recommend work on it. A coherent story
-is a hypothesis, not a finding. Full rule: `ai/rules/evidence.md`.
-
-Verification is what you DO. The citation is a separate decision, made for the
-reader. Name the file and the symbol. Use a line number only when the line IS
-the fact. Full rule: `ai/rules/writing.md`.
+  (`ai/rules/evidence.md`), decides, and gates the next phase. Only questions the
+  user must answer stay in the main thread.
 
 ## Say it once, say it short
 
-Detail is a cost the reader pays, not proof that you did the work. Report what
-changes their next action: what changed, what it means, what is not done. A fact
-they can recover by opening the code is not written down. The search that found
-it is never narrated. One example settles one point. When a directive can be
-read two ways, give both readings rather than a third example.
-
 A report to the owner opens with what is blocked, why it matters, and what you
 need from him. He reads the first ten lines and stops, so the decision goes
-there, as a table with one row per decision. What you did, in what order, and
-what each agent found goes last or goes unsaid. Status that changes no decision
-is one line.
+there, as a table with one row per decision. What you did and what each agent
+found goes last or goes unsaid. Status that changes no decision is one line.
 
-An agent's report is written for the agent that commissioned it. The owner's
-report is written for a person. Rewrite it, never forward it. Take the
-conclusion, drop the derivation, and use the words a colleague uses at a desk.
-Length reads as thoroughness to a machine and as noise to a person. A reply to
-the owner stays under 15 lines, and puts its tables before its prose.
+An agent's report is written for the agent that commissioned it. Rewrite it for
+the owner, never forward it. A reply to the owner stays under 15 lines and puts
+its tables before its prose. Other prose follows `ai/rules/writing.md`.
 
-## Core Architecture
+## Every session
+- Read `docs/contributing/ze-go-style.md` in full before any code.
+- Claude Code: also `.claude/rules/session-start.md`.
 
-Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP).
+# Finding the Rule
+
+`ai/rules/TRIGGERS.md` names every rule under `ai/rules/`, one line each, with
+the situation that makes it apply. **When a trigger matches the work in hand,
+READ that rule's file before you act.** `ai/rules/CORE.md` carries the full text
+of the always-on rules. Both are generated by `./le ai rules condensed-update`.
+Never edit either one by hand.
+
+Other maps:
+
+| Need | Where |
+|------|-------|
+| The page that documents a file, a page's files, a keyword | `ai/CODE-TO-DOCS.md`, `ai/DOCS-TO-CODE.md`, `ai/INDEX.md` |
+| Structural templates (CLI command, config option, ...) | `ai/patterns/` |
+| Where a spec goes, and its template | `plan/README.md`, `plan/TEMPLATE.md` |
+| Past decisions and known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` |
+| Terminal colors and TUI styling | `docs/architecture/cli/color-system.md` |
+| A WAVE of red: unrelated packages fail to build, `no space left on device`, `cache entry not found` | `docs/contributing/running-commands.md`, "When the disk is full". The cache disk is full before this is a code defect. `./le scratch cache-clean` empties the build caches |
+
+# Core Architecture
+
+Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP). Design and divergence from standard Go: `docs/architecture/core-design.md`.
 
 **Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way. The composition root `internal/component/plugin/all/all.go` is generated (`./le repo generate`).
 
@@ -290,30 +178,10 @@ rib, role, route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 |--------|---------|
 | `ze` | Network OS: bgp, cli, config, hub, iface, exabgp migrate, plugin, schema, signal, completion |
 | `le` | Development launcher. It carries the functional test harness (`./le test <name>`), the chaos orchestrator (`./le chaos run`), UPDATE throughput benchmarks (`./le perf`), MRT/RIB analysis (`./le mrt`) and the gokrazy image build (`./le build gokrazy`) |
-| `ze-installer`, `ze-serial-shell` | Target binaries: see "Binary naming convention" below |
+| `ze-installer`, `ze-serial-shell` | Target binaries, cross-compiled for the appliance |
 
-### Binary naming convention
-
-Binaries fall into two families, and the distinction is load-bearing:
-
-- **Host binaries** run on the operator / build / dev machine and are compiled for
-  the host (no `GOOS`/`GOARCH` override). These are the CLIs in the table above (one
-  `cmd/ze/` codebase selected by build tag) plus the gokrazy build that `./le build gokrazy` runs. A build or
-  test action that must RUN one of these to drive `ze appliance ...` on the build
-  host compiles `cmd/ze` (tags `ze_core,ze_setup`) and names it `ze-host` by
-  convention (for example, `internal/le/test/qemu.(*Installer).buildHostZe`).
-- **Target binaries** run on the appliance or inside an image and are cross-compiled
-  `GOOS=linux GOARCH=<arch> CGO_ENABLED=0`: `cmd/ze-installer` (the busybox-free
-  installer initrd's PID 1, build tag `ze_installer`, packed into the initrd as
-  `/init`; `./le build installer amd64` and `arm64` write
-  standalone cross-builds to `bin/ze-installer-<arch>`), `cmd/ze-serial-shell`
-  (appliance serial console), and `cmd/ze`
-  itself when gokrazy packs it into the image.
-
-Rule: NEVER cross-compile a host binary. A target-arch `ze-host` cannot exec on the
-build host ("exec format error"). Apply `GOARCH=<target>` only to the build of a target
-binary, or to the `ze appliance initrd` invocation that cross-compiles one internally,
-never to the build of the host tool that runs it.
+Host binaries run on the build machine and are never cross-compiled. Target
+binaries run on the appliance. The rule and its reason: `ai/rules/platform-linux.md`.
 
 ## Source Layout
 
@@ -329,79 +197,6 @@ never to the build of the host tool that runs it.
 | Appliance | `internal/appliance/` (gokrazy image, installer, updater) |
 | Programs | `cmd/ze/` (build tags: `ze_core`, `ze_setup`, `ze_distro`, `ze_appliance`; and `ze_le`, which adds le's development commands under `ze le` and is never set by a shipped build) |
 | Tests | `test/` (.ci), `*_test.go` |
-
-## Before You...
-
-This table keeps only the highest-stakes actions. **For everything else the
-dispatch is `ai/rules/INDEX.md`** (one line per rule -- scan it, read the
-listed file in full before acting on a topic it covers) **and `ai/INDEX.md`**
-(task navigation, keyword -> doc, dev tools). Absence from this table NEVER
-means "no rule applies".
-
-| Action | Read first |
-|--------|-----------|
-| Find out how ANY surface works, before a search, a grep, or an agent | `ai/rules/documentation.md` -- read the page FIRST: `ai/CODE-TO-DOCS.md` (file to pages), `ai/DOCS-TO-CODE.md` (page to files), `ai/INDEX.md` (keyword to page). You investigate only what the page leaves SILENT or gets WRONG, and you name which |
-| Change any behavior a page describes | `ai/rules/documentation.md` -- the page edit lands in the SAME work as the code, before the next code edit. Never at review, never at closure, never in a follow-up commit. `ai/rules/repo-maintenance.md` says which page |
-| Write repository prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/writing.md` -- apply US English and the six habits. Read the full style guide only for documentation work, a deep prose review, or resolving an STE finding |
-| Start a session | **Read `docs/contributing/ze-go-style.md` in full, EVERY session, before any code (owner directive, 2026-08-18).** Then `.claude/rules/session-start.md` for the Claude-specific checklist |
-| Edit AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
-| Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
-| Choose the shape of a fix, or add an abstraction, option, layer, or parameter | `ai/rules/simplicity.md` -- the fix MUST be the simplest FULLY CORRECT answer. Simplicity cuts machinery, never correctness: quality is 0% compromise. The simplest design is usually the hardest to find, so budget the thinking. Another problem you see gets its own spec, never an extra branch here |
-| Start a planning, implementation, or review phase | `ai/rules/planning.md` -- review is INDEPENDENT of the author; no phase requires a specific model |
-| Work on ANY spec (research, design, implement, review, close) | `ai/rules/planning.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
-| Make a behavioral claim about code, or recommend work based on one | `ai/rules/evidence.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
-| Write an owner report | "Say it once, say it short" above -- report only what changes the owner's next action |
-| Write a rule, a doc, a commit body, or a journal row | `ai/rules/writing.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
-| Find recurring development friction or problem patterns | `ai/rules/repo-maintenance.md` -- report the pattern and decide whether a new or changed rule would prevent it |
-| Write any code | `ai/rules/architecture.md`, relevant `ai/patterns/`, `ai/rules/repo-maintenance.md` (which checks will fire) |
-| Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/evidence.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |
-| Add or change a CLI command, its output, or its JSON | `ai/rules/cli.md` -- keyword before value, every command supports all pipe operators, and the response payload is structured data so `\| json`, `\| yaml` and `\| table` each render it. Structural template: `ai/patterns/cli-command.md` |
-| Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |
-| Touch wire encoding, allocate memory, or build strings | `ai/rules/performance.md`, `ai/rules/performance.md`, `ai/rules/performance.md` -- load-bearing divergence from standard Go |
-| Add a YANG leaf, env var, or config option | `ai/rules/config.md` (YANG vs env var decision), `ai/rules/config.md` (naming), `ai/patterns/config-option.md` (structural template) |
-| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugins.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
-| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/architecture.md` -- tier = dependency direction; a misplaced config-driven engine fails `./le arch tier check` |
-| Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
-| Write tests | `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md` |
-| Meet a WAVE of red: unrelated packages failing to build, `no space left on device`, `cache entry not found`, a whole suite red at once | `docs/contributing/running-commands.md`, "When the disk is full" -- the cache disk is full before this is a code defect, once for each row in `plan/journal/full-disk-false-red.md`. Read `df -h cache/go-cache`, which follows the symlink to the device that really holds the cache. Never `df` on the checkout ROOT, which answers about the wrong device when `cache/` is on another filesystem, and never `stat -f`, which is a FORMAT flag on macOS and prints the path back instead of any free space. `./le scratch cache-clean` empties all three build caches, the two Go ones and golangci-lint's, and prints what each returned |
-| Meet a red test, a red gate, or a broken demo | `ai/rules/pre-release.md` -- product defects, verification repairs, and unrelated failures |
-| Hit a defect in the PRODUCT (yours or not) | `ai/rules/completion.md` -- ROOT-CAUSE IT. Blocks your goal: FIX IT NOW. Does not block it: one journal row, close the work in hand, stop. Never park it, never offer to drop the deliverable, never weaken a test to make it disappear. "Pre-existing" says when it started, not whose it is |
-| Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- baseline verification, explicit gaps, and separately agreed feature implementation |
-| Write linux-only code | `ai/rules/platform-linux.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
-| Write a spec | `ai/rules/planning.md`, `plan/README.md` (which of the three release buckets it goes in), `plan/TEMPLATE.md` |
-| Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
-| Claim work is done | `ai/rules/completion.md` -- agreed acceptance criteria and separate implementation, verification, and gap status |
-| Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec review record` artifact (`./le commit create` enforces it) |
-| Finish Go edits | `ai/rules/commands.md` -- run `./le go lint run` before claiming done |
-| Commit | `ai/rules/git-safety.md` -- the native `./le commit create` route. A commit owes NO green gate (`ai/rules/pre-release.md`); the gate is owed before a push |
-| Run any test/build/lint command | `ai/rules/commands.md` -- use the registered `./le` action so feature tags and job admission are preserved; no lossy pipes, read the log after; write it under `$(./le session scratch ensure)`, never at the `tmp/` root |
-| Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
-| Complete work autonomously | `ai/rules/completion.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
-| Decide whether to stop, ask, delegate, or continue when two rules disagree | `ai/rules/rule-precedence.md` -- one ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy. Stopping at a phase boundary is not asking permission; a forced question is always "which way", never "may I skip it" |
-| Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/architecture.md` |
-| Check past decisions or known traps | `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `plan/journal/` (recurrence data) |
-
-## Every Rule's Trigger (loaded below)
-
-Two generated files load here. Never edit either one by hand.
-
-`ai/rules/TRIGGERS.md` names **every** rule under `ai/rules/`, one line each,
-carrying the rule's path, its severity, and the situation that makes it apply.
-It is a routing index. It does not carry the rules.
-
-**When a trigger matches the work in hand, READ that rule's file at
-`ai/rules/<name>.md` before you act on its topic.** The trigger line is all this
-session holds about that rule. Its directives are one Read away, and they are
-not loaded until you open them. A rule you never read is a rule you never
-followed.
-
-`ai/rules/CORE.md` carries the full directives of the always-on rules. Those
-apply before the shape of a task is known, so they sit behind no trigger. The
-index marks them `always-on`, and such a rule needs no read.
-
-Both come from one parse by `./le ai rules condensed-update`, in the canonical
-rule format (`ai/rules/rule-format.md`). The "Before You..." dispatch above
-still applies, and so does `ai/rules/INDEX.md`.
 
 @ai/rules/TRIGGERS.md
 @ai/rules/CORE.md

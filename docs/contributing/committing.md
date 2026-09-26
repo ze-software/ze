@@ -70,7 +70,9 @@ path before the script is written:
 - A path `git check-ignore` matches. The index is consulted, so a TRACKED file
   that matches an ignore pattern is committable: git already carries it, and the
   pattern governs what is added under that path next.
-- A path that does not exist. Use `remove` for a tracked deletion.
+- A path that does not exist. Use `remove` for a tracked deletion. A rename is
+  a plain `rm` of the old path plus the new file: name the old path with
+  `remove` and the new one with `file`, because `git mv` stages.
 - A directory. Scripts stage explicit files.
 
 `validateRemovePath` refuses a `remove` path that is not tracked, so you never

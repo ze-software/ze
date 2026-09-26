@@ -66,7 +66,7 @@ console of a machine being installed in front of whoever is installing it.
 
 The initrd binary is a TARGET binary. It is cross-compiled
 `GOOS=linux GOARCH=<arch> CGO_ENABLED=0` and it runs on the appliance, never on
-the build host. `CLAUDE.md`, "Binary naming convention", holds the full rule.
+the build host. `ai/rules/platform-linux.md` holds the rule: never cross-compile a host binary.
 
 **Never cross-compile a host binary.** A native build or test action that must RUN
 `ze appliance ...` on the build host compiles `cmd/ze` for the host and names
