@@ -67,6 +67,8 @@ ze-clear:ospf-process
 ze-clear:vpn-ipsec-sa
 ze-clear:vrrp-statistics
 ze-config-archive:trigger
+ze-data:backup
+ze-data:restore
 ze-debug:debug-state
 ze-debug:ospf-inject
 ze-debug:ospf-inject-disable

@@ -123,6 +123,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/cmd/subscribe"
 	_ "github.com/ze-software/ze/internal/component/config/archive/cmd"
 	_ "github.com/ze-software/ze/internal/component/config/schema/cli"
+	_ "github.com/ze-software/ze/internal/component/config/storage/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor/cmd"
 	_ "github.com/ze-software/ze/internal/component/firewall"
 	_ "github.com/ze-software/ze/internal/component/iface/cmd"
@@ -138,7 +139,6 @@ import (
 
 	// CLI command packages -- command/registry registration.
 	_ "github.com/ze-software/ze/internal/component/config/cli"
-	_ "github.com/ze-software/ze/internal/component/config/storage/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor"
 	_ "github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/cli"
