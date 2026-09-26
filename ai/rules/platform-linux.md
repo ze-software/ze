@@ -17,9 +17,9 @@
 
 **A functional `.ci` test that boots a daemon, or runs `ze`, against a real Linux kernel feature MUST carry `option=needs-linux`.** Netlink interface, VLAN and veth creation, nftables, kernel sockets and the L2TP or PPPoE kernel paths are all such features. The test cannot pass natively on darwin, and the marker is what routes it to the QEMU Alpine VM instead. Which marker each test needs, and how `caps=` narrows it, is `docs/architecture/testing/ci-format.md`.
 
-**`option=skip-os:value=darwin` MUST NOT stand in for `option=needs-linux`, and it MUST NOT stand in for `caps=`.** `skip-os` says "do not run here", so it hides the test from macOS and therefore RUNS it, unprivileged, on the Linux CI runner, which is exactly where it cannot pass. `needs-linux` states the intent, keeps the test in the QEMU suite, and `caps=` declares the capability the host has to hold. When the reason a test cannot run on macOS is a capability, you MUST declare that capability.
+**`option=skip-os:value=darwin` MUST NOT stand in for `option=needs-linux`, and it MUST NOT stand in for `caps=`.** `skip-os` says "do not run here", so it hides the test from macOS and therefore runs it, unprivileged, on the Linux CI runner, which is exactly where it cannot pass. `needs-linux` states the intent, keeps the test in the QEMU suite, and `caps=` declares the capability the host has to hold. When the reason a test cannot run on macOS is a capability, you MUST declare that capability.
 
-**A `caps=` marker RELOCATES coverage; it MUST NOT delete it.** `./le verify worktree` runs unprivileged, so a `caps=net-admin` test does not run in the merge gate. Its home is the scheduled QEMU nightly, and `TestCapabilityGatedTestsHaveANativeVMHome` (`internal/le/workflowcheck/workflowcheck_test.go`) fails when that link is broken: a capability nobody's CI has would be a coverage deletion wearing a skip's clothing (`ai/rules/completion.md`). The nightly reports rather than blocks, so you MUST run the QEMU target locally when you add such a test, and MUST say so. The workflow map is `docs/architecture/testing/ci-workflows.md`.
+**A `caps=` marker relocates coverage; it MUST NOT delete it.** `./le verify worktree` runs unprivileged, so a `caps=net-admin` test does not run in the merge gate. Its home is the scheduled QEMU nightly, and `TestCapabilityGatedTestsHaveANativeVMHome` (`internal/le/workflowcheck/workflowcheck_test.go`) fails when that link is broken: a capability nobody's CI has would be a coverage deletion wearing a skip's clothing (`ai/rules/completion.md`). The nightly reports rather than blocks, so you MUST run the QEMU target locally when you add such a test, and MUST say so. The workflow map is `docs/architecture/testing/ci-workflows.md`.
 
 **A tight loop MAY be used while iterating, and the full pass MUST be the one that reports the result**, because it is the only form that covers the whole population. The entry points and the population each one covers are `docs/architecture/testing/qemu-integration.md`.
 
@@ -45,7 +45,7 @@ a positive control.** An `ip xfrm` byte counter is the case in hand. Two network
 namespaces, two VMs or two containers satisfy the first requirement. A host
 addressing itself does not.
 
-**The reason is the SELECTOR, not the interface.** An `ip xfrm` byte counter
+**The reason is the selector, not the interface.** An `ip xfrm` byte counter
 belongs to a security association whose policy names a remote peer. A packet a
 host sends to its own address matches no such policy, so no SA encrypts it and
 the counter stays at zero. The counter then reads zero for a working dataplane
@@ -59,7 +59,7 @@ this counter". It is the absence-assertion trap
 `ai/rules/interop-and-goal-validation.md` names: ask what would still be absent
 if the mechanism were deleted.
 
-**Prefer the PEER's counter to your own.** A local outbound counter advances on
+**Prefer the peer's counter to your own.** A local outbound counter advances on
 any key, including a wrong one, because sending is not proof of acceptance. The
 receiver's inbound counter advances only after it has accepted what arrived, so
 it is the one that answers the question the probe is really asking.
@@ -105,7 +105,7 @@ that skips it is invisible rather than red.
 4. **You MUST regenerate the go.sums cleanly.** Delete the affected builddir `go.sum` files (filesystem removal, never `git rm`), then run `go mod download all` in each affected builddir. The sums regenerate from the new build list and prune the old version string. You MUST NOT hand-edit hashes.
 5. **Re-vendor and prune.** The module download extracts the new version under `gokrazy/modcache/github.com/gokrazy/gokrazy@<new>/`. Remove the old `@<old>` directory. Confirm the working tree holds only the expected old-file deletions and new source.
 6. **Refresh coupling.** Search for the old version string and update every document or spec that names the old module-cache path.
-7. **Verify (BLOCKING).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le test deployment gokrazy-l2tp-ppp-test` boots the appliance. An image build alone is insufficient.
+7. **Verify (blocking).** Confirm the old version string is absent, the new committed `go.mod` names the fixed dependency, `ze appliance build` succeeds, and `./le test deployment gokrazy-l2tp-ppp-test` boots the appliance. An image build alone is insufficient.
 
 **A `SKIP` MUST NOT be treated as evidence.** Under a hardware accelerator the hugepage proof treats a no-answer as a FAIL; if it skips for want of KVM access, you MUST fix that (on Linux, group membership: `./le setup check`) and rerun.
 

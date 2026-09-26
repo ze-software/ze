@@ -1,6 +1,6 @@
 # Hook Errors
 
-**BLOCKING:** Fix hook validation errors before proceeding.
+**Blocking:** Fix hook validation errors before proceeding.
 Rationale: `ai/rationale/hook-errors.md`
 
 | Exit Code | Meaning | Action |

@@ -19,7 +19,7 @@ the per-session state file name and post-compaction recovery.
 
 ## Plan File Location
 
-Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
+Write plan files to project `.claude/plan/ze-plan-<name>`, not `~/.claude/plan`.
 The `claude-plans` check in the native `pretool-writeedit` action
 (`./le ai hooks pretool-writeedit`, `internal/le/hookruntime/writeedit.go`)
 enforces this.

@@ -4,7 +4,7 @@ level: MUST
 stage:
 ---
 **The action or page in the row MUST be used; the obligation is derivable but the
-NAME is not, and a hand-written second copy of it drifts.**
+name is not, and a hand-written second copy of it drifts.**
 
 | Situation | Action or page |
 |-----------|----------------|

@@ -1,6 +1,6 @@
 # Post-Compaction Recovery
 
-**BLOCKING:** Complete before writing any code after compaction.
+**Blocking:** Complete before writing any code after compaction.
 Rationale: `ai/rationale/post-compaction.md`
 
 ## Tier 1 — Always

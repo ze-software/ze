@@ -9,7 +9,7 @@ a positive control.** An `ip xfrm` byte counter is the case in hand. Two network
 namespaces, two VMs or two containers satisfy the first requirement. A host
 addressing itself does not.
 
-**The reason is the SELECTOR, not the interface.** An `ip xfrm` byte counter
+**The reason is the selector, not the interface.** An `ip xfrm` byte counter
 belongs to a security association whose policy names a remote peer. A packet a
 host sends to its own address matches no such policy, so no SA encrypts it and
 the counter stays at zero. The counter then reads zero for a working dataplane
@@ -23,7 +23,7 @@ this counter". It is the absence-assertion trap
 `ai/rules/interop-and-goal-validation.md` names: ask what would still be absent
 if the mechanism were deleted.
 
-**Prefer the PEER's counter to your own.** A local outbound counter advances on
+**Prefer the peer's counter to your own.** A local outbound counter advances on
 any key, including a wrong one, because sending is not proof of acceptance. The
 receiver's inbound counter advances only after it has accepted what arrived, so
 it is the one that answers the question the probe is really asking.

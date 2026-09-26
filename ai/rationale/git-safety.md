@@ -55,3 +55,10 @@ rule it exists to explain, and enumerating "both cases" under a single bullet.
 Editing the tree during a run is what makes that exception unsafe: the gate
 reads the working tree, so independent work invalidates the run it is waiting
 for.
+
+## History moved from rule points (2026-09-26)
+
+- `ai/rules/points/git-safety/directives/land-each-chunk-as-it-finishes.md`: the directive carried the stamp "(owner directive, 2026-08-21)".
+- `ai/rules/points/git-safety/directives/never-defer-a-shared-file-to-an-absent-session.md`: the directive carried the stamp "(owner directive, 2026-09-07)".
+- `ai/rules/points/git-safety/directives/push-only-on-the-owners-order.md`: the directive carried the stamp "(owner amendment, 2026-08-05)".
+- `ai/rules/points/git-safety/directives/use-gh-for-pull-requests-and-issues.md`: "Development moved off Codeberg in July 2026 and the repository is now only at github.com/ze-software/ze, so `tea`, the Gitea client this rule named until 2026-08-30, addresses a forge Ze no longer publishes to."

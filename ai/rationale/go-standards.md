@@ -46,3 +46,7 @@ fmt.Println("DEBUG:", pluginName)
 ```
 
 Debug output is controlled by env vars, never removed. Losing diagnostic capability costs more than the lines of code.
+
+## History moved from rule points (2026-09-26)
+
+- `ai/rules/points/go-standards/directives/read-the-ze-style-guide-before-go-design-or-review.md`: (owner directive, 2026-08-18)

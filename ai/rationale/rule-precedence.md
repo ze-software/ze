@@ -20,3 +20,8 @@ going. Naming the ladder costs one short rule and settles that question once,
 so it is not re-litigated under context pressure.
 
 Rule: `ai/rules/rule-precedence.md`.
+
+## History moved from rule points (2026-09-26)
+
+- `ai/rules/points/rule-precedence/directives/close-the-work-first-then-ask-about-the-unrelated-defect.md`: the three-step journal route carried the stamp "(owner directive, 2026-08-10)".
+- `ai/rules/points/rule-precedence/directives/tell-deferral-from-parking-by-whether-the-goal-holds.md`: the journal-row directive for a defect you walked into carried the stamp "(owner directive, 2026-08-10)".

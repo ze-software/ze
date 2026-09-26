@@ -29,3 +29,10 @@ Without explicit routing, failures lead to ad-hoc debugging. The table provides 
 ## Why Completion Checklist Order
 
 The order matters: review docs → check dead code → audit → review mistakes → update spec → move → verify → commit. Each step depends on the previous. Skipping or reordering leads to incomplete features.
+
+## History moved from rule points (2026-09-26)
+
+- `ai/rules/points/planning/directives/give-a-phase-an-agent-that-can-produce-its-artifact.md`: "Measured 2026-09-04: two spec phases in one session came back as text because their briefs named `ze-read`, and a 593-line spec crossed three contexts to reach `plan/`."
+- `ai/rules/points/planning/spec-metadata-blocking/route-the-lesson-write-a-journal-row-only-when-nothing-governs-it.md`: "We do not SAVE a lesson, we UPDATE the system with it (owner directive, 2026-08-10)."
+- `ai/rules/points/planning/work-phases/review-is-independent-of-the-author.md`: "`/ze-close` MUST run every lens itself (owner directive, 2026-08-15)."
+- `ai/rules/points/planning/work-phases/the-round-cap-and-who-authorises-a-sixth-pass.md`: "THE SIXTH IS THOMAS'S DECISION (owner ruling, 2026-08-17)."
