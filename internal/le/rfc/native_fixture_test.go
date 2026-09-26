@@ -331,7 +331,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// Re-sealed 2026-09-26 for 3387d4bab0, which splits compound || guards in
 	// check_quote.go and quote_backfill.go into one guard per fact, in the
 	// original order. No verdict moved.
-	const want = "6db62319743f0f60f64b4bb13f206df21429cbf8a80a8a6a63312af13413d645"
+	//
+	// Re-sealed 2026-09-26 for 9a8e154780. Three verdicts moved, all
+	// deliberately. rfc905 is cut at its indented headings, so its citations
+	// now resolve. The six heading-less texts are one citable section. A
+	// deleted id is accepted when a Retired paragraph names it, and a retired id
+	// is refused wherever a row carries it. No corpus verdict moved except rfc905's.
+	const want = "c90ae698ae4033615fcd4df6b06a063b63c819e07dc718855ff01fcc236434b4"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
