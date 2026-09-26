@@ -318,7 +318,10 @@ func fileOrBaseContainsAny(root, base, path string, needles []string) (bool, err
 		return false, err
 	}
 	for _, needle := range needles {
-		if strings.Contains(text, needle) || strings.Contains(before, needle) {
+		if strings.Contains(text, needle) {
+			return true, nil
+		}
+		if strings.Contains(before, needle) {
 			return true, nil
 		}
 	}

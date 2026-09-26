@@ -140,7 +140,10 @@ func storageInitFromURL(ctx context.Context, _ []string) error {
 	}
 	for key, want := range values {
 		got, readErr := tree.ReadKey(key)
-		if readErr != nil || !bytes.Equal(got, want) {
+		if readErr != nil {
+			return errors.Join(fmt.Errorf("tree %s = %q, want %q", key, got, want), readErr, tree.Close())
+		}
+		if !bytes.Equal(got, want) {
 			return errors.Join(fmt.Errorf("tree %s = %q, want %q", key, got, want), readErr, tree.Close())
 		}
 	}

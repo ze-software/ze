@@ -479,7 +479,10 @@ func safeUpdateAttrDataLen(payload []byte, attrStart, newDataLen int) {
 		}
 		payload[attrStart+2] = byte(newDataLen) //nolint:gosec // capped above
 	} else { // Extended length
-		if attrStart+4 > len(payload) || newDataLen > 65535 {
+		if attrStart+4 > len(payload) {
+			return
+		}
+		if newDataLen > 65535 {
 			return
 		}
 		binary.BigEndian.PutUint16(payload[attrStart+2:], uint16(newDataLen)) //nolint:gosec // capped

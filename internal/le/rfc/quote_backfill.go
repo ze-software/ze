@@ -135,7 +135,10 @@ func quoteBackfill(tree, stem string, apply bool) (*quoteBackfillReport, error) 
 			report.Review = append(report.Review, row)
 		}
 	}
-	if !apply || len(report.Quoted) == 0 {
+	if !apply {
+		return report, nil
+	}
+	if len(report.Quoted) == 0 {
 		return report, nil
 	}
 
@@ -271,12 +274,20 @@ func backfillPairRefusal(req *Requirement, sentence string, source *quoteSource)
 		return backfillPolarity, "the row and the sentence disagree on negation"
 	}
 	shared, total := backfillOverlap(quote, sentence)
-	if total == 0 || float64(shared)/float64(total) < backfillOverlapMin {
+	if total == 0 {
+		return backfillLowOverlap, tb.Str("the row shares ").Int(int64(shared)).Str(" of its ").
+			Int(int64(total)).Str(" content words with the sentence, under half").String()
+	}
+	if float64(shared)/float64(total) < backfillOverlapMin {
 		return backfillLowOverlap, tb.Str("the row shares ").Int(int64(shared)).Str(" of its ").
 			Int(int64(total)).Str(" content words with the sentence, under half").String()
 	}
 	return "", ""
 }
+
+// backfillRewriteChanged is the refusal when the rewritten line parses back with
+// another id, level or section, or does not parse back as a row at all.
+const backfillRewriteChanged = "the rewritten line changes the id, the level or the section"
 
 // backfillRewrite builds the new line: the sentence in place of the text before
 // the trailing section parenthetical, everything from that parenthetical to the
@@ -286,7 +297,10 @@ func backfillPairRefusal(req *Requirement, sentence string, source *quoteSource)
 func backfillRewrite(req *Requirement, line, sentence string, source *quoteSource) (string, string) {
 	start := strings.Index(line, req.Text)
 	loc := trailingParenRE.FindStringIndex(req.Text)
-	if start < 0 || loc == nil {
+	if start < 0 {
+		return "", "the row's text carries no trailing section parenthetical to keep"
+	}
+	if loc == nil {
 		return "", "the row's text carries no trailing section parenthetical to keep"
 	}
 	newLine := line[:start] + sentence + " " + req.Text[loc[0]:] + line[start+len(req.Text):]
@@ -294,8 +308,17 @@ func backfillRewrite(req *Requirement, line, sentence string, source *quoteSourc
 	if err != nil {
 		return "", "the rewritten line does not parse: " + err.Error()
 	}
-	if parsed == nil || parsed.RID != req.RID || parsed.Level != req.Level || parsed.Section != req.Section {
-		return "", "the rewritten line changes the id, the level or the section"
+	if parsed == nil {
+		return "", backfillRewriteChanged
+	}
+	if parsed.RID != req.RID {
+		return "", backfillRewriteChanged
+	}
+	if parsed.Level != req.Level {
+		return "", backfillRewriteChanged
+	}
+	if parsed.Section != req.Section {
+		return "", backfillRewriteChanged
 	}
 	if squashWhitespace(parsed.Quote()) != sentence {
 		return "", "the rewritten line does not read back as the sentence"
@@ -405,7 +428,16 @@ func backfillMissingNumber(row, sentence string) (string, bool) {
 // or a contraction ending in "n't", in any case.
 func backfillNegated(text string) bool {
 	for _, word := range backfillWordRE.FindAllString(strings.ToLower(text), -1) {
-		if word == "not" || word == "never" || word == "cannot" || strings.HasSuffix(word, "n't") {
+		if word == "not" {
+			return true
+		}
+		if word == "never" {
+			return true
+		}
+		if word == "cannot" {
+			return true
+		}
+		if strings.HasSuffix(word, "n't") {
 			return true
 		}
 	}
@@ -447,7 +479,13 @@ func backfillOverlap(row, sentence string) (int, int) {
 func backfillContentWords(text string) map[string]bool {
 	words := map[string]bool{}
 	for _, word := range backfillWordRE.FindAllString(strings.ToLower(text), -1) {
-		if len(word) < 3 || backfillStopWords[word] || backfillNumberRE.MatchString(word) {
+		if len(word) < 3 {
+			continue
+		}
+		if backfillStopWords[word] {
+			continue
+		}
+		if backfillNumberRE.MatchString(word) {
 			continue
 		}
 		words[backfillStem(word)] = true

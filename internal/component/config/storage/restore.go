@@ -95,14 +95,23 @@ func sourceConfigNames(source Storage) ([]string, error) {
 	var names []string
 	for _, key := range pointers {
 		name, ok := strings.CutSuffix(strings.TrimPrefix(key, pointerPrefix), pointerSuffix)
-		if !ok || name == "" || strings.Contains(name, "/") {
+		if !ok {
+			continue
+		}
+		if name == "" {
+			continue
+		}
+		if strings.Contains(name, "/") {
 			continue
 		}
 		names = append(names, name)
 	}
 	for _, key := range mirrors {
 		name := strings.TrimPrefix(key, mirrorPrefix)
-		if name == "" || strings.Contains(name, "/") {
+		if name == "" {
+			continue
+		}
+		if strings.Contains(name, "/") {
 			continue
 		}
 		names = append(names, name)

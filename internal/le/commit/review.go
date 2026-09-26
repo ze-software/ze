@@ -117,8 +117,13 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // rewritten against HEAD over specjournal.RowCharsMax.
 func closureStem(root string, paths, removed []string) (string, error) {
 	for _, path := range paths {
-		if !strings.HasPrefix(path, "plan/journal/") ||
-			!strings.HasSuffix(path, ".md") || filepath.Base(path) == "README.md" {
+		if !strings.HasPrefix(path, "plan/journal/") {
+			continue
+		}
+		if !strings.HasSuffix(path, ".md") {
+			continue
+		}
+		if filepath.Base(path) == "README.md" {
 			continue
 		}
 		report, err := specjournal.ValidateFile(root, path)

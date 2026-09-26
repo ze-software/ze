@@ -405,7 +405,11 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 			fmt.Fprintln(os.Stderr, "error: --backup and -f cannot be combined: -f edits a loose file, --backup edits a config inside a backup artifact")
 			return exitError
 		}
-		if *webPort != "" || *insecureWeb {
+		if *webPort != "" {
+			fmt.Fprintln(os.Stderr, "error: --backup edits offline with no daemon; --web and --insecure-web need one")
+			return exitError
+		}
+		if *insecureWeb {
 			fmt.Fprintln(os.Stderr, "error: --backup edits offline with no daemon; --web and --insecure-web need one")
 			return exitError
 		}

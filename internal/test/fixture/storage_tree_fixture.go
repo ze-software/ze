@@ -623,7 +623,11 @@ func storageHistoryCheckScenario(ctx context.Context) error {
 	}
 	dangling := "file/" + storage.FormatVersionStamp(lost) + "/router.conf"
 	output, err := storageCommand(ctx, "", "data", "check", "--path", storageTreeName)
-	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+	checkExit, checkExited := errors.AsType[*exec.ExitError](err)
+	if !checkExited {
+		return errors.Join(fmt.Errorf("data check accepted a dangling entry\n%s", output), err)
+	}
+	if checkExit.ExitCode() != 1 {
 		return errors.Join(fmt.Errorf("data check accepted a dangling entry\n%s", output), err)
 	}
 	for _, want := range []string{"error: dangling-entry: " + dangling, "warning: orphan-object: object/" + orphanDigest, lostDigest} {
@@ -632,7 +636,11 @@ func storageHistoryCheckScenario(ctx context.Context) error {
 		}
 	}
 	output, err = storageCommand(ctx, "", "data", "repair", "--path", storageTreeName, "--output", "repaired")
-	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+	repairExit, repairExited := errors.AsType[*exec.ExitError](err)
+	if !repairExited {
+		return errors.Join(fmt.Errorf("repair did not report the dropped entry\n%s", output), err)
+	}
+	if repairExit.ExitCode() != 1 {
 		return errors.Join(fmt.Errorf("repair did not report the dropped entry\n%s", output), err)
 	}
 	if !bytes.Contains(output, []byte("dropped: dangling-entry: "+dangling)) {
@@ -697,7 +705,10 @@ func storageBackupScenario(ctx context.Context) error {
 		return err
 	}
 	for _, entry := range report.Entries {
-		if entry.Capacity != entry.Size || entry.KeyCapacity != len(entry.Key) {
+		if entry.Capacity != entry.Size {
+			return fmt.Errorf("backup entry %s is not exact-fit: %+v", entry.Key, entry)
+		}
+		if entry.KeyCapacity != len(entry.Key) {
 			return fmt.Errorf("backup entry %s is not exact-fit: %+v", entry.Key, entry)
 		}
 	}

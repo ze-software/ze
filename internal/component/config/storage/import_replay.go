@@ -198,7 +198,11 @@ func validIntent(folder *os.File, intent importIntent) error {
 	if !filepath.IsAbs(intent.Source) {
 		return errors.New("invalid import source identity")
 	}
-	if digest, err := hex.DecodeString(intent.Digest); err != nil || len(digest) != 32 {
+	digest, digestErr := hex.DecodeString(intent.Digest)
+	if digestErr != nil {
+		return errors.New("invalid import source digest")
+	}
+	if len(digest) != 32 {
 		return errors.New("invalid import source digest")
 	}
 	if filepath.Base(intent.Stage) != intent.Stage {
@@ -326,7 +330,10 @@ func classifyImport(folder *os.File, intent importIntent) (importProgress, error
 		if stagePresent {
 			return progress, errors.New("the new tree is published and its stage name is still present")
 		}
-		if !progress.treeRetired || !progress.seedRetired {
+		if !progress.treeRetired {
+			return progress, errors.New("the new tree is published while a previous destination is still at its original name")
+		}
+		if !progress.seedRetired {
 			return progress, errors.New("the new tree is published while a previous destination is still at its original name")
 		}
 		progress.published = true
@@ -499,7 +506,10 @@ func moveRecorded(folder *os.File, name, target string, want nodeIdentity, direc
 	if err != nil {
 		return err
 	}
-	if !found || got != want {
+	if !found {
+		return fmt.Errorf("%s no longer holds the recorded node", filepath.Join(folder.Name(), name))
+	}
+	if got != want {
 		return fmt.Errorf("%s no longer holds the recorded node", filepath.Join(folder.Name(), name))
 	}
 	if err := zefs.RenameNoReplace(folder, name, target); err != nil {

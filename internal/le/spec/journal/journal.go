@@ -244,6 +244,10 @@ func headObject(path string) string {
 	return tb.Str("HEAD:").Str(path).String()
 }
 
+// headSizeMismatch is the refusal when a batch header carries a size that is not
+// a number, is negative, or runs past the output git returned.
+const headSizeMismatch = "a size that does not match its content"
+
 // headFiles reads every path's content at git HEAD in ONE git process. The
 // session-start hook reads the whole journal inside a 5 s budget, and one
 // `git show` for each of about 190 class files spent most of it. A path HEAD
@@ -280,12 +284,21 @@ func headFiles(tree string, paths []string) (map[string]string, error) {
 			continue
 		}
 		header := strings.Fields(line)
-		if len(header) != 3 || header[1] != "blob" {
+		if len(header) != 3 {
+			return nil, batchError(path, "an unexpected header")
+		}
+		if header[1] != "blob" {
 			return nil, batchError(path, "an unexpected header")
 		}
 		size, err := strconv.Atoi(header[2])
-		if err != nil || size < 0 || size+1 > len(output) {
-			return nil, batchError(path, "a size that does not match its content")
+		if err != nil {
+			return nil, batchError(path, headSizeMismatch)
+		}
+		if size < 0 {
+			return nil, batchError(path, headSizeMismatch)
+		}
+		if size+1 > len(output) {
+			return nil, batchError(path, headSizeMismatch)
 		}
 		contents[path] = string(output[:size])
 		output = output[size+1:]

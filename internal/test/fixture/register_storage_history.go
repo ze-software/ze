@@ -276,7 +276,11 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 	}
 	repaired := filepath.Join("config", storageTreeName)
 	output, err := storageCommand(ctx, "", "data", "repair", "--path", filepath.Join("source", storageTreeName), "--output", repaired)
-	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+	repairExit, repairExited := errors.AsType[*exec.ExitError](err)
+	if !repairExited {
+		return errors.Join(fmt.Errorf("repair did not report the dropped entries\n%s", output), err)
+	}
+	if repairExit.ExitCode() != 1 {
 		return errors.Join(fmt.Errorf("repair did not report the dropped entries\n%s", output), err)
 	}
 	for _, want := range []string{
@@ -298,7 +302,11 @@ func storageHistoryRepairedStart(ctx context.Context) error {
 		return err
 	}
 	output, err = storageCommandEnv(ctx, []string{"ZE_CONFIG_DIR=" + configDir}, "start")
-	if exitErr, ok := errors.AsType[*exec.ExitError](err); !ok || exitErr.ExitCode() != 1 {
+	startExit, startExited := errors.AsType[*exec.ExitError](err)
+	if !startExited {
+		return errors.Join(fmt.Errorf("stored-source start did not exit 1\n%s", output), err)
+	}
+	if startExit.ExitCode() != 1 {
 		return errors.Join(fmt.Errorf("stored-source start did not exit 1\n%s", output), err)
 	}
 	for _, want := range []string{zefs.KeyConfigActive.Key(name), stampS} {

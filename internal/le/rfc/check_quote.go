@@ -63,21 +63,32 @@ func readQuoteRevisions(tree string) quoteRevisions {
 	}
 	headBlobs, headOK := gitCatBlobs(tree, headRevision, paths)
 	priorBlobs, priorOK := gitCatBlobs(tree, priorRevision, paths)
-	if !headOK || !priorOK {
+	if !headOK {
+		return quoteRevisions{}
+	}
+	if !priorOK {
 		return quoteRevisions{}
 	}
 	out := quoteRevisions{scope: map[string]bool{}, head: map[string]int{}, prior: map[string]int{}, known: true}
 	for _, stem := range stems {
 		headRows, headRead := quoteRowsAt(headBlobs, stem)
 		priorRows, priorRead := quoteRowsAt(priorBlobs, stem)
-		if !headRead || !priorRead {
+		if !headRead {
+			out.unjudged = append(out.unjudged, stem+" (a summary git holds does not parse)")
+			continue
+		}
+		if !priorRead {
 			out.unjudged = append(out.unjudged, stem+" (a summary git holds does not parse)")
 			continue
 		}
 		scopeChangedRows(out.scope, headRows, priorRows)
 		headCount, headJudged := unquotedCount(headRows, quoteSourceAt(headBlobs, stem))
 		priorCount, priorJudged := unquotedCount(priorRows, quoteSourceAt(priorBlobs, stem))
-		if !headJudged || !priorJudged {
+		if !headJudged {
+			out.unjudged = append(out.unjudged, stem+" (no RFC text at HEAD or HEAD^)")
+			continue
+		}
+		if !priorJudged {
 			out.unjudged = append(out.unjudged, stem+" (no RFC text at HEAD or HEAD^)")
 			continue
 		}

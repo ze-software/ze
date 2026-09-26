@@ -24,7 +24,11 @@ func cmdListWithStorage(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config list", flag.ContinueOnError)
 	backupPath := fs.String(flagBackup, "", "List the configs inside a backup artifact")
 	fs.SetOutput(io.Discard)
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintln(os.Stderr, "usage: ze config list [--backup <artifact>]")
+		return exitError
+	}
+	if fs.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "usage: ze config list [--backup <artifact>]")
 		return exitError
 	}
