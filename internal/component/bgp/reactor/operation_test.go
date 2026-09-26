@@ -110,9 +110,9 @@ func TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc(t *testing.T) {
 	want := NewPeerSettings(mustParseAddr("198.51.100.1"), 65000, 65001, 0)
 	want.Name = "edge"
 	want.Port = 1802
-	r.SetReloadFunc(func(path string) ([]*PeerSettings, error) {
+	r.SetReloadFunc(func(path string) ([]*PeerSettings, Globals, error) {
 		assert.Equal(t, "ze.conf", path)
-		return []*PeerSettings{want}, nil
+		return []*PeerSettings{want}, Globals{}, nil
 	})
 	adapter := &reactorAPIAdapter{r: r}
 	op := rpc.ConfigOperation{
@@ -147,8 +147,8 @@ func TestCandidatePeerSettingsFallsBackToEmbeddedConfig(t *testing.T) {
 	r := New(&Config{ConfigPath: "ze.conf"})
 	other := NewPeerSettings(mustParseAddr("198.51.100.99"), 65000, 65099, 0)
 	other.Name = "other-peer"
-	r.SetReloadFunc(func(path string) ([]*PeerSettings, error) {
-		return []*PeerSettings{other}, nil
+	r.SetReloadFunc(func(path string) ([]*PeerSettings, Globals, error) {
+		return []*PeerSettings{other}, Globals{}, nil
 	})
 	adapter := &reactorAPIAdapter{r: r}
 	op := rpc.ConfigOperation{
@@ -290,8 +290,8 @@ func TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession(t *testing
 	// field, which is what the swap decision is taken over.
 	candidate := *running.settingsSnapshot()
 	candidate.ImportFilters = []filterapi.FilterRef{{Name: "bgp-filter-community:UPSTREAM"}}
-	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
-		return []*PeerSettings{&candidate}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		return []*PeerSettings{&candidate}, Globals{}, nil
 	})
 
 	adapter := &reactorAPIAdapter{r: r}

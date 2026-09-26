@@ -219,7 +219,7 @@ func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation
 	if peerName == "" {
 		return nil, fmt.Errorf("bgp operation %s requires peer name", op.Type)
 	}
-	peers, err := reloadFn(configPath)
+	peers, _, err := reloadFn(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
 	}

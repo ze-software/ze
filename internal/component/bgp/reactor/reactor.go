@@ -212,9 +212,11 @@ type Config struct {
 type PluginConfig = plugin.PluginConfig
 
 // ReloadFunc is called by Reload() to get the list of peers from config file.
-// The function should re-parse the config file and return full PeerSettings.
-// This ensures reloaded peers have identical configuration to initially loaded peers.
-type ReloadFunc func(configPath string) ([]*PeerSettings, error)
+// The function MUST re-parse the config file and return full PeerSettings, so
+// reloaded peers have identical configuration to initially loaded peers. It
+// also returns the global defaults the file declares, which the reload applies
+// to the reactor itself (applyGlobalsJournaled, reactor_api.go).
+type ReloadFunc func(configPath string) ([]*PeerSettings, Globals, error)
 
 // Stats holds reactor statistics.
 type Stats struct {
@@ -818,11 +820,11 @@ func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.C
 	}
 
 	a := &reactorAPIAdapter{r: r}
-	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	newPeers, globals, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return fmt.Errorf("load peers: %w", err)
 	}
-	return a.reconcilePeersJournaled(newPeers, "apply config diff", j)
+	return a.reconcilePeersJournaled(newPeers, globals, "apply config diff", j)
 }
 
 // emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event

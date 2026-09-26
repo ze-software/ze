@@ -72,7 +72,7 @@ func TestReloadVerifyLeavesTheRenderedNotation(t *testing.T) {
 	reload := createReloadFunc(newReloadFileStore(t, configPath), r, nil)
 	called := false
 	r.SetConfigPath(configPath)
-	r.SetReloadFunc(func(path string) ([]*reactor.PeerSettings, error) {
+	r.SetReloadFunc(func(path string) ([]*reactor.PeerSettings, reactor.Globals, error) {
 		called = true
 		return reload(path)
 	})

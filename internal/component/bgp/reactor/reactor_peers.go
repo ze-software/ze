@@ -481,7 +481,8 @@ func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
 	}
 
 	name := addr.String()
-	settings, err := parsePeerFromTree(name, tree, r.config.LocalAS, r.config.RouterID)
+	globals := r.globals()
+	settings, err := parsePeerFromTree(name, tree, globals.LocalAS, globals.RouterID)
 	if err != nil {
 		return fmt.Errorf("dynamic peer %s: %w", name, err)
 	}

@@ -632,6 +632,37 @@ func validateBFDHoldDown(peerName string, bfd *BFDSettings, holdTime time.Durati
 		peerName, holdDown, holdTime)
 }
 
+// Globals holds the BGP-wide defaults a configuration declares: the global
+// router-id and the global local AS. A peer inherits each one unless it sets
+// its own. Zero means the configuration declares no global value.
+type Globals struct {
+	RouterID uint32
+	LocalAS  uint32
+}
+
+// GlobalsFromTree reads the global defaults from a BGP config tree. The global
+// local AS sits under bgp > session > asn > local, the router-id at bgp >
+// router-id. Both are optional. An invalid router-id is an error.
+func GlobalsFromTree(bgpTree map[string]any) (Globals, error) {
+	var globals Globals
+	if sessionMap, ok := mapMap(bgpTree, "session"); ok {
+		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
+			globals.LocalAS, _ = mapUint32(asnMap, "local")
+		}
+	}
+
+	v, ok := mapString(bgpTree, "router-id")
+	if !ok {
+		return globals, nil
+	}
+	id, err := parseRouterID(v)
+	if err != nil {
+		return Globals{}, fmt.Errorf("bgp: %w", err)
+	}
+	globals.RouterID = id
+	return globals, nil
+}
+
 // PeersFromTree parses all peer settings from a bgp subtree (map[string]any).
 // The tree should be the "bgp" block from a resolved config, with templates
 // already applied and flattened via Tree.ToMap().
@@ -648,22 +679,11 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	plugin.RegisterPluginSendTypes()
 
 	// Extract global defaults (both optional -- peers can provide their own).
-	// Global local AS is under bgp > session > asn > local.
-	var localAS uint32
-	if sessionMap, ok := mapMap(bgpTree, "session"); ok {
-		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
-			localAS, _ = mapUint32(asnMap, "local")
-		}
+	globals, err := GlobalsFromTree(bgpTree)
+	if err != nil {
+		return nil, err
 	}
-
-	var routerID uint32
-	if v, ok := mapString(bgpTree, "router-id"); ok {
-		id, err := parseRouterID(v)
-		if err != nil {
-			return nil, fmt.Errorf("bgp: %w", err)
-		}
-		routerID = id
-	}
+	localAS, routerID := globals.LocalAS, globals.RouterID
 
 	// Parse peers. Key is now peer name (not IP address).
 	//

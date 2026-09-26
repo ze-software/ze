@@ -109,7 +109,7 @@ func TestReconcilePeersJournalRollback(t *testing.T) {
 	// Use a journal that fails on the 3rd Record call, simulating
 	// a failure during the 3rd peer add.
 	j := &failingJournal{failAt: 3}
-	err := adapter.reconcilePeersJournaled([]*PeerSettings{p1, p2, p3}, "test", j)
+	err := adapter.reconcilePeersJournaled([]*PeerSettings{p1, p2, p3}, Globals{}, "test", j)
 	require.Error(t, err, "reconcile should fail when journal rejects 3rd operation")
 
 	// After rollback, no peers should remain (all were adds, all rolled back).
@@ -130,7 +130,7 @@ func TestReconcilePeersJournalSuccess(t *testing.T) {
 	p2 := NewPeerSettings(mustParseAddr("192.0.2.2"), 65000, 65002, 0)
 
 	j := &testJournal{}
-	err := adapter.reconcilePeersJournaled([]*PeerSettings{p1, p2}, "test", j)
+	err := adapter.reconcilePeersJournaled([]*PeerSettings{p1, p2}, Globals{}, "test", j)
 	require.NoError(t, err)
 
 	assert.Len(t, r.peers, 2, "both peers should exist after successful reconcile")
@@ -179,7 +179,7 @@ func TestReconcilePeersReleasesRouterIDClaimSynchronously(t *testing.T) {
 	incoming.Name = "peerC"
 
 	j := &testJournal{}
-	require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{incoming}, "test", j))
+	require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{incoming}, Globals{}, "test", j))
 
 	// No sleep, no polling: the claim must already be gone.
 	_, stillHeld := r.routerIDs.holder(peerAS, sharedBGPID)
@@ -211,7 +211,7 @@ func TestReconcilePeersJournalRemoveThenAdd(t *testing.T) {
 	pC.Name = "peerC"
 
 	j := &testJournal{}
-	err := adapter.reconcilePeersJournaled([]*PeerSettings{pB, pC}, "test", j)
+	err := adapter.reconcilePeersJournaled([]*PeerSettings{pB, pC}, Globals{}, "test", j)
 	require.NoError(t, err)
 
 	// After apply: B and C should exist, A removed.

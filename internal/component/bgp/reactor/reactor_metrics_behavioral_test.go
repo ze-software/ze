@@ -64,8 +64,8 @@ func TestReloadIncrementsConfigReloadCounter(t *testing.T) {
 // PREVENTS: reload failures being invisible in metrics (error counter never
 // moves), and a failed reload wrongly counting as a success.
 func TestReloadParseErrorIncrementsErrorCounter(t *testing.T) {
-	failingReloadFunc := func(string) ([]*PeerSettings, error) {
-		return nil, os.ErrInvalid
+	failingReloadFunc := func(string) ([]*PeerSettings, Globals, error) {
+		return nil, Globals{}, os.ErrInvalid
 	}
 
 	tempDir := t.TempDir()

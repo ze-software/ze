@@ -37,6 +37,13 @@ func metricsUpdateInterval() time.Duration {
 // reactorMetrics holds Prometheus metrics for the reactor.
 // Created once at startup when a metrics registry is set.
 type reactorMetrics struct {
+	// ze_info carries the router-id and the local AS as labels, so a reload that
+	// changes either one moves the gauge to a new series (setInfo).
+	info        metrics.GaugeVec
+	infoVersion string
+	infoRouter  string
+	infoLocalAS string
+
 	// Reactor-level (unlabeled)
 	peersConfigured      metrics.Gauge
 	uptimeSeconds        metrics.Gauge
@@ -142,6 +149,10 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 	info.With(version, routerID, localAS).Set(1)
 
 	return &reactorMetrics{
+		info:                 info,
+		infoVersion:          version,
+		infoRouter:           routerID,
+		infoLocalAS:          localAS,
 		peersConfigured:      reg.Gauge("ze_peers_configured", "Number of configured BGP peers."),
 		uptimeSeconds:        reg.Gauge("ze_uptime_seconds", "Seconds since reactor started."),
 		cacheEntries:         reg.Gauge("ze_cache_entries", "UPDATE cache entry count."),
@@ -286,4 +297,16 @@ func (r *Reactor) updatePeriodicMetrics() {
 			m.overflowRatio.With(peer).Set(ratio)
 		}
 	}
+}
+
+// setInfo moves the ze_info gauge to the router-id and local AS a reload
+// applied. The old series is deleted, so a scrape never reports two identities
+// for one instance. Not safe for concurrent use: the caller holds Reactor.mu.
+func (m *reactorMetrics) setInfo(routerID, localAS string) {
+	if routerID == m.infoRouter && localAS == m.infoLocalAS {
+		return
+	}
+	m.info.Delete(m.infoVersion, m.infoRouter, m.infoLocalAS)
+	m.info.With(m.infoVersion, routerID, localAS).Set(1)
+	m.infoRouter, m.infoLocalAS = routerID, localAS
 }

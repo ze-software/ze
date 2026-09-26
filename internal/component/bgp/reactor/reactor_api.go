@@ -662,7 +662,7 @@ func (a *reactorAPIAdapter) Reload() error {
 	}
 
 	// Get new peer configs from config file.
-	newPeers, err := reloadFn(configPath)
+	newPeers, globals, err := reloadFn(configPath)
 	if err != nil {
 		if r.rmetrics != nil {
 			r.rmetrics.configReloadErrors.With("parse").Inc()
@@ -670,7 +670,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		return fmt.Errorf("reload config: %w", err)
 	}
 
-	if err := a.reconcilePeers(newPeers, "reload"); err != nil {
+	if err := a.reconcilePeers(newPeers, globals, "reload"); err != nil {
 		if r.rmetrics != nil {
 			r.rmetrics.configReloadErrors.With("apply").Inc()
 		}
@@ -686,12 +686,9 @@ func (a *reactorAPIAdapter) Reload() error {
 // Peer parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the verify phase.
 func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
-	peers, err := a.loadPeersFullOrTree(bgpTree)
-	if err != nil {
+	if _, _, err := a.loadPeersFullOrTree(bgpTree); err != nil {
 		return err
 	}
-
-	_ = peers // verify only — discard result
 	return nil
 }
 
@@ -699,12 +696,12 @@ func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
 // Peer parsing goes through loadPeersFullOrTree.
 // Called by the reload coordinator during the apply phase.
 func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
-	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	newPeers, globals, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return fmt.Errorf("apply config diff: %w", err)
 	}
 
-	return a.reconcilePeers(newPeers, "apply config diff")
+	return a.reconcilePeers(newPeers, globals, "apply config diff")
 }
 
 // loadPeersFullOrTree loads peers from a BGP config tree.
@@ -724,7 +721,7 @@ func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
 // sharing it is what stops them disagreeing about how a peer's config is READ.
 // It does not make them equivalent, because they differ in what reaches the
 // parser and in what runs on the result.
-func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, error) {
+func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, Globals, error) {
 	r := a.r
 
 	configPath := r.config.ConfigPath
@@ -736,7 +733,15 @@ func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*Peer
 		return reloadFn(configPath)
 	}
 
-	return PeersFromTree(bgpTree)
+	globals, err := GlobalsFromTree(bgpTree)
+	if err != nil {
+		return nil, Globals{}, err
+	}
+	peers, err := PeersFromTree(bgpTree)
+	if err != nil {
+		return nil, Globals{}, err
+	}
+	return peers, globals, nil
 }
 
 // configJournal records transactional apply/undo operations.
@@ -751,9 +756,9 @@ type configJournal interface {
 // stops removed/changed peers, adds new/changed peers.
 // Uses an internal journal for automatic rollback on failure.
 // The label parameter is used for log messages (e.g., "reload", "apply config diff").
-func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label string) error {
+func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, globals Globals, label string) error {
 	j := &internalJournal{}
-	if err := a.reconcilePeersJournaled(newPeers, label, j); err != nil {
+	if err := a.reconcilePeersJournaled(newPeers, globals, label, j); err != nil {
 		if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
 			reactorLogger().Error(label+": rollback errors", "count", len(rollbackErrs))
 		}
@@ -767,8 +772,19 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label strin
 // remove and add operation in journal.Record for rollback support.
 // Removes happen before adds (existing order preserved).
 // On failure, the caller is responsible for calling journal.Rollback().
-func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, label string, j configJournal) error {
+//
+// The global defaults are applied first, through applyGlobalsJournaled. A peer
+// whose effective BGP Identifier changed carries a new RouterID in its
+// settings, which peerSettingsEqual reads as a change and peerSettingsSwapPlan
+// as a restart, so the new Identifier reaches that peer in a new OPEN. A peer
+// whose own router-id overrides the global keeps its settings and its session.
+func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, globals Globals, label string, j configJournal) error {
 	r := a.r
+
+	// RFC 4271 Section 4.2: the global BGP Identifier the reactor reports.
+	if err := a.applyGlobalsJournaled(globals, j); err != nil {
+		return err
+	}
 
 	// Build map of new peer settings for quick lookup.
 	newPeerSettings := make(map[netip.AddrPort]*PeerSettings)
@@ -1018,7 +1034,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 // peerDiffCount computes the number of peer changes (adds + removes) between
 // current peers and a new BGP config tree. Used for budget estimation.
 func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
-	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	newPeers, _, err := a.loadPeersFullOrTree(bgpTree)
 	if err != nil {
 		return 0, err
 	}

@@ -214,7 +214,7 @@ func TestReloadRepublishesDeliveryGraph(t *testing.T) {
 	})
 	newPeers, err := PeersFromTree(next)
 	require.NoError(t, err)
-	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers, "test reload"))
+	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers, Globals{}, "test reload"))
 
 	g := srv.DeliveryGraph()
 	assert.Empty(t, recv(g, bgpevents.EventState, events.DirUnspecified, "192.0.2.1"),
@@ -269,7 +269,7 @@ func TestConfigApplyDiscardsRuntimeSubscriptions(t *testing.T) {
 	// match it, whether or not any peer changed.
 	newPeers, err := PeersFromTree(deliveryTree(lookingGlass))
 	require.NoError(t, err)
-	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers, "test reload"))
+	require.NoError(t, (&reactorAPIAdapter{r: r}).reconcilePeers(newPeers, Globals{}, "test reload"))
 
 	assert.Empty(t, srv.PeerScopedProcs(ns, state, events.DirUnspecified, "192.0.2.1", "first"),
 		"a config apply discards the live capability addition")

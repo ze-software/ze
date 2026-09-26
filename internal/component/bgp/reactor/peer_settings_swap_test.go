@@ -37,8 +37,8 @@ func newSwapTestReactor(t *testing.T, initial, next *PeerSettings) (*Reactor, *P
 
 	r := New(&Config{ConfigPath: configPath, ListenAddr: "127.0.0.1:0", Standalone: true})
 	require.NoError(t, r.AddPeer(initial))
-	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
-		return []*PeerSettings{next}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		return []*PeerSettings{next}, Globals{}, nil
 	})
 
 	r.mu.RLock()
@@ -331,8 +331,8 @@ func newPrefixStaleTestReactor(t *testing.T, initial, next *PeerSettings) (*Reac
 	r.rmetrics = initReactorMetrics(reg, "1.0.0", "1.2.3.4", "65000")
 
 	require.NoError(t, r.AddPeer(initial))
-	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
-		return []*PeerSettings{next}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		return []*PeerSettings{next}, Globals{}, nil
 	})
 
 	r.mu.RLock()

@@ -325,37 +325,43 @@ func chaosRateFromEnv() float64 {
 //
 // The reactor parameter is used to update dynamic groups on reload.
 func createReloadFunc(store storage.Storage, r *reactor.Reactor, cliPlugins []string) reactor.ReloadFunc {
-	return func(configPath string) ([]*reactor.PeerSettings, error) {
+	return func(configPath string) ([]*reactor.PeerSettings, reactor.Globals, error) {
 		data, err := storage.ReadReloadConfig(store, configPath)
 		if err != nil {
-			return nil, fmt.Errorf("read config %s: %w", configPath, err)
+			return nil, reactor.Globals{}, fmt.Errorf("read config %s: %w", configPath, err)
 		}
 
 		// Use the daemon loader so hierarchical and set-format candidates take
 		// the same path. The web editor stages set commands.
 		loaded, err := config.LoadConfig(string(data), configPath, cliPlugins)
 		if err != nil {
-			return nil, fmt.Errorf("parse config: %w", err)
+			return nil, reactor.Globals{}, fmt.Errorf("parse config: %w", err)
 		}
 		tree := loaded.Tree
 		schema, err := config.YANGSchema()
 		if err != nil {
-			return nil, fmt.Errorf("YANG schema: %w", err)
+			return nil, reactor.Globals{}, fmt.Errorf("YANG schema: %w", err)
 		}
 
 		resolved, err := ResolveBGPTree(tree)
 		if err != nil {
-			return nil, fmt.Errorf("resolve BGP config: %w", err)
+			return nil, reactor.Globals{}, fmt.Errorf("resolve BGP config: %w", err)
+		}
+		// The global router-id and local AS the reload applies to the reactor
+		// (applyGlobalsJournaled, ../reactor/reload_globals.go).
+		globals, err := reactor.GlobalsFromTree(resolved)
+		if err != nil {
+			return nil, reactor.Globals{}, err
 		}
 		if err := refuseIncompletePeers(schema, resolved); err != nil {
-			return nil, err
+			return nil, reactor.Globals{}, err
 		}
 
 		// Update redistribute rules on reload. A reload that cannot build them
 		// refuses, for the reason the initial load refuses: a nil evaluator
 		// disables every rule in the file.
 		if err := initRedistribute(tree); err != nil {
-			return nil, fmt.Errorf("redistribute config: %w", err)
+			return nil, reactor.Globals{}, fmt.Errorf("redistribute config: %w", err)
 		}
 
 		// The builder prunes inactive nodes and resolves the tree, and it returns
@@ -366,11 +372,11 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor, cliPlugins []st
 		// group's peers are torn down.
 		peers, dynGroups, err := peersAndDynamicGroups(tree)
 		if err != nil {
-			return nil, err
+			return nil, reactor.Globals{}, err
 		}
 		r.SetDynamicGroups(dynGroups)
 
-		return peers, nil
+		return peers, globals, nil
 	}
 }
 

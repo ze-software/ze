@@ -56,7 +56,7 @@ func TestReactorPublishesGTSMPeersFromConfig(t *testing.T) {
 	plain := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65002, 0x01010101)
 
 	adapter := &reactorAPIAdapter{r: r}
-	require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{gtsmPeer, plain}, "test", noopJournal{}))
+	require.NoError(t, adapter.reconcilePeersJournaled([]*PeerSettings{gtsmPeer, plain}, Globals{}, "test", noopJournal{}))
 
 	require.Len(t, *published, 1, "only the peer that enabled GTSM owes kernel state")
 	got := (*published)[0]

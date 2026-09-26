@@ -27,8 +27,8 @@ func newDynamicReloadReactor(t *testing.T, group *DynamicGroupConfig, addr netip
 
 	r := New(&Config{ConfigPath: configPath, ListenAddr: "127.0.0.1:0", Standalone: true})
 	r.dynamicGroups = []*DynamicGroupConfig{group}
-	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
-		return newPeers, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		return newPeers, Globals{}, nil
 	})
 
 	r.mu.Lock()
@@ -216,8 +216,8 @@ func TestReloadNeverSwapsSettingsOntoADynamicPeer(t *testing.T) {
 	require.Empty(t, reason, "the fixture must be an entry the swap plan accepts")
 	require.NotNil(t, apply)
 
-	r.SetReloadFunc(func(string) ([]*PeerSettings, error) {
-		return []*PeerSettings{&swappableOnly}, nil
+	r.SetReloadFunc(func(string) ([]*PeerSettings, Globals, error) {
+		return []*PeerSettings{&swappableOnly}, Globals{}, nil
 	})
 	adapter := &reactorAPIAdapter{r: r}
 	require.NoError(t, adapter.Reload())

@@ -20,10 +20,10 @@ const emptyConfig = `ze bgp {
 
 // simpleReloadFunc parses minimal config for testing.
 // Supports: neighbor <ip> { local-as <n>; peer-as <n>; receive-hold-time <n>; passive; }.
-func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
+func simpleReloadFunc(configPath string) ([]*PeerSettings, Globals, error) {
 	data, err := os.ReadFile(configPath) //nolint:gosec // test file
 	if err != nil {
-		return nil, err
+		return nil, Globals{}, err
 	}
 
 	// Simple regex to find neighbor blocks.
@@ -68,7 +68,7 @@ func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 		peers = append(peers, peer)
 	}
 
-	return peers, nil
+	return peers, Globals{}, nil
 }
 
 // parseUint32 is a helper for test parsing.
@@ -256,13 +256,13 @@ func TestReloadChangedSettings(t *testing.T) {
 // PREVENTS: Reload silently ignoring parse errors.
 func TestReloadParseError(t *testing.T) {
 	// Create a reload function that fails on specific content.
-	failingReloadFunc := func(configPath string) ([]*PeerSettings, error) {
+	failingReloadFunc := func(configPath string) ([]*PeerSettings, Globals, error) {
 		data, err := os.ReadFile(configPath) //nolint:gosec // test file
 		if err != nil {
-			return nil, err
+			return nil, Globals{}, err
 		}
 		if regexp.MustCompile(`invalid`).MatchString(string(data)) {
-			return nil, os.ErrInvalid
+			return nil, Globals{}, os.ErrInvalid
 		}
 		return simpleReloadFunc(configPath)
 	}
@@ -554,7 +554,7 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 	// whose peers were all SKIPPED as incomplete returns (PeersFromTree,
 	// config.go, warns and continues on ErrIncompleteConfig). Assert the tree
 	// really produced both peers, or this test passes on a shape nobody reads.
-	peers, err := adapter.loadPeersFullOrTree(bgpTree)
+	peers, _, err := adapter.loadPeersFullOrTree(bgpTree)
 	require.NoError(t, err)
 	assert.Len(t, peers, 2, "both peers must parse, not be skipped as incomplete")
 }
@@ -609,7 +609,7 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 
 	// A tree that parses to nothing would also leave the count unchanged, so
 	// pin that peer99 is a peer this config really produces.
-	parsed, err := adapter.loadPeersFullOrTree(bgpTree)
+	parsed, _, err := adapter.loadPeersFullOrTree(bgpTree)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1, "the verified tree must produce the peer it names")
 

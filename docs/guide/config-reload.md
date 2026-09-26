@@ -35,11 +35,22 @@ holds the plaintext. Refer to
 [Passwords in a config file](authentication.md#passwords-in-a-config-file).
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing, warnPlaintextOnDisk -->
 
+## BGP Globals
+
+A reload applies a changed global `router-id` and global local AS
+(`session { asn { local } }`). `show bgp` and the `ze_info` metric report the
+new values. A peer whose effective BGP Identifier changes is restarted: ze
+sends NOTIFICATION Cease "Other Configuration Change" and the next OPEN carries
+the new Identifier (RFC 4271 Section 4.2). A peer that sets its own
+`session { router-id }` keeps its session. A peer added at run time inherits
+the new values. A reload that fails restores the previous values.
+<!-- source: internal/component/bgp/reactor/reload_globals.go -- applyGlobalsJournaled -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reconcilePeersJournaled -->
+
 ## What Requires Restart
 
 | Change | Why |
 |--------|-----|
-| BGP globals (`router-id`, `local { as }`) | Affects all peers, requires full restart |
 | Hub listen address/port | Listener cannot be changed at runtime |
 | SSH server settings | Server cannot be reconfigured live |
 | The web or MCP authentication MODE | Both choose it once, when they are built. A reload that asks for a different mode fails the whole commit before anything is applied |

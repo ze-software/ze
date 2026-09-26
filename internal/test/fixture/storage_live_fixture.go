@@ -278,9 +278,9 @@ func storageLiveRestoreFullRefused(ctx context.Context, args []string) error {
 // no config, and `name` naming a config the source lacks, are refused naming
 // what the source holds; `request data restore path <abs> config` then takes
 // the source's only config, under the device's name, through the reload, and
-// `show bgp` answers the peer the restored config adds. The running router-id
-// is not asserted: a reload does not apply a changed global router-id (journal,
-// 2026-09-26), which is a product question of its own.
+// `show bgp` answers the peer the restored config adds and the router-id it
+// carries, so the reload applied the restored global router-id and did not
+// only store it.
 // A client target on a daemon that serves no managed client is refused. The
 // .ci checks the pointers.
 func storageLiveRestoreConfig(ctx context.Context, args []string) error {
@@ -333,9 +333,15 @@ func storageLiveRestoreConfig(ctx context.Context, args []string) error {
 	var last string
 	if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
 		last, err = storageLiveRequest(ctx, env, "show bgp | json")
-		return err == nil && storageLivePeersConfigured.MatchString(last)
+		if err != nil {
+			return false
+		}
+		if !storageLivePeersConfigured.MatchString(last) {
+			return false
+		}
+		return storageLiveRestoredRouterIDJSON.MatchString(last)
 	}) {
-		return fmt.Errorf("the daemon never served the restored peer; the restore answered:\n%s\nshow bgp answers:\n%s", output, last)
+		return fmt.Errorf("the daemon never served the restored peer and router-id; the restore answered:\n%s\nshow bgp answers:\n%s", output, last)
 	}
 	return storageLiveOK("data-restore-config-live")
 }
@@ -343,6 +349,10 @@ func storageLiveRestoreConfig(ctx context.Context, args []string) error {
 // storageLivePeersConfigured matches `show bgp | json` answering one
 // configured peer.
 var storageLivePeersConfigured = regexp.MustCompile(`"peers-configured":\s*1\b`)
+
+// storageLiveRestoredRouterIDJSON matches `show bgp | json` answering the
+// router-id the restored config carries (storageLiveRestoredRouterID).
+var storageLiveRestoredRouterIDJSON = regexp.MustCompile(`"router-id":\s*"2\.2\.2\.2"`)
 
 // storageLiveSource writes values to a blob at path, as a backup carries them.
 func storageLiveSource(path string, values map[string][]byte) error {
