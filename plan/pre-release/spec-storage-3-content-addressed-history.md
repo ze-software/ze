@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | done |
 | Scope | config |
 | Depends | storage-1-backend-parity, storage-2-blob-artifact |
 | Phase | 4/4 |
@@ -377,7 +377,7 @@ GREEN after restore: `./le test bgp plugin data-registered-object history-rollba
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` "Store diagnostics" row now names the history findings `ze doctor` and `ze data check` report |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors` (2026-09-26) named five pages outside this spec: `config/transaction-protocol.md`, `core-design.md`, `diagnostics/debug-filtering.md`, `fleet-config.md`, `guide/authentication.md`. Each was read at its mention: none describes version storage, so none is made wrong |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze config history` and `rollback` examples in `command-reference.md` verified; `./le site build` run; `./le cli catalog update file ../wiki/command-catalog.md` run separately and the catalog committed in the wiki checkout |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze config history` and `rollback` examples in `command-reference.md` verified. The wiki command catalog and `./le site build` are not owed: the catalog lists commands, and storage-3 adds none; the new `object/{hex}` key pattern is not a catalog row |
 
 Design documents declared by the `// Design:` headers of files in scope:
 
@@ -546,6 +546,8 @@ Design documents declared by the `// Design:` headers of files in scope:
 | Kind | What happened | What was true instead | How discovered | Action |
 |------|---------------|----------------------|----------------|--------|
 | approach | The fail-closed history walk was added without re-reading its CLI caller, which ran the walk after the frame check had found corruption | an unreadable frame is corruption the frame check already graded, exit 1 | closure review, logic lens over `cmdCheck` | `cmdCheck` answers before the walk; test added |
+| approach | The entry format changed and nine existing `.ci` files that asserted config text on `file/<stamp>/<name>` entries were not searched for | a dated entry holds `sha256:<hex>`, the text is in `object/<hex>` | `./le verify worktree` over 4f45c0aab0 | 9e2a2e0e2c moves each text assertion to `glob=object/*` and adds an object count |
+| test | `history-rollback-object` wrote its versions at fixed stamps on 2026-09-26, so after 10:00 that day the rollback backup sorted between them and revision 2 named an intact version | the product refused the tampered version; the fixture named the wrong revision | `./le verify worktree` over 4f45c0aab0 | b8ce9ca9b2 dates the versions 48 hours back and names revision 3 |
 
 ## Implementation Audit
 
@@ -614,5 +616,78 @@ Design documents declared by the `// Design:` headers of files in scope:
 |-------------------|-----|---------------------------|
 | none | every AC is implemented and tested | none |
 
-<!-- CLOSURE-TAIL -->
+## Review Gate
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/storage-3-content-addressed-history-d1bd1f18-5c01-4a2c-a017-f3bc659c5b7a.md` (68 files, verdict clean) |
+| `./le spec review check` | OK: 59 code files, clean, hashes match |
+| Rounds | 3 |
+| Reviewer lenses used | logic and wiring, security and edge cases, style (`ze-go-style.md`), test assertion accuracy, documentation accuracy, record accuracy. Closure contexts authored none of the storage-3 code |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `ze data check` exited 2 on a tree with a corrupt history frame, because the fail-closed history walk ran after the frame check had graded the corruption | `storage/cli/cmd_integrity.go` `cmdCheck` | 7e97623979, `TestCheckCorruptHistoryFrameIsCorruption` |
+| 2 | ISSUE | lint: `nilerr` in `removeVersionLocked`, an unchecked type assertion in `TestWriteVersionObjectFirst`, `errorlint` in fixture `storageHistoryRecovered`, `goconst` for `name` in the storage-2 restore parsers | `pointer.go`, `history_test.go`, `register_storage_history.go`, `data_rpc.go` | 7e97623979 |
+| 3 | ISSUE | nine `.ci` asserted config text on dated entries, which now hold `sha256:<hex>` | `test/plugin/`, `test/reload/`, `test/traffic/` | 9e2a2e0e2c |
+| 4 | ISSUE | `history-rollback-object` named a revision whose meaning depended on the time of day | fixture `storageHistoryRollback` | b8ce9ca9b2 |
+
+Round 3 (closure agent 2) read 7e97623979, b8ce9ca9b2 and 9e2a2e0e2c and every caller of `ListVersions` outside package `storage` for a raw entry read (none). It found 0 BLOCKER and 0 ISSUE. NOTEs, each fixed in one edit: the entry-read comment in `inspectHistory` described the object loop's consequence; Documentation checklist row 17 claimed a wiki catalog run that did not happen and was not owed. `glob=object/*` semantics were read at the producer (`runner_validate.go`): `contains` passes when any matched key holds the text, `not-contains` when none does, so the moved assertions keep their meaning.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/config/storage/history.go`, `history_test.go`, `history_check.go`, `history_check_test.go` | yes | `ls` 2026-09-26 |
+| `test/editor/lifecycle/history-dedup.et` | yes | `ls` 2026-09-26 |
+| `test/plugin/{history-rollback-object,data-check-history,history-restore-config-object,history-repaired-store-start,data-registered-object}.ci` | yes | `ls` 2026-09-26 |
+| `internal/component/config/storage/cli/cmd_integrity_test.go` | yes | `ls` 2026-09-26 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-17 | each named test in the Acceptance Criteria audit passes | `./le verify worktree` 2026-09-26 (scratch `verify4.log`): `config/storage` ok, `config/storage/cli` ok; lint 0 issues on every pass |
+| AC-3 | a wrong-hash object is refused on rollback | `./le test bgp plugin history-rollback-object`: PASS 1/1 (closure agent 2, after b8ce9ca9b2) |
+| AC-10 | `ze data check` and `ze doctor` run the history walk | `cmd_integrity.go` `cmdCheck` calls `checkStoreHistory` -> `storage.CheckHistory`; `checks_storage.go` `checkStoreIntegrity` appends `checkStoreHistory` |
+| AC-11 | `ze data repair` runs the history repair | `cmd_integrity.go` calls `storage.RepairHistory` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| editor commit twice with the same config | `test/editor/lifecycle/history-dedup.et` | PASS in `./le verify worktree` 2026-09-26 |
+| `ze start` on repaired output | `test/plugin/history-repaired-store-start.ci` | PASS in `./le verify worktree` 2026-09-26 |
+| `ze config rollback` | `test/plugin/history-rollback-object.ci` | PASS 1/1, run by closure agent 2 |
+| `ze data check` | `test/plugin/data-check-history.ci` | PASS in `./le verify worktree` 2026-09-26 |
+| `ze data restore <backup> config` | `test/plugin/history-restore-config-object.ci` | PASS in `./le verify worktree` 2026-09-26 |
+| `ze data registered` | `test/plugin/data-registered-object.ci` | PASS in `./le verify worktree` 2026-09-26 |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | owner ordered the full spec 2026-09-26; pre-release, no migration |
+| A-2 | confirmed | owner ordered the full spec 2026-09-26 |
+| A-3 | confirmed | `historyEntry` shared by `ListVersions` and `sweepObject`; `TestRemoveChecksEveryName` |
+| A-4 | confirmed | `BenchmarkWriteVersion` 22.3 ms/op, fsync-dominated |
+| A-5 | confirmed | `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock` |
+| A-6 | confirmed | `TestGuardListKeysRecursive` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `command-reference.md` `check`: a corrupt frame exits 1 before the history walk | `cmdCheck` returns 1 when `report.CorruptEntries > 0`, before `checkStoreHistory` | yes |
+| `storage-backends.md` `CheckHistory` row: a listed key that does not read stops the walk | `inspectHistory` returns an error on each of its three `read` failures | yes |
+| `ci-format.md`: config text is asserted on `object/*` | `writeVersionObject` writes the bytes under `objectKey`, the entry holds `sha256:<hex>` | yes |
+| no other entry-text assertion remains | `git grep 'glob=file/[0-9]*...:contains'` returns nothing | yes |
+| no citer of this spec outside it | `git grep spec-storage-3-content-addressed-history` returns only the spec | yes |
+
+
+### Verification over HEAD 9e2a2e0e2c plus this commit (`./le verify worktree`, exit 1)
+| Red | Owner |
+|-----|-------|
+| loopback-address-missing groups (encode, plugin, reload 12), reload 5/8 timeout, reload 40 and rsvpte 1-5 exit code, ui 126/191/192/195/208 logging, plugin 279 evpn-config-self | journaled machine and other-session reds, none in storage code |
+| unit `bgp/reactor` RFC 2545 link-local, `core/hostload`, `le/ai/hooks` journal-row-shape | journaled or another session's uncommitted `internal/le` work |
+| unit `plugin/all` wire-methods snapshot and stale `all.go` for `ze-data:backup`/`restore` | storage-2 (`80b6b61ce3`); row added to `plan/journal/hardcoded-count-in-test.md` |
+
+Every storage-3 test passed in that run: the five history `.ci`, `history-dedup.et`, the nine moved `.ci` on darwin (the three traffic-vpp ones ran in QEMU for 9e2a2e0e2c), and the storage packages.

@@ -116,9 +116,9 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 		}
 		value, err := read(key)
 		if err != nil {
-			// A listed key that does not read is not evidence of absence:
-			// skipping it would report its entries dangling, and repair
-			// would then drop history whose object is present.
+			// A listed entry that does not read is not evidence of absence:
+			// skipping it would report its object orphaned and every pointer
+			// naming its stamp dangling, over an entry nobody checked.
 			return nil, fmt.Errorf("check history: read %s: %w", key, err)
 		}
 		digest, err := entryDigest(key, value)
