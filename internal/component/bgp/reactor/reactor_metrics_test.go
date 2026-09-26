@@ -60,7 +60,16 @@ func (v *spyGaugeVec) With(labels ...string) metrics.Gauge {
 	return g
 }
 
-func (v *spyGaugeVec) Delete(...string) bool { return true }
+// Delete removes the series, as the Prometheus vector does, so a test can see
+// that a moved label set left no stale series behind.
+func (v *spyGaugeVec) Delete(labels ...string) bool {
+	key := strings.Join(labels, ",")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	_, ok := v.gauges[key]
+	delete(v.gauges, key)
+	return ok
+}
 
 func (v *spyGaugeVec) get(labels ...string) *spyGauge {
 	key := strings.Join(labels, ",")

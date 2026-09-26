@@ -397,6 +397,27 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: peerPrefixFirst},
 	},
+	// A reload that changes the global router-id reaches both kinds of peer.
+	// BIRD is a static peer: it sees the startup Identifier, then the new one
+	// after Ze restarts the session. FRR is added after the reload with
+	// `create bgp peer`, which builds it in AddDynamicPeer from the reactor's
+	// globals. FRR's own remoteRouterId is the proof: before b40379c07c the
+	// reactor kept its startup copy and FRR saw 10.255.0.1. A range-accepted
+	// dynamic peer would not discriminate: it takes its router-id from the
+	// group template, which the reload rebuilds from the new tree.
+	"bgp-reload-global-router-id": {
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowZeProtocolAll}, contains: []string{stateEstablished, reloadRouterIDBefore}, timeout: 90 * time.Second},
+		{kind: opExec, peer: "ze", command: []string{"sh", "-c", "cp " + zeMountedReloadConfig + " " + zeRunningConfig}},
+		{kind: opSignal, peer: "ze", argument: signalHUP},
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowZeProtocolAll}, contains: []string{stateEstablished, reloadRouterIDAfter}, timeout: 120 * time.Second},
+		{kind: opExec, peer: "ze", command: zeCommand("create bgp peer " + frrLabAddress + " asn 65001 local-address " + zeLabAddress)},
+		// The session first, then the Identifier on its own, so a wrong one fails
+		// by naming the value FRR holds rather than as a timeout.
+		{kind: opWaitJSONFields, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, timeout: 90 * time.Second,
+			fields: map[string]string{"bgpState": stateEstablished}},
+		{kind: opRequireJSONFields, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON},
+			fields: map[string]string{"remoteRouterId": reloadRouterIDAfter}},
+	},
 	"bgp-relay-withdraw-nexthop-self-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 60 * time.Second},

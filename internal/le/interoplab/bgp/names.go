@@ -310,6 +310,7 @@ const (
 	birdExtendedCommunityAttribute = "ext_community"
 	birdLargeCommunityAttribute    = "large_community"
 	birdZeProtocol                 = "ze_peer"
+	birdShowZeProtocolAll          = "show protocols all " + birdZeProtocol
 	birdShowBFDSessions            = "show bfd sessions"
 	birdBFDStateUp                 = "Up"
 	frrCapabilityNegotiated        = "advertisedAndReceived"
@@ -503,3 +504,11 @@ const shellErrexitCommand = "-ec"
 // transitAreaLabel is the metric label that carries a virtual link's transit
 // area on the OSPF virtual-link metrics the scenario reads.
 const transitAreaLabel = "transit_area"
+
+// The global router-id bgp-reload-global-router-id starts with, and the one its
+// ze-reload.conf carries. Both sit outside the lab subnet, so the address
+// rewrite never touches them.
+const (
+	reloadRouterIDBefore = "10.255.0.1"
+	reloadRouterIDAfter  = "10.255.0.2"
+)

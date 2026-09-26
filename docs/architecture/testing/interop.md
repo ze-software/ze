@@ -737,7 +737,10 @@ VRF/Table Name TLV and reason code 6 on the Peer Down; `bmp-locrib-receiver-frr`
 turns the direction around, so FRR's `bmpd` drives Ze's BMP receiver and
 `show bmp peers` must report the third party's Loc-RIB peer and its address
 family), PATHS-LIMIT,
-max-prefix cease, GTSM (`bgp-gtsm-frr` for the session, and `gtsm-related-icmp-ttl`
+max-prefix cease, a reload of the global router-id (`bgp-reload-global-router-id`
+starts Ze with 10.255.0.1, reloads it to 10.255.0.2, and requires BIRD, a static
+peer, and FRR, which Ze adds after the reload with `create bgp peer`, each to
+report 10.255.0.2 as Ze's BGP Identifier), GTSM (`bgp-gtsm-frr` for the session, and `gtsm-related-icmp-ttl`
 for RFC 5082 Section 3's related ICMP messages: FRR's kernel reads the hop limit of an
 ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop counter is
 what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak

@@ -5,14 +5,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// TestGlobalLocalASReadsTheSchemaPath verifies the speaker's own AS is read
-// from the leaf the YANG schema declares it at.
+// TestGlobalLocalASReadsTheSchemaPath verifies the speaker's own AS and
+// router-id are read at startup from the leaves the YANG schema declares.
 //
 // VALIDATES: a config that sets bgp/session/asn/local reaches the reactor as
-// that number. That leaf is the only place ze-bgp-conf.yang declares the
+// that number, through treeGlobals, the startup route into the parser the
+// reload path uses (reactor.GlobalsFromTree). That leaf is the only place ze-bgp-conf.yang declares the
 // global AS, and the schema makes it mandatory.
 //
 // PREVENTS: AS 0 reported for every deployment. The lookup used to read
@@ -53,10 +55,10 @@ bgp {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	bgpContainer := tree.GetContainer("bgp")
-	require.NotNil(t, bgpContainer, "the parsed tree has no bgp container")
-
-	require.Equal(t, uint32(65000), globalLocalAS(bgpContainer))
+	globals, err := treeGlobals(tree)
+	require.NoError(t, err)
+	// 192.0.2.1 as a big-endian uint32.
+	require.Equal(t, reactor.Globals{RouterID: 0xC0000201, LocalAS: 65000}, globals)
 }
 
 // TestGlobalLocalASWithoutTheLeaf verifies a bgp container that declares no
@@ -77,8 +79,7 @@ bgp {
 	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
-	bgpContainer := tree.GetContainer("bgp")
-	require.NotNil(t, bgpContainer, "the parsed tree has no bgp container")
-
-	require.Equal(t, uint32(0), globalLocalAS(bgpContainer))
+	globals, err := treeGlobals(tree)
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), globals.LocalAS)
 }

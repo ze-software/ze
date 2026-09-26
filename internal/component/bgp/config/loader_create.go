@@ -6,7 +6,6 @@ package bgpconfig
 
 import (
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -64,22 +63,20 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 	_ = pruneSchema // kept available for listener validation below
 
-	// Extract global BGP settings directly from tree
-	var routerID uint32
-	var localAS uint32
-	var allowSharedRouterID bool
+	// The global router-id and local AS come from the one parser the reload
+	// path also uses (reactor.GlobalsFromTree), so startup and reload cannot
+	// disagree about the same leaf.
+	globals, err := treeGlobals(tree)
+	if err != nil {
+		return nil, err
+	}
 
+	// bgp/session/allow-shared-router-id (YANG boolean, default false): opt out
+	// of AS-wide BGP-Identifier uniqueness enforcement. Tree booleans arrive as
+	// the string "true"/"false" (config.md), same idiom as resolve.go's
+	// rs-client read. Absent leaf keeps the strict default.
+	var allowSharedRouterID bool
 	if bgpContainer := tree.GetContainer("bgp"); bgpContainer != nil {
-		if v, ok := bgpContainer.Get("router-id"); ok {
-			if ip, parseErr := netip.ParseAddr(v); parseErr == nil {
-				routerID = ipToUint32(ip)
-			}
-		}
-		localAS = globalLocalAS(bgpContainer)
-		// bgp/session/allow-shared-router-id (YANG boolean, default false): opt out
-		// of AS-wide BGP-Identifier uniqueness enforcement. Tree booleans arrive as
-		// the string "true"/"false" (config.md), same idiom as
-		// resolve.go's rs-client read. Absent leaf keeps the strict default.
 		if sessionContainer := bgpContainer.GetContainer("session"); sessionContainer != nil {
 			if v, ok := sessionContainer.Get("allow-shared-router-id"); ok {
 				allowSharedRouterID = v == "true"
@@ -87,11 +84,11 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
-	// Startup convergence hold (`bgp update-delay`). Read from the tree here for
-	// the same reason router-id and local-as are: it is a global BGP setting, so
-	// no template inheritance applies to it. peersAndDynamicGroups below runs
-	// the same parser as a validation gate, which is what makes `ze config
-	// validate` refuse what this line would refuse.
+	// Startup convergence hold (`bgp update-delay`). Read from the tree here
+	// because it is a global BGP setting, so no template inheritance applies to
+	// it. peersAndDynamicGroups below runs the same parser as a validation
+	// gate, which is what makes `ze config validate` refuse what this line
+	// would refuse.
 	updateDelay, err := ParseUpdateDelay(tree)
 	if err != nil {
 		return nil, err
@@ -196,8 +193,8 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Build reactor config
 	reactorCfg := &reactor.Config{
 		// No global ListenAddr -- Ze derives listeners from per-peer connection > local.
-		RouterID:            routerID,
-		LocalAS:             localAS,
+		RouterID:            globals.RouterID,
+		LocalAS:             globals.LocalAS,
 		AllowSharedRouterID: allowSharedRouterID,
 		UpdateDelay:         updateDelay,
 		ConfigDir:           configDir,
@@ -380,34 +377,19 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor, cliPlugins []st
 	}
 }
 
-// globalLocalAS returns the AS the `bgp` container declares for this speaker,
-// or 0 when it declares none.
+// treeGlobals returns the global router-id and local AS the `bgp` container
+// declares, read by reactor.GlobalsFromTree: the parser the reload path runs
+// over its resolved tree (createReloadFunc). The resolved tree's top level is
+// the container's own map, so both routes read the same leaves.
 //
-// The schema puts it at bgp/session/asn/local, and makes it mandatory
-// (internal/component/bgp/yang/ze-bgp-conf.yang).
-//
-// This used to read bgp/local/as. The schema declares no leaf named `as`, and
-// its only `local` container sits under `connection` and holds an IP endpoint.
-// The lookup therefore matched no valid config and the answer stayed 0.
-//
-// Stats carried that 0 into `show bgp` as local-as, so every deployment
-// reported AS 0. RFC 7607 reserves AS 0, and no speaker originates it.
-func globalLocalAS(bgpContainer *config.Tree) uint32 {
-	sessionContainer := bgpContainer.GetContainer("session")
-	if sessionContainer == nil {
-		return 0
+// A config with no `bgp` container answers the zero Globals: the daemon can
+// start without BGP, and 0 is "not configured" to every reader of the two
+// fields. The global AS sits at bgp/session/asn/local, the only leaf
+// ze-bgp-conf.yang declares for it.
+func treeGlobals(tree *config.Tree) (reactor.Globals, error) {
+	bgpContainer := tree.GetContainer("bgp")
+	if bgpContainer == nil {
+		return reactor.Globals{}, nil
 	}
-	asnContainer := sessionContainer.GetContainer("asn")
-	if asnContainer == nil {
-		return 0
-	}
-	v, ok := asnContainer.Get("local")
-	if !ok {
-		return 0
-	}
-	n, err := strconv.ParseUint(v, 10, 32)
-	if err != nil {
-		return 0
-	}
-	return uint32(n)
+	return reactor.GlobalsFromTree(bgpContainer.ToMap())
 }

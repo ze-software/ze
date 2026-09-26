@@ -9,13 +9,19 @@ import (
 
 // routerIDTree builds a BGP tree with a global router-id, one peer that
 // inherits it and one peer that overrides it with its own session router-id.
-func routerIDTree(global string) map[string]any {
+func routerIDTree(t *testing.T, global string) map[string]any {
+	t.Helper()
 	tree := makeBGPTree(map[string]testPeer{
 		"inherits":  {remoteIP: "10.0.0.1", remoteAS: "65001", localAS: "65000"},
 		"overrides": {remoteIP: "10.0.0.2", remoteAS: "65002", localAS: "65000"},
 	})
-	overrides := tree["peer"].(map[string]any)["overrides"].(map[string]any)
-	overrides["session"].(map[string]any)["router-id"] = "9.9.9.9"
+	peers, ok := tree["peer"].(map[string]any)
+	require.True(t, ok, "makeBGPTree must build a peer map")
+	overrides, ok := peers["overrides"].(map[string]any)
+	require.True(t, ok, "makeBGPTree must build the overrides peer")
+	session, ok := overrides["session"].(map[string]any)
+	require.True(t, ok, "makeBGPTree must build a session container")
+	session["router-id"] = "9.9.9.9"
 	tree["router-id"] = global
 	return tree
 }
@@ -47,11 +53,11 @@ func TestReloadAppliesGlobalRouterID(t *testing.T) {
 	defer r.Stop()
 
 	adapter := &reactorAPIAdapter{r: r}
-	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree("1.2.3.4")))
+	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree(t, "1.2.3.4")))
 	inheritsBefore := peerByAddr(t, r, "10.0.0.1")
 	overridesBefore := peerByAddr(t, r, "10.0.0.2")
 
-	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree("2.2.2.2")))
+	require.NoError(t, adapter.ApplyConfigDiff(routerIDTree(t, "2.2.2.2")))
 
 	assert.Equal(t, uint32(0x02020202), r.Stats().RouterID, "show bgp must report the reloaded router-id")
 
@@ -79,4 +85,36 @@ func TestReloadGlobalsRollback(t *testing.T) {
 
 	assert.Empty(t, j.Rollback())
 	assert.Equal(t, Globals{RouterID: 0x01020304, LocalAS: 65000}, r.globals())
+}
+
+// TestReloadMovesInfoGauge verifies that a reload which changes the global
+// router-id and local AS moves the ze_info series with them, and that a rolled
+// back reload moves it back.
+//
+// VALIDATES: after the reconcile, ze_info{router_id="2.2.2.2",local_as="65100"}
+// is 1 and the startup series is gone; after Rollback the startup series is
+// back and the reloaded one is gone.
+// PREVENTS: a scrape reporting the startup identity after a reload applied a
+// new one, or two identities for one instance.
+func TestReloadMovesInfoGauge(t *testing.T) {
+	reg := newSpyRegistry()
+	r := New(&Config{ListenAddr: "127.0.0.1:0", Standalone: true, RouterID: 0x01020304, LocalAS: 65000})
+	r.rmetrics = initReactorMetrics(reg, "test", "1.2.3.4", "65000")
+	adapter := &reactorAPIAdapter{r: r}
+	info := reg.gaugeVec("ze_info")
+	require.NotNil(t, info, "ze_info must be registered")
+
+	j := &internalJournal{}
+	require.NoError(t, adapter.reconcilePeersJournaled(nil, Globals{RouterID: 0x02020202, LocalAS: 65100}, "test", j))
+
+	reloaded := info.get("test", "2.2.2.2", "65100")
+	require.NotNil(t, reloaded, "ze_info must carry the reloaded router-id and local AS")
+	assert.InDelta(t, 1.0, reloaded.Value(), 0)
+	assert.Nil(t, info.get("test", "1.2.3.4", "65000"), "the startup series must be deleted")
+
+	assert.Empty(t, j.Rollback())
+	restored := info.get("test", "1.2.3.4", "65000")
+	require.NotNil(t, restored, "a rolled back reload must restore the startup series")
+	assert.InDelta(t, 1.0, restored.Value(), 0)
+	assert.Nil(t, info.get("test", "2.2.2.2", "65100"), "the rolled back series must be deleted")
 }
