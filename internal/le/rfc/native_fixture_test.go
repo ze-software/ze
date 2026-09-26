@@ -337,7 +337,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// now resolve. The six heading-less texts are one citable section. A
 	// deleted id is accepted when a Retired paragraph names it, and a retired id
 	// is refused wherever a row carries it. No corpus verdict moved except rfc905's.
-	const want = "c90ae698ae4033615fcd4df6b06a063b63c819e07dc718855ff01fcc236434b4"
+	//
+	// Re-sealed 2026-09-26 for b6ad657bf2, which adds `./le rfc audit-stamp`
+	// (audit_stamp.go), splits writeAudit so the stamp writes through
+	// replaceAudit without a reaudit_note, and names the audit field literals as
+	// constants. It adds a writer of new verdicts and changes no existing
+	// verdict. No corpus verdict moved.
+	const want = "266a056b44ad3f44458d4a01a60d2df855e79e4563a002d61ce7bcc01e536ecc"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
