@@ -2,6 +2,7 @@
 package storage
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -183,4 +184,38 @@ func TestCheckOnRepairedOutputStillReportsPointer(t *testing.T) {
 	require.Len(t, findings, 1)
 	assert.Equal(t, HistoryDanglingPointer, findings[0].Kind)
 	assert.Equal(t, HistorySeverityError, findings[0].Severity)
+}
+
+// TestInspectHistoryRefusesUnreadableKey verifies the history walk fails
+// closed. Goal: a listed key that does not read stops check and repair with
+// an error naming it. Method: drive the shared walk with a reader that fails
+// for one object, one entry and one pointer in turn. Skipping the key would
+// report the entry naming that object as dangling, and repair would drop
+// history whose object is present.
+func TestInspectHistoryRefusesUnreadableKey(t *testing.T) {
+	data := []byte("config\n")
+	digest := contentDigest(data)
+	store := map[string][]byte{
+		objectKey(digest):                  data,
+		"file/20260926-100000.000/ze.conf": []byte(entryDigestPrefix + digest),
+		"meta/config/ze.conf/active":       []byte("20260926-100000.000"),
+	}
+	list := func(string) ([]string, error) {
+		return []string{"file/20260926-100000.000/ze.conf", "meta/config/ze.conf/active", objectKey(digest)}, nil
+	}
+	findings, err := inspectHistory(list, func(key string) ([]byte, error) { return store[key], nil })
+	require.NoError(t, err)
+	require.Empty(t, findings)
+	for unreadable := range store {
+		read := func(key string) ([]byte, error) {
+			if key == unreadable {
+				return nil, errors.New("injected read failure")
+			}
+			return store[key], nil
+		}
+		findings, err := inspectHistory(list, read)
+		require.Error(t, err, unreadable)
+		assert.Contains(t, err.Error(), unreadable)
+		assert.Nil(t, findings, unreadable)
+	}
 }

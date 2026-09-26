@@ -564,6 +564,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | metadata, route meta | `meta/README.md` |
 | interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
 | zefs, blob, netcapstring, storage | `storage-backends.md`, `zefs-format.md`, `fleet-config.md` |
+| config history, object/<sha256>, content-addressed version, dangling entry, orphan object, dangling pointer | `storage-backends.md`, `internal/component/config/storage/history.go`, `internal/component/config/storage/history_check.go` |
 | ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |

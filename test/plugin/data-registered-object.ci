@@ -1,0 +1,12 @@
+# Test: data-registered-object
+# VALIDATES: spec-storage-3 AC-14 through the binary: `ze data registered` lists the content-addressed history namespace `object/{hex}` with its description. Registration is discovery only: no read, write or check path consults it.
+# PREVENTS: the object namespace missing from the key catalog an operator reads to learn what a store holds.
+cmd=foreground:seq=1:exec=ze data registered
+expect=exit:code=0
+expect=stdout:contains=object/{hex}
+expect=stdout:contains=Config version bytes, named by their SHA-256
+
+# The single-pattern form answers the same entry, so a script can ask for it by name.
+cmd=foreground:seq=2:exec=ze data registered object/{hex}
+expect=exit:code=0
+expect=stdout:contains=Config version bytes, named by their SHA-256

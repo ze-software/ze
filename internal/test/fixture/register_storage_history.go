@@ -378,23 +378,23 @@ func storageHistoryRecovered(path, explicit, name, stampR, stampS, stampC string
 	var problems []error
 	active, err := storage.ReadActiveConfig(store, name)
 	if err != nil || !bytes.Equal(active, configF) {
-		problems = append(problems, fmt.Errorf("active = %q, %w; want F", active, err))
+		problems = append(problems, fmt.Errorf("active = %q (read error: %v); want F", active, err))
 	}
 	if _, err := store.ReadKey(zefs.KeyConfigCandidate.Key(name)); err == nil {
 		problems = append(problems, errors.New("the stale candidate pointer survived startup"))
 	}
 	rollback, err := store.ReadKey(zefs.KeyConfigRollback.Key(name))
 	if err != nil || strings.TrimSpace(string(rollback)) != stampR {
-		problems = append(problems, fmt.Errorf("rollback = %q, %w; want %s", rollback, err, stampR))
+		problems = append(problems, fmt.Errorf("rollback = %q (read error: %v); want %s", rollback, err, stampR))
 	}
 	digest := historyDigest(configR)
 	entry, err := store.ReadKey("file/" + stampR + "/" + name)
 	if err != nil || string(entry) != "sha256:"+digest {
-		problems = append(problems, fmt.Errorf("rollback entry = %q, %w; want sha256:%s", entry, err, digest))
+		problems = append(problems, fmt.Errorf("rollback entry = %q (read error: %v); want sha256:%s", entry, err, digest))
 	}
 	object, err := store.ReadKey(zefs.KeyObject.Key(digest))
 	if err != nil || !bytes.Equal(object, configR) || historyDigest(object) != digest {
-		problems = append(problems, fmt.Errorf("rollback object = %q, %w", object, err))
+		problems = append(problems, fmt.Errorf("rollback object = %q (read error: %v)", object, err))
 	}
 	for _, dropped := range []string{stampS, stampC} {
 		if _, err := store.ReadKey("file/" + dropped + "/" + name); err == nil {
@@ -406,7 +406,7 @@ func storageHistoryRecovered(path, explicit, name, stampR, stampS, stampC string
 	}
 	disk, err := os.ReadFile(explicit) //nolint:gosec // the fixture wrote this path
 	if err != nil || !bytes.Equal(disk, configF) {
-		problems = append(problems, fmt.Errorf("explicit file = %q, %w; want F", disk, err))
+		problems = append(problems, fmt.Errorf("explicit file = %q (read error: %v); want F", disk, err))
 	}
 	return errors.Join(problems...)
 }

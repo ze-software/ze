@@ -92,7 +92,10 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 		}
 		data, err := read(key)
 		if err != nil {
-			continue
+			// A listed key that does not read is not evidence of absence:
+			// skipping it would report its entries dangling, and repair
+			// would then drop history whose object is present.
+			return nil, fmt.Errorf("check history: read %s: %w", key, err)
 		}
 		stored := contentDigest(data)
 		if stored != digest {
@@ -111,7 +114,10 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 		}
 		value, err := read(key)
 		if err != nil {
-			continue
+			// A listed key that does not read is not evidence of absence:
+			// skipping it would report its entries dangling, and repair
+			// would then drop history whose object is present.
+			return nil, fmt.Errorf("check history: read %s: %w", key, err)
 		}
 		digest, err := entryDigest(key, value)
 		if err != nil {
@@ -145,7 +151,10 @@ func inspectHistory(list func(string) ([]string, error), read func(string) ([]by
 		}
 		value, err := read(key)
 		if err != nil {
-			continue
+			// A listed key that does not read is not evidence of absence:
+			// skipping it would report its entries dangling, and repair
+			// would then drop history whose object is present.
+			return nil, fmt.Errorf("check history: read %s: %w", key, err)
 		}
 		stamp := strings.TrimSpace(string(value))
 		if _, err := parseVersionStamp(stamp); err != nil {

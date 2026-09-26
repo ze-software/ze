@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | verification |
 | Scope | config |
 | Depends | storage-1-backend-parity, storage-2-blob-artifact |
 | Phase | 4/4 |
@@ -169,7 +169,7 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 | A-1 | No store needs migrating: Ze is pre-release and stores on `main` are re-initialised | `ai/rules/pre-release.md`, owner directive 2026-08-30 | a migration spec is written then; nothing in this design forecloses one, because entries and objects are ordinary keys | owner confirmation at the gate | confirmed: owner ordered the full spec 2026-09-26; pre-release, no migration |
 | A-2 | Only history is content-addressed; `file/active/*`, `file/draft/*`, `file/template/*` and `meta/*` stay direct keys | design 2026-09-16: mutable keys addressed by content would make every edit an object plus a rename | nothing else in the model changes | owner confirmation | confirmed: owner ordered the full spec 2026-09-26 |
 | A-3 | Every object reference is a history entry found by recursive raw `ListKeys("file/")`. Classification uses the same rule as transformation step 3 and `ListVersions`: three components with the middle component accepted by `parseVersionStamp`. Mutable `active`, `draft` and `template` values are excluded even if they contain a digest | `internal/component/config/storage/store.go` `ListVersions`; `pkg/zefs/keys.go` `KeyConfigActiveHash` and `KeyConfigLastKnownGood` hold config digests, not object references | a reference outside dated history would be missed by removal, and `ze data check` would report its object as orphaned | `TestRemoveChecksEveryName` | confirmed: `historyEntry` is shared by `ListVersions` and `sweepObject`; a `file/active` decoy holding the digest does not retain the object |
-| A-4 | SHA-256 over configs of a few KB per commit is not a performance concern | commit is an operator action | none | `BenchmarkWriteVersion` | confirmed by design: one SHA-256 over a few KB per operator commit; benchmark added, not yet run |
+| A-4 | SHA-256 over configs of a few KB per commit is not a performance concern | commit is an operator action | none | `BenchmarkWriteVersion` | confirmed: `BenchmarkWriteVersion` measured 22.3 ms/op, 10059 B/op, 72 allocs/op (2026-09-26). The time is the fsync of the object and the entry; one SHA-256 over a few KB is not the cost |
 | A-5 | Adding the raw-key write pair to `WriteGuard` is safe on both encodings: the guard already reaches the in-memory tree and the tree encoding without re-locking, as `Has`, `List` and `ReadFile` do (`guard.List` → `blobLock.List` → `node.walk`; the tree arm → `tree.list`) | `internal/component/config/storage/store.go` guard methods, `pkg/zefs/lock.go` | the sweep would need to run after `Release`, outside the guard, with its own lock, and the removal would stop being atomic | `TestGuardWriteKeyNoDeadlock` | confirmed by the producer |
 | A-6 | The sweep relies on storage-2's `guard.ListKeys` literal-prefix, recursive and sorted contract on both encodings, so `guard.ListKeys("file/")` returns every history entry | storage-2 AC-21. Existing `guard.List` calls `resolveDirKey`, which trims a trailing slash, then returns immediate file children through `immediateChildren`. That directory-list contract cannot enumerate nested history entries | implement or correct storage-2's required `ListKeys` contract before the sweep can delete objects safely | storage-2's conformance rows, re-run here | confirmed: `guard.ListKeys` shipped in storage-2; `TestGuardListKeysRecursive` green in this package run |
 
@@ -179,12 +179,12 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 | R-1 | A crash between object write and entry write leaves an orphan object | `ze data check` reports it | orphans are a warning; `repair` keeps them; a later write of the same content reuses them |
 | R-2 | A crash between entry delete and object delete leaves an orphan | same | same |
 | R-3 | Two entries of different names share one object and one is removed | `TestSharedObjectSurvivesOneRemove` | the removal lists every name's entries before deleting |
-| R-4 | The removal's `guard.List` deadlocks on the blob | `TestGuardListNoDeadlock` | `WriteLock.List` reads the in-memory tree like `WriteLock.Has` |
+| R-4 | The removal's `guard.List` deadlocks on the blob | `TestGuardListKeysRecursive` (each `ListKeys` call runs under `withinDeadline`) | `WriteLock.List` reads the in-memory tree like `WriteLock.Has` |
 | R-5 | `ze data rm file/<stamp>/x` offline bypasses the removal check and orphans an object | `ze data check` | consistent with R-1: an orphan is a warning |
 | R-6 | A storage-2 backup restored on a device already holding the same objects | none: a write of an existing object key is a no-op by content | `ImportBlob`'s equality check compares bytes, and equal bytes pass |
 | R-7 | An entry whose value is not `sha256:<64 hex>` (a hand-written `ze data write`) | `TestReadVersionRejectsBadEntry` | an error naming the entry; `ze data check` reports it as dangling |
 | R-8 | An `object/<hex>` holding bytes that do not hash to its name, from `ze data write` or a repaired frame, is reused by dedup and passes today's CRC-only `check` | `TestWriteVersionRefusesWrongObject`, `TestCheckReportsWrongHashObject` | the write path verifies an existing object before it references it, `check` hashes every object, and `repair` drops a wrong-hash one |
-| R-9 | A future edit calls `Storage` inside a held guard and the process HANGS with no error and no test | `TestGuardRawKeyNoDeadlock`, which would time out | the four new methods live on the guard and bypass both mutexes like `Has`; the removal path takes the guard's methods only |
+| R-9 | A future edit calls `Storage` inside a held guard and the process HANGS with no error and no test | `TestGuardReadKeyNoDeadlock`, `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock`, `TestGuardListKeysRecursive`, each of which would time out | the four new methods live on the guard and bypass both mutexes like `Has`; the removal path takes the guard's methods only |
 | R-11 | A startup rebuild from the explicit file promotes over a valid `rollback` | `TestRebuildPreservesValidRollback`, `TestRunRepairedStoreExplicitSource`, `history-repaired-store-start.ci` | promotion resolves the active version under its guard and preserves rollback when the target is absent. It does not write the unresolved stamp into `recovery` |
 | R-10 | Repair leaves active and candidate pointers naming dropped entries, so startup can stop before explicit-file recovery | `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource`, `history-repaired-store-start.ci` | preserve missing-target error classification and missing-candidate cleanup, then rebuild and log the unresolved active stamp through the startup path above |
 
@@ -200,11 +200,12 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| editor commit twice with the same config | → | `WriteVersion` → one `object/*`, two entries | `test/editor/history-dedup.et` |
+| editor commit twice with the same config | → | `WriteVersion` → one `object/*`, two entries | `test/editor/lifecycle/history-dedup.et` |
 | `ze start` on repaired output with active S missing, stale candidate C missing and rollback R valid | → | `hub.run` → `recoverFileCommit` → `ReadConfigSource` → stored refusal, or file read → `clearStaleCandidateOnBoot` → `initializeConfigSource` → recovery-aware `PromoteCandidate` | `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource`, `test/plugin/history-repaired-store-start.ci` |
 | `ze config rollback` | → | `PromoteCandidate` → `ReadVersion` entry → object → active | `test/plugin/history-rollback-object.ci` |
 | `ze data check` on a store with an orphan and a dangling entry | → | reachability report | `test/plugin/data-check-history.ci` |
-| `ze data restore <backup> config` (storage-2) | → | `ReadVersion` on the source blob | `test/plugin/data-restore-config-object.ci` |
+| `ze data restore <backup> config` (storage-2) | → | `ReadVersion` on the source blob | `test/plugin/history-restore-config-object.ci` |
+| `ze data registered` | → | `zefs.Entries` lists `KeyObject` | `test/plugin/data-registered-object.ci` |
 
 ## Acceptance Criteria
 
@@ -235,7 +236,7 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 | 1 | commits the same config twice | two entries, one object | `history-dedup.et` |
 | 2 | rolls back | pointer moves; bytes read through the object; hash verified | `history-rollback-object.ci` |
 | 3 | checks a store after a disk error | orphan and dangling reported apart | `data-check-history.ci` |
-| 4 | restores yesterday's config from a backup | the source's entry → object → committed on the device | `data-restore-config-object.ci` |
+| 4 | restores yesterday's config from a backup | the source's entry → object → committed on the device | `history-restore-config-object.ci` |
 | 5 | starts a repaired store, then selects an explicit file to recover | stored-source refusal names active S; explicit-file startup clears stale C, serves the file and keeps rollback R readable | `history-repaired-store-start.ci` |
 
 ## 🧪 TDD Test Plan
@@ -243,16 +244,17 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestWriteVersionStoresObject`, `TestWriteVersionDedups`, `TestWriteVersionObjectFirst` | `internal/component/config/storage/history_test.go` | AC-1, AC-2 | |
-| `TestReadVersionVerifiesHash`, `TestReadVersionMissingObject`, `TestReadVersionRejectsBadEntry`, `TestReadFileEntryRaw` | `history_test.go` | AC-3, AC-4 | |
-| `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestClearCandidateDeletesObject`, `TestPointedVersionRetainedWithObject` | `history_test.go` | AC-5, AC-6, A-3 | |
-| `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock` | `conformance_test.go` | AC-8, A-5, A-6 | |
-| conformance rows | `conformance_test.go` | AC-9 | |
-| `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestCheckReportsDanglingPointer`, `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestCheckOnRepairedOutputStillReportsPointer` | storage integrity tests over the key-agnostic `pkg/zefs` frame walker | AC-10, AC-11, R-8, R-10 | |
-| `TestRebuildPreservesValidRollback`, `TestActiveMissingTargetClassification`, `TestClearCandidateMissingEntry`, `TestWriteVersionRefusesWrongObject` | `internal/component/config/storage/history_test.go` | AC-6, AC-15, AC-16, AC-17. Missing entry and object errors retain `fs.ErrNotExist`; corruption and permission errors do not. Cleanup of an absent candidate entry preserves rollback and all remaining objects | |
-| `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource` | `cmd/ze/hub/config_source_test.go` | AC-15, AC-17, R-10, R-11 through `run`, using the repaired-output scenario below. Calling `initializeConfigSource` or `PromoteCandidate` alone does not cover boot cleanup and source routing | |
-| `TestImportObjectsFirst`, `TestRestoreConfigRefusesMissingObject` | `import_test.go`, `restore_test.go` | AC-12, AC-13 | |
-| `BenchmarkWriteVersion` | `history_test.go` | A-4 | |
+| `TestWriteVersionStoresObject`, `TestWriteVersionDedups`, `TestWriteVersionObjectFirst` | `internal/component/config/storage/history_test.go` | AC-1, AC-2 | pass |
+| `TestReadVersionVerifiesHash`, `TestReadVersionMissingObject`, `TestReadVersionRejectsBadEntry`, `TestReadFileEntryRaw` | `history_test.go` | AC-3, AC-4 | pass |
+| `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestClearCandidateDeletesObject`, `TestPointedVersionRetainedWithObject` | `history_test.go` | AC-5, AC-6, A-3 | pass |
+| `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock`, `TestGuardListKeysRecursive` | `storage_test.go` | AC-8, A-5, A-6 | pass |
+| `TestStorageConformance` "versions and metadata" (`ReadVersion` through `ListVersions`), `TestOpenBlobConformance` | `storage_test.go` | AC-7, AC-9 | pass |
+| `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestCheckReportsDanglingPointer`, `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestCheckOnRepairedOutputStillReportsPointer` | `history_check_test.go`, over the key-agnostic `pkg/zefs` frame walker; doctor relay `TestCheckStoreIntegrityReportsHistory` in `internal/component/doctor/checks_storage_history_test.go` | AC-10, AC-11, R-8, R-10 | pass |
+| `TestRebuildPreservesValidRollback`, `TestActiveMissingTargetClassification`, `TestClearCandidateMissingEntry`, `TestWriteVersionRefusesWrongObject` | `internal/component/config/storage/history_test.go` | AC-6, AC-15, AC-16, AC-17. Missing entry and object errors retain `fs.ErrNotExist`; corruption and permission errors do not. Cleanup of an absent candidate entry preserves rollback and all remaining objects | pass |
+| `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource` | `cmd/ze/hub/config_source_repaired_test.go` | AC-15, AC-17, R-10, R-11 through `run`, using the repaired-output scenario below. Calling `initializeConfigSource` or `PromoteCandidate` alone does not cover boot cleanup and source routing | pass |
+| `TestImportObjectsFirst`, `TestRestoreConfigRefusesMissingObject` | `history_test.go` | AC-12, AC-13 | pass |
+| `BenchmarkWriteVersion` | `history_test.go` | A-4 | 22.3 ms/op, 10059 B/op, 72 allocs/op |
+| `TestObjectKeyRegistered` | `pkg/zefs/registry_test.go` | AC-14 | pass |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -263,9 +265,10 @@ The startup order in `cmd/ze/hub/main.go` stays unchanged. `recoverFileCommit` r
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `history-dedup` | `test/editor/*.et` | AC-2 through the editor | |
-| `history-rollback-object`, `data-check-history`, `data-restore-config-object` | `test/plugin/*.ci` | AC-3, AC-10, AC-13 | |
-| `history-repaired-store-start` | `test/plugin/history-repaired-store-start.ci` | AC-15 and AC-17 through both daemon launches in the repaired-output scenario below, including stale-candidate cleanup, the source-specific runtime result, the recovery log and readable rollback R | |
+| `history-dedup` | `test/editor/lifecycle/history-dedup.et` | AC-2 through the editor | pass; RED under the break (see Discrimination) |
+| `history-rollback-object`, `data-check-history`, `history-restore-config-object` | `test/plugin/*.ci` | AC-3, AC-10, AC-11, AC-13 | pass; each RED under its break |
+| `data-registered-object` | `test/plugin/data-registered-object.ci` | AC-14 through `ze data registered` | pass; RED under its break |
+| `history-repaired-store-start` | `test/plugin/history-repaired-store-start.ci` | AC-15 and AC-17 through both daemon launches in the repaired-output scenario below, including stale-candidate cleanup, the source-specific runtime result, the recovery log and readable rollback R | pass; RED under both breaks |
 
 ### Repaired-Output Scenario (AC-15 and AC-17)
 
@@ -278,6 +281,48 @@ The hub tests and functional test use the same states. The hub tests enter `run`
 5. Write an explicit file named N beside that repaired tree with valid current-schema config bytes F, distinct from R and S. Use a config whose schema evolution leaves those bytes unchanged and whose runtime behavior identifies F. Start with the file's explicit path. Candidate C must still be present at entry to `run`, so this launch exercises cleanup before initialization.
 6. Wait for a runtime response specific to F, such as the configured router ID in the peer-observed BGP OPEN. R and S use different router IDs. Require a recovery log naming S and the active pointer. Readiness or a successful process exit alone is insufficient.
 7. Stop the daemon normally and reopen the tree. Active must resolve to exactly F, candidate must be absent, rollback must still equal R, and `ReadVersion(N, R)` must equal the recorded rollback bytes. In the functional test, dereference R's raw entry and object and compare bytes and SHA-256. Do not compare the entry's digest text with config bytes. Assert that the loose file remains F and S and C entries remain absent.
+
+### Acceptance Evidence (2026-09-26)
+
+| AC | Producer | Evidence |
+|----|----------|----------|
+| AC-1 | `writeVersionObject` (`history.go`) | `TestWriteVersionStoresObject`, `TestWriteVersionObjectFirst` |
+| AC-2 | `writeVersionObject` | `TestWriteVersionDedups`; `history-dedup.et` (4 entries, 3 objects) |
+| AC-3 | `readVersionEntry`, `verifyObject`, `ReadActiveConfig` | `TestReadVersionVerifiesHash`, `TestReadVersionMissingObject`, `TestReadVersionRejectsBadEntry`; `history-rollback-object.ci` |
+| AC-4 | `store.ReadFile` (raw) | `TestReadFileEntryRaw` |
+| AC-5 | `removeVersionLocked`, `sweepObject` | `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestPointedVersionRetainedWithObject` |
+| AC-6 | `ClearCandidate` | `TestClearCandidateDeletesObject`, `TestClearCandidateMissingEntry` |
+| AC-7 | `ListVersions` over `historyEntry` | `TestStorageConformance` "versions and metadata", both encodings |
+| AC-8 | `guard.WriteKey`, `guard.RemoveKey` | `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock` |
+| AC-9 | storage conformance table | `TestStorageConformance`, `TestOpenBlobConformance` |
+| AC-10 | `CheckHistory`, `cmdCheck`, `checkStoreHistory` | `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestCheckReportsDanglingPointer`, `TestCheckStoreIntegrityReportsHistory`; `data-check-history.ci` |
+| AC-11 | `RepairHistory`, `cmdRepair` | `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestCheckOnRepairedOutputStillReportsPointer`, `TestInspectHistoryRefusesUnreadableKey`; `data-check-history.ci` |
+| AC-12 | `objectsFirst`, called by `copyKeys` (`backup.go`) and `buildStage` (`import.go`) | `TestImportObjectsFirst` (the helper); `data-restore-full.ci` and `data-restore-full-resume.ci` pass over object-bearing backups |
+| AC-13 | `ReadRestoreSource` through `ReadActiveConfig` | `TestRestoreConfigRefusesMissingObject`; `history-restore-config-object.ci` |
+| AC-14 | `zefs.KeyObject`, `cmdRegistered` | `TestObjectKeyRegistered`; `data-registered-object.ci` |
+| AC-15 | `ReadActiveConfig` (`ErrActiveUnresolved`), `initializeConfigSource` | `TestActiveMissingTargetClassification`, `TestRunRepairedStoreStoredSource`, `TestRunRepairedStoreExplicitSource`; `history-repaired-store-start.ci` |
+| AC-16 | `writeVersionObject`, `verifyObject` | `TestWriteVersionRefusesWrongObject` |
+| AC-17 | `PromoteCandidate` (`preserveRollback`) | `TestRebuildPreservesValidRollback`, `TestRunRepairedStoreExplicitSource`; `history-repaired-store-start.ci` |
+
+### Discrimination (2026-09-26)
+
+Each break was applied to the producer, the binary under test rebuilt (the runner rebuilds `ze`; `./le --update` rebuilt `le` for the editor test), the test run RED, the producer restored byte-identical to HEAD, and every test run GREEN in one final pass.
+
+| Test | Break | RED result |
+|------|-------|------------|
+| `history-dedup.et` | `writeVersionObject` writes an extra object on the reuse path | `key glob object/* matched 4 keys, want 3` |
+| `history-rollback-object.ci` | `verifyObject` accepts any bytes | `rollback restored a version whose object does not hash to its name` |
+| `history-restore-config-object.ci` | `ReadRestoreSource` falls back to `file/active/<name>` when `ReadActiveConfig` fails | `restore accepted a backup whose object is absent` |
+| `history-repaired-store-start.ci` | `PromoteCandidate` sets `preserveRollback = false` | `rollback = "20260926-110000.000", want 20260926-100000.000` |
+| `history-repaired-store-start.ci` | `ReadActiveConfig` falls back to the mirror when the active pointer does not resolve | `stored-source start did not exit 1` (the daemon served the mirror) |
+| `data-check-history.ci` | `inspectHistory` never reports a dangling entry | `data check accepted a dangling entry` |
+| `data-registered-object.ci` | `KeyObject` registered as `objects/{hex}` | `ze data registered object/{hex}` exits 1 |
+
+Review fix (2026-09-26, implement agent 3): `inspectHistory` skipped a listed key whose read failed, for objects, entries and pointers. A transient read failure of an object then reported every entry naming it as dangling, and `RepairHistory` dropped that history while its object was present. The walk now fails closed with an error naming the key. `TestInspectHistoryRefusesUnreadableKey` was RED against HEAD and is GREEN with the fix; `data-check-history.ci` and `history-repaired-store-start.ci` re-ran GREEN.
+
+`internal/component/web` run alone under `-race -timeout 25m`: ok in 399s (`TestTerminalCompareRollbackScopesToShowPath` included). The earlier red was go test's 10-minute default on a loaded host.
+
+GREEN after restore: `./le test bgp plugin data-registered-object history-rollback-object history-restore-config-object history-repaired-store-start data-check-history` 5/5 pass; `./le test editor -p history-dedup` 2/2 pass.
 
 ## Files to Modify
 - `internal/component/config/storage/store.go` - `WriteVersion` over entries and objects; `ListVersions` and `VersionInfo` are unchanged, `Path` included. Design doc: `docs/architecture/storage-backends.md`
@@ -295,7 +340,7 @@ The hub tests and functional test use the same states. The hub tests enter `run`
 
 ## Files to Create
 - `internal/component/config/storage/history.go`, `history_test.go` - hashing, object write, verified read, the removal check
-- `test/editor/history-dedup.et`, `test/plugin/history-rollback-object.ci`, `data-check-history.ci`, `data-restore-config-object.ci`, `history-repaired-store-start.ci`
+- `test/editor/lifecycle/history-dedup.et`, `test/plugin/history-rollback-object.ci`, `data-check-history.ci`, `history-restore-config-object.ci`, `history-repaired-store-start.ci`, `data-registered-object.ci`
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -330,8 +375,8 @@ The hub tests and functional test use the same states. The hub tests enter `run`
 | 12 | Internal architecture changed? | Yes | `docs/architecture/storage-backends.md` (objects, entries, the removal check and its pointer retention), `docs/architecture/zefs-format.md` (the namespace table gains `object/`, and the Key Registry section says registration is discovery and grant validation, never access control) |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` if it lists doctor codes |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation: `./le spec citation anchors spec plan/pre-release/spec-storage-3-content-addressed-history.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` "Store diagnostics" row now names the history findings `ze doctor` and `ze data check` report |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors` (2026-09-26) named five pages outside this spec: `config/transaction-protocol.md`, `core-design.md`, `diagnostics/debug-filtering.md`, `fleet-config.md`, `guide/authentication.md`. Each was read at its mention: none describes version storage, so none is made wrong |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze config history` and `rollback` examples in `command-reference.md` verified; `./le site build` run; `./le cli catalog update file ../wiki/command-catalog.md` run separately and the catalog committed in the wiki checkout |
 
 Design documents declared by the `// Design:` headers of files in scope:
@@ -355,7 +400,7 @@ Design documents declared by the `// Design:` headers of files in scope:
    - Files: `history.go`, `store.go`, `pointer.go`, `stamp.go`, `editor.go`, `cmd_rollback.go`, `cmd_diff.go`, `docs/architecture/storage-backends.md`, `docs/architecture/zefs-format.md`
    - Verify: AC-1 to AC-4, AC-7
 3. **Phase: Removal** -- the check after remove and clear
-   - Tests: `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestClearCandidateDeletesObject`, `TestGuardListNoDeadlock`
+   - Tests: `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestClearCandidateDeletesObject`, `TestGuardListKeysRecursive`
    - Files: `history.go`, `pointer.go`
    - Verify: AC-5, AC-6, AC-8
 4. **Phase: Walks, integrity and startup recovery** -- object-first ordering, restore-config refusal, check and repair, missing-target classification and rollback-preserving recovery
@@ -382,7 +427,7 @@ Design documents declared by the `// Design:` headers of files in scope:
 | Objects stored once | `TestWriteVersionDedups` |
 | Hash verified on read | `TestReadVersionVerifiesHash` |
 | Removal correct across names | `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName` |
-| No deadlock under a guard | `TestGuardListNoDeadlock` |
+| No deadlock under a guard | `TestGuardReadKeyNoDeadlock`, `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock`, `TestGuardListKeysRecursive` |
 | Repaired-state startup reaches recovery and preserves rollback | Both `TestRunRepairedStore` cases and `history-repaired-store-start.ci`, using the repaired-output scenario for AC-15 and AC-17 |
 | Pages updated | `./le doc wiring` green |
 
