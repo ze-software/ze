@@ -1,9 +1,10 @@
 // Design: docs/architecture/testing/verify-freshness-scope.md -- the change set, in lines
 //
 // lines.go answers the change set at the finest grain a gate can judge: the
-// lines the working tree added or modified against a base commit: HEAD, or the
-// last pushed commit behind it (LinesSinceUpstream). The package and path
-// answers in selector.go say which files moved. A style gate over a tree that
+// lines the working tree added or modified since the last pushed commit behind
+// HEAD (LinesSinceUpstream), and the paths changed since that same commit
+// (PathsSince). The package and path answers in selector.go say which files
+// moved against HEAD. A style gate over a tree that
 // already holds thousands of instances needs more, because touching one line
 // of a file must not make every old instance in that file due.
 
@@ -14,6 +15,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -49,16 +51,6 @@ func (c ChangedLines) Touches(path string, first, last int) bool {
 // read is refused rather than read as "nothing changed", because a gate over
 // an empty change set passes everything.
 var errDiffShape = errors.New("unreadable git diff output")
-
-// WorkingTreeLines answers the lines the working tree changed against HEAD:
-// staged and unstaged edits from one diff against HEAD, and every line of each
-// untracked file.
-//
-// Paths, when given, limit both queries to those checkout-relative paths, for a
-// caller that judges one file at a time.
-func WorkingTreeLines(root string, paths ...string) (ChangedLines, error) {
-	return linesAgainst(root, "HEAD", paths)
-}
 
 // LineBase names the commit a line-level change set was diffed against, and
 // why that commit.
@@ -99,6 +91,33 @@ func LinesSinceUpstream(root string) (ChangedLines, LineBase, error) {
 		return nil, LineBase{}, err
 	}
 	return changed, base, nil
+}
+
+// PathsSince answers every path the working tree changed since base, once
+// each and sorted: the paths git diffs against the base commit, a deleted path
+// included, and every untracked path. It is the file set that pairs with the
+// line set LinesSinceUpstream answered for the same base, so a change in the
+// range is never missing from the file set.
+//
+// The reverse does not hold. Renames are not detected here, so a renamed file
+// answers both its old path, which the change deleted, and its new one, while
+// the line reader detects the rename: a pure rename, like a mode-only change,
+// is a path here with no changed line there.
+func PathsSince(root string, base LineBase) ([]string, error) {
+	// A zero base names no commit. Diffing against it would be a git error at
+	// best, and a caller that built one skipped LinesSinceUpstream.
+	if base.Commit == "" {
+		return nil, fmt.Errorf("%w: the base names no commit", errNoUpstreamBase)
+	}
+	paths, err := runGitQueries(root, [][]string{
+		{gitDiff, gitNameOnly, "-z", "--no-renames", base.Commit, "--"},
+		untrackedPathsQuery(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	slices.Sort(paths)
+	return paths, nil
 }
 
 // upstreamBase answers the merge base of HEAD and the first of the upstream

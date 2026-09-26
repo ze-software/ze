@@ -67,6 +67,27 @@ The full `./le doc check verify` remains the explicit documentation review targe
 command, inventory, and wiring checks for changed files.
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+
+The change is the unpushed range. The base is the merge base of HEAD and the
+branch upstream, or of HEAD and `origin/main` when the branch tracks none, and
+the range runs from that base to the working tree. The gate is owed before a
+push, so a change committed without a run is still judged by the next run.
+The file set, the changed lines and every read of a file's earlier content
+come from that one base, so a change in the range is never missing from the
+file set. A file the change deleted is in the file set. A pure rename and a
+mode-only change are in the file set with no changed line, because the file
+set lists a rename as two paths and the line diff detects it. Neither hides a
+claim: a mode-only change touches no symbol, and a claim on a renamed file
+names the old path, which the change deleted, so that claim is unanswerable
+and counted. A failed read of a file's earlier content fails the run: it is
+never read as an empty file. A file named with
+`changed-file <path>` that holds no hunk in the range answers every line. The
+base reads refs only, so the detached worktree that `./le verify worktree`
+makes judges the same range. When no base resolves, the gate exits 2 and names
+why, and no check runs.
+
+<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
+<!-- source: internal/le/repo/changed/lines.go -- LinesSinceUpstream, PathsSince -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## How to interpret output

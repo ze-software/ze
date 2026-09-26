@@ -15,7 +15,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,9 +38,6 @@ const (
 
 	// knownFailuresDir holds the shards that cannot contain a load excuse.
 	knownFailuresDir = "plan/known-failures/"
-
-	// gitDiff is the one git subcommand this package's queries share.
-	gitDiff = "diff"
 )
 
 // knownFailuresExempt are the two shard files this check does not read.
@@ -540,7 +536,7 @@ func (g *checker) checkDocDrift() CheckResult {
 		if len(claims[source]) == 0 {
 			continue
 		}
-		touched, ok := touchedSymbols(g.root, source)
+		touched, ok := touchedSymbols(g.root, source, g.lines)
 		if !ok {
 			unanswerable++
 			continue
@@ -580,15 +576,11 @@ func (g *checker) checkDocDrift() CheckResult {
 	return CheckResult{Failed: true, Violations: findings}
 }
 
-// touchedSymbols answers the declarations of one changed file that the diff
-// reached. The second result reports a file this check cannot judge: git or the
-// Go parser could not read it, and an unreadable file is never a clean one.
-func touchedSymbols(root, rel string) (map[string]bool, bool) {
-	lines, ok := changedLines(root, rel)
-	if !ok {
-		return nil, false
-	}
-
+// touchedSymbols answers the declarations of one changed file that the
+// changed lines reach. The second result reports a file this check cannot
+// judge: the Go parser could not read it, and an unreadable file is never a
+// clean one.
+func touchedSymbols(root, rel string, lines repochanged.ChangedLines) (map[string]bool, bool) {
 	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // a repository path the caller named
 	if err != nil {
 		return nil, false
@@ -671,28 +663,6 @@ func claimedSymbolsTouched(symbols []string, touched map[string]bool) []string {
 		}
 	}
 	return named
-}
-
-// changedLines answers the lines of one file the working tree changed against
-// HEAD. The second result reports a file git could not diff.
-//
-// repochanged parses the diff for this check and for `le arch compound-guard`
-// alike, but the two diff against different bases: this one against HEAD, the
-// gate against the last pushed commit (repochanged.LinesSinceUpstream).
-//
-// A file the caller named that holds no hunk answers every line. The caller
-// named it as changed (`changed-file <path>`, or a commit's file list), so
-// the change is in history git's working-tree diff cannot see, and "nothing
-// touched" would pass every claim about it.
-func changedLines(root, rel string) (repochanged.ChangedLines, bool) {
-	changed, err := repochanged.WorkingTreeLines(root, rel)
-	if err != nil {
-		return nil, false
-	}
-	if len(changed[rel]) == 0 {
-		changed[rel] = []repochanged.LineSpan{{From: 1, To: math.MaxInt}}
-	}
-	return changed, true
 }
 
 // changedGoSources answers the changed paths a page can carry a claim about.

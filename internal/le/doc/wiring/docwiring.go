@@ -4,12 +4,13 @@
 // Detail: groups.go -- failure attribution.
 // Detail: delegate.go -- linked native action callbacks.
 //
-// Package docwiring selects checks for the current diff and calls their Go
+// Package docwiring selects checks for the unpushed range and calls their Go
 // owners directly. It attributes each failure at the failure point so the
 // verifier can charge the session that caused it.
 package docwiring
 
 import (
+	"math"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 // name is the word this command is typed as.
@@ -71,6 +73,12 @@ type checker struct {
 	root   string
 	opts   Options
 	report Report
+	// base is the commit the run judges the change against: the last pushed
+	// commit behind HEAD. lines holds the lines changed since it, in
+	// working-tree coordinates. Run resolves both from one query, so the file
+	// set, the line set and every "before" read agree on one range.
+	base  repochanged.LineBase
+	lines repochanged.ChangedLines
 }
 
 // Answer is the `le doc wiring` command.
@@ -120,15 +128,34 @@ func optionsFrom(args leaction.Arguments) Options {
 }
 
 // Run judges one tree and answers the report plus the exit code.
-// Run evaluates the selected native actions and returns their aggregate status.
+//
+// The change is the unpushed range: the merge base of HEAD and its upstream,
+// or origin/main, against the working tree (repochanged.LinesSinceUpstream).
+// A push is where this gate is owed (ai/rules/pre-release.md), so a change
+// committed without a run is still judged by the next one. With no base the
+// run fails with exit 2: a gate that cannot find the change must not answer
+// that nothing changed.
 func Run(root string, opts Options) (Report, int) {
-	g := &checker{root: root, opts: opts}
+	lines, base, err := repochanged.LinesSinceUpstream(root)
+	if err != nil {
+		reportError(err)
+		return Report{Failed: true, Error: err.Error()}, 2
+	}
+	g := &checker{root: root, opts: opts, base: base, lines: lines}
+
 	changed := make([]string, 0, len(opts.Changed))
 	for _, path := range opts.Changed {
-		changed = append(changed, normalizeChangedPath(root, path))
+		rel := normalizeChangedPath(root, path)
+		changed = append(changed, rel)
+		// A file the caller named holds no hunk when its change was already
+		// pushed. The caller still named it as changed, and "nothing touched"
+		// would pass every claim about it, so it answers every line.
+		if len(lines[rel]) == 0 {
+			lines[rel] = []repochanged.LineSpan{{From: 1, To: math.MaxInt}}
+		}
 	}
-	if len(changed) == 0 {
-		discovered, err := ChangedFiles(root)
+	if len(opts.Changed) == 0 {
+		discovered, err := repochanged.PathsSince(root, base)
 		if err != nil {
 			reportError(err)
 			return Report{Failed: true, Error: err.Error()}, 1
@@ -137,7 +164,7 @@ func Run(root string, opts Options) (Report, int) {
 	}
 
 	g.report.Changed = changed
-	actions, err := selectedActions(root, changed)
+	actions, err := selectedActions(root, base.Commit, changed)
 	if err != nil {
 		reportError(err)
 		return Report{Failed: true, Error: err.Error()}, 2
@@ -226,9 +253,7 @@ func (g *checker) runCheck(check, rerun string, run func() CheckResult) int {
 
 // checkWiring runs the added-symbol wiring check and declares its group.
 func (g *checker) checkWiring() CheckResult {
-	issues, err := checkWiring(g.root, g.report.Changed, func(path string) string {
-		return readHeadOrEmpty(g.root, path)
-	})
+	issues, err := checkWiring(g.root, g.base.Commit, g.report.Changed)
 	if err != nil {
 		return g.readFailure(wiringTarget, err)
 	}

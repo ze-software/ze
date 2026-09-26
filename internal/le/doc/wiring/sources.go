@@ -1,19 +1,17 @@
 // Design: docs/architecture/core-design.md -- which changed file needs which gate
 // Overview: docwiring.go -- the gate this selection feeds
 //
-// sources.go selects the checks that a diff needs. Each predicate asks whether
+// sources.go selects the checks that a change needs. Each predicate asks whether
 // a changed path can alter one gate's answer. Their union uses a fixed order so
 // repeated runs over one diff agree.
 //
-// A content predicate reads both the working tree and HEAD. A change can add or
-// remove its marker.
+// A content predicate reads both the working tree and the base commit the
+// change is judged against. A change can add or remove its marker.
 
 package docwiring
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -54,8 +52,10 @@ var actionOrder = [...]string{
 	"spec citation/anchors",
 }
 
-// selectedActions answers the checks this diff needs, in actionOrder.
-func selectedActions(root string, changed []string) ([]string, error) {
+// selectedActions answers the checks this change needs, in actionOrder. base
+// is the commit the change is judged against: a file the change deleted is
+// classified by what it held there.
+func selectedActions(root, base string, changed []string) ([]string, error) {
 	selected := make(map[string]bool)
 	for _, path := range changed {
 		if isWiringSource(path) {
@@ -72,7 +72,7 @@ func selectedActions(root string, changed []string) ([]string, error) {
 		}
 
 		for _, rule := range []struct {
-			match   func(string, string) (bool, error)
+			match   func(string, string, string) (bool, error)
 			targets []string
 		}{
 			{isCommandSource, []string{actionDocvalidCommandContract}},
@@ -80,7 +80,7 @@ func selectedActions(root string, changed []string) ([]string, error) {
 			{isDigestSource, []string{actionDigest}},
 			{isInventorySource, []string{actionInventory, actionCommandList, actionPluginImportsCheck}},
 		} {
-			hit, err := rule.match(root, path)
+			hit, err := rule.match(root, base, path)
 			if err != nil {
 				return nil, err
 			}
@@ -166,7 +166,7 @@ var commandMarkers = [...]string{
 }
 
 // isCommandSource reports a change that must re-run the command contract gate.
-func isCommandSource(root, path string) (bool, error) {
+func isCommandSource(root, base, path string) (bool, error) {
 	switch path {
 	case "internal/le/doc/yangcontract/actions.go", "internal/le/cli/list/register.go",
 		"internal/component/config/yang/command.go",
@@ -177,23 +177,23 @@ func isCommandSource(root, path string) (bool, error) {
 		return true, nil
 	}
 	if strings.HasSuffix(path, ".yang") {
-		return fileOrHeadContains(root, path, "ze:command")
+		return fileOrBaseContains(root, base, path, "ze:command")
 	}
 	if !strings.HasSuffix(path, ".go") {
 		return false, nil
 	}
-	return fileOrHeadContainsAny(root, path, commandMarkers[:])
+	return fileOrBaseContainsAny(root, base, path, commandMarkers[:])
 }
 
 // isDocSource reports a change that must re-run the documentation gates.
-func isDocSource(root, path string) (bool, error) {
+func isDocSource(root, base, path string) (bool, error) {
 	switch path {
 	case "internal/le/doc/yangcontract/actions.go",
 		"internal/le/doc/index/codetodocs.go", "ai/CODE-TO-DOCS.md":
 		return true, nil
 	}
 	if (strings.HasPrefix(path, "docs/") || path == "README.md") && strings.HasSuffix(path, ".md") {
-		return fileOrHeadContains(root, path, "<!-- source:")
+		return fileOrBaseContains(root, base, path, "<!-- source:")
 	}
 	return false, nil
 }
@@ -250,7 +250,7 @@ func isBaseSeparator(r rune) bool {
 
 // isDigestSource reports a change that must validate digest anchors. Sources
 // include a digest, the checker, or non-test Go under an anchored subtree.
-func isDigestSource(root, path string) (bool, error) {
+func isDigestSource(root, base, path string) (bool, error) {
 	if strings.HasPrefix(path, "ai/digests/") && strings.HasSuffix(path, ".md") {
 		return true, nil
 	}
@@ -287,7 +287,7 @@ var registryMarkers = [...]string{
 }
 
 // isInventorySource reports a change that must re-run the inventory gates.
-func isInventorySource(root, path string) (bool, error) {
+func isInventorySource(root, base, path string) (bool, error) {
 	switch path {
 	case "internal/le/repo/inventory/inventory.go", "internal/le/plugin/imports/pluginimports.go",
 		"internal/component/plugin/all/all.go":
@@ -297,109 +297,67 @@ func isInventorySource(root, path string) (bool, error) {
 		return true, nil
 	}
 	if strings.HasSuffix(path, "register.go") && strings.HasPrefix(path, "internal/") {
-		return fileOrHeadContainsAny(root, path, registryMarkers[:])
+		return fileOrBaseContainsAny(root, base, path, registryMarkers[:])
 	}
 	return false, nil
 }
 
-func fileOrHeadContains(root, path, needle string) (bool, error) {
-	return fileOrHeadContainsAny(root, path, []string{needle})
+func fileOrBaseContains(root, base, path, needle string) (bool, error) {
+	return fileOrBaseContainsAny(root, base, path, []string{needle})
 }
 
-func fileOrHeadContainsAny(root, path string, needles []string) (bool, error) {
+// fileOrBaseContainsAny reports a needle in the path's current content or in
+// its content at base, so a file the change deleted still selects its gates.
+func fileOrBaseContainsAny(root, base, path string, needles []string) (bool, error) {
 	text, err := readCurrentOrEmpty(root, path)
 	if err != nil {
 		return false, err
 	}
-	head := readHeadOrEmpty(root, path)
+	before, err := readBaseOrEmpty(root, base, path)
+	if err != nil {
+		return false, err
+	}
 	for _, needle := range needles {
-		if strings.Contains(text, needle) || strings.Contains(head, needle) {
+		if strings.Contains(text, needle) || strings.Contains(before, needle) {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-// readHeadOrEmpty answers a path's content at HEAD, or "" when git does not
-// hold it there. A path git cannot show is a path this change ADDS, which is
-// the case the caller is looking for rather than an error.
-func readHeadOrEmpty(root, path string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
-
-	var tb textbuf.Buffer
-	cmd := exec.CommandContext(ctx, "git", "show", tb.Str("HEAD:").Str(path).String()) //nolint:gosec // a repository path the caller named, handed to git as one argument
-	cmd.Dir = root
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return string(out)
-}
-
-// ChangedFiles answers every path this working tree has changed against HEAD,
-// staged or not, tracked or not.
+// readBaseOrEmpty answers a path's content at the base commit, or "" when the
+// base tree does not hold the path. An absent path is a path this change ADDS,
+// which is the case the caller is looking for rather than an error.
 //
-// A failed git command means that no check judged the tree. The caller reports
-// the run failure without a group.
-func ChangedFiles(root string) ([]string, error) {
-	files := make(map[string]bool)
-	for _, argv := range [][]string{
-		{gitDiff, "--name-only"},
-		{gitDiff, "--cached", "--name-only"},
-		{"ls-files", "--others", "--exclude-standard"},
-	} {
-		out, err := gitLines(root, argv)
-		if err != nil {
-			return nil, err
-		}
-		for _, line := range out {
-			files[line] = true
-		}
+// A git failure is an error, never "": an empty base copy of a deleted file
+// selects no gate for it, and the change is then judged by nobody.
+func readBaseOrEmpty(root, base, path string) (string, error) {
+	listing, err := gitOutput(root, "ls-tree", "-z", "--name-only", base, "--", path)
+	if err != nil {
+		return "", err
 	}
-
-	out := make([]string, 0, len(files))
-	for path := range files {
-		out = append(out, path)
+	if listing == "" {
+		return "", nil
 	}
-	slices.Sort(out)
-	return out, nil
-}
-
-// gitFailure names the failed query and git's message. A command failure means
-// that no check judged the tree. A caller can distinguish it from a check
-// finding.
-func gitFailure(argv []string, stderr string) error {
 	var tb textbuf.Buffer
-	message := strings.TrimSpace(stderr)
-	if message == "" {
-		message = tb.Str("git ").Join(argv, " ").Str(" failed").String()
-	}
-	return errors.New(message)
+	return gitOutput(root, "show", tb.Str(base).Byte(':').Str(path).String())
 }
 
-// gitLines runs one git query and answers its non-blank output lines.
-func gitLines(root string, argv []string) ([]string, error) {
+// gitOutput runs one git query in root and answers its output. A failure names
+// the query and git's message.
+func gitOutput(root string, argv ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", argv...) //nolint:gosec // one of three fixed queries declared above
+	cmd := exec.CommandContext(ctx, "git", argv...) //nolint:gosec // a fixed git query over a repository path the caller named
 	cmd.Dir = root
 	var errOut textbuf.Buffer
 	cmd.Stderr = &errOut
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, gitFailure(argv, errOut.String())
+		return "", fmt.Errorf("git %s: %w: %s", strings.Join(argv, " "), err, strings.TrimSpace(errOut.String()))
 	}
-
-	var lines []string
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		if line := strings.TrimSpace(scanner.Text()); line != "" {
-			lines = append(lines, line)
-		}
-	}
-	return lines, scanner.Err()
+	return string(out), nil
 }
 
 // actionOrderList answers the native check order.

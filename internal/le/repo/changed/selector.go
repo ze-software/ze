@@ -493,8 +493,8 @@ func workingTreeQueries() [][]string {
 }
 
 // untrackedPathsQuery is the git query for every untracked, unignored path,
-// NUL-separated. WorkingTreePaths and WorkingTreeLines both read it, so the two
-// cannot come to disagree about which new files a change holds.
+// NUL-separated. WorkingTreePaths, PathsSince and the line reader all read
+// it, so they cannot come to disagree about which new files a change holds.
 func untrackedPathsQuery() []string {
 	return []string{"ls-files", "--others", "--exclude-standard", "-z", "--"}
 }

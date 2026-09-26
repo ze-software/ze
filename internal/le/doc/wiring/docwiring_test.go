@@ -11,11 +11,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 func TestExportedSymbolsReadsEachDeclarationForm(t *testing.T) {
@@ -72,6 +74,42 @@ func tree(t *testing.T, files map[string]string) string {
 	return root
 }
 
+// pushedTree writes a fixture checkout, commits it, and points origin/main at
+// that commit, so the unpushed range Run judges starts from the fixture.
+func pushedTree(t *testing.T, files map[string]string) string {
+	t.Helper()
+	root := tree(t, files)
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"add", "-A"},
+		{"-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture"},
+		{"update-ref", "refs/remotes/origin/main", "HEAD"},
+	} {
+		gitIn(t, root, args...)
+	}
+	return root
+}
+
+// gitIn runs one git command in the fixture and fails the test on an error.
+func gitIn(t *testing.T, root string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", root}, args...)...) //nolint:gosec,noctx // this test's own fixture
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+	}
+}
+
+// driftChecker answers a checker over root that judges changed, holding the
+// lines Run would hold: those changed since the fixture's origin/main.
+func driftChecker(t *testing.T, root string, changed ...string) *checker {
+	t.Helper()
+	lines, base, err := repochanged.LinesSinceUpstream(root)
+	if err != nil {
+		t.Fatalf("LinesSinceUpstream: %v", err)
+	}
+	return &checker{root: root, base: base, lines: lines, report: Report{Changed: changed}}
+}
+
 func TestExportedSymbolsIgnoresACommentAndAnUnexportedBlockMember(t *testing.T) {
 	const content = `package example
 
@@ -110,7 +148,7 @@ func TestTheRatchetRefusesATreeItCannotRead(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root reads a mode-000 file, so the case cannot be built")
 	}
-	root := tree(t, map[string]string{
+	root := pushedTree(t, map[string]string{
 		"test/.ci-sleep-baseline": "2\n",
 		"test/ui/a.ci":            "time.sleep(1)  # why\n",
 		"test/ui/b.ci":            "time.sleep(1)  # why\n",
@@ -119,14 +157,17 @@ func TestTheRatchetRefusesATreeItCannotRead(t *testing.T) {
 		t.Fatalf("chmod: %v", err)
 	}
 
-	report, code := Run(root, Options{Changed: []string{"test/ui/a.ci"}})
-	if code == 0 {
-		t.Fatalf("the ratchet passed over a tree it could not read: %+v", report)
+	if report, code := Run(root, Options{Changed: []string{"test/ui/a.ci"}}); code == 0 {
+		t.Fatalf("the gate passed over a tree it could not read: %+v", report)
 	}
 
-	// This assertion tests the RATCHET, not the complete run. Two other checks
-	// read the same .ci files. An exit-code-only test CAN pass for their failures
-	// while the ratchet counts only readable files.
+	// This assertion tests the RATCHET, not the complete run. The run above
+	// stops earlier, because git cannot diff the unreadable file either, and
+	// two other checks read the same .ci files. An exit-code-only test CAN pass
+	// for their failures while the ratchet counts only readable files.
+	g := &checker{root: root, report: Report{Changed: []string{"test/ui/a.ci"}}}
+	g.runCheck(checkSleepRatchetName, actionRerun, g.checkSleepRatchet)
+	report := g.report
 	var ratchet *CheckResult
 	for i, check := range report.Checks {
 		if check.Name == checkSleepRatchetName {
@@ -152,7 +193,7 @@ func TestTheRatchetRefusesATreeItCannotRead(t *testing.T) {
 func TestTheRatchetCountsExactlyAtItsCeiling(t *testing.T) {
 	// The ceiling is a bound, so the case AT it passes and the case one above
 	// it fails. The draft incubator is excluded from both counts.
-	root := tree(t, map[string]string{
+	root := pushedTree(t, map[string]string{
 		"test/.ci-sleep-baseline": "2\n",
 		"test/ui/a.ci":            "time.sleep(1)  # why\ntime.sleep(2)  # why\n",
 		"test/draft/hidden.ci":    "time.sleep(1)\ntime.sleep(1)\ntime.sleep(1)\n",
@@ -193,7 +234,7 @@ func TestASleepIsJustifiedByACommentAboveOrBesideIt(t *testing.T) {
 
 func TestAFailingCheckNamesTheFilesItIsAbout(t *testing.T) {
 	shard := "plan/known-failures/one.md"
-	root := tree(t, map[string]string{
+	root := pushedTree(t, map[string]string{
 		"test/.ci-sleep-baseline": "9\n",
 		"test/ui/blind.ci":        "time.sleep(1)\n",
 		shard:                     "It fails under load.\n",
@@ -449,7 +490,7 @@ func TestAChangedFileTheRouterCannotReadIsRefused(t *testing.T) {
 	// judged by nobody and the run still reads green. It is the one failure a
 	// changed-file router can have, and it is why an unreadable file is told
 	// apart from an absent one.
-	root := tree(t, map[string]string{
+	root := pushedTree(t, map[string]string{
 		"internal/component/config/yang/thing.yang": "// ze:command\n",
 	})
 	unreadable := filepath.Join(root, "internal", "component", "config", "yang", "thing.yang")
@@ -457,14 +498,52 @@ func TestAChangedFileTheRouterCannotReadIsRefused(t *testing.T) {
 		t.Fatalf("chmod: %v", err)
 	}
 
-	if _, err := selectedActions(root, []string{"internal/component/config/yang/thing.yang"}); err == nil {
+	if _, err := selectedActions(root, "HEAD", []string{"internal/component/config/yang/thing.yang"}); err == nil {
 		t.Error("the router selected gates for a tree it could not read")
 	}
 
 	// An ABSENT file is the other half of this question. It is not an error
 	// because a caller uses this state for a path that the change deleted.
-	if _, err := selectedActions(root, []string{"internal/component/config/yang/gone.yang"}); err != nil {
+	if _, err := selectedActions(root, "HEAD", []string{"internal/component/config/yang/gone.yang"}); err != nil {
 		t.Errorf("a deleted file was refused: %v", err)
+	}
+}
+
+// VALIDATES: a git failure reading a file's base copy is an error, through
+// the router and through the wiring check, while a path the base does not
+// hold reads as empty.
+// PREVENTS: a failed read of a deleted file's base copy reading as an empty
+// file, which selects no gate for it and passes a change nobody judged.
+func TestAFailedBaseReadIsRefused(t *testing.T) {
+	root := pushedTree(t, map[string]string{
+		"internal/component/config/yang/thing.yang": "// ze:command\n",
+		"internal/x/x.go": "package x\n\nfunc Exported() {}\n",
+	})
+	if err := os.Remove(filepath.Join(root, "internal", "component", "config", "yang", "thing.yang")); err != nil {
+		t.Fatal(err)
+	}
+	const missing = "0123456789abcdef0123456789abcdef01234567"
+
+	selected, err := selectedActions(root, "HEAD", []string{"internal/component/config/yang/thing.yang"})
+	if err != nil {
+		t.Fatalf("the base copy of a deleted file could not be read: %v", err)
+	}
+	if !slices.Contains(selected, actionDocvalidCommandContract) {
+		t.Errorf("the deleted file's base marker selected %v, want the command contract", selected)
+	}
+	if _, err := selectedActions(root, "HEAD", []string{"internal/component/config/yang/new.yang"}); err != nil {
+		t.Errorf("a path the base does not hold was refused: %v", err)
+	}
+	if _, err := selectedActions(root, missing, []string{"internal/component/config/yang/thing.yang"}); err == nil {
+		t.Error("the router read a base it could not resolve as an empty file")
+	}
+
+	g := &checker{root: root, base: repochanged.LineBase{Commit: missing}, report: Report{Changed: []string{"internal/x/x.go"}}}
+	// Code 2 is the read failure alone. Failed without it is an unwired-symbol
+	// finding, which a swallowed read also produces: Exported then reads as
+	// added.
+	if result := g.checkWiring(); result.Code != 2 {
+		t.Errorf("the wiring check did not refuse a base it could not read: %+v", result)
 	}
 }
 
@@ -475,7 +554,7 @@ func TestTheRatchetRefusesABaselineItCannotRead(t *testing.T) {
 	// A baseline that is present and unreadable turns the ratchet OFF, and any
 	// number of new sleeps then passes. An ABSENT baseline is the other fact:
 	// the ratchet is not active for that tree at all.
-	root := tree(t, map[string]string{
+	root := pushedTree(t, map[string]string{
 		"test/.ci-sleep-baseline": "0\n",
 		"test/ui/a.ci":            "time.sleep(1)  # why\n",
 	})
@@ -484,8 +563,11 @@ func TestTheRatchetRefusesABaselineItCannotRead(t *testing.T) {
 		t.Fatalf("chmod: %v", err)
 	}
 
-	if _, code := Run(root, Options{Changed: []string{"test/ui/a.ci"}}); code == 0 {
-		t.Error("the ratchet turned itself off over a baseline it could not read")
+	// The ratchet is asked directly: a full run stops earlier, because git
+	// cannot diff the unreadable baseline either.
+	g := &checker{root: root, report: Report{Changed: []string{"test/ui/a.ci"}}}
+	if result := g.checkSleepRatchet(); !result.Failed {
+		t.Errorf("the ratchet turned itself off over a baseline it could not read: %+v", result)
 	}
 
 	if err := os.Remove(baseline); err != nil {
@@ -501,22 +583,11 @@ func TestTheRatchetRefusesABaselineItCannotRead(t *testing.T) {
 // check makes of it.
 func docDriftTree(t *testing.T) string {
 	t.Helper()
-	root := tree(t, map[string]string{
+	return pushedTree(t, map[string]string{
 		"internal/x/x.go": "package x\n\nfunc Documented() int { return 1 }\n\nfunc Other() int { return 2 }\n",
 		"docs/one.md":     "# One\n\nDocumented answers one.\n<!-- source: internal/x/x.go -- Documented -->\n",
 		"docs/two.md":     "# Two\n\nOther answers two.\n<!-- source: internal/x/x.go -- Other -->\n",
 	})
-	for _, args := range [][]string{
-		{"init", "-q"},
-		{"add", "-A"},
-		{"-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture"},
-	} {
-		cmd := exec.Command("git", append([]string{"-C", root}, args...)...) //nolint:gosec,noctx // this test's own fixture
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
-		}
-	}
-	return root
 }
 
 // editDocumented rewrites the body of Documented and leaves Other untouched.
@@ -537,7 +608,7 @@ func TestDocDriftRefusesAClaimWhoseSymbolChanged(t *testing.T) {
 	root := docDriftTree(t)
 	editDocumented(t, root)
 
-	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go"}}}
+	g := driftChecker(t, root, "internal/x/x.go")
 	result := g.checkDocDrift()
 	if !result.Failed {
 		t.Fatalf("a changed symbol whose page stood still passed: %+v", result)
@@ -565,7 +636,7 @@ func TestDocDriftAcceptsAPageChangedWithItsSymbol(t *testing.T) {
 	root := docDriftTree(t)
 	editDocumented(t, root)
 
-	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go", "docs/one.md"}}}
+	g := driftChecker(t, root, "internal/x/x.go", "docs/one.md")
 	if result := g.checkDocDrift(); result.Failed {
 		t.Errorf("a page changed with its symbol was refused: %+v", result.Violations)
 	}
@@ -578,7 +649,7 @@ func TestDocDriftIgnoresAClaimTheDiffNeverReached(t *testing.T) {
 	root := docDriftTree(t)
 	editDocumented(t, root)
 
-	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go", "docs/one.md"}}}
+	g := driftChecker(t, root, "internal/x/x.go", "docs/one.md")
 	result := g.checkDocDrift()
 	if strings.Contains(strings.Join(result.Violations, "\n"), "docs/two.md") {
 		t.Errorf("the page claiming an untouched symbol was reported: %+v", result.Violations)
@@ -610,7 +681,7 @@ func TestDocDriftCountsAClaimItCannotResolve(t *testing.T) {
 	}
 	editDocumented(t, root)
 
-	g := &checker{root: root, report: Report{Changed: []string{"internal/x/x.go"}}}
+	g := driftChecker(t, root, "internal/x/x.go")
 	result := g.checkDocDrift()
 	if result.Failed {
 		t.Fatalf("an unresolvable claim refused the commit: %+v", result.Violations)
@@ -678,32 +749,126 @@ func TestCheckDeclaresTheKeywordsItEnforces(t *testing.T) {
 	}
 }
 
-// VALIDATES: a file named as changed that holds no working-tree hunk answers
-// every line, as it did before changedLines read repochanged.WorkingTreeLines.
-// PREVENTS: a named file committed before the check runs answering "nothing
+// driftFindings answers the doc-drift violations one Run reported.
+func driftFindings(t *testing.T, report Report) string {
+	t.Helper()
+	for _, check := range report.Checks {
+		if check.Name == checkDocDriftName {
+			return strings.Join(check.Violations, "\n")
+		}
+	}
+	t.Fatalf("the run held no doc-drift result: %+v", report.Checks)
+	return ""
+}
+
+// VALIDATES: a file named as changed that holds no hunk in the unpushed range
+// answers every line through the gate entry point.
+// PREVENTS: a named file whose change was already pushed answering "nothing
 // touched", which passes every claim about it.
-func TestChangedLinesNamedFileWithNoHunkIsWhollyChanged(t *testing.T) {
+func TestANamedFileWithNoHunkIsWhollyChanged(t *testing.T) {
 	root := docDriftTree(t)
 
-	lines, ok := changedLines(root, "internal/x/x.go")
-	if !ok {
-		t.Fatal("a committed, unchanged file could not be diffed")
+	report, _ := Run(root, Options{Changed: []string{"internal/x/x.go"}})
+	found := driftFindings(t, report)
+	for _, want := range []string{"docs/one.md", "docs/two.md"} {
+		if !strings.Contains(found, want) {
+			t.Errorf("the claim on %s was not judged: %q", want, found)
+		}
 	}
-	if !lines.Touches("internal/x/x.go", 1, 1) {
-		t.Errorf("the named file's first line is not touched: %v", lines)
+}
+
+// VALIDATES: the bare gate judges the unpushed range: the file set and the
+// line set both run from the merge base with origin/main to the working tree.
+// A committed-unpushed hunk and an uncommitted hunk in one file are both
+// judged, a file deleted in an unpushed commit is in the file set, and a
+// pushed, clean file is not.
+// PREVENTS: the file set and the line set reading HEAD, which judged a
+// committed change on nothing and an edited file on its last edit alone.
+func TestTheGateJudgesTheUnpushedRange(t *testing.T) {
+	body := "package x\n\nfunc Committed() int { return 1 }\n\nfunc Edited() int { return 2 }\n\nfunc Pushed() int { return 3 }\n"
+	root := pushedTree(t, map[string]string{
+		"internal/x/x.go":   body,
+		"internal/y/y.go":   "package y\n\nfunc Clean() int { return 4 }\n",
+		"internal/z/z.go":   "package z\n",
+		"docs/committed.md": "<!-- source: internal/x/x.go -- Committed -->\n",
+		"docs/edited.md":    "<!-- source: internal/x/x.go -- Edited -->\n",
+		"docs/pushed.md":    "<!-- source: internal/x/x.go -- Pushed -->\n",
+		"docs/clean.md":     "<!-- source: internal/y/y.go -- Clean -->\n",
+	})
+	write := func(text string) {
+		if err := os.WriteFile(filepath.Join(root, "internal", "x", "x.go"), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if !lines.Touches("internal/x/x.go", 5, 5) {
-		t.Errorf("the named file's last line is not touched: %v", lines)
+	write(strings.Replace(body, "return 1", "return 10", 1))
+	if err := os.Remove(filepath.Join(root, "internal", "z", "z.go")); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, root, "add", "-A")
+	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "unpushed")
+	// The detached worktree `le verify worktree` makes tracks no upstream and
+	// holds no uncommitted edit, so it judges the unpushed commit alone.
+	detached := filepath.Join(t.TempDir(), "verify")
+	gitIn(t, root, "worktree", "add", "-q", "--detach", detached, "HEAD")
+	write(strings.Replace(strings.Replace(body, "return 1", "return 10", 1), "return 2", "return 20", 1))
+
+	report, _ := Run(detached, Options{})
+	if !slices.Contains(report.Changed, "internal/z/z.go") {
+		t.Errorf("the detached worktree's file set %v misses the deleted file", report.Changed)
+	}
+	if found := driftFindings(t, report); !strings.Contains(found, "docs/committed.md") {
+		t.Errorf("the detached worktree did not judge the unpushed commit: %q", found)
 	}
 
-	symbols, ok := touchedSymbols(root, "internal/x/x.go")
-	if !ok {
-		t.Fatal("touchedSymbols refused a readable file")
+	report, code := Run(root, Options{})
+	if code == 0 {
+		t.Fatalf("two changed symbols whose pages stood still passed: %+v", report)
 	}
-	if !symbols["Documented"] {
-		t.Errorf("touched symbols = %v, want Documented and Other", symbols)
+	changed := strings.Join(report.Changed, " ")
+	for _, want := range []string{"internal/x/x.go", "internal/z/z.go"} {
+		if !strings.Contains(changed, want) {
+			t.Errorf("the file set %v misses %s", report.Changed, want)
+		}
 	}
-	if !symbols["Other"] {
-		t.Errorf("touched symbols = %v, want Documented and Other", symbols)
+	if strings.Contains(changed, "internal/y/y.go") {
+		t.Errorf("the pushed, clean file was selected: %v", report.Changed)
+	}
+
+	found := driftFindings(t, report)
+	for _, want := range []string{"docs/committed.md", "docs/edited.md"} {
+		if !strings.Contains(found, want) {
+			t.Errorf("the claim on %s was not judged: %q", want, found)
+		}
+	}
+	for _, unwanted := range []string{"docs/pushed.md", "docs/clean.md"} {
+		if strings.Contains(found, unwanted) {
+			t.Errorf("the claim on %s was reported, but its symbol is pushed and clean: %q", unwanted, found)
+		}
+	}
+}
+
+// VALIDATES: a checkout with no pushed commit behind HEAD fails the gate with
+// exit 2, on the bare route and on a named file.
+// PREVENTS: a gate that cannot find the change answering that nothing changed.
+func TestTheGateFailsClosedWithNoBase(t *testing.T) {
+	root := tree(t, map[string]string{"internal/x/x.go": "package x\n"})
+	gitIn(t, root, "init", "-q")
+	gitIn(t, root, "add", "-A")
+	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture")
+
+	for name, opts := range map[string]Options{
+		"bare":       {},
+		"named file": {Changed: []string{"internal/x/x.go"}},
+	} {
+		report, code := Run(root, opts)
+		if code != 2 {
+			t.Errorf("%s: exit %d, want 2: %+v", name, code, report)
+		}
+		if !report.Failed || !strings.Contains(report.Error, "no pushed commit") {
+			t.Errorf("%s: the report does not name the missing base: %+v", name, report)
+		}
+		if len(report.Checks) != 0 {
+			t.Errorf("%s: checks ran over a change nobody found: %+v", name, report.Checks)
+		}
 	}
 }

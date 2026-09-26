@@ -1,7 +1,6 @@
-// VALIDATES: WorkingTreeLines answers the working-tree lines changed against
-// HEAD, LinesSinceUpstream the lines changed since the last pushed commit,
-// both in working-tree coordinates, and the parser refuses a diff it cannot
-// read.
+// VALIDATES: LinesSinceUpstream answers the lines changed since the last
+// pushed commit, in working-tree coordinates, PathsSince the paths changed
+// since the same base, and the parser refuses a diff it cannot read.
 // PREVENTS: a line-scoped gate judging the wrong lines, or none.
 package repochanged
 
@@ -114,11 +113,13 @@ func TestChangedLinesTouches(t *testing.T) {
 	}
 }
 
-// TestWorkingTreeLinesAgainstARealCheckout drives the git route: a committed
-// file edited after commit answers only the edited lines, a staged-then-edited
-// file answers working-tree coordinates, and an untracked file answers whole.
-func TestWorkingTreeLinesAgainstARealCheckout(t *testing.T) {
+// TestLinesSinceUpstreamAgainstARealCheckout drives the git route: a pushed
+// file edited after its push answers only the edited lines, a
+// staged-then-edited file answers working-tree coordinates, and an untracked
+// file answers whole.
+func TestLinesSinceUpstreamAgainstARealCheckout(t *testing.T) {
 	root := gitFixture(t)
+	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
 	// The owner's machine sets this globally. Set here, it makes the test fail
 	// without --inter-hunk-context=0 on every machine: lines 1 and 3 would then
 	// merge into one hunk covering the unchanged line 2.
@@ -128,9 +129,9 @@ func TestWorkingTreeLinesAgainstARealCheckout(t *testing.T) {
 	writeFile(t, root, "README.md", "top\nbase\nadded\n")
 	writeFile(t, root, "new.go", "package x\n")
 
-	got, err := WorkingTreeLines(root)
+	got, _, err := LinesSinceUpstream(root)
 	if err != nil {
-		t.Fatalf("WorkingTreeLines: %v", err)
+		t.Fatalf("LinesSinceUpstream: %v", err)
 	}
 	// Line 3 is the staged addition, counted where the working tree now holds
 	// it; the index numbers it 2.
@@ -198,6 +199,38 @@ func TestLinesSinceUpstreamJudgesTheUnpushedRange(t *testing.T) {
 	bare := gitFixture(t)
 	if _, _, err := LinesSinceUpstream(bare); !errors.Is(err, errNoUpstreamBase) {
 		t.Errorf("no upstream and no origin/main: err = %v, want errNoUpstreamBase", err)
+	}
+}
+
+// TestPathsSinceListsTheUnpushedRange proves the file set that pairs with
+// LinesSinceUpstream: a path changed in an unpushed commit, a path deleted in
+// one, an uncommitted edit and an untracked file are listed, a pushed, clean
+// path is not, and a zero base is refused rather than diffed.
+func TestPathsSinceListsTheUnpushedRange(t *testing.T) {
+	root := gitFixture(t)
+	gitIn(t, root, "add", "-A")
+	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "pushed")
+	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	gitIn(t, root, "rm", "-q", "internal/le/tool/tool.go")
+	commitReadme(t, root, "base\nunpushed\n")
+	writeFile(t, root, "internal/core/env/env.go", "package env\n\nvar edited = 1\n")
+	writeFile(t, root, "new.go", "package x\n")
+
+	_, base, err := LinesSinceUpstream(root)
+	if err != nil {
+		t.Fatalf("LinesSinceUpstream: %v", err)
+	}
+	got, err := PathsSince(root, base)
+	if err != nil {
+		t.Fatalf("PathsSince: %v", err)
+	}
+	want := []string{"README.md", "internal/core/env/env.go", "internal/le/tool/tool.go", "new.go"}
+	if !slices.Equal(got, want) {
+		t.Errorf("PathsSince = %v, want %v", got, want)
+	}
+
+	if _, err := PathsSince(root, LineBase{}); !errors.Is(err, errNoUpstreamBase) {
+		t.Errorf("zero base: err = %v, want errNoUpstreamBase", err)
 	}
 }
 

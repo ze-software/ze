@@ -6,8 +6,9 @@
 // in internal/ or cmd/. An unreferenced symbol is dead or unwired. The change
 // that adds it is the cheapest place to find either defect.
 //
-// The reader deliberately uses lines instead of a Go parser. It reads both HEAD
-// and the working file. During a rename, the HEAD copy does not always parse.
+// The reader deliberately uses lines instead of a Go parser. It reads both the
+// base copy and the working file. During a rename, the base copy does not
+// always parse.
 // A parser failure would hide the change that this check must inspect.
 
 package docwiring
@@ -116,9 +117,9 @@ func leadingExportedIdents(code string) []string {
 // checkWiring answers one issue line per exported symbol this change adds that
 // no non-test file in internal/ or cmd/ names.
 //
-// baseline answers a path's content at the change's baseline, which is HEAD for
-// the running gate and a fixture for a test.
-func checkWiring(root string, changed []string, baseline func(string) string) ([]string, error) {
+// base is the commit the change is judged against, the last pushed commit
+// behind HEAD. A path's content there is what the change started from.
+func checkWiring(root, base string, changed []string) ([]string, error) {
 	// A pure relocation (a rename, or a tier move) deletes a file and re-adds
 	// its exported symbols at a new path. Those names are pre-existing API, not
 	// new, so a behavior-preserving move must contribute zero added symbols.
@@ -137,7 +138,11 @@ func checkWiring(root string, changed []string, baseline func(string) string) ([
 		if current != "" {
 			continue // still on disk: not a deletion
 		}
-		for _, sym := range exportedSymbols(path, baseline(path)) {
+		before, err := readBaseOrEmpty(root, base, path)
+		if err != nil {
+			return nil, err
+		}
+		for _, sym := range exportedSymbols(path, before) {
 			relocated[sym.Name] = true
 		}
 	}
@@ -154,8 +159,12 @@ func checkWiring(root string, changed []string, baseline func(string) string) ([
 		if current == "" {
 			continue
 		}
+		before, err := readBaseOrEmpty(root, base, path)
+		if err != nil {
+			return nil, err
+		}
 		old := make(map[string]bool)
-		for _, sym := range exportedSymbols(path, baseline(path)) {
+		for _, sym := range exportedSymbols(path, before) {
 			old[sym.Name] = true
 		}
 		for _, sym := range exportedSymbols(path, current) {
