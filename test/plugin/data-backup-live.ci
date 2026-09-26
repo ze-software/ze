@@ -1,0 +1,40 @@
+# Test: data-backup-live
+# VALIDATES: AC-4 -- `request data backup path <abs>` on a running daemon writes a 0600 blob `ze data check` accepts, holding the active config byte-equal; a relative path, "..", a symlink, an existing file without force, a path inside the tree and a lock sidecar are refused naming the rule; force replaces an existing file.
+# PREVENTS: a live backup that is corrupt, world-readable, or written over the store's own files.
+
+option=timeout:value=60s
+
+tmpfs=data-backup-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start data-backup-live.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture storage/data-backup-live $PORT2:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: data-backup-live
+

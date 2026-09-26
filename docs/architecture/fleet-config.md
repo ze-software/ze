@@ -160,7 +160,13 @@ Client configs are entries in the hub's live tree, keyed by client name at
 The admin can edit these through a live SSH editor owned by the hub.
 Offline writers, including `ze data`, require the hub to be stopped because
 the writable store handle holds an exclusive lifetime lock. Read-only
-inspection remains available while the hub runs.
+inspection remains available while the hub runs. A running hub also restores
+a client's config from a backup artifact with `request data restore path <file>
+config client <name>`: the RPC writes a version of `client-<name>.conf` and
+promotes it under the store guard, with no reload of the hub, so the write
+observer below pushes `config-changed`. It refuses a client that no serving
+block names, because that key would be written and never served.
+<!-- source: cmd/ze/hub/data_rpc.go -- restoreClientConfig -->
 
 The hub's `Storage.SetWriteObserver` callback maps a written client-config key
 back to the client's name and queues `config-changed` without blocking the

@@ -1049,8 +1049,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	sessionReloadHolder.Store(&reloadAfterCommit)
 	// The request data RPCs act on this store through the same reload. The
 	// deferred clear runs before the store closes, so no RPC reaches a closed one.
+	// The managed clients this hub serves are published once the managed
+	// server starts, below.
+	var dataTarget *dataRPCTarget
 	if store != nil {
-		installDataRPC(&dataRPCTarget{store: store, configPath: configPath, reload: reloadAfterCommitContext})
+		dataTarget = &dataRPCTarget{store: store, configPath: configPath, reload: reloadAfterCommitContext}
+		installDataRPC(dataTarget)
 		defer installDataRPC(nil)
 	}
 	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
@@ -1450,7 +1454,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Serve managed fleet clients declared under hub server blocks (answers
 	// config-fetch, pushes config-changed). No-op unless a server block has client
 	// entries and storage is blob-backed. Independent of the outbound managed client.
-	startManagedServer(managedCtx, store, hubConfig)
+	// A live config restore targets a served client through this server only.
+	if managedServer := startManagedServer(managedCtx, store, hubConfig); managedServer != nil && dataTarget != nil {
+		serving := *dataTarget
+		serving.servesClient = managedServer.Serves
+		installDataRPC(&serving)
+	}
 
 	if managedClient != nil && store != nil {
 		go managed.RunManagedClient(managedCtx, *managedClient)

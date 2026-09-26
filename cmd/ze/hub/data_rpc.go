@@ -20,12 +20,15 @@ import (
 )
 
 // dataRPCTarget is what the request data RPCs act on: the daemon's own live
-// store, the config it serves, and the reload that accepts and promotes a
-// staged candidate (the SIGHUP chain).
+// store, the config it serves, the reload that accepts and promotes a staged
+// candidate (the SIGHUP chain), and the managed clients it serves as a hub.
 type dataRPCTarget struct {
 	store      storage.Storage
 	configPath string
 	reload     func(context.Context) error
+	// servesClient reports whether this hub serves the named managed client. It
+	// is nil when the daemon serves no managed client at all.
+	servesClient func(name string) bool
 }
 
 // dataRPC holds the target once the daemon has built its reload. Until then,
@@ -38,8 +41,11 @@ var dataRPC atomic.Pointer[dataRPCTarget]
 func installDataRPC(target *dataRPCTarget) { dataRPC.Store(target) }
 
 // keywordPath names the artifact path keyword of both RPCs, and the answer key
-// that echoes it.
-const keywordPath = "path"
+// that echoes it. keywordClient does the same for the restore's client target.
+const (
+	keywordPath   = "path"
+	keywordClient = "client"
+)
 
 // dataBackupArgs is one parsed `request data backup` line.
 type dataBackupArgs struct {
@@ -118,12 +124,14 @@ func parseDataBackupArgs(args []string) (dataBackupArgs, error) {
 type dataRestoreArgs struct {
 	path       string
 	sourceName string
+	client     string
 }
 
-// handleDataRestore answers `request data restore path <abs> config [name <n>]`.
-// The artifact's config is staged as the candidate FIRST and promoted LAST, by
-// the same reload a SIGHUP runs, so a config the reload refuses never becomes
-// active and the active pointer and its rollback stay as they were.
+// handleDataRestore answers `request data restore path <abs> config [name <n>]
+// [client <c>]`. Without client, the artifact's config is staged as the
+// candidate FIRST and promoted LAST, by the same reload a SIGHUP runs, so a
+// config the reload refuses never becomes active and the active pointer and its
+// rollback stay as they were. With client, see restoreClientConfig.
 func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlugin.Response, error) {
 	target := dataRPC.Load()
 	if target == nil {
@@ -135,6 +143,9 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 	}
 	if err := storage.CheckArtifactPath(parsed.path); err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: %w", err)), nil
+	}
+	if parsed.client != "" {
+		return restoreClientConfig(target, parsed), nil
 	}
 	deviceName := filepath.Base(target.configPath)
 	selected, err := storage.ReadRestoreSource(parsed.path, parsed.sourceName, deviceName)
@@ -162,7 +173,45 @@ func handleDataRestore(ctx *pluginserver.CommandContext, args []string) (*zePlug
 	}, nil
 }
 
-// parseDataRestoreArgs reads `path <abs> config [name <n>]`. The config
+// restoreClientConfig writes the artifact's config as the config this hub serves
+// to one managed client, file/active/client-<name>.conf, as a new version
+// promoted under the store guard. The hub does NOT reload: the config is the
+// client's, not the hub's. The storage write observer sees the key and pushes
+// config-changed to the client, which fetches the new config and applies it
+// through its own reload. A daemon that is not a hub serving that client
+// refuses, because the key would be written and never served.
+func restoreClientConfig(target *dataRPCTarget, parsed dataRestoreArgs) *zePlugin.Response {
+	if target.servesClient == nil {
+		return dataRefusal(fmt.Errorf("request data restore: client %s: this daemon serves no managed client; only a hub with a client entry under plugin hub server serves one", parsed.client))
+	}
+	if !target.servesClient(parsed.client) {
+		return dataRefusal(fmt.Errorf("request data restore: client %s: this hub has no client entry named %s under plugin hub server", parsed.client, parsed.client))
+	}
+	clientName := pluginserver.ClientConfigKey(parsed.client)
+	selected, err := storage.ReadRestoreSource(parsed.path, parsed.sourceName, clientName)
+	if err != nil {
+		return dataRefusal(fmt.Errorf("request data restore: %w", err))
+	}
+	stamp, err := storage.RestoreConfig(target.store, clientName, selected.Data)
+	if errors.Is(err, storage.ErrCandidateExists) {
+		return dataRefusal(fmt.Errorf("request data restore: a change to %s is already staged; commit or discard it first", clientName))
+	}
+	if err != nil {
+		return dataRefusal(fmt.Errorf("request data restore: %w", err))
+	}
+	return &zePlugin.Response{
+		Status: zePlugin.StatusDone,
+		Data: zePlugin.Map{
+			keywordPath:   parsed.path,
+			"source-name": selected.Name,
+			"config-name": clientName,
+			keywordClient: parsed.client,
+			"version":     stamp,
+		},
+	}
+}
+
+// parseDataRestoreArgs reads `path <abs> config [name <n>] [client <c>]`. The config
 // keyword is required: a full restore replaces the store under the daemon,
 // so it runs offline only.
 func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
@@ -174,18 +223,21 @@ func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 			configMode = true
 			continue
 		}
-		if keyword != keywordPath && keyword != "name" {
-			return dataRestoreArgs{}, fmt.Errorf("unknown keyword %q: the keywords are path, config and name", keyword)
+		if keyword != keywordPath && keyword != "name" && keyword != keywordClient {
+			return dataRestoreArgs{}, fmt.Errorf("unknown keyword %q: the keywords are path, config, name and client", keyword)
 		}
 		if i+1 >= len(args) {
 			return dataRestoreArgs{}, fmt.Errorf("%s needs a value", keyword)
 		}
 		i++
-		if keyword == keywordPath {
+		switch keyword {
+		case keywordPath:
 			parsed.path = args[i]
-			continue
+		case "name":
+			parsed.sourceName = args[i]
+		case keywordClient:
+			parsed.client = args[i]
 		}
-		parsed.sourceName = args[i]
 	}
 	if parsed.path == "" {
 		return dataRestoreArgs{}, errors.New("path <absolute-file> is required")

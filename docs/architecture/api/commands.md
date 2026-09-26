@@ -1385,6 +1385,16 @@ Operational commands declare their argument types as YANG leaves inside
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
 
+A `type empty` leaf is a flag (`ArgFlag`): the keyword alone is the argument,
+in any position, and no value follows it. `validateCommandArgs` consumes it in
+the keyword phase, and it is never an open definition, so a bare `force` never
+fills a value leaf beside it (`request data backup path <abs> force` once
+answered `invalid value "force", expected unsigned integer` against `spare`).
+Usage renders it `[force]`, the completer offers the keyword, and help and the
+catalog name its kind `flag`.
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
+<!-- source: internal/component/plugin/server/command.go -- validateCommandArgs, unmatchedDefCount -->
+
 A command carries more grammar than its ArgDefs hold. A modifier group states a
 keyword and a value the HANDLER parses, so the dispatcher meets tokens that
 belong to no definition of its own, and it MUST NOT read one of them as a bad

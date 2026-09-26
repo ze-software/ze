@@ -18,6 +18,9 @@ const (
 	ArgEnum
 	ArgUint
 	ArgUnion
+	// ArgFlag is a YANG `type empty` leaf: the keyword alone is the argument,
+	// and no value follows it (`force`).
+	ArgFlag
 )
 
 // UintRange represents a contiguous range of unsigned integer values.

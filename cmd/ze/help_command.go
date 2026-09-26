@@ -533,6 +533,8 @@ func argKindString(k command.ArgKind) string {
 		return "uint"
 	case command.ArgUnion:
 		return "union"
+	case command.ArgFlag:
+		return "flag"
 	default:
 		return typeNameString
 	}

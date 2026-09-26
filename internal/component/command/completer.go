@@ -487,7 +487,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		// Without this the completer offered `open` for `send bgp <selector>
 		// raw`, where a bare `open` is refused and only `type open` is accepted.
 		enumNeedsItsKeyword := def.Kind == ArgEnum && !def.Mandatory
-		if def.Kind == ArgUint || def.Kind == ArgString || enumNeedsItsKeyword {
+		if def.Kind == ArgUint || def.Kind == ArgString || def.Kind == ArgFlag || enumNeedsItsKeyword {
 			if seen != nil && seen[def.Name] {
 				continue
 			}

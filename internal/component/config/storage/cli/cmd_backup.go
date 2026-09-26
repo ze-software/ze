@@ -6,7 +6,10 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"net"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -78,7 +81,7 @@ func parseBackupArgs(args []string) (file string, spare int, err error) {
 	return file, spare, nil
 }
 
-// daemonAddress returns " at <host/port>" for the SSH endpoint the store
+// daemonAddress returns " at <host:port>" for the SSH endpoint the store
 // records (the target `ze init` wrote), read through a reader handle, which a
 // running daemon permits. When the store records none, or cannot be read, it
 // says so: an empty answer would read as a hint that forgot the address.
@@ -89,8 +92,17 @@ func daemonAddress(storePath string) string {
 	}
 	defer reader.Close() //nolint:errcheck // read-only hint lookup.
 	endpoint, err := reader.ReadKey(zefs.KeySSHDefault.Pattern)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return " (the store records no SSH address at " + zefs.KeySSHDefault.Pattern + ")"
 	}
-	return " at " + string(endpoint)
+	if err != nil {
+		return " (its SSH address is unreadable: " + err.Error() + ")"
+	}
+	// ze init records the endpoint as host/port (sshclient reads it that way);
+	// the operator dials host:port.
+	host, port, found := strings.Cut(string(endpoint), "/")
+	if !found {
+		return " (its recorded SSH address " + strconv.Quote(string(endpoint)) + " is not host/port)"
+	}
+	return " at " + net.JoinHostPort(host, port)
 }

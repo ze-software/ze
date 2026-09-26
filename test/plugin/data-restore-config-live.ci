@@ -1,0 +1,43 @@
+# Test: data-restore-config-live
+# VALIDATES: AC-8 -- `request data restore path <abs> config` on a running daemon stages the source's config under the device's name, runs the reload, promotes it, and the daemon serves the restored router-id; a source with no config and `name` naming a config the source lacks are refused naming what the source holds.
+# PREVENTS: a live config restore that promotes before the reload accepts, or silently picks a config.
+
+option=timeout:value=60s
+
+tmpfs=data-restore-config-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start data-restore-config-live.conf:timeout=60s
+cmd=foreground:seq=2:exec=le test fixture storage/data-restore-config-live $PORT2:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-config-live
+expect=key:path=file/active/data-restore-config-live.conf:contains=router-id 2.2.2.2
+expect=key:path=meta/config/data-restore-config-live.conf/rollback:exists=true
+expect=key:path=meta/config/data-restore-config-live.conf/candidate:absent=true
+expect=key:glob=file/[0-9]*/data-restore-config-live.conf:count=2

@@ -2209,8 +2209,9 @@ from 0 to 100, is created mode 0600, and holds credentials and private keys.
 It refuses an existing file and every name the live store owns in its folder
 (`database`, `database.zefs`, `*.lock`, `database.import-intent`, the
 `.replaced-*` names and the init and import stages). It is offline only: while
-a daemon owns the store it refuses, naming the SSH endpoint `ze init` recorded
-in `meta/ssh/default` (or saying that none is recorded) and the live route,
+a daemon owns the store it refuses, naming as `host:port` the SSH endpoint
+`ze init` recorded in `meta/ssh/default` (or saying that none is recorded, or
+that the record cannot be read) and the live route,
 `request data backup path <file>`.
 
 `restore <file> config` runs `ze data check`'s verification over the artifact, then
@@ -2245,7 +2246,7 @@ The daemon answers two RPCs over SSH, for a file on its own host:
 
 ```
 request data backup path <absolute-file> [spare <n>] [force]
-request data restore path <absolute-file> config [name <source-name>]
+request data restore path <absolute-file> config [name <source-name>] [client <name>]
 ```
 
 Both refuse a relative path, a `..` element and a symlink, each naming the
@@ -2256,11 +2257,21 @@ as the candidate and runs the reload a SIGHUP runs: the config becomes active
 only when that reload accepts it, and a refused config leaves the active config
 and its pointers as they were. It answers `path`, `source-name`, `config-name`
 and `version`.
+
+`client <name>` restores the config a hub serves to one managed client instead
+of the hub's own. The selected config becomes a new active version of
+`client-<name>.conf` under the store guard, and `file/active/client-<name>.conf`
+holds it. The hub does not reload. The write pushes `config-changed` to the
+client, which fetches the config and applies it through its own reload. The
+source selection is the same, with `client-<name>.conf` in place of the
+device's name. A daemon that serves no managed client refuses, and so does a
+hub with no `client <name>` entry under `plugin hub server`. The answer also
+carries `client`.
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: cmd/ze/hub/data_rpc.go -- handleDataBackup, handleDataRestore -->
-<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup -->
+<!-- source: cmd/ze/hub/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig -->
+<!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 

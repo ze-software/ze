@@ -72,7 +72,12 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []ArgDef, values ma
 			continue
 		}
 		placed[name] = true
-		tb.Byte(' ').Str(name).Byte(' ')
+		tb.Byte(' ').Str(name)
+		if defs[j].Kind == ArgFlag {
+			// Any non-empty form value sets the flag; the keyword is the whole argument.
+			continue
+		}
+		tb.Byte(' ')
 		writeInvocationValue(tb, values[name])
 	}
 

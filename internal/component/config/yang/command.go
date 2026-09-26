@@ -666,6 +666,9 @@ func yangTypeToArgDef(name string, yt *gyang.YangType) (command.ArgDef, bool) {
 			def.EnumValues = enumNames(yt.Enum)
 		}
 
+	case gyang.Yempty:
+		def.Kind = command.ArgFlag
+
 	case gyang.Yuint8:
 		def.Kind = command.ArgUint
 		def.UintBits = 8

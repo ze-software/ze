@@ -104,7 +104,21 @@ ze config history client-edge-01.conf      # View rollback history
 The blob key for a client carries a `client-` prefix. That prefix keeps a client's config
 from colliding with the hub's own config file.
 
-<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
+A running hub restores a client's config from a backup artifact on its own host, with no
+stop. The config becomes a new version of `client-<name>.conf`, the hub pushes
+`config-changed` to that client, and the client fetches and applies it. The hub's own
+config does not change and the hub does not reload.
+
+```
+request data restore path /var/backups/edge-01.zefs config client edge-01
+request data restore path /var/backups/fleet.zefs config name edge-01.conf client edge-01
+```
+
+The hub refuses `client <name>` when it has no `client <name>` entry under
+`plugin hub server`.
+
+<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey, Serves -->
+<!-- source: cmd/ze/hub/data_rpc.go -- restoreClientConfig -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->

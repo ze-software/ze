@@ -22,13 +22,11 @@ commit that lands meanwhile is in the backup whole or not at all. The file holds
 credentials and private keys and is written 0600.";
                 ze:help "Write a backup of the whole store to a file on the daemon's host.";
                 leaf path {
-                    type string {
-                        pattern '/.*';
-                        length "1..4096";
-                    }
+                    type string { length "1..4096"; }
                     mandatory true;
                     description "Absolute path of the artifact. A relative path, a '..' element, a symlink, and
-every name the store owns in its folder are refused.";
+every name the store owns in its folder are refused, each naming the rule it
+broke.";
                     ze:help "Absolute artifact path";
                 }
                 leaf spare {
@@ -52,15 +50,15 @@ owns.";
                 description "Stages the artifact's config as the candidate and runs the same reload a SIGHUP
 runs. The config becomes active only when the reload accepts it; a refused
 config leaves the active config and its pointers untouched. Nothing else in the
-store changes.";
-                ze:help "Restore the config from a backup file on the daemon's host.";
+store changes. With client, a hub writes the config it serves to that managed
+client instead, as a new version, and pushes config-changed to the client; the
+hub does not reload its own config.";
+                ze:help "Restore a config from a backup file on the daemon's host.";
                 leaf path {
-                    type string {
-                        pattern '/.*';
-                        length "1..4096";
-                    }
+                    type string { length "1..4096"; }
                     mandatory true;
-                    description "Absolute path of the artifact, checked before it is read.";
+                    description "Absolute path of the artifact, checked before it is read by the same rules as a
+backup path.";
                     ze:help "Absolute artifact path";
                 }
                 leaf config {
@@ -74,6 +72,13 @@ and runs offline with ze data restore.";
                     description "The config to take from an artifact that holds several. Without it, the
 artifact's only config, or the config named like this device, is taken.";
                     ze:help "Config name inside the artifact";
+                }
+                leaf client {
+                    type string { length "1..64"; }
+                    description "The managed client whose served config (client-<name>.conf) the restore
+writes. The daemon MUST be a hub with a client entry of this name. Without it,
+the restore replaces this daemon's own config through the reload.";
+                    ze:help "Managed client whose served config is restored";
                 }
             }
         }

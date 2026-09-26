@@ -108,6 +108,7 @@ never the tree's framing bytes.
 | `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it |
+| `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
 | `ze data encode [--crc\|--header] [--cap N] <string\|->` | Encode a netcapstring for inspection |
 
 <!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->

@@ -1,0 +1,9 @@
+# Test: data-restore-client-live
+# VALIDATES: AC-8 client target -- on a hub serving managed client edge-01, `request data restore path <abs> config client edge-01` writes the artifact's config as the config the hub serves to edge-01, the hub pushes config-changed, and the real client daemon fetches and commits the restored config within 10 s, inside its 30 s heartbeat; a client the hub does not serve is refused naming why.
+# PREVENTS: a live restore that stores a client's config the hub never pushes, or writes a key for a client nobody serves.
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=le test fixture storage/data-restore-client-live $PORT $PORT2 $PORT3:timeout=180s
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-client-live

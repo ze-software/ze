@@ -173,3 +173,61 @@ func TestRestoreConfigRejectedLeavesPointers(t *testing.T) {
 	response = dataCall(t, handleDataRestore, "path", source, "config")
 	assert.Contains(t, response.Error, "already staged")
 }
+
+// TestRestoreClientConfigLive verifies AC-8's client target through the RPC
+// entry point: a hub that serves the client writes the artifact's config as
+// the client's served config, a new active version, without
+// running its own reload; the write reaches the observer that pushes
+// config-changed under the client's name. A daemon serving no client, and a
+// hub without that client entry, refuse naming why and write nothing.
+// VALIDATES: AC-8 (client target), R-4 (selection unchanged).
+// PREVENTS: a client restore that reloads the hub, or writes a key no client is served from.
+func TestRestoreClientConfigLive(t *testing.T) {
+	reloads := 0
+	store, configPath := dataRPCStore(t, func(context.Context) error {
+		reloads++
+		return nil
+	})
+	clientKey := zefs.KeyFileActive.Key(pluginserver.ClientConfigKey("edge"))
+	_, _, err := storage.EnsureActiveVersion(store, pluginserver.ClientConfigKey("edge"), []byte("served before"), time.Now().Add(-time.Second))
+	require.NoError(t, err)
+	artifact := dataArtifact(t, "yesterday.conf", "served after")
+
+	response := dataCall(t, handleDataRestore, "path", artifact, "config", "client", "edge")
+	require.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "serves no managed client")
+
+	var pushed []string
+	store.SetWriteObserver(func(key string) {
+		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
+			pushed = append(pushed, name)
+		}
+	})
+	installDataRPC(&dataRPCTarget{store: store, configPath: configPath, reload: func(context.Context) error {
+		reloads++
+		return nil
+	}, servesClient: func(name string) bool { return name == "edge" }})
+
+	response = dataCall(t, handleDataRestore, "path", artifact, "config", "client", "core")
+	require.Equal(t, zePlugin.StatusError, response.Status)
+	assert.Contains(t, response.Error, "no client entry named core")
+	assert.Empty(t, pushed)
+
+	response = dataCall(t, handleDataRestore, "path", artifact, "config", "client", "edge")
+	require.Equal(t, zePlugin.StatusDone, response.Status, response.Error)
+	data, ok := response.Data.(zePlugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, "client-edge.conf", data["config-name"])
+	assert.Equal(t, "yesterday.conf", data["source-name"])
+	served, err := store.ReadKey(clientKey)
+	require.NoError(t, err)
+	assert.Equal(t, "served after", string(served))
+	active, err := storage.ReadActiveConfig(store, "client-edge.conf")
+	require.NoError(t, err)
+	assert.Equal(t, "served after", string(active), "the served config is a promoted version")
+	own, err := storage.ReadActiveConfig(store, configPath)
+	require.NoError(t, err)
+	assert.Equal(t, "current", string(own), "the hub's own config is untouched")
+	assert.Zero(t, reloads, "a client restore MUST NOT reload the hub")
+	assert.Contains(t, pushed, "edge")
+}

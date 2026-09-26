@@ -55,6 +55,9 @@ const (
 	// own, so a reader takes the obligation from this token rather than from
 	// the member's kind.
 	UsageGroupOneOf
+	// UsageFlag is a keyword the operator types alone, or not at all: a YANG
+	// `type empty` leaf such as `force`. No value follows it.
+	UsageFlag
 )
 
 // usageKindNames names each kind for a reader and for the published catalog.
@@ -69,6 +72,7 @@ var usageKindNames = [...]string{
 	UsageGroupRepeat: "group-repeat",
 	UsageChoice:      "choice",
 	UsageGroupOneOf:  "group-one-of",
+	UsageFlag:        "flag",
 }
 
 // String names the kind. A value outside the declared set names itself as
@@ -248,9 +252,18 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 		if anchored[def.Name] || def.Mandatory != wantMandatory {
 			continue
 		}
-		tokens = append(tokens, usageToken(def, kind))
+		tokens = append(tokens, usageToken(def, usageLeafKind(def, kind)))
 	}
 	return tokens
+}
+
+// usageLeafKind answers UsageFlag for a flag definition, and kind for every
+// definition that takes a value.
+func usageLeafKind(def *ArgDef, kind UsageKind) UsageKind {
+	if def.Kind == ArgFlag {
+		return UsageFlag
+	}
+	return kind
 }
 
 // appendGroupTokens adds one modifier child's tokens to the line.
@@ -329,7 +342,7 @@ func usageGroupToken(node *Node) UsageToken {
 		if !def.Mandatory {
 			valueKind = UsageOption
 		}
-		group = append(group, usageToken(def, valueKind))
+		group = append(group, usageToken(def, usageLeafKind(def, valueKind)))
 	}
 	return UsageToken{Text: node.Name, Group: group, Kind: kind}
 }
@@ -386,6 +399,8 @@ func writeUsageToken(tb *textbuf.Buffer, token *UsageToken) {
 		tb.Byte('<')
 		writeUsageValue(tb, token)
 		tb.Byte('>')
+	case UsageFlag:
+		tb.Byte('[').Str(token.Text).Byte(']')
 	case UsageOption:
 		// The keyword introduces the value, so the operator never supplies a
 		// bare optional positional (ai/rules/cli.md).

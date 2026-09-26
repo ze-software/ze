@@ -1,0 +1,41 @@
+# Test: data-backup-refused-live
+# VALIDATES: AC-3 -- `ze data backup` while a daemon owns the store is refused naming the daemon's SSH address and `request data backup`, and writes no file.
+# PREVENTS: an offline walk racing the daemon's commits, or a refusal that leaves the operator no route.
+
+option=timeout:value=60s
+
+tmpfs=data-backup-refused-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture storage/live-init $PORT2:timeout=60s
+cmd=foreground:seq=2:exec=ze start data-backup-refused-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture storage/data-backup-refused-live $PORT2:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: data-backup-refused-live
+

@@ -1,0 +1,41 @@
+# Test: data-restore-full-refused-live
+# VALIDATES: AC-6 -- `ze data restore <file> full` while a daemon owns the store is refused naming the daemon; the source stays, the tree is not retired, the active config is unchanged.
+# PREVENTS: a full restore replacing the tree under a running daemon.
+
+option=timeout:value=60s
+
+tmpfs=data-restore-full-refused-live.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture storage/live-init $PORT2:timeout=60s
+cmd=foreground:seq=2:exec=ze start data-restore-full-refused-live.conf:timeout=60s
+cmd=foreground:seq=3:exec=le test fixture storage/data-restore-full-refused-live $PORT2:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=OK: data-restore-full-refused-live
+expect=key:path=file/active/data-restore-full-refused-live.conf:contains=router-id 1.2.3.4

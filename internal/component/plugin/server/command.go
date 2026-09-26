@@ -724,8 +724,9 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 			return nil, nil, false
 		}
 
-		// Explicit typed selectors such as `name <value>` or `id <value>`.
-		if def, ok := defByName[strings.ToLower(keyTok)]; ok && inIdx+1 < len(tokens) {
+		// Explicit typed selectors such as `name <value>` or `id <value>`. A
+		// flag takes no value, so it never selects.
+		if def, ok := defByName[strings.ToLower(keyTok)]; ok && def.Kind != command.ArgFlag && inIdx+1 < len(tokens) {
 			if keyIdx+1 >= len(keyTokens) || !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
 				value := tokens[inIdx+1]
 				if err := command.ValidateArgString(value, def); err != nil {
@@ -1201,6 +1202,11 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 			return nil, fmt.Errorf("duplicate keyword %q", args[i])
 		}
 		consumed[i] = true
+		if def.Kind == command.ArgFlag {
+			// A flag is the keyword alone; the next token is its own argument.
+			matched[def.Name] = true
+			continue
+		}
 		if i+1 >= len(args) {
 			return nil, fmt.Errorf("%s requires a value", args[i])
 		}
@@ -1323,11 +1329,12 @@ func positionalDef(arg string, defs []command.ArgDef, matched map[string]bool) *
 	return nil
 }
 
-// unmatchedDefCount reports how many ArgDefs are still waiting for a value.
+// unmatchedDefCount reports how many ArgDefs are still waiting for a value. A
+// flag never waits for one.
 func unmatchedDefCount(defs []command.ArgDef, matched map[string]bool) int {
 	n := 0
 	for i := range defs {
-		if !matched[defs[i].Name] {
+		if !matched[defs[i].Name] && defs[i].Kind != command.ArgFlag {
 			n++
 		}
 	}
@@ -1370,7 +1377,7 @@ func firstFlagToken(args []string) string {
 func positionalError(arg string, defs []command.ArgDef, matched map[string]bool) error {
 	open := make([]*command.ArgDef, 0, len(defs))
 	for i := range defs {
-		if !matched[defs[i].Name] {
+		if !matched[defs[i].Name] && defs[i].Kind != command.ArgFlag {
 			open = append(open, &defs[i])
 		}
 	}

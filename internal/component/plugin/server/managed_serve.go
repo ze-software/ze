@@ -521,6 +521,14 @@ const (
 	clientConfigSuffix = ".conf"
 )
 
+// Serves reports whether name is a managed client this server accepts, which is
+// a client entry in one of the hub's serving blocks. The client set is fixed at
+// construction, so Serves is safe for concurrent use.
+func (s *ManagedServer) Serves(name string) bool {
+	_, ok := s.lookup(name)
+	return ok
+}
+
 // ClientConfigKey returns the blob key (relative; storage adds the file/active/
 // namespace) for a managed client's config.
 func ClientConfigKey(name string) string {

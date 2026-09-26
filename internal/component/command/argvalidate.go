@@ -26,6 +26,9 @@ func ValidateArgString(arg string, def *ArgDef) error {
 		return validateString(arg, def)
 	case ArgUnion:
 		return validateUnion(arg, def)
+	case ArgFlag:
+		// A flag is its own keyword. No token is ever its value.
+		return fmt.Errorf("%s takes no value", def.Name)
 	default:
 		return nil
 	}
