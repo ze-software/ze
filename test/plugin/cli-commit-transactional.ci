@@ -36,5 +36,6 @@ expect=key:path=meta/config/cli-commit.conf/active:exists=true
 expect=key:path=meta/config/cli-commit.conf/candidate:absent=true
 expect=key:path=meta/config/cli-commit.conf/rollback:exists=true
 expect=file:path=cli-commit.conf:contains=router-id 2.2.2.2
-expect=key:glob=file/[0-9]*/cli-commit.conf:contains=router-id 1.2.3.4
-expect=key:glob=file/[0-9]*/cli-commit.conf:contains=router-id 2.2.2.2
+expect=key:glob=object/*:count=2
+expect=key:glob=object/*:contains=router-id 1.2.3.4
+expect=key:glob=object/*:contains=router-id 2.2.2.2

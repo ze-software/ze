@@ -165,6 +165,7 @@ expect=key:path=meta/config/ze-bgp.conf/active:exists=true
 expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
 expect=key:path=meta/config/ze-bgp.conf/rollback:absent=true
 expect=key:glob=file/[0-9]*/ze-bgp.conf:count=1
-expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=backend tc
-expect=key:glob=file/[0-9]*/ze-bgp.conf:not-contains=backend vpp
-expect=key:glob=file/[0-9]*/ze-bgp.conf:not-contains=type prio
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:contains=backend tc
+expect=key:glob=object/*:not-contains=backend vpp
+expect=key:glob=object/*:not-contains=type prio

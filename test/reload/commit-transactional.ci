@@ -82,5 +82,6 @@ expect=key:path=meta/config/ze-bgp.conf/active:exists=true
 expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
 expect=key:path=meta/config/ze-bgp.conf/rollback:exists=true
 expect=key:glob=file/[0-9]*/ze-bgp.conf:count=2
-expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=router-id 1.2.3.4
-expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=router-id 2.2.2.2
+expect=key:glob=object/*:count=2
+expect=key:glob=object/*:contains=router-id 1.2.3.4
+expect=key:glob=object/*:contains=router-id 2.2.2.2

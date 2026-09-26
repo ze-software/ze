@@ -80,5 +80,6 @@ expect=key:path=meta/config/cli-commit-reject.conf/rollback:absent=true
 expect=file:path=cli-commit-reject.conf:contains=router-id 1.2.3.4
 expect=file:path=cli-commit-reject.conf:not-contains=router-id 2.2.2.2
 expect=key:glob=file/[0-9]*/cli-commit-reject.conf:count=1
-expect=key:glob=file/[0-9]*/cli-commit-reject.conf:contains=router-id 1.2.3.4
-expect=key:glob=file/[0-9]*/cli-commit-reject.conf:not-contains=router-id 2.2.2.2
+expect=key:glob=object/*:count=1
+expect=key:glob=object/*:contains=router-id 1.2.3.4
+expect=key:glob=object/*:not-contains=router-id 2.2.2.2

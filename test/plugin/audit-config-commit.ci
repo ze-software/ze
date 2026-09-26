@@ -75,5 +75,6 @@ expect=key:path=meta/config/audit-config-commit.conf/active:exists=true
 expect=key:path=meta/config/audit-config-commit.conf/candidate:absent=true
 expect=key:path=meta/config/audit-config-commit.conf/rollback:exists=true
 expect=key:glob=file/[0-9]*/audit-config-commit.conf:count=2
-expect=key:glob=file/[0-9]*/audit-config-commit.conf:contains=router-id 1.2.3.4
-expect=key:glob=file/[0-9]*/audit-config-commit.conf:contains=router-id 10.0.0.2
+expect=key:glob=object/*:count=2
+expect=key:glob=object/*:contains=router-id 1.2.3.4
+expect=key:glob=object/*:contains=router-id 10.0.0.2
