@@ -46,9 +46,17 @@ func storageInitFromValues() map[string][]byte {
 	}
 }
 
-// storageInitFromSeed writes values to an exact-fit blob at path, as the
-// appliance seed builders do, and returns its bytes.
-func storageInitFromSeed(path string, values map[string][]byte) ([]byte, error) {
+// storageInitFromSeed writes values to an exact-fit blob, as the appliance
+// seed builders do, and returns its bytes. The blob is built in a private
+// temporary folder that is removed on return: a fixed name under the shared
+// temporary folder survives the run, and the next run's create refuses it.
+func storageInitFromSeed(values map[string][]byte) ([]byte, error) {
+	dir, err := os.MkdirTemp("", "ze-init-from-seed-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir) //nolint:errcheck // a leftover temporary folder changes no result
+	path := filepath.Join(dir, "seed.zefs")
 	blob, err := storage.CreateBlobPopulated(path, func(seed storage.Storage) error {
 		for key, value := range values {
 			if err := seed.WriteKey(key, value); err != nil {
@@ -111,7 +119,7 @@ func storageInitFromPath(ctx context.Context, _ []string) error {
 // and `ze start` runs on the imported tree.
 func storageInitFromURL(ctx context.Context, _ []string) error {
 	values := storageInitFromValues()
-	blob, err := storageInitFromSeed(filepath.Join(os.TempDir(), "ze-init-from-url.zefs"), values)
+	blob, err := storageInitFromSeed(values)
 	if err != nil {
 		return err
 	}
@@ -150,7 +158,7 @@ func storageInitFromURL(ctx context.Context, _ []string) error {
 // digest mismatch and a body that is not a blob name the reason, and a new
 // import beside an existing store names the store.
 func storageInitFromRefused(ctx context.Context, _ []string) error {
-	blob, err := storageInitFromSeed(filepath.Join(os.TempDir(), "ze-init-from-refused.zefs"), storageInitFromValues())
+	blob, err := storageInitFromSeed(storageInitFromValues())
 	if err != nil {
 		return err
 	}
