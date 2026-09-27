@@ -1,0 +1,77 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5549-4-1": {
+      "note": "Sentence: MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair. Forbidden: sending an IPv6 next hop for IPv4 NLRI to a peer that did not advertise the tuple; red on it: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and the absent-tuple assert in TestNegotiateExtendedNextHopMismatch. Unproven clauses: VPN-IPv4 NLRI (no unit drives SAFI 128), and the per-pair clause (no unit shows a tuple negotiated for IPv4/unicast does not license VPN-IPv4 or the reverse). The units test the canUseNextHopFor helper, not the UPDATE build path.",
+      "requirement_sha": "eef7f1476d7f202a",
+      "tests": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "f87129e8344233a1",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "f87129e8344233a1",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "7cfa7c59e93867e9",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "7c2c903b883f0b20"
+      },
+      "verdict": "weak"
+    },
+    "RFC5549-4-2": {
+      "note": "Sentence: MUST use RFC 5492 Capability Advertisement with the Extended Next Hop Encoding capability to establish whether the peer supports this for the NLRI AFI/SAFI pair(s). The 4-2-tagged units (TestExtendedNextHopCapability, TestExtendedNextHopRoundTrip) prove only the capability TLV encodes and parses. The clause 'to establish whether its peer supports this' (support decided from the peer's advertised capability) has no 4-2-tagged assertion; the negotiation units that would prove it carry only 4-1 and RFC8950 tags.",
+      "requirement_sha": "89fb58b534ab0411",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "10454f274bcedd4e",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "ba4f31d076a2e369"
+      },
+      "verdict": "weak"
+    },
+    "RFC5549-4-3": {
+      "note": "Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.",
+      "requirement_sha": "e936e886b3bcee34",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "d5913b7c1261a415",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "10454f274bcedd4e",
+        "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "ba4f31d076a2e369"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5549-4-4": {
+      "note": "Same sentence as RFC5549-4-1 (MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop after ascertaining peer support for the relevant AFI/SAFI pair). Red on the IPv4/unicast case: require.False in TestCanUseNextHopFor_CrossFamilyNoCap and TestCanUseNextHopFor_NilSendCtx. Unproven: VPN-IPv4 NLRI and the per-pair clause, and only the canUseNextHopFor helper is driven. The tag prose still calls the row 'the MUST NOT', which the quoted sentence no longer says.",
+      "requirement_sha": "eef7f1476d7f202a",
+      "tests": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "f87129e8344233a1",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "f87129e8344233a1",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "f87129e8344233a1"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26"
+      },
+      "verdict": "weak"
+    },
+    "RFC5549-5-1": {
+      "note": "Forbidden: a route reflector changing the encoding of a next hop it passes along unchanged. Red on it: require.Equal(mpReach, attrs[14]) and the next-hop byte compare in TestReactorForwardRRPreservesExtendedNextHop, which reflects a 16-byte IPv6 next hop for IPv4 NLRI through the reactor forward path. Single-polarity marker on the row.",
+      "requirement_sha": "0da09b4f4a31922b",
+      "tests": {
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "0aacc49d3f8958ea"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "36a17730ebd19e1b"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5549"
+}
