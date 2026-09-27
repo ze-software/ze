@@ -124,7 +124,7 @@
       "verdict": "enforced"
     },
     "RFC1661-5.5-2": {
-      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestTerminateRequestIdentifierChanges sends two Terminate-Requests with no Data change and no reply and asserts the Identifiers differ. (a) Keeping the Identifier across a Data change: never exercised. (b) Keeping it after a valid Terminate-Ack: never exercised. The assertion instead forbids an unchanged Identifier on a retransmission, which the next sentence of Section 5.5 permits (MAY remain unchanged). It catches only an implementation that never changes the Identifier.",
+      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestTerminateRequestIdentifierChanges calls sendTerminateRequest twice from Closing with the same empty Data and no Terminate-Ack between them, then fails when the two Identifiers are equal. That pair is a retransmission, for which Section 5.5 continues: \"For retransmissions, the Identifier MAY remain unchanged.\" The assertion therefore forbids behaviour the RFC permits and pins what sendTerminateRequest does, not what the sentence requires. (a) Keeping the Identifier across a Data change: no unit sends two Terminate-Requests with different Data. (b) Keeping it after a valid Terminate-Ack: no unit delivers a reply between two requests. Neither clause of the row is tested, so the tag is misinformation: wrong.",
       "requirement_sha": "db76e473ecf13877",
       "tests": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "782ab2fe91715eef",
@@ -134,10 +134,10 @@
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "69caed534fdcd0bd",
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "69caed534fdcd0bd"
       },
-      "verdict": "weak"
+      "verdict": "wrong"
     },
     "RFC1661-5.8-4": {
-      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestEchoRequestIdentifierChanges sends two Echo-Requests with no Data change and no Echo-Reply between them and asserts differing Identifiers; the Echo-Reply copy it also checks is the separate On-reception sentence. (a) Data-change clause and (b) valid-reply clause: neither is exercised, and the assertion forbids a retransmission keeping its Identifier, which Section 5.8 permits.",
+      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestEchoRequestIdentifierChanges calls sendEchoRequest twice from Opened with the same Data (the Magic-Number) and no Echo-Reply between them, then fails when the two Identifiers are equal. Section 5.8 continues: \"For retransmissions, the Identifier MAY remain unchanged.\" The assertion forbids behaviour the RFC permits and pins what sendEchoRequest does. (a) Data-change clause and (b) valid-reply clause: no unit exercises either. The Echo-Reply Identifier copy the same unit checks is the separate On-reception sentence, not this row. wrong, for the same reason as RFC1661-5.5-2.",
       "requirement_sha": "382d025d3d2e4cdc",
       "tests": {
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "782ab2fe91715eef",
@@ -147,7 +147,7 @@
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "f1ceed5985393870",
         "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "f1ceed5985393870"
       },
-      "verdict": "weak"
+      "verdict": "wrong"
     },
     "RFC1661-5.8-5": {
       "note": "Sentence: until the Magic-Number option has been successfully negotiated, the Magic-Number MUST be transmitted as zero. (a) Sending the chosen Magic-Number before negotiation: TestMagicNumberZeroUntilNegotiated goes red on req != 0 || rep != 0 before any Ack, and again after a Configure-Ack that carries no option 5. Positive: after an Ack with option 5 both packets carry the value. Echo-Request and Echo-Reply both covered; the identical Discard-Request sentence is Section 5.9 and ze sends no Discard-Request.",
