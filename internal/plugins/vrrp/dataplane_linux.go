@@ -137,16 +137,29 @@ var (
 // revertDataplaneSysctls when the group is removed.
 func applyDataplaneSysctls(parent, vmac, family string) error {
 	if family == familyIPv6 {
-		// IPv6 needs no ARP-flux recipe (ND answers from the macvlan natively --
-		// spec-vrrp-6), but DAD must be disabled on the macvlan. A VRRP VIP lives
-		// on exactly one router at a time, so Duplicate Address Detection is
-		// pointless, and leaving it on costs a ~1s tentative window on every
-		// promotion: the VIP is unreachable during it and the first advert sources
-		// from the macvlan's auto link-local instead of the configured link-local
-		// (both observed in the keepalived IPv6 interop lab). Set once at create,
-		// before any VIP is installed; the knob dies with the device (no revert).
+		// IPv6 needs no ARP-flux recipe on the parent (ND answers from the
+		// macvlan natively -- spec-vrrp-6), but two knobs on the macvlan itself:
+		//
+		// DAD off. A VRRP VIP lives on exactly one router at a time, so Duplicate
+		// Address Detection is pointless, and leaving it on costs a ~1s tentative
+		// window on every promotion: the VIP is unreachable during it and the
+		// first advert sources from the macvlan's auto link-local instead of the
+		// configured link-local (both observed in the keepalived IPv6 interop lab).
+		//
+		// ARP off. Linux answers ARP for any local IPv4 address on any interface
+		// (arp_ignore=0), so the IPv6 group's macvlan answered who-has for the
+		// parent's IPv4 addresses and an IPv4 group's VIP with the IPv6 virtual
+		// MAC (observed in QEMU by TestVRRPOwnerAnswersWithVirtualMACOnly). A LAN
+		// host then follows the IPv6 group's mastership for an IPv4 address.
+		// arp_ignore=8 makes the device answer no ARP request at all.
+		//
+		// Set once at create, before any VIP is installed; the knobs die with the
+		// device (no revert).
 		if err := sysctlWrite(ipv6Conf(vmac, "accept_dad"), "0"); err != nil {
 			return fmt.Errorf("disable DAD on %s: %w", vmac, err)
+		}
+		if err := sysctlWrite(ipv4Conf(vmac, "arp_ignore"), "8"); err != nil {
+			return fmt.Errorf("disable ARP answers on %s: %w", vmac, err)
 		}
 		return nil
 	}

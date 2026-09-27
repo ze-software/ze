@@ -284,6 +284,18 @@ func (li *linuxInstance) v6SourceLocked() (netip.Addr, bool) {
 	return src, ok
 }
 
+// LinkLocalSource reports the cached macvlan link-local without resolving one
+// (InstanceHandle). Resolution stays on the send and warm paths, which run in
+// the instance's network namespace; this is a read of what they last pinned.
+func (li *linuxInstance) LinkLocalSource() (netip.Addr, bool) {
+	li.sendMu.Lock()
+	defer li.sendMu.Unlock()
+	if li.family != packet.V6 {
+		return netip.Addr{}, false
+	}
+	return li.v6Src, li.v6Src.IsValid()
+}
+
 // Transport.AnnounceMaster reaches warmV6Source through a comma-ok assertion,
 // which cannot report a break: when 3c9644e15 unexported the method and left
 // the interface declaring the exported name, nothing satisfied v6SourceWarmer,

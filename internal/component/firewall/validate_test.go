@@ -636,3 +636,57 @@ func TestValidateRefusesQuotedDestinationOutsideIPv4(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateRefusesARPAndNDMatchesOutsideTheirFamily checks the three
+// daemon-only matches VRRP's address owner uses. Each reads a fixed offset
+// that means something else in another family, so a table of the wrong family
+// is refused, and so is a value that names nothing: the zero opcode, a zero or
+// unspecified address, and an address of the other IP version.
+func TestValidateRefusesARPAndNDMatchesOutsideTheirFamily(t *testing.T) {
+	v4 := netip.MustParseAddr("192.0.2.1")
+	v6 := netip.MustParseAddr("2001:db8::1")
+	tests := []struct {
+		name    string
+		family  TableFamily
+		match   Match
+		wantErr string // empty = accept
+	}{
+		{"arp op reply in arp accepts", FamilyARP, MatchARPOperation{Operation: ARPOperationReply}, ""},
+		{"arp op request in arp accepts", FamilyARP, MatchARPOperation{Operation: ARPOperationRequest}, ""},
+		{"arp op in inet rejects", FamilyInet, MatchARPOperation{Operation: ARPOperationReply}, "arp-operation match is valid only in family arp"},
+		{"arp op zero rejects", FamilyARP, MatchARPOperation{}, "arp-operation names no opcode"},
+		{"arp op three rejects", FamilyARP, MatchARPOperation{Operation: 3}, "arp-operation names no opcode"},
+		{"arp sender in arp accepts", FamilyARP, MatchARPSenderAddress{Addr: v4}, ""},
+		{"arp sender in ip rejects", FamilyIP, MatchARPSenderAddress{Addr: v4}, "arp-sender-address match is valid only in family arp"},
+		{"arp sender zero rejects", FamilyARP, MatchARPSenderAddress{}, "arp-sender-address names no IPv4 address"},
+		{"arp sender unspecified rejects", FamilyARP, MatchARPSenderAddress{Addr: netip.IPv4Unspecified()}, "arp-sender-address names no IPv4 address"},
+		{"arp sender ipv6 rejects", FamilyARP, MatchARPSenderAddress{Addr: v6}, "arp-sender-address names no IPv4 address"},
+		{"nd target in ip6 accepts", FamilyIP6, MatchNDTargetAddress{Addr: v6}, ""},
+		{"nd target in inet accepts", FamilyInet, MatchNDTargetAddress{Addr: v6}, ""},
+		{"nd target in ip rejects", FamilyIP, MatchNDTargetAddress{Addr: v6}, "nd-target-address match is valid only in family ip6 or inet"},
+		{"nd target in arp rejects", FamilyARP, MatchNDTargetAddress{Addr: v6}, "nd-target-address match is valid only in family ip6 or inet"},
+		{"nd target zero rejects", FamilyIP6, MatchNDTargetAddress{}, "nd-target-address names no IPv6 address"},
+		{"nd target unspecified rejects", FamilyIP6, MatchNDTargetAddress{Addr: netip.IPv6Unspecified()}, "nd-target-address names no IPv6 address"},
+		{"nd target ipv4 rejects", FamilyIP6, MatchNDTargetAddress{Addr: v4}, "nd-target-address names no IPv6 address"},
+		{"nd target v4-mapped rejects", FamilyIP6, MatchNDTargetAddress{Addr: netip.AddrFrom16(v4.As16())}, "nd-target-address names no IPv6 address"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := makeTable(tt.family)
+			tbl.Chains[0].Terms[0].Matches = []Match{tt.match}
+			err := ValidateTables([]Table{tbl})
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected accept, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}

@@ -9,7 +9,8 @@
 // The FSM is a pure, deterministic, single-threaded, actions-as-values machine:
 //
 //   - Inputs are typed events (Startup, Shutdown, AdvertReceived,
-//     MasterDownExpired, AdvertTimerExpired, PreemptDelayExpired, ConfigUpdated)
+//     MasterDownExpired, AdvertTimerExpired, PreemptDelayExpired, ConfigUpdated,
+//     SourceAddressChanged)
 //     plus the current time read from an injected clock.Clock (timestamps only,
 //     never scheduling).
 //   - Outputs are an ordered slice of action values (SendAdvert,

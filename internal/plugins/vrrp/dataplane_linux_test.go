@@ -100,12 +100,14 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 	}
 }
 
-// TestDataplaneIPv6OnlyDisablesDAD proves an IPv6 group touches NO ARP-flux
-// knobs (ND resolves the VIP to the virtual MAC natively -- Neighbor
-// Solicitation targets the VIP's solicited-node multicast group, which only the
-// macvlan joins, so the parent never competes, validated in QEMU 6/6 with no
-// cold race) and sets ONLY accept_dad=0 on the macvlan, so the VIP is reachable
-// immediately on promotion instead of tentative for a DAD cycle.
+// TestDataplaneIPv6OnlyDisablesDAD proves an IPv6 group touches NO parent or
+// global ARP-flux knobs (ND resolves the VIP to the virtual MAC natively --
+// Neighbor Solicitation targets the VIP's solicited-node multicast group, which
+// only the macvlan joins, so the parent never competes, validated in QEMU 6/6
+// with no cold race) and sets exactly two knobs on its own macvlan:
+// accept_dad=0, so the VIP is reachable immediately on promotion instead of
+// tentative for a DAD cycle, and arp_ignore=8, so the IPv6 virtual MAC never
+// answers ARP for the host's IPv4 addresses.
 func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 	f := newFakeSysctl(map[string]string{allRPFilterPath(): "1"})
 	f.install(t)
@@ -116,12 +118,15 @@ func TestDataplaneIPv6OnlyDisablesDAD(t *testing.T) {
 	if got := f.get(ipv6Conf("zv6-2-10", "accept_dad")); got != "0" {
 		t.Errorf("macvlan accept_dad = %q, want 0", got)
 	}
-	// No IPv4 ARP knobs and no global rp_filter change for an IPv6 group.
+	if got := f.get(ipv4Conf("zv6-2-10", "arp_ignore")); got != "8" {
+		t.Errorf("macvlan arp_ignore = %q, want 8 (answer no ARP)", got)
+	}
+	// No parent ARP knobs and no global rp_filter change for an IPv6 group.
 	if got := f.get(allRPFilterPath()); got != "1" {
 		t.Errorf("IPv6 group changed all.rp_filter to %q, want untouched (1)", got)
 	}
-	if len(f.writes) != 1 {
-		t.Errorf("IPv6 group wrote %d sysctls, want exactly 1 (accept_dad): %v", len(f.writes), f.writes)
+	if len(f.writes) != 2 {
+		t.Errorf("IPv6 group wrote %d sysctls, want exactly 2 (accept_dad, arp_ignore on the macvlan): %v", len(f.writes), f.writes)
 	}
 }
 

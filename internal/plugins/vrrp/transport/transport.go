@@ -189,6 +189,11 @@ type InstanceHandle interface {
 	SendAnnounce(frame []byte) error
 	// Close releases all sockets and stops the readLoop goroutine.
 	Close() error
+	// LinkLocalSource reports the IPv6 source the handle pins on its sends:
+	// the virtual-MAC device's link-local as last resolved, or false while none
+	// is resolved (before the first send, or after the kernel refused the cached
+	// one). Only an IPv6 handle resolves one; an IPv4 handle answers false.
+	LinkLocalSource() (netip.Addr, bool)
 }
 
 // Backend opens per-instance socket sets. The Linux implementation opens the raw
@@ -344,8 +349,8 @@ func (inst *instance) shutdown() error {
 // re-resolved here (staleness point without per-send cost).
 //
 // A parent with no primary IPv4 is counted {reason=no-primary-v4} and returns no
-// upward error, mirroring the v6 no-link-local skip: the tx buffer keeps whatever
-// it held, the next UpdateAdvert re-resolves, and nothing non-conformant goes out.
+// upward error, mirroring the v6 no-link-local skip: the tx buffer is emptied, the
+// next UpdateAdvert re-resolves, and nothing non-conformant goes out.
 func (t *Transport) UpdateAdvert(key InstanceKey, params AdvertParams) error {
 	inst := t.lookup(key)
 	if inst == nil {
@@ -480,12 +485,47 @@ func (t *Transport) ResetCounters(key InstanceKey) {
 	inst.counters.reset()
 }
 
-// resolveV4SrcLocked re-resolves the parent primary IPv4; on error the prior
-// source is kept so a transient resolver failure does not blank the source.
+// resolveV4SrcLocked re-resolves the parent primary IPv4. A parent that holds
+// no IPv4 address is a definite answer, so the source becomes unknown and no
+// advertisement is built from an address the interface no longer has. Any other
+// resolver error keeps the prior source, so a transient failure does not blank
+// it.
 func (inst *instance) resolveV4SrcLocked() {
-	if src, err := resolveParentPrimaryV4(inst.spec.Parent); err == nil {
+	src, err := resolveParentPrimaryV4(inst.spec.Parent)
+	if errors.Is(err, errNoParentV4) {
+		inst.v4Src = netip.Addr{}
+		return
+	}
+	if err == nil {
 		inst.v4Src = src
 	}
+}
+
+// AdvertSource reports the source address this instance's advertisements
+// leave from, as the transport resolved it for the wire, or false while no
+// source is known. The engine uses it as the local operand of the equal-priority
+// tie-break.
+//
+// RFC 3768 Section 6.4.3: "the primary IP Address of the sender is greater
+// than the local primary IP Address". The local operand is the address the
+// peers see as this router's sender address, which is the address the transport
+// writes as the source. RFC 3768 Section 7.2: "Set the source IP address to
+// interface primary IP address"; RFC 9568 Section 7.2: "Set the source IPv6
+// address to the interface's link-local IPv6 address".
+func (t *Transport) AdvertSource(key InstanceKey) (netip.Addr, bool) {
+	inst := t.lookup(key)
+	if inst == nil {
+		return netip.Addr{}, false
+	}
+	if inst.spec.Family == packet.V6 {
+		return inst.handle.LinkLocalSource()
+	}
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	if !inst.v4Src.Is4() {
+		return netip.Addr{}, false
+	}
+	return inst.v4Src, true
 }
 
 // encodeLocked builds the tx buffer from params. For IPv4 it prepends the
@@ -510,7 +550,11 @@ func (inst *instance) encodeLocked(p AdvertParams) error {
 		// there is no conformant source, so no advertisement is built: writing
 		// the zero address would put a source on the wire the RFC does not allow
 		// and would lose every sender-address tie-break in the peers' election.
+		// The previous frame carries the previous source, so it is dropped
+		// too: a later SendAdvert then sends nothing rather than an address the
+		// interface no longer holds.
 		if !inst.v4Src.Is4() {
+			inst.txLen = 0
 			return errNoParentV4
 		}
 		hdr := buildIPv4Header(inst.txBuf, inst.v4Src.As4(), packet.MulticastV4.As4())

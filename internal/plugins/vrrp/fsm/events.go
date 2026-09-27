@@ -36,8 +36,13 @@ type Config struct {
 	// AdvertIntervalMs is this router's own advertisement interval in
 	// milliseconds (validated per version: v3 10..40950, v2 1000..255000).
 	AdvertIntervalMs int `json:"advert-interval-ms"`
-	// LocalPrimaryIP is the tie-break operand: the primary IPv4 address or the
-	// link-local IPv6 address of the sending interface (RFC 9568 Section 6.4.3).
+	// LocalPrimaryIP is the tie-break operand: the address this router's
+	// advertisements leave from, which is the sending interface's primary IPv4
+	// address or the virtual-MAC device's link-local IPv6 address (RFC 9568
+	// Section 6.4.3). The engine takes it from the transport, which resolves
+	// the source it writes on the wire, and re-sends it as SourceAddressChanged
+	// when that resolution moves. The zero Addr means no source is known; the
+	// tie-break then yields (senderWinsTieBreak, fsm.go).
 	LocalPrimaryIP netip.Addr `json:"local-primary-ip"`
 	// VIPs is the full desired virtual-address set, used for the
 	// InstallVIPs/RemoveVIPs payloads.
@@ -126,10 +131,21 @@ type ConfigUpdated struct {
 	Config Config `json:"config"`
 }
 
-func (Startup) isEvent()             {}
-func (Shutdown) isEvent()            {}
-func (AdvertReceived) isEvent()      {}
-func (MasterDownExpired) isEvent()   {}
-func (AdvertTimerExpired) isEvent()  {}
-func (PreemptDelayExpired) isEvent() {}
-func (ConfigUpdated) isEvent()       {}
+// SourceAddressChanged records a new advertisement source address: the
+// tie-break operand in Config.LocalPrimaryIP. Produced by the engine when the
+// transport's resolution of the sending interface's address moves, or becomes
+// unknown (the zero Addr). It changes no state and emits no action, because an
+// address change is not a configuration change: ConfigUpdated would re-arm the
+// Backup's master-down timer and delay a failover it has no reason to delay.
+type SourceAddressChanged struct {
+	Address netip.Addr `json:"address"`
+}
+
+func (SourceAddressChanged) isEvent() {}
+func (Startup) isEvent()              {}
+func (Shutdown) isEvent()             {}
+func (AdvertReceived) isEvent()       {}
+func (MasterDownExpired) isEvent()    {}
+func (AdvertTimerExpired) isEvent()   {}
+func (PreemptDelayExpired) isEvent()  {}
+func (ConfigUpdated) isEvent()        {}

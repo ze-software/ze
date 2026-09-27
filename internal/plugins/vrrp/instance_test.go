@@ -24,9 +24,20 @@ import (
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
+// fakeSourceDefault is the advertisement source a fakeDeps reports when a test
+// sets none: testSpec's first virtual address, which was the tie-break operand
+// before the operand came from the transport, so the tests written then keep
+// the election they were written against.
+var fakeSourceDefault = netip.MustParseAddr("192.0.2.1")
+
 // fakeDeps records what the worker asked the outside world to do.
 type fakeDeps struct {
 	mu sync.Mutex
+
+	// source is the advertisement source the fake transport reports; the zero
+	// Addr means fakeSourceDefault. sourceUnknown makes it report none.
+	source        netip.Addr
+	sourceUnknown bool
 
 	adverts     []sentAdvert
 	announces   int
@@ -41,6 +52,20 @@ type fakeDeps struct {
 	// address it governs, so the order is part of what is under test.
 	filters   []filterCall
 	dataplane []string
+
+	// ownerFilters records every owner-filter call. ownerHeld mirrors the real
+	// filter's no-op on an absent entry, so only a call that changes what the
+	// kernel would hold enters dataplane.
+	ownerFilters []ownerFilterCall
+	ownerHeld    map[string]bool
+}
+
+// ownerFilterCall is one call to setOwnerFilter or clearOwnerFilter.
+type ownerFilterCall struct {
+	owner   string
+	parent  string
+	vips    []netip.Addr
+	cleared bool
 }
 
 // filterCall is one call to setAcceptFilter or clearAcceptFilter. cleared marks
@@ -72,6 +97,17 @@ func (f *fakeDeps) deps() engineDeps {
 			return nil
 		},
 		updateAdvert: func(transport.InstanceKey, transport.AdvertParams) error { return nil },
+		advertSource: func(transport.InstanceKey) (netip.Addr, bool) {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			if f.sourceUnknown {
+				return netip.Addr{}, false
+			}
+			if f.source.IsValid() {
+				return f.source, true
+			}
+			return fakeSourceDefault, true
+		},
 		announceMaster: func(transport.InstanceKey, []netip.Addr) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -108,6 +144,31 @@ func (f *fakeDeps) deps() engineDeps {
 			f.dataplane = append(f.dataplane, "accept-filter-withdrawn")
 			return nil
 		},
+		setOwnerFilter: func(owner, parent string, vips []netip.Addr) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.ownerFilters = append(f.ownerFilters, ownerFilterCall{owner: owner, parent: parent, vips: vips})
+			if len(vips) == 0 {
+				return nil
+			}
+			if f.ownerHeld == nil {
+				f.ownerHeld = map[string]bool{}
+			}
+			f.ownerHeld[owner] = true
+			f.dataplane = append(f.dataplane, "owner-filter-on")
+			return nil
+		},
+		clearOwnerFilter: func(owner string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.ownerFilters = append(f.ownerFilters, ownerFilterCall{owner: owner, cleared: true})
+			if !f.ownerHeld[owner] {
+				return nil
+			}
+			delete(f.ownerHeld, owner)
+			f.dataplane = append(f.dataplane, "owner-filter-withdrawn")
+			return nil
+		},
 		recordRxError: func(_ transport.InstanceKey, reason string) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
@@ -131,14 +192,15 @@ func (f *fakeDeps) snapshot() fakeDeps {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return fakeDeps{
-		adverts:     append([]sentAdvert(nil), f.adverts...),
-		announces:   f.announces,
-		installs:    append([]installCall(nil), f.installs...),
-		removes:     append([]string(nil), f.removes...),
-		rxErrors:    append([]string(nil), f.rxErrors...),
-		transitions: append([]string(nil), f.transitions...),
-		filters:     append([]filterCall(nil), f.filters...),
-		dataplane:   append([]string(nil), f.dataplane...),
+		adverts:      append([]sentAdvert(nil), f.adverts...),
+		announces:    f.announces,
+		installs:     append([]installCall(nil), f.installs...),
+		removes:      append([]string(nil), f.removes...),
+		rxErrors:     append([]string(nil), f.rxErrors...),
+		transitions:  append([]string(nil), f.transitions...),
+		filters:      append([]filterCall(nil), f.filters...),
+		dataplane:    append([]string(nil), f.dataplane...),
+		ownerFilters: append([]ownerFilterCall(nil), f.ownerFilters...),
 	}
 }
 
@@ -520,10 +582,12 @@ func TestInstanceRxValidAdvertReachesFSM(t *testing.T) {
 
 // TestInstanceV2AddressListMismatchDrops proves the v2-only address-list check.
 //
-// RFC 3768 Section 7.1: a VRRPv2 router MUST discard an advertisement whose
-// address list differs from its own. VRRPv3 dropped this, so v3 must NOT drop.
+// RFC 3768 Section 7.1: a VRRPv2 router MUST drop an advertisement whose
+// address list differs from its own unless the address owner sent it
+// (TestInstanceV2AddressListMismatchFromOwnerContinues). VRRPv3 dropped this,
+// so v3 must NOT drop.
 func TestInstanceV2AddressListMismatchDrops(t *testing.T) {
-	// RFC requirement: RFC3768-7.1-7 negative -- a v2 advert whose address list differs from the configured VIPs is dropped and never fed to the FSM (onPacket instance.go:473; addressListMatches instance.go:490). Note: ze applies the drop uniformly, stricter than the RFC carve-out that lets a Priority-255 owner-sender continue on mismatch.
+	// RFC requirement: RFC3768-7.1-7 negative -- a v2 advert whose address list differs from the configured VIPs and which the address owner did not generate (Priority 250) is dropped and never fed to the FSM (onPacket, addressListMatches).
 	spec := testSpec()
 	spec.Version = versionV2
 	in, f, _ := newTestInstance(t, spec)
@@ -1080,5 +1144,109 @@ func TestInstanceBackupSendsNoRouterAdvertisement(t *testing.T) {
 	}
 	if buf[0] == icmpv6RouterAdvert {
 		t.Fatalf("the announcer built a Router Advertisement (type %d), which no VRRP state may send here", icmpv6RouterAdvert)
+	}
+}
+
+// v2AdvertItem encodes a VRRPv2 advertisement for VRID 10 from source and wraps
+// it as a received datagram, so a receive-path test states only the fields it
+// varies.
+func v2AdvertItem(t *testing.T, priority uint8, source netip.Addr, vips ...netip.Addr) transport.RxItem {
+	t.Helper()
+	adv := packet.Advertisement{
+		Version:         packet.VersionV2,
+		Family:          packet.V4,
+		VRID:            10,
+		Priority:        priority,
+		AdverIntervalMS: 1000,
+		VIPs:            vips,
+	}
+	var buf [packet.MaxLenV2]byte
+	n := adv.WriteTo(buf[:], 0)
+	packet.FillChecksum(buf[:], 0, n, source, packet.MulticastV4)
+	return transport.RxItem{
+		Meta:    packet.RxMeta{TTL: 255, Family: packet.V4, Src: source, Dst: packet.MulticastV4},
+		Payload: append([]byte(nil), buf[:n]...),
+	}
+}
+
+// TestInstanceV2OwnerDiscardsAdvert proves the VRRPv2 address owner discards
+// every advertisement it receives, so an equal-priority advertisement from a
+// greater sender address can never demote it.
+//
+// Method: the same advertisement, Priority 255 from a greater address with a
+// matching address list, is fed to a v2 owner and to a v2 non-owner. The owner
+// records the owner reason, delivers nothing to the FSM and stays Master; the
+// non-owner delivers it.
+func TestInstanceV2OwnerDiscardsAdvert(t *testing.T) {
+	// RFC requirement: RFC3768-7.1-4 negative -- a VRRPv2 advertisement received by the IP Address owner (local Priority 255) is discarded: the owner reason is recorded and the FSM never sees it, so the owner stays Master.
+	// RFC requirement: RFC3768-7.1-4 positive -- the same advertisement received by a v2 router that is not the address owner passes the check and reaches the FSM.
+	vip := netip.MustParseAddr("192.0.2.1")
+	greater := netip.MustParseAddr("192.0.2.200")
+
+	spec := testSpec()
+	spec.Version = versionV2
+	spec.IsOwner = true
+	owner, ownerDeps, _ := newTestInstance(t, spec)
+	owner.dispatch(fsm.Startup{Config: owner.fsmConfig()})
+	if owner.machine.State() != fsm.StateMaster {
+		t.Fatalf("owner state after startup = %v, want Master", owner.machine.State())
+	}
+	owner.onPacket(v2AdvertItem(t, 255, greater, vip))
+	if got := ownerDeps.snapshot(); len(got.rxErrors) != 1 || got.rxErrors[0] != packet.ReasonOwner {
+		t.Fatalf("an advert received by the v2 owner must record %q, got %+v", packet.ReasonOwner, got.rxErrors)
+	}
+	select {
+	case ev := <-owner.events:
+		t.Fatalf("an advert received by the v2 owner must not reach the FSM, got %T", ev)
+	default:
+	}
+
+	spec.IsOwner = false
+	backup, backupDeps, _ := newTestInstance(t, spec)
+	backup.dispatch(fsm.Startup{Config: backup.fsmConfig()})
+	backup.onPacket(v2AdvertItem(t, 255, greater, vip))
+	if got := backupDeps.snapshot(); len(got.rxErrors) != 0 {
+		t.Fatalf("a v2 non-owner must not discard the advert, got %+v", got.rxErrors)
+	}
+	select {
+	case ev := <-backup.events:
+		if _, ok := ev.(fsm.AdvertReceived); !ok {
+			t.Fatalf("event = %T, want fsm.AdvertReceived", ev)
+		}
+	default:
+		t.Fatal("a v2 non-owner delivered no FSM event")
+	}
+}
+
+// TestInstanceV2AddressListMismatchFromOwnerContinues proves the RFC 3768
+// carve-out on the address-list check: a mismatch sent by the address owner
+// (Priority 255) is logged and processing continues.
+//
+// Method: a v2 non-owner receives an advertisement whose address list differs
+// from its own, sent at Priority 255. The mismatch is counted and the advert
+// still reaches the FSM.
+func TestInstanceV2AddressListMismatchFromOwnerContinues(t *testing.T) {
+	// RFC requirement: RFC3768-7.1-7 positive -- a v2 advert whose address list differs from the configured VIPs but which the address owner generated (Priority 255) is logged as an address-list mismatch and processing continues: it reaches the FSM.
+	spec := testSpec()
+	spec.Version = versionV2
+	in, f, _ := newTestInstance(t, spec)
+	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
+
+	in.onPacket(v2AdvertItem(t, 255, netip.MustParseAddr("192.0.2.9"), netip.MustParseAddr("192.0.2.77")))
+
+	if got := f.snapshot(); len(got.rxErrors) != 1 || got.rxErrors[0] != packet.ReasonAddressList {
+		t.Fatalf("an owner-sent address-list mismatch must still be logged as %q, got %+v", packet.ReasonAddressList, got.rxErrors)
+	}
+	select {
+	case ev := <-in.events:
+		got, ok := ev.(fsm.AdvertReceived)
+		if !ok {
+			t.Fatalf("event = %T, want fsm.AdvertReceived", ev)
+		}
+		if got.Priority != 255 {
+			t.Fatalf("delivered advert priority = %d, want 255", got.Priority)
+		}
+	default:
+		t.Fatal("an owner-sent address-list mismatch must continue processing, but reached no FSM event")
 	}
 }

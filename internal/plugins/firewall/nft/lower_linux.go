@@ -58,6 +58,9 @@ var (
 	errIcmpQuotedTcpPortNamesNoSide                 = errors.New("icmp-quoted-tcp-port names no side")
 	errIcmpQuotedTcpPortIsZero                      = errors.New("icmp-quoted-tcp-port is 0, which no TCP session carries")
 	errIcmpQuotedDestinationNamesNoIPv4Address      = errors.New("icmp-quoted-destination names no IPv4 address")
+	errArpOperationNamesNoOpcode                    = errors.New("arp-operation names no opcode")
+	errArpSenderAddressNamesNoIPv4Address           = errors.New("arp-sender-address names no IPv4 address")
+	errNdTargetAddressNamesNoIPv6Address            = errors.New("nd-target-address names no IPv6 address")
 )
 
 // lowerFamily converts a ze TableFamily to nftables.TableFamily.
@@ -105,7 +108,24 @@ func raiseFamily(f nftables.TableFamily) (firewall.TableFamily, error) {
 	return 0, fmt.Errorf("unknown kernel table family %d", f)
 }
 
-func lowerHook(h firewall.ChainHook) (*nftables.ChainHook, error) {
+// The arp family numbers its hooks in its own space (include/uapi/linux/
+// netfilter_arp.h), which x/sys/unix does not export. NF_ARP_IN is 0, the
+// number NF_INET_PRE_ROUTING carries, and NF_ARP_OUT is 1, the number
+// NF_INET_LOCAL_IN carries, so an inet hook number handed to an arp chain
+// names a different hook or none.
+const (
+	nfARPIn  nftables.ChainHook = 0
+	nfARPOut nftables.ChainHook = 1
+)
+
+// lowerHook converts a ze ChainHook to the kernel hook number of the table's
+// family. The arp family has only input and output, numbered in its own space;
+// every other hook is refused there rather than handed to the kernel as a
+// number that means another hook.
+func lowerHook(family nftables.TableFamily, h firewall.ChainHook) (*nftables.ChainHook, error) {
+	if family == nftables.TableFamilyARP {
+		return lowerARPHook(h)
+	}
 	switch h {
 	case firewall.HookInput:
 		return nftables.ChainHookInput, nil
@@ -121,6 +141,22 @@ func lowerHook(h firewall.ChainHook) (*nftables.ChainHook, error) {
 		return nftables.ChainHookIngress, nil
 	case firewall.HookEgress:
 		return nftables.ChainHookEgress, nil
+	}
+	return nil, fmt.Errorf("unknown chain hook %q", h)
+}
+
+// lowerARPHook maps the two hooks an arp chain can attach to. The pointers are
+// fresh per call, so no caller can write through one into another chain's
+// hook.
+func lowerARPHook(h firewall.ChainHook) (*nftables.ChainHook, error) {
+	switch h {
+	case firewall.HookInput:
+		return new(nfARPIn), nil
+	case firewall.HookOutput:
+		return new(nfARPOut), nil
+	case firewall.HookForward, firewall.HookPrerouting, firewall.HookPostrouting,
+		firewall.HookIngress, firewall.HookEgress:
+		return nil, fmt.Errorf("chain hook %q does not exist in family arp; use input or output", h)
 	}
 	return nil, fmt.Errorf("unknown chain hook %q", h)
 }
@@ -464,6 +500,12 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerICMPErrorQuotedTCPPortMatch(ctx.tableFamily(), v.Port, v.Side)
 	case firewall.MatchICMPErrorQuotedDestination:
 		return lowerICMPErrorQuotedDestinationMatch(ctx.tableFamily(), v.Addr)
+	case firewall.MatchARPOperation:
+		return lowerARPOperationMatch(v.Operation)
+	case firewall.MatchARPSenderAddress:
+		return lowerARPSenderAddressMatch(v.Addr)
+	case firewall.MatchNDTargetAddress:
+		return lowerNDTargetAddressMatch(ctx.tableFamily(), v.Addr)
 	}
 	return nil, fmt.Errorf("unsupported match type %T", m)
 }
@@ -989,6 +1031,99 @@ func quotedIPv4HeaderGuard(family nftables.TableFamily) []expr.Any {
 		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 8, Len: 1},
 		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{0x45}},
 	)
+}
+
+// lowerARPOperationMatch matches the ARP opcode. In an arp table the network
+// header the kernel hands a rule is the ARP header, laid out by RFC 826:
+//
+//	offset  0: ar$hrd  hardware address space (2 octets, 1 = Ethernet)
+//	offset  2: ar$pro  protocol address space (2 octets, 0x0800 = IPv4)
+//	offset  4: ar$hln  hardware address length (1 octet, 6 for Ethernet)
+//	offset  5: ar$pln  protocol address length (1 octet, 4 for IPv4)
+//	offset  6: ar$op   opcode (2 octets, 1 = request, 2 = reply)
+//	offset  8: ar$sha  sender hardware address (ar$hln octets)
+//	offset 14: ar$spa  sender protocol address (ar$pln octets, Ethernet/IPv4)
+//	offset 18: ar$tha  target hardware address
+//	offset 24: ar$tpa  target protocol address
+//
+// The opcode precedes both variable-length addresses, so its offset holds for
+// every hardware and protocol type and the read needs no layout guard.
+// validateMatch (internal/component/firewall/validate.go) refuses the match
+// outside family arp, and refuses an opcode other than request or reply; the
+// opcode check is repeated here so a caller that bypassed validation fails
+// closed.
+func lowerARPOperationMatch(op firewall.ARPOperation) ([]expr.Any, error) {
+	if op != firewall.ARPOperationRequest && op != firewall.ARPOperationReply {
+		return nil, errArpOperationNamesNoOpcode
+	}
+	opcode := make([]byte, 2)
+	binary.BigEndian.PutUint16(opcode, uint16(op))
+	return []expr.Any{
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 6, Len: 2},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: opcode},
+	}, nil
+}
+
+// arpEthernetIPv4 is the first six octets of every Ethernet/IPv4 ARP packet:
+// hardware type 1, protocol type 0x0800, hardware length 6, protocol length 4
+// (RFC 826; lowerARPOperationMatch draws the layout).
+var arpEthernetIPv4 = []byte{0x00, 0x01, 0x08, 0x00, 0x06, 0x04}
+
+// lowerARPSenderAddressMatch matches the sender protocol address of an
+// Ethernet/IPv4 ARP packet, the 4 octets at network-header offset 14
+// (lowerARPOperationMatch draws the layout).
+//
+// That offset follows the 6-octet Ethernet sender hardware address, so it
+// holds only when the packet declares the Ethernet/IPv4 layout. The first
+// compare checks the four layout fields in one read, and a packet of any other
+// layout stops the rule there rather than being matched on the wrong bytes.
+//
+// addr MUST be a specified IPv4 address. validateMatch already refuses any
+// other value; the check is repeated here so a caller that bypassed
+// validation fails closed.
+func lowerARPSenderAddressMatch(addr netip.Addr) ([]expr.Any, error) {
+	if !addr.Is4() || addr.IsUnspecified() {
+		return nil, errArpSenderAddressNamesNoIPv4Address
+	}
+	sender := addr.As4()
+	return []expr.Any{
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 0, Len: 6},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: arpEthernetIPv4},
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 14, Len: 4},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: sender[:]},
+	}, nil
+}
+
+// lowerNDTargetAddressMatch matches the Target Address of an ICMPv6 Neighbor
+// Solicitation or Neighbor Advertisement. RFC 4861 Sections 4.3 and 4.4 give
+// both messages the same first 24 octets, read from the transport header,
+// which for ICMPv6 is the ICMPv6 header itself:
+//
+//	offset  0: type (135 solicitation, 136 advertisement)
+//	offset  1: code
+//	offset  2: checksum
+//	offset  4: reserved, or the R, S and O flags of an advertisement
+//	offset  8: Target Address (16 octets)
+//
+// The l4proto compare keeps the read to ICMPv6, and in an inet table the
+// nfproto guard keeps it off IPv4 (nfprotoGuard carries why). The ICMPv6 type
+// is NOT restricted here: a term MUST carry a MatchICMPv6Type naming 135 or
+// 136 beside this match, because other types hold other bytes at offset 8.
+//
+// addr MUST be a specified IPv6 address. validateMatch already refuses any
+// other value; the check is repeated here so a caller that bypassed
+// validation fails closed.
+func lowerNDTargetAddressMatch(family nftables.TableFamily, addr netip.Addr) ([]expr.Any, error) {
+	if !addr.Is6() || addr.Is4In6() || addr.IsUnspecified() {
+		return nil, errNdTargetAddressNamesNoIPv6Address
+	}
+	target := addr.As16()
+	return append(nfprotoGuard(family, unix.NFPROTO_IPV6),
+		&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_ICMPV6}},
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 8, Len: 16},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: target[:]},
+	), nil
 }
 
 func lowerReject(r firewall.Reject) ([]expr.Any, error) {

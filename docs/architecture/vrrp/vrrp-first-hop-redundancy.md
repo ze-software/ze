@@ -337,7 +337,20 @@ state; a tracked route and a health-check script are not implemented.
   counts `{reason=no-primary-v4}` and returns no upward error, and the next
   `UpdateAdvert` re-resolves. Writing the zero address instead put a source on the
   wire the RFC does not allow, and it panicked in `pseudoSumV4Legacy`, which calls
-  `As4` on the address.
+  `As4` on the address. When the parent loses its last IPv4 address the cached
+  source is cleared and the prepared frame dropped with it, so no advertisement
+  leaves from an address the interface no longer holds.
+- The equal-priority tie-break compares the sender with the source the transport
+  writes, never with a configured address. RFC 3768 Section 6.4.3 compares "the
+  primary IP Address of the sender" with "the local primary IP Address", and the
+  peer on the other side reads ours from our advertisement, so both sides have to
+  compare the same address. Ze once used the first virtual address: a Master at
+  equal priority with a peer whose address fell between its source and its
+  virtual address believed it won while the peer believed the same, and both
+  stayed Master. The engine now reads `Transport.AdvertSource` on every received
+  advertisement and every readiness pass, and hands a change to the FSM as
+  `SourceAddressChanged`. No known source is a named state: the transport sends
+  nothing, and the FSM yields every tie.
 - A netlink query binds to the CALLING thread's netns. Resolving the link-local
   lazily on the announcer goroutine made the device invisible in a netns test.
   Warm the source cache on the engine's goroutine and leave the worker socket I/O

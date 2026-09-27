@@ -22,6 +22,7 @@ type fakeHandle struct {
 	adverts      [][]byte
 	announces    [][]byte
 	noLinkLocal  bool
+	linkLocal    netip.Addr
 	closed       bool
 	stopReadLoop chan struct{}
 	readLoopDone chan struct{}
@@ -42,6 +43,13 @@ func (h *fakeHandle) SendAnnounce(frame []byte) error {
 	defer h.mu.Unlock()
 	h.announces = append(h.announces, append([]byte(nil), frame...))
 	return nil
+}
+
+// LinkLocalSource answers with the link-local a test pinned, if any.
+func (h *fakeHandle) LinkLocalSource() (netip.Addr, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.linkLocal, h.linkLocal.IsValid()
 }
 
 func (h *fakeHandle) Close() error {
@@ -516,5 +524,78 @@ func TestCloseStopsGoroutines(t *testing.T) {
 		default:
 			time.Sleep(time.Millisecond)
 		}
+	}
+}
+
+// TestAdvertSourceIsTheWireSource proves AdvertSource answers with the address
+// the transport writes as the advertisement's source, follows an address
+// change, and reports no source rather than a stale one when the parent loses
+// its IPv4 address.
+//
+// VALIDATES: the engine's tie-break operand (RFC 3768 Section 6.4.3, "the local
+// primary IP Address") is the source on the wire.
+// PREVENTS: an operand that stays on an address the interface no longer holds,
+// and a stale frame sent from it.
+func TestAdvertSourceIsTheWireSource(t *testing.T) {
+	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.10", Family: "ipv4"}})
+	fb := &fakeBackend{}
+	tr := New(fb)
+	key, err := tr.OpenInstance(v4Spec())
+	if err != nil {
+		t.Fatalf("OpenInstance: %v", err)
+	}
+	h := fb.last()
+	if err := tr.UpdateAdvert(key, v4Params()); err != nil {
+		t.Fatalf("UpdateAdvert: %v", err)
+	}
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert: %v", err)
+	}
+	wire := netip.AddrFrom4([4]byte(h.lastAdvert()[12:16]))
+	if src, ok := tr.AdvertSource(key); !ok || src != wire {
+		t.Fatalf("AdvertSource = %v, %v; want the wire source %v", src, ok, wire)
+	}
+
+	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.20", Family: "ipv4"}})
+	tr.RefreshParentAddresses(key)
+	if src, ok := tr.AdvertSource(key); !ok || src != netip.MustParseAddr("192.0.2.20") {
+		t.Fatalf("after the address change AdvertSource = %v, %v; want 192.0.2.20", src, ok)
+	}
+
+	withParentAddrs(t, []iface.AddrInfo{{Address: "2001:db8::1", Family: "ipv6"}})
+	tr.RefreshParentAddresses(key)
+	if src, ok := tr.AdvertSource(key); ok {
+		t.Fatalf("with no IPv4 on the parent AdvertSource = %v, want no source", src)
+	}
+	sent := len(h.sentAdverts())
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert with no source: %v", err)
+	}
+	if got := len(h.sentAdverts()); got != sent {
+		t.Fatalf("an advert went out after the parent lost its IPv4 source (%d sent, want %d)", got, sent)
+	}
+}
+
+// TestAdvertSourceIPv6IsThePinnedLinkLocal proves an IPv6 instance reports
+// the link-local its handle pins on sends, and no source before one is
+// resolved.
+func TestAdvertSourceIPv6IsThePinnedLinkLocal(t *testing.T) {
+	fb := &fakeBackend{}
+	tr := New(fb)
+	spec := v4Spec()
+	spec.Family = packet.V6
+	key, err := tr.OpenInstance(spec)
+	if err != nil {
+		t.Fatalf("OpenInstance: %v", err)
+	}
+	if src, ok := tr.AdvertSource(key); ok {
+		t.Fatalf("before any link-local is resolved AdvertSource = %v, want no source", src)
+	}
+	h := fb.last()
+	h.mu.Lock()
+	h.linkLocal = netip.MustParseAddr("fe80::1")
+	h.mu.Unlock()
+	if src, ok := tr.AdvertSource(key); !ok || src != netip.MustParseAddr("fe80::1") {
+		t.Fatalf("AdvertSource = %v, %v; want fe80::1", src, ok)
 	}
 }

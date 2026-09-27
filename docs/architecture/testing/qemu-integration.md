@@ -541,6 +541,7 @@ actions.
 | L2TP (Ze LNS against xl2tpd) | `./le test deployment docker-l2tp-ppp-test` | `./le test deployment gokrazy-l2tp-ppp-test` | `internal/le/test/deployment` |
 | PPPoE (Ze client against accel-ppp) | `./le test deployment docker-pppoe-accel-test` | `./le test qemu pppoe-accel-test` | `internal/le/test/qemu/pppoe_accel_linux.go` |
 | VRRP (Ze against keepalived) | `./le test integration interop`, scenario `vrrp-mastership-keepalived` | `./le test qemu vrrp-keepalived-test` | `internal/le/test/qemu/vrrp_keepalived_linux.go` |
+| VRRPv2 owner discard (Ze owner against a conflicting keepalived) | `./le test integration interop`, scenario `vrrp-v2-owner-keepalived` | `./le test qemu vrrp-keepalived-test scenarios v2-owner-keeps-the-address` | `internal/le/test/qemu/vrrp_owner_linux.go` |
 | MOBIKE (Ze initiator and responder against strongSwan) | `./le test integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le test qemu ipsec-mobike-test kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
 
 <!-- source: internal/le/test/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
@@ -584,7 +585,7 @@ Retained failure artifacts live in the guest and last for that guest's lifetime.
 <!-- source: internal/le/test/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
 <!-- source: internal/le/test/qemu/vrrp_keepalived_linux.go -- startZe -->
 
-`./le test qemu vrrp-keepalived-test` runs four scenarios, selectable with
+`./le test qemu vrrp-keepalived-test` runs five scenarios, selectable with
 `scenarios=<csv>`.
 
 | Scenario | What it proves |
@@ -593,13 +594,22 @@ Retained failure artifacts live in the guest and last for that guest's lifetime.
 | `QS-2` | Ze dies, keepalived promotes within the master-down band and sends a gratuitous ARP; Ze returns and preempts. |
 | `QS-3` | The skew-time term of the master-down interval is honored. |
 | `tracked-uplink-hands-the-vip-to-keepalived` | Ze at priority 200 tracks a veth worth a decrement of 150. The veth goes down, Ze advertises 50, and keepalived at 100 takes the VIP; the veth returns and Ze preempts. keepalived's own notify script is the assertion, so ANOTHER implementation acts on the decremented priority. |
+| `v2-owner-keeps-the-address` | Ze is the VRRPv2 address owner of `192.0.2.254` (VRID 20). keepalived claims the same VRID and address at priority 255 and advertises by unicast from `192.0.2.252`, above Ze's source `192.0.2.251`, so only the owner discard of RFC 3768 Section 7.1 keeps Ze Master. Ze must keep the `/32` on its virtual-MAC interface for 8 seconds, log no state change, and count at least 3 `owner` discards in `show vrrp statistics`, read through Ze's own CLI. With the discard removed, Ze loses the address. |
 
 The first three names predate the rule that an interop scenario is NAMED rather
 than numbered (`ai/rules/interop-and-goal-validation.md`). Renaming them is not
-the tracking scenario's work, and the fourth does not copy the pattern.
+the tracking scenario's work, and the later scenarios do not copy the pattern.
+
+The owner scenario is the QEMU path of the Docker scenario
+`vrrp-v2-owner-keepalived`, with the same address ordering: the owned address
+sits above keepalived's, so a tie-break that compared the sender with the first
+virtual address instead of the address Ze sends from would also hide the missing
+discard. It adds an SSH server on `127.0.0.1` and a fixture account to Ze's
+config, because the discard count is only visible through the CLI.
 
 <!-- source: internal/le/test/qemu/guestlabs.go -- vrrpScenarioNames -->
 <!-- source: internal/le/test/qemu/vrrp_keepalived_linux.go -- runTrackedUplink -->
+<!-- source: internal/le/test/qemu/vrrp_owner_linux.go -- runOwnerKeepsTheAddress -->
 
 ## Reference Implementations
 

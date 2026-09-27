@@ -46,6 +46,50 @@
       "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC9568-6.4.3-11",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+      "unit-sha": "7914f084376ad1c2",
+      "claim-sha": "01242d139027db2e",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::syncSourceLocked",
+      "producer-sha": "3798133d8e503d40",
+      "break": "body of syncSourceLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-6.4.3-11",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+      "unit-sha": "7914f084376ad1c2",
+      "claim-sha": "a87915308afdae99",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+      "producer-sha": "b8f7123cc5b53541",
+      "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-7.1-12",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed",
+      "unit-sha": "1b6cad0ba1a20eea",
+      "claim-sha": "3c1631f1b893ef24",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::noteOwnerConflict",
+      "producer-sha": "c0120dc6c64dda94",
+      "break": "body of noteOwnerConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9568-7.1-12",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed",
+      "unit-sha": "1b6cad0ba1a20eea",
+      "claim-sha": "4ed42cd841b6d42e",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::onPacket",
+      "producer-sha": "8212f1efeb4d5049",
+      "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC9568-7.2-3",
       "polarity": "negative",
       "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts",

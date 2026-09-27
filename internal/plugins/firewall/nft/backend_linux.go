@@ -207,7 +207,7 @@ func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, c
 		Table: t,
 	}
 	if chain.IsBase {
-		hooknum, err := lowerHook(chain.Hook)
+		hooknum, err := lowerHook(t.Family, chain.Hook)
 		if err != nil {
 			return err
 		}

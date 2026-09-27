@@ -54,15 +54,46 @@ the virtual-MAC device is not needed and was dropped, although keepalived sets i
 
 ## Constraints the code does not state
 
-### The address owner is the exception
+### The address owner needs a filter, not a sysctl
 
 <!-- source: internal/plugins/vrrp/register.go -- vipMaskBits -->
+<!-- source: internal/plugins/vrrp/ownerfilter.go -- ownerFilterTables -->
 
 When the VIP equals a real address of the parent, the router is the address owner.
-The address is local to the parent, so `arp_ignore` cannot muzzle it and
-virtual-MAC ownership is unreachable. Install such a VIP as a host route (/32),
-never at the subnet prefix, or the box gains a duplicate connected route.
-`vipMaskBits` makes that choice.
+The address is local to the parent, so `arp_ignore` cannot muzzle it: the parent
+answers ARP and Neighbor Solicitations for it with its physical MAC. Ze installs
+the VIP on the macvlan too, as a host route (/32 or /128), never at the subnet
+prefix, or the box gains a duplicate connected route. `vipMaskBits` makes that
+choice. The macvlan then answers with the virtual MAC, and the parent's answer
+competes with it.
+
+RFC 3768 Section 8.2 and RFC 9568 Sections 8.1.2 and 8.2.2 forbid the physical-MAC
+answer, so Ze drops it on its way out. While the macvlan holds an owned VIP, the
+firewall table registry carries two tables under the owner `vrrp-owner`:
+
+| Table | Family | Hook | Drops |
+|-------|--------|------|-------|
+| `ze_vrrp_owner_arp` | arp | output | an ARP reply leaving the parent with the VIP as sender protocol address |
+| `ze_vrrp_owner_nd` | ip6 | output | a Neighbor Advertisement leaving the parent with the VIP as target |
+
+The macvlan's own answers leave through the macvlan, so no rule names them. ARP
+requests and Neighbor Solicitations the router sends from the parent are left
+alone: they are its own resolution traffic. The tables are published before the
+VIP is installed and withdrawn after it is removed, so once the macvlan gives the
+VIP up the parent answers for its own address again.
+
+The arp table needs `CONFIG_NF_TABLES_ARP`, which `gokrazy/kernel/kernel.config`
+builds in. The arp family numbers its hooks in its own space (output is 1, not
+the inet 3), which `lowerHook` in the nft backend handles.
+
+A /128 owner VIP on the macvlan and the same address on the parent both pass
+DAD. The macvlan runs none (`accept_dad=0`), and a parent re-running DAD does not
+see the macvlan's copy, because a private macvlan receives only frames arriving
+from the wire. `TestVRRPOwnerAnswersWithVirtualMACOnly` asserts both addresses
+leave DAD usable, then resolves the VIP from a peer and reads the MAC in each ARP
+reply and in each Neighbor Advertisement's Target Link-Layer Address option. Its
+control phase, with no filter, captures the physical MAC; with the filter, only
+the virtual MAC arrives.
 
 ### The cold-start race is inherent
 
@@ -72,9 +103,9 @@ MAC once. Every resolution after it returns the virtual MAC. keepalived's
 must flush and re-resolve to observe the steady state, and must not read the
 cache once.
 
-### IPv6 needs no ARP recipe, and does need DAD off
+### IPv6 needs no parent ARP recipe, and does need DAD and ARP off on its macvlan
 
-<!-- source: internal/plugins/vrrp/dataplane_linux.go -- accept_dad on the macvlan -->
+<!-- source: internal/plugins/vrrp/dataplane_linux.go -- accept_dad and arp_ignore on the IPv6 macvlan -->
 
 Neighbour Discovery resolves the VIP to the virtual MAC natively. A Neighbour
 Solicitation targets the VIP's solicited-node multicast group, which only the
@@ -84,6 +115,14 @@ IPv6 does need `net.ipv6.conf.<vmac>.accept_dad=0`. A VRRP VIP lives on one rout
 at a time, so Duplicate Address Detection has nothing to detect. Leaving DAD on
 makes the VIP tentative, and therefore unreachable, for about one second after
 every promotion.
+
+The IPv6 group's macvlan also gets `net.ipv4.conf.<vmac>.arp_ignore=8`, which
+answers no ARP request at all. Linux answers ARP for any local IPv4 address on
+any interface, so without it the IPv6 macvlan answered who-has for the parent's
+IPv4 addresses and for an IPv4 group's VIP with the IPv6 virtual MAC, and a LAN
+host then followed the IPv6 group's mastership for an IPv4 address. QEMU showed
+it: `TestVRRPOwnerAnswersWithVirtualMACOnly` saw `00:00:5e:00:02:0a` answer an
+ARP request for an IPv4 owner address.
 
 ### The first IPv6 advert sources from the auto link-local. Do not reorder the FSM
 

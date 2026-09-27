@@ -130,8 +130,27 @@ func formatMatch(m firewall.Match) string {
 		return formatInSet(v)
 	case firewall.MatchTCPFlags:
 		return tb.Str("tcp flags ").Str(formatTCPFlags(v.Flags)).String()
+	case firewall.MatchARPOperation:
+		return formatARPOperation(v.Operation)
+	case firewall.MatchARPSenderAddress:
+		return tb.Str("arp sender address ").Addr(v.Addr).String()
+	case firewall.MatchNDTargetAddress:
+		return tb.Str("nd target address ").Addr(v.Addr).String()
 	}
 	return tb.Byte('<').Str(matchTypeName(m)).Byte('>').String()
+}
+
+// formatARPOperation names the two opcodes validation admits, and prints any
+// other value as a number so a bypassed validation stays visible.
+func formatARPOperation(op firewall.ARPOperation) string {
+	switch op {
+	case firewall.ARPOperationRequest:
+		return "arp operation request"
+	case firewall.ARPOperationReply:
+		return "arp operation reply"
+	case firewall.ARPOperationUnspecified:
+	}
+	return textbuf.StrInt("arp operation ", int64(op))
 }
 
 func formatAction(a firewall.Action) string {
@@ -419,6 +438,12 @@ func matchTypeName(m firewall.Match) string {
 		return "firewall.MatchInSet"
 	case firewall.MatchTCPFlags:
 		return "firewall.MatchTCPFlags"
+	case firewall.MatchARPOperation:
+		return "firewall.MatchARPOperation"
+	case firewall.MatchARPSenderAddress:
+		return "firewall.MatchARPSenderAddress"
+	case firewall.MatchNDTargetAddress:
+		return "firewall.MatchNDTargetAddress"
 	}
 	return "firewall.Match"
 }

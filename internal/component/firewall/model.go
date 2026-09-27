@@ -293,7 +293,7 @@ type Action interface {
 	actionMarker()
 }
 
-// --- Match types (20) ---
+// --- Match types (21) ---
 
 // MatchSourceAddress matches packets by source IP prefix.
 type MatchSourceAddress struct{ Prefix netip.Prefix }
@@ -471,6 +471,58 @@ type MatchICMPErrorQuotedDestination struct {
 	Addr netip.Addr
 }
 
+// ARPOperation is the opcode of an ARP packet, the field RFC 826 calls ar$op.
+// Zero is Unspecified so the Go zero value is never a valid opcode, and
+// validateMatch refuses it.
+type ARPOperation uint16
+
+const (
+	// ARPOperationUnspecified is the zero value and is never a valid opcode.
+	ARPOperationUnspecified ARPOperation = iota
+	// ARPOperationRequest is ares_op$REQUEST (RFC 826), opcode 1.
+	ARPOperationRequest
+	// ARPOperationReply is ares_op$REPLY (RFC 826), opcode 2.
+	ARPOperationReply
+)
+
+// MatchARPOperation matches an ARP packet carrying Operation as its opcode.
+//
+// Valid only in family arp, where the network header the kernel hands a rule
+// is the ARP header itself. The opcode sits at the same offset for every
+// hardware and protocol type, so this match needs no layout guard.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchARPOperation struct{ Operation ARPOperation }
+
+// MatchARPSenderAddress matches an Ethernet/IPv4 ARP packet whose sender
+// protocol address (ar$spa) is Addr.
+//
+// The sender protocol address follows the variable-length sender hardware
+// address, so its offset holds only for an Ethernet/IPv4 packet. The lowering
+// therefore compares the hardware type, protocol type and both address
+// lengths first, and a packet of any other layout matches nothing rather than
+// matching the wrong bytes.
+//
+// Valid only in family arp. Addr MUST be a specified IPv4 address, and
+// validateMatch refuses anything else.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchARPSenderAddress struct{ Addr netip.Addr }
+
+// MatchNDTargetAddress matches an ICMPv6 Neighbor Solicitation or Neighbor
+// Advertisement whose Target Address is Addr. Both messages carry the Target
+// Address at octet 8 of the ICMPv6 header (RFC 4861 Sections 4.3 and 4.4).
+//
+// The match does NOT restrict the ICMPv6 type. A term MUST carry a
+// MatchICMPv6Type beside it naming 135 or 136, because every other type holds
+// something else at that offset.
+//
+// Valid in family ip6 and inet. Addr MUST be a specified IPv6 address, and
+// validateMatch refuses anything else.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchNDTargetAddress struct{ Addr netip.Addr }
+
 // MatchTCPFlags matches packets by TCP header flags. Flags is the
 // bitmask of flags that must be set; Mask selects which flags to check.
 // If Mask is zero it defaults to Flags (exact match on those flags).
@@ -502,6 +554,10 @@ func (MatchIPv4TTLBelow) matchMarker()           {}
 func (MatchICMPErrorQuotedTCPPort) matchMarker() {}
 
 func (MatchICMPErrorQuotedDestination) matchMarker() {}
+
+func (MatchARPOperation) matchMarker()     {}
+func (MatchARPSenderAddress) matchMarker() {}
+func (MatchNDTargetAddress) matchMarker()  {}
 
 // --- Action types (16) ---
 

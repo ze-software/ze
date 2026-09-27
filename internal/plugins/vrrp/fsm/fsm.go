@@ -93,6 +93,12 @@ func (i *Instance) State() State { return i.state }
 // action slice the engine must execute. It mutates internal state but performs
 // no side effects itself.
 func (i *Instance) Handle(ev Event) []Action {
+	// The advertisement source is a fact about the sending interface, not about
+	// the role, so it is recorded the same way in every state and never acts.
+	if e, ok := ev.(SourceAddressChanged); ok {
+		i.cfg.LocalPrimaryIP = e.Address
+		return nil
+	}
 	switch i.state {
 	case StateInitialize:
 		return i.handleInitialize(ev)
@@ -468,7 +474,20 @@ func (i *Instance) isOwner() bool { return i.cfg.IsOwner || i.cfg.Priority == 25
 // for IPv6). Unmap normalizes any v4-in-v6 form so both operands compare in the
 // same representation. Equal addresses are NOT greater, so a duplicated primary
 // IP (misconfiguration) never demotes a healthy Master.
+//
+// RFC 3768 Section 6.4.3: "If the Priority in the ADVERTISEMENT is equal to
+// the local Priority and the primary IP Address of the sender is greater than
+// the local primary IP Address, then: Cancel Adver_Timer, Set Master_Down_Timer
+// to Master_Down_Interval, Transition to the {Backup} state".
 func (i *Instance) senderWinsTieBreak(src netip.Addr) bool {
+	// A local source that is not known is a named state, never an operand: it
+	// means the transport has no address to send advertisements from, so the
+	// peers cannot hear this router and it has no mastership to defend. It
+	// yields. Comparing the zero address would reach the same answer only by
+	// accident, and would read as a comparison that happened.
+	if !i.cfg.LocalPrimaryIP.IsValid() {
+		return true
+	}
 	return src.Unmap().Compare(i.cfg.LocalPrimaryIP.Unmap()) > 0
 }
 

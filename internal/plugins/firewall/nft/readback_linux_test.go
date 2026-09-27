@@ -28,16 +28,18 @@ func TestRaiseHookRoundTrip(t *testing.T) {
 		{firewall.HookPostrouting, firewall.FamilyIP6},
 		{firewall.HookIngress, firewall.FamilyNetdev},
 		{firewall.HookEgress, firewall.FamilyNetdev},
+		{firewall.HookInput, firewall.FamilyARP},
+		{firewall.HookOutput, firewall.FamilyARP},
 	}
 	for _, tt := range tests {
-		t.Run(tt.hook.String(), func(t *testing.T) {
-			forwardHook, err := lowerHook(tt.hook)
-			if err != nil {
-				t.Fatalf("lowerHook(%v): %v", tt.hook, err)
-			}
+		t.Run(tt.family.String()+"/"+tt.hook.String(), func(t *testing.T) {
 			forwardFam, err := lowerFamily(tt.family)
 			if err != nil {
 				t.Fatalf("lowerFamily(%v): %v", tt.family, err)
+			}
+			forwardHook, err := lowerHook(forwardFam, tt.hook)
+			if err != nil {
+				t.Fatalf("lowerHook(%v): %v", tt.hook, err)
 			}
 			got, ok := raiseHook(forwardHook, forwardFam)
 			if !ok {

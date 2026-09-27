@@ -70,8 +70,20 @@ const (
 	// form ze sends (MsgOnlyChecksum true). It marks a strict-RFC-9568 peer.
 	ReasonMsgOnlyChecksum = "checksum-rfc9568-message-only"
 	// ReasonAddressList is raised by the ENGINE (spec-vrrp-5) for the v2-only
-	// address-list comparison; it is not a Decode ladder outcome.
+	// address-list comparison; it is not a Decode ladder outcome. It labels a
+	// discarded mismatch and, because RFC 3768 Section 7.1 continues processing
+	// a mismatch the address owner sent, a logged one that was processed.
 	ReasonAddressList = "address-list"
+	// ReasonOwner is raised by the ENGINE for a VRRPv2 advertisement received
+	// by the address owner, which discards it (RFC 3768 Section 7.1). The engine
+	// raises it because only the engine knows whether this router is the owner.
+	ReasonOwner = "owner"
+	// ReasonOwnerConflict is raised by the ENGINE for a VRRPv3 advertisement
+	// received by the address owner. Unlike ReasonOwner it labels a PROCESSED
+	// packet: RFC 9568 erratum 8298 took the owner check out of the discard
+	// list and made it a SHOULD that logs, because a second router claiming
+	// Priority 255 is a misconfiguration the operator has to see.
+	ReasonOwnerConflict = "owner-conflict"
 )
 
 // Reason maps a receive-validation error to its ze_vrrp_packet_errors_total

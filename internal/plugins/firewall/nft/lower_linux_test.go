@@ -143,10 +143,10 @@ func TestLowerSetTimeoutFlagAndElementTimeouts(t *testing.T) {
 // VALIDATES: Category A -- lowerHook rejects unknown hooks.
 // PREVENTS: silent fall-back to ingress for an arbitrary hook value.
 func TestLowerHookUnknownRejects(t *testing.T) {
-	if _, err := lowerHook(firewall.ChainHook(0)); err == nil {
+	if _, err := lowerHook(nftables.TableFamilyINet, firewall.ChainHook(0)); err == nil {
 		t.Fatal("lowerHook(0) must reject")
 	}
-	if _, err := lowerHook(firewall.ChainHook(99)); err == nil {
+	if _, err := lowerHook(nftables.TableFamilyINet, firewall.ChainHook(99)); err == nil {
 		t.Fatal("lowerHook(99) must reject")
 	}
 }
@@ -399,7 +399,7 @@ func TestLowerHookAllValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.in.String(), func(t *testing.T) {
-			got, err := lowerHook(tt.in)
+			got, err := lowerHook(nftables.TableFamilyINet, tt.in)
 			if err != nil {
 				t.Fatalf("lowerHook(%v): %v", tt.in, err)
 			}
@@ -2062,5 +2062,94 @@ func TestLowerTermCounterSitsBetweenTheMatchesAndTheActions(t *testing.T) {
 				t.Fatalf("expression order = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestLowerHookARPFamily checks that an arp chain gets the arp family's own
+// hook numbers. NF_ARP_OUT is 1, which in the inet space is NF_INET_LOCAL_IN,
+// so handing the inet number to an arp chain would attach it to no output
+// hook at all. A hook the arp family does not have is refused.
+func TestLowerHookARPFamily(t *testing.T) {
+	in, err := lowerHook(nftables.TableFamilyARP, firewall.HookInput)
+	if err != nil || *in != 0 {
+		t.Fatalf("arp input = %v, %v; want NF_ARP_IN (0)", in, err)
+	}
+	out, err := lowerHook(nftables.TableFamilyARP, firewall.HookOutput)
+	if err != nil || *out != 1 {
+		t.Fatalf("arp output = %v, %v; want NF_ARP_OUT (1)", out, err)
+	}
+	if _, err := lowerHook(nftables.TableFamilyARP, firewall.HookForward); err == nil {
+		t.Fatal("arp forward must be refused")
+	}
+	inet, err := lowerHook(nftables.TableFamilyINet, firewall.HookOutput)
+	if err != nil || inet != nftables.ChainHookOutput {
+		t.Fatalf("inet output = %v, %v; want NF_INET_LOCAL_OUT", inet, err)
+	}
+}
+
+// TestLowerARPAndNDMatches checks the byte reads the three VRRP address-owner
+// matches program: the ARP opcode at network offset 6, the Ethernet/IPv4
+// layout guard ahead of the sender address at offset 14, and the ICMPv6
+// l4proto compare ahead of the ND target at transport offset 8. Each lowering
+// also refuses the value validation refuses, so a bypassed validation fails
+// closed.
+func TestLowerARPAndNDMatches(t *testing.T) {
+	op, err := lowerARPOperationMatch(firewall.ARPOperationReply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPayloadCmp(t, op, 0, expr.PayloadBaseNetworkHeader, 6, []byte{0, 2})
+
+	sender, err := lowerARPSenderAddressMatch(netip.MustParseAddr("192.0.2.254"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertPayloadCmp(t, sender, 0, expr.PayloadBaseNetworkHeader, 0, []byte{0, 1, 8, 0, 6, 4})
+	assertPayloadCmp(t, sender, 2, expr.PayloadBaseNetworkHeader, 14, []byte{192, 0, 2, 254})
+
+	vip := netip.MustParseAddr("2001:db8::254")
+	target, err := lowerNDTargetAddressMatch(nftables.TableFamilyINet, vip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// nfproto guard (2), l4proto compare (2), then the target read.
+	if len(target) != 6 {
+		t.Fatalf("inet nd-target lowered to %d expressions, want 6", len(target))
+	}
+	if cmp, ok := target[3].(*expr.Cmp); !ok || !bytes.Equal(cmp.Data, []byte{unix.IPPROTO_ICMPV6}) {
+		t.Fatalf("nd-target l4proto compare = %#v", target[3])
+	}
+	want := vip.As16()
+	assertPayloadCmp(t, target, 4, expr.PayloadBaseTransportHeader, 8, want[:])
+	ip6, err := lowerNDTargetAddressMatch(nftables.TableFamilyIPv6, vip)
+	if err != nil || len(ip6) != 4 {
+		t.Fatalf("ip6 nd-target lowered to %d expressions (%v), want 4 with no nfproto guard", len(ip6), err)
+	}
+
+	if _, err := lowerARPOperationMatch(firewall.ARPOperationUnspecified); err == nil {
+		t.Error("zero opcode must be refused")
+	}
+	if _, err := lowerARPSenderAddressMatch(netip.MustParseAddr("2001:db8::1")); err == nil {
+		t.Error("IPv6 ARP sender must be refused")
+	}
+	if _, err := lowerNDTargetAddressMatch(nftables.TableFamilyIPv6, netip.MustParseAddr("192.0.2.1")); err == nil {
+		t.Error("IPv4 ND target must be refused")
+	}
+}
+
+// assertPayloadCmp checks that exprs[at] loads length(want) octets at offset
+// from base and exprs[at+1] compares them for equality with want.
+func assertPayloadCmp(t *testing.T, exprs []expr.Any, at int, base expr.PayloadBase, offset uint32, want []byte) {
+	t.Helper()
+	if len(exprs) < at+2 {
+		t.Fatalf("only %d expressions, want a payload compare at %d", len(exprs), at)
+	}
+	load, ok := exprs[at].(*expr.Payload)
+	if !ok || load.Base != base || load.Offset != offset || load.Len != uint32(len(want)) {
+		t.Fatalf("expression %d = %#v, want payload base %d offset %d len %d", at, exprs[at], base, offset, len(want))
+	}
+	cmp, ok := exprs[at+1].(*expr.Cmp)
+	if !ok || cmp.Op != expr.CmpOpEq || !bytes.Equal(cmp.Data, want) {
+		t.Fatalf("expression %d = %#v, want equality with %x", at+1, exprs[at+1], want)
 	}
 }

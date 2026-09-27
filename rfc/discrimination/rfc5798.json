@@ -519,6 +519,28 @@
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5798-6.4.3-11",
+      "polarity": "positive",
+      "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+      "unit-sha": "7914f084376ad1c2",
+      "claim-sha": "eb34f258df7a2d10",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/instance.go::syncSourceLocked",
+      "producer-sha": "3798133d8e503d40",
+      "break": "body of syncSourceLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5798-6.4.3-11",
+      "polarity": "negative",
+      "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+      "unit-sha": "7914f084376ad1c2",
+      "claim-sha": "c42c491c7316de7d",
+      "route": "revert",
+      "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+      "producer-sha": "b8f7123cc5b53541",
+      "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5798-6.4.3-12",
       "polarity": "positive",
       "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",

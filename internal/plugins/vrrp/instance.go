@@ -89,6 +89,16 @@ type instance struct {
 	// never parses payloads, so these are engine-owned (D-F).
 	prio0Sent     uint64
 	prio0Received uint64
+
+	// ownerConflictLogNext is the earliest time noteOwnerConflict logs again.
+	ownerConflictLogNext time.Time
+
+	// source is the address this router's advertisements leave from, as the
+	// transport last resolved it, and the FSM's tie-break operand. The zero
+	// Addr is the named state "no source known": the transport then builds no
+	// advertisement, and the FSM yields every equal-priority tie-break
+	// (senderWinsTieBreak, fsm/fsm.go). syncSourceLocked is its only writer.
+	source netip.Addr
 }
 
 // engineDeps are the seams the worker drives. Real implementations wrap the
@@ -113,6 +123,18 @@ type engineDeps struct {
 	// called after setAcceptFilter once the instance gives its addresses up, or
 	// a drop rule outlives the state that asked for it.
 	clearAcceptFilter func(instanceOwner string) error
+
+	// setOwnerFilter stops the parent answering ARP and Neighbor Solicitations
+	// for the virtual addresses it also holds as real addresses, which it would
+	// answer with its physical MAC (ownerfilter.go). An empty vips withdraws
+	// the entry. The caller MUST call clearOwnerFilter when the instance stops
+	// holding those addresses on the virtual-MAC device.
+	setOwnerFilter func(instanceOwner, parent string, vips []netip.Addr) error
+	// clearOwnerFilter withdraws the instance's owner-filter entry. It MUST be
+	// called after setOwnerFilter once the virtual-MAC device gives the
+	// addresses up, or the parent stays silent for an address it again holds
+	// alone.
+	clearOwnerFilter func(instanceOwner string) error
 
 	// parentReady reports whether the unit's device can host a virtual router:
 	// operationally up, with an address of this family to source advertisements
@@ -139,6 +161,11 @@ type engineDeps struct {
 	// address (RFC 9568 Section 7.2: adverts are sourced from the sending
 	// interface's primary address, which the transport caches).
 	refreshAddresses func(key transport.InstanceKey)
+	// advertSource reports the source address the transport writes on this
+	// instance's advertisements, or false while it knows none. It is the local
+	// operand of the equal-priority tie-break, so it MUST answer with the
+	// address on the wire and never with a configured stand-in.
+	advertSource func(key transport.InstanceKey) (netip.Addr, bool)
 }
 
 // newInstance builds a worker. The caller starts it with run().
@@ -376,6 +403,7 @@ func (in *instance) evaluateReadiness() {
 	if in.deps.refreshAddresses != nil {
 		in.deps.refreshAddresses(in.key)
 	}
+	in.syncSourceLocked()
 
 	ready := true
 	if in.deps.parentReady != nil {
@@ -537,6 +565,13 @@ func (in *instance) doSendAdvert(priority uint8, intervalMs int) {
 // The filter goes in FIRST, so the kernel never holds the address ahead of the
 // rule that governs what it accepts.
 //
+// The owner filter goes in before the addresses too. For a virtual address the
+// parent also holds as a real address, the parent answers ARP and Neighbor
+// Solicitations with its physical MAC, which RFC 9568 Sections 8.1.2 and 8.2.2
+// forbid; the filter drops those answers so only the virtual-MAC device's
+// answers leave. Installed first, the worst case is a short window where no
+// answer leaves, never one where the physical MAC does.
+//
 // A filter that fails to apply is an operator-visible error and does NOT stop
 // the addresses being installed. The same section requires this router to answer
 // ARP and Neighbor Solicitations for those addresses, and on Linux both follow
@@ -548,6 +583,12 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 		logger().Error("vrrp: set accept-mode dataplane filter failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
 			"device", in.dev, "accept", accept, "error", err)
+	}
+	// RFC 9568 Section 8.1.2, Section 8.2.2
+	if err := in.deps.setOwnerFilter(in.own, in.spec.ParentDevice, in.spec.ownedVIPs(vips)); err != nil {
+		logger().Error("vrrp: set address-owner dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "parent", in.spec.ParentDevice, "error", err)
 	}
 	if err := in.deps.installVIPs(in.dev, in.own, in.spec.vipCIDRs(vips)); err != nil {
 		logger().Error("vrrp: install virtual addresses failed",
@@ -566,10 +607,19 @@ func (in *instance) doInstallVIPs(vips []netip.Addr) {
 // doInstallVIPs, so the rule is never given up ahead of the address it governs.
 // It is withdrawn at all because a drop rule that outlives this instance would
 // silence an address the next Active router is allowed to answer on.
+//
+// The owner filter is withdrawn after the addresses for the same reason: once
+// the virtual-MAC device no longer holds an owned address, the parent is its
+// only holder and has to answer for it again.
 func (in *instance) doRemoveVIPs() {
 	in.deps.removeVIPs(in.own)
 	if err := in.deps.clearAcceptFilter(in.own); err != nil {
 		logger().Error("vrrp: withdraw accept-mode dataplane filter failed",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"device", in.dev, "error", err)
+	}
+	if err := in.deps.clearOwnerFilter(in.own); err != nil {
+		logger().Error("vrrp: withdraw address-owner dataplane filter failed",
 			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
 			"device", in.dev, "error", err)
 	}
@@ -607,22 +657,48 @@ func (in *instance) fsmConfig() fsm.Config {
 		Preempt:          in.spec.Preempt,
 		PreemptDelayMs:   int(in.spec.PreemptDelaySeconds) * 1000,
 		AdvertIntervalMs: int(in.spec.AdvertIntervalMs),
-		LocalPrimaryIP:   in.primaryIP(),
+		LocalPrimaryIP:   in.source,
 		VIPs:             in.spec.VIPs,
 		AcceptMode:       in.spec.EffectiveAcceptMode(),
 	}
 }
 
-// primaryIP is the tie-break operand (RFC 9568 Section 6.4.3): the source
-// address this router advertises from. For IPv6 that is the first virtual
-// address, which the verifier guarantees is the link-local one; for IPv4 the
-// transport resolves the parent's primary address at send time, and the FSM only
-// needs a stable comparison operand, so the first VIP serves for both.
-func (in *instance) primaryIP() netip.Addr {
-	if len(in.spec.VIPs) > 0 {
-		return in.spec.VIPs[0]
+// syncSourceLocked brings the tie-break operand to the source address the
+// transport last resolved for this instance's advertisements, and tells the FSM
+// when it moved. in.mu must be held.
+//
+// RFC 3768 Section 6.4.3: "If the Priority in the ADVERTISEMENT is equal to
+// the local Priority and the primary IP Address of the sender is greater than
+// the local primary IP Address, then: ... Transition to the {Backup} state".
+// A peer compares its own address with the source it reads on our
+// advertisement, so the local operand has to be that same source. For IPv4 it
+// is the parent's primary address, never a virtual address: a first virtual
+// address in its place lets two routers at equal priority each believe they
+// win, and both stay Master.
+//
+// The transport re-resolves the source on every advertisement it prepares and
+// on every link event, so reading it here, on each received advertisement and
+// on each readiness pass, follows an address change within one advertisement
+// interval, which is the delay the peers see it with too.
+func (in *instance) syncSourceLocked() {
+	source, known := in.deps.advertSource(in.key)
+	if !known {
+		source = netip.Addr{}
 	}
-	return netip.Addr{}
+	if source == in.source {
+		return
+	}
+	in.source = source
+	if known {
+		logger().Info("vrrp: advertisement source address",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"family", in.spec.Family, "address", source)
+	} else {
+		logger().Warn("vrrp: no advertisement source address, this router yields every equal-priority election",
+			"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+			"family", in.spec.Family, "device", in.spec.ParentDevice)
+	}
+	in.dispatchLocked(fsm.SourceAddressChanged{Address: source})
 }
 
 // reconfigure re-applies config to a running instance without restarting it.
@@ -677,23 +753,86 @@ func (in *instance) onPacket(item transport.RxItem) {
 	if adv.MsgOnlyChecksum {
 		in.deps.recordRxError(in.key, packet.ReasonMsgOnlyChecksum)
 	}
-	// RFC 3768 Section 7.1: a VRRPv2 receiver MUST discard an advertisement
-	// whose address list differs from its own. VRRPv3 dropped the requirement,
-	// so this is v2-only. It lives here because only the engine holds both the
-	// configured VIPs and the decoded ones.
+	// RFC 3768 Section 7.1: "MUST verify that the VRID is configured on the
+	// receiving interface and the local router is not the IP Address owner
+	// (Priority equals 255 (decimal))." ... "If any one of the above checks
+	// fails, the receiver MUST discard the packet".
+	// Decode enforces the VRID half; the owner half lives here because only the
+	// engine knows this router owns the address. It is v2-only: VRRPv3 follows
+	// RFC 9568 erratum 8298, which lowers the owner half to a SHOULD that logs.
+	// Without the discard, an equal-priority advertisement from a greater
+	// sender address would demote the owner through the Master tie-break.
+	if in.spec.Version == versionV2 {
+		if in.spec.IsOwner {
+			in.deps.recordRxError(in.key, packet.ReasonOwner)
+			return
+		}
+	}
+	// RFC 9568 Section 7.1, erratum 8298: "It SHOULD verify that the local
+	// router is not the IPvX address owner (Priority = 255 (decimal)) and log
+	// the event (subject to rate-limiting) and MAY indicate via network
+	// management that a misconfiguration was detected."
+	// The v2 owner has returned above, so this is the VRRPv3 owner. The
+	// erratum moved the check out of the discard list, so the advertisement is
+	// still processed below.
+	if in.spec.IsOwner {
+		in.noteOwnerConflict(item.Meta.Src, adv.Priority)
+	}
+	// RFC 3768 Section 7.1: "MAY verify that "Count IP Addrs" and the list of
+	// IP Address matches the IP_Addresses configured for the VRID. If the above
+	// check fails, the receiver SHOULD log the event" ... "If the packet was not
+	// generated by the address owner (Priority does not equal 255 (decimal)),
+	// the receiver MUST drop the packet, otherwise continue processing."
+	// VRRPv3 dropped the drop, so this is v2-only. It lives here because only
+	// the engine holds both the configured VIPs and the decoded ones. The
+	// mismatch is counted either way, so an owner's differing list stays
+	// visible to the operator while its advertisement is processed.
 	if in.spec.Version == versionV2 && !in.addressListMatches(adv) {
 		in.deps.recordRxError(in.key, packet.ReasonAddressList)
-		return
+		if adv.Priority != ownerPriority {
+			return
+		}
 	}
 	if adv.Priority == 0 {
 		in.prio0Received++
 	}
+	// The FSM compares the sender with our own source when priorities tie, so
+	// it has to hold the source the transport is sending from now.
+	in.syncSourceLocked()
 	in.send(fsm.AdvertReceived{
 		Priority:   adv.Priority,
 		SrcIP:      item.Meta.Src,
 		IntervalMs: int(adv.AdverIntervalMS),
 		VIPCount:   adv.VIPCount(),
 	})
+}
+
+// ownerConflictLogInterval bounds the owner-conflict log line to one per
+// instance per minute. The misconfigured peer advertises every
+// Advertisement_Interval, down to 10 ms, so an unbounded line would flood the
+// log; the counter still counts every advertisement.
+const ownerConflictLogInterval = time.Minute
+
+// noteOwnerConflict records a VRRPv3 advertisement the address owner received:
+// a counter for every one, and a log line at most once per
+// ownerConflictLogInterval. The caller MUST hold in.mu and MUST go on
+// processing the advertisement, because the erratum does not discard it.
+func (in *instance) noteOwnerConflict(source netip.Addr, priority uint8) {
+	// RFC 9568 Section 7.1, erratum 8298: "MAY indicate via network management
+	// that a misconfiguration was detected."
+	in.deps.recordRxError(in.key, packet.ReasonOwnerConflict)
+
+	now := in.clk.Now()
+	// A zero ownerConflictLogNext opens no window: the first conflict logs.
+	if now.Before(in.ownerConflictLogNext) {
+		return
+	}
+	in.ownerConflictLogNext = now.Add(ownerConflictLogInterval)
+	// RFC 9568 Section 7.1, erratum 8298: "log the event (subject to
+	// rate-limiting)".
+	logger().Warn("vrrp: advertisement received by the address owner, another router may claim the same addresses",
+		"interface", in.spec.Interface, "group", in.spec.Name, "vrid", in.spec.VRID,
+		"source", source, "priority", priority)
 }
 
 // addressListMatches compares an advertisement's address list with the

@@ -174,6 +174,15 @@ func raiseHook(h *nftables.ChainHook, family nftables.TableFamily) (firewall.Cha
 		return 0, false
 	}
 	num := uint32(*h)
+	if family == nftables.TableFamilyARP {
+		switch *h {
+		case nfARPIn:
+			return firewall.HookInput, true
+		case nfARPOut:
+			return firewall.HookOutput, true
+		}
+		return 0, false
+	}
 	if family == nftables.TableFamilyNetdev {
 		switch num {
 		case unix.NF_NETDEV_INGRESS:

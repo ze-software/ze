@@ -296,6 +296,20 @@ func scenarioPeers(producer, scenario, suffix string, network interoplab.Network
 	zeMounts := []interoplab.Mount{mount(filepath.Join(scenario, zeConfigFile), zeMountedConfig)}
 	zeArguments := ipv6Sysctls()
 	zeCommand := []string{"start", zeMountedConfig}
+	// A scenario carrying keepalived.conf runs ze as a VRRP router, and VRRP
+	// writes per-device sysctls on the virtual-MAC macvlan it creates at run
+	// time (applyDataplaneSysctls, internal/plugins/vrrp/dataplane_linux.go),
+	// so no `--sysctl` at container start can name them. Docker blocks the
+	// write twice in an unprivileged container: it mounts /proc/sys read-only
+	// (lifted by systempaths=unconfined), and its default AppArmor profile
+	// denies writes under /proc/sys except kernel/ (lifted by
+	// apparmor=unconfined; measured 2026-09-27, the first alone answers
+	// "Permission denied"). The net.* knobs stay confined to the container's
+	// own network namespace. Without both the instance never starts.
+	if regularFile(filepath.Join(scenario, "keepalived.conf")) {
+		zeArguments = append(zeArguments,
+			"--security-opt", "systempaths=unconfined", "--security-opt", "apparmor=unconfined")
+	}
 	// A scenario carrying ze-reload.conf reloads ze mid-run, so ze must read a
 	// config file the checker can REPLACE. The mounted one is not it: every
 	// lab mount is read-only, and the file behind it is the checkout's own

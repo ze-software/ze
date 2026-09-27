@@ -202,6 +202,37 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-destination names no IPv4 address (got %v)",
 				tbl.Name, ch.Name, term.Name, v.Addr)
 		}
+	case MatchARPOperation:
+		// Only an arp table hands a rule the ARP header as its network
+		// header; in any other family the opcode offset is an IP field.
+		if tbl.Family != FamilyARP {
+			return fmt.Errorf("table %q chain %q term %q: arp-operation match is valid only in family arp, got %s",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		if v.Operation != ARPOperationRequest && v.Operation != ARPOperationReply {
+			return fmt.Errorf("table %q chain %q term %q: arp-operation names no opcode (got %d)",
+				tbl.Name, ch.Name, term.Name, v.Operation)
+		}
+	case MatchARPSenderAddress:
+		if tbl.Family != FamilyARP {
+			return fmt.Errorf("table %q chain %q term %q: arp-sender-address match is valid only in family arp, got %s",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		// The compare is 4 octets of an Ethernet/IPv4 ARP packet, so only a
+		// specified IPv4 address names a sender.
+		if !v.Addr.Is4() || v.Addr.IsUnspecified() {
+			return fmt.Errorf("table %q chain %q term %q: arp-sender-address names no IPv4 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
+	case MatchNDTargetAddress:
+		if tbl.Family != FamilyIP6 && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: nd-target-address match is valid only in family ip6 or inet, got %s",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		if !v.Addr.Is6() || v.Addr.Is4In6() || v.Addr.IsUnspecified() {
+			return fmt.Errorf("table %q chain %q term %q: nd-target-address names no IPv6 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
 	}
 	return nil
 }

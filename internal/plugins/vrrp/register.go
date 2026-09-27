@@ -280,11 +280,11 @@ func (s GroupSpec) vipCIDRs(vips []netip.Addr) []string {
 //   - A VIP equal to one of the unit's real addresses is the RFC address owner's
 //     address: it already lives on the PARENT with the parent's subnet prefix, so
 //     installing it on the macvlan with the subnet prefix too would add a second,
-//     competing connected route for the subnet. Install it as a host route.
-//     (vMAC ownership is unachievable for the owner regardless -- the address is
-//     local to the parent, so the parent answers ARP for it whatever arp_ignore
-//     says -- so the host route keeps the owner reachable via the parent without
-//     the duplicate-route side effects.)
+//     competing connected route for the subnet. Install it as a host route. The
+//     macvlan then answers ARP and Neighbor Solicitations for it with the virtual
+//     MAC. The parent answers too, because the address is local to it whatever
+//     arp_ignore says, and the owner filter (ownerfilter.go) drops the parent's
+//     physical-MAC answers on their way out.
 //   - Otherwise use the LONGEST parent subnet that contains the VIP, so the
 //     macvlan owns that subnet's connected route.
 //   - A VIP contained by no parent subnet (a misconfiguration -- a VRRP VIP
@@ -449,12 +449,15 @@ func liveDeps() engineDeps {
 		},
 		setAcceptFilter:   setAcceptFilter,
 		clearAcceptFilter: clearAcceptFilter,
+		setOwnerFilter:    setOwnerFilter,
+		clearOwnerFilter:  clearOwnerFilter,
 		recordRxError:     sharedTransport.RecordRxError,
 		emitState:         emitStateChange,
 		parentReady:       parentReady,
 		linkUp:            linkUp,
 		watchLinks:        watchLinks,
 		refreshAddresses:  sharedTransport.RefreshParentAddresses,
+		advertSource:      sharedTransport.AdvertSource,
 	}
 }
 

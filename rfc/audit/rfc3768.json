@@ -1,0 +1,523 @@
+{
+  "audited": "2026-09-27",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC3768-5.2.3-1": {
+      "note": "Single-polarity positive. Forbidden: a sent advertisement with IPv4 TTL other than 255. TestSendAdvertIPv4HeaderTTLProtoDst compares the TTL octet of the built header with the literal 255, so any other value goes red.",
+      "requirement_sha": "00dea190e7742ef7",
+      "tests": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
+      },
+      "units": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "e5856054721cd122"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-5.2.3-2": {
+      "note": "Forbidden: accepting a received packet whose TTL is not 255. Case N4 feeds TTL 64 and fatals unless Decode returns ErrTTL; the golden v2 packet at TTL 255 decodes. N4's buffer is v3, but Decode's TTL row runs before any version-specific branch and RFC 9568 states the same rule, so one check serves both.",
+      "requirement_sha": "3d846da62f5faeea",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-5.3.2-1": {
+      "note": "Forbidden: accepting a packet whose Type is not ADVERTISEMENT. ValidationOrder case 3<4 sets Type 2 and fatals unless ErrType, and the VRID lookup it also fails is ordered after, so the type row alone decides; golden v2 Type 1 decodes. The buffer is v3, but the type row precedes any version branch.",
+      "requirement_sha": "df72e2697e1a4220",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-5.3.4-1": {
+      "note": "Forbidden: the address owner running with a priority other than 255, or 255 given to a non-owner. TestOwnerAutoDetection errors unless an owner configured with priority 120 has EffectivePriority 255, and errors unless a near-miss non-owner keeps its configured 100.",
+      "requirement_sha": "10a546502ef3e667",
+      "tests": {
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "f39d7347d46bdc74",
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "f39d7347d46bdc74"
+      },
+      "units": {
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
+        "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "47246169c047d639"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-5.3.4-2": {
+      "note": "Forbidden: a backup priority outside 1..254. TestBoundaryPriority fatals unless validateGroups rejects 0 and 255 and accepts 1 and 254.",
+      "requirement_sha": "395a0085cfbc094b",
+      "tests": {
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "f39d7347d46bdc74",
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "f39d7347d46bdc74"
+      },
+      "units": {
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
+        "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-5.3.6-1": {
+      "note": "Clause 2 (Auth Type not matching the locally configured method): case N8 sets Auth Type 1 at a group configured for type 0 and fatals unless ErrAuthType; the golden type 0 decodes. Clause 1 (unknown authentication type, 3..255): no tagged case feeds one, so a check rejecting only the defined types 1 and 2 passes. Decode rejects any non-zero today (validate.go Row 10), but no assertion pins it.",
+      "requirement_sha": "34135f094ac9b1cb",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.2-1": {
+      "note": "Forbidden: a Backup answering ARP for the virtual address, which the kernel does only if Ze installs the VIP. TestInstanceStartupNonOwnerGoesBackup errors on any VIP install by a Backup; TestInstanceOwnerStartupGoesMaster errors unless the Master installs it on the vMAC device, so the silence is state-bound. The boundary asserted is the state Ze installs for the kernel; the instance runs v3, and VIP installation has no version branch.",
+      "requirement_sha": "63d14e1bbd4d44d6",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.2-2": {
+      "note": "the units assert only that a Backup installs no VIP. The vMAC macvlan still exists in Backup (created at apply, rp_filter=0), so frames addressed to the virtual MAC that reach a Backup are not shown discarded: no-VIP proves no local accept, not no forwarding",
+      "requirement_sha": "11cd0dd03e7ab80e",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.2-3": {
+      "note": "Forbidden: a Backup accepting packets addressed to the virtual address, which requires the VIP installed locally. TestInstanceStartupNonOwnerGoesBackup errors on any VIP install in Backup; TestInstanceOwnerStartupGoesMaster errors unless the Master installs it. Instance runs v3; VIP installation has no version branch.",
+      "requirement_sha": "7c11c855f4f5522d",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.2-4": {
+      "note": "Forbidden: a Backup Shutdown that leaves Master_Down_Timer armed or does not go to Initialize. TestFSMTransitionMatrix row backup/shutdown asserts exactly [StopTimers] and next Initialize; row backup/advert-timer-expired/stale shows a non-Shutdown event keeps Backup. Shutdown handling has no version branch.",
+      "requirement_sha": "e4e17b921434a0a8",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.2-5": {
+      "note": "TestFSMMasterDownPromotion asserts only the action TYPES and order: the Adver_Timer interval is not checked against Advertisement_Interval and AnnounceFailover is not shown to carry the virtual MAC gratuitous ARP. The stale-gen negative is sound",
+      "requirement_sha": "a7d9fda5544e914c",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "681303d0683131ce",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.2-6": {
+      "note": "Forbidden: a Priority 0 advert setting Master_Down_Timer to anything but Skew_Time. Row backup/advert/priority-zero asserts exactly StartMasterDownTimer{skewDur(cfg,1000)}; row adopt/equal-priority asserts Master_Down_Interval, not Skew. The row runs v3 at a 1000 ms interval, where the v3 skew equals the v2 (256-Priority)/256 s.",
+      "requirement_sha": "3bea368fe4c267fe",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.2-7": {
+      "note": "the tagged positive (row backup/advert/adopt/equal-priority) runs a v3 instance and asserts master-down re-armed from the ADVERTISED 4000 ms interval. RFC 3768 has no interval adoption: Master_Down_Interval comes from the local Advertisement_Interval. TestV2NoIntervalAdoption asserts the v2 behaviour but carries no tag",
+      "requirement_sha": "a71fccb4a5cff07f",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "wrong"
+    },
+    "RFC3768-6.4.2-8": {
+      "note": "Preempt_Mode False clause: row preempt-false-lower-priority asserts a master-down reset. Discard clause: row preempt-lower-priority-no-delay asserts no actions and Backup. Priority >= local clause: only EQUAL is run; no Backup row feeds a higher-priority advert, so an '==' comparison passes. Reset value: both reset rows run v3 (baseCfg Version 3) and expect mdDur from the ADVERTISED 4000 ms, the RFC 9568 adoption; RFC 3768 resets to the local Master_Down_Interval and no tagged row asserts the v2 value (TestV2NoIntervalAdoption does, untagged).",
+      "requirement_sha": "9886042b1d8b2718",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.3-1": {
+      "note": "positive asserts sysctl values (proxy for the ARP reply, the reply itself is not observed); the negative is teardown restoring the knobs, which is not an input violating the Master ARP obligation",
+      "requirement_sha": "0782227452c1671b",
+      "tests": {
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500"
+      },
+      "units": {
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.3-2": {
+      "note": "the units assert VIP installation on the macvlan; forwarding of frames to the virtual MAC depends on the macvlan, which exists in Backup too, so neither polarity shows forward-in-Master versus not-in-Backup",
+      "requirement_sha": "5e5216241a37631a",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.3-3": {
+      "note": "Forbidden: a v2 non-owner Master accepting packets addressed to the virtual address. TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress (Version 2) fatals unless exactly one accept-filter call is made and errors unless accept=false for the non-owner and accept=true for the owner.",
+      "requirement_sha": "114dc20e137ad0e5",
+      "tests": {
+        "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "be2b37a3effc5cfe",
+        "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "be2b37a3effc5cfe"
+      },
+      "units": {
+        "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "6f147daa7cd88b7a",
+        "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "6f147daa7cd88b7a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.3-4": {
+      "note": "the tagged positive asserts only that the owner Master installs the VIP; it does not assert the accept filter is accept=true, so an owner suppression would still pass. The negative is a Backup, not an owner Master that refuses",
+      "requirement_sha": "e0ce4a74ed7e3d15",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.3-5": {
+      "note": "Forbidden: a Master Shutdown that leaves Adver_Timer armed, sends no Priority 0 advert, or does not go to Initialize. Row master/shutdown asserts exactly StopTimers, SendAdvertZeroPriority and next Initialize; TestInstanceShutdownAsMasterSendsPriorityZero sees the priority 0 advert leave the executor; row backup/shutdown shows no priority 0 advert from a Backup.",
+      "requirement_sha": "7f180484ce9dc56c",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "7f46ec0e2b96d243"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.3-6": {
+      "note": "Forbidden: an Adver_Timer expiry that does not send or does not re-arm at Advertisement_Interval. Row master/advert-timer-expired/matching-gen asserts exactly SendAdvert then StartAdvertTimer at the configured 1 s; TestFSMStaleTimerGenerationIgnored shows a stale expiry emits nothing.",
+      "requirement_sha": "a7409bcd52827d36",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.3-7": {
+      "note": "Forbidden: a Master answering a Priority 0 advert without sending or without re-arming Adver_Timer. Row master/advert/priority-zero/reset-advert-timer asserts SendAdvert plus StartAdvertTimer and stays Master; row losing-lower-priority/v2-silent shows a non-zero losing advert draws neither.",
+      "requirement_sha": "4ef1e2ef50d25ce9",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-6.4.3-8": {
+      "code": {
+        "internal/plugins/vrrp/fsm/fsm.go::demoteToBackup": "4354f7863b348aed",
+        "internal/plugins/vrrp/fsm/fsm.go::masterAdvert": "2dbdef3bd05f4df7",
+        "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak": "0a9381b15f64b496",
+        "internal/plugins/vrrp/instance.go::syncSourceLocked": "f7253f03aa078d8f"
+      },
+      "note": "RA-VRRP strict re-read 2026-09-27 (independent). Clause 'equal Priority and sender primary address greater than the local primary address': forbidden = a v2 Master comparing the wrong operand or holding Master; TestInstanceTieBreakComparesTheAdvertisementSource v2 cases assert Backup for sender 192.0.2.8 above source 192.0.2.2 and Master for sender 192.0.2.80 below source 192.0.2.100 (both above the first virtual address 192.0.2.50), so a first-virtual-address operand or an inverted compare goes red (records: revert syncSourceLocked, revert senderWinsTieBreak). Clauses 'Cancel Adver_Timer', 'Set Master_Down_Timer to Master_Down_Interval', 'Transition to Backup' on that branch: TestInstanceV2TieBreakDemotionRestartsTheTimers asserts in.advert == nil, no advertisement over two intervals, masterDown armed, Backup at MDI-1ms and Master at MDI+1ms with MDI = 3.21875 s derived from RFC 3768 Section 6.1, so a timer left armed, never armed or armed at another value goes red (hand reds DF-VRRP-6 red-timer.log, red-md.log; record revert demoteToBackup). Negative polarity: v2 matrix row master/advert/losing-lower-priority/v2-silent (nil actions, Master) and the v2 'source above sender holds' case. NOT proven for VRRPv2: the 'Priority greater than the local Priority' clause. The only tagged units feeding a higher-priority advert are the TestFSMTransitionMatrix rows master/advert/higher-priority/demote, which run baseCfg (Version 3) with IntervalMs 4000 and expect mdDur(cfg,4000), i.e. the RFC 9568 interval-adoption rule; no v2 instance ever receives a higher-priority advert in a tagged unit, so a v2-only break of that branch stays green. The predicate in masterAdvert is shared across versions, which is why the gap is narrow, but a shared predicate is an argument, not an assertion.",
+      "requirement_sha": "80a1a3beb686d37f",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a878e0cdb3eac07e"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "4d178cb352853a19",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "4d178cb352853a19",
+        "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a472093b66ff5214"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-6.4.3-9": {
+      "note": "Discard clause: row master/advert/losing-lower-priority/v2-silent (Version 2) asserts no actions and stays Master. Demote clauses (higher priority; equal priority with greater sender IP): rows higher-priority/demote and tie-break-lost assert StopTimers, StartMasterDownTimer and Backup, but run a v3 instance and expect master-down from the advertised 4000 ms, the RFC 9568 adoption RFC 3768 does not have (why RFC3768-6.4.3-8 is wrong). No v2 demotion is asserted.",
+      "requirement_sha": "385f3f1ac94268bd",
+      "tests": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "b2b7454fac310168"
+      },
+      "units": {
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+        "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-7.1-1": {
+      "note": "Forbidden: accepting a version other than 2 at a v2 group. Case N9 fatals unless a v3 packet at a v2 group and a v2 packet at a v3 group each return ErrVersion; the golden v2 packet decodes at a v2 group.",
+      "requirement_sha": "d7c50ecce42d4447",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.1-2": {
+      "note": "IP Address(es) clause: case 9<10 lies Count=3 over two addresses and fatals unless ErrLength. Fixed-fields clause: no tagged v2 case feeds a payload shorter than the 8-octet header (ErrTruncated). Authentication Data clause: no tagged case shortens only the 8-octet trailer under an honest Count; the positive only shows the complete 24-octet golden decodes, so a check treating the trailer as optional (length 16 or 24 for Count 2) passes.",
+      "requirement_sha": "c0eaef56db4cad0a",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-7.1-3": {
+      "note": "Forbidden: accepting a v2 packet with a wrong checksum. TestDecodeV2ChecksumCorrupt flips the checksum of the v2 golden and fatals unless ErrChecksum; the golden v2 verifies.",
+      "requirement_sha": "fa9f9d4122642ebf",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2ChecksumCorrupt": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2ChecksumCorrupt": "feaf2244ad82617c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.1-4": {
+      "code": {
+        "internal/plugins/vrrp/instance.go::onPacket": "e3df500727689908",
+        "internal/plugins/vrrp/packet/validate.go::Decode": "5edfbd2177d4686d"
+      },
+      "note": "RA-FIX re-read 2026-09-27. Owner half enforced for VRRPv2: TestInstanceV2OwnerDiscardsAdvert feeds a Priority 255 advert from a greater sender to a v2 owner and asserts ReasonOwner, no FSM event and Master held, and the same advert to a non-owner reaches the FSM. VRID half: Decode returns ErrUnknownVRID when the lookup does not resolve the VRID (TestValidationOrder 4<5) and TestDecodeGoldenV2 resolves a configured one. The clause 'on the receiving interface' is not asserted: the lookup (instance.lookup) compares the VRID with its own instance, and interface scoping rests on the per-instance socket the transport binds, which no tagged unit exercises; an advert for a VRID configured on another interface is never fed to any tagged unit. DF-VRRP-5 re-read 2026-09-27: onPacket changed only by the v3 noteOwnerConflict branch and the syncSourceLocked call before the FSM event, neither on the v2 owner path, so the owner-half assertions stand. The owner half is also proven end to end by the vrrp-v2-owner-keepalived interop scenario (keepalived at 255 from a greater source; Ze keeps the /32 and counts owner discards), red with the v2 owner return removed (DF-VRRP-4 iop-red2.log, DF-VRRP-5 iop-owner-red.log). Still weak: the 'on the receiving interface' clause has no tagged unit. RA-VRRP strict re-read 2026-09-27 (independent): agrees weak. Owner half: TestInstanceV2OwnerDiscardsAdvert asserts rxErrors == [ReasonOwner] and an empty event queue for the v2 owner, and AdvertReceived with no rx error for the v2 non-owner, so a missing discard or a discard of every advert goes red. VRID half: TestValidationOrder '4<5' asserts ErrUnknownVRID, but on a v3 packet with a lookup that answers false, and TestDecodeGoldenV2 resolves the configured VRID. 'On the receiving interface' has no assertion: no tagged unit delivers an advert whose VRID is configured on a different interface.",
+      "requirement_sha": "33fb058bfc2e3638",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert": "f8d21be29af8eccc",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2OwnerDiscardsAdvert#2": "f8d21be29af8eccc",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-7.1-5": {
+      "note": "Forbidden: accepting an Auth Type other than the one configured method (0, No Authentication). Case N8 sets Auth Type 1 and fatals unless ErrAuthType; the golden type 0 decodes. With method 0 there is no authentication to perform.",
+      "requirement_sha": "3fc2826ab40c2fc3",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.1-6": {
+      "note": "the negative asserts only that one rx error was recorded; it never checks in.events, so deleting the return after recordRxError in onPacket (feeding a zero advert to the FSM) still passes. Its comment claims \"never reaches the FSM\"",
+      "requirement_sha": "5382391a3b5b9394",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "4629bad9d189b8c5",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "6f0121fec4875be7"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-7.1-7": {
+      "code": {
+        "internal/plugins/vrrp/instance.go::onPacket": "e3df500727689908"
+      },
+      "note": "onPacket drops a v2 address-list mismatch only when the sender Priority is not 255, and otherwise logs it (address-list reason) and continues. TestInstanceV2AddressListMismatchDrops pins the drop for Priority 250 with no FSM event; TestInstanceV2AddressListMismatchFromOwnerContinues pins the Priority 255 mismatch reaching the FSM with the reason logged; TestInstanceV2AddressListMatchReachesFSM pins a matching list. Discrimination recorded for each. DF-VRRP-5 re-read 2026-09-27, strictly: clause 'not generated by the address owner (Priority does not equal 255) MUST drop': TestInstanceV2AddressListMismatchDrops feeds a Priority 250 mismatch and asserts exactly ReasonAddressList and no FSM event, so a continue goes red. Clause 'otherwise continue processing': TestInstanceV2AddressListMismatchFromOwnerContinues feeds a Priority 255 mismatch and asserts the reason logged and an AdvertReceived at priority 255, so a drop goes red. A matching list reaching the FSM is TestInstanceV2AddressListMatchReachesFSM. onPacket's later edits (v3 noteOwnerConflict, syncSourceLocked) sit off this path. Priority 254, the boundary below the owner, is not fed to any unit. RA-VRRP strict re-read 2026-09-27 (independent): agrees enforced. Forbidden 1, continuing a non-owner mismatch: TestInstanceV2AddressListMismatchDrops (Priority 250) asserts rxErrors == [ReasonAddressList] and no event, red on continue. Forbidden 2, dropping an owner mismatch: TestInstanceV2AddressListMismatchFromOwnerContinues (Priority 255) asserts the reason and an AdvertReceived at priority 255, red on drop. The code tests adv.Priority != ownerPriority (instance.go onPacket), so the 250 and 255 cases pin the predicate's two outcomes; 254 remains unfed.",
+      "requirement_sha": "b3bc79665caa7c9b",
+      "tests": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchDrops": "e6cc5c9a873878e6",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchFromOwnerContinues": "e6cc5c9a873878e6"
+      },
+      "units": {
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM": "9275d0188f8d2f13",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchDrops": "a46c0fb4f2731167",
+        "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchFromOwnerContinues": "3d1612ce1507cfd4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.1-8": {
+      "note": "Forbidden: accepting a v2 packet whose Adver Int differs from the local one. TestDecodeV2IntervalMismatchDiscard and ValidationOrder case 12 fatal unless ErrV2IntervalMismatch; the golden with the equal interval decodes.",
+      "requirement_sha": "4bab7c6e2b8e5fca",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2IntervalMismatchDiscard": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2IntervalMismatchDiscard": "28338ba407008433",
+        "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.2-1": {
+      "note": "Single-polarity positive. Forbidden: any VRRP field or the checksum not filled from the advertisement state. TestEncodeGoldenV2 compares WriteTo plus FillChecksum output byte for byte against the v2 golden, so a wrong field or checksum goes red.",
+      "requirement_sha": "2bdc6f1fd8477145",
+      "tests": {
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "3fd728ced10544ca"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "76a736361372e665"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.2-2": {
+      "note": "the unit pins the VirtualMAC derivation only; nothing asserts that transmitted frames carry it as source MAC (tx socket bound to the vMAC macvlan is not exercised)",
+      "requirement_sha": "dd841b2072dad4b9",
+      "tests": {
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "3fd728ced10544ca"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-7.2-3": {
+      "note": "Single-polarity positive. Forbidden: an advert sourced from anything but the interface primary IPv4. TestSendAdvertUsesParentPrimaryV4Source errors unless the built header's source equals the parent unit's primary IPv4, including after an update and an address change.",
+      "requirement_sha": "a6184d2a52d69426",
+      "tests": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
+      },
+      "units": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-7.2-4": {
+      "note": "protocol and destination are compared with packet.ProtoNumber and packet.MulticastV4, the code constants, so a drift of either constant still passes; the literals 112 and 224.0.0.18 are pinned only in untagged TestEncodeGoldenV3IPv4",
+      "requirement_sha": "e7f85cc87cf4f2c7",
+      "tests": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "74ad900f2e06c8d5"
+      },
+      "units": {
+        "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "e5856054721cd122"
+      },
+      "verdict": "weak"
+    },
+    "RFC3768-8.1-1": {
+      "note": "Forbidden: a non-owner Master choosing a redirect source that does not follow the virtual router the packet was sent to. TestVRRPRedirectSourceFollowsVirtualMAC (Linux integration, two non-owner vMAC macvlans) asserts the redirect source is the VIP of the destination vMAC's group, and a frame to the physical MAC is redirected from 192.0.2.254.",
+      "requirement_sha": "26436aa1dc2219b4",
+      "tests": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "f29ff19fca502a5e",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "f29ff19fca502a5e"
+      },
+      "units": {
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "6496bdb7703cdf3c",
+        "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "6496bdb7703cdf3c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3768-8.2-1": {
+      "code": {
+        "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls": "de31892d89ad9bc4",
+        "internal/plugins/vrrp/instance.go::doInstallVIPs": "b8abca4c0bf74012",
+        "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm": "3c774d3d68feb48a",
+        "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables": "25892eb09ee242e6"
+      },
+      "note": "Forbidden: the Master answering ARP for a virtual address with its physical MAC. Owner case: TestVRRPOwnerAnswersWithVirtualMACOnly (integration && linux, QEMU) resolves the owner VIP from a peer and reads ar$sha in every reply: the no-filter control captures the parent's physical MAC, the filtered phase captures only the virtual MAC, and withdrawal restores the physical answer; the producer is ownerARPReplyTerm, installed by doInstallVIPs. Non-owner case still rests on TestDataplaneApplyIPv4SetsRecipe asserting the parent arp_ignore/arp_filter recipe, a proxy: no tagged unit resolves a non-owner VIP end to end. Proven in QEMU on the 7.2 runtime kernel 2026-09-27 (DF-VRRP-3 qemu.log): green, and red in the filtered ARP phase with ownerARPReplyTerm's Drop replaced by Accept. applyDataplaneSysctls now also sets arp_ignore=8 on an IPv6 group's macvlan, which the IPv4 path this row rests on does not reach RA-VRRP strict re-read 2026-09-27 (independent): agrees weak, for a reason the earlier note omits. TestVRRPOwnerAnswersWithVirtualMACOnly calls setOwnerFilter by hand; it never runs doInstallVIPs, and its groups are Version 3. The product wiring that installs the filter when the owner becomes Master (doInstallVIPs -> deps.setOwnerFilter with ownedVIPs) is proven only by the untagged TestOwnerFilterInstalledBeforeTheAddressAndWithdrawnAfterIt, so dropping that call leaves every tagged unit green. The non-owner half is asserted at Ze's boundary (exact parent arp_ignore=1/arp_filter=1 in TestDataplaneApplyIPv4SetsRecipe, as ai/rules/rfc-compliance.md asks for a lower-layer requirement), but its tagged negative TestDataplaneRestoreOnLastGroup is a teardown property, not a physical-MAC answer. QEMU logs read: DF-VRRP-3 qemu.log green PASS, redarp FAIL 'filtered ARP: physical MAC ... answered = true', rednd FAIL 'filtered ND'; that run predates DF-VRRP-5's appendCombine edits to the frame builders, which I checked are byte-identical frames.",
+      "requirement_sha": "0114ea42ca259e71",
+      "tests": {
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "a2a1d36eaea86500",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "20eee010ac52594f",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "20eee010ac52594f"
+      },
+      "units": {
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
+        "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "409a8e77461dde0e",
+        "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "409a8e77461dde0e"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc3768"
+}

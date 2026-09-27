@@ -654,9 +654,10 @@ func (l *vrrpLab) startZe(ctx context.Context, config []byte) (float64, error) {
 	return started, nil
 }
 
-func (l *vrrpLab) waitZeState(ctx context.Context, state string) error {
-	var tb textbuf.Buffer
-	needle := tb.Str("to=").Str(state).String()
+// waitZeMaster waits for ze to log its transition to master, the only state
+// every scenario waits for.
+func (l *vrrpLab) waitZeMaster(ctx context.Context) error {
+	const needle = "to=master"
 	err := l.zeLines.wait(ctx, vrrpZeMasterTimeout, l.ze, func(lines []string) bool {
 		for _, line := range lines {
 			if strings.Contains(line, "vrrp: state change") && strings.Contains(line, needle) {
@@ -666,7 +667,7 @@ func (l *vrrpLab) waitZeState(ctx context.Context, state string) error {
 		return false
 	}, fatalVRRP)
 	if err != nil {
-		return fmt.Errorf("ze did not reach %s state: %w", state, err)
+		return fmt.Errorf("ze did not reach master state: %w", err)
 	}
 	return nil
 }
@@ -732,7 +733,7 @@ func (l *vrrpLab) establishMaster(ctx context.Context) error {
 	if _, err := l.startZe(ctx, vrrpZeConfig(l.names)); err != nil {
 		return err
 	}
-	if err := l.waitZeState(ctx, "master"); err != nil {
+	if err := l.waitZeMaster(ctx); err != nil {
 		return err
 	}
 	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker)); err != nil {
@@ -971,7 +972,7 @@ func (l *vrrpLab) runQS2(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := l.waitZeState(ctx, "master"); err != nil {
+	if err := l.waitZeMaster(ctx); err != nil {
 		return err
 	}
 	if err := waitGuest(ctx, vrrpWireEventTimeout, guestPollInterval, func() (bool, error) {
@@ -1134,7 +1135,7 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 	if _, err := l.startZe(ctx, vrrpZeTrackConfig(l.names)); err != nil {
 		return err
 	}
-	if err := l.waitZeState(ctx, "master"); err != nil {
+	if err := l.waitZeMaster(ctx); err != nil {
 		return err
 	}
 	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker)); err != nil {
@@ -1289,6 +1290,8 @@ func runVRRPGuest(ctx context.Context, root string, selected []string) (guestLab
 				scenarioErr = lab.runQS3(ctx)
 			case vrrpTrackedUplink:
 				scenarioErr = lab.runTrackedUplink(ctx)
+			case vrrpOwnerKeepsTheAddress:
+				scenarioErr = lab.runOwnerKeepsTheAddress(ctx)
 			}
 		}
 		if scenarioErr != nil {

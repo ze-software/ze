@@ -37,6 +37,10 @@ const (
 	// from a reservation. The three above predate that rule and renaming them is
 	// not this scenario's work.
 	vrrpTrackedUplink = "tracked-uplink-hands-the-vip-to-keepalived"
+	// vrrpOwnerKeepsTheAddress is the QEMU path of the Docker interop
+	// scenario vrrp-v2-owner-keepalived: ze, the VRRPv2 address owner,
+	// discards keepalived's conflicting priority-255 advertisements.
+	vrrpOwnerKeepsTheAddress = "v2-owner-keeps-the-address"
 
 	netnsFirewall = "firewall"
 	netnsPolicy   = "policy"
@@ -47,7 +51,7 @@ const (
 )
 
 var (
-	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3, vrrpTrackedUplink}
+	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3, vrrpTrackedUplink, vrrpOwnerKeepsTheAddress}
 	defaultNetnsSuites = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3}
 	netnsSuiteNames    = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3, netnsPPPoE, netnsPlugin}
 )
@@ -128,6 +132,8 @@ func vrrpDescription(name string) string {
 		return "graceful stop: Priority-0 skew path (AC-3)"
 	case vrrpTrackedUplink:
 		return "tracked veth down: ze drops to prio 50 and keepalived prio 100 takes the VIP (AC-6, AC-7)"
+	case vrrpOwnerKeepsTheAddress:
+		return "v2 owner: ze discards keepalived's conflicting prio 255 and keeps the address (RFC 3768 Section 7.1)"
 	default:
 		// Every name that reaches here passed parseClosedCSV against
 		// vrrpScenarioNames, so a missing case is a scenario added without its
