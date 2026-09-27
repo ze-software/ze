@@ -1,0 +1,32 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6138-4-1": {
+      "note": "(a) withholding a cut-edge broadcast interface's transit link while LDP is not synchronized; (b) TestLDPSyncTECostUntouched t.Fatal if ldpSyncWithholdTransit(NotSynchronized,true,true) is true; the negative requires the non-cut-edge case to withhold. Proven at the decision helper ldpSyncWithholdTransit, not at LSA origination.",
+      "requirement_sha": "2682cf3eba0a0a45",
+      "tests": {
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "44961c9658aac555",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "44961c9658aac555"
+      },
+      "units": {
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched": "4394da5e89812ecf",
+        "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncTECostUntouched#2": "4394da5e89812ecf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6138-x-1": {
+      "note": "(a) IsCutEdge answering from the stale graph while an SPF is armed; (b) TestLDPSyncCutEdgeUsesFreshSPF: SPFSnapshot empty before the query (negative), non-empty after IsCutEdge (positive), with an hour-long SPF delay so only the Appendix A flush can run it.",
+      "requirement_sha": "3b339a011fded81d",
+      "tests": {
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "6225a1a69420b6e6",
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "6225a1a69420b6e6"
+      },
+      "units": {
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "09c5834568d22da6",
+        "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "09c5834568d22da6"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc6138"
+}
