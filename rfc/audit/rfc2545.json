@@ -1,0 +1,98 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2545-3-1": {
+      "note": "(a) forbidden: a Next Hop field whose first address is not the global next hop, a link-local second address placed first, a non-link-local second address, or a second address appended unconditionally. (b) conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci pin global-then-link-local by exact wire hex (offset order); TestSendAnnounceRefusesUnusableIPv6NextHop requires ErrNextHopUnencodable and empty wire for an IPv4 or unset address in the global slot; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress requires the same for a global second address; new-v6.ci pins the one-address form when no link-local exists.",
+      "requirement_sha": "3a3438e9b66804c5",
+      "tests": {
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSendAnnounceRefusesUnusableIPv6NextHop": "6e3405f0ade498ee",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "6e3405f0ade498ee",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "6e3405f0ade498ee",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
+        "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
+      },
+      "units": {
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSendAnnounceRefusesUnusableIPv6NextHop": "a4ab9b1b0532fb83",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "488aa4ac73d235f2",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "392b5106ce6ef8a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
+        "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2545-3-2": {
+      "note": "(a) forbidden: a length octet other than 16 with only a global address, or other than 32 with a link-local also included. (b) new-v6.ci asserts 800E26 0002 01 10 with one 16-octet address; conf-llnh-update.ci and adj-rib-in-replay-rfc2545-next-hop.ci assert the 0x20 octet with both addresses by exact hex; TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress asserts no 32-octet field is written for a non-link-local second address.",
+      "requirement_sha": "b5d1c52dd182fc35",
+      "tests": {
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "6e3405f0ade498ee",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "6e3405f0ade498ee",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f04334a58fd00e7c",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
+        "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
+      },
+      "units": {
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress": "488aa4ac73d235f2",
+        "internal/component/bgp/reactor/announce_nexthop_guard_test.go::TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress": "392b5106ce6ef8a2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "263cc49621f97ac1",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323",
+        "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci": "d5dcddc3a4400225"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2545-3-3": {
+      "note": "(a) forbidden: including the link-local address when either half of the condition fails, or omitting it when both hold. (b) conf-llnh-update.ci and TestSendAnnounceAppendsLinkLocalWhenSection3Holds assert the 32-octet form when both halves hold; conf-llnh-lla-only.ci asserts the 16-octet form when the global next hop is on no connected subnet (the config differs in that one variable); TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the 16-octet form and NotContains the 32-octet one when the peer half fails. Both halves are broken separately.",
+      "requirement_sha": "2b40069283106c59",
+      "tests": {
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "b23e8edb4b065981",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "b23e8edb4b065981",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "f04334a58fd00e7c",
+        "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "7f04e98f19ef5222",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateAppendsLinkLocalWhenSection3Holds": "87d10c13f2b87493",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "1f589f2024fa0f2e",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds": "0060d81c4d82153b",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "72ba439b85f70cd5",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops": "263cc49621f97ac1",
+        "internal/le/interoplab/bgp/check_rfc.go::checkRFC2545NextHops#2": "263cc49621f97ac1",
+        "test/exabgp-compat/encoding/conf-llnh-lla-only.ci": "7f04e98f19ef5222",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2545-3-4": {
+      "note": "(a) forbidden: a second address or a length other than 16 when the inclusion condition does not hold. (b) TestSendAnnounceOmitsLinkLocalWhenPeerOffLink asserts the global-only form with length 0x10 and NotContains the 32-octet form; new-v6.ci pins 01 10 plus one address byte for byte; conf-llnh-update.ci is the negative, asserting the field is not reduced to 16 while the condition holds.",
+      "requirement_sha": "f1313c30d8980ada",
+      "tests": {
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "b23e8edb4b065981",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "1f589f2024fa0f2e",
+        "internal/component/bgp/reactor/peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "72ba439b85f70cd5",
+        "test/encode/new-v6.ci": "d0b89e9ccdb1413d",
+        "test/exabgp-compat/encoding/conf-llnh-update.ci": "f102703418dca323"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2545"
+}
