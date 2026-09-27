@@ -1,0 +1,77 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7684-2.1-1": {
+      "note": "Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN, which is what every consumer reads; the positive half fails if N is dropped from a /32 host prefix, so the ignore is confined to the non-host case. Both polarities present.",
+      "requirement_sha": "ff58b703a1cb3758",
+      "tests": {
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "ad13c317437b151e",
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "ad13c317437b151e"
+      },
+      "units": {
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "38aa55dd5e8a886a",
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "38aa55dd5e8a886a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7684-2.1-2": {
+      "note": "Forbidden behaviour: an ABR dropping the N-Flag when the Extended Prefix information is propagated into another area. TestExtPrefixNFlagPreservedInterArea proves it only for the ABR's own locally connected host /32 (N set by Ze's own origination): no unit propagates an N-Flag that another router advertised in its intra-area Extended Prefix LSA, which is the propagation the sentence is about. The negative (TestExtPrefixNFlagNotSetNonHostInterArea) asserts a /24 gains no N and carries A, a neighbouring rule (RFC7684-2.1-1 and the A-Flag row), not a violation of preservation.",
+      "requirement_sha": "f51856c50fab2403",
+      "tests": {
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "40406e471c3bc5ab",
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "40406e471c3bc5ab"
+      },
+      "units": {
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "0557d29fbdad4080",
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "ec9689e392c28dd3"
+      },
+      "verdict": "weak"
+    },
+    "RFC7684-2.1-3": {
+      "note": "Forbidden behaviour: an Extended Prefix Opaque LSA whose flooding scope is narrower than a prefix it carries requires, e.g. an AS-external prefix in an LS Type 10 LSA. TestExtPrefixScopeSelection asserts the per-route-type mapping of extPrefixScope (intra and inter to area, external and NSSA-external to AS), which goes red on a wrong mapping. The clause 'for all the prefixes included in a single' LSA has no assertion: no unit shows an originated LSA never mixes prefixes needing different scopes; it holds today only because origination emits one prefix per LSA, and nothing pins that.",
+      "requirement_sha": "1a1a8019ff12d009",
+      "tests": {
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "40406e471c3bc5ab",
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "40406e471c3bc5ab"
+      },
+      "units": {
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "84892185fdc266d2",
+        "internal/plugins/ospf/ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "84892185fdc266d2"
+      },
+      "verdict": "weak"
+    },
+    "RFC7684-5-1": {
+      "note": "Forbidden behaviour: a malformed TLV or sub-TLV permutation that goes undetected or crashes the process. TestExtPrefixMalformedCounted asserts a top-level TLV overrun of an Extended Prefix body is counted and stores nothing, and the two decode tests pin that valid bodies decode. Detection of a sub-TLV overrun, and of any malformed Extended Link body, has no 5-1 tagged assertion: FuzzOSPFExtPrefixBody and FuzzOSPFExtLinkBody discard err and assert only no panic, over three seeds each under go test, so a decoder that silently accepted an overrunning sub-TLV stays green.",
+      "requirement_sha": "6500d989d77c9033",
+      "tests": {
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "ad13c317437b151e",
+        "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
+        "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9"
+      },
+      "units": {
+        "internal/plugins/ospf/ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "d90a3664e595060f",
+        "internal/plugins/ospf/packet/ext_link_test.go::TestExtLinkTLVRoundTrip": "304b858afdc04282",
+        "internal/plugins/ospf/packet/ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "02b1ff221be93aed",
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtLinkBody": "6bf39fe85a060f65",
+        "internal/plugins/ospf/packet/fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7"
+      },
+      "verdict": "weak"
+    },
+    "RFC7684-5-3": {
+      "note": "Forbidden behaviour: a malformed Extended Prefix or Extended Link LSA stored, acknowledged, or reflooded. TestExtIngressMalformedDiscard drives both opaque types in link, area and AS scope through the router ingress with a TLV overrun, trailing data shorter than a TLV header, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated input, and fails on any LSDB lookup hit (stored) or any send after RetransmitTick (acknowledged or reflooded), so each of the three clauses goes red. TestExtIngressValidCarriage is the positive: valid bodies are stored byte-for-byte, acknowledged and flooded to the expected interfaces.",
+      "requirement_sha": "d8623840e3f394c8",
+      "tests": {
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "09fd610e6e101893",
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "09fd610e6e101893"
+      },
+      "units": {
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressMalformedDiscard": "8d95e6edf616b3b9",
+        "internal/plugins/ospf/ext_receive_test.go::TestExtIngressValidCarriage": "74d8a3bb844df5f2"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7684"
+}
