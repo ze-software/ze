@@ -62,6 +62,19 @@
       },
       "verdict": "enforced"
     },
+    "RFC3948-3.1.2-1": {
+      "note": "Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated, when none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The tunnel-mode scenario, differing in mode alone, refuses the same probes, proving the corruption is real.",
+      "requirement_sha": "637ce5ff3c56e746",
+      "tests": {
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "1b13f2045a7cde2a",
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "1b13f2045a7cde2a"
+      },
+      "units": {
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "ac994d7ac287f161",
+        "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "435f66354f3492b5"
+      },
+      "verdict": "enforced"
+    },
     "RFC3948-4-1": {
       "note": "Forbidden behaviour: not sending a NAT-keepalive when a need is detected (NAT behind this end) and nothing else was sent to the peer for M seconds. TestNATKeepalive proves Keepalive.Run emits a keepalive on its timer and TestKeepaliveDefaultInterval proves the default interval is positive and <= 20s. Neither clause of the condition is asserted: no unit shows keepalives start only when the RFC 3947 need is detected, and none shows the M-second window is measured from the last packet sent to the peer rather than a free-running ticker.",
       "requirement_sha": "7a70244ce37ee3c6",
