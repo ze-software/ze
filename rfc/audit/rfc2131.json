@@ -1,0 +1,245 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC2131-2-3": {
+      "note": "the quote holds two clauses. The server clause is enforced: TestFlagsReservedBitsIgnored sends flags 0x7fff and asserts responseAddr still unicasts to yiaddr:68 exactly as for flags 0. The client clause (bits 1-15 set to zero by clients) has no tagged test although ze runs a DHCPv4 client (internal/plugins/iface/dhcp, messages built by the vendored nclient4); question 4 fails",
+      "requirement_sha": "90a2137815d4181d",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "6b9a84fbf7912f1b",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "6b9a84fbf7912f1b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2131-3-1": {
+      "note": "positive reads octets 236..239 of OFFER, ACK and NAK and pins 0x63825363; negative replaces the cookie with 0xDEADBEEF and asserts h.handle returns nil",
+      "requirement_sha": "95d1985bcbb53c91",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted": "36eefa13fd94b4d9",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestMagicCookieRequiredAndEmitted#2": "36eefa13fd94b4d9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-3.2-4": {
+      "note": "positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay",
+      "requirement_sha": "066d0698cabb7a1d",
+      "tests": {
+        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "482103f2b84d410a",
+        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "482103f2b84d410a"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent": "20b652f3498fa673",
+        "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent#2": "20b652f3498fa673"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.1-3": {
+      "note": "positive walks each OFFER/ACK/NAK option by its length octets and requires reaching End (255); negative fills a request's options with 0x01 so it carries no End, and requires the reply to be End-terminated",
+      "requirement_sha": "73cb41d0d7b72133",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd": "09e06646f41a2b88",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd#2": "09e06646f41a2b88"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.1-6": {
+      "note": "Forbidden: an emitted option whose declared length runs past its field. TestOptionsContainedWithinTheirField walks the OFFER and ACK with replyOptionCodes (fails on overrun), but not the DHCPNAK, which a separate producer builds (buildNak, handler.go:349), so an overrunning NAK option stays green in this unit. The 'sname' and 'file' clauses have no producer (ze emits no option overload, option 52, and never reads options from those fields) and the note cannot name an assertion for them. The negative (parseOptionAddr refuses a truncated received option) is receive-side robustness, a neighbouring rule, not the sender obligation",
+      "requirement_sha": "8f5d3302ba626476",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "319a69f7f334107b",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "319a69f7f334107b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2131-4.2-2": {
+      "note": "positive is sound: two DISCOVERs from one chaddr with different xids are offered the same address. The negative sends hlen=0 and asserts no reply; the RFC says nothing about a zero-length chaddr, so that tag asserts what the code does, not a violation of this requirement. The untagged assertion at the end of TestUnidentifiableClientRejected (two distinct chaddrs sharing one xid get different addresses) is the real negative",
+      "requirement_sha": "f506c0a20b93a61c",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnidentifiableClientRejected": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "d554bfb011c765de",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnidentifiableClientRejected": "66c58471a2c5454e"
+      },
+      "verdict": "weak"
+    },
+    "RFC2131-4.3-1": {
+      "note": "single-polarity positive: option 54 in OFFER, ACK and NAK must equal the server address, so omitting or mis-setting it goes red",
+      "requirement_sha": "594a4b981bf77ae8",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "4de491c673954ee9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-2": {
+      "note": "single-polarity positive: the OFFER's option 51 must be four octets equal to the configured lease seconds",
+      "requirement_sha": "96873a352e0b1a53",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "5fa7dafdd97c6f2c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-3": {
+      "note": "single-polarity positive: the ACK answering a DHCPREQUEST must carry option 51 equal to the configured lease seconds",
+      "requirement_sha": "c0412b033eedfc2d",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "5fa7dafdd97c6f2c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-4": {
+      "note": "positive: the NAK's option walk holds no 51; negative: a REQUEST carrying option 51 that is NAKed still yields a NAK without 51",
+      "requirement_sha": "ea6216b789644e5a",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-5": {
+      "note": "positive: no OFFER/ACK/NAK carries option 50; negative: requests carrying option 50 still draw OFFER/ACK/NAK without it",
+      "requirement_sha": "58a62a16cc4c9ea6",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-6": {
+      "note": "positive: neither OFFER nor ACK carries option 61; negative: requests carrying option 61 still draw OFFER/ACK without it. The NAK column (MAY) is correctly left unasserted",
+      "requirement_sha": "658fd497873e6d4d",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-7": {
+      "note": "positive: no OFFER/ACK/NAK carries option 55; negative: requests carrying option 55 still draw replies without it",
+      "requirement_sha": "3ec901bfe5be7729",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-8": {
+      "note": "positive: no OFFER/ACK/NAK carries option 57; negative: requests carrying option 57 still draw replies without it",
+      "requirement_sha": "3c8f9bb3388f9710",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3-9": {
+      "note": "positive and negative both require every NAK option code to be 53 or 54, so any option Table 3 marks 'All others' goes red. The assertion is stricter than Table 3: it would also go red on the Message option (56, SHOULD), Client identifier (61, MAY) and Vendor class identifier (60, MAY), which Table 3 allows in a DHCPNAK",
+      "requirement_sha": "3df5580604775bbf",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3.1-2": {
+      "note": "Forbidden: a requested, explicitly configured parameter omitted or carrying a value other than the configured one. TestUnconfiguredParametersOmitted pins the router option byte for byte and the domain-name option by string, but the DNS option only by length (4 x configured servers), so a wrong DNS address of the right count passes, and the subnet mask the same DISCOVER requests is never asserted. The quote covers every configured parameter, so two of the four requested are unproven",
+      "requirement_sha": "ad560228b493607d",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "e8e630b69239f509"
+      },
+      "verdict": "weak"
+    },
+    "RFC2131-4.3.1-4": {
+      "note": "Forbidden: returning a value for a parameter the server has no value for (neither configured nor a Host Requirements default). TestUnconfiguredParametersOmitted builds a handler with no router, DNS or domain name configured; the negative tag sends a DISCOVER whose parameter request list explicitly names optRouter, optDNS and optDomainName and asserts askedCodes[code] is false for each, so any emitted option for them (including an empty or zero-valued one, since replyOptionCodes records presence by code) goes red. The positive tag asserts the same absence for an unrequested DISCOVER. None of the three has a Host Requirements default, so the ELSE branch applies.",
+      "requirement_sha": "181063877d093e23",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "e8e630b69239f509",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "e8e630b69239f509"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.3.1-6": {
+      "note": "Forbidden: a requested parameter included more than once in a reply (no option ze emits is one the options document allows to repeat). TestEachParameterEmittedOnce counts every option code in the OFFER and ACK with replyOptionCounts and fails on n != 1 (positive); the negative tag sends a DISCOVER whose parameter request list repeats router, DNS and subnet mask, carries a second PRL and an echoed router option, to both a plain and a PXE server, and fails on any option count other than 1, so a duplicated parameter goes red.",
+      "requirement_sha": "6eb6db99deee48c2",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce#2": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce": "52c7fb2820f127ef",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce#2": "52c7fb2820f127ef"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2131-4.4.5-3": {
+      "note": "positive: for leases 60, 3600, 86400 and 604800 the OFFER's option 59 (T2) must be strictly below the lease seconds; negative: parseConfig must reject lease-time 0",
+      "requirement_sha": "6ead253f6787dda5",
+      "tests": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestRenewalTimersOrderedWithinLease": "149780bada66046c",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "149780bada66046c"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestRenewalTimersOrderedWithinLease": "543d64b66af292da",
+        "internal/plugins/dhcpserver/rfc2131_test.go::TestShortLeaseTimeRejected": "cd34a97b1f7653da"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2131"
+}
