@@ -1,0 +1,141 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC7432-10-1": {
+      "note": "row now quotes 'the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address', an obligation on the sender. types_test.go::TestEVPNIPAddressLength only decodes: 0/32/128 accepted, other lengths rejected. No unit re-encodes a MAC/IP route with an IPv4 or IPv6 address and asserts the length octet the encoder writes is 32 or 128, so an encoder writing the octet count (4 or 16) stays green",
+      "requirement_sha": "fe025b9ee98e7850",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "55c028589efb28aa",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "55c028589efb28aa"
+      },
+      "verdict": "weak"
+    },
+    "RFC7432-11.1-3": {
+      "note": "origination_test.go and bgp_routes_evpn_test.go: IMET with target:65000:100 emits the exact RT bytes; IMET with no extended community, or only a Route Origin (subtype 0x03), is refused",
+      "requirement_sha": "1864bf9889184620",
+      "tests": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "8d34438c7e721009",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "8d34438c7e721009",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "a75044c30fe875f6",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "a75044c30fe875f6"
+      },
+      "units": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETOriginatorIsNotNextHop": "c11ee926c057d7b0",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNIMETRefusesMissingRouteTarget": "0ad1d0e4086f77e7",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastIncludesRouteTarget": "b7a50f8ca7c5eec4",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginInclusiveMulticastRefusesMissingRouteTarget": "71d4a350cee06a12"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-5-1": {
+      "note": "row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
+      "requirement_sha": "eca82697be9a41ea",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "44f4933ba7b1e873",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "44f4933ba7b1e873",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "44f4933ba7b1e873",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "44f4933ba7b1e873"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-8.1.1-1": {
+      "note": "update_build_evpn_rfc7432_test.go: TestRFC7432EthernetSegmentOriginationAccepted builds an ES route with a Type 1 RD; TestRFC7432EthernetSegmentOriginationRefused asserts ErrEVPNOrigination and no UPDATE for Type 0 and Type 2 RDs, isolated with a valid ES-Import RT",
+      "requirement_sha": "b9fdd4b0f6155a4f",
+      "tests": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "e5f92edb6c106d39",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "e5f92edb6c106d39"
+      },
+      "units": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "fc3f7b1bc4882f41",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "59cd2e3d24a21281"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-8.1.1-2": {
+      "note": "the ES-Import presence rule is proven: TestRFC7432EthernetSegmentOriginationAccepted carries the 0x06/0x02 community byte-for-byte and TestRFC7432EthernetSegmentOriginationRefused refuses an ordinary RT or no community with a Type 1 RD. But the row also claims an ESI Label community is not a substitute, and no tagged unit offers the ESI Label (0x06/0x01, same type octet) in place of ES-Import, so a guard that matched only type 0x06 stays green. The untagged config test TestConfiguredEVPNEthernetSegmentRequirements does offer it",
+      "requirement_sha": "494e104c40b7f28e",
+      "tests": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "e5f92edb6c106d39",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "e5f92edb6c106d39"
+      },
+      "units": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "fc3f7b1bc4882f41",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432EthernetSegmentOriginationRefused": "59cd2e3d24a21281"
+      },
+      "verdict": "weak"
+    },
+    "RFC7432-8.2.1-10": {
+      "note": "origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD asserts RD type 1 on the originated per-ES route; TestOriginEthernetADPerESRefusesASTypeRD refuses an AS-specific RD on per-ES and still allows it per-EVI; bgp_routes_evpn_test.go pair repeats both through native config",
+      "requirement_sha": "e0ac09cf0a06a1c9",
+      "tests": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8d34438c7e721009",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8d34438c7e721009",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "a75044c30fe875f6",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "a75044c30fe875f6"
+      },
+      "units": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "094c5d0c42463642",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "c161dc316412eb75",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "2c1235c4d2a7c555",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "8560495315e47c1f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-8.2.1-9": {
+      "note": "row is 'Support of this route is REQUIRED.' The positives do show support: bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute and origination_test.go (per-ES A-D originated) and session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel (received per-ES route survives ingress). But every tag's prose, and every negative (TestConfiguredEVPNRefusesInvalidPerESRoute label case, TestOriginEthernetADPerESRefusesLabelStack, TestEVPNIngressRejectsVariableLengthADLabels), proves the zero/three-octet NLRI label, which is RFC7432-8.2.1-2, a neighbouring requirement. No negative violates 'support of this route'",
+      "requirement_sha": "c3ef29b1d0838e37",
+      "tests": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8d34438c7e721009",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8d34438c7e721009",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "a75044c30fe875f6",
+        "internal/component/bgp/reactor/session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "d32d119380f51912",
+        "internal/component/bgp/reactor/session_validation_evpn_test.go::TestEVPNIngressRejectsVariableLengthADLabels": "d32d119380f51912"
+      },
+      "units": {
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "094c5d0c42463642",
+        "internal/component/bgp/config/bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "c161dc316412eb75",
+        "internal/component/bgp/plugins/nlri/evpn/origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "88137e914b762319",
+        "internal/component/bgp/reactor/session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "d3988f1b4803c55b",
+        "internal/component/bgp/reactor/session_validation_evpn_test.go::TestEVPNIngressRejectsVariableLengthADLabels": "8a976b7f3fd0af7f"
+      },
+      "verdict": "weak"
+    },
+    "RFC7432-8.3-2": {
+      "note": "update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel: a per-ES A-D route with the ESI Label community (flags 0, All-Active) and an RT builds an UPDATE carrying both; without the ESI Label community it is refused with ErrEVPNOrigination while the RT is present, so the RT rule cannot trip first",
+      "requirement_sha": "cf84d906eda4f62c",
+      "tests": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel": "e5f92edb6c106d39",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "e5f92edb6c106d39"
+      },
+      "units": {
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel": "7862a8c573638042",
+        "internal/component/bgp/message/update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "7862a8c573638042"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7432-9.2.1-1": {
+      "note": "types_test.go::TestEVPNMACAddressLength: length 48 decodes to the 6-octet MAC and the encoder writes length 48 and six MAC octets; lengths 0,32,47,49,64,255 are rejected with ErrEVPNInvalidAddress",
+      "requirement_sha": "f59e184b2629bfca",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "aa53c90d5461cd25",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "aa53c90d5461cd25"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7432"
+}
