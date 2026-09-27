@@ -1,0 +1,308 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC2661-10-1": {
+      "note": "RA33 strict re-audit: weak (agrees with blind reader). Clause 'MUST clean up any resources': the units assert only tun.sessionCount()==0 after handleCDN; no assertion covers the kernel session, PPP or pool resources the session held, so leaking them stays green. Clause 'does not send back any indication': len(out)==0 is asserted only in TestSession_CDN_EstablishedSession, not in the wait-connect case. The negative TestSession_CDN_UnknownSessionDropped proves a neighbouring rule (a CDN for an unknown session ID is dropped).",
+      "requirement_sha": "7eadfdeae6dfa6d7",
+      "tests": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "0cf65d28b0c85f7e"
+      },
+      "units": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_AnyState": "4b5173ad5983463a",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_EstablishedSession": "d86ede09628ce00a",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "2ce27ac82b948758"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-10-2": {
+      "note": "The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. session_fsm_test.go::TestSession_SIDBoundary_Zero asserts only that parseICRQ refuses a peer's Assigned Session ID 0 (receiver side); no tagged unit asserts Ze's own session-ID allocator never assigns 0, and the tunnel clause has no unit of this row.",
+      "requirement_sha": "def41eea5d51e30b",
+      "tests": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "0cf65d28b0c85f7e"
+      },
+      "units": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_MaxUint16": "9aaf1eddbc2d20e9",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_SIDBoundary_Zero": "549842b442a835e3"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-24.10-1": {
+      "note": "The sentence forbids using 0 as an Assigned Session ID or Assigned Tunnel ID. Tunnel clause: reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered asserts Ze's StopCCN carries a non-zero Assigned Tunnel ID, and the SCCRQ/SCCRP units assert refusal of a peer's zero value (receiver side of the same rule). Ze's own Assigned Tunnel ID in SCCRQ/SCCRP is not asserted non-zero by a tagged unit (TestTunnelInitiatorHandshake checks 100, not the allocator). Session clause: no tagged unit of this row.",
+      "requirement_sha": "def41eea5d51e30b",
+      "tests": {
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "256f9f9ee58dd412",
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "256f9f9ee58dd412",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "8cf59898253f7242",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "8cf59898253f7242",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "e449a0a4599b8e99",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "e449a0a4599b8e99"
+      },
+      "units": {
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes": "afe793814f831daa",
+        "internal/component/l2tp/reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered": "348f0db9a3661b0d",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestParseSCCRP_Rejects": "0f057742cdd1159d",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "eb6b8c9d1487f052",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci": "e449a0a4599b8e99",
+        "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci#2": "e449a0a4599b8e99"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-24.12-1": {
+      "note": "Session clause: forbidden = escalating a session-scoped unknown M=1 AVP to tunnel teardown, or not terminating the session. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts the tunnel stays established, but only len(out)==1, not that the message is a CDN nor that the session is removed. Tunnel clause (the second sentence of the quote): no unit tagged with this id.",
+      "requirement_sha": "704455220ff17e8b",
+      "tests": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "0cf65d28b0c85f7e"
+      },
+      "units": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "1eebef17cb08fd53",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "1eebef17cb08fd53"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.1-1": {
+      "note": "Send clause: forbidden = AVP reserved bit emitted 1; avp_test.go::TestAVPCatalogRoundTrip and the .ci assert no FlagReserved on emitted AVPs. Receive clause 'MUST be treated as an unrecognized AVP': forbidden = honouring such an AVP; avp_test.go::TestAVPIteratorReservedBits only asserts the iterator sets FlagReserved, not that a parser then treats the AVP as unrecognized (tear down for M=1, ignore for M=0).",
+      "requirement_sha": "2143e31d9b133491",
+      "tests": {
+        "internal/component/l2tp/avp_test.go::TestAVPCatalogRoundTrip": "2fea7bba7d39fdcb",
+        "internal/component/l2tp/avp_test.go::TestAVPIteratorReservedBits": "2fea7bba7d39fdcb",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "units": {
+        "internal/component/l2tp/avp_test.go::TestAVPCatalogRoundTrip": "5f6103da6005fcd4",
+        "internal/component/l2tp/avp_test.go::TestAVPIteratorReservedBits": "7678b2f0a9d5c4f3",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.1-2": {
+      "note": "Forbidden = a control message whose first AVP is not Message Type. Tagged units assert it only for writeICRPBody (session_fsm_test.go::TestWriteICRPBody) and the SCCRP on the wire (.ci), plus receiver refusal of an SCCRQ with Host Name first (reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel). The other writers are not asserted by a unit tagged with this id; message_rfc2661_test.go::TestRFC2661WrittenAVPFlags checks every writer but is tagged RFC2661-4.4.1-2 only.",
+      "requirement_sha": "c54b46bf2c0af1c0",
+      "tests": {
+        "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "858feee3a98f48af",
+        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "0cf65d28b0c85f7e",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "units": {
+        "internal/component/l2tp/reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "86a21ba31274ae48",
+        "internal/component/l2tp/session_fsm_test.go::TestWriteICRPBody": "f4398307be960a76",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.1-3": {
+      "note": "Forbidden = keeping a session alive after an unrecognized M=1 AVP in a session message. session_fsm_test.go::TestSession_UnknownMandatoryAVP asserts only len(out)==1 and tunnel still established; it does not assert the one message is a CDN nor that the session is removed, so an implementation that ignored the AVP and answered ICRP would pass. Positive TestSession_IncomingLNS_ICRQ is fine.",
+      "requirement_sha": "8af8f6c776a076f3",
+      "tests": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "0cf65d28b0c85f7e"
+      },
+      "units": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9ab121ace211e8cc",
+        "internal/component/l2tp/session_fsm_test.go::TestSession_UnknownMandatoryAVP": "1eebef17cb08fd53"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.1-4": {
+      "note": "Forbidden = keeping the tunnel after an unrecognized M=1 AVP in a tunnel message. tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN asserts StopCCN and state Closed, which goes red on that. Clause '(and all sessions within)': the case is an SCCCN before establishment, so no session exists; no tagged unit asserts sessions are cleared for a tunnel-scoped unknown M=1 AVP on an established tunnel.",
+      "requirement_sha": "44d2c6a04226b6d2",
+      "tests": {
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "8cf59898253f7242",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "8cf59898253f7242"
+      },
+      "units": {
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "eb6b8c9d1487f052",
+        "internal/component/l2tp/tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "1b0b2c19242c0473"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.4-1": {
+      "note": "RA33 re-run strict re-audit: weak. Forbidden: an AVP whose Section 4.4 definition fixes M=1 emitted with M=0. TestRFC2661WrittenAVPFlags compares each emitted AVP M bit to rfc2661MandatoryBit, but writtenBodies() walks only the ten body writers (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN). The HELLO body is written separately in tunnel_fsm.go handleHelloTimer (WriteAVPUint16(*bodyBuf, 0, true, AVPMessageType, ...)); no tagged unit reads it, so flipping that mandatory argument to false emits a Message Type AVP with M=0 and turns nothing red. Every other emitted M=1 AVP is covered.",
+      "requirement_sha": "591358fa378b8919",
+      "tests": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+      },
+      "units": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-4.4-2": {
+      "note": "Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.",
+      "requirement_sha": "96f0fd4eda3281c8",
+      "tests": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+      },
+      "units": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2661-4.4-3": {
+      "note": "Forbidden = an AVP whose definition forbids hiding emitted with H=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags walks every AVP of every body Ze writes and fails on any H=1. Row carries single-polarity.",
+      "requirement_sha": "1231d6cf37111038",
+      "tests": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+      },
+      "units": {
+        "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2661-5.8-1": {
+      "note": "Forbidden = retransmitting at a constant (non-exponential) interval. reliable_test.go::TestTickBackoffSchedule advances the clock by 1s,2s,4s,4s and asserts a retransmit occurred at each tick, but never asserts that NO retransmit fires before the doubled deadline; a constant 1s interval engine also retransmits at every one of those ticks, so no assertion goes red on the forbidden behaviour.",
+      "requirement_sha": "addfe6b5d5db6066",
+      "tests": {
+        "internal/component/l2tp/reliable_test.go::TestTickBackoffSchedule": "1da6320bfe08bd17"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_test.go::TestTickBackoffSchedule": "4e410de38c96a079"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-5.8-2": {
+      "note": "Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap>=8s and that newTunnel (the reactor's construction path) yields engine rtimeoutCap>=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.",
+      "requirement_sha": "c1203171f3a5ab77",
+      "tests": {
+        "internal/component/l2tp/reliable_seq_test.go::TestBackoffCapAtLeast8Seconds": "550efa0df380328a"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_seq_test.go::TestBackoffCapAtLeast8Seconds": "cec934e08aa40e86"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2661-5.8-3": {
+      "note": "MUST clause: forbidden = keeping the tunnel/sessions after retransmissions are exhausted; reliable_test.go::TestTickMaxAttempts asserts TeardownRequired after the budget and not before, and reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute asserts the established session is taken down. SHOULD clause in the same sentence '(a recommended default is 5, but SHOULD be configurable)': no tagged unit asserts the retransmission count is configurable.",
+      "requirement_sha": "5d9557a4489cdedc",
+      "tests": {
+        "internal/component/l2tp/reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute": "858feee3a98f48af",
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts": "1da6320bfe08bd17",
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "1da6320bfe08bd17"
+      },
+      "units": {
+        "internal/component/l2tp/reactor_test.go::TestPeerTeardownWithdrawsSubscriberRoute": "4593a22be37eb1d3",
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts": "d2849faf20501127",
+        "internal/component/l2tp/reliable_test.go::TestTickMaxAttempts#2": "d2849faf20501127"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-5.8-4": {
+      "note": "Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.",
+      "requirement_sha": "6d53af50862ab104",
+      "tests": {
+        "internal/component/l2tp/reliable_test.go::TestTickRetransmit": "1da6320bfe08bd17",
+        "internal/component/l2tp/reliable_test.go::TestTickRetransmit#2": "1da6320bfe08bd17"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_test.go::TestTickRetransmit": "9d580e39d6c18154",
+        "internal/component/l2tp/reliable_test.go::TestTickRetransmit#2": "9d580e39d6c18154"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2661-5.8-5": {
+      "note": "Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.",
+      "requirement_sha": "35d1f35b20c543f9",
+      "tests": {
+        "internal/component/l2tp/reliable_test.go::TestOnReceiveDuplicate": "1da6320bfe08bd17",
+        "internal/component/l2tp/reliable_test.go::TestOnReceiveDuplicate#2": "1da6320bfe08bd17"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_test.go::TestOnReceiveDuplicate": "e92f0e6b467cf0fe",
+        "internal/component/l2tp/reliable_test.go::TestOnReceiveDuplicate#2": "e92f0e6b467cf0fe"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2661-5.8-6": {
+      "note": "Forbidden = refusing to honour a peer window of up to 4. reliable_window_test.go::TestWindowAvailable asserts available(0)==4 with peerRWS=4 and cwnd=4, which goes red on a clamp below 4. The negative tag on reliable_window_test.go::TestWindowPeerRWSZero proves the neighbouring rule 'A value of 0 for the Receive Window Size AVP is invalid', not this sentence, so the row has no valid negative and no single-polarity marker.",
+      "requirement_sha": "ab2b25e8b6efe7e0",
+      "tests": {
+        "internal/component/l2tp/reliable_window_test.go::TestWindowAvailable": "5aba25175d94de95",
+        "internal/component/l2tp/reliable_window_test.go::TestWindowPeerRWSZero": "5aba25175d94de95"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_window_test.go::TestWindowAvailable": "8325239166a557b4",
+        "internal/component/l2tp/reliable_window_test.go::TestWindowPeerRWSZero": "5ed220135dd34ace"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-5.8-7": {
+      "note": "RA33 strict re-audit: weak. Forbidden: discarding tunnel state before the full retransmission interval after the final exchange. The tagged units prove only the engine predicate: Expired is false at +6s and true at +7s after Close for a test retention of 7s, and a duplicate StopCCN after Close is ClassDuplicate with NeedsZLB. The obligation is that the tunnel's state is MAINTAINED; the reactor's reap on engine.Expired (reactor.go) is in no tagged unit, so a reactor deleting the tunnel at StopCCN stays green. No unit ties the retention to the peer's full retransmit schedule (the last B retransmit at +7s coincides with Expired becoming true).",
+      "requirement_sha": "9914edb32315f91e",
+      "tests": {
+        "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention": "2cfab7fedaa6fb9b",
+        "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention#2": "2cfab7fedaa6fb9b",
+        "internal/component/l2tp/reliable_test.go::TestExpired": "1da6320bfe08bd17",
+        "internal/component/l2tp/reliable_test.go::TestExpired#2": "1da6320bfe08bd17"
+      },
+      "units": {
+        "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention": "df7229d459c4faca",
+        "internal/component/l2tp/reliable_integration_test.go::TestPostTeardownAckRetention#2": "df7229d459c4faca",
+        "internal/component/l2tp/reliable_test.go::TestExpired": "a4ca61a487ac463d",
+        "internal/component/l2tp/reliable_test.go::TestExpired#2": "a4ca61a487ac463d"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-6.1-1": {
+      "note": "Receiver role: forbidden = accepting an SCCRQ that lacks one of the five AVPs; reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered has one case per AVP and asserts StopCCN and no tunnel. Sender role (Ze's own SCCRQ MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRQ case.",
+      "requirement_sha": "c5b438291817ffa6",
+      "tests": {
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered": "9143875504323b6a",
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes": "9143875504323b6a",
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered": "9143875504323b6a",
+        "test/l2tp/rfc2661-sccrq-mandatory-avp.ci": "c00b96e6cc8f4a36",
+        "test/l2tp/rfc2661-sccrq-mandatory-avp.ci#2": "c00b96e6cc8f4a36"
+      },
+      "units": {
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered": "c54b92a4563d42a8",
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes": "df0fef901b081bdc",
+        "internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered": "3c3e68ce182082c4",
+        "test/l2tp/rfc2661-sccrq-mandatory-avp.ci": "c00b96e6cc8f4a36",
+        "test/l2tp/rfc2661-sccrq-mandatory-avp.ci#2": "c00b96e6cc8f4a36"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-6.2-1": {
+      "note": "Receiver role: tunnel_initiator_sccrp_mandatory_avp_test.go asserts StopCCN for an SCCRP missing Protocol Version, Framing Capabilities, Host Name or Assigned Tunnel ID; Message Type absence is covered only by an untagged test. Sender role (Ze's own SCCRP MUST carry the five): no tagged unit asserts it; message_rfc2661_test.go::TestRFC2661MandatoryAVPSetsEmitted has no SCCRP case.",
+      "requirement_sha": "b43d91c429dcde5f",
+      "tests": {
+        "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown": "c98336c1855b4bc7",
+        "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes": "c98336c1855b4bc7"
+      },
+      "units": {
+        "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown": "630817765d59e4df",
+        "internal/component/l2tp/tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes": "ec4c5cabee0eae59"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-9-1": {
+      "note": "Forbidden = sessions surviving a StopCCN. session_fsm_test.go::TestSession_StopCCN_CascadeSessions asserts sessionCount 0 and tunnel Closed; TestStopCCNQueuesAllTeardowns asserts no teardown before and three after. Clause '(without sending any explicit call control messages)': neither unit checks the return of handleStopCCN for CDNs, so emitting a CDN per session would pass.",
+      "requirement_sha": "d0add38fb6db42ea",
+      "tests": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "0cf65d28b0c85f7e",
+        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "0cf65d28b0c85f7e"
+      },
+      "units": {
+        "internal/component/l2tp/session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "71c01fff365324a4",
+        "internal/component/l2tp/session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "3fe8db9561cef6f5"
+      },
+      "verdict": "weak"
+    },
+    "RFC2661-x-1": {
+      "note": "Send clause: forbidden = a reserved header bit emitted as 1; header_test.go::TestWriteControlHeader asserts word&reserved==0 and the emitted-shape .ci reads the control header off the wire. Receive clause 'ignored on incoming messages': forbidden = a message with a reserved bit set rejected or mis-parsed; no tagged unit feeds a non-zero reserved bit and asserts the message is still processed, and the row's single-polarity marker (no negative) is now wrong for the receive clause. Data-message headers are not asserted by a tagged unit.",
+      "requirement_sha": "9b391db3f3100ed3",
+      "tests": {
+        "internal/component/l2tp/header_test.go::TestWriteControlHeader": "076c21360cefe770",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "units": {
+        "internal/component/l2tp/header_test.go::TestWriteControlHeader": "205c671eb38ce353",
+        "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2661"
+}
