@@ -30,11 +30,10 @@
       "id": "2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "BGP Extended Communities Attribute. The document's wire-format section, written entirely in the indicative, so the site scan sees nothing in it and three declared MUST-level rows are read from here. It states the attribute is transitive optional with Type Code 16, that each extended community is an 8-octet quantity, that the Type Field is 1 octet for a Regular type and 2 for an Extended type, that the high-order octet carries the I (IANA authority) and T (transitive) bits with T=0 transitive and T=1 non-transitive across ASes, and that 'Two extended communities are declared equal only when all 8 octets of the community are equal.' The three unsourced ids below are those obligations. The remaining sentences are value definitions carried by the Wire Formats and Type Classification tables of rfc/short/rfc4360.md, and the closing 'The two members in the tuple <Type, Value> should be enumerated to specify any community value' is a lowercase modal describing how a value is written down, not a directive to a speaker.",
+      "reason": "BGP Extended Communities Attribute. The document's wire-format section, written entirely in the indicative, so the site scan sees nothing in it and two declared MUST-level rows are read from here. It states the attribute is transitive optional with Type Code 16 (the pass-through a non-supporting speaker owes that class is RFC 4271's rule, row RFC4271-5-3, so the RFC4360 row that claimed it was retired 2026-09-27), that each extended community is an 8-octet quantity, that the Type Field is 1 octet for a Regular type and 2 for an Extended type, that the high-order octet carries the I (IANA authority) and T (transitive) bits with T=0 transitive and T=1 non-transitive across ASes, and that 'Two extended communities are declared equal only when all 8 octets of the community are equal.' The two unsourced ids below are the 8-octet and the equality obligations. The remaining sentences are value definitions carried by the Wire Formats and Type Classification tables of rfc/short/rfc4360.md, and the closing 'The two members in the tuple <Type, Value> should be enumerated to specify any community value' is a lowercase modal describing how a value is written down, not a directive to a speaker.",
       "unsourced-ids": [
         "RFC4360-2-1",
-        "RFC4360-x-1",
-        "RFC4360-x-2"
+        "RFC4360-x-1"
       ]
     },
     {

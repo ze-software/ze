@@ -1,0 +1,32 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC4360-2-1": {
+      "note": "Forbidden behaviour: declaring two extended communities equal when any of the 8 octets differs (for example comparing only the Type and Sub-Type, or the first 6 octets). TestExtendedCommunityEquality asserts a == b for identical arrays and a != c when the last octet differs, but it applies Go's == to the [8]byte type directly and calls no Ze function. The Ze comparators that decide equality (internal/component/bgp/plugins/rib/rib_replay.go::extCommunitiesEqual, and any community filter match) are never exercised, so a comparator rewritten to compare a[i][:6] stays green. The unit only goes red if the ExtendedCommunity type itself stops being an 8-octet array.",
+      "requirement_sha": "3e688b6744c4f280",
+      "tests": {
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "df914436e0bdaf8a",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "df914436e0bdaf8a"
+      },
+      "units": {
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "91518afa822287a7",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "91518afa822287a7"
+      },
+      "verdict": "weak"
+    },
+    "RFC4360-x-1": {
+      "note": "Forbidden behaviour: accepting an Extended Communities attribute whose value is not a whole number of 8-octet communities, truncating the remainder. TestExtendedCommunitiesParseRejectsBadLength drives only a 6-octet value and requires ErrInvalidLength; TestExtendedCommunitiesParse drives 8 octets and requires one community. A mutation of ParseExtendedCommunities from len(data)%8 != 0 to len(data) < 8 keeps both units green while a 12-octet value then parses as one community and silently drops 4 octets. A negative with a length above 8 that is not a multiple of 8 (12 or 20) is missing.",
+      "requirement_sha": "ff3bea0744d23aa8",
+      "tests": {
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "df914436e0bdaf8a",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "df914436e0bdaf8a"
+      },
+      "units": {
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParse": "208ef3b80a16da02",
+        "internal/core/bgp/attribute/community_test.go::TestExtendedCommunitiesParseRejectsBadLength": "906b846d1e37aaad"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc4360"
+}
