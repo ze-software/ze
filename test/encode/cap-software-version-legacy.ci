@@ -1,7 +1,8 @@
+# VALIDATES: encoding legacy sends a length octet before the version, as FRR and ExaBGP do
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=inspect-open-message
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00350104FFFD00B40A00000218021601040001000141040000FFFD4B085A652F302E312E30
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00360104FFFD00B40A00000219021701040001000141040000FFFD4B09085A652F302E312E30
 EOF_PEER
 
 # ze bgp configuration
@@ -28,7 +29,9 @@ bgp {
 					ipv4/unicast { prefix { maximum 10000; } }
 				}
 				capability {
-					software-version { }
+					software-version {
+						encoding legacy
+					}
 				}
 			}
 			timer {

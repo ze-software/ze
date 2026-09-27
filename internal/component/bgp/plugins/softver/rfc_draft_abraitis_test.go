@@ -28,7 +28,7 @@ func peerConfig(capabilityBody string) string {
 // configuration option enables the capability: with mode enable, extractSoftverCapabilities
 // declares code 75 for the peer.
 func TestSoftverConfigOptionEnables(t *testing.T) {
-	caps := extractSoftverCapabilities(peerConfig(`"software-version":{"mode":"enable"}`))
+	caps := extractCaps(t, peerConfig(`"software-version":{"mode":"enable"}`))
 
 	require.Len(t, caps, 1, "mode enable must declare the capability")
 	assert.Equal(t, uint8(75), caps[0].Code)
@@ -38,7 +38,7 @@ func TestSoftverConfigOptionEnables(t *testing.T) {
 // configuration option disables the capability: with mode disable, extractSoftverCapabilities
 // declares nothing, so the option controls the advertisement in both directions.
 func TestSoftverConfigOptionDisables(t *testing.T) {
-	caps := extractSoftverCapabilities(peerConfig(`"software-version":{"mode":"disable"}`))
+	caps := extractCaps(t, peerConfig(`"software-version":{"mode":"disable"}`))
 
 	assert.Empty(t, caps, "mode disable must suppress the capability")
 }
@@ -47,7 +47,7 @@ func TestSoftverConfigOptionDisables(t *testing.T) {
 // disabled: a peer whose capability block carries no software-version key at all gets no
 // code 75 declaration, so nothing is advertised until an operator asks for it.
 func TestSoftverDefaultsToDisabled(t *testing.T) {
-	caps := extractSoftverCapabilities(peerConfig(`"asn4":"enable"`))
+	caps := extractCaps(t, peerConfig(`"asn4":"enable"`))
 
 	assert.Empty(t, caps, "an absent software-version key must leave the capability off")
 }
@@ -56,22 +56,22 @@ func TestSoftverDefaultsToDisabled(t *testing.T) {
 // is the DEFAULT and not a blanket refusal: the same peer with a software-version key
 // present does get a code 75 declaration.
 func TestSoftverDefaultIsNotABlanketRefusal(t *testing.T) {
-	caps := extractSoftverCapabilities(peerConfig(`"software-version":{}`))
+	caps := extractCaps(t, peerConfig(`"software-version":{}`))
 
 	require.Len(t, caps, 1, "an explicit software-version key must declare the capability")
 	assert.Equal(t, uint8(75), caps[0].Code)
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 positive -- the Capability
-// Length ze sends is greater than zero: encodeValue writes one length octet plus the
-// version string, so the Capability Value it produces is at least two octets long.
+// Length ze sends is greater than zero: encodeValue writes the version string itself as the
+// Capability Value, with no length octet of its own, so the Capability Length the OPEN
+// carries is the length of ZeVersion and is never zero.
 func TestSoftverCapabilityLengthIsGreaterThanZero(t *testing.T) {
-	data, err := hex.DecodeString(encodeValue())
+	data, err := hex.DecodeString(encodeValue(valueEncodingDraft))
 	require.NoError(t, err)
 
 	require.Greater(t, len(data), 0, "the Capability Length must be greater than zero")
-	assert.Equal(t, byte(len(ZeVersion)), data[0])
-	assert.Len(t, data, 1+len(ZeVersion))
+	assert.Equal(t, []byte(ZeVersion), data, "the Capability Value is the bare version string")
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 negative -- a Capability
@@ -97,7 +97,7 @@ func TestSoftverZeroValueIsAnEncodingError(t *testing.T) {
 // Capability Value is not treated as an encoding error, so the error verdict is about the
 // zero length rather than being returned for every input.
 func TestSoftverWellFormedValueIsNotAnEncodingError(t *testing.T) {
-	version, ok := decodeSoftwareVersion([]byte{5, 'z', 'e', 'b', 'g', 'p'})
+	version, ok := decodeSoftwareVersion([]byte("zebgp"))
 
 	require.True(t, ok, "a well formed Capability Value must decode")
 	assert.Equal(t, "zebgp", version)
@@ -113,8 +113,11 @@ func TestSoftverZeroValueCapabilityIsIgnored(t *testing.T) {
 	assert.Equal(t, 1, code)
 	assert.Empty(t, stdout.String(), "an ignored capability must produce no decoded version")
 
+	// invokePluginDecode (internal/component/bgp/cli/decode_plugin.go) writes
+	// "decode capability <code> <hex>", so a zero-length value arrives with an
+	// empty hex field.
 	var mode bytes.Buffer
-	RunDecodeMode(strings.NewReader("decode capability 75 00\n"), &mode)
+	RunDecodeMode(strings.NewReader("decode capability 75 \n"), &mode)
 	assert.Contains(t, mode.String(), "decoded unknown")
 	assert.NotContains(t, mode.String(), `"version"`)
 }
@@ -124,26 +127,25 @@ func TestSoftverZeroValueCapabilityIsIgnored(t *testing.T) {
 // ignore is conditioned on the encoding error rather than applied to everything.
 func TestSoftverWellFormedCapabilityIsNotIgnored(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := RunCLIDecode("057a65626770", false, &stdout, &stderr)
+	code := RunCLIDecode("7a65626770", false, &stdout, &stderr)
 
 	assert.Equal(t, 0, code)
 	assert.Contains(t, stdout.String(), `"value":"zebgp"`)
 
 	var mode bytes.Buffer
-	RunDecodeMode(strings.NewReader("decode capability 75 057a65626770\n"), &mode)
+	RunDecodeMode(strings.NewReader("decode capability 75 7a65626770\n"), &mode)
 	assert.Contains(t, mode.String(), `"version":"zebgp"`)
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 positive -- the Version field
-// ze sends is encoded using UTF-8: the octets encodeValue writes after the length octet are
-// valid UTF-8 and read back as the ZeVersion string unchanged.
+// ze sends is encoded using UTF-8: the Capability Value encodeValue writes is valid UTF-8
+// from its first octet and reads back as the ZeVersion string unchanged.
 func TestSoftverVersionFieldIsUTF8(t *testing.T) {
-	data, err := hex.DecodeString(encodeValue())
+	data, err := hex.DecodeString(encodeValue(valueEncodingDraft))
 	require.NoError(t, err)
 
-	value := data[1:]
-	require.True(t, utf8.Valid(value), "the Version field must be valid UTF-8")
-	assert.Equal(t, ZeVersion, string(value))
+	require.True(t, utf8.Valid(data), "the Version field must be valid UTF-8")
+	assert.Equal(t, ZeVersion, string(data))
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 negative -- a Version field
@@ -151,7 +153,7 @@ func TestSoftverVersionFieldIsUTF8(t *testing.T) {
 // carrying a byte sequence UTF-8 does not define.
 func TestSoftverNonUTF8VersionFieldIsRefused(t *testing.T) {
 	// 0xC3 opens a two-byte sequence that 0x28 cannot continue.
-	version, ok := decodeSoftwareVersion([]byte{3, 0xC3, 0x28, 'a'})
+	version, ok := decodeSoftwareVersion([]byte{0xC3, 0x28, 'a'})
 
 	assert.False(t, ok, "a Version field that is not UTF-8 must not be accepted")
 	assert.Empty(t, version)
@@ -161,7 +163,7 @@ func TestSoftverNonUTF8VersionFieldIsRefused(t *testing.T) {
 // sequence is not interpreted: decodeSoftwareVersion hands its callers no string at all for
 // one, so no ze surface renders those bytes as a software version.
 func TestSoftverInvalidUTF8IsNotInterpreted(t *testing.T) {
-	invalid := []byte{4, 0xFF, 0xFE, 0xFD, 0xFC}
+	invalid := []byte{0xFF, 0xFE, 0xFD, 0xFC}
 
 	version, ok := decodeSoftwareVersion(invalid)
 	require.False(t, ok)
@@ -178,9 +180,7 @@ func TestSoftverInvalidUTF8IsNotInterpreted(t *testing.T) {
 // multi-byte UTF-8 sequence is decoded and returned intact.
 func TestSoftverValidMultiByteUTF8IsInterpreted(t *testing.T) {
 	const name = "Zé/0.1.0"
-	payload := append([]byte{byte(len(name))}, name...)
-
-	version, ok := decodeSoftwareVersion(payload)
+	version, ok := decodeSoftwareVersion([]byte(name))
 
 	require.True(t, ok, "valid multi-byte UTF-8 must decode")
 	assert.Equal(t, name, version)
@@ -213,10 +213,10 @@ func productIdentifierIsEssential(identifier string) bool {
 // Version field encodeValue writes is one product name and one version separated by a
 // single "/", with no words, spaces or punctuation beside them.
 func TestSoftverProductIdentifierCarriesNothingNonessential(t *testing.T) {
-	data, err := hex.DecodeString(encodeValue())
+	data, err := hex.DecodeString(encodeValue(valueEncodingDraft))
 	require.NoError(t, err)
 
-	identifier := string(data[1:])
+	identifier := string(data)
 	assert.True(t, productIdentifierIsEssential(identifier),
 		"the advertised product identifier %q must carry only product and version", identifier)
 }
@@ -242,11 +242,11 @@ func TestSoftverNonessentialProductIdentifiersAreRefused(t *testing.T) {
 // explicitly configured before ze advertises it: a peer carrying the software-version key
 // is the only shape for which extractSoftverCapabilities emits a code 75 declaration.
 func TestSoftverAdvertisedOnlyAfterExplicitConfiguration(t *testing.T) {
-	caps := extractSoftverCapabilities(peerConfig(`"software-version":{"mode":"enable"}`))
+	caps := extractCaps(t, peerConfig(`"software-version":{"mode":"enable"}`))
 
 	require.Len(t, caps, 1)
 	assert.Equal(t, uint8(75), caps[0].Code)
-	assert.Equal(t, encodeValue(), caps[0].Payload)
+	assert.Equal(t, encodeValue(valueEncodingDraft), caps[0].Payload)
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 negative -- without that
@@ -259,7 +259,7 @@ func TestSoftverNotAdvertisedWithoutExplicitConfiguration(t *testing.T) {
 		"group without key":   `{"bgp":{"group":{"g1":{"session":{"capability":{}},"peer":{"10.0.0.1":{}}}}}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			assert.Empty(t, extractSoftverCapabilities(config))
+			assert.Empty(t, extractCaps(t, config))
 		})
 	}
 }

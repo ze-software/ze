@@ -83,7 +83,7 @@ func ownedCapabilities(read openParams, id openIdentity) (map[byte]ownedCapabili
 			case capabilityCodeLLGR:
 				owned[code] = ownedCapability{tlv: llgrTLV(id.llgr)}
 			case capabilityCodeSoftwareVersion:
-				owned[code] = ownedCapability{tlv: softwareVersionTLV(peerSoftwareVersion)}
+				owned[code] = ownedCapability{tlv: softwareVersionTLV(peerSoftwareVersion, value)}
 			case capability.CodePathsLimit:
 				owned[code] = ownedCapability{tlv: pathsLimitTLV(id.pathsLimit)}
 			}
@@ -146,18 +146,28 @@ func llgrTLV(decl LLGRDecl) []byte {
 	return capabilityTLV(capabilityCodeLLGR, value)
 }
 
-// softwareVersionTLV writes ze-peer's own software version capability.
+// softwareVersionTLV writes ze-peer's own software version capability, framed
+// the way ze framed the one it sent (sent is ze's Capability Value).
 //
-// draft-abraitis-bgp-version-capability: the value is a one-octet length
-// followed by that many octets of UTF-8. decodeSoftwareVersion
-// (internal/component/bgp/plugins/softver/softver.go) reads that pair, and
-// encodeValue in the same file writes ze's own the same way.
+// ze sends one of two forms, chosen by the software-version encoding leaf.
+// draft-abraitis-bgp-version-capability Section 3: "The Capability Value
+// field is the software version encoded as a UTF-8 [RFC3629] string." That is
+// the draft form, the string alone. The legacy form FRR and ExaBGP use puts a
+// one-octet length before it. ze-peer answers in the form it was sent, so a
+// fixture for either mode reads ze-peer's answer as the peer that mode is for
+// would write it. The test for legacy is the one decodeSoftwareVersion
+// (internal/component/bgp/plugins/softver/softver.go) applies: the first octet
+// equals the number of octets after it.
 //
 // The version is a constant rather than an option because no session decision
 // turns on it: capability.Parse holds no code-75 arm, and the only reader is
 // capabilityToZeJSON for the offline `ze bgp decode`. An option would be a
 // declaration nothing could observe.
-func softwareVersionTLV(version string) []byte {
+func softwareVersionTLV(version string, sent []byte) []byte {
+	legacy := len(sent) > 0 && int(sent[0]) == len(sent)-1
+	if !legacy {
+		return capabilityTLV(capabilityCodeSoftwareVersion, []byte(version))
+	}
 	value := make([]byte, 1+len(version))
 	value[0] = byte(len(version)) //nolint:gosec // peerSoftwareVersion is a constant well under 255 octets
 	copy(value[1:], version)

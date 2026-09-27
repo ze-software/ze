@@ -918,7 +918,33 @@ Configured under `capability { }` at any inheritance level.
 | ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](add-path.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |
 | BGP Role | `role provider` | provider, customer, rs, rs-client, peer |
+| Software Version | `software-version { encoding legacy; }` | presence; `mode`, and `encoding` `draft` (default) or `legacy` |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- capability definitions -->
+
+### Software Version toward FRR and ExaBGP
+
+A peer running FRR or ExaBGP needs `encoding legacy`. Ze's default, `draft`,
+sends the version string alone, as draft-abraitis-bgp-version-capability
+defines it. FRR and ExaBGP send one length octet before the string instead,
+and FRR 10.3.1 reads the first octet it receives as that length. For Ze's
+draft form that length runs past the capability, so FRR sends an OPEN Message
+Error NOTIFICATION and the session never comes up. `legacy` sends the form FRR
+expects, and is a deviation from the draft kept for those peers. Ze reads
+either form it receives.
+
+```
+capability {
+    software-version {
+        encoding legacy;
+    }
+}
+```
+
+`ze exabgp migrate` writes `encoding legacy` for every migrated peer that
+enables software-version, since that is the form ExaBGP sent. A peer whose
+ExaBGP config has no software-version capability gets none.
+<!-- source: internal/component/bgp/plugins/softver/yang/ze-softver.yang -- software-version encoding leaf -->
+<!-- source: internal/exabgp/migration/migrate.go -- keepExaBGPSoftwareVersionFraming -->
 
 ## Address Families
 

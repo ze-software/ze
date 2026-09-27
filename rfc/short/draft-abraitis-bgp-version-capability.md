@@ -10,13 +10,13 @@
 | Date | 2025-09-07 |
 | Depends | RFC 5492 (capability advertisement), RFC 3629 (UTF-8), RFC 9072 (extended OPEN parameters) |
 | Enrolment | enrolled |
-| Enrolment reason | Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes one length octet plus the constant ZeVersion and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them. |
+| Enrolment reason | Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes the constant ZeVersion as the whole Capability Value under the default encoding draft (encoding legacy prefixes a length octet, an owner-approved deviation, see Notes), and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them. |
 | Implementation | ze |
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 40 |
 | Support area | BGP Software Version capability code 75 |
 | Support status | Partial |
-| Support coverage | Send side only, and the draft makes both halves optional: "Implementations are not required to advertise the version nor to process received advertisements" (Abstract). `encodeValue` (`internal/component/bgp/plugins/softver/softver.go`) writes one length octet plus the constant `ZeVersion`, and `extractSoftverCapabilities` (same file) declares code 75 only for a peer or group whose config carries a `software-version` capability key that is not `disable` or `refuse`, so the default is disabled. Receive side: `parseCapability` (`internal/core/bgp/capability/capability.go`) has no case for code 75, so a received capability becomes an `Unknown` that nothing reads. That is the RFC 5492 Section 3 outcome the draft points at, and it is why the three receiver obligations are met by ignoring rather than by parsing. `ze bgp decode capability 75 <hex>` decodes a payload an operator supplies; that path is a diagnostic tool and is not on the session receive path. Carried in this table as `draft-ietf-idr-software-version` until 2026-09-01. No IETF document of that name exists: the datatracker knows only `draft-abraitis-bgp-version-capability`, revision 18, "Software Version Capability for BGP", which IANA names as the reference for code 75. `docs/architecture/wire/capabilities.md` had always spelled the real one. |
+| Support coverage | Send side only, and the draft makes both halves optional: "Implementations are not required to advertise the version nor to process received advertisements" (Abstract). `encodeValue` (`internal/component/bgp/plugins/softver/softver.go`) writes the constant `ZeVersion` as the whole Capability Value under the default `encoding draft`; `encoding legacy` puts a length octet first for FRR and ExaBGP peers, an owner-approved deviation that is not counted as conformant (D-13, Notes). `extractSoftverCapabilities` (same file) declares code 75 only for a peer or group whose config carries a `software-version` capability key that is not `disable` or `refuse`, so the default is disabled. Receive side: `parseCapability` (`internal/core/bgp/capability/capability.go`) has no case for code 75, so a received capability becomes an `Unknown` that nothing reads. That is the RFC 5492 Section 3 outcome the draft points at, and it is why the three receiver obligations are met by ignoring rather than by parsing. `ze bgp decode capability 75 <hex>` decodes a payload an operator supplies; that path is a diagnostic tool and is not on the session receive path. Carried in this table as `draft-ietf-idr-software-version` until 2026-09-01. No IETF document of that name exists: the datatracker knows only `draft-abraitis-bgp-version-capability`, revision 18, "Software Version Capability for BGP", which IANA names as the reference for code 75. `docs/architecture/wire/capabilities.md` had always spelled the real one. |
 | Support remaining | - |
 
 **Purpose:** Defines BGP capability code 75, which carries the routing software
@@ -34,20 +34,27 @@ Capability Code: 75 (0x4B). Capability Length: one octet, greater than zero.
 
 ```
 +--------------------------------+
-|  Version Length (1 octet)      |
-+--------------------------------+
 |  Version string (variable)     |
 +--------------------------------+
 ```
 
 The Capability Value is "the software version encoded as a UTF-8 [RFC3629]
-string" (§3). It is not null-terminated. The value has the shape
+string" (§3). It is not null-terminated, and it carries no length octet of its
+own: the Capability Length states its size. FRRouting and ExaBGP both put a
+one-octet length in front of the string, which the draft does not define, and
+FRRouting 10.3.1 answers a value without it with an OPEN Message Error
+NOTIFICATION (`bgp_capability_software_version`, `bgpd/bgp_open.c`). Ze sends
+either form, chosen per peer by the `encoding` leaf, and reads either. The value has the shape
 `identifier = product ["/" product-version]`, for example `frrouting/8.4.2`.
 
 ## Ze Implementation
 
 - Send: `encodeValue` (`internal/component/bgp/plugins/softver/softver.go`)
-  writes one length octet followed by the constant `ZeVersion`, `"Ze/0.1.0"`.
+  writes the constant `ZeVersion`, `"Ze/0.1.0"`, as the whole Capability
+  Value when the peer's `encoding` is `draft`, the default, and behind a
+  one-octet length when it is `legacy`. `parseValueEncoding` (same file) turns
+  the leaf into the typed `valueEncoding`, and refuses a name the YANG
+  enumeration does not hold.
 - Advertisement gate: `extractSoftverCapabilities` (same file) appends a
   `sdk.CapabilityDecl` for code 75 only for a peer or a group whose config
   carries a `software-version` capability key whose mode is neither `disable`
@@ -62,9 +69,11 @@ string" (§3). It is not null-terminated. The value has the shape
   a received Software Version Capability.
 - Operator decode: `decodeSoftwareVersion` and `RunCLIDecode`
   (`internal/component/bgp/plugins/softver/softver.go`) decode a hex payload
-  passed to `ze bgp decode`. This path is a diagnostic tool and is not on the
-  session receive path.
-- Config: `session > capability > software-version > mode`
+  passed to `ze bgp decode`. `decodeSoftwareVersion` reads the legacy form when
+  the first octet equals the number of octets after it and those are valid
+  UTF-8, and the draft's bare string otherwise. This path is a diagnostic tool
+  and is not on the session receive path.
+- Config: `session > capability > software-version > mode` and `> encoding`
   (`internal/component/bgp/plugins/softver/yang/ze-softver.yang`).
 
 ## Compliance Checklist
@@ -95,3 +104,15 @@ session path, which is the RFC 5492 Section 3 unrecognized-capability outcome
 the draft itself points at ("An implementation that does not recognize or
 support the Software Version Capability but receives one must ignore it, as
 described in Section 3 of [RFC5492]", §3).
+
+**Owner-approved deviation (D-13, 2026-09-27), §3.** "The Capability Value
+field is the software version encoded as a UTF-8 [RFC3629] string" (§3). With
+`encoding legacy` Ze puts a one-octet length before that string, which the
+draft does not define. The reason is interoperability: FRRouting and ExaBGP
+send that length octet, and FRRouting 10.3.1's
+`bgp_capability_software_version` (`bgpd/bgp_open.c`) reads the first value
+octet as a length and tears the session down when it exceeds what follows, so
+a peer running FRR needs `legacy`. Traffic sent under `legacy` is not counted
+as conformant. The rows 3-3 and 3-6 are met by the default `draft` form, which
+their tagged tests exercise; `ze exabgp migrate` writes `legacy` for a migrated
+peer, because that is the form ExaBGP sent.

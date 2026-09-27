@@ -30,3 +30,4 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/capability/software-version --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=mode
+expect=stdout:contains=encoding

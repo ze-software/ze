@@ -1526,3 +1526,33 @@ neighbor 10.0.0.1 {
 	assert.NotContains(t, peerBody, "\t\t\tprocess ",
 		"converter must not emit the retired keyword, got:\n%s", output)
 }
+
+// TestMigrateSoftwareVersionKeepsLegacyFraming verifies the migrated framing.
+//
+// VALIDATES: ExaBGP capability { software-version enable; } migrates to a
+// software-version container carrying mode enable and encoding legacy, the
+// length-prefixed form ExaBGP itself sends.
+// PREVENTS: a migrated peer switching to the draft's bare form on the wire,
+// which an FRR neighbor that accepted ExaBGP refuses.
+func TestMigrateSoftwareVersionKeepsLegacyFraming(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001
+	peer-as 65002
+	capability {
+		software-version enable;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+	assert.Contains(t, output, "software-version {")
+	assert.Contains(t, output, "mode enable")
+	assert.Contains(t, output, "encoding legacy")
+	assert.NotContains(t, output, "software-version enable")
+}

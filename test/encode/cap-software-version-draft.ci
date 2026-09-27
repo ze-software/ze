@@ -1,3 +1,4 @@
+# VALIDATES: encoding draft sends the version string alone, as the draft defines
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=inspect-open-message
@@ -28,7 +29,9 @@ bgp {
 					ipv4/unicast { prefix { maximum 10000; } }
 				}
 				capability {
-					software-version { }
+					software-version {
+						encoding draft
+					}
 				}
 			}
 			timer {

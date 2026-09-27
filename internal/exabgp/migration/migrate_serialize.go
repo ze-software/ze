@@ -352,6 +352,17 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
+	// Write software-version block. keepExaBGPSoftwareVersionFraming
+	// (migrate.go) builds it as a container, and a container nothing emits is
+	// dropped however correctly the migration built it.
+	if softwareVersion := tree.GetContainer("software-version"); softwareVersion != nil {
+		buf.WriteString(indent)
+		buf.WriteString("software-version {\n")
+		serializeTreeIndent(softwareVersion, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
 	// Write nexthop block (RFC 8950).
 	if nexthop := tree.GetContainer("nexthop"); nexthop != nil {
 		buf.WriteString(indent)

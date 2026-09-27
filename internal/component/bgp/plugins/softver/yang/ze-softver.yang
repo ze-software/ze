@@ -9,6 +9,11 @@ module ze-softver {
         "Software Version capability plugin for ZeBGP (draft-abraitis-bgp-version-capability, code 75).
          Advertises the software version of the BGP speaker.";
 
+    revision 2026-09-27 {
+        description "Add the encoding leaf: the draft's bare Capability Value, or the length-prefixed form FRR and
+            ExaBGP use.";
+    }
+
     revision 2026-02-22 {
         description "Initial revision.";
     }
@@ -17,8 +22,8 @@ module ze-softver {
         container software-version {
             presence "Software Version capability enabled";
             description "The container carries presence, so writing it makes Ze send the capability of
-                draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no
-                leaf changes it. A container on the peer replaces the container on the group rather than adding to
+                draft-abraitis-bgp-version-capability to this peer. The version is the fixed string Ze/0.1.0, and
+                the encoding leaf chooses how it is framed. A container on the peer replaces the container on the group rather than adding to
                 it.";
             ze:help "Software Version capability (code 75).";
             leaf mode {
@@ -29,6 +34,21 @@ module ze-softver {
                     the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer
                     that sends one stays up under refuse. Set the leaf on the peer to override the group value.";
                 ze:help "Capability negotiation mode.";
+            }
+            leaf encoding {
+                type enumeration {
+                    enum draft { ze:help "The version string alone, as the draft defines it."; }
+                    enum legacy { ze:help "A length octet, then the version string, as FRR and ExaBGP send it."; }
+                }
+                default "draft";
+                description "How Ze frames the version in the Capability Value it sends. draft, the default, sends the
+                    string alone, as draft-abraitis-bgp-version-capability Section 3 defines. legacy puts one length
+                    octet before the string, which is what FRR and ExaBGP send and expect. A peer running FRR or
+                    ExaBGP needs legacy: FRR 10.3.1 reads the first octet of the value as a length, and for the draft
+                    form that length exceeds the octets that follow, so FRR sends a NOTIFICATION and closes the
+                    session. legacy is a deviation from the draft, kept for those peers. Ze reads either form it
+                    receives, whatever this leaf says.";
+                ze:help "Capability Value framing: draft, or legacy for FRR and ExaBGP.";
             }
         }
     }

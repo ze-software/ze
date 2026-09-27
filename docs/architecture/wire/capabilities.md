@@ -441,30 +441,68 @@ draft-abraitis-bgp-version-capability, revision 18
  0                   1                   2   ...
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-| Version Len   |  Version String (variable)        |
+|  Version String (variable, Capability Length octets) |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
 | Field | Bytes | Description |
 |-------|-------|-------------|
-| Version Len | 1 | Length of version string |
-| Version String | Variable | UTF-8 software version |
+| Version String | Capability Length | UTF-8 software version, not null-terminated |
+
+The draft's Capability Value is the string itself: "The Capability Value field
+is the software version encoded as a UTF-8 [RFC3629] string" (Section 3). It
+carries no length octet of its own, because the Capability Length already
+states its size.
+
+FRRouting and ExaBGP both put a one-octet length in front of the string, which
+the draft does not define:
+
+```
++--------+----------------------------------------+
+| Length |  Version String (Length octets)        |
++--------+----------------------------------------+
+  1 octet   Capability Length - 1 octets
+```
+
+FRRouting 10.3.1 reads the first octet as that length
+(`bgp_capability_software_version`, `bgpd/bgp_open.c`) and, when the length
+runs past the capability, answers with an OPEN Message Error NOTIFICATION. The
+draft form of `Ze/0.1.0` starts with `Z`, 0x5A or 90, against 7 octets that
+follow, so FRRouting closes the session.
+
+Ze therefore sends either form, chosen per peer by the `encoding` leaf of
+`session > capability > software-version`. `draft`, the default, sends the
+bare string. `legacy` sends the length octet first, and a peer running FRR or
+ExaBGP needs it. `legacy` is an owner-approved deviation from the draft
+(`rfc/short/draft-abraitis-bgp-version-capability.md`, Notes) and is not
+counted as conformant. `encodeValue`
+(`internal/component/bgp/plugins/softver/softver.go`) writes the form, and
+`ze exabgp migrate` writes `encoding legacy` for every migrated peer that
+enables software-version (`keepExaBGPSoftwareVersionFraming`, `internal/exabgp/migration/migrate.go`),
+because that is what ExaBGP sent.
+
+`decodeSoftwareVersion` reads both forms. It reads the legacy form when the
+first octet equals the number of octets after it and those octets are valid
+UTF-8, and the bare string otherwise. The two overlap in one place: a bare
+version whose first octet equals its own length minus one reads as legacy and
+loses that octet. Every printable first octet is 0x20 or more, so this needs a
+bare version of 33 octets or more starting with the character that encodes its
+remaining length, for example a 34-octet version starting with `!`.
 
 Section 3 of the draft gives a receiver one answer for a Capability Value it
 cannot read: "A value of zero SHALL be treated as an encoding error and the
 Capability MUST be ignored", and "A receiving BGP speaker MUST NOT interpret
-invalid UTF-8 sequences". `decodeSoftwareVersion`
-(`internal/component/bgp/plugins/softver/softver.go`) reports an encoding error
-for three shapes, and ze then shows no version at all rather than an empty one:
-a Capability Value of zero octets, a Version Len of zero or one longer than the
-octets that follow it, and a Version String that is not valid UTF-8.
+invalid UTF-8 sequences". `decodeSoftwareVersion` reports an encoding error for
+three shapes, and ze then shows no version at all rather than an empty one: a
+Capability Value of zero octets, a legacy value whose length octet is zero,
+and a Version String that is not valid UTF-8.
 
 The session receive path never reaches that decoder. `parseCapability`
 (`internal/core/bgp/capability/capability.go`) has no case for code 75, so a
 received Software Version Capability becomes an `Unknown` that no ze decision
 reads. `ze bgp decode capability 75 <hex>` is the operator path into it.
 
-<!-- source: internal/component/bgp/plugins/softver/softver.go -- decodeSoftwareVersion, the three encoding errors and the ignore -->
+<!-- source: internal/component/bgp/plugins/softver/softver.go -- encodeValue, parseValueEncoding, decodeSoftwareVersion, the encoding errors and the ignore -->
 
 ---
 

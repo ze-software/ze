@@ -742,6 +742,25 @@ func TestPeerOpenLLGRIsTheHarnessOwn(t *testing.T) {
 // `ze bgp decode` prints for that OPEN (capabilityToZeJSON,
 // internal/component/bgp/cli/decode_open.go).
 func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
+	zeVersion := []byte("Ze/0.1.0")
+	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), capTLV(75, zeVersion...))
+
+	peer := &Peer{config: &Config{}}
+	open, err := buildOpen(ze, peer.openIdentity(ze, nil), &Config{})
+	require.NoError(t, err)
+
+	value, carried := peerCapValue(t, open, 75)
+	require.True(t, carried)
+	assert.Equal(t, peerSoftwareVersion, string(value), "the Capability Value is the bare version string")
+	assert.NotContains(t, string(value), "Ze/", "no octet of ze's build reaches the wire in ze-peer's name")
+}
+
+// TestPeerOpenSoftwareVersionMirrorsTheLegacyForm checks ze-peer's framing.
+//
+// VALIDATES: when ze sends the legacy length-prefixed form (encoding legacy),
+// ze-peer answers in that form, as the FRR or ExaBGP peer it stands in for does.
+// PREVENTS: a legacy-mode fixture reading a draft-form answer no such peer sends.
+func TestPeerOpenSoftwareVersionMirrorsTheLegacyForm(t *testing.T) {
 	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), capTLV(75, zeVersion...))
 
@@ -752,9 +771,8 @@ func TestPeerOpenSoftwareVersionIsTheHarnessOwn(t *testing.T) {
 	value, carried := peerCapValue(t, open, 75)
 	require.True(t, carried)
 	require.Len(t, value, 1+len(peerSoftwareVersion))
-	assert.Equal(t, byte(len(peerSoftwareVersion)), value[0], "the one-octet version length")
+	assert.Equal(t, byte(len(peerSoftwareVersion)), value[0], "the legacy length octet")
 	assert.Equal(t, peerSoftwareVersion, string(value[1:]))
-	assert.NotContains(t, string(value), "Ze/", "no octet of ze's build reaches the wire in ze-peer's name")
 }
 
 // TestPeerOpenPathsLimitIsTheHarnessOwn is AC-5.
@@ -808,7 +826,7 @@ func TestPeerOpenHoldTimeIsDeclared(t *testing.T) {
 // PREVENTS: the shape this spec removes -- a fact that is ze's whenever the file
 // says nothing, which is the case that covers most of the suite.
 func TestPeerOpenDefaultsInheritNoOctetFromZe(t *testing.T) {
-	zeVersion := append([]byte{byte(len("Ze/0.1.0"))}, []byte("Ze/0.1.0")...)
+	zeVersion := []byte("Ze/0.1.0")
 	ze := zeOpenBody(65000, 0x01020304, asn4TLV(65000), mpTLV(1), zeGRTLV(),
 		capTLV(71, 0, 1, 1, 0x80, 0, 0x0E, 0x10), capTLV(75, zeVersion...),
 		capTLV(76, 0, 1, 1, 0, 10))
@@ -831,7 +849,7 @@ func TestPeerOpenDefaultsInheritNoOctetFromZe(t *testing.T) {
 
 	version, carried := peerCapValue(t, open, 75)
 	require.True(t, carried)
-	assert.Equal(t, peerSoftwareVersion, string(version[1:]))
+	assert.Equal(t, peerSoftwareVersion, string(version))
 
 	limit, carried := peerCapValue(t, open, 76)
 	require.True(t, carried)

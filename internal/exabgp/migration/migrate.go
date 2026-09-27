@@ -782,6 +782,28 @@ var (
 	capabilityValueFields  = []string{"graceful-restart", "software-version"}
 )
 
+// keepExaBGPSoftwareVersionFraming gives a migrated software-version
+// capability the framing ExaBGP sends: a length octet before the version
+// string, which the software-version encoding leaf calls legacy. Ze's default
+// is the draft's bare string, so a migrated peer left on the default would
+// change what goes on the wire, and an FRR neighbor that accepted ExaBGP's
+// OPEN would refuse Ze's.
+func keepExaBGPSoftwareVersionFraming(dstCap *config.Tree) {
+	if container := dstCap.GetContainer("software-version"); container != nil {
+		container.Set("encoding", "legacy")
+		return
+	}
+	mode, ok := dstCap.GetFlex("software-version")
+	if !ok {
+		return
+	}
+	dstCap.Delete("software-version")
+	container := config.NewTree()
+	container.Set("mode", mode)
+	container.Set("encoding", "legacy")
+	dstCap.SetContainer("software-version", container)
+}
+
 // migrateCapability converts ExaBGP capability syntax to ZeBGP.
 // ExaBGP: capability { route-refresh; graceful-restart 120; }.
 // ZeBGP: session { capability { route-refresh enable; graceful-restart 120; } }.
@@ -836,6 +858,8 @@ func migrateCapability(src, dst *config.Tree) {
 				hasCapabilities = true
 			}
 		}
+
+		keepExaBGPSoftwareVersionFraming(dstCap)
 	}
 
 	// ADD-PATH: convert ExaBGP capability-level direction + neighbor-level per-family

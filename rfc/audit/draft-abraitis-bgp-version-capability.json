@@ -1,107 +1,111 @@
 {
   "audited": "2026-09-27",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1": {
-      "note": "Forbidden: no configuration option to enable or disable the capability. TestSoftverConfigOptionEnables asserts mode enable makes extractSoftverCapabilities declare code 75 (require.Len 1, Code 75); TestSoftverConfigOptionDisables asserts mode disable declares nothing (assert.Empty). Either goes red if the option does not control the advertisement.",
+      "note": "Forbidden: a software-version capability no configuration option can switch on or off. TestSoftverConfigOptionEnables asserts extractSoftverCapabilities declares code 75 for mode enable, red if the option were ignored. Negative: TestSoftverConfigOptionDisables, mode disable declares nothing.",
       "requirement_sha": "b4b16615c5c9c20d",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables": "dacf293d6dfe2731",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables": "f95982d2512080b8"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables": "762024389c1b193e",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables": "c628a91e2a27afe3"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2": {
-      "note": "Forbidden: the capability advertised when nothing configures it. TestSoftverDefaultsToDisabled asserts a peer with no software-version key gets no declaration (assert.Empty), red on an enabled default. Negative: TestSoftverDefaultIsNotABlanketRefusal, an explicit key declares code 75.",
+      "note": "Forbidden: advertising code 75 by default. TestSoftverDefaultsToDisabled asserts a peer whose capability block has no software-version key gets no declaration, red if the capability were on by default. Negative: TestSoftverDefaultIsNotABlanketRefusal, the same peer with the key present gets code 75, so the empty answer is the default and not a refusal of everything.",
       "requirement_sha": "1c7a39f0897e51ac",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal": "b60c1272716233ba",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled": "4fbe2fa2e7ed9383"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal": "5e58d19f2493807e",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled": "198727a91158e901"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3": {
-      "note": "Forbidden: sending code 75 with Capability Length zero. TestSoftverCapabilityLengthIsGreaterThanZero asserts the value encodeValue produces is longer than zero (require.Greater), red on an empty value. Negative: decodeSoftwareVersion(nil) is refused. The unit also pins an inner length octet the draft does not define (see findings).",
+      "note": "Forbidden: sending code 75 with Capability Length zero. TestSoftverCapabilityLengthIsGreaterThanZero asserts the Capability Value encodeValue produces for the default draft encoding is longer than zero (require.Greater) and is exactly the bytes of ZeVersion, so the Capability Length is len(ZeVersion); red on an empty value. The legacy encoding is an owner-approved deviation (D-13) and is not what this verdict covers. Negative: TestSoftverZeroCapabilityLengthIsRefused, decodeSoftwareVersion(nil) returns ok false and no version.",
       "requirement_sha": "45c896fa3d686171",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroCapabilityLengthIsRefused": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroCapabilityLengthIsRefused": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "6d6fb20caf1a2c36",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "4b3b698766c7e4cc",
         "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroCapabilityLengthIsRefused": "769f49d641646af0"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4": {
-      "note": "Forbidden: reading a zero-length Capability Value as a valid version. TestSoftverZeroValueIsAnEncodingError asserts decodeSoftwareVersion([]byte{}) returns ok false, red if it decodes. Negative: a well formed value decodes to zebgp.",
+      "note": "Forbidden: reading a zero-length Capability Value as a valid version. TestSoftverZeroValueIsAnEncodingError asserts decodeSoftwareVersion([]byte{}) returns ok false, red if it decodes; the length check runs before the legacy-form test, so neither form reads an empty value. Negative: TestSoftverWellFormedValueIsNotAnEncodingError, the bare value zebgp decodes to zebgp, red if the error verdict were returned for every input.",
       "requirement_sha": "3980bfaa5f8dece1",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueIsAnEncodingError": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueIsAnEncodingError": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "5f233a757a704cff",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "5bd0327a8ee12379",
         "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueIsAnEncodingError": "5d04532927bb532f"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5": {
-      "note": "Forbidden: acting on or displaying a zero-length capability. TestSoftverZeroValueCapabilityIsIgnored asserts RunCLIDecode of an empty value exits 1 with empty stdout, red if a version is shown. Its RunDecodeMode arm feeds value 00, which is Capability Length 1 with an inner length of zero, a neighbouring case. Negative: a well formed value is decoded and shown on both surfaces.",
+      "note": "Forbidden: acting on or displaying a zero-length capability. TestSoftverZeroValueCapabilityIsIgnored asserts RunCLIDecode of an empty value exits 1 with empty stdout, red if decodeSoftwareVersion accepted it and a version were shown. Its RunDecodeMode arm feeds the empty hex field invokePluginDecode writes for a zero-length value and asserts decoded unknown with no version; that arm is refused by the request parser before the decoder, so the CLI arm carries the discrimination. Negative: TestSoftverWellFormedCapabilityIsNotIgnored, the bare value zebgp is decoded and shown on both surfaces.",
       "requirement_sha": "1ed4f42bff26c85e",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "f9c1f2b0301e7b85",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored": "258e91325953e5b3"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "51cce8794fb58657",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored": "221d6bd22eda9114"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6": {
-      "note": "Forbidden: a Version field that is not UTF-8. TestSoftverVersionFieldIsUTF8 asserts utf8.Valid on the octets encodeValue writes after its length octet and equality with ZeVersion, red on invalid UTF-8 in the sent version. Negative: a non-UTF-8 value is refused by decodeSoftwareVersion. The unit skips the inner length octet the draft does not define (see findings).",
+      "note": "Forbidden: a Version field that is not UTF-8. TestSoftverVersionFieldIsUTF8 asserts utf8.Valid over the whole Capability Value encodeValue writes for the default draft encoding, which is the version string with no length octet, and equality with ZeVersion; red on invalid UTF-8 or on any octet beside the string. The legacy encoding's length octet is the D-13 deviation and is outside this verdict. Negative: TestSoftverNonUTF8VersionFieldIsRefused, C3 28 61 is refused by decodeSoftwareVersion.",
       "requirement_sha": "423ed21dfb754d3c",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "71e36d6046f6b8c9",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8": "06deb674b65463cc"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "32d3b2dfe2a502e1",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8": "0cdd7a60ab5a8f68"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7": {
-      "note": "Forbidden: interpreting invalid UTF-8 received in the Version field. TestSoftverInvalidUTF8IsNotInterpreted asserts decodeSoftwareVersion returns ok false and an empty string for FF FE FD FC, and RunCLIDecode exits 1 with empty stdout, red if the bytes are rendered. Negative: valid multi-byte UTF-8 decodes intact.",
+      "note": "Forbidden: interpreting invalid UTF-8 received in the Version field. TestSoftverInvalidUTF8IsNotInterpreted asserts decodeSoftwareVersion returns ok false and an empty string for the value FF FE FD FC, and RunCLIDecode exits 1 with empty stdout, red if the bytes are rendered. decodeSoftwareVersion checks utf8.Valid on the legacy remainder before taking that form, and on the whole value otherwise, so neither form hands invalid bytes on. Negative: TestSoftverValidMultiByteUTF8IsInterpreted, the bare value Z\u00e9/0.1.0 decodes intact.",
       "requirement_sha": "3f40f186f9893d72",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "93300acabc17d079",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "0f9b9f33c44aa254"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "d2397634b47176a6",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "715cad2033701757"
       },
       "verdict": "enforced"
     },
     "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8": {
-      "note": "Forbidden: advertising or other nonessential information in the product identifier ze sends. TestSoftverProductIdentifierCarriesNothingNonessential asserts the sent identifier matches the product[/product-version] grammar with no spaces or prose (productIdentifierIsEssential), red if ZeVersion carried any. Negative: six identifiers carrying such information are refused by the same check.",
+      "note": "Forbidden: advertising or other nonessential information in the product identifier ze sends. TestSoftverProductIdentifierCarriesNothingNonessential asserts the whole Capability Value encodeValue writes for the default draft encoding matches the product[/product-version] grammar with no spaces or prose (productIdentifierIsEssential), red if ZeVersion carried any. Negative: six identifiers carrying such information are refused by the same check.",
       "requirement_sha": "ad1f3b9c96d88256",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonessentialProductIdentifiersAreRefused": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonessentialProductIdentifiersAreRefused": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "621a76bf24368516"
       },
       "units": {
         "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonessentialProductIdentifiersAreRefused": "22dbdc9c5bb81830",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "c9d25978c22e47ae"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "04701c17064fc5ec"
       },
       "verdict": "enforced"
     },
@@ -135,12 +139,12 @@
       "note": "Forbidden: advertising code 75 without explicit configuration. TestSoftverNotAdvertisedWithoutExplicitConfiguration asserts no declaration for a peer with no capability block, an empty capability block, and a group without the key (assert.Empty), red if any advertises. Positive: an explicit mode enable declares code 75 with encodeValue's payload.",
       "requirement_sha": "2039575d3a16c7b5",
       "tests": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "f3a6af75504dc3aa",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "f3a6af75504dc3aa"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "621a76bf24368516",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "621a76bf24368516"
       },
       "units": {
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "a9d968468057969b",
-        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "868eda491dfee4a1"
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "889d972de6960d8c",
+        "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "cf7548ae1ec58582"
       },
       "verdict": "enforced"
     }

@@ -1,0 +1,34 @@
+# Test: ze config completion — software-version encoding value
+# VALIDATES: the encoding leaf completes to its two framings, draft and legacy
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/capability/software-version --input set+encoding+ test.conf
+expect=exit:code=0
+expect=stdout:contains=draft
+expect=stdout:contains=legacy
+reject=stdout:pattern=enable

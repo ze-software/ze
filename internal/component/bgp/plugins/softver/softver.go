@@ -46,19 +46,87 @@ const (
 	modeRefuse  = "refuse"
 )
 
-// encodeValue returns the hex-encoded capability value (without code/length prefix).
-// draft-abraitis-bgp-version-capability: version-length (1 octet) + version-string (UTF-8).
-func encodeValue() string {
-	version := ZeVersion
-	if len(version) > 255 {
-		version = version[:255]
+// valueEncoding is the form of the Capability Value Ze sends. The zero value is
+// no form, so a peer whose encoding was never resolved cannot be sent one by
+// accident.
+type valueEncoding uint8
+
+const (
+	valueEncodingUnspecified valueEncoding = iota
+	// valueEncodingDraft is the form draft-abraitis-bgp-version-capability
+	// Section 3 defines: the Capability Value is the version string alone.
+	valueEncodingDraft
+	// valueEncodingLegacy is the form FRR and ExaBGP send and expect: one
+	// length octet, then that many octets of the version string. It is an
+	// owner-approved deviation from the draft (D-13), kept because FRR 10.3.1's
+	// bgp_capability_software_version reads the first value octet as a length
+	// and sends a NOTIFICATION when it exceeds what follows.
+	valueEncodingLegacy
+)
+
+// Values of the software-version encoding leaf (ze-softver.yang).
+const (
+	encodingNameDraft  = "draft"
+	encodingNameLegacy = "legacy"
+)
+
+// capabilityValueOctetsMax is the largest Capability Value: the Capability
+// Length that carries its size is one octet.
+const capabilityValueOctetsMax = 255
+
+// parseValueEncoding converts the encoding leaf to its typed form. An absent
+// leaf ("") is the YANG default, draft (ze-softver.yang, `default "draft"`).
+// The YANG leaf declares that default and this switch repeats it, so
+// TestEncodingDefaultMatchesYANG compares the two.
+// It is mapped here rather than refused because the config JSON does not
+// always carry YANG defaults: the parser fills none, applyPeerSchemaDefaults
+// (bgp/config/peers.go) fills only the containers under bgp/peer, and a
+// group's container, the bare flex form (`software-version enable`) and bare
+// presence all reach parseSoftverSetting with no encoding. Any other string is
+// refused: the YANG enumeration admits only the two names, so one arriving
+// here means the config did not pass through the schema.
+func parseValueEncoding(name string) (valueEncoding, error) {
+	switch name {
+	case "", encodingNameDraft:
+		return valueEncodingDraft, nil
+	case encodingNameLegacy:
+		return valueEncodingLegacy, nil
 	}
+	return valueEncodingUnspecified, fmt.Errorf("software-version encoding %q: want %s or %s", name, encodingNameDraft, encodingNameLegacy)
+}
 
-	data := make([]byte, 1+len(version))
-	data[0] = byte(len(version))
-	copy(data[1:], version)
-
-	return hex.EncodeToString(data)
+// encodeValue returns the hex-encoded Capability Value in the form the peer's
+// encoding selects, without the code and Capability Length octets the OPEN
+// encoder adds around it. encoding MUST be draft or legacy; the unspecified
+// zero value is a Ze defect, and parseValueEncoding never returns it without an
+// error.
+//
+// draft-abraitis-bgp-version-capability Section 3: "The Capability Value field
+// is the software version encoded as a UTF-8 [RFC3629] string.  It is
+// unstructured data and can be formatted in any way that the implementor
+// decides.  The string is not null-terminated." In the draft form the value is
+// the string itself: the Capability Length already carries its size, so the
+// string is cut at 255 octets. The legacy form spends one of those octets on
+// its own length, so its string is cut at 254.
+func encodeValue(encoding valueEncoding) string {
+	version := []byte(ZeVersion)
+	switch encoding {
+	case valueEncodingDraft:
+		if len(version) > capabilityValueOctetsMax {
+			version = version[:capabilityValueOctetsMax]
+		}
+		return hex.EncodeToString(version)
+	case valueEncodingLegacy:
+		if len(version) > capabilityValueOctetsMax-1 {
+			version = version[:capabilityValueOctetsMax-1]
+		}
+		value := make([]byte, 1+len(version))
+		value[0] = byte(len(version))
+		copy(value[1:], version)
+		return hex.EncodeToString(value)
+	case valueEncodingUnspecified:
+	}
+	panic("BUG: software-version encodeValue called with an unresolved encoding")
 }
 
 // RunSoftverPlugin runs the softver plugin using the SDK RPC protocol.
@@ -74,7 +142,11 @@ func RunSoftverPlugin(conn net.Conn) int {
 			if section.Root != configRootBGP {
 				continue
 			}
-			caps = append(caps, extractSoftverCapabilities(section.Data)...)
+			sectionCaps, err := extractSoftverCapabilities(section.Data)
+			if err != nil {
+				return err
+			}
+			caps = append(caps, sectionCaps...)
 		}
 		p.SetCapabilities(caps)
 		return nil
@@ -93,74 +165,83 @@ func RunSoftverPlugin(conn net.Conn) int {
 	return 0
 }
 
-// extractSoftverCapabilities parses bgp config JSON and returns per-peer software-version capabilities.
-// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
-func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
+// softverSetting is the software-version container that governs one peer: the
+// peer's own when it has one, else its group's.
+type softverSetting struct {
+	enabled  bool
+	encoding valueEncoding
+}
+
+// parseSoftverSetting reads one software-version container. The container
+// arrives as a map carrying mode and encoding, as the bare string of the older
+// flex form (`software-version enable`), or as nil for bare presence, which is
+// enable.
+func parseSoftverSetting(raw any) (softverSetting, error) {
+	var mode, encodingName string
+	switch container := raw.(type) {
+	case map[string]any:
+		mode, _ = container["mode"].(string)
+		encodingName, _ = container["encoding"].(string)
+	case string:
+		mode = container
+	case nil:
+	}
+	encoding, err := parseValueEncoding(encodingName)
+	if err != nil {
+		return softverSetting{}, err
+	}
+	return softverSetting{enabled: mode != modeDisable && mode != modeRefuse, encoding: encoding}, nil
+}
+
+// extractSoftverCapabilities parses bgp config JSON and returns per-peer
+// software-version capabilities. Handles both standalone peers (bgp.peer) and
+// grouped peers (bgp.group.<name>.peer). A container on the peer replaces the
+// group's whole, so mode and encoding both come from the one that governs.
+func extractSoftverCapabilities(jsonStr string) ([]sdk.CapabilityDecl, error) {
 	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
 		Logger.Warn("invalid JSON in bgp config")
-		return nil
+		return nil, nil
 	}
 
 	const softverCapCode = 75
 	var caps []sdk.CapabilityDecl
+	var firstErr error
 
 	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		// Check per-peer software-version capability first.
-		peerHasExplicit := false
-		peerEnabled := false
-		if svRaw, exists := configjson.GetCapability(peerMap)["software-version"]; exists {
-			peerHasExplicit = true
-			var mode string
-			switch sv := svRaw.(type) {
-			case map[string]any:
-				mode, _ = sv["mode"].(string)
-			case string:
-				mode = sv
-			case nil:
-				// bare presence -- treat as enable
-			}
-			peerEnabled = mode != modeDisable && mode != modeRefuse
+		raw, exists := configjson.GetCapability(peerMap)["software-version"]
+		if !exists && groupMap != nil {
+			raw, exists = configjson.GetCapability(groupMap)["software-version"]
+		}
+		if !exists {
+			return
 		}
 
-		// Check group-level software-version capability (fallback).
-		groupEnabled := false
-		if groupMap != nil {
-			if svRaw, exists := configjson.GetCapability(groupMap)["software-version"]; exists {
-				var mode string
-				switch sv := svRaw.(type) {
-				case map[string]any:
-					mode, _ = sv["mode"].(string)
-				case string:
-					mode = sv
-				}
-				groupEnabled = mode != modeDisable && mode != modeRefuse
+		setting, err := parseSoftverSetting(raw)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("peer %s: %w", peerAddr, err)
 			}
+			return
 		}
-
-		// Per-peer wins; if no per-peer config, use group default.
-		enabled := groupEnabled
-		if peerHasExplicit {
-			enabled = peerEnabled
-		}
-
-		if !enabled {
-			if peerHasExplicit {
-				Logger.Debug("software-version capability suppressed by mode", "peer", peerAddr)
-			}
+		if !setting.enabled {
+			Logger.Debug("software-version capability suppressed by mode", "peer", peerAddr)
 			return
 		}
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     softverCapCode,
 			Encoding: sdk.CapEncodingHex,
-			Payload:  encodeValue(),
+			Payload:  encodeValue(setting.encoding),
 			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
 		})
 		Logger.Debug("software-version capability enabled", "peer", peerAddr)
 	})
 
-	return caps
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return caps, nil
 }
 
 // GetYANG returns the embedded YANG for the softver plugin.
@@ -220,9 +301,9 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 
 		version, ok := decodeSoftwareVersion(data)
 		if !ok {
-			// Section 3's encoding error: a zero Capability Length, a value
-			// shorter than its own length octet, or invalid UTF-8. Each is
-			// reported as unknown, which is how this path ignores it.
+			// Section 3's encoding error: a zero Capability Length, or a value
+			// that is not valid UTF-8. Each is reported as unknown, which is
+			// how this path ignores it.
 			writeUnknown()
 			continue
 		}
@@ -252,13 +333,40 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 // reports whether the value was well formed. A false ok is the draft's
 // "encoding error": the caller ignores the capability and shows no version.
 //
+// Two forms reach Ze. The draft's is the version string alone. The legacy form
+// FRR and ExaBGP send prefixes one length octet (valueEncodingLegacy). The value
+// is read as legacy when its first octet equals the number of octets after it
+// and those octets are valid UTF-8, and as the draft's bare string otherwise.
+//
+// The two forms overlap in one place, and this function picks legacy there. A
+// bare string whose first octet equals its own length minus one reads as a
+// length octet followed by the rest: a 34-octet version starting with "!"
+// (0x21, 33) loses that "!". Every printable first octet is 0x20 or more, so
+// the overlap needs a bare version of 33 octets or longer whose first character
+// happens to encode its remaining length. Reading such a value as the draft
+// form instead would misread every FRR and ExaBGP speaker, which send the
+// legacy form on every session.
+//
+// A legacy value with octets after the declared version is read as the draft
+// form, so its length octet shows as the version's first character. No known
+// encoder sends that shape: FRR's (bgpd/bgp_open.c, bgp_open_capability)
+// writes the length octet and the version, and a Capability Length of one more
+// than the version. The draft declares no inner length, so a value whose first
+// octet does not count what follows is a bare string by the draft's text.
+// FRR 10.5.3's bgp_capability_software_version decides the same way: it reads
+// the first octet as a length only when that octet plus one equals the
+// Capability Length.
+//
+// draft-abraitis-bgp-version-capability Section 3: "The Capability Value field
+// is the software version encoded as a UTF-8 [RFC3629] string." In the draft
+// form data, the Capability Value, is the whole version.
+//
 // draft-abraitis-bgp-version-capability Section 3: "The Capability Length for
 // the Software Version Capability MUST be greater than zero.  A value of zero
 // SHALL be treated as an encoding error and the Capability MUST be ignored."
-// data holds the Capability Value, so a Capability Length of zero arrives here
-// as an empty slice. A value whose own length octet is zero is refused on the
-// same ground: the capability then carries no version at all, which is the
-// state Section 3 requires a receiver to ignore rather than to display.
+// A Capability Length of zero arrives here as an empty slice. A legacy value
+// whose length octet is zero declares an empty version, which leaves nothing
+// to show either, so it is refused the same way.
 //
 // draft-abraitis-bgp-version-capability Section 3: "The Version field MUST be
 // encoded using UTF-8.  A receiving BGP speaker MUST NOT interpret invalid
@@ -266,18 +374,21 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 // conversion would hand invalid bytes to the renderer and interpret them. The
 // validity test is what stops that, and it runs before any caller sees a value.
 func decodeSoftwareVersion(data []byte) (string, bool) {
-	if len(data) < 1 {
+	if len(data) == 0 {
 		return "", false
 	}
-	vLen := int(data[0])
-	if vLen == 0 || len(data) < 1+vLen {
+	if int(data[0]) == len(data)-1 {
+		if legacy := data[1:]; utf8.Valid(legacy) {
+			if len(legacy) == 0 {
+				return "", false
+			}
+			return string(legacy), true
+		}
+	}
+	if !utf8.Valid(data) {
 		return "", false
 	}
-	value := data[1 : 1+vLen]
-	if !utf8.Valid(value) {
-		return "", false
-	}
-	return string(value), true
+	return string(data), true
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
