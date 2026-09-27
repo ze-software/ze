@@ -5,7 +5,7 @@ severity: blocking
 related: config, cli, performance, repo-maintenance, architecture
 ---
 directives ## Directives
-  read-the-ze-style-guide-before-go-design-or-review
+  read-the-ze-style-guide-before-the-first-go-edit
   guard-with-early-returns-one-fact-per-guard
   never-write-these-forbidden-go-patterns
   log-through-slog-never-printf

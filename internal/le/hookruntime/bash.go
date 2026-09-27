@@ -866,6 +866,64 @@ func preMaterializeDerived(ctx context) *verdict {
 	return nil
 }
 
+// ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
+// bashStyleGuideRead records a Bash print of the whole Go style guide, which
+// writeStyleGuideRead asks for before a Go edit. It never refuses. A command
+// with a pipe, a redirection or a substitution records nothing, because the
+// output then goes somewhere other than the reader. It runs before the
+// command, so a command that then fails still leaves the record.
+func bashStyleGuideRead(ctx context) *verdict {
+	command := stringInput(ctx.input, "command")
+	if !strings.Contains(command, styleGuidePath) {
+		return nil
+	}
+	for _, diverts := range []string{"|", ">", "<(", "$("} {
+		if strings.Contains(command, diverts) {
+			return nil
+		}
+	}
+	for _, segment := range commandSegments(command) {
+		if printsStyleGuide(shellWords(segment)) {
+			writeMarkerFile(styleGuideMarker(ctx), "")
+			return nil
+		}
+	}
+	return nil
+}
+
+// printsStyleGuide reports whether one command prints the whole style guide: a
+// program that prints every line of a file, with the guide among its operands.
+// head, tail and sed print a range, so they are no read, and neither is a bat
+// with a line range or a less or more told to start at a line with `+N`.
+func printsStyleGuide(words []string) bool {
+	if len(words) == 0 {
+		return false
+	}
+	program := filepath.Base(words[0])
+	ranged := program == "bat"
+	switch program {
+	case "cat", "bat", "nl", "less", "more":
+	default:
+		return false
+	}
+	named := false
+	for _, word := range words[1:] {
+		if strings.HasPrefix(word, "+") {
+			return false
+		}
+		if ranged && strings.HasPrefix(word, "-r") {
+			return false
+		}
+		if ranged && strings.HasPrefix(word, "--line-range") {
+			return false
+		}
+		if word == styleGuidePath || strings.HasSuffix(word, "/"+styleGuidePath) {
+			named = true
+		}
+	}
+	return named
+}
+
 // commandNamesArtifact reports whether the command text reaches the artifact,
 // by its own path or by a directory that holds it with a trailing slash.
 //

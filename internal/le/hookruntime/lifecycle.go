@@ -70,7 +70,13 @@ func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, boo
 }
 
 func writeSessionMarker(ctx context, prefix, body string) int {
-	path := sessionMarker(ctx, prefix)
+	return writeMarkerFile(sessionMarker(ctx, prefix), body)
+}
+
+// writeMarkerFile writes one marker, holding body or the current time when
+// body is empty. An empty path names no marker and writes nothing. A marker
+// hook never blocks the tool call it follows, so it always answers 0.
+func writeMarkerFile(path, body string) int {
 	if path == "" {
 		return 0
 	}
@@ -549,7 +555,54 @@ func hookSubagentContext(ctx context, out io.Writer) int {
 	return 0
 }
 
+// readToolLineCap is how many lines the Read tool returns when a call names no
+// limit.
+const readToolLineCap = 2000
+
+// readWholeFile reports whether a Read call returned every line of its file:
+// no offset past the first line, and a limit, or the tool's own cap when there
+// is none, that reaches the last line. An offset or a limit that is not a
+// number, and a file that cannot be read, answer false, so a read nobody can
+// measure is never recorded as whole.
+func readWholeFile(ctx context) bool {
+	if offset, present := ctx.input["offset"]; present {
+		first, ok := offset.(float64)
+		if !ok {
+			return false
+		}
+		if first > 1 {
+			return false
+		}
+	}
+	limit := float64(readToolLineCap)
+	if value, present := ctx.input["limit"]; present {
+		named, ok := value.(float64)
+		if !ok {
+			return false
+		}
+		limit = named
+	}
+	body, err := os.ReadFile(absolutePath(ctx)) //nolint:gosec // the path the Read tool call itself named
+	if err != nil {
+		return false
+	}
+	lines := bytes.Count(body, []byte("\n"))
+	if len(body) != 0 && body[len(body)-1] != '\n' {
+		lines++
+	}
+	return float64(lines) <= limit
+}
+
+// hookSourceRead records what a Read tool call read. A read of the Go style
+// guide that returned every line writes the marker writeStyleGuideRead asks for, and a read of source
+// writes the marker writeDesignEvidence asks for.
 func hookSourceRead(ctx context) int {
+	if relativePath(ctx) == styleGuidePath {
+		if !readWholeFile(ctx) {
+			return 0
+		}
+		return writeMarkerFile(styleGuideMarker(ctx), "")
+	}
 	path := filepath.ToSlash(ctx.path)
 	kind := ""
 	switch {

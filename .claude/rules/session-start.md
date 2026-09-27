@@ -6,27 +6,17 @@ Rationale: `ai/rationale/session-start.md`
 ## Checklist
 
 ```
-[ ] 1. Read `docs/contributing/ze-go-style.md`. Every session, before any code.
-[ ] 2. Run `./le spec current` to see this session's claimed spec
-[ ] 3. Read plan/<spec-name> (if a spec is claimed)
-[ ] 4. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
-[ ] 5. Check git status
-[ ] 6. If user provides a handoff: complete Receiving a Handoff (below) before any plan
-[ ] 7. Before the first search, grep, or agent: read the page that documents the
+[ ] 1. Run `./le spec current` to see this session's claimed spec
+[ ] 2. Read plan/<spec-name> (if a spec is claimed)
+[ ] 3. Read per-spec session state (tmp/session/<YYYY-MM-DD>-<SID>/state/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 4. Check git status
+[ ] 5. If user provides a handoff: complete Receiving a Handoff (below) before any plan
+[ ] 6. Before the first search, grep, or agent: read the page that documents the
        surface (`ai/rules/documentation.md`, always-on in `ai/rules/CORE.md`)
-[ ] 8. Start working
+[ ] 7. Start working
 ```
 
-## Style Read (step 1)
-
-Read `docs/contributing/ze-go-style.md` in full before writing any code, every
-session, whatever the task looks like. This applies to ordinary edits too, not
-only to a Go design decision, a review, or an argument about how Ze code is
-written.
-
-Nothing else reminds you: `ze-style` is an output style
-(`.claude/output-styles/ze-style.md`), not a skill, and Go written through a
-Bash heredoc never reaches the `pretool-writeedit` action.
+The Go style guide is read before the first Go edit, not at session start: `ai/INSTRUCTIONS.md`, "Every session".
 
 ## Symbols
 

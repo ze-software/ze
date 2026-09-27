@@ -95,7 +95,7 @@ the owner, never forward it. A reply to the owner stays under 15 lines and puts
 its tables before its prose. Other prose follows `ai/rules/writing.md`.
 
 ## Every session
-- Read `docs/contributing/ze-go-style.md` in full before any code.
+- Before your first Go edit in a session, read `docs/contributing/ze-go-style.md` in full; the pre-write hook refuses a Go edit until you have.
 - Claude Code: also `.claude/rules/session-start.md`.
 
 # Finding the Rule

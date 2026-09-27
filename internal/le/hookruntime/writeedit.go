@@ -265,6 +265,52 @@ func writeSpecStatus(ctx context) *verdict {
 	return nil
 }
 
+// styleGuidePath is the Go style guide a context reads before its first Go
+// edit, relative to the checkout root.
+const styleGuidePath = "docs/contributing/ze-go-style.md"
+
+// styleGuideMarker names the file that records this context's read of the Go
+// style guide. A subagent's hook payload carries its PARENT's session_id and
+// its own agent_id, so a subagent gets a marker of its own: a read in the
+// parent's context put nothing into the subagent's. It answers "" when the
+// session or the agent cannot be named, and every caller reads "" as no record.
+func styleGuideMarker(ctx context) string {
+	id := resolvedSessionID(ctx)
+	if id == "" {
+		return ""
+	}
+	name := ".style-guide-read-" + id
+	if ctx.payload.AgentID != "" {
+		if !safeAgentID.MatchString(ctx.payload.AgentID) {
+			return ""
+		}
+		name += "-agent-" + ctx.payload.AgentID
+	}
+	return filepath.Join(ctx.root, "tmp", "session", name)
+}
+
+// ze point: go-standards/directives/read-the-ze-style-guide-before-the-first-go-edit
+// writeStyleGuideRead refuses a Go write from a context with no record of
+// reading the Go style guide. The Read hook (hookSourceRead) and the Bash hook
+// (bashStyleGuideRead) write the record. Go written through a Bash heredoc never
+// reaches this check.
+func writeStyleGuideRead(ctx context) *verdict {
+	if !strings.HasSuffix(ctx.path, ".go") {
+		return nil
+	}
+	if !oneOf(ctx.tool, toolWrite, "Edit", "MultiEdit") {
+		return nil
+	}
+	marker := styleGuideMarker(ctx)
+	if marker == "" {
+		return &verdict{2, "❌ BLOCKED: this session or agent has no usable id, so no read of " + styleGuidePath + " can be found.\n  The Go style gate is fail-closed.\n  ai/rules/go-standards.md"}
+	}
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	}
+	return &verdict{2, "❌ BLOCKED: read " + styleGuidePath + " in full before this session's first Go edit.\n  Read it whole with the Read tool (no offset, no limit short of its last line),\n  or print it whole from Bash with cat and no pipe, then retry.\n  ai/rules/go-standards.md"}
+}
+
 func goEdit(ctx context) bool {
 	return oneOf(ctx.tool, toolWrite, "Edit") && strings.HasSuffix(ctx.path, ".go")
 }

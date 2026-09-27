@@ -63,7 +63,7 @@ check's row cannot survive it.
 
 ## PreToolUse: Bash (`internal/le/hookruntime/bash.go`)
 
-<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite, preMaterializeDerived -->
+<!-- source: internal/le/hookruntime/bash.go -- bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe, bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch, bashTestDeletion, bashGovernedWrite, preMaterializeDerived, bashStyleGuideRead -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
@@ -79,10 +79,11 @@ check's row cannot survive it.
 | `bashTestDeletion` | `testing.md` | Deleting a test without approval. A deleted test is indistinguishable from a test that never existed. It fails closed and judges the whole line: it asks when a word, quoted or not, is `rm`, ends in `/rm`, or is `-delete`, AND any word is a test path. A test path is a `*_test.go`, `.ci` or `.et` file, a path with a `test` or `testdata` element, or, inside `internal/` or `test/`, a path with any element whose name contains `test` (`internal/component/cli/testing`, `internal/foo/*test*`); `test/draft/` is exempt, and outside those two trees a name that only contains "test", such as `docs/architecture/testing/`, is not one. Words break at whitespace and at `; & | ( ) { } ! < >`, so a redirect glued to a path leaves the path whole. A line with an unclosed quote that runs `rm` is asked about. A line that names `rm` without running it, such as `grep rm x_test.go`, is asked about too. Known gaps: a bare word at the checkout root with no `/`, such as `rm -r test` or `rm -r test*`, because on a whole line `test` is `go test` or the test builtin far more often than the directory; a command inside a `bash -c` string or inside `$(...)` in double quotes; `find ... -delete` with no test word on the line; `rm -rf` of a directory that holds tests but has no element naming `test`; `git clean`; `mv`; and truncation or a redirect that overwrites a test. |
 | `bashGovernedWrite` | `commands.md` | A shell write into `plan/` or `ai/rules/`. Those trees are guarded by the Write/Edit hook, and a shell write runs none of its checks. |
 | `preMaterializeDerived` | `principles.md` | A command naming a derived artifact the tree does not hold. It rebuilds the artifact first, and refuses the command when the rebuild fails, because a grep of an absent file answers "no match" for a tree nobody rendered. |
+| `bashStyleGuideRead` | `go-standards.md` | Never refuses. A command that prints the whole of `docs/contributing/ze-go-style.md` with `cat`, `bat` (no line range), `nl`, `less` or `more`, and has no pipe, writes the marker `writeStyleGuideRead` reads. `head`, `tail` and `sed` print a range and record nothing. It runs before the command, so a command that then fails still leaves the marker. |
 
 ## PreToolUse: Write/Edit (`internal/le/hookruntime/writeedit.go`)
 
-<!-- source: internal/le/hookruntime/writeedit.go -- writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite, writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns, writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite, writePointLanguage, writeDesignEvidence, writeSpecStatus, writeStyleGuideRead, writeGoPatterns, writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription -->
 
 | Check | Enforces | What it refuses |
 |---|---|---|
@@ -93,6 +94,7 @@ check's row cannot survive it.
 | `writePointLanguage` | `rule-format.md` | A rule directive that states no RFC 2119 level. |
 | `writeDesignEvidence` | `evidence.md` | A spec or design written before its source was read. |
 | `writeSpecStatus` | `planning.md` | A source edit while the claimed spec is not `in-progress`. |
+| `writeStyleGuideRead` | `go-standards.md` | A Go Write, Edit or MultiEdit from a session, or a subagent, with no record of reading `docs/contributing/ze-go-style.md`. A subagent's payload carries the parent's `session_id` and its own `agent_id`, so each subagent needs its own read: the marker is `tmp/session/.style-guide-read-<session>`, with `-agent-<agent_id>` appended for a subagent. An id that cannot name a marker is refused. Go written through a Bash heredoc never reaches this check. |
 | `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
 | `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
 | `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves. |
@@ -152,7 +154,7 @@ These return hook protocol output directly rather than a check verdict, so
 | `session-end-deferrals` | Stop | Prints the open deferral count. Advisory. |
 | `subagent-context` | SubagentStart | Validates the parent session ID and emits the parent context. |
 | `mark-lsp-invoked` | PostToolUse `LSP` | Writes the session-scoped LSP marker. |
-| `mark-source-read` | PostToolUse `Read` | Writes a source-read evidence marker. A Read has to return implementation content to count: an empty response, a failed read, or a window under the native depth threshold records nothing. |
+| `mark-source-read` | PostToolUse `Read` | A Read of `docs/contributing/ze-go-style.md` that returns every line (no offset past line 1, and a limit, or the tool's 2000-line cap, that reaches the last line) writes the style-guide marker `writeStyleGuideRead` reads. A Read of a `.go`, `.sh`, `.yang`, `.mk` or `Makefile` path writes a source-read evidence marker for its kind. Neither inspects what the Read returned. |
 | `mark-agent-spawned` | PostToolUse `Task\|Agent` | Writes the session-scoped agent marker. |
 | `validate-spec` | PostToolUse `Write\|Edit` | `hookValidateSpec` validates the spec's Wiring Test table. |
 
