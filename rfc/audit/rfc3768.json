@@ -20,7 +20,7 @@
       "verdict": "enforced"
     },
     "RFC3768-5.2.3-2": {
-      "note": "Forbidden: accepting a received packet whose TTL is not 255. Case N4 feeds TTL 64 and fatals unless Decode returns ErrTTL; the golden v2 packet at TTL 255 decodes. N4's buffer is v3, but Decode's TTL row runs before any version-specific branch and RFC 9568 states the same rule, so one check serves both.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): the only negative, TestNegativeReferenceBugs N4, decodes the VRRPv3 golden (goldenV3v4Hex, metaV3v4, lookupConst(VersionV3)) at TTL 64; no tagged unit feeds a VRRPv2 packet at a TTL other than 255, so a v2-only break of the TTL check (validate.go) stays green. The positive is the v2 golden at TTL 255. That the TTL row precedes the version branch is an argument about the code, not an assertion.",
       "requirement_sha": "3d846da62f5faeea",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
@@ -30,10 +30,10 @@
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
         "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-5.3.2-1": {
-      "note": "Forbidden: accepting a packet whose Type is not ADVERTISEMENT. ValidationOrder case 3<4 sets Type 2 and fatals unless ErrType, and the VRID lookup it also fails is ordered after, so the type row alone decides; golden v2 Type 1 decodes. The buffer is v3, but the type row precedes any version branch.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): the negative, TestValidationOrder '3<4 type beats vrid', sets b[0]=0x32 on a VRRPv3 packet (advV3v4, metaV3v4); no tagged unit feeds a VRRPv2 packet whose Type is not 1, so a v2-only break of the type check stays green. The positive is the v2 golden (TestDecodeGoldenV2). Blind reader BS-A: same finding.",
       "requirement_sha": "df72e2697e1a4220",
       "tests": {
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "19a4c15f930f948e",
@@ -43,10 +43,10 @@
         "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "dc7610de42a5c583",
         "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-5.3.4-1": {
-      "note": "Forbidden: the address owner running with a priority other than 255, or 255 given to a non-owner. TestOwnerAutoDetection errors unless an owner configured with priority 120 has EffectivePriority 255, and errors unless a near-miss non-owner keeps its configured 100.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): TestOwnerAutoDetection asserts EffectivePriority 255 for an owner configured at 120 and 100 for a near-miss non-owner, but both groups carry no version leaf, so they are VRRPv3 (groups.go default versionV3). No tagged unit runs a VRRPv2 owner, so a v2-only break of the owner priority stays green.",
       "requirement_sha": "10a546502ef3e667",
       "tests": {
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "f39d7347d46bdc74",
@@ -56,10 +56,10 @@
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
         "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "47246169c047d639"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-5.3.4-2": {
-      "note": "Forbidden: a backup priority outside 1..254. TestBoundaryPriority fatals unless validateGroups rejects 0 and 255 and accepts 1 and 254.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): TestBoundaryPriority asserts validateGroups rejects 0 and 255 and accepts 1 and 254, but every case omits the version leaf and so validates a VRRPv3 group (groups.go default versionV3). No VRRPv2 group is validated, so a v2-only break of the 1..254 range stays green.",
       "requirement_sha": "395a0085cfbc094b",
       "tests": {
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "f39d7347d46bdc74",
@@ -69,7 +69,7 @@
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
         "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-5.3.6-1": {
       "note": "Clause 2 (Auth Type not matching the locally configured method): case N8 sets Auth Type 1 at a group configured for type 0 and fatals unless ErrAuthType; the golden type 0 decodes. Clause 1 (unknown authentication type, 3..255): no tagged case feeds one, so a check rejecting only the defined types 1 and 2 passes. Decode rejects any non-zero today (validate.go Row 10), but no assertion pins it.",
@@ -85,7 +85,7 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.2-1": {
-      "note": "Forbidden: a Backup answering ARP for the virtual address, which the kernel does only if Ze installs the VIP. TestInstanceStartupNonOwnerGoesBackup errors on any VIP install by a Backup; TestInstanceOwnerStartupGoesMaster errors unless the Master installs it on the vMAC device, so the silence is state-bound. The boundary asserted is the state Ze installs for the kernel; the instance runs v3, and VIP installation has no version branch.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): forbidden: a Backup answering ARP for the virtual address. TestInstanceStartupNonOwnerGoesBackup asserts no VIP install in Backup and TestInstanceOwnerStartupGoesMaster the install in Master, but both run testSpec() (Version versionV3); no VRRPv2 Backup is started. The assertion is also a proxy: no ARP reply is observed, only that the VIP is not installed.",
       "requirement_sha": "63d14e1bbd4d44d6",
       "tests": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
@@ -95,7 +95,7 @@
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.2-2": {
       "note": "the units assert only that a Backup installs no VIP. The vMAC macvlan still exists in Backup (created at apply, rp_filter=0), so frames addressed to the virtual MAC that reach a Backup are not shown discarded: no-VIP proves no local accept, not no forwarding",
@@ -111,7 +111,7 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.2-3": {
-      "note": "Forbidden: a Backup accepting packets addressed to the virtual address, which requires the VIP installed locally. TestInstanceStartupNonOwnerGoesBackup errors on any VIP install in Backup; TestInstanceOwnerStartupGoesMaster errors unless the Master installs it. Instance runs v3; VIP installation has no version branch.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): forbidden: a Backup accepting packets addressed to the virtual address. The tagged units assert no VIP install in Backup and an install in Master, but both run testSpec() (Version versionV3); no VRRPv2 Backup is started, so a v2-only break stays green.",
       "requirement_sha": "7c11c855f4f5522d",
       "tests": {
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e6cc5c9a873878e6",
@@ -121,10 +121,10 @@
         "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "312c553bb00ae79d",
         "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "98d2994e98962652"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.2-4": {
-      "note": "Forbidden: a Backup Shutdown that leaves Master_Down_Timer armed or does not go to Initialize. TestFSMTransitionMatrix row backup/shutdown asserts exactly [StopTimers] and next Initialize; row backup/advert-timer-expired/stale shows a non-Shutdown event keeps Backup. Shutdown handling has no version branch.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row backup/shutdown asserts [StopTimers, EmitStateChange] and next Initialize, and row backup/advert-timer-expired/stale the non-Shutdown contrast, but both set up backupInstance(baseCfg()) and baseCfg is Version 3. No VRRPv2 Backup receives Shutdown in a tagged unit. Blind reader BS-A: same finding.",
       "requirement_sha": "e4e17b921434a0a8",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
@@ -134,7 +134,7 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.2-5": {
       "note": "TestFSMMasterDownPromotion asserts only the action TYPES and order: the Adver_Timer interval is not checked against Advertisement_Interval and AnnounceFailover is not shown to carry the virtual MAC gratuitous ARP. The stale-gen negative is sound",
@@ -150,7 +150,7 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.2-6": {
-      "note": "Forbidden: a Priority 0 advert setting Master_Down_Timer to anything but Skew_Time. Row backup/advert/priority-zero asserts exactly StartMasterDownTimer{skewDur(cfg,1000)}; row adopt/equal-priority asserts Master_Down_Interval, not Skew. The row runs v3 at a 1000 ms interval, where the v3 skew equals the v2 (256-Priority)/256 s.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row backup/advert/priority-zero runs baseCfg (Version 3) and expects StartMasterDownTimer{skewDur(baseCfg(),1000)}; skewDur calls the production skewTime(3, 100, 1000), so the expected value is computed by the code under test and the v2 branch of skewTime (timers.go, 'if version == 2') never runs. RFC 3768 Section 6.1 defines Skew_Time as '( (256 - Priority) / 256 )' seconds; the unit proves the RFC 9568 Skew_Time, which scales with the adopted interval, a neighbouring rule. Blind reader BS-A: wrong.",
       "requirement_sha": "3bea368fe4c267fe",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
@@ -160,7 +160,7 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
       },
-      "verdict": "enforced"
+      "verdict": "wrong"
     },
     "RFC3768-6.4.2-7": {
       "note": "the tagged positive (row backup/advert/adopt/equal-priority) runs a v3 instance and asserts master-down re-armed from the ADVERTISED 4000 ms interval. RFC 3768 has no interval adoption: Master_Down_Interval comes from the local Advertisement_Interval. TestV2NoIntervalAdoption asserts the v2 behaviour but carries no tag",
@@ -241,7 +241,7 @@
       "verdict": "weak"
     },
     "RFC3768-6.4.3-5": {
-      "note": "Forbidden: a Master Shutdown that leaves Adver_Timer armed, sends no Priority 0 advert, or does not go to Initialize. Row master/shutdown asserts exactly StopTimers, SendAdvertZeroPriority and next Initialize; TestInstanceShutdownAsMasterSendsPriorityZero sees the priority 0 advert leave the executor; row backup/shutdown shows no priority 0 advert from a Backup.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row master/shutdown asserts exactly StopTimers, SendAdvertZeroPriority, RemoveVIPs, EmitStateChange and next Initialize, and TestInstanceShutdownAsMasterSendsPriorityZero sees the Priority 0 advert leave the executor, but the row runs baseCfg (Version 3) and the instance test testSpec() (versionV3). No VRRPv2 Master shuts down in a tagged unit.",
       "requirement_sha": "7f180484ce9dc56c",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
@@ -253,10 +253,10 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
         "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "7f46ec0e2b96d243"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.3-6": {
-      "note": "Forbidden: an Adver_Timer expiry that does not send or does not re-arm at Advertisement_Interval. Row master/advert-timer-expired/matching-gen asserts exactly SendAdvert then StartAdvertTimer at the configured 1 s; TestFSMStaleTimerGenerationIgnored shows a stale expiry emits nothing.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row master/advert-timer-expired/matching-gen asserts SendAdvert then StartAdvertTimer{1s}, and TestFSMStaleTimerGenerationIgnored the stale contrast, but both run baseCfg (Version 3). No VRRPv2 Master's Adver_Timer fires in a tagged unit.",
       "requirement_sha": "a7409bcd52827d36",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "b2b7454fac310168",
@@ -266,10 +266,10 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.3-7": {
-      "note": "Forbidden: a Master answering a Priority 0 advert without sending or without re-arming Adver_Timer. Row master/advert/priority-zero/reset-advert-timer asserts SendAdvert plus StartAdvertTimer and stays Master; row losing-lower-priority/v2-silent shows a non-zero losing advert draws neither.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): the positive, row master/advert/priority-zero/reset-advert-timer, asserts SendAdvert plus StartAdvertTimer{1s} and Master, but runs baseCfg (Version 3). Only the negative, row losing-lower-priority/v2-silent, is VRRPv2. No VRRPv2 Master receives a Priority 0 advert in a tagged unit.",
       "requirement_sha": "4ef1e2ef50d25ce9",
       "tests": {
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "b2b7454fac310168",
@@ -279,7 +279,7 @@
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
         "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-6.4.3-8": {
       "code": {
@@ -461,7 +461,7 @@
       "verdict": "weak"
     },
     "RFC3768-7.2-3": {
-      "note": "Single-polarity positive. Forbidden: an advert sourced from anything but the interface primary IPv4. TestSendAdvertUsesParentPrimaryV4Source errors unless the built header's source equals the parent unit's primary IPv4, including after an update and an address change.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): TestSendAdvertUsesParentPrimaryV4Source asserts the source equals the parent's address, re-resolved on update and on an address change, but every stub returns exactly one IPv4 address, so 'primary' versus a secondary address is never tested: a transport that picked the last or any address passes. The {single-polarity} marker's 'no input that yields a wrong-source advert' is untested for a multi-address parent. Blind reader BS-A: same finding.",
       "requirement_sha": "a6184d2a52d69426",
       "tests": {
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "74ad900f2e06c8d5"
@@ -469,7 +469,7 @@
       "units": {
         "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3768-7.2-4": {
       "note": "protocol and destination are compared with packet.ProtoNumber and packet.MulticastV4, the code constants, so a drift of either constant still passes; the literals 112 and 224.0.0.18 are pinned only in untagged TestEncodeGoldenV3IPv4",
