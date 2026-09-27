@@ -19,7 +19,7 @@
       "verdict": "enforced"
     },
     "RFC4684-5-2": {
-      "note": "(a) forbidden: advertising the RT membership (1, 132) pair other than through the Multiprotocol Extensions capability, or exchanging it with a peer that did not advertise it that way. (b) TestRFC4684RTCFamilyIsAMultiprotocolCapability asserts the exact bytes 01 04 00 01 00 84 from Multiprotocol.WriteTo for the registered ipv4/rtc family and that Negotiate supports it when both sides carry it (positive); TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily asserts the same value under code 200 is not a Multiprotocol capability and that RTC is not negotiated from it (negative).",
+      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a speaker exchanging RT membership without advertising (1, 132) in the Multiprotocol Extensions capability. TestRFC4684RTCFamilyIsAMultiprotocolCapability proves the codec: a Multiprotocol value the test builds encodes as 01 04 00 01 00 84, and Negotiate supports the family from two capability lists the test builds. Nothing asserts that Ze's own OPEN carries MP(1,132) when ipv4/rtc is configured, which is the obligation. The negative (TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily: the pair under code 200 is not MP) proves the capability parser, a neighbouring rule.",
       "requirement_sha": "71b051fe88579d1a",
       "tests": {
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "39bf14ba25dcd356",
@@ -29,7 +29,7 @@
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "f1bcb90f5a4c6a74",
         "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily": "fdbd2aedb7e15e31"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     }
   },
   "rfc": "rfc4684"
