@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2349-x-3": {
+      "note": "Forbidden (server half): an OACK whose tsize is not the file size in octets, e.g. echoing the client's \"0\" or a constant. TestRFC2349TsizeRRQReturnsActualSize asserts opts[\"tsize\"] == \"7\" for a 7-octet file and == \"20\" (and != \"0\") for a 20-octet file, red on echo, constant, or wrong size. The first clause (the client specifies \"0\" in the request) binds a TFTP client, which Ze does not ship (read-only server). Both polarities.",
+      "requirement_sha": "5c9bdf8331108b89",
+      "tests": {
+        "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize": "dd5a1a367dcb4a76",
+        "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize#2": "dd5a1a367dcb4a76"
+      },
+      "units": {
+        "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize": "00c0327394fa188a",
+        "internal/plugins/tftpserver/rfc2349_tsize_test.go::TestRFC2349TsizeRRQReturnsActualSize#2": "00c0327394fa188a"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2349"
+}
