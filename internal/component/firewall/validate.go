@@ -220,7 +220,11 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 		}
 		// The compare is 4 octets of an Ethernet/IPv4 ARP packet, so only a
 		// specified IPv4 address names a sender.
-		if !v.Addr.Is4() || v.Addr.IsUnspecified() {
+		if !v.Addr.Is4() {
+			return fmt.Errorf("table %q chain %q term %q: arp-sender-address names no IPv4 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
+		if v.Addr.IsUnspecified() {
 			return fmt.Errorf("table %q chain %q term %q: arp-sender-address names no IPv4 address (got %v)",
 				tbl.Name, ch.Name, term.Name, v.Addr)
 		}
@@ -229,7 +233,15 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return fmt.Errorf("table %q chain %q term %q: nd-target-address match is valid only in family ip6 or inet, got %s",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
 		}
-		if !v.Addr.Is6() || v.Addr.Is4In6() || v.Addr.IsUnspecified() {
+		if !v.Addr.Is6() {
+			return fmt.Errorf("table %q chain %q term %q: nd-target-address names no IPv6 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
+		if v.Addr.Is4In6() {
+			return fmt.Errorf("table %q chain %q term %q: nd-target-address names no IPv6 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
+		if v.Addr.IsUnspecified() {
 			return fmt.Errorf("table %q chain %q term %q: nd-target-address names no IPv6 address (got %v)",
 				tbl.Name, ch.Name, term.Name, v.Addr)
 		}

@@ -1082,7 +1082,10 @@ var arpEthernetIPv4 = []byte{0x00, 0x01, 0x08, 0x00, 0x06, 0x04}
 // other value; the check is repeated here so a caller that bypassed
 // validation fails closed.
 func lowerARPSenderAddressMatch(addr netip.Addr) ([]expr.Any, error) {
-	if !addr.Is4() || addr.IsUnspecified() {
+	if !addr.Is4() {
+		return nil, errArpSenderAddressNamesNoIPv4Address
+	}
+	if addr.IsUnspecified() {
 		return nil, errArpSenderAddressNamesNoIPv4Address
 	}
 	sender := addr.As4()
@@ -1114,7 +1117,13 @@ func lowerARPSenderAddressMatch(addr netip.Addr) ([]expr.Any, error) {
 // other value; the check is repeated here so a caller that bypassed
 // validation fails closed.
 func lowerNDTargetAddressMatch(family nftables.TableFamily, addr netip.Addr) ([]expr.Any, error) {
-	if !addr.Is6() || addr.Is4In6() || addr.IsUnspecified() {
+	if !addr.Is6() {
+		return nil, errNdTargetAddressNamesNoIPv6Address
+	}
+	if addr.Is4In6() {
+		return nil, errNdTargetAddressNamesNoIPv6Address
+	}
+	if addr.IsUnspecified() {
 		return nil, errNdTargetAddressNamesNoIPv6Address
 	}
 	target := addr.As16()
