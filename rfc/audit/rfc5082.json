@@ -1,0 +1,59 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5082-3-2": {
+      "note": "Re-read 2026-09-27 against the \u00a76.1 quote (setting AND verifying TTL=255 on related ICMP errors). Setting: forbidden is an ICMP error toward a GTSM peer leaving with TTL other than 255; TestGTSMTransmittedICMPErrorCarriesTTL255 fails on packet[8]!=255 and TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255 on packet[7]!=255, both over the route applyHopLimitRoutes installs; the withdraw negatives bind the 255 to that route. Verifying: forbidden is a below-floor ICMP error about the session being delivered; TestGTSMDropsADangerousQuotedICMPError fails when icmpInType rises, TestGTSMMinHopCountDropsALowHopLimitICMPv6Error when TCPMinTTLDrop does not; the TTL-255 negatives show delivery at 255.",
+      "requirement_sha": "5ee896f8d5f5b1e8",
+      "tests": {
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "020e378ebd5b0863",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "020e378ebd5b0863"
+      },
+      "units": {
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255": "44127b6033b85cfd",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDropsADangerousQuotedICMPError": "53f3d51a99e7293a",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error": "a7470776a8007649",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255": "c31a5ce8ed6fa515",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255": "02ce064d3278375f",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255": "58d5cefa017d287d",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255": "ce50ced078a44022",
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error": "60fcdb43bf9dc001"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5082-3-3": {
+      "note": "Re-read 2026-09-27. Forbidden: a GTSM-session packet arriving with its TTL decremented below the 255 ze set. TestGTSMTransmittedTTLArrivesUndecremented fails on inbound ttl != 255 after SetIPTTL(255); TestGTSMTransmittedTTLReportsTheValueSet (254 arrives as 254) shows the receiver reports the true TTL. Limit worth knowing: the path is loopback, so the forwarding-plane decrement the RFC names is not reproducible here; the assertion is the stack-level answer.",
+      "requirement_sha": "a5e061d662e2b62b",
+      "tests": {
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented": "58c73a28cf4589b4",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet": "58c73a28cf4589b4"
+      },
+      "units": {
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented": "71054b4ad9f46aa2",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet": "5f1eeda728df5608"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5082-3-4": {
+      "note": "Re-read 2026-09-27. Two clauses. Trusted dropped: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received (receiveByte). Unknown dropped: TestGTSMNoFloorDeliversAnUnknownPacket fails if a low-TTL packet on a no-floor socket is not delivered, and TestGTSMDeliversAnICMPErrorNoSessionClaims fails if icmpInType does not rise for three unclaimed ICMP errors at TTL 1.",
+      "requirement_sha": "bd0ad5653d46a163",
+      "tests": {
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "020e378ebd5b0863",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "58c73a28cf4589b4",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "58c73a28cf4589b4"
+      },
+      "units": {
+        "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "06231ae097a3e15c",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "bbc0359121576ce1",
+        "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "f7737db010b0a5c1"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5082"
+}
