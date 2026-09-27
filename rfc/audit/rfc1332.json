@@ -2,7 +2,7 @@
   "audited": "2026-09-27",
   "requirements": {
     "RFC1332-2-1": {
-      "note": "Forbidden: an IPCP packet framed under a Protocol other than 0x8021, or a frame whose IPCP Length does not delimit exactly one packet. TestIPCPFrameCarriesExactlyOnePacket asserts frame octets 80 21, ParseFrame proto == ProtoIPCP and LCP Length == len(Information field), red on either. TestIPCPFrameRejectsNonSinglePacket asserts errLCPLengthMismatch for a Length below the header and past the Information field, red if such a frame is parsed.",
+      "note": "SB-3 strict re-read 2026-09-27. Clauses: an IPCP packet travels under Protocol 0x8021, and exactly one packet fills the Information field. The Protocol clause is enforced: TestIPCPFrameCarriesExactlyOnePacket fails unless the frame octets are 80 21 and ParseFrame returns ProtoIPCP. The 'exactly one' clause is not: the positive checks LCP Length == len(Information) on a frame the test itself assembles with one WriteLCPPacket call, so no Ze send path is driven and no sender that packed two packets into one frame could turn it red; the negative TestIPCPFrameRejectsNonSinglePacket rejects a Length below the header or past the Information field, which is RFC 1661 length validation, and no case offers a frame holding two IPCP packets.",
       "requirement_sha": "9ddbf116bac2d73e",
       "tests": {
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "4f3f86f1f0138e3a",
@@ -12,7 +12,7 @@
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "5ec5f340d14bd027",
         "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "6bb2f4dd9b4825ed"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC1332-2.1-1": {
       "note": "Forbidden: IP communicated before IPCP Opened, or before PPP reaches the Network-Layer Protocol phase. TestIPCPNoAddressBeforeOpened asserts no AddAddressP2P and no EventSessionIPAssigned at Configure-Request-sent and at AckRcvd, and TestIPResponseConfiguresInterface asserts both once Opened: the IPCP-Opened clause is enforced. No tagged unit holds IP (or IPCP) while PPP is still short of the Network-Layer Protocol phase (authentication incomplete), so that clause has no assertion that goes red.",
@@ -28,7 +28,7 @@
       "verdict": "weak"
     },
     "RFC1332-2.1-3": {
-      "note": "Forbidden: a datagram larger than the peer's Information field leaving unfragmented. Ze's boundary is the pppN MTU the kernel fragments on. TestIPMTUInstalledFromNegotiatedMRU asserts exactly one MTU call, ppp7 = 1400 for a negotiated MRU of 1400, and no MTU above 1400, red if Ze installs the 1500 default or anything larger than the Information field.",
+      "note": "SB-3 strict re-read 2026-09-27. Clauses: (1) the largest IP packet sent equals the peer's Information-field maximum; (2) larger datagrams must be fragmented. (1): TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU of 1400 is installed on ppp7 for a negotiated MRU of 1400. Both tags sit on that one assertion, so there is one test, not a pair. (2) has no assertion: fragmentation is left to the Linux IP stack and no unit sends a datagram above the MTU and observes it fragmented, so a pppN that refused or truncated large datagrams stays green.",
       "requirement_sha": "4400ca9b07bd7e86",
       "tests": {
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "b8f321341f34b888",
@@ -38,7 +38,7 @@
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU": "ec9e825a4a58f335",
         "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "ec9e825a4a58f335"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC1332-3-1": {
       "note": "Forbidden: IPCP options that do not use the RFC 1661 Type/Length/Data format, in either direction. Receive side: TestIPCPParseOptions decodes a well-formed list (type 3 as IP-Address, not an LCP meaning) and TestIPCPParseRejects asserts errOptionTooShort/errOptionLengthMismatch/errIPCPBadOptionLen, red on a parser that accepts malformed TLVs. Send side: no tagged unit asserts that WriteIPCPOptions emits the TLV format (TestIPCPRoundtrip does, untagged).",
