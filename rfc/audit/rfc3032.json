@@ -1,0 +1,17 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3032-2.1-1": {
+      "note": "{single-polarity: positive} covers only allocation. Asserted: AllocateLabel never returns below firstDynamicLabel, including across the MaxLabel wrap, so 0-15 is never allocated. The quote also states the Implicit NULL semantics: when the new label is 3 the LSR pops instead of swapping, and 3 never appears in the encapsulation. No tagged assertion covers a received label 3.",
+      "requirement_sha": "c262dc601eab8a95",
+      "tests": {
+        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "e62078ef295b93c2"
+      },
+      "units": {
+        "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels": "4f34e2f4e8374f00"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc3032"
+}
