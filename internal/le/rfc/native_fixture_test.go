@@ -352,7 +352,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// replaceAudit without a reaudit_note, and names the audit field literals as
 	// constants. It adds a writer of new verdicts and changes no existing
 	// verdict. No corpus verdict moved.
-	const want = "d9da35656bdda6681b59f9fde8f00b5ec4513d99fded6b5e33384f7da4a74ff0"
+	//
+	// Re-sealed 2026-09-27 for 4ac5be6ecb, which runs a unit the host cannot
+	// compile in the QEMU guest when recording. It changes where an observation
+	// runs, never how a record is judged. No verdict moved.
+	const want = "aff9d90154647238008c386b9321499237ccc73945a312e592c9f3ecf1807240"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
