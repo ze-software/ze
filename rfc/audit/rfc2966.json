@@ -1,0 +1,71 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2966-2-1": {
+      "note": "Forbidden behaviour: an L1L2 router originating an L2-derived prefix in its L1 LSP with bit 8 of the default metric clear. TestISISLeakOriginationL1L2 asserts hasLeak(leak.IntoL1, l2Derived, true), i.e. the LeakedPrefix.UpDown flag from spf.LeakPrefixes, not the bit in the originated L1 LSP; an encoder that dropped UpDown when writing TLV 128/130 would leave it green. The negative (L1 prefix leaked up with the flag clear) is likewise struct-level. No tagged assertion decodes the L1 LSP.",
+      "requirement_sha": "02c0456492e68635",
+      "tests": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "761fef788d76cb9a",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "761fef788d76cb9a"
+      },
+      "units": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5707bf12ccf198fb",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5707bf12ccf198fb"
+      },
+      "verdict": "weak"
+    },
+    "RFC2966-2-2": {
+      "note": "Forbidden behaviour: re-advertising into L2 a prefix learned via L1 with the up/down bit set. TestISISLeakOriginationL1L2 assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; the negative keeps a clear-bit L1 prefix leaking up (assertion 1), so a blanket drop also goes red. Both polarities in the one unit.",
+      "requirement_sha": "e8fe37441b8118e4",
+      "tests": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "761fef788d76cb9a",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "761fef788d76cb9a"
+      },
+      "units": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "5707bf12ccf198fb",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "5707bf12ccf198fb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2966-2-3": {
+      "note": "Forbidden behaviour: an L1L2 router advertising back into L2 an L2->L1 inter-area route it learned via L1. TestISISLeakFixpoint round 2 re-injects the leaked-down prefix as an L1 advertisement with UpDown set and fails on hasPrefix(r2.IntoL2, l2Derived); round 1 (negative) requires the same L2 prefix to leak down, so suppressing all leaking goes red too.",
+      "requirement_sha": "7b34fbd8c3cd9509",
+      "tests": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "761fef788d76cb9a",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "761fef788d76cb9a"
+      },
+      "units": {
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "ddd75c5118817528",
+        "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "ddd75c5118817528"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2966-3.2-1": {
+      "note": "Forbidden behaviour: selecting a less preferred route class because its metric is lower, for any pair across the six classes. TestRFC2966SixPreferenceClasses checks each adjacent class pair through the SPF engine with one representative per class (L1 internal, L2 internal, L1 down internal, L1 external-metric, L2 external-metric, L1 down external-metric) and TestRFC2966ExternalL1DoesNotOverrideDownInternal the 3-vs-4 pair. The class members the list places at equal preference (L1 external with internal metric in class 1, L2 external and L1->L2 inter-area routes in class 2, L2->L1 inter-area external with internal metric in class 3, L1->L2 inter-area external with external metric in class 5) have no tagged assertion, so a mis-ranked member stays green.",
+      "requirement_sha": "4b658f5f14dd60c3",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966ExternalL1DoesNotOverrideDownInternal": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966SixPreferenceClasses": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966ExternalL1DoesNotOverrideDownInternal": "2041e49ccb9998e3",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966SixPreferenceClasses": "a5cfcbc9d9afc600"
+      },
+      "verdict": "weak"
+    },
+    "RFC2966-x-1": {
+      "note": "Forbidden behaviour: accepting an IP Internal Reachability (TLV 128) prefix whose metric-type bit says external. TestRFC2966InvalidInternalExternalMetricExcluded sets bit 0x40 on the TLV 128 entry of the cheaper route and requires metricWinner to pick the dearer valid route (id 2, 160); clearing the bit requires the cheap route back (id 3, 2), so both an accept-anyway and a drop-everything implementation go red.",
+      "requirement_sha": "edeb06a9be5ec96d",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded": "9daa5ed05776669a",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded#2": "9daa5ed05776669a"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2966"
+}
