@@ -1,0 +1,58 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2348-x-1": {
+      "note": "(a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.",
+      "requirement_sha": "c70ae9def504f6cb",
+      "tests": {
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "bba4d4b528cac222",
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "bba4d4b528cac222"
+      },
+      "units": {
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "d04f1b0826ee39b5",
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "d04f1b0826ee39b5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2348-x-3": {
+      "note": "Only 5 and 70000 (rejected) and 512 (accepted) are exercised. The 'inclusive' bounds are never asserted: a parseRRQ that used n > 8 or n < 65464 (rejecting 8 or 65464) or accepted 7 or 65465 stays green. No tagged assertion at 7/8/65464/65465.",
+      "requirement_sha": "b42e8a8edc2a6d51",
+      "tests": {
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "bba4d4b528cac222",
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "bba4d4b528cac222"
+      },
+      "units": {
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "e4fefc034d73019e",
+        "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "e4fefc034d73019e"
+      },
+      "verdict": "weak"
+    },
+    "RFC2348-x-4": {
+      "note": "TestTFTPReadLargeFile reads exactly three blocks and never checks that nothing follows the short block, so a server that kept sending after the short block (not treating it as final) stays green. Both units run at the default 512 without negotiating blksize, so a server that compared against 512 instead of the negotiated blocksize stays green. The negative (TestTFTPReadExact512 continues after a full block) holds.",
+      "requirement_sha": "6c06103dac56424f",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2348-x-5": {
+      "note": "Positive TestTFTPReadExact512 asserts the zero-length block 2 after a 512-byte file. The negative claims no extra zero-length packet follows a short final block, but TestTFTPReadLargeFile never reads after block 3, so that polarity asserts nothing. Neither unit negotiates a blksize, so 'the blocksize' is only the 512 default.",
+      "requirement_sha": "d886c63462d6f09f",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2348"
+}
