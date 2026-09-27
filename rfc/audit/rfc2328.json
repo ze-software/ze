@@ -460,7 +460,7 @@
       "verdict": "enforced"
     },
     "RFC2328-4.4-3": {
-      "note": "Forbidden: interface up/down transitions not reaching OSPF. Red: TestOSPFTransportPassesLinkIndicationsToOSPF fails unless HandleLinkUp and HandleLinkDown each call the registered callback with the ifindex and name. Other polarity: TestOSPFTransportPassesNoIndicationForNonOSPFInterface fails if a non-OSPF interface produces an indication. The engine registers those callbacks (instance.go:307-308), so the delivery reaches OSPF.",
+      "note": "SB-3 strict re-read 2026-09-27. Forbidden: interface up/down transitions not reaching OSPF. TestOSPFTransportPassesLinkIndicationsToOSPF fails unless HandleLinkUp/HandleLinkDown call a callback the test registers, and the negative shows a non-OSPF interface produces none. No tagged unit drives the engine: that OSPF registers these callbacks (instance.go:307-308) and reacts to them is a code reading, so an engine that stopped registering, and so never heard of a link change, leaves both units green.",
       "requirement_sha": "f510a36de096f7f0",
       "tests": {
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "efe755c93a105af7",
@@ -470,7 +470,7 @@
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "aa5761fb3233d05a",
         "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "a0d3410e7725cfc8"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC2328-8.1-1": {
       "code": {
@@ -502,8 +502,8 @@
       "verdict": "enforced"
     },
     "RFC2328-8.2-2": {
-      "note": "The quote names two acceptance cases ('If both of the following cases fail, the packet should be discarded') and states case (1). TestOSPFReceiveAcceptsMatchingAreaID and TestOSPFReceiveDropsMismatchedAreaID prove case (1) with both polarities. Case (2), a backbone Area ID accepted over a virtual link from the configured endpoint, is not exercised, so a receiver that discarded every packet failing case (1), including a legitimate virtual-link packet, stays green.",
-      "requirement_sha": "85ae766be0e96deb",
+      "note": "SB-3 strict re-read 2026-09-27, quote widened to the full span of both cases (the old row claimed case 2; the one-case quote narrowed it). Forbidden: accepting a packet that fails both cases, and discarding one that passes either. Case (1) has both polarities through dispatch: TestOSPFReceiveAcceptsMatchingAreaID fails if a matching Area ID is dropped or makes no neighbor, TestOSPFReceiveDropsMismatchedAreaID fails unless a foreign Area ID is dropped with no neighbor. Case (2), a backbone Area ID accepted over a configured virtual link from its other endpoint by an ABR on the Transit area, has no unit, so a receiver that discarded every packet failing case (1), including a legitimate virtual-link packet, stays green. The case (1) source-network check (not on point-to-point) is not asserted either. A blind reader read enforced from case (1) alone; the quote's 'if both of the following cases fail' makes case (2) a clause.",
+      "requirement_sha": "06becc8e219219c4",
       "tests": {
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID": "da263e79ffba2ad8",
         "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID": "da263e79ffba2ad8"
@@ -541,8 +541,8 @@
       "verdict": "enforced"
     },
     "RFC2328-9.5.1-1": {
-      "note": "only the eligible DROther case is tested (hello targets are every eligible neighbor, never a priority-0 one); the DR/BDR sending to all other neighbors, the ineligible router behavior and the Waiting precondition are not.",
-      "requirement_sha": "00c95bdd1c66ea03",
+      "note": "SB-3 strict re-read 2026-09-27, quote widened to the full span through the ineligible-router sentence the old row claimed. Clauses: an eligible router sends periodic Hellos to every eligible neighbor; a DR or BDR also sends them to all other neighbors; an ineligible router sends them to the DR and BDR. TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor and TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor prove only the eligible DROther case (every eligible neighbor targeted, a priority-0 one skipped). No unit makes the router DR or BDR and asserts Hellos to ineligible neighbors, and none makes the router ineligible.",
+      "requirement_sha": "69cbde79dd83699d",
       "tests": {
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor": "5f75ed219587e64e",
         "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "5f75ed219587e64e"
