@@ -1,0 +1,149 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7474-2-1": {
+      "note": "Clause 'occupy the 8 octets following the OSPFv2 packet': TestOSPFAuthType3SequenceTrailer asserts readUint64(signed[plen:]) == seq and len == plen+8+digest, red if misplaced. Clause 'MUST be included when calculating the digest': no 2-1-tagged assertion goes red if Sign and Verify both leave the sequence out of the hash, because the round-trip still verifies and the extra-byte negative in TestOSPFAuthCryptoRejectsExtraTrailerBytes proves framing, not digest coverage. TestOSPFAuthType3SequenceTamperRejected would prove it but carries only the RFC7474-5-1 tag.",
+      "requirement_sha": "ebbbd9e5f2cbef7d",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-2-2": {
+      "note": "Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey's seq == 0x1234<<32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.",
+      "requirement_sha": "0b2c501881fc65b2",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "ebaa89e50b3f4a0f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7474-2-3": {
+      "note": "TestOSPFAuthESNCounterWrapAdvancesBootCount asserts successive signKey calls return seq then seq+1, red if signKey did not advance the low word. The clause is 'for every OSPF packet sent': no tagged unit drives the send path (transport signer hook engine.signPacket) twice and reads two transmitted packets, so a send path that reused one signed buffer or one signKey result for two packets stays green. The single-polarity marker is fair; the gap is the unit, which tests the counter function rather than the sent packets.",
+      "requirement_sha": "2537335bef35e75f",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount": "bb84b98ca4c9b499"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-2-4": {
+      "note": "Forbidden: a sequence reused after a cold restart or a low-word wrap. TestBootCountMonotonicAcrossRestart asserts the persisted boot count strictly increases per load; TestOSPFESNWrapPersistsBeforeRestart asserts the wrapped boot count is persisted (value 2) and a second engine's first packet (3<<32|1) sorts above the first engine's final packet; TestOSPFESNWrapFailureRefusesPackets asserts signPacket emits nothing when the durable increment is unavailable, corrupt, failed, exhausted, missing or non-increasing. Lost storage is the separate RFC7474-8-1 gap.",
+      "requirement_sha": "faffa992abce4572",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "b26f6281820115a7",
+        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "8b78b66a3a8ad8d9",
+        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "8b78b66a3a8ad8d9"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "720aa31a10018e70",
+        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "ea08750dda52505c",
+        "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "7c6ac8eb66b4161a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7474-2-5": {
+      "note": "Forbidden: accepting a packet whose sequence is not greater than the last accepted of that type from that neighbor. TestOSPFAuthReplay asserts seq 5 and equal seq 11 are rejected as 'replay', but every packet there is AuType 2 (32-bit sequence) signed with AuTypeCryptographic. The obligation governs the AuType 3 64-bit sequence; no tagged assertion goes red if the AuType 3 comparison dropped the boot-count high word (a post-restart packet boot+1|1 would then compare below boot|N).",
+      "requirement_sha": "f272c44f4bf140f5",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4f7e544242587f85",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "4f7e544242587f85"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-2-6": {
+      "note": "Clause 'of that type': TestOSPFAuthReplayPerType asserts an LS-Ack at seq 5 is accepted after a Hello at 100, and TestOSPFAuthReplay asserts same-type lower and equal sequences are dropped. Clause 'from the sending OSPF neighbor': no unit uses a second neighbor, so a mark shared across neighbors passes every tagged assertion. Both units also use AuType 2 packets rather than the AuType 3 sequence this RFC defines.",
+      "requirement_sha": "c7ad3459727b7f6c",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerType": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4f7e544242587f85",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerType": "94f5296b80c29bff"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-3-1": {
+      "note": "The quote spans four sentences of Section 3. Key ID 32 bits in the former sequence position: asserted (readUint32(af,4) == 0x01020304; TestOSPFAuthCryptoRejectsKeyIDMismatch AuType 3 mismatch rejected). 24-bit zero field: asserted (af[0:3] == 0). Sequence in the first 64 bits after the packet, OSPF Packet Length excluding it: asserted (readUint64(signed[plen:]), offLength == plen). 'protected by the authentication digest': no 3-1-tagged assertion goes red if the digest skipped the sequence (the round-trip still verifies); only TestOSPFAuthType3SequenceTamperRejected, tagged 5-1, proves it.",
+      "requirement_sha": "8c74a5e58d4ef2dc",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-4-1": {
+      "note": "Forbidden: accepting with a key whose accept window excludes now. TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clock values and asserts 'accept-lifetime' refusal before AcceptLifetimeStart and after AcceptLifetimeEnd and acceptance inside, so both window edges are red on a violation.",
+      "requirement_sha": "05a8f06ed60bbc8e",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "297061b6ca582c78",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "297061b6ca582c78",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "297061b6ca582c78"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7474-5-1": {
+      "note": "Forbidden: a First-Hash that omits the 64-bit sequence. TestOSPFAuthType3SequenceTamperRejected flips one octet of signed[plen:plen+8] and asserts Verify rejects it, red if the sequence is outside the hash; TestOSPFAuthType3SequenceTrailer asserts the untampered round trip verifies and returns the sequence.",
+      "requirement_sha": "805f8881d67c24a2",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "bfc7d173c09b772c",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7474-5-2": {
+      "note": "Apad construction given a source: TestOSPFAuthType3SourceBinding asserts a packet signed for 198.51.100.7 fails Verify with a spoofed 203.0.113.9 and passes with the signing source, red if Apad ignored the source on either side. Clauses 'the IP source address that would be used when sending' and 'the IP source address from the IP header of the incoming OSPFv2 packet' concern which address the engine passes in; no tagged unit drives the send or receive path, so an engine that passed the router ID or a zero address on both sides would keep every assertion green.",
+      "requirement_sha": "054fb04326127081",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding#2": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding": "8e8387fddad03716",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding#2": "8e8387fddad03716"
+      },
+      "verdict": "weak"
+    },
+    "RFC7474-6-1": {
+      "note": "Forbidden: hashing with the bare key. TestOSPFAuthType3RequiresProtocolIDSuffix builds a digest over the bare key and asserts Verify rejects it, with the real signer over the same key, seq and source as the verifying control; TestOSPFAuthType3SequenceTrailer round-trips the suffixed key.",
+      "requirement_sha": "968e2777025873fa",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "44b77265835a4740",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "60c9a2bffb299af0"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7474"
+}
