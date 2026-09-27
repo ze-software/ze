@@ -1,0 +1,69 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8203-2-1": {
+      "note": "The sentence constrains the Cease NOTIFICATION that carries a Shutdown Communication: its subcode MUST be 2 or 4. Forbidden behaviour: Ze sending a Shutdown Communication under any other Cease subcode. The sender gate is session_connection.go (BuildShutdownData only for NotifyCeaseAdminShutdown/NotifyCeaseAdminReset), and no tagged unit asserts it. TestRFC8203Subcode asserts only the receive side: ShutdownMessage extracts for 2 and 4 (require.Equal \"hi\") and returns empty for subcode 3 (require.Empty). The sender clause has no assertion that goes red.",
+      "requirement_sha": "28025d6c946dd428",
+      "tests": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "8a17b6f2d17e6117"
+      },
+      "units": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "64cbcc669ed77e11",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11"
+      },
+      "verdict": "weak"
+    },
+    "RFC8203-2-2": {
+      "note": "Forbidden behaviour: Ze emitting a Length above 128. TestRFC8203LengthCap feeds a 200-byte message to BuildShutdownData and require.Equal(byte(128), data[0]) goes red if the cap is lost. Receive-side 129-255 acceptance follows RFC 9003 and is covered by the row's {single-polarity: positive} marker.",
+      "requirement_sha": "d65abd6c287c52d3",
+      "tests": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203LengthCap": "8a17b6f2d17e6117"
+      },
+      "units": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203LengthCap": "21a5369340d0297f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8203-2-3": {
+      "note": "The sentence is a sender duty: the field MUST be encoded using UTF-8. Forbidden behaviour: BuildShutdownData emitting invalid UTF-8, from an invalid input string or from a 128-octet cut inside a multibyte character. BuildShutdownData strips invalid UTF-8 (bytes.ToValidUTF8) and walks back to a character boundary, but no tagged unit feeds it invalid UTF-8 or a multibyte string longer than 128 octets. The positive tag (TestRFC8203UTF8Valid) round-trips valid UTF-8, and the negative tag (TestRFC8203UTF8Invalid) proves receive rejection, which is RFC8203-2-4's rule.",
+      "requirement_sha": "62b9cd0540b3bece",
+      "tests": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "8a17b6f2d17e6117"
+      },
+      "units": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7"
+      },
+      "verdict": "weak"
+    },
+    "RFC8203-2-4": {
+      "note": "Forbidden behaviour: the receiver interpreting an invalid UTF-8 sequence. TestRFC8203UTF8Invalid feeds 0xff 0xfe 0xfd and require.Error plus require.Empty(msg) go red if ShutdownMessage returns decoded text. The negative tag TestRFC8203UTF8Valid proves valid multibyte text is still interpreted (require.Equal \"\u65e5\u672c\u8a9e\").",
+      "requirement_sha": "0210f762466ba8c6",
+      "tests": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "8a17b6f2d17e6117"
+      },
+      "units": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8203-6-1": {
+      "note": "Shortest Form is REQUIRED of the encoding on both sides. Receive side: TestRFC8203ShortestFormUTF8 require.Error on the overlong 0xC0 0xAF goes red if ShutdownMessage accepts it, and 0xC3 0xA9 is accepted. Send side: no tagged unit feeds BuildShutdownData an overlong sequence, so Ze emitting a non-shortest-form Shutdown Communication has no assertion that goes red (ToValidUTF8 would strip it, unasserted).",
+      "requirement_sha": "9ddccaa93335c9f3",
+      "tests": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "8a17b6f2d17e6117",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "8a17b6f2d17e6117"
+      },
+      "units": {
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "c15cce559a416898",
+        "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "c15cce559a416898"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8203"
+}
