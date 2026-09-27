@@ -1,0 +1,78 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC792-Echo-1": {
+      "note": "Sentence: Type 8 for echo message; 0 for echo reply. TestRFC792EchoRequestType passes the literal 8 to BuildICMPEcho and asserts byte 0 is 8, so it proves the builder copies its argument, not that ze's callers (icmpEcho constant in ping, traceroute) send 8. The reply clause (Type 0) has no Echo-1-tagged assertion; the marker says Linux builds replies, and TestGatewayICMPEchoReply checks it only under Echo-6.",
+      "requirement_sha": "6fa3c0bc857d4be0",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5fd4a2554d99d53"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "799b6e32cff71e8b"
+      },
+      "verdict": "weak"
+    },
+    "RFC792-Echo-2": {
+      "note": "Span ends 'Code 0': the code is 0 for echo and echo reply. TestRFC792EchoRequestCode asserts byte 1 of a built request is 0, which goes red if the builder wrote a non-zero code. The reply's Code 0 is not asserted by any Echo-2-tagged unit.",
+      "requirement_sha": "2923f8d76b399c94",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "c5fd4a2554d99d53"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514"
+      },
+      "verdict": "weak"
+    },
+    "RFC792-Echo-3": {
+      "note": "Sentence: checksum is the one's complement of the one's complement sum from the Type field. Positive TestRFC792ChecksumValid goes red on a wrong ze checksum (checksumOnesFold != 0xffff). The negative TestRFC792ChecksumRejectsCorruption corrupts a built packet and checks that the TEST helper notices, which exercises no ze code, and the row has no single-polarity marker, so the polarity pair is incomplete.",
+      "requirement_sha": "a0f5ea4063259908",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "c5fd4a2554d99d53",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "c5fd4a2554d99d53"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "46ddecc03ca5c888",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9"
+      },
+      "verdict": "weak"
+    },
+    "RFC792-Echo-4": {
+      "note": "Forbidden: computing the checksum of an odd-length message without one trailing zero pad octet. Red on it: TestRFC792ChecksumOddLength builds an 11-octet echo and asserts checksumOnesFold == 0xffff, which fails if icmpChecksum dropped the last octet or padded it into the low byte. The receive side is Linux; ze verifies no received ICMP checksum. Single-polarity marker on the row.",
+      "requirement_sha": "4ee4c5d0dfa6a4c7",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "c5fd4a2554d99d53"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54"
+      },
+      "verdict": "enforced"
+    },
+    "RFC792-Echo-6": {
+      "note": "Sentence: to form a reply, reverse the addresses, change the type to 0, recompute the checksum. The positive in TestGatewayICMPEchoReply asserts all three (address compare, answer[0]==0, gatewayChecksum(answer)==0). The negative (a corrupt-checksum request draws no reply) proves a neighbouring rule, discarding a bad request, not a malformed reply, and the row has no single-polarity marker.",
+      "requirement_sha": "36d67f4bacdd017c",
+      "tests": {
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "c769c2a7b09bd13c",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "c769c2a7b09bd13c"
+      },
+      "units": {
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "ab5beea4ae3c3eb2",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply#2": "ab5beea4ae3c3eb2"
+      },
+      "verdict": "weak"
+    },
+    "RFC792-Unreachable-1": {
+      "note": "Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the 'may return' clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule's own boundary).",
+      "requirement_sha": "811fdb70a802cd4f",
+      "tests": {
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "c769c2a7b09bd13c",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "c769c2a7b09bd13c"
+      },
+      "units": {
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",
+        "internal/plugins/vrrp/gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "555d09675e8ddeff"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc792"
+}
