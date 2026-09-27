@@ -110,10 +110,7 @@
       "disposition": "walked",
       "reason": "Acct-Input-Gigawords. Defines type 52 and says the attribute 'indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update'. Indicative prose with no capitalised keyword, which is why the site scan sees nothing here. The five gated Gigawords rows in rfc/short/rfc2869.md were all read from this sentence and its identically worded twin in Section 5.2, so they are declared unsourced here.",
       "unsourced-ids": [
-        "RFC2869-x-1",
         "RFC2869-x-2",
-        "RFC2869-x-3",
-        "RFC2869-x-4",
         "RFC2869-x-5"
       ]
     },

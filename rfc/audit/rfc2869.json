@@ -1,0 +1,71 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2869-2.1-1": {
+      "note": "Forbidden: a second interim generation for the session entering the retransmission queue while one is outstanding. TestRFC2869InterimLoopKeepsOneGenerationOutstanding ticks at 10ms against a stalled server with a 300ms retransmission budget and fatals if more than 12 datagrams arrive in 1s (per-tick dispatch gives about 100, two outstanding generations about 20); TestRFC2869InterimLoopSendsOnItsInterval fatals below 2 sends, so the bound is not vacuous.",
+      "requirement_sha": "e7652e317d4f8ddb",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopKeepsOneGenerationOutstanding": "d719b9744b44e1d8",
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopSendsOnItsInterval": "d719b9744b44e1d8"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopKeepsOneGenerationOutstanding": "e514d48ba8a8a1b4",
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopSendsOnItsInterval": "be9097bffeb65958"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2869-2.1-2": {
+      "note": "Forbidden: the Access-Accept Acct-Interim-Interval winning over a locally configured value. TestRFC2869LocalAcctIntervalOverridesAccessAccept configures 40ms against an Access-Accept of 3600s and fatals if fewer than 3 interim records arrive in 2s; TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge fatals if any interim arrives with no local value, so a NAS that ignores the Access-Accept outright fails.",
+      "requirement_sha": "19ed833661f206b5",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge": "fbd571565543ce62",
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept": "fbd571565543ce62"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge": "faec9a11b6bf40ef",
+        "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept": "3cd3960fd055bf53"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2869-5.14-1": {
+      "note": "Access-Accept clause enforced: TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded fatals if Client.Exchange returns an Access-Accept whose Message-Authenticator is signed with another secret, and the positive delivers a correctly signed one. The sentence equally covers Access-Reject and Access-Challenge, and no tagged unit sends either with a wrong Message-Authenticator, so a client that checks only Access-Accept stays green.",
+      "requirement_sha": "b337a88c75c92aa0",
+      "tests": {
+        "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "e371dc7e94d0922d",
+        "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "e371dc7e94d0922d"
+      },
+      "units": {
+        "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted": "123aedd78dc31eaa",
+        "internal/component/radius/rfc2869_message_authenticator_test.go::TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded": "f4ec9fd5d4538a46"
+      },
+      "verdict": "weak"
+    },
+    "RFC2869-x-2": {
+      "note": "Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart errors if an Accounting-Start built from >4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.",
+      "requirement_sha": "ecd7a59b5ce3eb18",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords": "0ef56e3a6ea45ca8",
+        "internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go::TestRFC2869GigawordsAbsentOnStart": "a1fad6df32fe58c3"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords": "c869603e03c23d87",
+        "internal/component/l2tp/plugins/authradius/rfc2869_accounting_test.go::TestRFC2869GigawordsAbsentOnStart": "575d82af9465bd00"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2869-x-5": {
+      "note": "Forbidden: a Gigawords value that is not the number of times the octet counter wrapped around 2^32. TestSplitGigawords errors on any case whose giga differs (0, 0xFFFFFFFF give 0; 0x100000000 gives 1; 0x30000002A gives 3), and TestBuildAcctPacketGigawords asserts the attribute on the wire holds 2 for 0x200000064 octets. Row carries {single-polarity: positive}.",
+      "requirement_sha": "a9048fa979c66278",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords": "0ef56e3a6ea45ca8",
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestSplitGigawords": "0ef56e3a6ea45ca8"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestBuildAcctPacketGigawords": "c869603e03c23d87",
+        "internal/component/l2tp/plugins/authradius/acct_test.go::TestSplitGigawords": "ca3c5c2e33478363"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2869"
+}
