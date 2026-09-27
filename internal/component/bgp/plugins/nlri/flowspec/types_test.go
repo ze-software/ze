@@ -1416,9 +1416,8 @@ func TestFlowSpecNumericOperatorReservedBitZero(t *testing.T) {
 	ops, _ := walkComponentOps(t, comp.Bytes())
 	require.Len(t, ops, 3)
 
-	// RFC 5575 Section 4 numeric operator format [e][a][len][0][lt][gt][eq]: bit 4 (0x08)
-	// is reserved and MUST be 0.
-	// RFC requirement: RFC5575-4-5 positive -- numeric operator reserved bit 4 (0x08) is clear (§4)
+	// RFC 5575 Section 4 draws the numeric operator as [e][a][len][0][lt][gt][eq]; RFC 8955
+	// Section 4.2.1.1 states that bit 4 (0x08) MUST be set to 0 on NLRI encoding.
 	for i, op := range ops {
 		assert.Zero(t, op&0x08, "numeric operator %d (0x%02x) reserved bit 4 must be 0", i, op)
 	}
@@ -1444,9 +1443,8 @@ func TestFlowSpecBitmaskOperatorReservedBitsZero(t *testing.T) {
 	ops, _ := walkComponentOps(t, comp.Bytes())
 	require.Len(t, ops, 2)
 
-	// RFC 5575 Section 4 bitmask operator format [e][a][len][0][0][not][m]: bits 4-5
-	// (0x0C) are reserved and MUST be 0.
-	// RFC requirement: RFC5575-4-6 positive -- bitmask operator reserved bits 4-5 (0x0C) are clear (§4)
+	// RFC 5575 Section 4 draws the bitmask operator as [e][a][len][0][0][not][m]; RFC 8955
+	// Section 4.2.1.2 states that bits 4-5 (0x0C) MUST be set to 0 on NLRI encoding.
 	// RFC requirement: RFC8955-4.2.1.2-1 positive -- bitmask operator reserved bits 4-5 (0x0C) are clear on encode (§4.2.1.2)
 	for i, op := range ops {
 		assert.Zero(t, op&0x0C, "bitmask operator %d (0x%02x) reserved bits 4-5 must be 0", i, op)
@@ -1473,9 +1471,8 @@ func TestFlowSpecFragmentReservedHighNibbleZero(t *testing.T) {
 	_, values := walkComponentOps(t, comp.Bytes())
 	require.Len(t, values, 2)
 
-	// RFC 5575 Section 4 fragment bitmask [0][0][0][0][LF][FF][IsF][DF]: the high nibble
-	// (0xF0) is reserved and MUST be 0.
-	// RFC requirement: RFC5575-4-7 positive -- fragment bitmask reserved high nibble (0xF0) is zero (§4)
+	// RFC 5575 Section 4 draws the fragment bitmask as [Reserved][LF][FF][IsF][DF]; RFC 8955
+	// Section 4.2.2.12 states that the high nibble (0xF0) MUST be set to 0 on NLRI encoding.
 	// RFC requirement: RFC8955-4.2.2.12-2 positive -- fragment bitmask reserved high nibble (0xF0) is zero on encode (§4.2.2.12)
 	for i, v := range values {
 		require.Len(t, v, 1, "fragment value must encode as a single octet")

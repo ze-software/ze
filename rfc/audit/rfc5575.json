@@ -1,0 +1,108 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5575-4-1": {
+      "note": "Forbidden: exchanging flow specification rules without the Multiprotocol (Code 1) capability in OPEN. TestIPv4FlowSpecNegotiatesMultiprotocolCapability only checks the plugin registers ipv4/flow and then builds a capability.Multiprotocol in the test itself, so mp.Code()==1 is tautological; no assertion reads a real OPEN, and nothing goes red if sendOpen omits the capability or flow routes go to a peer that did not negotiate it.",
+      "requirement_sha": "6e0283b093f53403",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "d1ac0adabd9cefbe"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/plugin_test.go::TestIPv4FlowSpecNegotiatesMultiprotocolCapability": "b6c6a9ba63ffd546"
+      },
+      "verdict": "weak"
+    },
+    "RFC5575-4-2": {
+      "note": "Forbidden: an MP capability (AFI, SAFI) pair that differs from the pair the application's NLRI is sent under. TestFlowSpecIPv4Basic and TestFlowSpecVPNFamily assert family constants (1,133) and (1,134) only; no assertion compares the capability pair with the MP_REACH AFI/SAFI the encoder emits (encode.go chooses afi separately), so an encoder writing another SAFI stays green.",
+      "requirement_sha": "cc0ead3ebab90fe6",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "13a03de15f8818cf",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "13a03de15f8818cf"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "7748623b97c07367",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "7d7302c0c9c040b9"
+      },
+      "verdict": "weak"
+    },
+    "RFC5575-4-3": {
+      "note": "Forbidden: components out of strict type order (descending or repeated). TestFlowSpecComponentsAscendingOrder (positive) adds out of order and asserts wire order 1,3,5,12, red on insertion-order emission; TestFlowSpecJoinsRepeatedTypeIntoOneComponent asserts one Type 4 component; TestParseFlowSpecRefusesRepeatedComponentType require.ErrorIs ErrFlowSpecDuplicateType goes red if a repeat is accepted.",
+      "requirement_sha": "c04c0ab66ec3b35a",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "13a03de15f8818cf",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecJoinsRepeatedTypeIntoOneComponent": "13a03de15f8818cf",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesRepeatedComponentType": "13a03de15f8818cf"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "fc21580eb1f6ea1f",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecJoinsRepeatedTypeIntoOneComponent": "39d748c670adad61",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesRepeatedComponentType": "a0b3b079ea2174fa"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5575-4-4": {
+      "note": "Forbidden: a present component after a component of higher type. Positive asserts strictly ascending emitted types (assert.Less) red on any inversion; TestParseFlowSpecRefusesDescendingComponentType require.ErrorIs ErrFlowSpecTypeOrder goes red if 5-before-3 is accepted, with the ascending control accepted.",
+      "requirement_sha": "ebaab5cd3bb6fab3",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "13a03de15f8818cf",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "13a03de15f8818cf"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "fc21580eb1f6ea1f",
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "2d4e69c6e177de5a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5575-4-8": {
+      "note": "Two clauses. Encode: TestFlowSpecUpdateIgnoresConfiguredNextHop asserts reach[3]==0 and no valid next hop even with a configured IPv4/IPv6 address, red on a non-empty next hop. Receipt: no tagged unit feeds a received FlowSpec MP_REACH with a non-zero next hop and asserts it is ignored, so a receiver that uses or refuses it stays green.",
+      "requirement_sha": "274b77e34ff118dd",
+      "tests": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "fd0429028bee0447",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "fd0429028bee0447"
+      },
+      "units": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop": "db3b5bc9d8fbe384",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop#2": "db3b5bc9d8fbe384"
+      },
+      "verdict": "weak"
+    },
+    "RFC5575-5.1-1": {
+      "note": "Forbidden: an ordering that depends on arrival order. TestFlowSpecPrecedenceFromWire always parses the expected-first rule first, so an arrival-order tie-break still yields Compare(a,b)<0 and Compare(b,a)>0; the negative tag says reversing arrival order cannot reverse precedence, but no case parses the pair in the reverse order or feeds the ordering from two arrival sequences.",
+      "requirement_sha": "84505218df9a4cde",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "328da0a428605906",
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "328da0a428605906"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "12fd4ff344e8089e",
+        "internal/component/bgp/plugins/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "12fd4ff344e8089e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5575-7-1": {
+      "note": "Forbidden: non-zero bytes in the five octets before the DSCP, or the DSCP elsewhere. TestFlowSpecTrafficMarkingReservedBytesZero asserts ec[2..6]==0 and ec[7]==dscp with type 0x80/0x09; red on either. {single-polarity} marker present.",
+      "requirement_sha": "8dc19f50552f03fb",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "13a03de15f8818cf"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "a1cd8cc8e523e6e0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5575-8-1": {
+      "note": "Forbidden: a VPN NLRI length that omits the RD octets. TestFlowSpecVPNUpdateCountsRouteDistinguisher asserts the emitted length octet 13 (8 RD + 5), red on 5; the negative subtracts 8 and require.Error goes red if the parser accepts it.",
+      "requirement_sha": "1f493f29578fe4c4",
+      "tests": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher": "fd0429028bee0447",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher#2": "fd0429028bee0447"
+      },
+      "units": {
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher": "6a3b7d3da909dd2a",
+        "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher#2": "6a3b7d3da909dd2a"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5575"
+}

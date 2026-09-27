@@ -33,12 +33,7 @@
     {
       "id": "4",
       "sites": 5,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC5575-4-5",
-        "RFC5575-4-6",
-        "RFC5575-4-7"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "5",
