@@ -1,0 +1,17 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9072-2-3": {
+      "note": "{single-polarity: positive} carried on the row. Forbidden: a Non-Ext OP Len of 0 on an extended-format OPEN. TestOpenPackExtendedParams packs 300 octets of parameters and fails unless body[9]==0xFF, which covers both the SHOULD (255) and the MUST NOT (0).",
+      "requirement_sha": "97db2fe55e7c6056",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9072"
+}
