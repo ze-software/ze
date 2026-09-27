@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7440-3-1": {
+      "note": "'All fields except opc MUST be ASCII strings followed by a single-byte NULL.' TestTFTPParseRRQ/TestTFTPParseRRQInvalid (tftpserver) prove the NUL terminator for filename and mode only: 'no filename NUL' and 'no mode NUL' are rejected. No assertion covers the ASCII clause (a non-ASCII byte in a field is accepted untested), and the windowsize option name/value fields this section defines are not exercised, since ze does not implement the option.",
+      "requirement_sha": "a77b5523293d4a80",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "f7a3a6ab540f1ba9",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "7f6ed0b3630ad29a"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc7440"
+}
