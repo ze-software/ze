@@ -1,0 +1,140 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC1334-1-1": {
+      "note": "Forbidden: authentication configured but the LCP CONFREQ omits Auth-Protocol. TestLocalCONFREQAdvertisesAuthMethod asserts lookupOption(LCPOptAuthProto) ok and the protocol 0xC023 for PAP (0xC223 plus algorithm for CHAP) in the first CONFREQ from the driver; TestAuthProtoRejectClearsMethod asserts the option is absent once authentication is no longer desired, so an unconditional option goes red there.",
+      "requirement_sha": "093f9a2e6c9c7f8d",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "110b8e909a6688fb",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "110b8e909a6688fb"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "df4b14d1b6492618",
+        "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "4435bd2bbff58f24"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.2-1": {
+      "note": "Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.",
+      "requirement_sha": "d8ed39810ec9c589",
+      "tests": {
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "037bce881c657576",
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "037bce881c657576"
+      },
+      "units": {
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",
+        "internal/component/l2tp/pppoeclient/pap_request_rfc1334_test.go::TestClientPAPRetriesUntilMatchingReply#2": "de79106e38a6b1d8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.2.1-3": {
+      "note": "Forbidden: an Authenticate-Request in the Authentication phase left without a reply. TestPAPRequestInAuthPhaseIsAnswered asserts a PAP reply frame with Code Ack and Identifier 0x5a for an accepted request; TestPAPRejectedRequestIsStillAnswered asserts a PAP Nak with 0x5a for a rejected one, so silence on either decision goes red.",
+      "requirement_sha": "53c184dd3b2dc8bb",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered": "8e29592e5f428395",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered": "8e29592e5f428395"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered": "7c47e523f1bcda21",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered": "6eb7e016dc1bbe1c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.2.1-4": {
+      "note": "Forbidden: dropping or refusing an Authenticate-Request repeated after the Authentication phase completed. TestPAPReanswersAfterAuthentication delivers two repeats through handleFrame in AckSent and Opened and asserts three replies (require len 3), each an Ack; the negative TestPAPReanswerDiscardsMalformedRequest confines the reanswer to valid requests.",
+      "requirement_sha": "dfa23c5897910224",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest": "8e29592e5f428395",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest": "d5b23bedaf753a50",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.2.1-5": {
+      "note": "Forbidden: a request after authentication answered with a Code other than the one the Authentication phase returned. TestPAPReanswerPreservesDecision runs accept and reject, changes the credentials of the repeated request, and asserts replies[1].Code == replies[0].Code for both Ack and Nak; TestPAPReanswersAfterAuthentication asserts the Ack Code on repeats through handleFrame. RFC text note: rfc1334.txt drops the line naming the Network-Layer Protocol phase, so the row quotes the surviving span.",
+      "requirement_sha": "b7a501039118eecb",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerPreservesDecision": "8e29592e5f428395",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerPreservesDecision": "cfde3f3ee46d6902",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.3-1": {
+      "note": "Forbidden: an accepted Peer-ID/Password pair answered with anything but a PAP Code 2. TestPAPRequestEmitsEvent (accept=true) asserts reply proto ProtoPAP and payload[0]==PAPAuthenticateAck through runPAPAuthPhase; TestPAPRejectWritesNak asserts the reject path sends Nak, so an unconditional Ack goes red.",
+      "requirement_sha": "5924f6ce926f17d2",
+      "tests": {
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.3-2": {
+      "note": "Forbidden: a rejected pair answered with anything but a PAP Code 3. TestPAPRejectWritesNak (accept=false) asserts payload[0]==PAPAuthenticateNak; TestPAPRequestEmitsEvent asserts the accept path sends Ack, so an unconditional Nak goes red. The SHOULD-terminate half of the sentence is RFC1334-2.3-5 and is not claimed here.",
+      "requirement_sha": "1413540851c632dd",
+      "tests": {
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.3-3": {
+      "note": "Forbidden: a reply Identifier not copied from the request that caused it. TestPAPRequestEmitsEvent and TestPAPRejectWritesNak assert 0x42 and 0x77 echoed on Ack and Nak; TestPAPReanswersAfterAuthentication asserts replies carry 0x5a, 0x5b, 0x5c in turn, so a hardcoded or stale Identifier goes red.",
+      "requirement_sha": "7beeec6de3934fde",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "8e29592e5f428395",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87",
+        "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "7b2de7debcb06a87",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+        "internal/component/l2tp/ppp/pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1334-2.3-4": {
+      "note": "Forbidden: the Message field changing the outcome. TestPAPReplyMessageDoesNotAffectOutcome sends Ack with 'welcome aboard' (success) and Nak with 'invalid credentials' (failure). The messages differ, contrary to the tag prose ('the same Message text on both codes'), so an implementation that decides on the message text and ignores the Code passes both cases. No tagged case holds the Code fixed and varies the Message (or puts a failure-like message on an Ack), which is the input that isolates the rule.",
+      "requirement_sha": "f7bc41f7c2e46b10",
+      "tests": {
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "0ec1ea8a09b93a94",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "0ec1ea8a09b93a94"
+      },
+      "units": {
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "04446d313e7ae421",
+        "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "04446d313e7ae421"
+      },
+      "verdict": "weak"
+    },
+    "RFC1334-x-1": {
+      "note": "Forbidden: an implementation that includes CHAP offering PAP before offering CHAP in LCP negotiation. The positive TestDefaultAuthFallbackOrder asserts only the helper list [CHAP-MD5, MS-CHAPv2, PAP]; the negative TestSelectAuthFallback asserts a CHAP-only order refuses a PAP suggestion, which is downgrade refusal, a neighbouring rule. No tagged unit drives LCP and asserts the first CONFREQ carries CHAP (0xC223) with PAP offered only after CHAP is refused, and a session configured with AuthMethod PAP opens with PAP regardless of the order list.",
+      "requirement_sha": "b9bbe3e692d702fa",
+      "tests": {
+        "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "f630a02fc0831e73",
+        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "f630a02fc0831e73"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
+        "internal/component/l2tp/ppp/auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc1334"
+}
