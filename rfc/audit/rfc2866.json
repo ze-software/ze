@@ -1,0 +1,172 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2866-3-2": {
+      "note": "Forbidden behaviour: an Accounting-Request whose Request Authenticator field does not hold MD5(Code+Identifier+Length+16 zero octets+attributes+secret). TestRFC2866AccountingRequestAuthFormula compares AccountingRequestAuth against an independent MD5 reference, and TestRFC2866AccountingRequestAuthRejectsTampering shows the secret, an attribute byte and the Code feed it; both call the helper directly. No tagged unit reads the Authenticator field of a request ze actually sends, so a client that stopped applying the helper (radius/client.go) or applied it before the final Length was set stays green.",
+      "requirement_sha": "ee70c9b69e182919",
+      "tests": {
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "fe96fc203c6b8529",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "fe96fc203c6b8529"
+      },
+      "units": {
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "a8286329bd93c739",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "5b86cbd8a1446b1b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2866-3-3": {
+      "note": "Clause 1, identical contents keep the Identifier: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier goes red on a changed Identifier. Clause 2, an updated Acct-Delay-Time requires a new Identifier AND a new Request Authenticator: TestRFC2866AccountingRetransmitTakesANewIdentifier asserts only distinct Identifiers, and its mock server (startRecordingAcctServer) never checks the request authenticator, so a retransmit that kept the old authenticator bytes stays green. The negative TestRFC2866AccountingDistinctRequestsDifferIdentifier proves the neighbouring RFC2866-4.1-4 rule, not a violation of this one.",
+      "requirement_sha": "57c04f27af1ae359",
+      "tests": {
+        "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "ae1d9577fbc531d6",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "fe96fc203c6b8529",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "fe96fc203c6b8529"
+      },
+      "units": {
+        "internal/component/radius/acct_delay_time_omit_test.go::TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier": "669b15d0733a6a70",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingDistinctRequestsDifferIdentifier": "afc28b9ebd1ff1e0",
+        "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifier": "a7918eae49989a9a"
+      },
+      "verdict": "weak"
+    },
+    "RFC2866-3-5": {
+      "note": "Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.",
+      "requirement_sha": "aa727fbc9d9838ec",
+      "tests": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "534d93087739be78",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "534d93087739be78"
+      },
+      "units": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "9f6a40f7c02c2fa7",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "1581a436c0b9f239"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2866-4.1-1": {
+      "note": "Clause 1, the attribute holds the user's address: TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS and test/l2tp/radius-acct-wire.ci go red on a wrong or NAS address. Clause 2, where the Access-Accept used the special assign/negotiate values the attribute MUST carry the address actually assigned or negotiated: no tagged unit feeds an Access-Accept carrying Framed-IP-Address 255.255.255.254 or 255.255.255.255 and checks that the special value never reaches the Accounting-Request. The units build from acctSession.peerAddr directly.",
+      "requirement_sha": "02f34df8cc8334e7",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS": "dca57788321e73c5",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressOmittedWhenNotIPv4": "dca57788321e73c5",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressPresent": "dca57788321e73c5",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID": "dca57788321e73c5",
+        "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "2345908f88b1d056",
+        "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS": "ab54fbfc2939f352",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressOmittedWhenNotIPv4": "66cda23b7457d764",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestAcctFramedIPAddressPresent": "adef200920d2a3e8",
+        "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID": "3ab6115408ee5465",
+        "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime": "cbeb73b3fc920670",
+        "test/l2tp/radius-acct-wire.ci": "461a530655edbd79"
+      },
+      "verdict": "weak"
+    },
+    "RFC2866-4.1-2": {
+      "note": "Forbidden behaviour: User-Password, CHAP-Password, Reply-Message or State in an Accounting-Request. TestRFC2866AcctForbiddenAttributesAbsent checks each of the four (and CHAP-Challenge) on Start, Interim-Update and Stop from buildAcctPacket; the negative shows the packet still carries User-Name, Acct-Session-Id and Acct-Status-Type, so an empty builder cannot pass. The permissive first clause obliges the sender nothing.",
+      "requirement_sha": "53aa9b5ad8561a12",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesAbsent": "8c3f0adb0fe344ac",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest": "8c3f0adb0fe344ac"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesAbsent": "a96bb94b5518fa2c",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest": "14276aa4976cfe47"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2866-4.1-3": {
+      "note": "Forbidden behaviour: an Accounting-Request carrying neither NAS-IP-Address nor NAS-Identifier. TestRFC2866AcctNASIdentityAlwaysPresent fails on that for every status and every leaf combination, including neither leaf set; TestRFC2866AcctNASIdentityFallbackIsNarrow shows the fallback does not replace a configured identity.",
+      "requirement_sha": "82d3afb6e68b0303",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityAlwaysPresent": "8c3f0adb0fe344ac",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityFallbackIsNarrow": "8c3f0adb0fe344ac"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityAlwaysPresent": "a3cbdfa6bd489b2e",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityFallbackIsNarrow": "97ccc5f53cd931a9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2866-4.1-4": {
+      "note": "Two triggers: a changed Attributes field, and a valid reply received for the previous request. TestRFC2866IdentifierChangesForANewRequest sends a second record that differs in attributes AND follows a valid reply, so a client that changed the Identifier on only one of the triggers stays green; neither trigger is isolated. The negative TestRFC2866IdentifierCounterCoversTheWholeSpace proves NextID never repeats, a property of the counter, not a violating input.",
+      "requirement_sha": "dcb1d7f4e8205c4b",
+      "tests": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "534d93087739be78",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "534d93087739be78"
+      },
+      "units": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "e9166933ae908595",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "9fccf2d0268a27a2"
+      },
+      "verdict": "weak"
+    },
+    "RFC2866-4.2-1": {
+      "note": "The sentence binds the producer of an Accounting-Response, the accounting server: its Response Authenticator MUST contain the correct response. Ze is only the accounting client and sends no Accounting-Response. TestRFC2866AccountingResponseAuthenticatorAccepted and TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded prove the neighbouring client rule, that ze verifies the authenticator and discards a forged reply (RFC 2865 Section 3 style), not this obligation.",
+      "requirement_sha": "99cf267f0d13cabb",
+      "tests": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorAccepted": "534d93087739be78",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded": "534d93087739be78"
+      },
+      "units": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorAccepted": "fc4e3a97d28d2cf4",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded": "ba61075a429ced6b"
+      },
+      "verdict": "wrong"
+    },
+    "RFC2866-5-1": {
+      "note": "The row's quote is the Section 5.13 table span from '1 Acct-Status-Type' to the legend, because no shorter verbatim text names the attribute and the MUST. The Acct-Status-Type clause is proven: TestRFC2866AcctStatusTypePresent fails on a count other than 1 or a wrong value for Start, Stop and Interim-Update. The other entries of the span (Acct-Session-Id 1, CHAP-Challenge 0, Note 1, the 0-1 cardinalities) have no assertion in a unit tagged with this id, and the negative TestRFC2866AcctStatusTypeNeverOmitted repeats the positive's presence check.",
+      "requirement_sha": "8501bc5ffa44e668",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "fd8927de3c58fb86",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "fd8927de3c58fb86"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "f36995f057ab8d85",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dd4c3cca0784f0a3"
+      },
+      "verdict": "weak"
+    },
+    "RFC2866-5-2": {
+      "note": "Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.",
+      "requirement_sha": "fd0fe9c78fc97102",
+      "tests": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "534d93087739be78",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "534d93087739be78"
+      },
+      "units": {
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "4fa89649a7c27fa4",
+        "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "ff3bba51f9a82c91"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2866-5-3": {
+      "note": "Forbidden behaviour: a text attribute of length zero on the wire. TestRFC2866AcctZeroLengthTextOmitted builds all three records for a session with no username and fails on a User-Name or any zero-length attribute; TestRFC2866AcctNonEmptyTextIsSent shows a non-empty User-Name is still sent.",
+      "requirement_sha": "dd0998d9eec58a51",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNonEmptyTextIsSent": "8c3f0adb0fe344ac",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted": "8c3f0adb0fe344ac"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNonEmptyTextIsSent": "244f6fe783773585",
+        "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted": "8a97db8f1a0d5355"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2866-5.5-1": {
+      "note": "Forbidden behaviour: two sessions whose records carry the same Acct-Session-Id in the log. TestRFC2866AcctSessionIDUnique (1600 concurrent ids) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey prove uniqueness within one process lifetime. genSessionID (authradius/acct.go) is tunnel-session-counter with a counter that restarts at 1 on every start, and no tagged unit covers a restart; the RFC's own example reserves digits for the reboot count because the log outlives a reboot.",
+      "requirement_sha": "e704960c264c68e5",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "fd8927de3c58fb86",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "fd8927de3c58fb86"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDNoCollisionOnReusedKey": "019d01c2d9602d26",
+        "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUnique": "825556ae6f8e7c87"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2866"
+}

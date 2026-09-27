@@ -36,10 +36,7 @@
       "id": "2",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC2866-3-1 is declared unsourced here: RFC 2866 nowhere states that an accounting failure must not tear a session down. The summary read it from this section's model, in which accounting is an exchange beside the session rather than a step of it, and ze meets it (sendAcctPacket logs a failed record and returns; onSessionDown is driven by the session-down event alone).",
-      "unsourced-ids": [
-        "RFC2866-3-1"
-      ]
+      "reason": "Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC 2866 nowhere states that an accounting failure must not tear a session down; the row that said so was retired on 2026-09-27 (rfc/corrections/rfc2866.md)."
     },
     {
       "id": "2.1",

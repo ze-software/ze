@@ -153,7 +153,7 @@ func TestRFC2866AcctSessionIDNoCollisionOnReusedKey(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-3-1 positive -- when the accounting server is unreachable the
+// When the accounting server is unreachable the
 // failed Accounting-Start does not tear down the session: it stays tracked and its context
 // (which drives the interim-update loop) is left running.
 func TestRFC2866AcctFailureKeepsSession(t *testing.T) {
@@ -189,7 +189,7 @@ func TestRFC2866AcctFailureKeepsSession(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2866-3-1 negative -- session teardown is driven only by the
+// Session teardown is driven only by the
 // session-down lifecycle event, and a failing Accounting-Stop does not block it: the
 // session is removed and its context canceled even though the accounting exchange fails.
 func TestRFC2866SessionTeardownIndependentOfAccounting(t *testing.T) {
