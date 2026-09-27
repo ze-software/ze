@@ -106,7 +106,7 @@
       "verdict": "enforced"
     },
     "RFC3579-3-1": {
-      "note": "every Access-Request of the conversation carries NAS-Identifier, with and without a source address; dropping it fails both tests. The negative-tagged test is a second conforming input (the disjunction), not a violating one: production nasID is never empty (aaa.go defaults it), so no violating input is reachable. Polarity reported as a finding",
+      "note": "The MUST clause is proven: every Access-Request carries NAS-Identifier, with and without a source address, so dropping it fails both tests. The quote's first clause, 'The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets', has no assertion in either unit, and the client never appends AttrNASPort (5) or AttrNASPortID (87) (dict.go declares them; authenticator.go exchange sends neither). The negative-tagged test is a second conforming input, not a violating one.",
       "requirement_sha": "76fe4977daa16d95",
       "tests": {
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "09e397a79e1958ca",
@@ -116,7 +116,7 @@
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "34258572dcc17d7c",
         "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "3489af272d162277"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC3579-3.1-1": {
       "note": "split at 253 in order (join reproduces the packet), no foreign attribute inside the run (Message-Authenticator and State after it), and receive-side concatenation around foreign attributes",
