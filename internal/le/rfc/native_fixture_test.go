@@ -27,6 +27,10 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// itself is in its commit message, and repeating it here made this comment a
 	// changelog nobody reads.
 	//
+	// Re-sealed 2026-09-27 for a07a7307c1. The audit and extraction ratchets now
+	// compare against HEAD^, so they judge the commit under test in the detached
+	// verify worktree. No verdict over an unchanged record moved.
+	//
 	// Re-sealed 2026-08-31, for spec-rfc-tag-claim-discrimination. Three verdicts
 	// moved, all on the ESCAPE, and all deliberately: it is tied to the claim it
 	// discharges rather than to any file an author names, its producer must be
@@ -343,7 +347,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// replaceAudit without a reaudit_note, and names the audit field literals as
 	// constants. It adds a writer of new verdicts and changes no existing
 	// verdict. No corpus verdict moved.
-	const want = "266a056b44ad3f44458d4a01a60d2df855e79e4563a002d61ce7bcc01e536ecc"
+	const want = "dc9301e3910349460af230a984774c4e559bf888a9375e69dfe1ecaf2f28e788"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
