@@ -356,7 +356,14 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// Re-sealed 2026-09-27 for 4ac5be6ecb, which runs a unit the host cannot
 	// compile in the QEMU guest when recording. It changes where an observation
 	// runs, never how a record is judged. No verdict moved.
-	const want = "aff9d90154647238008c386b9321499237ccc73945a312e592c9f3ecf1807240"
+	//
+	// Re-sealed 2026-09-27 for 10edacdc5c and eb63fc5813. Row-quote verdicts
+	// moved, deliberately: a two-line running header is stripped, "B.1 Title"
+	// opens a section, and every row is judged rather than only the changed
+	// ones, so an unquoted row is refused. The unquoted ratchet is gone. The
+	// corpus was quoted and its moved extraction artifacts re-walked first. No
+	// discrimination verdict moved.
+	const want = "98d124400ce1207990b104a06f2f3a2e6aa3c2a62abba675381d9a169f07fcbc"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
