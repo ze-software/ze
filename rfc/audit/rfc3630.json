@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3630-1-1": {
+      "note": "Non-TE capable nodes MUST flood TE LSAs as any other type 10 opaque LSA. TestRFC3630NonTECapableFloodsTELSAByScope (ospf/lsdb) asserts the TE LSA reaches the retransmit list of the same-area opaque-capable neighbour. That goes red if the carrier drops or withholds TE LSAs. It also asserts the LSA is absent from the other area's neighbour, which goes red if TE LSAs were flooded beyond area-local scope, unlike any other type 10.",
+      "requirement_sha": "1024322fc4962326",
+      "tests": {
+        "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope": "7a662c61eda921dd",
+        "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope#2": "7a662c61eda921dd"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope": "b0a8ec69b49a6d50",
+        "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope#2": "b0a8ec69b49a6d50"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc3630"
+}
