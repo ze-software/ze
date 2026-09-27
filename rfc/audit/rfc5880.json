@@ -53,7 +53,7 @@
       "verdict": "enforced"
     },
     "RFC5880-4.3-1": {
-      "note": "Forbidden: a non-zero Reserved byte on transmit. Red: TestRFC5880KeyedMD5SectionHeader Fatalf on buf[off+3]!=0 for types 2 and 3. The SHA1 section (4.4) is written by the same digestSigner.Sign line (auth/sha1.go:83); newSHA1Signer differs only in bodyLen and hash. The {single-polarity} marker covers the absent negative.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): the row cites Section 4.3 (Keyed MD5) and Section 4.4 (Keyed SHA1). The only tagged unit, TestRFC5880KeyedMD5SectionHeader, Fatalf on buf[off+3] != 0 for Auth Types 2 and 3 only; no tagged unit reads the Reserved byte of a SHA1 section, so the Section 4.4 half rests on the shared digestSigner.Sign line, which is an argument, not an assertion.",
       "requirement_sha": "df4f5f7317262961",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "0db40ad53e18e5c2"
@@ -61,7 +61,7 @@
       "units": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "da3c9f59a8ad3ed3"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5880-6.1-1": {
       "note": "Forbidden: an Active session that waits for reception before transmitting. TestRFC5880ActiveRoleTransmitsWithoutReception asserts only that Init arms NextTxDeadline with RemoteDiscr 0; the engine tick (engine/loop.go tick) that turns the deadline into sendLocked is not driven, so a transmit gate added there on RemoteDiscr stays green. The negative tag (Passive transmits after reception) proves 6.1-2, not a violation of this row, and the row has no {single-polarity} marker.",
@@ -314,7 +314,7 @@
         "internal/component/bfd/auth/meticulous.go::Advance": "c4bcbe4906452ba5",
         "internal/component/bfd/auth/sha1.go::Verify": "648ac8a4baf55fe4"
       },
-      "note": "Owner decision D-14 (2026-09-27): the RFC order is followed literally. digestVerifier.Verify seeds bfd.AuthSeqKnown and bfd.RcvAuthSeq when the SeqState is uninitialized, after the window check and before the digest compare. Positive TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest: a forged first packet is discarded with ErrDigestMismatch and has set the floor to its sequence; an authentic packet below it is then discarded and one above it accepted (red on the previous code, which seeded only after the digest matched). Positive TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor: an authentic first packet seeds the floor. Negative TestRFC5880KnownSequenceNotReseededByForgedPacket: with bfd.AuthSeqKnown 1 a forged in-window packet leaves bfd.RcvAuthSeq where it was, so seeding is confined to the AuthSeqKnown 0 branch. Accepted consequence: a forged first packet can pin the floor, and nothing clears it while RFC5880-6.8.1-13 is a gap.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): the quoted sentence is the Section 6.7.3 Keyed MD5 rule, and the row also cites Section 6.7.4. Every tagged unit (TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest, TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor, TestRFC5880KnownSequenceNotReseededByForgedPacket) configures Settings{Type: AuthTypeKeyedSHA1}; no MD5 verifier seeds bfd.AuthSeqKnown or bfd.RcvAuthSeq in a tagged unit, so the Section 6.7.3 half rests on digestVerifier being shared. For SHA1 both halves are proven: AuthSeqKnown 1 and RcvAuthSeq = received after the first packet (also before the digest compare, owner decision D-14), and no reseed once AuthSeqKnown is 1.",
       "requirement_sha": "4f21cec2bfc078f8",
       "tests": {
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor": "0db40ad53e18e5c2",
@@ -326,7 +326,7 @@
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest": "c53a09b89ad72fab",
         "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket": "81fd175304d884cd"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5880-6.7.3-13": {
       "code": {
@@ -404,8 +404,8 @@
       "verdict": "weak"
     },
     "RFC5880-6.7.3-8": {
-      "note": "Forbidden: a Sequence Number field other than bfd.XmitAuthSeq. Red: TestRFC5880AuthSequenceFieldIsXmitAuthSeq Fatalf unless the field equals 0x11223344, and TestRFC5880AuthSequenceFieldFollowsAdvance Fatalf unless it equals the advanced variable. Both are positive checks of one assertion with two values; no violating input exists and the row carries no {single-polarity} marker. Units sign with keyed SHA1; MD5 shares digestSigner.Sign (auth/sha1.go:84).",
-      "requirement_sha": "c24fbc16bc161834",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row cite widened to (\u00a76.7.3, \u00a76.7.4): the same sentence is the Keyed SHA1 transmit rule, and the backfill quote had dropped the SHA1 half the paraphrase claimed. Forbidden: a Sequence Number field other than bfd.XmitAuthSeq. Red: TestRFC5880AuthSequenceFieldIsXmitAuthSeq Fatalf unless the field equals 0x11223344, and TestRFC5880AuthSequenceFieldFollowsAdvance Fatalf unless it equals the advanced variable. Both are positive checks of one assertion with two values; no violating input exists and the row carries no {single-polarity} marker. Units sign with keyed SHA1; MD5 shares digestSigner.Sign (auth/sha1.go:84).",
+      "requirement_sha": "b9e08332d4459520",
       "tests": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "161fcc8120c2cb31",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "161fcc8120c2cb31"
@@ -612,7 +612,7 @@
       "verdict": "weak"
     },
     "RFC5880-6.8.1-5": {
-      "note": "RA-BFD2 strict re-read 2026-09-27 (stale on onStateChange: only the pollSettling reset on Down entry was added). CheckDetection has two branches and both are driven: Init/Up expiry (TestRFC5880RemoteDiscrClearedOnDetectionExpiry, RemoteDiscr != 0 goes red if the Down-entry clear for DiagControlDetectExpired is lost) and Down/AdminDown expiry (TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown: kept one millisecond short of a Detection Time, 0 once it passes, no state change, LocalDiag intact). Forbidden early/over-eager clear: the 1 ms-short assertion and TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown (peer-signalled Down keeps it). The 'valid, authenticated' qualifier: Receive returns before armDetectionLocked for every discarded packet, pinned by the 6.8.6 discard rows, not here.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): clause 'without the receipt of a valid, authenticated BFD packet': no tagged unit delivers an invalid or unauthenticated packet during the Detection Time and asserts bfd.RemoteDiscr is still cleared at its end, so a Receive that re-armed detection before its discard checks stays green; the note's appeal to the 6.8.6 discard rows is an argument, not an assertion in a unit tagged here. The expiry clauses stand: TestRFC5880RemoteDiscrClearedOnDetectionExpiry (Init/Up expiry) and TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown (kept 1 ms short, 0 once a Detection Time passes), with TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown against an over-eager clear. Blind reader BS-B: same finding.",
       "requirement_sha": "8cfcec714af32cf8",
       "tests": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "161fcc8120c2cb31",
@@ -624,7 +624,7 @@
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "dfc97152f33ce514",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "af73e242fdb0835a"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5880-6.8.1-6": {
       "note": "Forbidden: bfd.LocalDiag initialised to anything but 0. TestRFC5880InitVariableDefaults fails on LocalDiag() != DiagNone straight after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is an initial value, not a constant: a peer-signalled Down moves it to DiagNeighborSignaledDown.",
@@ -975,8 +975,8 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.6-7": {
-      "note": "Forbidden: selecting by anything but a nonzero Your Discriminator. TestRFC5880UnknownYourDiscriminatorDiscarded sends an unallocated discriminator from the session's own peer tuple and fails if RemoteDiscr changes, so a tuple fallback goes red; TestRFC5880YourDiscriminatorSelectsSession fails if the matching discriminator is not delivered.",
-      "requirement_sha": "bf1d3a5a4e96a79b",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): row widened to the next sentence of Section 6.8.6, 'If no session is found, the packet MUST be discarded.', which the backfill quote had dropped. Discard clause: TestRFC5880UnknownYourDiscriminatorDiscarded sends an unallocated Your Discriminator from the session's own peer tuple and Fatalf if RemoteDiscr moves, so both a delivery and a tuple fallback go red. Selection clause: TestRFC5880YourDiscriminatorSelectsSession runs a loop holding ONE session, so a loop that delivered any known discriminator to the tuple-matched session passes; no two-session case proves the packet reaches the session its Your Discriminator names (the gap RFC5880-6.8.8-1 is weak for).",
+      "requirement_sha": "f5e34d76d0e9bf44",
       "tests": {
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "bc21fc5bf5e5043a",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "bc21fc5bf5e5043a"
@@ -985,7 +985,7 @@
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "1185c46e74aa471b",
         "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "6619a212580a1aed"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5880-6.8.6-8": {
       "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: additions sit after the discard test, which is still the first statement). Both State values the sentence names are driven: TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive sends Your Discriminator 0 with State Init and Up to local Down, Init and Up, and requires ErrYourDiscriminatorReset, unchanged state and unchanged RemoteDiscr (a guard moved below the field updates goes red on RemoteDiscr). Positive TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown accepts State Down and AdminDown in Down, AdminDown and Up. Local AdminDown is not in the negative loop; the sentence conditions only on the packet's State.",
@@ -1070,7 +1070,7 @@
       "verdict": "enforced"
     },
     "RFC5880-6.8.7-5": {
-      "note": "RA-BFD2 strict re-read 2026-09-27 (stale on onStateChange: only the pollSettling reset added; the nextTxAt arm still asks transmitPermitted). Forbidden: a Passive session with RemoteDiscr 0 scheduling TX. Asserted at Init (TestRFC5880PassiveRoleSilentUntilReception), after a timeout from Up and after a Detection Time of silence while Down (TestRFC5880PassiveSilentOnceRemoteDiscrCleared, NextTxDeadline must be zero). Negatives: TestRFC5880ActiveRoleTransmitsWithoutReception (role-scoped) and TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned. The assertion is on the deadline the engine tick reads; the engine skip of a zero deadline is not driven here.",
+      "note": "SB-1 strict re-read 2026-09-27 (D-4 send-back): forbidden: a Passive session with bfd.RemoteDiscr 0 transmitting. The tagged units assert only that NextTxDeadline is zero (Init, after a timeout from Up, after a Detection Time of silence while Down) and non-zero once the discriminator is learned. The producer that withholds the packet is the zero-deadline skip in the engine tick (engine/loop.go tick), which no tagged unit drives, so deleting that skip leaves every unit green: the same gap RFC5880-6.1-2 is weak for.",
       "requirement_sha": "3729c7cbc96f7652",
       "tests": {
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "161fcc8120c2cb31",
@@ -1084,7 +1084,7 @@
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared": "32af1e66df60c102",
         "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned": "a773a0b323043c81"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC5880-6.8.8-1": {
       "note": "TestRFC5880EchoDemultiplexedToItsSession runs a loop holding one session and asserts OnEchoRx fired once; code delivering every echo to its only session also passes. No two-session case proves the echo reaches the APPROPRIATE session. Negative (no-session drop) is sound.",
