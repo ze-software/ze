@@ -283,7 +283,7 @@ func bfdConfigLoad03(ctx context.Context, _ []string) error {
 
 func bfdEchoMultiHopReject03(ctx context.Context, _ []string) error {
 	return runZeUntilLogsRejecting03(ctx, bfdEchoMultiHopConfig03,
-		[]string{"prohibits multi-hop echo"}, nil, 8*time.Second,
+		[]string{"forbids the Echo function over multiple hops"}, nil, 8*time.Second,
 		map[string]string{envLogBFD: logLevelDebug, "ze.bfd.test-parallel": valueTrue})
 }
 

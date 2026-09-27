@@ -1,7 +1,7 @@
 # Test: BFD plugin refuses `echo` on a multi-hop session at parse time.
 #
 # VALIDATES: spec-bfd-6 AC-5 -- multi-hop echo is prohibited by
-#            RFC 5883 Section 4, and the parser emits a descriptive
+#            RFC 5883 Section 3, and the parser emits a descriptive
 #            error.
 # PREVENTS:  accidental enablement of multi-hop echo via config
 #            drift.
@@ -22,4 +22,4 @@ option=exclusive:group=bfd-ports
 
 cmd=foreground:seq=1:exec=le test fixture plugin/bfd-echo-multi-hop-reject:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=prohibits multi-hop echo
+expect=stderr:pattern=forbids the Echo function over multiple hops
