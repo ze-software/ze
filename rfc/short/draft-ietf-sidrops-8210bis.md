@@ -136,8 +136,9 @@ protocol version, quoted in the checklist.
 destination prefix is `DRAFT-IETF-SIDROPS-8210BIS-`. Every row with a
 destination was retired from `rfc9582.md` on 2026-09-26, naming it in
 `rfc/corrections/rfc9582.md`, and its tags carry the destination id. The four
-rows with no destination (`5.12-2`, `5.12-6`, `5.12-7`, `5.12-9`) stay in
-`rfc9582.md`.
+rows with no destination (`5.12-2`, `5.12-6`, `5.12-7`, `5.12-9`) were retired
+from `rfc9582.md` on 2026-09-27, under owner decisions D-10 and D-2, as
+`rfc/corrections/rfc9582.md` records.
 
 | Historical suffix | Current clause or destination | Correction |
 |-------------------|-------------------------------|------------|
