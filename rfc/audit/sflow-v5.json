@@ -1,0 +1,299 @@
+{
+  "audited": "2026-09-26",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "SFLOW-V5-x-1": {
+      "note": "single-polarity: the header's first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion",
+      "requirement_sha": "c92c8d3043731588",
+      "tests": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-10": {
+      "note": "TestSFlowFlowSample calls writeFlowSample with a literal 2048 and asserts it lands at the sampling_rate offset; it never goes through EncodeFlowSample, so a producer that passed anything other than the data source's sFlowPacketSamplingRate (sample.Rate) into the field passes; the field placement is proven, the value it must carry is not",
+      "requirement_sha": "20f1181f038af66e",
+      "tests": {
+        "internal/plugins/flowexport/sflow/flow_test.go::TestSFlowFlowSample": "04a6429d51d8509d"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/flow_test.go::TestSFlowFlowSample": "2bd027e2a3231f71"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-11": {
+      "note": "asserts the code's estimate sample_pool = min(seq*rate, MaxUint32), not the RFC's 'Total number of packets that could have been sampled'; no packet count the data source saw is observed, and the saturation subtest asserts behaviour the RFC does not state (an XDR unsigned counter wraps; a saturated pool stops advancing)",
+      "requirement_sha": "a5b14faa945270d9",
+      "tests": {
+        "internal/plugins/flowexport/sflow/flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "54a4f0a267225efb"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "5ec5c38d22711c09"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-12": {
+      "note": "positive: ifIndex 0x01000000 and 0xFFFFFFFF decode unchanged from expanded counter format 4 and flow format 3; negative: indexes at and above 2^24 never alias to their low 24 bits in source_id_index or if_counters.ifIndex",
+      "requirement_sha": "1406f4bb85de3721",
+      "tests": {
+        "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "7769a8fe6e20a7e4",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "0e3eb3f470ac17ec",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "71b07369ba38fc88"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-14": {
+      "note": "positive: a snapshot one full interval after the last poll produces a counter sample; but the negative asserts that a snapshot before the interval is suppressed, and the RFC makes the interval a maximum and lets the agent sample early, so the negative does not violate this requirement; no unit shows a poll is produced when the maximum interval elapses without an admitting snapshot",
+      "requirement_sha": "9bfa5c4eb03ff0b0",
+      "tests": {
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "021856616cf9ecb7",
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollBeforeInterval": "021856616cf9ecb7"
+      },
+      "units": {
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollAtInterval": "eb290cb6c4b506e5",
+        "internal/plugins/flowexport/exporter_test.go::TestSFlowCounterPollBeforeInterval": "46edbb80aba60b9b"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-15": {
+      "note": "single-polarity (marker: interfaceCountersFrom has no differencing path): a second conversion of the same kernel stats must equal the first, so a delta implementation (which loses the traffic of a lost sample) fails 'second conversion differs'; the negligible-wrap clause rests on 64-bit octet counters, and RxBytes 5e9 > 2^32 must come through untruncated",
+      "requirement_sha": "e57f646625f4e548",
+      "tests": {
+        "internal/plugins/flowexport/register_test.go::TestInterfaceCountersFromCumulative": "8989d797236e0bd2"
+      },
+      "units": {
+        "internal/plugins/flowexport/register_test.go::TestInterfaceCountersFromCumulative": "9e392fe65dc89a01"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-16": {
+      "note": "the counter clause is proven: four unexposed if_counters fields carry 0xFFFFFFFF on two polls, and available fields keep real values including zero; the quoted span also recommends 0 for an unknown integer value, which no tagged unit asserts",
+      "requirement_sha": "578792369cb72d8c",
+      "tests": {
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274"
+      },
+      "units": {
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "b04a9e934cca7756",
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-2": {
+      "note": "the quote carries four clauses (loopback on a multi-homed agent, SNMP connectivity, invariance across interface reconfiguration, a unique long-lived key); TestSFlowDatagramHeaderIPv4 only asserts that the address handed to WriteDatagramHeader reaches bytes 8-11 in one call, so an exporter that picked a non-loopback or per-interface address, or changed it when an interface went down, passes; no assertion goes red on any of the four",
+      "requirement_sha": "1d400a7bcb34ee21",
+      "tests": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-25": {
+      "note": "positive: one sample yields exactly one datagram sent at once; negative: three samples yield three datagrams, the sender count advancing by one each, and no datagram carries more than one flow_sample",
+      "requirement_sha": "b47a6015e4000f36",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "731d8613be31cf1b",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "47e29fd6b452af03"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-26": {
+      "note": "both units call writeCounterDatagrams directly and prove that a 30-source batch is packed into three returned datagrams with none left over; neither observes a datagram being SENT, and the condition of the quote (counters due because the maximum sampling interval elapsed) is never produced, so an exporter that never sent a poll when the interval ran out passes; the trigger is SFLOW-V5-x-14, itself weak",
+      "requirement_sha": "3f8b68a2d68e6d5b",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "f29492873650df5d",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "4d5b75c2446d7845"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-27": {
+      "note": "Ze cannot promise its ifIndex stays below 2^24 (Linux ifindex is a full int), so it falls in the quote's 'Otherwise' branch and the compact-for-all clause does not bind it; mixing: a compact format 1 or 2 among the six records fails 'compact data_format emitted'; expanded for all: alternating low and full-width ifIndex values fail 'want expanded 4' and 'want expanded 3' if any interface drops to compact",
+      "requirement_sha": "7ac6ae4088e0e26a",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "4e858a2b54d00b55",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "71b07369ba38fc88"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-28": {
+      "note": "reset clause proven: a fresh FlowEncoder gives pool == rate with sequence 1 while the continuing encoder gives sequence 4 and pool 4*rate, so a pool reset without a sequence reset goes red; but every sample in both units uses one source (IfIndex 3), so a sequence shared across source_ids, which the quote's 'by this source_id' forbids, passes",
+      "requirement_sha": "8ebe9d4eea6df732",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "add84def784997ca",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "67945324bcb5d04e"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-29": {
+      "note": "per-source increment proven (source 3 counts 1,2,3 while source 4 resets), and a reset seen on IfInOctets resets the sequence; the quote says 'any of the counters' and only IfInOctets is ever made to go backwards, so a detector that watched that one counter and missed a reset of IfOutOctets or a packet counter passes",
+      "requirement_sha": "3189d9e545a5fb5b",
+      "tests": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity": "6a390a00daec00b1",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceResetWithCounters": "6a390a00daec00b1"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity": "367ffdcecc2d0633",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5SequenceResetWithCounters": "9c8d62acdafa303a"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-3": {
+      "note": "single-polarity: agent_address and sub_agent_id 7 both decode to the distinct values written, so the pair the header carries names the sub-agent's datagram stream",
+      "requirement_sha": "b76445c07fe1dacb",
+      "tests": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv6": "3fd871610d6c96e0"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowDatagramHeaderIPv6": "5d7068d6e7c463e5"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-30": {
+      "note": "positive: a CounterGeneration change with rising counters resets the sequence to 1; negative: an unchanged generation keeps 1,2,3 even when a counter reads lower",
+      "requirement_sha": "2552d7673cba63b9",
+      "tests": {
+        "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady": "88ec88782716a9e4",
+        "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime": "88ec88782716a9e4"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady": "12c7f6d0064095c7",
+        "internal/plugins/flowexport/sflow/discontinuity_sflow_v5_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime": "d1e7759eb21beb14"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-31": {
+      "note": "the units assert that each FlowEncoder stamps the sub_agent_id it was constructed with; the forbidden behaviour is one data source reported under two sub-agents, and nothing ties the sub-agent of the CounterEncoder and the FlowEncoder serving the same source, or the config that picks it; the second test itself sends IfIndex 3 under sub-agent 7 and then 8 and calls it a new session, so no assertion goes red on a source moving between sub-agents",
+      "requirement_sha": "e1783aa52b81cf35",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "dcb1773c1e0d5c55",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "4f7849814f539a22"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-32": {
+      "note": "positive: every counter unavailable on the first poll is still the sentinel on a poll with different statistics; negative: available counters stay available on a later zero-valued poll",
+      "requirement_sha": "cef80825d6fcc5fc",
+      "tests": {
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274"
+      },
+      "units": {
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "b04a9e934cca7756",
+        "internal/plugins/flowexport/counters_sflow_v5_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-33": {
+      "note": "positive: the flow_sample carries one sampled_header record with the 14 captured bytes; negative: a 1500-byte capture that cannot fit is truncated but still carried as a non-empty sampled_header prefix",
+      "requirement_sha": "19f9b84f99b41d45",
+      "tests": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "3b99215d0d627c33",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "3b99215d0d627c33"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "164a1c4a435c0ba8",
+        "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "823ba4f78bce379f"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-34": {
+      "note": "positive: a 60-octet skb gives frame_length 64 and stripped 4, the FCS added to both; negative: over 64, 1500 and 9000 octets frame_length minus stripped is always the skb length",
+      "requirement_sha": "ca8fc636675ca974",
+      "tests": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameCompensationNeverUnstripped": "6a390a00daec00b1",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS": "6a390a00daec00b1"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameCompensationNeverUnstripped": "bfdec32a2b4a89e1",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS": "b72047620d2ae6df"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-4": {
+      "note": "single-polarity (marker: the exporter holds no path that emits a datagram without advancing): writeCounterDatagrams' two datagrams carry sequence 1 and 2 and return 3 as the next, so a sender that did not increment per datagram fails seq2 != 2 and nextSeq != 3",
+      "requirement_sha": "d02ac6c40aaa9ae3",
+      "tests": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "3fd871610d6c96e0"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "cda6880016df2aa6"
+      },
+      "verdict": "enforced"
+    },
+    "SFLOW-V5-x-5": {
+      "note": "positive proves a counter batch splits at the 1400-byte default buffer (11+4 samples), but the bound is len(buf) and only the default is exercised: an encoder that ignored the collector's configured max-datagram-size and hard-coded 1400 would pass, and Sender.Send's refusal of an oversized payload is not in this unit; the size assertion itself cannot fail because dg is a slice of buf",
+      "requirement_sha": "19cdd9b48418c9da",
+      "tests": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "3fd871610d6c96e0"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/encoder_test.go::TestSFlowMultiInterface": "cda6880016df2aa6"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-6": {
+      "note": "the unit hands the sample to a stub encoder and asserts only that the exporter dispatched it synchronously; it never observes the real FlowEncoder or Sender putting the datagram on the wire within 1 second, so a buffering encoder would pass (x-25's units observe the real send)",
+      "requirement_sha": "b9952440cdffd397",
+      "tests": {
+        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "021856616cf9ecb7"
+      },
+      "units": {
+        "internal/plugins/flowexport/exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-7": {
+      "note": "the unit covers one record: every if_counters field decodes big-endian at its 4-byte XDR offset and record_length is 88, so a little-endian counter record goes red; the quote binds the whole datagram, and the XDR rule this unit cannot see is opaque padding (sampled_header bytes padded to a 4-byte boundary), plus the header and flow_sample encodings, none of which the tagged unit asserts",
+      "requirement_sha": "ecaa925946995695",
+      "tests": {
+        "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowIfCounters": "7769a8fe6e20a7e4"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/counter_test.go::TestSFlowIfCounters": "6e9c11c222c3f7f3"
+      },
+      "verdict": "weak"
+    },
+    "SFLOW-V5-x-9": {
+      "note": "positive: counter and flow datagrams of one sender share one datagram sequence that wraps through 0xFFFFFFFF; negative: a counter generation reset restarts only the source sample sequence, never the datagram sequence",
+      "requirement_sha": "47fb3a10f32de3fe",
+      "tests": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowCounterResetDoesNotResetDatagrams": "6a390a00daec00b1",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowMixedDatagramSequenceWraps": "6a390a00daec00b1"
+      },
+      "units": {
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowCounterResetDoesNotResetDatagrams": "3d81ace36aa2ea4f",
+        "internal/plugins/flowexport/sflow/counters_sflow_v5_test.go::TestSFlowMixedDatagramSequenceWraps": "d31698d4fd00b858"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "sflow-v5"
+}
