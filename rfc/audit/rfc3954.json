@@ -1,0 +1,58 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3954-x-1": {
+      "note": "Exporter clause: TestExporterTemplateFailureRetriesBeforeData goes red if data leaves after a failed template (datagrams-sent/bytes-sent) or the retry transcript is not template then data, but it drives the exporter with the fake templateFailureEncoder, so the real netflow9 encoders are outside it. 'The corresponding Template FlowSet': no tagged assertion goes red if the real CounterEncoder.EncodeTemplate or FlowEncoder.EncodeFlowTemplate sent a template other than the one the following data references (for example no IPv6 template 258 before IPv6 flow data). TestWriteExportPacketWithTemplate passes needTemplate=true itself and asserts only count==2, not that the Template FlowSet precedes the Data FlowSet or carries the data's template ID. The Options Template clause is vacuous (no Options Template or Options Data is emitted).",
+      "requirement_sha": "7e3aed98162306b2",
+      "tests": {
+        "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "506b02f76d337928",
+        "internal/plugins/flowexport/netflow9/encoder_test.go::TestWriteExportPacketWithTemplate": "969513badc07322a"
+      },
+      "units": {
+        "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "a5a3c267e9f24278",
+        "internal/plugins/flowexport/netflow9/encoder_test.go::TestWriteExportPacketWithTemplate": "bba2887a5f92539b"
+      },
+      "verdict": "weak"
+    },
+    "RFC3954-x-3": {
+      "note": "encoder_test.go TestNetflow9Header and data_test.go TestNetflow9DataFlowSet read the Packet Header and the counter Data FlowSet big-endian. The sentence covers \"the different FlowSets\": the Template FlowSet and the per-flow Data FlowSet integers have no assertion in an x-3 tagged unit (template_test.go/flow_template_test.go read them big-endian but are tagged x-9 only).",
+      "requirement_sha": "c125091d7c45771e",
+      "tests": {
+        "internal/plugins/flowexport/netflow9/data_test.go::TestNetflow9DataFlowSet": "db3160a7f234cc64",
+        "internal/plugins/flowexport/netflow9/encoder_test.go::TestNetflow9Header": "969513badc07322a"
+      },
+      "units": {
+        "internal/plugins/flowexport/netflow9/data_test.go::TestNetflow9DataFlowSet": "f0bc557a8aff050c",
+        "internal/plugins/flowexport/netflow9/encoder_test.go::TestNetflow9Header": "1b42f17cb75ca570"
+      },
+      "verdict": "weak"
+    },
+    "RFC3954-x-8": {
+      "note": "flow_adapter_test.go asserts two data packets from one FlowEncoder differ by exactly 1; adapter_test.go asserts a failed Send does not advance the counter. The sentence counts \"all Export Packets\" of the domain: template-only packets (flow_adapter.go writes one with sender.Sequence()) and counter plus flow packets on one sender are not shown counted by a tagged unit (exporter_lifecycle_test.go checks it but carries no x-8 tag).",
+      "requirement_sha": "a8e194547afca21e",
+      "tests": {
+        "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "a0a2734ee2e7877a",
+        "internal/plugins/flowexport/netflow9/flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "02cf4ff90ef1f4b1"
+      },
+      "units": {
+        "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "ba975a43e2467d77",
+        "internal/plugins/flowexport/netflow9/flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "80668a109a568110"
+      },
+      "verdict": "weak"
+    },
+    "RFC3954-x-9": {
+      "note": "template_test.go and flow_template_test.go assert one build of the counter and IPv4 flow templates carries 256 and 257. No tagged unit shows the ID unchanged across two builds or a template refresh, which is the behaviour the sentence forbids, and the IPv6 template FlowTemplateID6=258 is not asserted.",
+      "requirement_sha": "14e790065b81cd48",
+      "tests": {
+        "internal/plugins/flowexport/netflow9/flow_template_test.go::TestNetflow9FlowTemplate": "21633af1362424a6",
+        "internal/plugins/flowexport/netflow9/template_test.go::TestNetflow9Template": "0081b80a2c9f5a4d"
+      },
+      "units": {
+        "internal/plugins/flowexport/netflow9/flow_template_test.go::TestNetflow9FlowTemplate": "231bf739d29fa46f",
+        "internal/plugins/flowexport/netflow9/template_test.go::TestNetflow9Template": "b2a9999aaa04cad0"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc3954"
+}
