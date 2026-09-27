@@ -21,8 +21,10 @@ D-6 had already ruled that the quoting pass does not fix tests, and that a later
 pass groups the fixes by package so that two agents never edit the same test file.
 This is that pass.
 
-**Goal.** Every `weak` and `wrong` verdict in `rfc/audit/` is resolved, in one of
-two ways:
+**Goal.** Every `weak` and `wrong` verdict is resolved: each one in `rfc/audit/`,
+and each one in "Un-enrolled R-7 rows" below, which belongs to a stem with no
+audit file and so is recorded only in the source spec's R-7 table. Each is
+resolved in one of two ways:
 
 1. **A test proves the whole sentence.** Every clause of the quoted sentence is
    asserted in both polarities: the compliant input gives the RFC's outcome, and
@@ -103,6 +105,41 @@ packages counts in both): `internal/component/bgp/reactor` 76,
 `internal/component/ike/engine` 38, `internal/plugins/vrrp` 37,
 `internal/plugins/rsvpte` 32, `internal/component/bgp/plugins/rib` 24,
 `internal/plugins/vrrp/packet` 20.
+
+### Un-enrolled R-7 rows
+
+The jq listing above cannot see these: their stems have no `rfc/audit/<stem>.json`,
+so the R-7 table of `spec-rfc-requirement-quote-hand-backfill` (read 2026-09-27
+under the STRICTNESS rule) is their only record. That table holds 37 lines; the
+22 below are its `weak` and `wrong` ones, 7 weak and 1 wrong from the first 21
+lines and 14 weak from the 16 added by job AC7-E. A row leaves this table when
+its re-judged verdict is `enforced`, recorded here with the date, or in the
+stem's audit file if the stem is enrolled first.
+
+| ID | Verdict | Unit | What the test fails to prove |
+|----|---------|------|------------------------------|
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-1 | weak | `TestParseASPAPDU`, `TestParseASPAPDUMalformed` (`internal/component/bgp/plugins/rpki/rtr_pdu_test.go`) | that the router answers with an Error Report PDU carrying Error Code 9; both units stop at the parser sentinel `errASPAProviderList` |
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-3 | weak | `TestParseASPAPDU`, `TestParseASPAPDUUnsorted` (`rtr_pdu_test.go`) | "zero or more" providers: only the untagged `TestParseASPAPDUWithdraw` drives a withdrawal with none |
+| DRAFT-IETF-SIDROPS-8210BIS-7-2 | weak | `TestRTRUnknownNegotiationVersion` (`rtr_session_test.go`) | the exception: an Error Report with an unrecognized version draws no Error Report back |
+| RFC1035-2.3.4-1 | weak | `TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive` (`internal/plugins/geodns/rfc1035_rr_test.go`) | the lower bound of "positive"; the sibling 4.1.3-1 negative serves TTL 0, and the row does not cite RFC 2181 Section 8 |
+| RFC1035-4.1.1-1 | weak | `TestRFC1035_ReservedZFieldIsZero` (`internal/core/dnsserver/rfc1035_header_test.go`) | "in all queries": Z is held clear in responses only; the queries Ze sends (`resolve/dns/resolver.go`, `as112/health.go`) are not checked |
+| RFC1035-4.1.4-1 | weak | `TestRFC1035_CompressionPointersInATruncatedDatagram` (`internal/plugins/geodns/rfc1035_compression_test.go`) | "the label must begin with two zero bits": a label length octet of 0x40 to 0xBF passes both polarities |
+| RFC1035-4.1.4-5 | weak | `TestRFC1035_InboundCompressionPointerUnderstood` (`rfc1035_compression_test.go`) | the answer does not depend on the pointer being expanded, and no assertion reads its expansion; replies Ze reads as a client are not driven |
+| RFC1035-4.2.2-1 | weak | `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (`rfc1035_compression_test.go`) | "use server port 53": the listener runs on a free port and no unit asserts the TCP default |
+| RFC8362-2-1 | weak | `TestRFC8362ExtendedLSAsSetUBitOnTheWire`, `TestRFC8362BaseLSAsKeepUBitClearOnTheWire` (`internal/plugins/ospf/rfc8362_test.go`) | the U-bit on the E-Inter-Area-Prefix-LSA, the third Extended LSA Ze originates |
+| RFC9190-1-1 | weak | `TestEAPTLSCapsBothRolesAtTLS13`, `TestEAPTLSVersionCapLeavesTLS12Reachable` (`internal/core/eap/rfc9190_version_cap_test.go`) | a refusal above TLS 1.3: the negative proves the neighbouring not-a-pin rule, and no `{single-polarity}` marker says why none can exist |
+| RFC9190-2.1.2-2 | weak | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems` (`rfc9190_resumption_test.go`) | the declared lifetime: no assertion reads it, the bound rests on crypto/tls's client, and there is no negative or marker |
+| RFC9190-2.1.3-1 | weak | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`, `TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket` (`rfc9190_resumption_test.go`) | the resumed session's version is never read, and the negative proves the neighbouring full-handshake fallback |
+| RFC9190-2.1.8-2 | weak | `TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm`, `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` (`rfc9190_nai_test.go`), `TestEAPTLSPeerDropsTheUsernameTheCertificateCarries` (`rfc9190_cert_nai_test.go`) | "(or any other permanent identifiers)": only the username is searched for; realm-less and IP-address identities sit in units tagged 2.1.8-5 and 2.1.8-3 |
+| RFC9190-2.1.8-3 | weak | `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`, `TestNAIGrammarMatchesRFC7542Section22` (`rfc9190_nai_test.go`) | the certificate-derived NAI (`certificateNAIs`, `realmNAI` in `nai.go`) is never run through `validNAI` |
+| RFC9190-2.1.8-4 | weak | `TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal` (`rfc9190_nai_test.go`) | the peer's TLS 1.3 processing; only the server's empty certificate_list is driven |
+| RFC9190-2.1.8-5 | wrong | `TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm` (`rfc9190_nai_test.go`) | the recommended "@realm" form; the unit proves the fixed-username construction the next clause allows, and the "@realm" test carries only the 2.1.8-2 tag |
+| RFC9190-2.3-1 | weak | `TestRFC9190MSKIsTheExportUnderTheRFCLabel` (`internal/core/eap/rfc5216_msk_label_test.go`) | Method-Id: no non-test code derives `EXPORTER_EAP_TLS_Method-Id` or a Session-Id. An implementation gap, recorded under `ai/rules/rfc-compliance.md`; implementing it needs the owner's scope |
+| RFC9190-5.4-1 | weak | the eight tagged units in `rfc9190_revocation_test.go`, `TestEAPTLS13ResumptionStillNeedsARevocationSource` (`rfc9190_resumption_refusal_test.go`), `checkResponderEAPTLS13RevokedClient` (`internal/le/interoplab/ipsec/checkers.go`) | on the peer: a revoked intermediate in the authenticator's chain (only a 5.4-3 OCSP unit), and a refusal when the peer holds no current list |
+| RFC9190-5.4-2 | weak | `TestEAPTLS13StaplesTheConfiguredOCSPResponse`, `TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse` (`rfc9190_ocsp_test.go`) | the RFC 8446 Section 4.4.2.1 half: no status to a client that sent no status_request; every client in the suite is crypto/tls, which always sends it |
+| RFC9190-5.4-3 | weak | the thirteen tagged units in `rfc9190_ocsp_test.go` | "abort the handshake with an appropriate alert": no unit reads the alert the authenticator receives |
+| RFC9190-5.7-1 | weak | `TestEAPTLS13ResumptionRefusesARevokedClientChain` (`rfc9190_resumption_test.go`), `TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey` (`rfc9190_resumption_refusal_test.go`) | that authorization rests on cached data: a full handshake with the same revoked certificate also passes the positive, and neither unit shows a resumption authorized on valid cached data |
+| RFC9190-5.7-5 | weak | `TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling` (`rfc9190_resumption_test.go`), `TestEAPTLS13RefusesATicketPastTheSection57Lifetime` (`rfc9190_resumption_refusal_test.go`) | "regardless of the PSK or ticket lifetime": the ticket's own lifetime is 604800 seconds, so a store expiring on the ticket lifetime passes both halves |
 
 ### Split-needed rows
 
@@ -396,6 +433,7 @@ Dropped after reading, with the reason:
 | AC-5 | every spec in the code-defects pointer list | this spec declares none of their defects and does not fix them; a test this spec corrects whose producer one of them changes waits for, or lands with, that spec |
 | AC-6 | `./le rfc check` | no violation, no stale verdict |
 | AC-7 | every row and unit in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |
+| AC-8 | every row of "Un-enrolled R-7 rows" | resolved as the goal's first or second way and re-judged `enforced` by an agent that did not write the test, recorded in that table with the date or in the stem's audit file; RFC9190-2.3-1's Method-Id gap is recorded under `ai/rules/rfc-compliance.md` and its row carries the marker that says so |
 
 ## 🧪 TDD Test Plan
 
