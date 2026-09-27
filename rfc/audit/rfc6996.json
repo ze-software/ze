@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6996-4-1": {
+      "note": "Only the two-octet range in AS_PATH is exercised (64512 stripped, public kept). The sentence's '(including AS4_PATH if utilizing a four-octet AS number space)' clause and the four-octet Private Use range 4200000000-4294967294 have no tagged assertion, nor do the range boundaries (64511/64512/65534/65535).",
+      "requirement_sha": "09430783143eaffb",
+      "tests": {
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996KeepsPublicASN": "778d71b3e2da3a82",
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "778d71b3e2da3a82"
+      },
+      "units": {
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996KeepsPublicASN": "8ecfe8d3e74b323a",
+        "internal/component/bgp/plugins/filter_remove_private_as/private_as_test.go::TestRFC6996StripsPrivateUseASN": "adf187dd868f22eb"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc6996"
+}
