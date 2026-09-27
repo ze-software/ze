@@ -1,0 +1,154 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC7011-10.3.2-2": {
+      "note": "Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.",
+      "requirement_sha": "edb4c407110ae739",
+      "tests": {
+        "internal/plugins/flowexport/sender_rfc7011_linux_test.go::TestRFC7011UDPChecksumEnabledOnSenderSocket": "fde3dd6a423425cf"
+      },
+      "units": {
+        "internal/plugins/flowexport/sender_rfc7011_linux_test.go::TestRFC7011UDPChecksumEnabledOnSenderSocket": "4bf2079f343d7eaf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-3.1-1": {
+      "note": "Forbidden: a Message Header whose Version is not 0x000a. TestRFC7011VersionIsIPFIX asserts the first two octets WriteMessageHeader writes are 0x000a and the Version constant is 0x000a, red on any other value. Single-polarity marker: the version is a compile-time constant with no path to another value.",
+      "requirement_sha": "0687557d99155aca",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011VersionIsIPFIX": "1e121054ccd5ea2a"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011VersionIsIPFIX": "73f715e050c2a6d7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-3.2-1": {
+      "note": "Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.",
+      "requirement_sha": "93e531e7d3c32257",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "1e121054ccd5ea2a",
+        "internal/plugins/flowexport/ipfix/template_test.go::TestIPFIXTemplateSet": "f7d94a4b8bb76e78"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "7546da9e02a094f3",
+        "internal/plugins/flowexport/ipfix/template_test.go::TestIPFIXTemplateSet": "a7641091aa45010e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-3.3.1-1": {
+      "note": "Forbidden: a padding octet that is not zero. TestRFC7011PaddingIsZero asserts the 3 padding octets after a 53-octet IPv4 flow record are 0; TestRFC7011PaddingZeroedOverGarbage pre-fills the buffer with 0xFF and asserts the same octets are 0, red if writeFlowDataSet skips the zeroing. The IPv6 flow Set shares writeFlowDataSet, and the counter Set (32-octet records) never pads.",
+      "requirement_sha": "7d055dd1f5975996",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingIsZero": "1e121054ccd5ea2a",
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingZeroedOverGarbage": "1e121054ccd5ea2a"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingIsZero": "13f6ffd1cf8e2738",
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingZeroedOverGarbage": "fd916dede7f30094"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-3.3.1-2": {
+      "note": "Forbidden: padding as long as or longer than a record of the Set. TestRFC7011PaddingShorterThanRecord asserts the padding is > 0, < FlowRecordSize and <= 3 octets, red otherwise. Single-polarity marker: 4-octet alignment padding cannot reach the smallest record.",
+      "requirement_sha": "af17437ff3c941b9",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingShorterThanRecord": "1e121054ccd5ea2a"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingShorterThanRecord": "fb0af766060a84c9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-3.4.1-1": {
+      "note": "TestRFC7011TemplateIDAbove255 asserts each builder writes its own constant (256, 257, 258) and that each is >= 256, which proves the range. The quoted sentence also requires the Template ID be unique within the Transport Session and Observation Domain, and no assertion checks the three IDs are distinct: setting FlowTemplateID to 256 keeps the test green.",
+      "requirement_sha": "c8c69648254189bc",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "1e121054ccd5ea2a"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "2b037c09082060c2"
+      },
+      "verdict": "weak"
+    },
+    "RFC7011-6.1.1-1": {
+      "note": "TestRFC7011IntegralNetworkByteOrder, TestRFC7011IntegralNeverLittleEndian and TestIPFIXFlowData (flow_data_test.go) prove big-endian integral encoding on the per-flow path (WriteFlowDataSet) only. The counter Data Record path, data.go::writeCounterRecord, encodes the unsigned32 interface indexes and unsigned64 total counts and carries no tagged unit, so a little-endian regression there stays green.",
+      "requirement_sha": "0595711242bc3bb2",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder": "49e03ede36d04954",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian": "49e03ede36d04954",
+        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder": "8d8fcbd94e108e09",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian": "03a780b25c8da618",
+        "internal/plugins/flowexport/ipfix/flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa"
+      },
+      "verdict": "weak"
+    },
+    "RFC7011-6.1.2-1": {
+      "note": "Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.",
+      "requirement_sha": "6d04795f08c4eb7b",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011AddressOctetsNetworkByteOrder": "49e03ede36d04954",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets": "49e03ede36d04954"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011AddressOctetsNetworkByteOrder": "46a641140da99205",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets": "f6bae5f7cc58da08"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-6.2-1": {
+      "note": "Forbidden: a reduced-size length on an address or dateTime IE. TestRFC7011NoReducedSizeForAddressOrTimestamp walks the counter, flow4 and flow6 templates and asserts IPv4 address IEs at 4, IPv6 at 16, dateTimeSeconds at 4 and dateTimeMilliseconds at 8 octets, red on any reduced length; every other exported IE is integral, for which reduced size is permitted. Single-polarity marker: no path applies reduced-size encoding.",
+      "requirement_sha": "d5896781b498a6db",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoReducedSizeForAddressOrTimestamp": "1e121054ccd5ea2a"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoReducedSizeForAddressOrTimestamp": "2c34850f0d18c6c7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7011-8-1": {
+      "note": "Forbidden: a UDP Exporting Process that does not periodically retransmit EACH active Template at regular intervals. TestRFC7011TemplateRetransmittedAtInterval uses a countingEncoder on the counter path and asserts templateCalls goes 1 to 2 once, at +600 s; the negative asserts no resend at +2 s. 'Each active Template' is not asserted (the flow4/flow6 Templates 257/258 are never counted) and 'periodically ... at regular intervals' is one observed resend, not a second interval. An exporter that resent the counter Template once, or never resent the flow Templates, stays green.",
+      "requirement_sha": "24edda6c621b7b5d",
+      "tests": {
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "9a9f62bba8b4a49a",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "9a9f62bba8b4a49a"
+      },
+      "units": {
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval": "c6cee6dcffd7ee50",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval": "65b8b4e746c278f7"
+      },
+      "verdict": "weak"
+    },
+    "RFC7011-8-2": {
+      "note": "TestRFC7011TemplateRefreshConfigurable proves only that template-refresh parses into CollectorConfig.TemplateRefresh and passes Validate; TestRFC7011TemplateRefreshRangeRejected proves out-of-range values are refused, which is validation, not a violation of configurability. No unit shows the configured value drives the retransmit decision in exporter.go (refreshInterval from cs.cfg.TemplateRefresh): an exporter hardcoding 600 s keeps every tagged unit green.",
+      "requirement_sha": "d8a3941caf7e374b",
+      "tests": {
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "9a9f62bba8b4a49a",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a"
+      },
+      "units": {
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "d81b4418df553d83",
+        "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3"
+      },
+      "verdict": "weak"
+    },
+    "RFC7011-8.2-1": {
+      "note": "Forbidden: Template management actions whose Export Time does not sequence them, i.e. a Template sent with an Export Time earlier than one already sent. TestRFC7011TemplateExportTimeIsSendTime asserts the flow Template's Export Time lies within the send second (red on a zero or constant time) and TestRFC7011TemplateExportTimeNeverRegresses asserts it does not decrease over three rounds. Both read the real clock, so removing the max(now, templateExportTime) clamp in flow_adapter.go that keeps the sequence monotonic across a backward clock step leaves both green; and the counter Template path (adapter.go, its own clamp) carries no tagged unit. The exporter sends no Template Withdrawals.",
+      "requirement_sha": "3e23ca523de43b7a",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime": "49e03ede36d04954",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "49e03ede36d04954"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime": "05c0fe2d20e400e7",
+        "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "847aa1512992b6f3"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc7011"
+}
