@@ -1,6 +1,6 @@
 ---
 title: RFC Compliance (every protocol, not just BGP)
-when: writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements
+when: writing, changing, reviewing, or testing any protocol-implementing code, for any RFC Ze implements
 severity: blocking
 ---
 directives ## Directives

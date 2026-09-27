@@ -32,7 +32,7 @@ full before acting on a topic it covers.
 | Protocol Implementation | implementing or changing a protocol, an external API, a wire format, or a backend that applies operator config | blocking | `ai/rules/protocol.md` |
 | Quality Standards | before presenting any work as complete | blocking | `ai/rules/quality.md` |
 | Repository Maintenance | adding or changing a feature, tool, gate, or generated file, or editing a canonical source whose generated files need a resync | blocking | `ai/rules/repo-maintenance.md` |
-| RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
+| RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing any protocol-implementing code, for any RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
 | Rule File Format | authoring or editing any rule: a point file under `ai/rules/points/`, its manifest, or a check's binding comment | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
 | Simplest Correct Solution | choosing how to fix a defect or build a feature, and whenever a change adds an abstraction, an option, or a layer the problem in hand does not need | blocking | `ai/rules/simplicity.md` |
