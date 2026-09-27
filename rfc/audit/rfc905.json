@@ -1,0 +1,69 @@
+{
+  "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC905-x-1": {
+      "note": "B.2 fixes addition modulo 255 (or one's complement with 255 read as 0). A mod-256 generator goes red only in TestISISChecksumFixedVector (isis/packet), which pins high,low = 0x0b,0xed. TestISISChecksumModulus round-trips Checksum through VerifyChecksum, and both share fletcherModulus, so a consistent mod-256 change still verifies. The negative unit TestISISChecksumDetectsCorruption flips single octets, and a mod-256 verifier detects those too, so it does not go red on the forbidden arithmetic. Clause b (255 read as 0) has no assertion that would catch a verifier treating 255 and 0 as distinct.",
+      "requirement_sha": "5cd66c1aa17d7578",
+      "tests": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "094cc928a13a2d84"
+      },
+      "units": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumModulus": "754effd059dc54e3"
+      },
+      "verdict": "weak"
+    },
+    "RFC905-x-2": {
+      "note": "The quote is B.3.3, the running sums C0 += octet, C1 += C0. The positive TestISISChecksumVectors goes red on a wrong generator accumulation, because VerifyChecksum runs its own loop and the round trip fails. The negative TestISISChecksumDetectsCorruption asserts only VerifyChecksum's rejection of corrupted regions, the same assertion as the RFC905-x-4 negative. It feeds no input that violates B.3.3, so it is the x-4 proof wearing a second hat. B.3.1 (zero the field) and B.3.2 (initialise) are split out of the row.",
+      "requirement_sha": "db20cac67c77c27b",
+      "tests": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84"
+      },
+      "units": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785"
+      },
+      "verdict": "weak"
+    },
+    "RFC905-x-3": {
+      "note": "B.3.4: X = -C1 + (L-n)C0, Y = C1 - (L-n+1)C0. The positive TestISISChecksumFixedVector pins exact X,Y (0x0b,0xed), TestFletcherRFC905Vectors (ospf/types) pins 0x15ff, and the round trips go red on a wrong formula. The negative TestISISChecksumDetectsCorruption asserts only that VerifyChecksum rejects corrupted regions. It exercises verification, not a violating X,Y, so no negative isolates this rule. B.3.5 (placement at n, n+1) is split out of the row.",
+      "requirement_sha": "cd8ac8ccdcfa8946",
+      "tests": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "8ac8573c092c7f1a",
+        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "8df584d7f7f93f43"
+      },
+      "units": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "5771613ca67997af",
+        "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "d58c3ac8f36eac05"
+      },
+      "verdict": "weak"
+    },
+    "RFC905-x-4": {
+      "note": "B.4.3: the formulas fail when either or both of C0 and C1 are non-zero. The negatives flip one octet (TestISISChecksumDetectsCorruption, TestOSPFLSAChecksumExcludesAge), and a flip changes C0. A verifier that tested only C0 == 0 therefore passes every tagged unit, and no unit feeds a region where C0 is zero and C1 is not, for example two swapped octets. The 'or C1' clause is unproven.",
+      "requirement_sha": "d5a155d22fc3d6ea",
+      "tests": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "094cc928a13a2d84",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "094cc928a13a2d84",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a"
+      },
+      "units": {
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumDetectsCorruption": "5454a75133acd518",
+        "internal/plugins/isis/packet/checksum_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc905"
+}
