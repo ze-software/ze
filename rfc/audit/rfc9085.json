@@ -1,0 +1,39 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9085-2.1.1-1": {
+      "note": "Two clauses. The 20 rightmost bits represent the label: the tagged test decodes 0xF12345 and assert.Equal(0x12345, sl.SID) goes red if the top nibble is folded in. The 4 leftmost bits are set to 0: a transmit duty, and no tagged unit asserts what Ze encodes (Ze originates no BGP-LS, plugin.go registers decode only), so that clause has no assertion.",
+      "requirement_sha": "ff5636b73afaacaf",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "38b7a68c47518d20"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1"
+      },
+      "verdict": "weak"
+    },
+    "RFC9085-2.1.2-3": {
+      "note": "The quoted sentence is \"Reserved: 1 octet that MUST be set to 0 and ignored on receipt.\" Ignored on receipt: TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags sets the octet to 0xFF and require.NoError plus Range 1000 / FirstSID 16000 go red if it is rejected or consumed. Set to 0: no tagged unit asserts the transmitted octet (that duty is RFC9085-2.1.2-2, a gap). The row also claims five other sections' reserved fields (split needed), none exercised here.",
+      "requirement_sha": "c8caa35ed95ab7d2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd"
+      },
+      "verdict": "weak"
+    },
+    "RFC9085-2.1.2-4": {
+      "note": "The quoted sentence is \"The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.\" Ignored on receipt: the same test sets undefined bit 0x02 and require.NoError plus the I-flag assertion go red if the TLV is rejected or the meaningful flag disturbed. Set to 0: no tagged unit asserts transmitted flags (RFC9085-2.1.2-1, a gap). The row also claims \u00a72.1.4 SRLB flags (split needed), not exercised by this unit.",
+      "requirement_sha": "a74bf0b7fa9ba99b",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "38b7a68c47518d20"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags": "8a1fdef8c1334ebd"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc9085"
+}
