@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "requirements": {
     "RFC8210-10-1": {
       "note": "two ApplyDelta batches on one ROACache stand in for two caches; no two sessions are driven, and the negative (origin mismatch is Invalid) violates RFC 6811 origin validation, not source distinction",
@@ -54,7 +54,7 @@
       "verdict": "weak"
     },
     "RFC8210-4-1": {
-      "note": "startSessions contacts the lowest preference value first and never the standby while it answers; the next cache takes over when the preferred one refuses",
+      "note": "Forbidden: selecting a cache other than the most preferred one that answers (config order, or reading every cache at once). TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers lists the standby (preference 200) first and the preferred (10) second; it waits for the preferred cache's accept and t.Fatal fires if the standby accepts within 500ms, so a group that followed config order or dialled all caches goes red. The failover subtest asserts that when the preferred cache refuses, the next in preference order (snaps[1].Synced) carries the load, and snapshots are held most preferred first. The 'or set of caches' alternative is a permission, not a forbidden behaviour.",
       "requirement_sha": "f1776b40118c197f",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "35b120fedd68e009",
@@ -84,7 +84,7 @@
       "verdict": "weak"
     },
     "RFC8210-5.1-1": {
-      "note": "receipt side: reserved Flags bits (0xFF/0xFE) ignored by parseIPv4Prefix and through handlePDU in a v1 session; bit 0 alone decides announce/withdraw. Ze writes no Flags field, so the transmit clause has no producer",
+      "note": "Forbidden on receipt: letting reserved Flags bits affect acceptance or the announce/withdraw decision. TestParsePrefixPDUFlagsHighBitsIgnored (rtr_pdu_test.go) asserts 0xFF is accepted (require.NoError) and read as announce, and 0xFE is accepted and read as withdraw (assert.False announce), so a parser that validated or read the high bits goes red; negative TestReservedPrefixFieldsPreserveValidation repeats the withdrawal case through handlePDU for IPv4 and IPv6. Transmit clause: Ze writes only Reset Query, Serial Query and Error Report PDUs (rtr_pdu.go), none of which carries a Flags field, so there is no producer that could violate it.",
       "requirement_sha": "ab7941f1a8ec6c11",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "d7a1a5261ccc5a89",
@@ -99,7 +99,7 @@
       "verdict": "enforced"
     },
     "RFC8210-5.1-2": {
-      "note": "parsePrefixPDU accepts maxLen 24 >= prefixLen 8 and rejects maxLen 16 < prefixLen 24 with the 'invalid' error; input isolated (prefix length check passes first)",
+      "note": "Forbidden: accepting a Prefix PDU whose Max Length is less than its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen builds a PDU with prefix length 24 and max length 16 and asserts parseIPv4Prefix returns an error containing 'invalid' (the prefix length alone is valid, so the buffer isolates the rule); positive TestParseIPv4Prefix accepts max length 24 over prefix length 8. Both buffers carry rtrVersionMin (1), the RFC 8210 version.",
       "requirement_sha": "286219cb3c5511e2",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
@@ -112,7 +112,7 @@
       "verdict": "enforced"
     },
     "RFC8210-5.11-1": {
-      "note": "positive: an Error Report with version 99 gets no reply byte before EOF (readLoop); negative: malformed ASPA PDU does draw an Error Report on the wire",
+      "note": "Forbidden: answering an Error Report with an Error Report. TestRTRErrorReportIsNotAnswered writes an Error Report with version 99 (which would otherwise draw Unsupported Protocol Version) into readLoop and asserts the cache side's one-byte io.ReadFull ends in io.EOF, so any reply byte goes red. Negative TestASPAProviderListErrorOnWire: a malformed ASPA PDU does draw an Error Report (report[1] == pduErrorRpt, code 9, the encapsulated PDU echoed), so a router that never sent Error Reports goes red.",
       "requirement_sha": "99375afb02930375",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "85f26ae7b3bd4a1a",
@@ -125,7 +125,7 @@
       "verdict": "enforced"
     },
     "RFC8210-5.11-4": {
-      "note": "single-polarity: transmitted Error Report ends with a zero Length of Error Text after the encapsulated PDU",
+      "note": "Forbidden: a nonzero Length of Error Text on a report carrying no diagnostic text. TestASPAProviderListErrorOnWire reads the transmitted Error Report and asserts the uint32 after the encapsulated PDU is 0 (assert.Equal uint32(0)). Row carries {single-polarity: positive}: writeErrorReport takes no text, so no input produces a report with text to contrast.",
       "requirement_sha": "56bfe768964079f7",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "85f26ae7b3bd4a1a"
@@ -149,8 +149,8 @@
       "verdict": "weak"
     },
     "RFC8210-6-2": {
-      "note": "synctest: lease expiry removes VRPs and ASPAs and notifies consumers; a completed EOD renews, an incomplete response does not; a late serial EOD after expiry is refused with errRtrDataExpired",
-      "requirement_sha": "325aff883a674117",
+      "note": "Forbidden: using VRPs or ASPAs after the Expire Interval measured from the last completed End of Data. TestRTRDataExpiryAndRenewal (synctest) asserts the payloads still validate at expire-1s (assertLive) and, after a renewal and an incomplete response, that at the lease deadline cache.Validate is NotFound and aspaCache.isProvider false (\"expired payloads still authorize routes\"), with both consumers notified; the negatives assert a completed EOD renews (assertLive after renewal), an incomplete response neither renews nor publishes, and TestRTRSerialDeltaCannotRenewAnElapsedLease asserts a serial EOD after the deadline returns errRtrDataExpired and publishes nothing even with the expiry timer stopped. The quote now carries the Expire Interval definition sentence, which names the parameter the MUST NOT refers to and adds no obligation.",
+      "requirement_sha": "03600eb2fc1e6469",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal": "51b37202fe4cb34c",
         "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal#2": "51b37202fe4cb34c",
@@ -164,7 +164,7 @@
       "verdict": "enforced"
     },
     "RFC8210-7-1": {
-      "note": "single-polarity: first bytes on a fresh transport are a Reset Query, or a Serial Query when resuming, observed at a real listener",
+      "note": "Forbidden: a transport connection on which the router does not speak first with a Reset or Serial Query. TestFirstPDUOnConnectionIsAQuery accepts the connection at a real listener and require.NoError on io.ReadFull of the first PDU (a silent router times out), then asserts buf[1] == pduResetQuery for a fresh session and pduSerialQuery for a resuming one. Row carries {single-polarity: positive}.",
       "requirement_sha": "98981788af06ce75",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "85f26ae7b3bd4a1a",
@@ -177,8 +177,8 @@
       "verdict": "enforced"
     },
     "RFC8210-7-3": {
-      "note": "Forbidden: continuing at the router's version after a version 0 reply (neither downgrading nor terminating). TestRTRUnknownNegotiationVersion 'unsupported v0': a v0 Cache Response makes syncOnce return errRtrUnsupportedProtocol and the cache's read reach io.EOF (the connection is terminated); a router that kept reading would leave the fake cache blocked until its deadline, not EOF. Negative TestRFC8210V1CacheResponseIsNotTerminated: a v1 response to a v1 query keeps version 1, publishes its VRP (Validate Valid) and draws no trailing bytes, so a check that refused every Cache Response goes red",
-      "requirement_sha": "d68ef9667f5bbda2",
+      "note": "Forbidden: after a version 0 reply to the router's query, continuing at the router's own version (neither downgrading nor terminating). TestRTRUnknownNegotiationVersion \"unsupported v0\": the cache sends a version 0 Cache Response, and the test asserts syncOnce returns errRtrUnsupportedProtocol and the cache's trailing read reaches io.EOF (require.ErrorIs got.err io.EOF), so a router that kept the stream open or loaded the v0 reply goes red. Ze supports no version 0, so terminating is the branch it takes. Negative TestRFC8210V1CacheResponseIsNotTerminated: a reply at the router's own version keeps s.version, publishes its VRP (Validate Valid), and draws no trailing bytes (assert.Empty), so a check that terminated on every Cache Response goes red. The quote now carries the conditioning sentence (the cache replies with a version 0 response).",
+      "requirement_sha": "bd37b0024d009d19",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "ee77a712b1e28351",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "85f26ae7b3bd4a1a"
@@ -216,7 +216,7 @@
       "verdict": "weak"
     },
     "RFC8210-8.1-1": {
-      "note": "single-polarity: cacheGroup.Run re-polls with real Reset then Serial Query on the cache-supplied 1s refresh (retry 7200)",
+      "note": "Forbidden: a router that never re-polls. TestRunPollsOnRefreshAfterSuccessRetryAfterFailure (cacheGroup.Run against a real listener, refresh 1s, retry 7200s) waits for a second accept (waitAccept fails the test if none arrives) and asserts it comes within 30s, and that the queries are a Reset Query then a Serial Query. Row carries {single-polarity: positive}.",
       "requirement_sha": "fb9a9478a7d9e024",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure": "3d3a19a38ac8d5a8"
@@ -253,8 +253,8 @@
       "verdict": "weak"
     },
     "RFC8210-8.3-1": {
-      "note": "asserts handlePDU clears s.serial to 0 on Cache Reset, not that a Reset Query is sent and a full load obtained; tag prose says ze runs every cache in parallel, which rtr_preference_test contradicts (preference-ordered cacheGroup since 2026-09-20), so the 'no more-preferred caches' condition is not exercised",
-      "requirement_sha": "c26f04aba26c108d",
+      "note": "Forbidden: after a Cache Reset with no more-preferred cache, not issuing a Reset Query or not taking a whole new load. The tagged units in TestCacheResetTriggersResetQuery call handlePDU directly and assert only that s.serial becomes 0 and the sync ends with errRtrCacheResetReceivedWillDo; no tagged unit observes the Reset Query on the wire or the replacement of the old set by a full load, and the 'no more-preferred caches' condition is not built (single session, no cache group). The tag prose says ze runs every configured cache in parallel, which the preference-ordered cacheGroup (rtr_preference_test.go) contradicts. The widened quote adds the SHOULD sentence as context for the condition; this row judges only its MUST.",
+      "requirement_sha": "d6a8cd3857fb271e",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "85f26ae7b3bd4a1a",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "85f26ae7b3bd4a1a"
@@ -266,8 +266,8 @@
       "verdict": "weak"
     },
     "RFC8210-8.4-1": {
-      "note": "Forbidden: after No Data Available with no other cache, stopping, sending Serial Queries, or not repeating. TestNoDataAvailableKeepsResetQueryMode (single-cache group) asserts three consecutive queries are pduResetQuery each within 4s at a 1s retry, and the negative that after a usable load the next query is pduSerialQuery (the 'until it gets a new usable load' bound).",
-      "requirement_sha": "7a6fedb083db8d9b",
+      "note": "Forbidden: after No Data Available with no other cache, stopping, sending Serial Queries, or not repeating the Reset Query until a usable load arrives. TestNoDataAvailableKeepsResetQueryMode runs a single-session cacheGroup (no other cache), the cache answers two queries with Error Report code 2, and the test asserts three consecutive queries are pduResetQuery each within 4s at a 1s retry (a router that stopped hits t.Fatal, one that sent a Serial Query fails assert.Equal); the negative asserts that once a complete load is published the next query is pduSerialQuery, which pins the 'until it gets a new usable load' bound. The widened quote adds the SHOULD failover sentence only as the condition's context; this row judges its MUST.",
+      "requirement_sha": "6710360c92babbd0",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode": "85f26ae7b3bd4a1a",
         "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode#2": "85f26ae7b3bd4a1a"
@@ -290,7 +290,7 @@
       "verdict": "weak"
     },
     "RFC8210-9-3": {
-      "note": "configured TLS carries the actual RTR exchange; a TLS-configured session never falls back to a plaintext RTR stream at the same address",
+      "note": "Forbidden: using an unprotected stream when the operator has configured a protected transport. TestRTRTLSAuthenticatedCache asserts the RTR exchange completes over TLS 1.2 and 1.3 (observed state.Version, queryType, published VRP and ASPA); negative TestRTRTLSNoPlaintextFallback offers a plaintext RTR server at the TLS address and assertRTRTLSRefused asserts syncOnce errors, zero RTR query bytes reach the peer on any connection, and nothing is published, so a plaintext fallback goes red. Availability is the operator's configuration; the refusal of a cache with neither tls nor trusted-network sits in untagged TestRTRTLSConfigRejectsUnsafeTransport and is RFC8210-3-1's concern.",
       "requirement_sha": "182f0dad42ac7bfc",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
@@ -303,7 +303,7 @@
       "verdict": "enforced"
     },
     "RFC8210-9.2-1": {
-      "note": "cache observes the configured router leaf and intermediates in PeerCertificates; missing/unusable named credentials refuse the session before any query",
+      "note": "Forbidden: a TLS session in which the router presents no client certificate, or not the configured one. The fixture server uses RequireAndVerifyClientCert, and TestRTRTLSAuthenticatedCache asserts the cache received the configured leaf (bytes.Equal chain[0].Raw) and both intermediates, so a router sending no certificate fails the handshake (t.Fatalf on syncOnce) and one sending another goes red. Negative TestRTRTLSRejectsUnusableClientIdentity: missing CA, missing certificate, missing or mismatched key, wrong EKU and missing IP SAN all go through assertRTRTLSRefused, with a working alternate identity present so a silent substitution goes red.",
       "requirement_sha": "b4d412cdea8ebe27",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
@@ -342,7 +342,7 @@
       "verdict": "enforced"
     },
     "RFC8210-9.2-2": {
-      "note": "router certificate with an iPAddress SAN is presented; a router identity without an iPAddress SAN is refused. Positive does not assert the SAN content itself, only that the issued fixture certificate is the one sent",
+      "note": "Forbidden: authenticating to the cache with a router certificate that carries no iPAddress SAN. Negative TestRTRTLSRejectsUnusableClientIdentity \"missing IP SAN\" installs a client-auth certificate without an IP SAN and asserts assertRTRTLSRefused (syncOnce error, zero query bytes); the fixture server does not check IP SANs, so the refusal is Ze's and a Ze that sent the certificate would sync and go red. Positive TestRTRTLSAuthenticatedCache presents the fixture router certificate (issued with an iPAddress SAN) and asserts it is the one the cache received; it does not assert the SAN content itself.",
       "requirement_sha": "c4557d38bc48c6b4",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
@@ -355,7 +355,7 @@
       "verdict": "enforced"
     },
     "RFC8210-9.2-4": {
-      "note": "matching dNSName authenticates the cache; wrong DNS reference and a certificate without dNSName SAN are refused before publication",
+      "note": "Forbidden: accepting a cache certificate without verifying it against the dNSName reference. Negative TestRTRTLSRejectsUnauthenticatedCaches \"wrong DNS\" (server-name other.rtr.test) and \"CN only\" (no dNSName SAN) both go through assertRTRTLSRefused: syncOnce error, zero query bytes, nothing published, so a router that skipped name verification goes red. Positive TestRTRTLSAuthenticatedCache: a trusted certificate whose dNSName matches syncs and publishes VRP and ASPA.",
       "requirement_sha": "ed4c2dce5b22552f",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
@@ -368,7 +368,7 @@
       "verdict": "enforced"
     },
     "RFC8210-9.2-5": {
-      "note": "differing CN with correct DNS-ID authenticates; CN-only certificate matching the name is refused",
+      "note": "Forbidden: authenticating a cache by its Common Name. Negative TestRTRTLSRejectsUnauthenticatedCaches \"CN only\" issues a server certificate whose CN matches the reference and has no DNS SAN, and assertRTRTLSRefused asserts it is refused, so a CN fallback goes red. Positive TestRTRTLSAuthenticatedCache: a certificate whose CN differs from the reference but whose DNS-ID matches authenticates, so a CN check that overrode DNS-ID goes red.",
       "requirement_sha": "35847d6d2af2ff68",
       "tests": {
         "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
