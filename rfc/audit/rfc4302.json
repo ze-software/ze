@@ -1,0 +1,123 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC4302-2-1": {
+      "note": "(a) forbidden: an AH SA whose protocol is not 51, so the kernel writes another value in the header preceding AH. (b) TestIPsecSAProtocolNumber: ah.Proto != 51 goes red; the esp case (Proto 50) goes red on a blanket-51 installer. Ze's boundary is the SA protocol number; Linux XFRM writes the Next Header from it.",
+      "requirement_sha": "3ee48230b5a8dd1a",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "6030e8816e85665f",
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "ad9a18c924aafdd8",
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "ad9a18c924aafdd8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4302-2-2": {
+      "note": "(a) forbidden: AH parameters settled without a signalling or out-of-band mechanism both peers hold, e.g. a defaulted integrity algorithm. (b) TestAHParametersComeFromConfiguration: protocol, SPI, algorithm and key length are asserted from the parsed RFC 4552 block (positive), and an AH block with no algorithm must fail with ErrIPsecAuthAlgo (negative). Ze uses the out-of-band configuration mechanism the sentence names; it runs no AH signalling.",
+      "requirement_sha": "83e60a3e408a06ef",
+      "tests": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration#2": "9c4cd634d1e5cd35"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration": "4677f4b45791218a",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHParametersComeFromConfiguration#2": "4677f4b45791218a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4302-2.4-1": {
+      "note": "(a) forbidden: an AH implementation that cannot map inbound traffic to a UNICAST SA by its SPI (alone or with the protocol). (b) TestAHSAIdentifiedBySPIAndProtocol asserts SPI, Proto AH, Dst and wildcard Src, but only for the ff02::5 AllSPFRouters state, a multicast destination. The unicast state setConfig also builds (buildIPsecSA(ifindex, local, SADirIn, c), ipsec_install.go) is never asserted, so the unicast clause the sentence is about has no red assertion.",
+      "requirement_sha": "1c40d5ea6827b71c",
+      "tests": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "9c4cd634d1e5cd35"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960"
+      },
+      "verdict": "weak"
+    },
+    "RFC4302-2.4-5": {
+      "note": "The sentence is about the SAD entry's indication of which addresses join the SPI in the inbound SA lookup; in XFRM that is the state's daddr and whether its saddr is wildcarded (SAParams.Src/Dst). TestAHSAAddressMatchIndication asserts the state's traffic selector (Sel.Src/Sel.Dst ::/0, Sel.UpperProto 89), which filters traffic on an SA already found and does not decide the lookup key. The Src-wildcard indication is asserted in TestAHSAIdentifiedBySPIAndProtocol, which is not tagged for this row. The negative (upper protocol 89) proves a neighbouring selector rule.",
+      "requirement_sha": "ee4282a89c870777",
+      "tests": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication#2": "9c4cd634d1e5cd35"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication": "17887b7822cfef85",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication#2": "17887b7822cfef85"
+      },
+      "verdict": "wrong"
+    },
+    "RFC4302-2.4-6": {
+      "note": "(a) forbidden: an AH SA carrying SPI 0 installed and so sent on the wire. (b) TestAHSPIReservedRangeRefused: validateConfig on spi 0 must return ErrIPsecSPIReserved, else red; spi 256 must validate (positive bound). SPI 255 refusal is IANA-range, beyond this row.",
+      "requirement_sha": "11d3ac6441efc504",
+      "tests": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused#2": "9c4cd634d1e5cd35"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused": "5fda7c062965f660",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSPIReservedRangeRefused#2": "5fda7c062965f660"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4302-3.3.4-1": {
+      "note": "(a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected >= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.",
+      "requirement_sha": "cb85941d72f6e4c2",
+      "tests": {
+        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "402fac7c3f341aa8",
+        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "402fac7c3f341aa8"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "a8d02622804657f7",
+        "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "a8d02622804657f7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4302-3.4.2-1": {
+      "note": "The sentence covers a received packet CONTAINING an AH header whose SA lookup fails: the discard, and that it is an auditable event. TestAHInboundRequirePolicyInstalled asserts the SADirIn require-policy (proto AH, transport, upper proto 89, ifindex), which drops UNPROTECTED OSPF that arrives without AH (an RFC 4301 policy check), a neighbouring rule. An AH packet with an unknown SPI is dropped in the kernel's xfrm_input state lookup whatever policy Ze installs; no tagged unit sends one or observes the drop, and the auditable-event clause has no assertion at all.",
+      "requirement_sha": "71ad1e125ba6b922",
+      "tests": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled": "9c4cd634d1e5cd35",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled#2": "9c4cd634d1e5cd35"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
+        "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e"
+      },
+      "verdict": "wrong"
+    },
+    "RFC4302-3.4.3-1": {
+      "note": "(a) forbidden: an AH implementation with no anti-replay, or one that cannot enable/disable it per SA. (b) TestIPsecSAReplayWindow asserts SAParams.ReplayWin 64 when configured and 0 when not, for ah and esp. Both per-SA directions are asserted, but only on the SAParams struct: xfrmStateFromParams (ike/dataplane/xfrm_linux.go) sets the kernel window only for a non-zero ReplayWin, and a break there stays green. The kernel-state assertion that exists (rfc4301_boundary_linux_test.go, ReplayWindow 64) is not tagged for this row.",
+      "requirement_sha": "04bd974bfd66c5a6",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "6030e8816e85665f",
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow": "d61dcce45d4b5c05",
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow#2": "d61dcce45d4b5c05"
+      },
+      "verdict": "weak"
+    },
+    "RFC4302-3.4.3-5": {
+      "note": "(a) forbidden: an implementation that cannot run an SA with a 32-packet replay window. (b) TestIPsecReplayWindowRange only asserts that validateConfig accepts replay-window 32; no tagged unit shows a 32 window reaching the SA or the kernel state. The negative (1 and 31 refused with ErrIPsecReplayWindow) does not violate this requirement: the RFC sets a minimum that must be SUPPORTED and forbids no smaller window, so the negative asserts a Ze policy, not the RFC.",
+      "requirement_sha": "f615c5ec9826eb4d",
+      "tests": {
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "24a99999625a9144",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "24a99999625a9144"
+      },
+      "units": {
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cddd29092ae0c0e1",
+        "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange#2": "cddd29092ae0c0e1"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc4302"
+}
