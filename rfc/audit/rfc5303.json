@@ -1,0 +1,123 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5303-3.1-1": {
+      "note": "Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.",
+      "requirement_sha": "bcf7d94811f2a0be",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "ac0bb789323a694c",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "ac0bb789323a694c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5303-3.1-4": {
+      "note": "Forbidden: a TLV 240 without the Adjacency Three-Way State field. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded: for Up, Initializing and Down the emitted value is non-empty and decodes to the same state (Fatalf otherwise); negative internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor: the minimal no-neighbor form still carries it.",
+      "requirement_sha": "54f1af71ffcb4246",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded": "00af6ffa87321626",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor": "297049562bc3b270"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5303-3.1-6": {
+      "note": "The sentence binds Ze to every procedure of section 3.2. internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption proves one: with TLV 240 present an Up-without-echo neighbor stays Initializing, without it the legacy two-way reaches Up. The invalid-state discard (RFC5303-3.2-7), the Neighbor ID mismatch discard (3.2-9), the state table (3.2-11) and its Down action (3.2-12) are not followed; those rows carry {gap}.",
+      "requirement_sha": "08541ffc00c19a11",
+      "tests": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "7e42ff6d1915600d",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption#2": "7e42ff6d1915600d"
+      },
+      "units": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "78df051407a36e1c",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayProceduresEngagedByOption#2": "78df051407a36e1c"
+      },
+      "verdict": "weak"
+    },
+    "RFC5303-3.2-1": {
+      "note": "Forbidden: a transmitted IIH whose Adjacency Three-Way State is not the adjacency's current state. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState asserts what p2pThreeWayState returns (Up, then Initializing), not the transmitted field: sendP2PHello (circuit/runtime.go) passes that state to buildP2PHello, and no tagged unit asserts the IIH it sends, so a send path that ignored the computed state stays green.",
+      "requirement_sha": "983ac4d3863bd1e9",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState": "f6e9f21978e1f073",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState#2": "f6e9f21978e1f073"
+      },
+      "verdict": "weak"
+    },
+    "RFC5303-3.2-10": {
+      "note": "The sentence: the ISO 10589 'Up' action may create a new adjacency but its three-way state SHALL be Down, the input to the section 3.2 state table. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown proves a neighbouring reporting rule: a table record already in StateDown makes p2pThreeWayState report Down. It never drives ReceiveHello (adjacency/fsm.go) through adjacency creation; there Ze moves a new adjacency straight to Initializing (TestISISThreeWayProceduresEngagedByOption), and the state table is not modelled (RFC5303-3.2-11 {gap}).",
+      "requirement_sha": "68765c448c0420e5",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "805fa799c2252101",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "805fa799c2252101"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5303-3.2-13": {
+      "note": "Forbidden: on an Initialize action, generating an event or not setting Initializing. internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction: from Down with received Down, tr.State != StateInitializing is Fatalf and SessionUp/SessionDown is Fatalf; negative: received Up with our echo goes Up with an event. The table yields Initialize in three cells (current Down, Initializing, Up with received Down); the Initializing and Up rows have no assertion.",
+      "requirement_sha": "07e36258bb67fa66",
+      "tests": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "7e42ff6d1915600d",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "7e42ff6d1915600d"
+      },
+      "units": {
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction": "61ff66b3c619aae8",
+        "internal/plugins/isis/adjacency/fsm_test.go::TestISISThreeWayInitializeAction#2": "61ff66b3c619aae8"
+      },
+      "verdict": "weak"
+    },
+    "RFC5303-3.2-2": {
+      "note": "Forbidden: a state other than Down reported with no adjacency. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency asserts p2pThreeWayState returns Down on an empty table (and not Down once Up), not the Adjacency Three-Way State field of a transmitted IIH; the sendP2PHello wiring is unasserted.",
+      "requirement_sha": "16e182ca3538b1b3",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency": "7c568b6070b0af32",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency#2": "7c568b6070b0af32"
+      },
+      "verdict": "weak"
+    },
+    "RFC5303-3.2-3": {
+      "note": "Forbidden: an Extended Local Circuit ID field that is not the circuit's assigned value (absent, a shared constant). internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID: the IIH buildP2PHello emits carries HasCircuitID and LocalCircuitID == 7 (Fatalf otherwise); negative: a circuit assigned 42 emits a different value. The uint8(ifindex) uniqueness defect is RFC5303-3.2-4's {gap}.",
+      "requirement_sha": "b9c8f3382266872a",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID": "3446635310718ccc",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID#2": "3446635310718ccc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5303-3.2-5": {
+      "note": "Forbidden: omitting the neighbor's System ID when it is known in Initializing or Up. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID proves buildP2PHello echoes the ID it is handed and omits it when told none is known. No assertion shows that an Initializing or Up adjacency makes p2pThreeWayState return haveNeighbor with that ID (TestISISThreeWayReportsCurrentState discards those results), so the 'known (in Initializing or Up)' clause is unproven.",
+      "requirement_sha": "58d5e8f2c0638def",
+      "tests": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID": "d32edc6561822cd6",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID#2": "d32edc6561822cd6"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID": "a4822569450cc072",
+        "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID#2": "a4822569450cc072"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5303"
+}
