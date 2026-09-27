@@ -89,7 +89,11 @@ Three more are met VACUOUSLY and must not be recorded as met once the feature
 exists: `-5-1` (Ze never emits the form the draft forbids off-negotiation),
 `-6-1` (`parseNextHops` refuses every IPv6 length but 16 and 32 with
 `ErrInvalidNextHopLen`), and `-4-2`/`-4-8` (`peerOnLink`, set from
-`network.SharesSubnet`, gates the link-local append).
+`network.SharesSubnet`, gates the link-local append). Corrected 2026-09-27:
+that gate covers only Ze's own link-local under next-hop self or explicit. A
+received link-local forwarded under next-hop auto or unchanged is not gated,
+so `-4-2` is unmet today, not vacuous; the defect is D6 of
+`plan/immediate/spec-bgp-update-propagation-rfc-defects.md`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
