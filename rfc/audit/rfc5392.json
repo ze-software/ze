@@ -61,9 +61,8 @@
       "verdict": "weak"
     },
     "RFC5392-4-1": {
-      "code": {},
-      "note": "Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). parseInterface (config.go) forces Passive on an interface carrying an inter-as block, and activeInterfaces, the only set that runs Hellos, excludes passive interfaces. The negative TestRFC5392InterASInterfaceIsPassive asserts an inter-as interface without a passive leaf is passive and not active, with an intra-AS TE control that stays active. The unit reads the config decision, not a Hello on a wire. REV-OSPF independent re-audit 2026-09-27: kept enforced. RFC 5392 Section 4: 'Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed.' Forbidden: an inter-AS interface that runs Hellos; the assertion `!ic.Passive || active` goes red when parseInterface leaves it active, with an intra-AS TE control. The runtime step from Passive to no socket is openConfiguredInterface (instance.go), shared by every passive interface and not re-proven here.",
-      "requirement_sha": "8859820e1c7b85f9",
+      "note": "Re-judged 2026-09-27 by QF-2 after the row's trailing implementation note lost its parenthesis, so the quote ends at the \u00a74 sub-span 'Hellos MUST NOT be exchanged over the inter-AS link'. Forbidden: an inter-AS interface that runs Hellos. TestRFC5392InterASInterfaceIsPassive asserts `!ic.Passive || active` fails the test when parseInterface leaves an inter-as interface active, with an intra-AS TE control. Enforced stands.",
+      "requirement_sha": "20168becb3d64f38",
       "tests": {
         "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
         "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
