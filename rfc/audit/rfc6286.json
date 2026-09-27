@@ -1,0 +1,75 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6286-2.1-1": {
+      "note": "The only tag (config_test zero_router_id_rejected) proves the non-zero clause for a peer-level router-id. No tagged assertion covers the global router-id leaf, or 'the same for every local interface and every BGP peer': Ze accepts a per-peer router-id override (parsePeerFromTree, session router-id), so a configuration giving peers different identifiers is accepted and nothing tagged goes red on it.",
+      "requirement_sha": "922fb6533dd43d00",
+      "tests": {
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "e69a1c11cdd2986d"
+      },
+      "units": {
+        "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "61ffe75fea998ee2"
+      },
+      "verdict": "weak"
+    },
+    "RFC6286-2.1-2": {
+      "note": "(a) identifiers within one AS that are not unique, including this speaker's own identifier shared with a speaker of its AS; (b) TestRouterIDClaimConcurrentOnlyOneWins goes red only when two REMOTE peers of one AS presenting one identifier are both accepted (require.ErrorAs routerIDConflictError, accepted == 1). No tagged assertion covers the local identifier colliding with a speaker of its own AS, so that half of 'unique within an AS' stays unproven under this tag (the Section 2.2 internal-peer rejection is tagged to RFC6286-2.2-2 only). Single-polarity marker.",
+      "requirement_sha": "e566efc1c1dda428",
+      "tests": {
+        "internal/component/bgp/reactor/routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "4972055763b676a4"
+      },
+      "units": {
+        "internal/component/bgp/reactor/routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9"
+      },
+      "verdict": "weak"
+    },
+    "RFC6286-2.2-1": {
+      "note": "(a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence's second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.",
+      "requirement_sha": "096d9b6b65628ff0",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "eabc69b2ca4c66d8",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "7f9fc7a89465a4eb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6286-2.2-2": {
+      "note": "(a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows 'local identifier from internal peer' wantErr 2/3 and 'from external peer' no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.",
+      "requirement_sha": "096d9b6b65628ff0",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "eabc69b2ca4c66d8",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
+        "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+        "internal/component/bgp/reactor/session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d591fe02f97c155a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6286-2.3-1": {
+      "note": "(a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS > local AS and peer AS < local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.",
+      "requirement_sha": "c8f7ef370693f7ea",
+      "tests": {
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "0a5ac870c994131b",
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "0a5ac870c994131b"
+      },
+      "units": {
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "62e9bf2df59ce7ab",
+        "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "62e9bf2df59ce7ab"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc6286"
+}
