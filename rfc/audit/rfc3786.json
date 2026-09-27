@@ -1,0 +1,32 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3786-5-1": {
+      "note": "The sentence forbids three things: (a) considering a system's LSPs when Original fragment 0 is missing, (b) considering them when Original fragment 0 is present with RemainingLifetime zero, (c) considering an extended set whose fragment 0 is missing or expired. TestRFC1195StandardFragmentsRequireFragmentZero covers (a): after e.lsdb.Delete of fragment 0 it fails if loc.Lookup still has a path from fragment 1, and its positive requires the fragment-1 route while fragment 0 lives (metricWinner 2,15). No tagged assertion holds fragment 0 at RemainingLifetime zero (b), and none exercises an extended LSP set (c); Ze originates and recognises no extended set (owner decision 2026-09-21, standard fragment sets), so (c) has no producer to test, but (b) does.",
+      "requirement_sha": "79d8b7c247b32131",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "562e30faad45e5ef",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "562e30faad45e5ef"
+      },
+      "verdict": "weak"
+    },
+    "RFC3786-6-1": {
+      "note": "Forbidden behaviour: sending IS Hellos (ISH) or IS-IS Hellos with a system-id other than that of the LSP that contains the neighbor. assertNormalHelloIdentity first requires the neighbor in the node's normal LSP, then t.Fatalf when a captured ISH NET system-id or a P2P IIH SystemID differs from lsp.LSPID.SystemID(), and requires both to be seen. TestRFC3786NormalHelloMatchesContainingLSP is the positive; TestRFC3786NormalHelloIdentityReload reloads the NET twice and requires both hellos to follow, so a circuit keeping its old identity goes red. The S' (extended LSP) clause has no producer in Ze (no extended LSP sets), so the normal system-id is the only identity the MUST can require here.",
+      "requirement_sha": "a47765f0bafdf1b4",
+      "tests": {
+        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloIdentityReload": "e9feb48870967281",
+        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "e9feb48870967281"
+      },
+      "units": {
+        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloIdentityReload": "6c45437776353261",
+        "internal/plugins/isis/hello_identity_rfc3786_test.go::TestRFC3786NormalHelloMatchesContainingLSP": "84375606523c0c19"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc3786"
+}
