@@ -620,10 +620,18 @@ func buildTxInputs(affected []affectedPlugin, diff *config.ConfigDiff) ([]transa
 		if err := transaction.ValidatePluginName(ap.proc.Name()); err != nil {
 			return nil, nil, nil, fmt.Errorf("plugin %q: %w", ap.proc.Name(), err)
 		}
-		roots := expandWildcardRoots(reg.WantsConfigRoots, allRoots)
+		// A read root (reg.ConfigReads) is delivered to the reader and is not
+		// the reader's: it goes to WantsConfig, which filterDiffs delivers and
+		// checkOperationRootCoverage does not count. Listed under ConfigRoots,
+		// a commit that edits a peer and a bfd profile together aborted,
+		// because bgp decomposes root bgp and owns no operation for root bfd.
+		owned := slices.DeleteFunc(slices.Clone(reg.WantsConfigRoots), func(root string) bool {
+			return slices.Contains(reg.ConfigReads, root)
+		})
 		participants = append(participants, transaction.Participant{
 			Name:             ap.proc.Name(),
-			ConfigRoots:      roots,
+			ConfigRoots:      expandWildcardRoots(owned, allRoots),
+			WantsConfig:      slices.Clone(reg.ConfigReads),
 			ConfigOperations: reg.ConfigOperations,
 			VerifyBudget:     reg.VerifyBudget,
 			ApplyBudget:      reg.ApplyBudget,

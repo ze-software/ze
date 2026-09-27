@@ -1,0 +1,74 @@
+# Test: a renamed bgp-rpki block still receives the pki root it reads
+#
+# VALIDATES: `plugin { internal rpki { use bgp-rpki } }` boots with an RTR cache over TLS whose CA and client identity are named in the pki store: the server finds bgp-rpki's registry ConfigReads through the use spelling and delivers the pki section.
+# PREVENTS: the server looking the registry up by the block name "rpki", finding no row, and never delivering pki, so bgp-rpki refuses its TLS cache at startup ("rpki: cache ...") for a certificate the config defines.
+#
+# Method: ze boots the config and stops once BGP starts its peers, which the
+# coordinator does only after every plugin completed its startup, OnConfigure
+# included. bgp-rpki's OnConfigure resolves the TLS names against the pki
+# section it was delivered (parseRPKISections), so a missing pki section is a
+# startup refusal naming the cache. The certificates are a throwaway EC P-256
+# CA and client pair, base64 DER, generated for this test; the client
+# carries an iPAddress subjectAltName for 127.0.0.1, which an IP cache address
+# requires of the client identity.
+
+option=env:var=ze.log.bgp.plugin:value=info
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rpki {
+		use bgp-rpki
+	}
+}
+
+pki {
+	ca rtr-ca {
+		certificate "MIIBgTCCASegAwIBAgIUHMGiom0qqQPBtz52fWoueLYinvAwCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU2MDJaGA8yMTI2MDkwMzE2NTYwMlowFTETMBEGA1UEAwwKemUtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABL6ErygjRm0w0WfSB9WuHwmbGjjqsY3YwBCvyJDlpvKjibJik69ZYNuT9dYIQT/aG2qGCRCpfH5ye/XqzrFuRE2jUzBRMB0GA1UdDgQWBBQ/oizf2TGZYMFzO0vslOH+dNgCuTAfBgNVHSMEGDAWgBQ/oizf2TGZYMFzO0vslOH+dNgCuTAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIG7F5J57bgkeA10SdWkNx6M5uqECYF5n7FeqhaSDDnLzAiEAwgD55ObsUAsTbxWerVVWIj7uiu4KVRB+g25i0LXWApI=";
+	}
+	certificate rtr-router {
+		certificate "MIIBlTCCATugAwIBAgIUIlTB1keB7zLq8ONbceYpSCjrU24wCgYIKoZIzj0EAwIwFTETMBEGA1UEAwwKemUtdGVzdC1jYTAgFw0yNjA5MjcxNjU4NDJaGA8yMTI2MDkwMzE2NTg0MlowFDESMBAGA1UEAwwJemUtY2xpZW50MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEz3iHbwH+PePyNKRL/SREvYANbZYX5luE7oFleLrqcu+RJfBkd2Pi1POh+4k85Bat0wqoT1H7AKJvxskY9erlAqNoMGYwDwYDVR0RBAgwBocEfwAAATATBgNVHSUEDDAKBggrBgEFBQcDAjAdBgNVHQ4EFgQUm6laY23lrAKkYnBuK2NzE81zJXIwHwYDVR0jBBgwFoAUP6Is39kxmWDBcztL7JTh/nTYArkwCgYIKoZIzj0EAwIDSAAwRQIge881L0ITujVjrDSEZ/EALcJZuMnizrdkfpCLohWdN8cCIQChltPGR0fs+uH544utBZZOoY6zS5r2t3ujLmd6P98dPA==";
+		private {
+			key "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgucZId8ACCg/UxtKOuceeB4Ro8DaOqOg3eYaxveKlM7ShRANCAATPeIdvAf494/I0pEv9JES9gA1tlhfmW4TugWV4uupy75El8GR3Y+LU86H7iTzkFq3TCqhPUfsAom/GyRj16uUC";
+		}
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port $PORT2
+			tls {
+				ca-certificate rtr-ca
+				certificate rtr-router
+				server-name cache.example.net
+			}
+		}
+	}
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=bgp peers started:then=stop
+reject=stderr:contains=rpki: cache
+reject=stderr:contains=candidate PKI

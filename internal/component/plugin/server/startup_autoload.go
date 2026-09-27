@@ -409,7 +409,7 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 		}
 		names = append(names, name)
 		cfg := proc.Config()
-		if !cfg.Internal && cfg.Run != "" {
+		if cfg.RunsExternalProgram() {
 			external[name] = true
 		}
 	}

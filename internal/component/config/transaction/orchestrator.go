@@ -710,8 +710,17 @@ var ErrParticipantRootUncovered = errors.New("participant decomposes one of its 
 // on root B reaches no phase: no operation carries it, no coarse node stands
 // for it, and the transaction commits over a change nothing applied.
 //
+// It counts only the roots a participant OWNS (ConfigRoots). A root it reads
+// (WantsConfig) reaches its verify through filterDiffs and is applied by the
+// root's owner: bgp owns root bgp and reads root bfd, to refuse a peer that
+// names an undefined profile, and a commit that edits a peer and a profile
+// together decomposes bgp's root and leaves bfd's to the bfd participant. A
+// reader that owns operations therefore receives no apply for a read root;
+// one that owns none still takes its coarse node (participantsWithoutOperations
+// reads filterDiffs), which is how bgp-rpki re-applies a changed pki section.
+//
 // No first-party participant can reach it today. The two that decompose
-// declare one root each (internal/component/iface/register.go,
+// own one root each (internal/component/iface/register.go,
 // internal/component/bgp/plugin/register.go), and neither declares the `*`
 // wildcard expandWildcardRoots reads. A silently discarded root is not a thing
 // to wait for a caller to reach (ai/rules/principles.md), so the second root
@@ -739,11 +748,16 @@ func (o *TxCoordinator) checkOperationRootCoverage(ops []ConfigOperation, diffs 
 		if len(owned) == 0 {
 			continue
 		}
-		for _, section := range o.filterDiffs(diffs, p) {
-			if _, ok := owned[section.Root]; ok {
-				continue
+		// Only the roots the participant owns (ConfigRoots) are its to cover.
+		// A root it reads (WantsConfig) is another plugin's: it reaches the
+		// reader's verify through filterDiffs, and the owner applies it.
+		for _, root := range p.ConfigRoots {
+			for _, section := range diffs[root] {
+				if _, ok := owned[section.Root]; ok {
+					continue
+				}
+				return fmt.Errorf("%w: plugin %s, root %s", ErrParticipantRootUncovered, p.Name, section.Root)
 			}
-			return fmt.Errorf("%w: plugin %s, root %s", ErrParticipantRootUncovered, p.Name, section.Root)
 		}
 	}
 	return nil

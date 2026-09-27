@@ -68,12 +68,23 @@ type PluginRegistration struct {
 	CommandDeprecatedNames map[string][]string // Canonical command name -> deprecated aliases
 	Receive                []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations     []SchemaDeclaration // Schema extensions for capability config
-	WantsConfigRoots       []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
-	ConfigOperations       []rpc.ConfigOperationDecl
-	VerifyBudget           int  // Estimated verify time in seconds (0 = trivial)
-	ApplyBudget            int  // Estimated apply time in seconds (0 = trivial)
-	WantsValidateOpen      bool // Plugin wants to validate OPEN message pairs (validate-open callback)
-	Done                   bool // True when "registration done" received
+	WantsConfigRoots       []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>"), plus ConfigReads
+	// ConfigReads are the roots the plugin's registry Registration reads but
+	// does not own (registry.Registration.ConfigReads). Stage 1 joins them to
+	// WantsConfigRoots (joinConfigReads), and a reload delivers every root of a
+	// plugin that holds one whole (reloadConfigSections), because such a
+	// plugin verifies across roots and needs both sides of the relation.
+	// WantsConfigRoots minus ConfigReads is the roots the plugin owns: the
+	// transaction delivers a read root to the reader (verify, and the section
+	// apply of a reader that owns no operation) and never counts it as the
+	// reader's for operation coverage (buildTxInputs,
+	// transaction.Participant.WantsConfig).
+	ConfigReads       []string
+	ConfigOperations  []rpc.ConfigOperationDecl
+	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
+	ApplyBudget       int  // Estimated apply time in seconds (0 = trivial)
+	WantsValidateOpen bool // Plugin wants to validate OPEN message pairs (validate-open callback)
+	Done              bool // True when "registration done" received
 
 	// Claims are exclusive runtime roles this plugin takes over from another
 	// plugin's default behavior, declared in Stage 1. The engine unions them

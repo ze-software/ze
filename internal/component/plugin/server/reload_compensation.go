@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
+	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -156,7 +157,7 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 				continue
 			}
 			participant.proc = current
-			sections, err := reloadConfigSections(undo.before, diff, current.Registration().WantsConfigRoots)
+			sections, err := reloadConfigSections(undo.before, diff, current.Registration())
 			if err != nil {
 				accept(false)
 				return err
@@ -194,15 +195,34 @@ func (s *Server) restoreReload(pending *reloadAcceptance, undo *reloadCompensati
 	return nil
 }
 
-func reloadConfigSections(tree map[string]any, diff *config.ConfigDiff, roots []string) ([]rpc.ConfigSection, error) {
+// reloadConfigSections answers the sections a reload delivers to one plugin.
+// A plugin receives the roots of its registration that changed, and an empty
+// section for a changed root the tree no longer holds, which is its deletion.
+//
+// A plugin that reads another root (reg.ConfigReads) receives every root of its
+// registration whole as soon as one of them changed. Its verifier checks a
+// relation across roots, as static and BGP check a named bfd-profile against
+// the bfd section: a bgp edit must carry the bfd section to check against, and
+// a bfd edit must reach BGP, with the bgp section, to be checked at all. A root
+// absent from the tree that did not change is not delivered, so a reader is
+// never told its own root was deleted.
+func reloadConfigSections(tree map[string]any, diff *config.ConfigDiff, reg *plugin.PluginRegistration) ([]rpc.ConfigSection, error) {
+	roots := reg.WantsConfigRoots
+	whole := false
+	if len(reg.ConfigReads) > 0 {
+		whole = slices.ContainsFunc(roots, func(root string) bool { return rootHasChanges(diff, root) })
+	}
 	var sections []rpc.ConfigSection
 	for _, root := range roots {
-		if !rootHasChanges(diff, root) {
+		changed := rootHasChanges(diff, root)
+		if !changed && !whole {
 			continue
 		}
 		subtree := ExtractConfigSubtree(tree, root)
 		if subtree == nil {
-			sections = append(sections, rpc.ConfigSection{Root: root, Data: "{}"})
+			if changed {
+				sections = append(sections, rpc.ConfigSection{Root: root, Data: "{}"})
+			}
 			continue
 		}
 		data, err := json.Marshal(subtree)

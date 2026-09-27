@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -287,8 +286,11 @@ func (s *Server) restoreRemovedPlugin(ctx context.Context, proc *process.Process
 		}
 		pending = previous
 	}
+	// The roots come from the registry row of the implementation the process
+	// runs (registryRow), never from its name: an external block that shares a
+	// compiled-in row's name owns none of that row's roots.
 	var roots []string
-	for _, root := range registry.ConfigRootsMap()[proc.Name()] {
+	for _, root := range registryConfigRoots(proc.Config()) {
 		if navigateNestedMap(tree, root) != nil {
 			roots = append(roots, root)
 		}

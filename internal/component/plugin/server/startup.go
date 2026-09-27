@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -303,7 +304,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		// The tiers order what this daemon starts, so a block that named a
 		// program takes its edges from that program's declaration and never from
 		// a same-named compiled-in registration.
-		if !p.Internal && p.Run != "" {
+		if p.RunsExternalProgram() {
 			external[p.Name] = true
 		}
 	}
@@ -557,6 +558,7 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	// Convert RPC input to engine registration type.
 	reg := registrationFromRPC(input)
 	reg.Name = proc.Config().Name
+	joinConfigReads(reg, registryConfigReads(proc.Config()))
 	proc.SetRegistration(reg)
 	proc.SetCacheConsumer(input.CacheConsumer)
 	if input.CacheConsumer && s.reactor != nil {
@@ -920,6 +922,73 @@ func registerPluginFamilies(families []rpc.FamilyDecl) ([]family.FamilyRegistrat
 		return nil, fmt.Errorf("family registration: %w", err)
 	}
 	return added, nil
+}
+
+// registryRow answers the registry row of the implementation a process RUNS,
+// or nil when the process has none. The row is the implementation, which the
+// operator's block name does not have to match: `plugin { internal rpki { use
+// bgp-rpki } }` names the process "rpki" and runs "bgp-rpki", so a lookup by the
+// block name finds no row. plugin.RegistryName resolves the use/run spelling
+// first. An external program has no row, even where its block shares a
+// compiled-in row's name (`external bgp-rpki { run "/opt/x" }`):
+// PluginConfig.RunsExternalProgram is the rule config/loader.go applies to
+// dependencies, and it is applied here before the lookup, never after.
+func registryRow(cfg plugin.PluginConfig) *registry.Registration {
+	if cfg.RunsExternalProgram() {
+		return nil
+	}
+	return registry.Lookup(plugin.RegistryName(cfg))
+}
+
+// registryConfigReads answers the roots registryRow's row declares the process
+// reads, so bgp-rpki under a renamed block keeps its pki section. A process
+// with no row reads nothing through the registry, and nil is its answer.
+func registryConfigReads(cfg plugin.PluginConfig) []string {
+	registered := registryRow(cfg)
+	if registered == nil {
+		return nil
+	}
+	return registered.ConfigReads
+}
+
+// registryConfigRoots answers the roots registryRow's row declares the process
+// owns. A process with no row owns nothing through the registry, and nil is
+// its answer.
+func registryConfigRoots(cfg plugin.PluginConfig) []string {
+	registered := registryRow(cfg)
+	if registered == nil {
+		return nil
+	}
+	return registered.ConfigRoots
+}
+
+// joinConfigReads adds the roots a plugin's registry Registration reads
+// (registry.Registration.ConfigReads) to the roots the server delivers to it.
+// ConfigReads is declared once, on the registry; the SDK's WantsConfig does
+// not repeat it. Without the join a read root reaches `ze config validate`
+// (config/plugin_verify.go reads ConfigSectionRoots) and never the daemon's
+// commit or SIGHUP, whose deliveries walk WantsConfigRoots. The SDK's slice is
+// cloned so the join never writes into the declaration it was handed.
+//
+// reg.ConfigReads keeps every read root, including one the SDK also listed:
+// the registry's ConfigReads is the declaration that the plugin reads a root
+// and does not own it. buildTxInputs (reload_tx.go) subtracts it from
+// WantsConfigRoots to find the roots the plugin owns, so a read root is
+// delivered to the reader and never counted as the reader's for operation
+// coverage.
+func joinConfigReads(reg *plugin.PluginRegistration, reads []string) {
+	if len(reads) == 0 {
+		return
+	}
+	reg.ConfigReads = slices.Clone(reads)
+	roots := slices.Clone(reg.WantsConfigRoots)
+	for _, root := range reads {
+		if slices.Contains(roots, root) {
+			continue
+		}
+		roots = append(roots, root)
+	}
+	reg.WantsConfigRoots = roots
 }
 
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).

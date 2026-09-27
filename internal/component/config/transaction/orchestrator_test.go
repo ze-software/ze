@@ -2043,6 +2043,84 @@ func TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother(t *testing.T) 
 	}
 }
 
+// TestExecuteReadRootIsNotCoveredByTheReader drives the commit an operator
+// makes to point a peer at a new bfd profile: one transaction edits a bgp peer
+// and the bfd section. bgp owns root bgp and READS root bfd (WantsConfig), and
+// it decomposes only root bgp. The read root is the bfd participant's to apply,
+// so the coverage guard does not count it against bgp: the transaction commits,
+// bgp is verified with both sections, and bfd applies its own root.
+//
+// VALIDATES: a read root reaches the reader's verify and is not a root the
+// reader must cover with operations.
+// PREVENTS: ErrParticipantRootUncovered "plugin bgp, root bfd" aborting every
+// commit that edits a peer and a bfd profile together.
+func TestExecuteReadRootIsNotCoveredByTheReader(t *testing.T) {
+	gw := newTestGateway()
+	participants := []testParticipant{
+		{name: "bgp", configRoots: []string{"bgp"}, wantsConfig: []string{"bfd"}},
+		{name: "bfd", configRoots: []string{"bfd"}},
+	}
+	orch := newTestOrchestrator(t, gw, participants)
+	orch.SetOperationPlanner(func(_ context.Context, _ OperationPlanRequest) ([]ConfigOperation, error) {
+		return []ConfigOperation{{
+			ID:       "bgp-add-peer1",
+			Root:     "bgp",
+			Owner:    "bgp",
+			Type:     testOpAddInterface,
+			Verb:     VerbCreate,
+			Target:   ResourceRef{Kind: ResourceInterface, Name: "peer1"},
+			Produces: []ResourceRef{{Kind: ResourceInterface, Name: "peer1"}},
+		}}, nil
+	})
+	diffs := map[string][]DiffSection{
+		"bgp": {{Root: "bgp", Added: `{"bgp/peer/peer1":{}}`}},
+		"bfd": {{Root: "bfd", Added: `{"bfd/profile/fast":{}}`}},
+	}
+	var operationEvents []string
+	var sectionApplies []string
+	autoAckOperations(gw, "bgp", &operationEvents)
+	autoAckSectionApply(gw, "bfd", &sectionApplies)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resultCh := make(chan *TxResult, 1)
+	go func() { resultCh <- orch.Execute(ctx, diffs) }()
+
+	waitForEmit(t, gw, EventVerifyFor("bgp"))
+	bgpVerify := gw.findEmitted(EventVerifyFor("bgp"))
+	var ev VerifyEvent
+	if err := json.Unmarshal(bgpVerify[0].Payload, &ev); err != nil {
+		t.Fatalf("unmarshal bgp verify: %v", err)
+	}
+	var roots []string
+	for _, d := range ev.Diffs {
+		roots = append(roots, d.Root)
+	}
+	slices.Sort(roots)
+	if !slices.Equal(roots, []string{"bfd", "bgp"}) {
+		t.Fatalf("bgp was verified with roots %v, want [bfd bgp]", roots)
+	}
+	for i := range participants {
+		waitForEmit(t, gw, EventVerifyFor(participants[i].name))
+		participants[i].respondVerify(gw, orch.TransactionID())
+	}
+
+	select {
+	case result := <-resultCh:
+		if result.State != StateCommitted {
+			t.Fatalf("state = %s (err %v), want %s", result.State, result.Err, StateCommitted)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for the transaction to commit")
+	}
+	if !slices.Contains(operationEvents, EventOperationApplyFor("bgp")) {
+		t.Fatalf("bgp's root did not take the operation path: %v", operationEvents)
+	}
+	if applies := gw.findEmitted(EventApplyFor("bfd")); len(applies) != 1 {
+		t.Fatalf("the bfd owner received %d section applies, want 1", len(applies))
+	}
+}
+
 // TestExecuteAbortsWhenThePlannerRefuses drives the branch every decomposer's
 // refusal arrives on. A planner that answers an error ends the transaction
 // before the executor runs: nothing is applied, no participant is committed,

@@ -432,9 +432,11 @@ func runRPKIPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		Commands:    commandDecls(),
-		Pipes:       pipeDecls(),
-		WantsConfig: []string{configRootBGP, configRootPKI},
+		Commands: commandDecls(),
+		Pipes:    pipeDecls(),
+		// pki is not repeated here: the registry's ConfigReads declares it, and
+		// the server joins it to what this plugin receives (joinConfigReads).
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("bgp-rpki plugin failed", "error", err)

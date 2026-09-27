@@ -414,6 +414,18 @@ type PluginConfig struct {
 	Internal      bool           // If true, run in-process via goroutine (ze.X plugins)
 }
 
+// RunsExternalProgram reports whether the block names a program of its own: an
+// `external` block whose `run` is a command line. The program declares its own
+// roots and dependencies over the protocol, so a compiled-in registry row that
+// shares the block's name is NOT this block's, and nothing may be taken from
+// it. Every caller that asks "is this registration the block's" asks here.
+func (p PluginConfig) RunsExternalProgram() bool {
+	if p.Internal {
+		return false
+	}
+	return p.Run != ""
+}
+
 // Format constants for process output formatting.
 const (
 	FormatHex     = "hex"     // Wire bytes as hex string

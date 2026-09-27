@@ -539,7 +539,7 @@ func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, e
 		// of that name, the registration is NOT this block's: expanding it starts
 		// plugins the program never asked for, and the operator sees a plugin they
 		// did not configure fail on a platform they never named.
-		if !p.Internal && p.Run != "" {
+		if p.RunsExternalProgram() {
 			external[name] = true
 		}
 	}

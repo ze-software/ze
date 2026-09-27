@@ -345,7 +345,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 				continue
 			}
 
-			sections, err := reloadConfigSections(newTree, diff, reg.WantsConfigRoots)
+			sections, err := reloadConfigSections(newTree, diff, reg)
 			if err != nil {
 				return err
 			}

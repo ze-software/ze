@@ -502,7 +502,7 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 		// A process started from an `external` block takes its edges from the
 		// program it runs, not from a compiled-in registration that happens to
 		// share its name.
-		if config := p.Config(); !config.Internal && config.Run != "" {
+		if p.Config().RunsExternalProgram() {
 			external[p.Name()] = true
 		}
 	}
