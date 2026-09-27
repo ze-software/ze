@@ -288,7 +288,7 @@ func checkAuditVerdictRatchet(requirements []Requirement, enrolled map[string]bo
 		}
 		seen[req.RID] = true
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" carried a verdict at HEAD and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (./le rfc reseal) -- removal is not an option").String())
+		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" carried a verdict at HEAD^ and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (./le rfc reseal) -- removal is not an option").String())
 	}
 	return errs
 }

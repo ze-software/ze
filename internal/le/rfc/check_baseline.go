@@ -668,12 +668,23 @@ func baselineEvidence(tree string, tags []Tag) map[string]map[string]bool {
 	return nonunitEvidence(tags, carriers)
 }
 
+// baselineAudits answers every audit verdict at HEAD^, the commit before the one
+// under test, and false when that history cannot be read.
+//
+// HEAD^ and not HEAD, because `./le verify worktree` checks the commit under
+// test out detached, where the tree equals HEAD: a verdict that commit deleted
+// or upgraded is already gone from a HEAD baseline, so the findings and verdict
+// ratchets built on it saw nothing at the one gate that runs. A tree with no
+// HEAD^ answers false, and both ratchets then judge nothing.
 func baselineAudits(tree string) (map[string]map[string]map[string]any, bool) {
-	paths, ok := gitTreePaths(tree, headRevision, auditRel, ".json")
+	if !revisionExists(tree, priorRevision) {
+		return nil, false
+	}
+	paths, ok := gitTreePaths(tree, priorRevision, auditRel, ".json")
 	if !ok {
 		return nil, false
 	}
-	blobs, known := gitCatBlobs(tree, headRevision, paths)
+	blobs, known := gitCatBlobs(tree, priorRevision, paths)
 	if !known {
 		return nil, false
 	}
@@ -703,12 +714,23 @@ func baselineAudits(tree string) (map[string]map[string]map[string]any, bool) {
 	return out, true
 }
 
+// baselineExtractions answers every extraction sign-off at HEAD^, the commit
+// before the one under test, and false when that history cannot be read.
+//
+// HEAD^ and not HEAD, for the reason baselineAudits gives: in the detached
+// verify worktree the tree equals HEAD, so a sign-off the commit under test
+// deleted, or an exclusion count it raised, was already in a HEAD baseline and
+// checkExtractionRatchet saw nothing. A tree with no HEAD^ answers false, and
+// the ratchet then judges nothing.
 func baselineExtractions(tree string) (map[string]baselineExtraction, bool) {
-	paths, ok := gitTreePaths(tree, headRevision, extractionRel, ".json")
+	if !revisionExists(tree, priorRevision) {
+		return nil, false
+	}
+	paths, ok := gitTreePaths(tree, priorRevision, extractionRel, ".json")
 	if !ok {
 		return nil, false
 	}
-	blobs, known := gitCatBlobs(tree, headRevision, paths)
+	blobs, known := gitCatBlobs(tree, priorRevision, paths)
 	if !known {
 		return nil, false
 	}

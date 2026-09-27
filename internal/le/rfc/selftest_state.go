@@ -190,7 +190,7 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 			"the authored artifact did not retain both mapped sites and its source fingerprint"),
 		selftestResult("extraction/evaluation", len(violations) == 0 && len(signed) == 1,
 			"a complete extraction artifact did not earn sign-off"),
-		selftestResult("extraction/ratchet", len(ratchet) == 1 && strings.Contains(ratchet[0], "had an extraction sign-off at HEAD"),
+		selftestResult("extraction/ratchet", len(ratchet) == 1 && strings.Contains(ratchet[0], "had an extraction sign-off at HEAD^"),
 			"removing a baseline extraction sign-off did not fail the ratchet"),
 	}, nil
 }

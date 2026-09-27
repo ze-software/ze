@@ -27,7 +27,7 @@ func checkExtractionRatchet(tree string, current map[string]Extraction) []string
 	return checkExtractionRatchetAgainst(current, baseline, known)
 }
 
-// checkExtractionRatchetAgainst compares one live extraction set with a HEAD
+// checkExtractionRatchetAgainst compares one live extraction set with a HEAD^
 // snapshot. Keeping the comparison apart from Git lets the in-process selftest
 // prove the ratchet without starting another program.
 func checkExtractionRatchetAgainst(current map[string]Extraction,
@@ -46,7 +46,7 @@ func checkExtractionRatchetAgainst(current map[string]Extraction,
 	}
 	for _, stem := range sortedMissing(baselineSet, currentSet) {
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(stem).Str(" had an extraction sign-off at HEAD and has none now. Extraction sign-off is monotonic: an RFC whose source walk bounded its summary cannot stop being bounded. Restore rfc/extraction/").Str(stem).Str(".json").String())
+		errs = append(errs, tb.Str(stem).Str(" had an extraction sign-off at HEAD^ and has none now. Extraction sign-off is monotonic: an RFC whose source walk bounded its summary cannot stop being bounded. Restore rfc/extraction/").Str(stem).Str(".json").String())
 	}
 	for _, stem := range sortedShared(baseline, current) {
 		was := baseline[stem]
