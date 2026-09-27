@@ -2,7 +2,7 @@
   "audited": "2026-09-27",
   "requirements": {
     "RFC4578-2.1-2": {
-      "note": "(a) accepting an option 93 whose length is odd or zero; (b) TestParsePXEArch table: 'too long' (3 octets) wants 0 not 7, 'too short' (1 octet) wants 0; the positive 'UEFI x64' (2 octets) wants 7. Removing the %2 check turns 'too long' red.",
+      "note": "SB-3 strict re-read 2026-09-27. Forbidden: accepting an option 93 whose Len is odd, or zero. TestParsePXEArch: 'too long' (Len 3) and 'too short' (Len 1) want 0, so the odd clause is enforced, and 'UEFI x64' (Len 2) is the positive. The 'greater than zero' clause has no case: no row carries an option 93 with Len 0 (the 'missing' row omits the option entirely), so a parser that accepted a zero-length option stays green. No even length above 2 is accepted either.",
       "requirement_sha": "79c641e9e3619102",
       "tests": {
         "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "31da40ad0d82bf37",
@@ -12,7 +12,7 @@
         "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "3df25d100736f8a5",
         "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "3df25d100736f8a5"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     }
   },
   "rfc": "rfc4578"
