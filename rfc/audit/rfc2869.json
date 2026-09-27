@@ -40,6 +40,19 @@
       },
       "verdict": "weak"
     },
+    "RFC2869-5.19-1": {
+      "note": "The negative counts the four credential types in every Access-Request buildAuthAttrs builds (pap, chap-md5, mschapv2, none) and fails on more than one; the positive shows PAP and CHAP carry their credential. No input produces an EAP-Message, so the combination of EAP-Message with another credential, the one the RADIUS client can build (radius/client.go oneCredentialType), has no tagged assertion.",
+      "requirement_sha": "4cd8d7ba61bbaf17",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "b4e757fe4cae524f",
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "e723a29e122314af",
+        "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b7ff0603a2599077"
+      },
+      "verdict": "weak"
+    },
     "RFC2869-x-2": {
       "note": "Clause 1 forbidden: a Gigawords value other than the wrap count; TestBuildAcctPacketGigawords asserts Acct-Input-Gigawords 2 and Acct-Output-Gigawords 3 for 0x200000064 and 0x3000000C8 octets on a Stop. Clause 2 forbidden: Gigawords in a record other than Stop or Interim-Update; TestRFC2869GigawordsAbsentOnStart errors if an Accounting-Start built from >4GB counters carries either attribute. The NAS emits only Start, Interim-Update and Stop (authradius), so Start is the only other status it can send.",
       "requirement_sha": "ecd7a59b5ce3eb18",
