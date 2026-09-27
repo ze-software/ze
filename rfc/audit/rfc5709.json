@@ -1,0 +1,208 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5709-3-1": {
+      "note": "(a) forbidden: an implementation without a correct HMAC-SHA-256; (b) TestOSPFAuthSignVerifyCrypto/hmac-sha-256 asserts Sign succeeds and the trailer equals rfc5709ReferenceDigest, an independent test-side HMAC-SHA-256 construction, and that Verify accepts it; the negative rejects a wrong-key digest",
+      "requirement_sha": "8ac78305953875fc",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3-5": {
+      "note": "(a) forbidden: an operator config that refuses a supported algorithm under some KeyID, or fixes an algorithm per KeyID; (b) none: the tagged TestOSPFAuthSignVerifyCrypto builds packet.AuthKey directly with the single KeyID 7 and never goes through operator configuration (parseOSPFConfig/validateConfig), so a config path that rejected e.g. hmac-sha-1 at key-id 200 would stay green",
+      "requirement_sha": "22f0335cb9c59a25",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+      },
+      "verdict": "weak"
+    },
+    "RFC5709-3.1-1": {
+      "note": "(a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config",
+      "requirement_sha": "fd5a822b2c2eb0b6",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineSignPacketCrypto": "f06f71d9d878a2de"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "887f67ec998a67d9",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineSignPacketCrypto": "a5e4dca623c7683d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.1-2": {
+      "note": "(a) forbidden: an Authentication Data Length other than the hash output length L; (b) positive TestOSPFAuthSignVerifyCrypto asserts af[3]==authDigestLen(algo), whose expected value comes from the production table and is cross-checked only through the reference digest length; the tagged negative TestOSPFAuthCryptoRejectsExtraTrailerBytes appends a byte after the trailer and leaves af[3] correct, so it proves trailer framing, and no tagged unit presents a packet whose Auth Data Length field is wrong (Verify's int(af[3]) != l guard is unexercised)",
+      "requirement_sha": "33583fc335b9c46d",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+      },
+      "verdict": "weak"
+    },
+    "RFC5709-3.1-3": {
+      "note": "(a) forbidden: a sender that sets the 32-bit sequence number other than per RFC 2328 App D, i.e. that lets it decrease between packets; (b) none: TestOSPFAuthSignVerifyCrypto only proves a caller-supplied 42 is written at offset 4, and the negative TestOSPFAuthReplay proves the receiver's replay check, a neighbouring receive-side rule; no tagged unit asserts the engine emits non-decreasing sequence numbers across successive packets",
+      "requirement_sha": "6e5f4cce4281c3d1",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "b26f6281820115a7",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4f7e544242587f85",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+      },
+      "verdict": "weak"
+    },
+    "RFC5709-3.1-4": {
+      "note": "(a) forbidden: a digest not appended after the OSPF packet (e.g. inside the 8-byte auth field or counted in Packet Length); (b) TestOSPFAuthSignVerifyCrypto asserts Packet Length == plen, len(signed) == plen+L and signed[plen:] equals the independent reference digest over signed[:plen]; negative TestOSPFAuthCryptoRejectsExtraTrailerBytes rejects a trailer that is not exactly the appended digest",
+      "requirement_sha": "e82b1b4e804a9b42",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "090162632fbe8b7e",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.2-1": {
+      "note": "(a) forbidden: a new key whose KeyStartGenerate is after the old key's KeyStopGenerate; (b) TestKeyRolloverGapRejected asserts validateConfig returns ErrKeyRolloverGap for start 2026-03-01 after end 2026-02-01, and TestKeyRolloverOverlapAccepted asserts an overlapping rollover validates. The equal-time boundary is not exercised",
+      "requirement_sha": "0dd7a741bc6040c8",
+      "tests": {
+        "internal/plugins/ospf/config_test.go::TestKeyRolloverGapRejected": "d69bebe15746b9eb",
+        "internal/plugins/ospf/config_test.go::TestKeyRolloverOverlapAccepted": "d69bebe15746b9eb"
+      },
+      "units": {
+        "internal/plugins/ospf/config_test.go::TestKeyRolloverGapRejected": "96adb5a544b6f23d",
+        "internal/plugins/ospf/config_test.go::TestKeyRolloverOverlapAccepted": "7658ca0dd4f37ab9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.2-2": {
+      "note": "(a) forbidden: the interface reverting to an unauthenticated condition when its last key expires, on generation or on acceptance; (b) TestSignKeyNoRevertWhenAllExpired asserts signKey still returns AuTypeCryptographic with key 2 after every send-lifetime expired, covering generation at the store level only; no tagged unit asserts that after the last key's accept-lifetime expires an unauthenticated (AuType 0) packet is still refused, and none drives it through eng.signPacket to the wire",
+      "requirement_sha": "d956b5bbb03da403",
+      "tests": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "b26f6281820115a7"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "f04c8b1a61e8a3cd"
+      },
+      "verdict": "weak"
+    },
+    "RFC5709-3.3-1": {
+      "note": "(a) forbidden: hashing with a trailer not filled with Apad, or with the AuType field not 2; (b) TestOSPFAuthSignVerifyCrypto asserts the trailer equals rfc5709ReferenceDigest, which fills literal 0x878FE1F3 x L/4 over the AuType-2 packet; TestRFC5709ReceiveRejectsWrongHashConstruction/zero-apad asserts Verify rejects a zero-filled-trailer digest",
+      "requirement_sha": "9d21b53400fd4abb",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.3-2": {
+      "note": "(a) forbidden: Ko not equal to K at L, not H(K) above L, not zero-padded below L; (b) TestRFC5709ReceiveIndependentDigest asserts Sign equals an independent construction and Verify accepts for SHA-256 keys of 31, 32 and 33 octets, TestOSPFAuthSignVerifyCrypto covers a 28-octet key hashed for SHA-1; TestRFC5709ReceiveRejectsWrongHashConstruction/underived-long-key asserts the raw 33-octet key (standard HMAC, B=64) is rejected",
+      "requirement_sha": "a1afea9b899f448b",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "82472af373207a60",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.3-3": {
+      "note": "(a) forbidden: a digest other than H(Ko XOR Opad || H(Ko XOR Ipad || packet-with-Apad-trailer)), or of the wrong length; (b) TestOSPFAuthSignVerifyCrypto asserts the trailer equals hmacWithPad (test-side Ipad/Opad construction) for all four SHA algorithms, fixing the 20/32/48/64 lengths; TestRFC5709ReceiveRejectsWrongHashConstruction/inner-hash-only asserts an inner hash alone is rejected",
+      "requirement_sha": "1d2670c2328315c1",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.3-4": {
+      "note": "(a) forbidden: a trailer carrying anything but Second-Hash, or of a length other than the digest size; (b) TestOSPFAuthSignVerifyCrypto asserts len(signed)==plen+L and the trailer equals the reference Second-Hash; TestRFC5709ReceiveRejectsWrongHashConstruction/inner-hash-only asserts a length-L inner hash is rejected, and a flipped trailer byte is rejected",
+      "requirement_sha": "ac6f8df3b964c3b8",
+      "tests": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.4-1": {
+      "note": "(a) forbidden: verifying without the section 3.3 computation, overwriting the received digest before comparing, not placing Apad in the trailer, or not selecting by KeyID; (b) TestRFC5709ReceiveRejectsWrongHashConstruction asserts zero-Apad, underived-key and inner-only digests are rejected while the valid control is accepted; TestOSPFAuthSignVerifyCrypto rejects a flipped digest byte; TestRFC5709ReceiveIndependentDigest accepts an independent digest and asserts Verify left the wire bytes unchanged; TestEngineReceiveSelectsSecurityAssociation rejects packets outside the KeyID's association and counts them",
+      "requirement_sha": "56709b3868f4210d",
+      "tests": {
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoChecksumOctetAuthenticated": "63d214550eb8b9db",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto#2": "1cd8c462c5643949",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveIndependentDigest": "82472af373207a60",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "1e1026882f382257"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5709-3.4-2": {
+      "note": "(a) forbidden: choosing the algorithm or key other than by the received KeyID (trying other associations); (b) TestEngineReceiveSelectsSecurityAssociation asserts a KeyID 8 (SHA-512) packet signed with SHA-256 and a KeyID 9 packet signed with KeyID 7's secret are rejected even though another configured association verifies them, and unknown KeyID 99 is rejected; TestOSPFAuthCryptoRejectsKeyIDMismatch rejects a non-matching KeyID with the same secret; positives accept each KeyID under its own algorithm",
+      "requirement_sha": "c7ec6bba8578baec",
+      "tests": {
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "f06f71d9d878a2de",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "f06f71d9d878a2de",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "8f829bce13807b16",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "8f829bce13807b16"
+      },
+      "units": {
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "b47d109c003a20d2",
+        "internal/plugins/ospf/auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "b47d109c003a20d2",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "c6b3afbbb3714510",
+        "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "c6b3afbbb3714510"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5709"
+}
