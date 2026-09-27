@@ -1,0 +1,339 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC1195-3.1-1": {
+      "note": "Clause 'ignored': DecodeTLVs returns no error on TLV 199/250, asserted. Clause 'forwarded LSPs passed on unchanged': TestISISUnknownTLVPassthrough only round-trips the codec (DecodeTLVs/writeTLVs); no tagged unit floods a received LSP carrying an unknown TLV and compares the bytes sent on another circuit, so a flooding path that rebuilt or stripped the LSP stays green. Tag prose still says 'sec 3.1' while the row cites 5.2.",
+      "requirement_sha": "ee8583f8eb844dd5",
+      "tests": {
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "dcfdc34e3789cee7"
+      },
+      "units": {
+        "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "81530f252df30317"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-3.10-2": {
+      "note": "A costly internal-metric L2 prefix beats a cheap external-metric one in the installed Loc-RIB; an external TLV with an internal metric is not penalized. Both fail if metric type is ignored.",
+      "requirement_sha": "7bac94d979fa5979",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "c98b3da9b69284a8",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "17f10a6629fc72b0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-3.10-3": {
+      "note": "Positive (TestRFC1195RouteForEachReachabilityEntry) proves SPF uses each entry's default metric (11/12/18). The negative truncates TLV 128 so its length is no longer a multiple of 12: the whole TLV fails a structural length rule first (question 3), so nothing isolates an entry lacking its default metric; same confound as 5.2-4.",
+      "requirement_sha": "740c15f229932bfa",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195MissingDefaultMetricCannotRoute": "e127fd71c27507af",
+        "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195RouteForEachReachabilityEntry": "21a45be2072f321b"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195MissingDefaultMetricCannotRoute": "0bce019aa3438957",
+        "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195RouteForEachReachabilityEntry": "f7decd0ad0b73b2b"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-3.2-1": {
+      "note": "Positive: L1 path 50+40 leaked to L2 with metric 63. Negative: 10+5 preserved as 15. Both fail if the clamp is removed or applied wrongly.",
+      "requirement_sha": "2a0097ceac911f99",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "15e5a7fdf864b92a",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "0a89edf8ea5526b8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-3.2-2": {
+      "note": "Both clauses have a red assertion: metricLeak fails unless exactly one L2 entry is originated, and the test fails unless its metric is the minimum 9. But the positive and negative tags sit on the same assertion over the same input (one test wearing two hats, not a pair) and the row carries no {single-polarity} marker.",
+      "requirement_sha": "bdf8c500d5a357fb",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "12656d8a432fe640",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix#2": "12656d8a432fe640"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-3.3-1": {
+      "note": "Encoder emits the GOSIP NET with reserved octets zero; ParseNET and DecodeISH refuse either nonzero reserved octet with ErrNETReserved.",
+      "requirement_sha": "b34459d48143ff14",
+      "tests": {
+        "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedRefused": "f60366c975e54699",
+        "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedZero": "f60366c975e54699"
+      },
+      "units": {
+        "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedRefused": "a8a26be9d6280f63",
+        "internal/plugins/isis/packet/ish_test.go::TestRFC1195ISHGOSIPReservedZero": "fc006e3959c2647e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-3.9-1": {
+      "note": "The negative asserts only that VerifyPDU returns an error on a flipped digest bit. The obligation is that the entire packet is discarded; no tagged unit drives a bad-auth PDU through the receive path and asserts it changed no LSDB/adjacency state, so a caller that ignored the error stays green.",
+      "requirement_sha": "01cbc66d97701eb6",
+      "tests": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "588beac7fc863006",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "588beac7fc863006"
+      },
+      "units": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "4168f4c7c4816418",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "f60b0995ceccaafb"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-4.1-1": {
+      "note": "The positive proves ParseFrame accepts the normal OSI 802.3/LLC encapsulation. The negative asserts refusal of Ethernet II and SNAP frames, which the sentence does not require; it is a neighbouring strictness property, so there is no negative for this capability obligation (a {single-polarity} marker would fit).",
+      "requirement_sha": "f4dce2e8fa4bd0dd",
+      "tests": {
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation": "d77f20f6b1216260",
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "d77f20f6b1216260"
+      },
+      "units": {
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameOSIEncapsulation": "4c146cf6e2efad54",
+        "internal/plugins/isis/transport/frame_rfc1195_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "629a60e778f688c1"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-4.2-1": {
+      "note": "Both units exercise only DecodeIPv4InterfaceAddrTLV: 63 addresses decode, a truncated TLV is refused with ErrLength. Neither shows correct interaction (adjacency, next-hop choice) with a neighbor carrying several addresses per interface; the negative tests a malformed-length rule, not this one.",
+      "requirement_sha": "8f1725cbc6016e64",
+      "tests": {
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "66a6e168f4df2485",
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "66a6e168f4df2485"
+      },
+      "units": {
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "4ca69e4e0032d701",
+        "internal/plugins/isis/packet/tlv_ipv4_rfc1195_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "8073946b97c64385"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-4.4-1": {
+      "note": "TestFIBOnLinkAdjacencyAndUnsupportedPrefix inserts a Loc-RIB path with OnLink=true by hand and proves the FIB/kernel forwards to the off-subnet gateway (and flips when the mark is cleared). Nothing tagged 4.4-1 shows IS-IS itself marks an adjacency next hop on a different logical subnet OnLink, so an IS-IS resolver that recursed instead stays green. Linux, CAP_NET_ADMIN only.",
+      "requirement_sha": "6f71c136a942c21a",
+      "tests": {
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a"
+      },
+      "units": {
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-4.4-2": {
+      "note": "Positive clauses are asserted: TestRFC1195ISHTransmitReceive fails if no ISH is sent to AllESs before the IIH or if a received ISH does not initialize the adjacency; the veth test covers the AF_PACKET path. The negatives (corrupt ISH, wrong circuit, wrong/missing password) prove neighbouring rules, not a failure to transmit or receive ISH, and the row has no {single-polarity} marker. ish_auth tests prove the per-link password (7-7).",
+      "requirement_sha": "8c66d07c7d1e3d6f",
+      "tests": {
+        "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "53ff993953928049",
+        "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "53ff993953928049",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "e4d9a34a0933c3a4",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "e4d9a34a0933c3a4",
+        "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "dde962b1c6246aa3"
+      },
+      "units": {
+        "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHConfiguredPassword": "5f12832206a0378f",
+        "internal/plugins/isis/ish_auth_rfc1195_test.go::TestRFC1195ISHWrongPassword": "6a49678dca8c530b",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "1e254aaaf552ac6f",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "7fc74f1315458e89",
+        "internal/plugins/isis/transport/ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "84afac45bef8b1b8"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-4.4-3": {
+      "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit.",
+      "requirement_sha": "df01baf86fc8de6e",
+      "tests": {
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e4d9a34a0933c3a4",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "e4d9a34a0933c3a4"
+      },
+      "units": {
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "dd1d33b5ab8c5360",
+        "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "178ba95fda4334ef"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-4.5-1": {
+      "note": "IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.",
+      "requirement_sha": "0cc1e7c5a022a544",
+      "tests": {
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+        "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195NeighborProtocolTransitions": "1b6b580adc0147c1",
+        "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "1b6b580adc0147c1",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
+        "internal/plugins/fib/kernel/onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+        "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195NeighborProtocolTransitions": "5610717ccdc56c7c",
+        "internal/plugins/isis/adjacency_protocol_rfc1195_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "c4dd9b032c623b7b",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "85e4b26caa2bcd37",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "85e4b26caa2bcd37"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-5.2-1": {
+      "note": "The tagged unit lsdb TestISISOriginateOnAdjacencyUp proves only the LSP-number-0 clause (TLV 129 with NLPID 0xCC in fragment 0). The quoted span also obliges Protocols Supported in every IS-IS Hello and in ISO 9542 ISHs on point-to-point links; those clauses are asserted by TestRFC1195NodeProtocolsAcrossInterfaces and TestRFC1195ISHTransmitReceive, which carry other tags, not this one.",
+      "requirement_sha": "7dd876d267bd817e",
+      "tests": {
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-5.2-2": {
+      "note": "lsdb TestISISOriginateOnAdjacencyUp fails if the Originator omits TLV 132 when the test hands it InterfaceAddrs, but it checks only the TLV type, not the addresses, and the engine path that collects the router's interface addresses (lsdb_wiring.go) is not exercised by any tagged unit, so an engine that passed none stays green. The codec test proves decoding only.",
+      "requirement_sha": "a975bea804aee1af",
+      "tests": {
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "9ba86ec0a3b2807a"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb/origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4InterfaceAddr": "875bee7c0cecca99"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-5.2-3": {
+      "note": "TestISISEngineOriginateOnAdjacencyUp checks that fragment 0 exists at Level 1 and Level 2 but never compares the TLV 132 address sets of the two levels; it would pass if the levels advertised different addresses.",
+      "requirement_sha": "c525e1bf6aa7c48d",
+      "tests": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineOriginateOnAdjacencyUp": "cc9a1290177d7ed6"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineOriginateOnAdjacencyUp": "2f2563774aadae91"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-5.2-4": {
+      "note": "The positive TestISISTLVIPv4RoundTrip round-trips TLV 135 (RFC 5305 extended reachability), which is not an RFC 1195 reachability entry. The negative TestRFC1195MissingDefaultMetricCannotRoute truncates a received TLV 128 so its length is no longer a multiple of 12, a structural error, and asserts receive-side rejection. Neither asserts that Ze's originated TLV 128/130 entries carry a default metric.",
+      "requirement_sha": "1aa511355973b83b",
+      "tests": {
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "9ba86ec0a3b2807a",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195MissingDefaultMetricCannotRoute": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "bbb4b387e09e51ca",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195MissingDefaultMetricCannotRoute": "0bce019aa3438957"
+      },
+      "verdict": "wrong"
+    },
+    "RFC1195-5.3.4-1": {
+      "note": "Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.",
+      "requirement_sha": "119119e4c95c31e0",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "eae62ddfdf501058",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "0a89edf8ea5526b8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-5.3.4-2": {
+      "note": "TestRFC1195PseudonodeCannotInheritRouterPrefixes fails if the pseudonode LSP carries TLV 128 (also 130, 131) while the router LSP carries the prefixes. Positive and negative tags sit on the same assertion; the input is the violation attempt, so the one test discriminates.",
+      "requirement_sha": "8e7861f0a678e2da",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "0a8d1d7ff20fe614",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes#2": "0a8d1d7ff20fe614"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-5.3.4-3": {
+      "note": "The row quotes the DEFAULT METRIC bit-8 rule. The tagged units encode and decode bit 7 (0x40) of the DELAY, EXPENSE and ERROR metrics, which is a different sentence of 5.3.4 ('Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception'). Nothing tagged asserts default-metric bit 8, which RFC 2966 section 2 reassigns to up/down.",
+      "requirement_sha": "01efcc8359fbdde6",
+      "tests": {
+        "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "bdf5e0fa437efb48",
+        "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "bdf5e0fa437efb48"
+      },
+      "units": {
+        "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "27dab5844ab7d4d4",
+        "internal/plugins/isis/packet/tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "1310acb87f70d516"
+      },
+      "verdict": "wrong"
+    },
+    "RFC1195-7-1": {
+      "note": "CSNP built from out-of-order inserts lists ascending LSP IDs with fragment 0 before 1; PSNP merges ack, request and ack-only lists into ascending order. Both fail on list-order output.",
+      "requirement_sha": "c50a8f1bd40c9a21",
+      "tests": {
+        "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195CSNPEntriesAscending": "08a14861e0215f6f",
+        "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists": "08a14861e0215f6f"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195CSNPEntriesAscending": "60323d5913370fbc",
+        "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists": "ad899479ec69540d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-7-2": {
+      "note": "TestRFC1195PeriodicSPFRecoversMissedUpdate fails if ageOnce's periodic refresh does not rerun SPF and repair the stale metric (11 -> 15), and the stale precondition isolates the missing trigger. Both tags point at that one assertion (one test, two hats) and the row carries no {single-polarity} marker.",
+      "requirement_sha": "66f05f5d45bf07c2",
+      "tests": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "e127fd71c27507af",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate#2": "e127fd71c27507af"
+      },
+      "units": {
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "fc86b5b7ba16982a",
+        "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate#2": "fc86b5b7ba16982a"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-7-6": {
+      "note": "One config resolves distinct per-link, per-area and per-domain chains; a link without a chain resolves none and the domain chain is not the area chain.",
+      "requirement_sha": "679e125893183a8b",
+      "tests": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesDoNotLeak": "a9a6dbe2e81ed00b",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesResolved": "a9a6dbe2e81ed00b"
+      },
+      "units": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesDoNotLeak": "5f5f0301f1121e99",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesResolved": "927a229bf423a53c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1195-7-7": {
+      "note": "The tagged units prove IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP are signed with their scope's password and refused under another scope. The ISO 9542 IS Hello clause of the quote is proven only by TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword, which are tagged RFC1195-4.4-2, not this row.",
+      "requirement_sha": "1bc7cbb508459e7d",
+      "tests": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes": "a9a6dbe2e81ed00b",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassSignedWithItsScope": "a9a6dbe2e81ed00b"
+      },
+      "units": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes": "d9d53879b7018d37",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassSignedWithItsScope": "9a8f0061db6c337a"
+      },
+      "verdict": "weak"
+    },
+    "RFC1195-7-8": {
+      "note": "One transmit key signs while two keys verify; a key outside the receive set is refused and the transmit key alone does not verify a PDU signed by key 2.",
+      "requirement_sha": "6a2eb20957775385",
+      "tests": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195KeyOutsideReceiveSetRefused": "a9a6dbe2e81ed00b",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords": "a9a6dbe2e81ed00b"
+      },
+      "units": {
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195KeyOutsideReceiveSetRefused": "92b15512483dd24d",
+        "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords": "2631e807949dbe2e"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc1195"
+}
