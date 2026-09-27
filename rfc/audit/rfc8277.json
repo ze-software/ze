@@ -1,0 +1,113 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC8277-2-2": {
+      "note": "Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. TestLabeledSingleLabelSection22Encoding goes red on it for LabeledUnicast.WriteTo (require.Equal on the whole encoding, and the Length-octet assertion). The second transmit producer, UpdateBuilder.BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go), which the static-route and grouped-announce paths reach through BuildLabeledUnicast and which writes labels with nlri.WriteLabelValues, is not exercised by any tagged unit, so breaking its layout turns nothing red.",
+      "requirement_sha": "174d15118dbeada3",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-2.2-1": {
+      "note": "RA33 strict re-audit: stays weak (blind reader's final 'enforced' not adopted, with evidence). Forbidden: a single label entry transmitted with S=0. The tagged unit asserts got[3]&0x01==1 for LabeledUnicast.WriteTo via nlri.WriteLabelStack only. A second production transmitter, UpdateBuilder.BuildLabeledUnicastNLRIBytes (message/update_build_labeled.go:261,266) and the VPN builder (update_build_vpn.go:272,278), sets S through nlri.WriteLabelValues (helpers.go:97), which no tagged unit exercises; dropping that line stays green. The {single-polarity} argument names WriteLabelStack as the only encoder and is therefore incomplete.",
+      "requirement_sha": "14e9407d18f45b31",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-2.2-3": {
+      "note": "The quoted sentence has two clauses. Reception clause: forbidden is rejecting or mis-decoding an NLRI whose Rsrv bits are non-zero; TestLabeledRsrvIgnoredOnReceive asserts NoError plus equal label, prefix and framing for Rsrv=0b111 through both ExtractLabels and SplitLabeled, so that clause is enforced. Transmission clause (SHOULD set Rsrv to zero): no tagged unit asserts the Rsrv bits ze transmits, so a sender writing non-zero Rsrv turns nothing red. The multi-label case of the same reception rule (Section 2.3) is also not exercised: every input carries one label.",
+      "requirement_sha": "4b854b57cc9edcda",
+      "tests": {
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "185c8ef1c3f2dd5e",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "185c8ef1c3f2dd5e"
+      },
+      "units": {
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "29ca998daacf0c45",
+        "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "29ca998daacf0c45"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-2.3-1": {
+      "note": "Forbidden: a non-last label entry transmitted with S=1. TestLabeledLabelStackSBitPlacement asserts entry[2]&0x01 == 0 for every non-last entry of 2- and 3-label stacks, which goes red for LabeledUnicast.WriteTo via nlri.WriteLabelStack. The UpdateBuilder path (BuildLabeledUnicastNLRIBytes -> nlri.WriteLabelValues) places the S bit in separate code that no tagged unit exercises.",
+      "requirement_sha": "4c59029fd06aa859",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-2.3-2": {
+      "note": "Forbidden: the last label entry transmitted with S=0. TestLabeledLabelStackSBitPlacement asserts entry[2]&0x01 == 1 on the last entry of 1-, 2- and 3-label stacks, which goes red for LabeledUnicast.WriteTo via nlri.WriteLabelStack. The UpdateBuilder path (BuildLabeledUnicastNLRIBytes -> nlri.WriteLabelValues) sets the S bit in separate code that no tagged unit exercises.",
+      "requirement_sha": "269494b6a72a82ae",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-2.5-1": {
+      "note": "Forbidden: keeping L1 bound, or holding two bindings, after U2 for the same prefix and next hop without ADD-PATH. TestLabeledImplicitWithdrawalNoAddPath feeds U1 then U2 through feedReceived and asserts Len()==1 (U1 no longer bound, goes red if a second entry is kept) and labelsFor==[200] (L2 bound, goes red if L1 survives). The negative is a boundary case rather than a violating input: an UPDATE for a different prefix must not withdraw the first binding (Len()==2, label 200 kept).",
+      "requirement_sha": "57e1a0588d672167",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "480f5431a6dc33c8",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "480f5431a6dc33c8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "0c4f435dc21741b2",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "0c4f435dc21741b2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8277-2.5-2": {
+      "note": "RA33 strict re-audit: weak. Clause 'U1 implicitly withdrawn': Len()==2 after re-advertising path 9 goes red if a third entry is kept. Clause 'L2 is now bound to P at N1': labelsFor(cidr9)==[300] does not isolate path 9, because label side-data is keyed on the prefix alone (the RFC8277-2.5-3 finding), so it passes whichever path's binding holds 300 and would pass with L2 bound to the wrong path. No assertion goes red on L2 not being bound to path 9 specifically.",
+      "requirement_sha": "44d0d337cb26bea6",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "480f5431a6dc33c8",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "480f5431a6dc33c8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "0d3d070dabaf72a3",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "0d3d070dabaf72a3"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-3.1-1": {
+      "note": "Forbidden: treating two same-prefix routes with different labels as incomparable, or using the label in selection. TestLabeledRoutesWithDifferentLabelsAreComparable covers the first case of the sentence's premise, routes on different BGP sessions (gatherCandidates Len==2, SelectBest winner unchanged when labels swap). The second case the sentence covers, two routes on the same add-paths session with different path identifiers, has no assertion in any tagged unit.",
+      "requirement_sha": "688242e75d18672d",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "480f5431a6dc33c8",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "480f5431a6dc33c8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable": "61e04c91abc4c535",
+        "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledRoutesWithDifferentLabelsAreComparable#2": "61e04c91abc4c535"
+      },
+      "verdict": "weak"
+    },
+    "RFC8277-3.2.1-1": {
+      "note": "RA33 strict re-audit: weak. Quote covers SAFI-4 AND SAFI-128 routes. The single tagged unit builds only a SAFI 4 MP_REACH (buildMPReachSource(1, 4, ...)); no SAFI-128 (VPN) propagation with an unchanged next hop is asserted, so a VPN label rewrite stays green. The SAFI-4 half is proven (verbatim MP_REACH, label octets equal).",
+      "requirement_sha": "6dcf241796360ebe",
+      "tests": {
+        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "7b9b6b8e7de6262e"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "a4c572b3a1784812"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8277"
+}
