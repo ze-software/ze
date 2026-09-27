@@ -1,0 +1,137 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC4035-3-6": {
+      "note": "TestRFC4035_NoDNSSECAdditionalProcessing covers only the OPT-less query; the sentence also covers a query WITH an OPT whose DO bit is clear, which no unit sends, so the second arm of the condition is unproven (question 4)",
+      "requirement_sha": "ae48aac3a4def396",
+      "tests": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+      },
+      "units": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+      },
+      "verdict": "weak"
+    },
+    "RFC4035-3-8": {
+      "note": "TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red",
+      "requirement_sha": "d947500f23fcd56a",
+      "tests": {
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "e0aef88c57572c95",
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "e0aef88c57572c95"
+      },
+      "units": {
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "f3e7e9b65d506bb7",
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "f3e7e9b65d506bb7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-3-9": {
+      "note": "the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one",
+      "requirement_sha": "ece156dc4276161a",
+      "tests": {
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "e0aef88c57572c95",
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "e0aef88c57572c95"
+      },
+      "units": {
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "f3e7e9b65d506bb7",
+        "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "f3e7e9b65d506bb7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-3.1.4.1-1": {
+      "note": "an apex DS query through geodns answerQuery under the real harness must return NOERROR, AA set, empty Answer, SOA in Authority, and no RA; an NXDOMAIN or REFUSED answer at the apex goes red; the negative pins that the no-data answer is not given for an out-of-zone name",
+      "requirement_sha": "65f0e74ca589723c",
+      "tests": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData": "0d5a4b0eaf3ac272",
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData#2": "0d5a4b0eaf3ac272"
+      },
+      "units": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData": "40b1458588e048b8",
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_DSQueryIsAuthoritativeNoData#2": "40b1458588e048b8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-3.1.6-2": {
+      "note": "single polarity: asserts AD clear on both the OPT-less and DO-set geodns replies, and ze authenticates nothing, so any AD-setting path goes red",
+      "requirement_sha": "c21164afcb4e05c4",
+      "tests": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+      },
+      "units": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-3.1.6-4": {
+      "note": "single polarity: geodns serves zone data from the running configuration, not obtained by secure means, and the unit asserts it is never flagged authentic (AD clear) on either reply",
+      "requirement_sha": "139ed0fd61df85f1",
+      "tests": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+      },
+      "units": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-3.1.6-5": {
+      "note": "single polarity: no configuration marks local data authentic, and the unit asserts AD clear on the geodns replies whatever the query's DO bit",
+      "requirement_sha": "a0d7174c32f4dbbf",
+      "tests": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+      },
+      "units": {
+        "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4035-4.1-1": {
+      "note": "Forbidden: a security-aware query sent without an OPT, or with DO clear. TestRFC4035_QueryCarriesEDNS0DOAndClearAD fatals on a missing OPT and errors on DO clear, but only under dnssec-validation strict. The row's own marker names permissive mode as security-aware too (SetEdns0(4096, validating) at resolver.go:261), and no tagged unit captures a permissive-mode query, so a regression that set DO only for strict stays green",
+      "requirement_sha": "f8b38c66c9f1c8ff",
+      "tests": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
+      },
+      "units": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
+      },
+      "verdict": "weak"
+    },
+    "RFC4035-4.1-4": {
+      "note": "Forbidden: an OPT whose sender's UDP payload size is not the size the resolver accepts. The unit pins opt.UDPSize() == 4096 under strict mode only; the clause 'the message size that it is willing to accept' is not tied to the receive side in this unit (the large-response acceptance is TestRFC4035_LargeUDPResponseAccepted, tagged RFC4035-4.1-2, not this id), and permissive mode, security-aware per the row's marker, sends no captured query",
+      "requirement_sha": "6893035753d68473",
+      "tests": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
+      },
+      "units": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
+      },
+      "verdict": "weak"
+    },
+    "RFC4035-4.6-3": {
+      "note": "TestRFC4035_ResponseADBitDisregarded covers the AD bit only; the CD half of the sentence is untested (question 4); the negative's AD=1 reply is a SERVFAIL, which dnssecDecision rejects for its rcode alone, so it would stay green even if ze honoured AD=1 on a NOERROR answer (question 3)",
+      "requirement_sha": "6d85ed1cc63e7cbe",
+      "tests": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "1b164a1a570b2a91",
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "1b164a1a570b2a91"
+      },
+      "units": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "8c57c20275588fc1",
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "8c57c20275588fc1"
+      },
+      "verdict": "weak"
+    },
+    "RFC4035-4.9-1": {
+      "note": "an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red",
+      "requirement_sha": "2358e5a8859362cf",
+      "tests": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "1b164a1a570b2a91",
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "1b164a1a570b2a91"
+      },
+      "units": {
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "a5da57d36af22e7a",
+        "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "a5da57d36af22e7a"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc4035"
+}
