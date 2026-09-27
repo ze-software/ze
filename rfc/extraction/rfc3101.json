@@ -6,7 +6,7 @@
   "source-sha": "7061642290964ece",
   "signed-off": "2026-09-27",
   "reviewer": "claude",
-  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 annex subsection heading written with a dotted number and no trailing dot (\"B.1 Level 1 ...\") now opens its section. Sites moved into the annex sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -155,9 +155,45 @@
     },
     {
       "id": "F",
-      "sites": 2,
+      "sites": 0,
       "disposition": "walked",
-      "reason": "Appendix F. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+      "reason": "Appendix F. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0. Since the same day its subsections F.1 to F.6, written without a trailing dot, open their own sections, and the sites once walked here sit in them, each decision carried forward by its verbatim quote."
+    },
+    {
+      "id": "F.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section F, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "F.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "F.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.3. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "F.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.4. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "F.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.5. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "F.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection F.6. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section F, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
     }
   ],
   "sites": [
@@ -411,7 +447,7 @@
       "mapped-to": "RFC3101-x-5"
     },
     {
-      "id": "F:1",
+      "id": "F.1:1",
       "quote": "When summary routes are not imported into an NSSA, the default LSA originated by its border routers must be a Type-3 summary-LSA.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -419,7 +455,7 @@
       "mapped-to": "RFC3101-2.7-2"
     },
     {
-      "id": "F:2",
+      "id": "F.6:1",
       "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",

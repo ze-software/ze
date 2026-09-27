@@ -82,10 +82,14 @@ func reBoilerplate() string {
 // after the letter with no dot between ("A2.  IPv6 Extension Headers", RFC
 // 4302), and under the word Appendix, in either case, the letter may end in a
 // colon ("Appendix D:  Configuration Parameters", RFC 3101). Only under the
-// word, because a bare "S: 250 OK" is a line of a transcript.
+// word, because a bare "S: 250 OK" is a line of a transcript. An annex
+// subsection may also omit the trailing dot when a dotted number follows the
+// letter ("B.1 Level 1 Complete Sequence Numbers PDU", RFC 1195): the ".1"
+// already separates it from a sentence opening with "A".
 //
 // Groups: 1 the appendix letter written under the word, 2 the number, 3 the
-// dot after the number, 4 the letter, 5 the title.
+// dot after the number, 4 the letter with its trailing dot, 5 the letter with
+// a dotted number and no trailing dot, 6 the title.
 //
 // It OVER-MATCHES, deliberately and unavoidably: RFCs put column-0 attribute
 // tables, packet diagrams and tables of contents in the same text stream, and
@@ -94,7 +98,7 @@ func reBoilerplate() string {
 // to prevent one -- see sectionBodies. The one false match it refuses is the
 // undotted number out of sequence, see columnZeroHeadings.
 var sectionHeadingRE = regexp.MustCompile(
-	`^(?:(?:Appendix|APPENDIX)[ \t]+([A-Z]\d*(?:\.\d+)*)[.:]|(?:(?:Appendix|APPENDIX)[ \t]+)?(\d+(?:\.\d+)*)(\.?)|([A-Z]\d*(?:\.\d+)*)\.)[ \t]+(\S.*)$`)
+	`^(?:(?:Appendix|APPENDIX)[ \t]+([A-Z]\d*(?:\.\d+)*)[.:]|(?:(?:Appendix|APPENDIX)[ \t]+)?(\d+(?:\.\d+)*)(\.?)|([A-Z]\d*(?:\.\d+)*)\.|([A-Z](?:\.\d+)+))[ \t]+(\S.*)$`)
 
 // indentedHeadingRE matches a heading once the body margin is cut off its line,
 // in a text where sectionHeadingRE finds nothing (owner decision D-5,
@@ -226,7 +230,9 @@ func replaceInvalidUTF8(src string) string {
 
 // stripPageFurniture removes the whole page break: the blank run before the
 // "[Page N]" footer, the footer, the form feed, the running header, and the
-// blank run after it.
+// blank run after it. The running header is every line up to the first blank
+// one, because some RFCs write it on two lines (RFC 792: "September 1981",
+// then "RFC 792").
 //
 // Removing only the three furniture LINES is not enough. RFCs break pages
 // mid-sentence, and the blank lines bracketing the break would still read as a
@@ -240,7 +246,8 @@ func replaceInvalidUTF8(src string) string {
 func stripPageFurniture(text string) string {
 	var out []string
 	// "" is ordinary text; "header" is inside the break, still owed the running
-	// header; "blanks" is header consumed, still swallowing the blank run.
+	// header; "inHeader" is reading the header's lines; "blanks" is header
+	// consumed, still swallowing the blank run.
 	state := ""
 	for raw := range strings.SplitSeq(text, "\n") {
 		line := strings.ReplaceAll(raw, "\f", "")
@@ -253,10 +260,13 @@ func stripPageFurniture(text string) string {
 		}
 		if state != "" {
 			if strings.TrimSpace(line) == "" {
+				if state == "inHeader" {
+					state = "blanks"
+				}
 				continue // the form-feed line, and the blanks around the header
 			}
-			if state == "header" {
-				state = "blanks"
+			if state != "blanks" {
+				state = "inHeader"
 				continue
 			}
 			state = "" // first real line of the new page: the text resumes here
@@ -370,11 +380,10 @@ func columnZeroHeadings() headingReader {
 		if found == nil {
 			return "", "", false
 		}
-		if found[1] != "" {
-			return found[1], found[5], true
-		}
-		if found[4] != "" {
-			return found[4], found[5], true
+		for _, letter := range []string{found[1], found[4], found[5]} {
+			if letter != "" {
+				return letter, found[6], true
+			}
 		}
 		id := found[2]
 		top, _, dotted := strings.Cut(id, ".")
@@ -387,7 +396,7 @@ func columnZeroHeadings() headingReader {
 			return "", "", false
 		}
 		highest = max(highest, number)
-		return id, found[5], true
+		return id, found[6], true
 	}
 }
 

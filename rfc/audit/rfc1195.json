@@ -270,8 +270,8 @@
       "verdict": "wrong"
     },
     "RFC1195-7-1": {
-      "note": "Re-judged 2026-09-27 by QF-2 after the row's citation moved to \u00a78 (the heading reader files RFC 1195's Annex B to D under \u00a78); the text is unchanged and the tagged units were re-read. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.",
-      "requirement_sha": "fc0b7db1249a953c",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7B.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.",
+      "requirement_sha": "6ca8364421f0d147",
       "tests": {
         "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195CSNPEntriesAscending": "08a14861e0215f6f",
         "internal/plugins/isis/lsdb/snp_rfc1195_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists": "08a14861e0215f6f"
@@ -283,8 +283,8 @@
       "verdict": "enforced"
     },
     "RFC1195-7-2": {
-      "note": "Re-judged 2026-09-27 by QF-2 after the row's citation moved to \u00a78 (the heading reader files RFC 1195's Annex B to D under \u00a78); the text is unchanged and the tagged units were re-read. Still weak: TestRFC1195PeriodicSPFRecoversMissedUpdate carries both tags over one assertion (stale metric 11 repaired to 15 by the periodic pass), and the row carries no {single-polarity} marker.",
-      "requirement_sha": "be697e8341e633ab",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7C.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Still weak: TestRFC1195PeriodicSPFRecoversMissedUpdate carries both tags over one assertion (stale metric 11 repaired to 15 by the periodic pass), and the row carries no {single-polarity} marker.",
+      "requirement_sha": "0b92b9bc4e437fb6",
       "tests": {
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "e127fd71c27507af",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate#2": "e127fd71c27507af"
@@ -296,8 +296,8 @@
       "verdict": "weak"
     },
     "RFC1195-7-3": {
-      "note": "First verdict 2026-09-27 (QF-2), row re-cited to \u00a78 (Annex C.1.1). Forbidden: an IP reachability entry whose identifier collides with a router's system identifier. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix gives router B a System ID spelling 10.4.0.0/24 and asserts 3 settled router vertices, B at metric 10, C at 15 through B, and one prefix route at 11: a merged identifier space changes the vertex count. TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a lookalike prefix does not make a disconnected router's 198.51.100.0/24 reachable. Enforced.",
-      "requirement_sha": "9bca0672b13a0a0f",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7C.1.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: an IP reachability entry whose identifier collides with a router's system identifier. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix gives router B a System ID spelling 10.4.0.0/24 and asserts 3 settled router vertices, B at metric 10, C at 15 through B, and one prefix route at 11: a merged identifier space changes the vertex count. TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a lookalike prefix does not make a disconnected router's 198.51.100.0/24 reachable. Enforced.",
+      "requirement_sha": "70f05761245dc150",
       "tests": {
         "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195PrefixCannotBridgeDisconnectedRouters": "21a45be2072f321b",
         "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix": "21a45be2072f321b"
@@ -309,8 +309,8 @@
       "verdict": "enforced"
     },
     "RFC1195-7-4": {
-      "note": "First verdict 2026-09-27 (QF-2), row re-cited to \u00a78 (Annex C.1.2). Forbidden: level 2 internal and external routes compared as one set. TestRFC1195InternalMetricOutranksExternal asserts the internal route at cost 163 wins over an external-metric route at cost 2 (metricWinner id 2, 163): merging the sets by cost goes red. The negative tag, TestRFC1195ExternalReachabilityWithInternalMetric, asserts an external-reachability route with an INTERNAL metric wins on cost, which is the \u00a73.10.2 NOTE that such routes are treated as internal, a neighbouring rule, not a case where keeping the sets separate is violated. Weak: one polarity proves the row.",
-      "requirement_sha": "99f1047adfd01778",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7C.1.4, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: level 2 internal and external routes compared as one set. TestRFC1195InternalMetricOutranksExternal asserts the internal route at cost 163 wins over an external-metric route at cost 2 (metricWinner id 2, 163): merging the sets by cost goes red. The negative tag, TestRFC1195ExternalReachabilityWithInternalMetric, asserts an external-reachability route with an INTERNAL metric wins on cost, which is the \u00a73.10.2 NOTE that such routes are treated as internal, a neighbouring rule, not a case where keeping the sets separate is violated. Weak: one polarity proves the row.",
+      "requirement_sha": "2fa4ebf4b250f210",
       "tests": {
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195ExternalReachabilityWithInternalMetric": "e127fd71c27507af",
         "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal": "e127fd71c27507af"
@@ -322,8 +322,8 @@
       "verdict": "weak"
     },
     "RFC1195-7-5": {
-      "note": "First verdict 2026-09-27 (QF-2), row re-cited to \u00a78 (Annex C.1.4 step 2). Forbidden: a TENT entry not marked end system versus router, so an end system (a reachability entry) is used as a transit router. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix asserts the settled set holds 3 routers only and the entry is reached through its advertising router; TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a prefix leaf does not bridge to a disconnected router's prefix. Enforced.",
-      "requirement_sha": "703fac30d04c9189",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7C.1.4, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: a TENT entry not marked end system versus router, so an end system (a reachability entry) is used as a transit router. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix asserts the settled set holds 3 routers only and the entry is reached through its advertising router; TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a prefix leaf does not bridge to a disconnected router's prefix. Enforced.",
+      "requirement_sha": "d7fa3c8967e30727",
       "tests": {
         "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195PrefixCannotBridgeDisconnectedRouters": "21a45be2072f321b",
         "internal/plugins/isis/spf/route_rfc1195_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix": "21a45be2072f321b"
@@ -335,8 +335,8 @@
       "verdict": "enforced"
     },
     "RFC1195-7-6": {
-      "note": "Re-judged 2026-09-27 by QF-2 after the row's citation moved to \u00a78 (the heading reader files RFC 1195's Annex B to D under \u00a78); the text is unchanged and the tagged units were re-read. Forbidden: one password shared across link, area and domain scopes. TestRFC1195PasswordScopesResolved asserts three distinct chains iih/area/domain with distinct key ids; TestRFC1195PasswordScopesDoNotLeak asserts eth1 resolves no eth0 link chain at either level and the L2 chain is not the L1 chain. Enforced.",
-      "requirement_sha": "2be6f14e078dd634",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: one password shared across link, area and domain scopes. TestRFC1195PasswordScopesResolved asserts three distinct chains iih/area/domain with distinct key ids; TestRFC1195PasswordScopesDoNotLeak asserts eth1 resolves no eth0 link chain at either level and the L2 chain is not the L1 chain. Enforced.",
+      "requirement_sha": "50029701bb871114",
       "tests": {
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesDoNotLeak": "a9a6dbe2e81ed00b",
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PasswordScopesResolved": "a9a6dbe2e81ed00b"
@@ -348,8 +348,8 @@
       "verdict": "enforced"
     },
     "RFC1195-7-7": {
-      "note": "Re-judged 2026-09-27 by QF-2 after the row's citation moved to \u00a78 (the heading reader files RFC 1195's Annex B to D under \u00a78); the text is unchanged and the tagged units were re-read. Still weak: the tagged units prove IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP are signed with their scope's password and refused under another scope. The ISO 9542 IS Hello clause is proven only by TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword, which are tagged RFC1195-4.4-2, not this row.",
-      "requirement_sha": "d391bca7ed207789",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Still weak: the tagged units prove IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP are signed with their scope's password and refused under another scope. The ISO 9542 IS Hello clause is proven only by TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword, which are tagged RFC1195-4.4-2, not this row.",
+      "requirement_sha": "18e4b53ad174feed",
       "tests": {
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes": "a9a6dbe2e81ed00b",
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195PDUClassSignedWithItsScope": "a9a6dbe2e81ed00b"
@@ -361,8 +361,8 @@
       "verdict": "weak"
     },
     "RFC1195-7-8": {
-      "note": "Re-judged 2026-09-27 by QF-2 after the row's citation moved to \u00a78 (the heading reader files RFC 1195's Annex B to D under \u00a78); the text is unchanged and the tagged units were re-read. Forbidden: several transmit passwords, or a receive set of one. TestRFC1195OneTransmitPasswordManyReceivePasswords asserts sign key 1 only and a receive set of two that verifies both; TestRFC1195KeyOutsideReceiveSetRefused asserts a key outside the set is refused and the transmit key alone does not verify a key-2 PDU. Enforced.",
-      "requirement_sha": "d244f4182824cd05",
+      "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: several transmit passwords, or a receive set of one. TestRFC1195OneTransmitPasswordManyReceivePasswords asserts sign key 1 only and a receive set of two that verifies both; TestRFC1195KeyOutsideReceiveSetRefused asserts a key outside the set is refused and the transmit key alone does not verify a key-2 PDU. Enforced.",
+      "requirement_sha": "6d7524afd3c03651",
       "tests": {
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195KeyOutsideReceiveSetRefused": "a9a6dbe2e81ed00b",
         "internal/plugins/isis/auth_rfc1195_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords": "a9a6dbe2e81ed00b"

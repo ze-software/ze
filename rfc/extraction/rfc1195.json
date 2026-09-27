@@ -6,7 +6,7 @@
   "source-sha": "4adf2025be11a7dd",
   "signed-off": "2026-09-27",
   "reviewer": "claude",
-  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 annex subsection heading written with a dotted number and no trailing dot (\"B.1 Level 1 ...\") now opens its section. Sites moved into the annex sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -228,8 +228,128 @@
     },
     {
       "id": "8",
-      "sites": 26,
+      "sites": 0,
       "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Annex subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Annex subsection A.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Annex subsection B.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Annex subsection B.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Annex subsection B.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Annex subsection B.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Annex subsection C.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C.1.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Annex subsection C.1.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection C.1.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "C.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection C.1.3. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "C.1.4",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Annex subsection C.1.4. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 6 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection C.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "C.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection C.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "C.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection C.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "D.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection D.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "D.2",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Annex subsection D.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of section 8, where its 7 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "E.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection E.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "E.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection E.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "E.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection E.2.1. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "E.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Annex subsection E.2.2. Until 2026-09-27 the heading reader did not read a column-0 annex subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
     }
   ],
   "sites": [
@@ -811,19 +931,19 @@
       "mapped-to": "RFC1195-5.3.4-3"
     },
     {
-      "id": "8:1",
+      "id": "A.1:1",
       "quote": "In this case the inter-domain routing protocol information entry must include a single AS number, which is used to tag all subsequent External IP Reachability entries until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-8-1"
     },
     {
-      "id": "8:2",
+      "id": "A.2:1",
       "quote": "Type = 0 is reserved (must not be sent, and must be ignored on receipt).",
       "disposition": "mapped",
       "mapped-to": "RFC1195-8-2"
     },
     {
-      "id": "8:3",
+      "id": "A.2:2",
       "quote": "In this case, this \"inter-domain routing protocol information\" entry must contain precisely one 2 octet AS number.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -831,7 +951,7 @@
       "mapped-to": "RFC1195-8-1"
     },
     {
-      "id": "8:4",
+      "id": "B.1:1",
       "quote": "The option fields, if they appear more than once, shall appear sorted into ascending LSPID order.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -839,13 +959,13 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:5",
+      "id": "B.1:2",
       "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:6",
+      "id": "B.2:1",
       "quote": "The option fields, if they appear more than once, shall appear sorted into ascending LSPID order.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -853,7 +973,7 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:7",
+      "id": "B.2:2",
       "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -861,7 +981,7 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:8",
+      "id": "B.3:1",
       "quote": "The option fields, if they appear more than once, shall appear sorted into ascending LSPID order.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -869,7 +989,7 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:9",
+      "id": "B.3:2",
       "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -877,7 +997,7 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:10",
+      "id": "B.4:1",
       "quote": "The option fields, if they appear more than once, shall appear sorted into ascending LSPID order.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -885,7 +1005,7 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:11",
+      "id": "B.4:2",
       "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -893,71 +1013,71 @@
       "mapped-to": "RFC1195-7-1"
     },
     {
-      "id": "8:12",
+      "id": "C.1:1",
       "quote": "However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-2"
     },
     {
-      "id": "8:13",
+      "id": "C.1.1:1",
       "quote": "The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-3"
     },
     {
-      "id": "8:14",
+      "id": "C.1.4:1",
       "quote": "The Decision Process Algorithm must be run once for each supported routing metric (i.e., for each supported Type of Service).",
       "disposition": "excluded",
       "excluded-kind": "feature-out-of-scope",
       "reason": "running the Decision Process once per supported routing metric is an obligation conditional on supporting more than the default metric, and RFC 1195 section 3.5 makes that optional: 'The support for TOS/QOS is optional.' ze supports the default metric only (internal/plugins/isis/types/metric.go), so the algorithm runs once"
     },
     {
-      "id": "8:15",
+      "id": "C.1.4:2",
       "quote": "IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-4"
     },
     {
-      "id": "8:16",
+      "id": "C.1.4:3",
       "quote": "Note that this implies that routers which are both level 1 and level 2 routers, and which support all four routing metrics, must run the SPF algorithm 8 times (assuming partition repair is not implemented).",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "a note deriving a consequence ('Note that this implies that routers ... must run the SPF algorithm 8 times') from the rule at site 7:10; it adds no obligation of its own"
     },
     {
-      "id": "8:17",
+      "id": "C.1.4:4",
       "quote": "If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.",
       "disposition": "excluded",
       "excluded-kind": "feature-out-of-scope",
       "reason": "the sentence names the feature as optional itself: 'If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.' ze implements no partition repair: internal/plugins/isis holds no partition-repair path, only the L1/L2 decision process"
     },
     {
-      "id": "8:18",
+      "id": "C.1.4:5",
       "quote": "2) Now pre-load TENT with the local adjacency database (Each entry made to TENT must be marked as being either an End System or a router to enable the check at the end of Step 2 to be made correctly - Note that each local IP reachability entry is included as an adjacency, and is marked as being an End System).",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-5"
     },
     {
-      "id": "8:19",
+      "id": "C.1.4:6",
       "quote": "Note: d(N) must be less than dist(P,N), or else N would not have been put into PATHS.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "a mathematical note about the Dijkstra invariant ('d(N) must be less than dist(P,N), or else N would not have been put into PATHS'), not an obligation on an implementation"
     },
     {
-      "id": "8:20",
+      "id": "D.2:1",
       "quote": "The password shall be configured on a per-link, per-area, and per- domain basis.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-6"
     },
     {
-      "id": "8:21",
+      "id": "D.2:2",
       "quote": "- IS-IS Hello and 9542 IS Hello packets shall contain the per-link password",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-7"
     },
     {
-      "id": "8:22",
+      "id": "D.2:3",
       "quote": "- Level 1 Link State Packets shall contain the per-area password",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -965,7 +1085,7 @@
       "mapped-to": "RFC1195-7-7"
     },
     {
-      "id": "8:23",
+      "id": "D.2:4",
       "quote": "- Level 2 Link State Packets shall contain the per-domain password",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -973,7 +1093,7 @@
       "mapped-to": "RFC1195-7-7"
     },
     {
-      "id": "8:24",
+      "id": "D.2:5",
       "quote": "- Level 1 Sequence Number Packets shall contain the per-area password",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -981,7 +1101,7 @@
       "mapped-to": "RFC1195-7-7"
     },
     {
-      "id": "8:25",
+      "id": "D.2:6",
       "quote": "- Level 2 Sequence Number Packets shall contain the per-domain password",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -989,7 +1109,7 @@
       "mapped-to": "RFC1195-7-7"
     },
     {
-      "id": "8:26",
+      "id": "D.2:7",
       "quote": "Also, each of these three passwords shall be configured with: (i) \"Transmit Password\", whose value is a single password, and (ii) \"Receive Passwords\", whose value is a set of passwords.",
       "disposition": "mapped",
       "mapped-to": "RFC1195-7-8"

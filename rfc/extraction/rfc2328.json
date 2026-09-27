@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc2328.txt",
   "source-sha": "e2e865f4d247d1bf",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 annex subsection heading written with a dotted number and no trailing dot (\"B.1 Level 1 ...\") now opens its section. Sites moved into the annex sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -112,11 +113,101 @@
     },
     {
       "id": "A",
-      "sites": 9,
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 2,
       "disposition": "walked",
+      "reason": "Appendix subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.3. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote.",
       "unsourced-ids": [
         "RFC2328-A.3.3-1"
       ]
+    },
+    {
+      "id": "A.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.4. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.3.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.5. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.3.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.3.6. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.4.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 3 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4.3. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.4.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4.4. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section A, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "A.4.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.4.5. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
     },
     {
       "id": "B",
@@ -1026,58 +1117,58 @@
       "mapped-to": "RFC2328-12.2-1"
     },
     {
-      "id": "A:1",
+      "id": "A.1:1",
       "quote": "To ensure that these packets will not travel multiple hops, their IP TTL must be set to 1.",
       "disposition": "mapped",
       "mapped-to": "RFC2328-A.1-1"
     },
     {
-      "id": "A:2",
+      "id": "A.1:2",
       "quote": "Both the Designated Router and Backup Designated Router must be prepared to receive packets destined to this address.",
       "disposition": "mapped",
       "mapped-to": "RFC2328-A.1-2"
     },
     {
-      "id": "A:3",
+      "id": "A.3.2:1",
       "quote": "All routers connected to a common network must agree on certain parameters (Network mask, HelloInterval and RouterDeadInterval).",
       "disposition": "mapped",
       "mapped-to": "RFC2328-10.5-1"
     },
     {
-      "id": "A:4",
+      "id": "A.3.3:1",
       "quote": "It contains all the information required to uniquely identify both the LSA and the LSA's current instance.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "describes what the LSA header contains ('all the information required to uniquely identify the LSA'); a field description, not an obligation"
     },
     {
-      "id": "A:5",
+      "id": "A.3.6:1",
       "quote": "It contains all the information required to uniquely identify both the LSA and the LSA's current instance.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "describes what the LSA header contains ('all the information required to uniquely identify the LSA'); a field description, not an obligation"
     },
     {
-      "id": "A:6",
+      "id": "A.4.2:1",
       "quote": "All of the router's links to the area must be described in a single router-LSA.",
       "disposition": "mapped",
       "mapped-to": "RFC2328-12.4.1-1"
     },
     {
-      "id": "A:7",
+      "id": "A.4.2:2",
       "quote": "This must be the total collection of router links (i.e., interfaces) to the area.",
       "disposition": "mapped",
       "mapped-to": "RFC2328-12.4.1-1"
     },
     {
-      "id": "A:8",
+      "id": "A.4.2:3",
       "quote": "See Section 16.1.1 for more details. # TOS The number of different TOS metrics given for this link, not counting the required link metric (referred to as the TOS 0 metric in [Ref9]).",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "describes the # TOS field's meaning, counting metrics 'not counting the required link metric'; a field description, not an obligation"
     },
     {
-      "id": "A:9",
+      "id": "A.4.4:1",
       "quote": "This field is not meaningful and must be zero for Type 4 summary-LSAs.",
       "disposition": "mapped",
       "mapped-to": "RFC2328-A.4.4-1"

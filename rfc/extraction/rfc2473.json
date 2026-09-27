@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc2473.txt",
   "source-sha": "59956643eb9ece1a",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 annex subsection heading written with a dotted number and no trailing dot (\"B.1 Level 1 ...\") now opens its section. Sites moved into the annex sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -184,8 +185,26 @@
     },
     {
       "id": "11",
-      "sites": 1,
+      "sites": 0,
       "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.1.1. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix subsection A.1.2. Until 2026-09-27 the heading reader did not read a column-0 appendix subsection heading written without a trailing dot, so its text was read as part of section 11, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
     }
   ],
   "sites": [
@@ -260,7 +279,7 @@
       "reason": "the keyword sits inside the noun phrase \"the minimum link MTU size required for IPv6 [IPv6-Spec]\", which names a constant; the sentence itself restates the rule of section 7.1 in indicative prose"
     },
     {
-      "id": "11:1",
+      "id": "A.1.2:1",
       "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",

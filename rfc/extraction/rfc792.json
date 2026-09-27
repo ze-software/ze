@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc792.txt",
   "source-sha": "1cc33872d3b2a6af",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The page-furniture stripper changed on 2026-09-27: a running header written on two lines (\"September 1981\", then \"RFC 792\") is now removed whole, so the sentence a page break cuts is read whole. Every decision was carried forward by its verbatim quote; the site whose sentence the fix completed carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -60,7 +61,7 @@
     },
     {
       "id": "front:6",
-      "quote": "is zero it must discard the datagram.",
+      "quote": "If the gateway processing a datagram finds the time to live field is zero it must discard the datagram.",
       "disposition": "mapped",
       "mapped-to": "RFC792-TimeExceeded-1"
     },

@@ -1135,3 +1135,58 @@ func TestAQuoteMatchesAcrossALineWrapHyphen(t *testing.T) {
 		t.Error("a quote that drops the hyphen matched")
 	}
 }
+
+// VALIDATES: a running header written on two lines (RFC 792: "September
+// 1981", then "RFC 792") is page furniture as a whole, like the one-line kind.
+// PREVENTS: the second header line left inside the sentence the page break
+// cuts, so RFC792-TimeExceeded-1 could not be quoted verbatim.
+// METHOD: stripPageFurniture and sentences over an RFC 792 page break.
+func TestATwoLineRunningHeaderIsFurniture(t *testing.T) {
+	text := "      If the gateway processing a datagram finds the time to live field\n\n\n" +
+		"                                                                [Page 6]\n\f\n" +
+		"September 1981                                                          \nRFC 792\n\n\n\n" +
+		"      is zero it must discard the datagram.  The gateway may also notify\n"
+	got := stripPageFurniture(text)
+	if strings.Contains(got, "RFC 792") || strings.Contains(got, "September 1981") {
+		t.Fatalf("the running header survived: %q", got)
+	}
+	sentence := sentences(got)
+	want := "If the gateway processing a datagram finds the time to live field is zero it must discard the datagram."
+	if len(sentence) == 0 || sentence[0] != want {
+		t.Fatalf("sentences %q, want the first to be %q", sentence, want)
+	}
+}
+
+// annexSubsectionSource carries RFC 1195's annex forms: a centred "Annex B"
+// title, then subsections at column 0 numbered after the letter with no dot
+// after the number ("B.1 Level 1 ...", "C.1.1 Databases"). The field legend
+// lines numbered "7" inside an annex are not headings.
+const annexSubsectionSource = "1 Introduction\n\n   The protocol.\n\n" +
+	"                                Annex B\n\n" +
+	"B.1 Level 1 Complete Sequence Numbers PDU\n\n" +
+	"7 REMAINING LIFETIME - Remaining Lifetime of LSP.\n\n" +
+	"The entries shall be sorted into ascending LSPID order.\n\n" +
+	"C.1.1 Databases\n\n   Each entry MUST be marked.\n"
+
+// VALIDATES: an annex subsection written "B.1 Title" opens section B.1 under
+// the id a row cites (§B.1), and its sentences are located there.
+// PREVENTS: RFC 1195's Annexes A to D read as part of "8 References", so a row
+// quoting annex text had to cite §8 to pass.
+// METHOD: sectionBodies over annexSubsectionSource.
+func TestAnAnnexSubsectionWithoutATrailingDotOpensItsSection(t *testing.T) {
+	var ids []string
+	var inB1 bool
+	for _, one := range sectionBodies(annexSubsectionSource) {
+		ids = append(ids, one.id)
+		if one.id == "B.1" {
+			inB1 = strings.Contains(one.body, "sorted into ascending LSPID order")
+		}
+	}
+	want := []string{frontSection, "1", "B.1", "C.1.1"}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("sections %v, want %v", ids, want)
+	}
+	if !inB1 {
+		t.Error("the annex sentence is not in section B.1")
+	}
+}
