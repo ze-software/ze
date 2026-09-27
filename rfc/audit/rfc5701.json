@@ -1,0 +1,45 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5701-2-1": {
+      "note": "Forbidden: flagging code 25 as anything but optional transitive (0x80 non-transitive, 0x40 well-known, partial on origination). TestRFC5701IPv6ExtCommunityFlags asserts IsOptional, IsTransitive, f != FlagOptional, !IsPartial and f == FlagOptional|FlagTransitive, each red on the corresponding wrong flag byte from Flags() (community.go). Both polarities.",
+      "requirement_sha": "d530d290148b080f",
+      "tests": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags": "769334093b6b8784",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags#2": "769334093b6b8784"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags": "53601f8f0e06e47d",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags#2": "53601f8f0e06e47d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5701-2-2": {
+      "note": "Forbidden: encoding a community on any stride but 20 octets (e.g. the 8-octet RFC 4360 stride). TestRFC5701IPv6ExtCommunityTwentyOctets asserts Len() == 40 and WriteTo n == 40 for two communities, and buf[20] == 0xBB with buf[8], buf[16] != 0xBB, red on any other per-community size. Both polarities.",
+      "requirement_sha": "774c9becd32abf56",
+      "tests": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets": "769334093b6b8784",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets#2": "769334093b6b8784"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets": "9a81b2bab8b06c22",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets#2": "9a81b2bab8b06c22"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5701-2-3": {
+      "note": "The span states the attribute is a set of 20-octet communities, so a value whose length is not a multiple of 20 is not such a set. Forbidden: parsing a non-multiple length as communities (truncating). TestRFC5701IPv6ExtCommunityLengthMultipleOf20 asserts ParseIPv6ExtendedCommunities accepts 40 octets as exactly 2, and returns ErrInvalidLength for 19, 21, 8, 39 and 41, red on truncation or acceptance. Both polarities. The zero-length and treat-as-withdraw handling is RFC 7606 Section 7.15, row RFC7606-7.15-1.",
+      "requirement_sha": "8cdc9f1c75f03ffe",
+      "tests": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20": "769334093b6b8784",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20#2": "769334093b6b8784"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20": "e8aef793af6eabd0",
+        "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20#2": "e8aef793af6eabd0"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5701"
+}
