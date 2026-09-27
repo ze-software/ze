@@ -24,17 +24,6 @@
       "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
-      "rid": "RFC7011-3-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEmptyMessageEmitted",
-      "unit-sha": "3fadc35b43485cf4",
-      "claim-sha": "9f03c1a20c527cc8",
-      "route": "revert",
-      "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
-      "producer-sha": "88cc757598c7a877",
-      "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC7011-3.2-1",
       "polarity": "positive",
       "unit": "internal/plugins/flowexport/ipfix/template_test.go::TestIPFIXTemplateSet",

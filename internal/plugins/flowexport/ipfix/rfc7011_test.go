@@ -4,7 +4,9 @@
 // internal/le/rfc/actions.go.
 //
 // VALIDATES: the IPFIX exporter's on-wire encoding meets the RFC 7011 MUST-level
-// message, Set, padding, Template ID, field-specifier, and reduced-size rules.
+// message, Set, padding, Template ID, field-specifier, and reduced-size rules,
+// and that the exporter emits no header-only message (RFC 7011 Section 3 allows
+// one; the exporter never sends it).
 // PREVENTS: regressions such as a wrong version, a header-only zero-Set message,
 // non-zero Set padding, a sub-256 Template ID, an accidental Enterprise Number,
 // or reduced-size encoding of an address or timestamp IE.
@@ -24,7 +26,8 @@ import (
 
 // countSets walks the Sets following the 16-octet message header and returns how
 // many Set headers it finds, validating that every Set Length stays within the
-// message bound. RFC 7011 Section 3: a Message is the header plus one or more Sets.
+// message bound. RFC 7011 Section 3 allows zero or more Sets; the exporter never
+// emits a Set-less message, and the tests below hold it to that.
 func countSets(t *testing.T, msg []byte) int {
 	t.Helper()
 	if len(msg) < MessageHeaderSize {
@@ -53,7 +56,6 @@ func countSets(t *testing.T, msg []byte) int {
 // TestRFC7011MessageHasAtLeastOneSet verifies an emitted IPFIX Message carries at
 // least one Set after the header.
 func TestRFC7011MessageHasAtLeastOneSet(t *testing.T) {
-	// RFC requirement: RFC7011-3-1 positive -- a counter message the exporter builds carries a Template Set followed by a Data Set (encoder.go:56-66), so the walk after the 16-octet header finds >= 1 Set
 	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1, IfInOctets: 10, IfOutOctets: 20}}
 	var buf [1400]byte
 	n, _ := WriteMessage(buf[:], 1716000000, 0, 1, BuildCounterTemplate(), true, ifaces, 1000, 1020)
@@ -65,7 +67,6 @@ func TestRFC7011MessageHasAtLeastOneSet(t *testing.T) {
 // TestRFC7011NoEmptyMessageEmitted verifies the exporter never puts a Set-less
 // (header-only) message on the wire: an empty snapshot yields no datagram.
 func TestRFC7011NoEmptyMessageEmitted(t *testing.T) {
-	// RFC requirement: RFC7011-3-1 negative -- Encode with zero interfaces returns early (adapter.go:32-34) and never calls Send, so no header-only, zero-Set message reaches the wire
 	var lc net.ListenConfig
 	pc, err := lc.ListenPacket(context.Background(), "udp4", "127.0.0.1:0")
 	if err != nil {

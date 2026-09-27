@@ -40,10 +40,7 @@
     {
       "id": "3",
       "sites": 0,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC7011-3-1"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "3.1",
@@ -89,10 +86,7 @@
     {
       "id": "3.4.2",
       "sites": 0,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC7011-3.4.2-2"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "3.4.2.1",
@@ -307,10 +301,7 @@
     {
       "id": "10.2.6",
       "sites": 0,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC7011-x-3"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "10.3",
@@ -350,10 +341,7 @@
     {
       "id": "10.4.1",
       "sites": 1,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC7011-x-4"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "10.4.2",
