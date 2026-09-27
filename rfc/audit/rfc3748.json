@@ -1,0 +1,495 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3748-2-1": {
+      "note": "TestRFC3748AuthenticatorLockStep counts outstanding Requests in a local variable it increments and decrements itself, so its checks cannot fail; it proves only that each authenticator call returns one packet, which the *Packet return type already guarantees.",
+      "requirement_sha": "eff52418bb3a7dea",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "44c8bd9892e27ff3"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-2-2": {
+      "note": "TestRFC3748AuthenticatorRequiresValidResponse: the negative arm feeds a Code-1 packet and asserts an EAP-Failure, which the RFC does not ask for; the case the sentence is about, an INVALID Response (wrong Identifier or Type) drawing no new Request, is not under this id.",
+      "requirement_sha": "d8dcc0644b45f303",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "e9d5a895edb17cd1",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse#2": "e9d5a895edb17cd1"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-2.1-1": {
+      "note": "TestRFC3748OneMethodPerConversation: one method completes; a Response of a second method Type mid-conversation is discarded and does not complete the exchange.",
+      "requirement_sha": "3ead52068e3ce5c5",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "eaa23a5570ebba14",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "eaa23a5570ebba14"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-2.1-2": {
+      "note": "TestRFC3748MethodCompletionSendsResult: a successful method draws Success, a failed one Failure and never Success.",
+      "requirement_sha": "18a8fdea3ea9329e",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "c6dcd5ad9cd27a67",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "c6dcd5ad9cd27a67"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-2.1-3": {
+      "note": "TestRFC3748PeerNaksBeforeItCommitsToAMethod: a Type-40 Request draws a legacy Nak before the first method Response and a silent discard after it.",
+      "requirement_sha": "7bfebf1f513d3f74",
+      "tests": {
+        "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod": "43001f82c7e1b4d0",
+        "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod#2": "43001f82c7e1b4d0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod": "7219f17ec02f4cfb",
+        "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod#2": "7219f17ec02f4cfb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-2.1-4": {
+      "note": "TestPeerDiscardsARequestOfAnotherType: once committed, a Request of another Type is discarded with no Response, no Nak and no error; a Request of the method Type is processed. The authenticator MUST NOT clauses are structural (Session emits only its method Type).",
+      "requirement_sha": "384cb39bebb7712d",
+      "tests": {
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "34f6e882c4ad0ef2"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "85289987735c7f2b",
+        "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "f51891238d09e850"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-2.2-1": {
+      "note": "TestRFC3748FrameworkMessagesReachNoMethod and TestRFC3748NoFrameworkMessageReachesAnEAPMethod: a Nak Response is never handed to the method, Success/Failure encode to 4 octets, the Notification Response carries no Type-Data; a Response of the method's Type is delivered intact. The two functions are near-duplicates.",
+      "requirement_sha": "f7d5f577f3407982",
+      "tests": {
+        "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod": "d3558afd0c09e2a8",
+        "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod#2": "d3558afd0c09e2a8",
+        "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod": "a0a8fc016d807263",
+        "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod#2": "a0a8fc016d807263"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod": "46979c11034b71a0",
+        "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod#2": "46979c11034b71a0",
+        "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod": "bce356d23eda2375",
+        "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod#2": "bce356d23eda2375"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4-1": {
+      "note": "TestRFC3748PacketLengthDiscard: a Length claiming more octets than received is refused by DecodePacket; an exact-length packet decodes.",
+      "requirement_sha": "0367c8927c52abd3",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard": "c178a1dd8f4db2e2",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PacketLengthDiscard#2": "c178a1dd8f4db2e2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4-2": {
+      "note": "TestRFC3748MinimumPacketLength: a 4-octet Success decodes; 3-octet input and a declared Length of 3 are refused, the floor the Code, Identifier and Length fields of the quoted Length definition set.",
+      "requirement_sha": "0d0558bc9742c4b9",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "a1fafa0bf6d78211",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "a1fafa0bf6d78211"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4-4": {
+      "note": "TestRFC3748LengthBoundsTypeData: trailing padding after the Length-framed packet is ignored and no padding octet reaches Type-Data.",
+      "requirement_sha": "d3f61e2496a0f60e",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "00f57c9832ec3be7",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "00f57c9832ec3be7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4-5": {
+      "note": "TestRFC3748UndefinedCodesAreSilentlyDiscarded: Codes 0, 5, 6, 255 draw nothing from the authenticator and a discard from the peer, and neither side's exchange is disturbed; defined Codes are acted on.",
+      "requirement_sha": "b79c6b2da2e91564",
+      "tests": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "34f6e882c4ad0ef2"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "810030b7452aa2f3",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "810030b7452aa2f3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.1-1": {
+      "note": "TestRFC3748PeerHasNoRetransmitTimer asserts only that the peer answers each Request (responses > 0). Neither clause can fail it: no case hands the peer an invalid Request to show no Response is sent, and the no-timer clause rests on the synchronous API, not an assertion.",
+      "requirement_sha": "22dd14ed9eba9a6c",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "e42c0c5ded4373ab"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-4.1-11": {
+      "note": "TestAuthenticatorDiscardsAResponseOfAnotherType: a Response of another Type draws nothing and does not complete the exchange; a Response of the method Type is processed. The Nak-after-non-Nak clause of the quoted span is context for 'these requirements' and is proved under RFC3748-2.1-3 on the peer side only.",
+      "requirement_sha": "1d4196680432311a",
+      "tests": {
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "34f6e882c4ad0ef2"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "6a9684489e3baf29",
+        "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "ede359664aabea59"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.1-3": {
+      "note": "TestRFC3748NewRequestChangesIdentifier proves every new Request changes the Identifier; the first clause of the quoted span, a retransmitted Request keeps the same Identifier, has no case under this id.",
+      "requirement_sha": "5aa99365ea6145f5",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier": "ff545a5e60ce9954",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier#2": "ff545a5e60ce9954"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-4.1-4": {
+      "note": "TestRFC3748ResponseEchoesRequestIdentifier: every Response of a driven exchange echoes its Request's Identifier, and an unusual Identifier (0xC3) is echoed rather than replaced.",
+      "requirement_sha": "6b9af45edc5d0c78",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "f71417d9cb1b1eb2",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "f71417d9cb1b1eb2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.1-5": {
+      "note": "TestRFC3748ResponseTypeMatchesRequest: Responses carry the Request Type; a Type-99 Request draws a legacy Nak naming the configured method.",
+      "requirement_sha": "523536c2d5fae6d1",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "cbef4f28c94dea38",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "cbef4f28c94dea38"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-1": {
+      "note": "TestRFC3748SuccessFailureNotRetransmitted: after Failure and after Success the authenticator is terminal and a further Response draws nothing.",
+      "requirement_sha": "c0a1e960bf77e219",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "cf8077ad6658a84d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-11": {
+      "note": "TestRFC3748PeerOutlivesALostTerminalPacket: with the Success lost the peer does not assume success, discards the packets arriving in its place without ending the session, and concludes on the late Success.",
+      "requirement_sha": "edfc4e4f6b71f7cb",
+      "tests": {
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket": "b4125e051769fac5",
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket#2": "b4125e051769fac5"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket": "603325f953a86029",
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket#2": "603325f953a86029"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-15": {
+      "note": "TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession: after an EAP-Failure ends the session a Success is discarded, no MSK leaves and success is not reported; a completed peer still concludes on Success.",
+      "requirement_sha": "1f04255ee9914a5a",
+      "tests": {
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession": "b4125e051769fac5",
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession#2": "b4125e051769fac5"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession": "f936d48a9047be7d",
+        "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession#2": "f936d48a9047be7d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-2": {
+      "note": "TestRFC3748SuccessFailureFormat positive proves Success/Failure encode to 4 octets with no Type; the negative arm refuses a 4-octet Request, a neighbouring rule (Requests carry a Type). No case under this id hands Encode a Success carrying Type-Data and asserts it is dropped.",
+      "requirement_sha": "949bae4788a168d1",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "fe0c36f5c55f56b9",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat#2": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "627a2a131d5e271b",
+        "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat#2": "627a2a131d5e271b"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-4.2-4": {
+      "note": "rfc3748_identifier_test.go: Failure on the refused-code, NAK and identity-stage paths and Success on the done-method path each carry the answered Response's Identifier.",
+      "requirement_sha": "758c2f4e695d8847",
+      "tests": {
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "979d1b9de935564e",
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "979d1b9de935564e",
+        "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "979d1b9de935564e",
+        "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "979d1b9de935564e"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "5f3c50c840ff27f9",
+        "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "e6b0f0ca9af09fe7",
+        "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "eb74414682206675",
+        "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "4fb6ceaf26c7d20d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-5": {
+      "note": "TestRFC3748PeerEndsAnUnsuccessfulConversation: after an EAP-Failure the peer reports ErrEAPFailure (what the IKE engine reads) and not Done; a successful method concludes Done with no error.",
+      "requirement_sha": "94f11ea8c917b866",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "ace2b57ff667bfb8",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "ace2b57ff667bfb8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-6": {
+      "note": "TestRFC3748PeerActsOnTheTerminalPacket: the awaited Success concludes with a non-zero MSK and the awaited Failure yields ErrEAPFailure; neither is discarded.",
+      "requirement_sha": "99bd5133405b5922",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "9421790d202148f2",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "9421790d202148f2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-7": {
+      "note": "TestRFC3748PeerDiscardsACannedSuccess: a Success on a fresh peer is discarded, success is not reported, and the conversation continues; the same packet at method end concludes.",
+      "requirement_sha": "575e16cc23a4ce1e",
+      "tests": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "34f6e882c4ad0ef2"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "1732f710a011678d",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "1732f710a011678d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-4.2-8": {
+      "note": "TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet: a Success mid-MS-CHAPv2 (before the Authenticator Response is checked) is discarded and the permitted Success later concludes.",
+      "requirement_sha": "c9f000f21d0197da",
+      "tests": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "34f6e882c4ad0ef2",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "34f6e882c4ad0ef2"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "64eec882fea22ec3",
+        "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "64eec882fea22ec3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5-1": {
+      "note": "TestRFC3748NoNAKInARequest: no Request of a driven exchange carries Type 3 or 254, and a Nak Response draws Failure rather than a Nak Request.",
+      "requirement_sha": "cf5ebfb8755ad9b5",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "abe47a370e35f92a",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "abe47a370e35f92a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5.2-1": {
+      "note": "TestPeerAnswersANotificationRequest and TestPeerNeverNaksANotificationRequest: a Notification Request, including zero-length and non-UTF-8 ones, draws a Type-2 Response with empty Type-Data and the Request's Identifier.",
+      "requirement_sha": "668690dba2577a73",
+      "tests": {
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerAnswersANotificationRequest": "79f5764cee2c8dd4",
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "79f5764cee2c8dd4"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerAnswersANotificationRequest": "399e9c7c07e9fea4",
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "7026cbcfd0540385"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5.2-2": {
+      "note": "TestPeerNeverNaksANotificationRequest: malformed Notification Requests draw a Type-2 Response, not a Nak; TestPeerNaksAnAuthenticationTypeButNotANotification shows the same peer does Nak Type 40.",
+      "requirement_sha": "0ba7b2da28e385b2",
+      "tests": {
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNaksAnAuthenticationTypeButNotANotification": "79f5764cee2c8dd4",
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "79f5764cee2c8dd4"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNaksAnAuthenticationTypeButNotANotification": "6004e4636de6cb5e",
+        "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "7026cbcfd0540385"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5.3.1-4": {
+      "note": "TestPeerDoesNotNakAMethodError: a truncated MS-CHAPv2 Challenge reports the method error and sends no packet, so no Nak carries the error; the same peer Naks an unacceptable Type 40.",
+      "requirement_sha": "5f0f309797c13a90",
+      "tests": {
+        "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError": "43001f82c7e1b4d0",
+        "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError#2": "43001f82c7e1b4d0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError": "69744e0a94087862",
+        "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError#2": "69744e0a94087862"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5.4-1": {
+      "note": "TestRFC3748MD5ChallengeRequestDrawsAResponse: an MD5-Challenge Request draws a Type-4 Response with the Request's Identifier and an independently computed MD5 value, accepted with Success. The negative arm (Identity Requery discarded) exercises the neighbouring Section 2.1 rule.",
+      "requirement_sha": "d620a813de478214",
+      "tests": {
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequeryDrawsNoResponse": "6a5f2912cb5bb256",
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequestDrawsAResponse": "6a5f2912cb5bb256"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequeryDrawsNoResponse": "ab5c25375115c29a",
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequestDrawsAResponse": "05ae4d42a89ec8b6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-5.4-2": {
+      "note": "Sentence: EAP peer and EAP server implementations MUST support MD5-Challenge. Positive TestRFC3748MD5ChallengeSupportedByBothRoles goes red if either role cannot run Type 4 (res.Response nil, no CodeSuccess, peer not Done). The negative TestRFC3748MD5ChallengeIsTheConfiguredMethod proves a neighbouring rule (Type 4 is only answered when configured), not a violation of the support obligation, and the row carries no single-polarity marker, so the pair is incomplete.",
+      "requirement_sha": "2122c115948c2f40",
+      "tests": {
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeIsTheConfiguredMethod": "6a5f2912cb5bb256",
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeSupportedByBothRoles": "6a5f2912cb5bb256"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeIsTheConfiguredMethod": "616ae049dc8e17f2",
+        "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeSupportedByBothRoles": "012ff3cdd3bd1084"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-7.10-1": {
+      "note": "TestRFC3748MSKSize: a completed MS-CHAPv2 exchange yields a 64-octet non-zero MSK; the length is fixed by the [64]byte type, the non-zero check is what can fail. The EMSK clause of the sentence is proved under RFC3748-7.10-2.",
+      "requirement_sha": "fadb3d5545478149",
+      "tests": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "fe0c36f5c55f56b9"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "d8bf4d8f21ec54eb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-7.10-2": {
+      "note": "rfc3748_emsk_test.go and rfc3748_mschapv2_emsk_test.go: both ends hold an equal, non-zero 64-octet EMSK computed independently (TLS export octets 64-127, HKDF over the MPPE key), distinct from the MSK; a refused exchange or refused export leaves no EMSK.",
+      "requirement_sha": "e446a523bd787487",
+      "tests": {
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "798ba83720878ce5",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "798ba83720878ce5",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "c637f095b98aafff",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "c637f095b98aafff"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "fc24b173459b9fd4",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "c39778ddd0693a2c",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "9bd189584eef16ca",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "35b5d750a4884626"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-7.10-4": {
+      "note": "Sentence: key-deriving methods MUST provide mutual authentication. Peer-authenticates-server is proven: an untrusted server cert must not let the peer conclude or derive an MSK. Server-authenticates-peer is only shown by len(serverState().PeerCertificates)>0 on a trusted exchange; no unit presents an unverifiable client certificate and asserts the server refuses. EAP-MSCHAPv2, also key-deriving in ze (eap_mschapv2.go derives an MSK), is not covered.",
+      "requirement_sha": "e7a2118e9331cea4",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "e8ac955469df9912",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "e8ac955469df9912"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-7.10-6": {
+      "note": "rfc3748_emsk_test.go and rfc3748_mschapv2_emsk_test.go prove the EMSK is held by both ends, erased on Close, and absent from both MSKs and every wire packet. The last clause, 'or used to derive any other keys', is unproven: an MSK derived by hashing the EMSK would pass the byte search.",
+      "requirement_sha": "7a1d2dbd0e095562",
+      "tests": {
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "798ba83720878ce5",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "798ba83720878ce5",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "c637f095b98aafff",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "c637f095b98aafff"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "579c906ddfc05d0a",
+        "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "7ad959835a867ee3",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "ac81d2cb4c02ab82",
+        "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "4e02263e3b3cde01"
+      },
+      "verdict": "weak"
+    },
+    "RFC3748-7.10-7": {
+      "note": "rfc3748_key_state_test.go: an authenticator that discarded its ticket keys still completes a full handshake with a peer offering a stale ticket, deriving a fresh MSK; the kept-state control resumes.",
+      "requirement_sha": "3505dba782df1798",
+      "tests": {
+        "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState": "4e0a4aafb2ffe7fb",
+        "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState#2": "4e0a4aafb2ffe7fb"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState": "ad4e14f283c5c942",
+        "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState#2": "ad4e14f283c5c942"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3748-7.5-1": {
+      "note": "Sentence: peers, authentication servers and authenticators not in pass-through MUST validate a per-packet MIC. Negative runTamperedEAPTLS corrupts only authenticator-to-peer Requests, so only the peer clause goes red (the peer-concluded Fatal). No unit tampers a peer Response, so the authentication-server clause has no assertion.",
+      "requirement_sha": "8cc87d68fc0fd5ed",
+      "tests": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "9c177c3a434afad0",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "9c177c3a434afad0"
+      },
+      "units": {
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "d597baa1e5357773",
+        "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "d597baa1e5357773"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc3748"
+}
