@@ -1,0 +1,138 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5250-3-1": {
+      "note": "Types 9/10/11 as Opaque and scope-by-type are enforced: lstype_test.go fatals if a standard type IsOpaque or an opaque type is not; TestOpaqueScopeRouting fatals if Type 11 is not AS-wide or a Type 9 is accepted into an area store. The quoted span also states that Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned body and that standard flooding mechanisms distribute them; no tagged unit asserts either.",
+      "requirement_sha": "4a020d013a84e5ad",
+      "tests": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting#2": "458b73167251be99",
+        "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues": "7a2e79b1c9360264",
+        "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues#2": "7a2e79b1c9360264"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting#2": "683f71e010417287",
+        "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues": "f79766a5ed2da7cf",
+        "internal/plugins/ospf/types/lstype_test.go::TestLSTypeKnownValues#2": "f79766a5ed2da7cf"
+      },
+      "verdict": "weak"
+    },
+    "RFC5250-3-2": {
+      "note": "Forbidden: a Link State ID split other than 8-bit type and 24-bit ID. TestOpaqueLinkStateIDSplit fatals if OpaqueTypeOf(AA BB CC DD) != 0xAA or OpaqueIDOf != 0x00BBCCDD, on a failed round trip, on a high id byte leaking into the type, and at the 0xFF/0xFFFFFF boundary. Row carries {single-polarity: positive}.",
+      "requirement_sha": "2892090dbaf8690a",
+      "tests": {
+        "internal/plugins/ospf/packet/lsa_opaque_test.go::TestOpaqueLinkStateIDSplit": "6f1180c707686e66"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/lsa_opaque_test.go::TestOpaqueLinkStateIDSplit": "433c526a4f838c7c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5250-3.1-1": {
+      "note": "Discard is enforced: TestOpaqueType9WrongInterfaceDiscarded fatals if a Type 9 received on eth0 is found in the eth1 link store, flooded as an LSUpdate out eth1, or queued for retransmission to the eth1 neighbor. The \"not acknowledged\" clause has no assertion: the send loop checks only s.pkt.LSUpdate, so an LSAck out eth1 passes.",
+      "requirement_sha": "6e976d0429c3b770",
+      "tests": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "458b73167251be99"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded": "a76e64a33b6aa0ed",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType9WrongInterfaceDiscarded#2": "a76e64a33b6aa0ed"
+      },
+      "verdict": "weak"
+    },
+    "RFC5250-3.1-2": {
+      "note": "Forbidden: a Type 10 flooded to or read from an area other than its own. TestOpaqueType10ConfinedToItsArea fatals if the LSA is readable (LookupLSA or Lookup) from area 0.0.0.2, if floodExcept emits anything but exactly one send, on eth0, which also refuses any acknowledgement out the other area interface, or if the eth1 neighbor is queued to retransmit it.",
+      "requirement_sha": "58e2c5a72b4ea3b0",
+      "tests": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea#2": "458b73167251be99"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea": "473710695596ac44",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea#2": "473710695596ac44"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5250-3.1-3": {
+      "note": "Clause 1 forbidden: a Type 11 flooded out a stub interface; TestOpaqueType11StubDiscarded fatals if floodExcept sends on eth0 (stub). Clause 2 forbidden: a Type 11 received on a stub interface installed or acknowledged; the same test fatals if it is found in the store or if any packet at all is sent (len(tx.sends) != 0, which covers an LSAck).",
+      "requirement_sha": "66768c505c4a5174",
+      "tests": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType11StubDiscarded": "458b73167251be99",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType11StubDiscarded#2": "458b73167251be99"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType11StubDiscarded": "ff37aa2326f87d61",
+        "internal/plugins/ospf/lsdb/opaque_scope_test.go::TestOpaqueType11StubDiscarded#2": "ff37aa2326f87d61"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5250-3.1-4": {
+      "note": "Forbidden: an opaque LSA placed on the retransmission list of a non-opaque-capable neighbor, or missing from an opaque-capable one. The opaque_flood_test.go unit fatals if db.retransmit lacks the Type 11 for 2.2.2.2 (OpaqueCapable) or holds it for 3.3.3.3 (not capable), and shows a Router LSA still reaches both.",
+      "requirement_sha": "325e80b7b84ea388",
+      "tests": {
+        "internal/plugins/ospf/lsdb/opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor": "1a516266f2e5c6f0",
+        "internal/plugins/ospf/lsdb/opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor#2": "1a516266f2e5c6f0"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor": "2aaa6e1831fb97a1",
+        "internal/plugins/ospf/lsdb/opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor#2": "2aaa6e1831fb97a1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5250-3.1-5": {
+      "note": "The negative in dd_opaque_test.go asserts a neighbor is not opaque-capable after Hellos, but HelloInput carries no Options field and the Hellos carry no O-bit, so no non-DD packet with the O-bit set is ever received: a NAS that read the O-bit from a Hello is not driven. The quoted \"SHOULD NOT be set\" clause (no O-bit sent in non-DD packets) has no assertion either.",
+      "requirement_sha": "a5c3b164e64bbcc2",
+      "tests": {
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD": "9685827d4b7dced5",
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "9685827d4b7dced5"
+      },
+      "units": {
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD": "724a5a4a3d3908ea",
+        "internal/plugins/ospf/neighbor/dd_opaque_test.go::TestOpaqueBitIgnoredOutsideDD#2": "724a5a4a3d3908ea"
+      },
+      "verdict": "weak"
+    },
+    "RFC5250-3.2-1": {
+      "note": "The normal-area summary is asserted to list type-10, type-5 and type-11 LSAs (TestRFC5250SummaryListsOpaqueAndGlobalLSAs). The quoted list also names type-9 Opaque LSAs and Router, Network and Summary LSAs, and no tagged unit asserts any of them in the Database summary list; the tagged negative is the stub/NSSA omission of RFC5250-3.2-3.",
+      "requirement_sha": "9756b7e959d1226f",
+      "tests": {
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "210db371c1b4065b",
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "210db371c1b4065b"
+      },
+      "units": {
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "04ee01da6ec704c2",
+        "internal/plugins/ospf/lsdb/dd_summary_rfc5250_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "bae6679d4a6cc4a5"
+      },
+      "verdict": "weak"
+    },
+    "RFC5250-5-1": {
+      "note": "The unit replaces eng.opaqueReachableFn with a stub keyed on router ID and checks deliverOpaque reports Reachable accordingly. The sentence obliges a lookup of the routing table entries for the originating ASBR; the seam is faked, so a predicate that never consulted the routing table (or looked up the router rather than the ASBR entry) stays green.",
+      "requirement_sha": "23a09580e5b0c1fe",
+      "tests": {
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481",
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "620e6bdeb9c90481"
+      },
+      "units": {
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b",
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable#2": "ae0a8ff343d51c2b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5250-5-2": {
+      "note": "Forbidden: continuing to use Opaque LSAs already delivered from an originator once it becomes unreachable. The tagged positive delivers one LSA from an unreachable and one from a reachable originator; no unit delivers from an originator, flips it unreachable, and asserts its earlier LSAs stop being used, so a consumer holding stale Reachable=true data stays green.",
+      "requirement_sha": "1ace7b50155ea702",
+      "tests": {
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "620e6bdeb9c90481"
+      },
+      "units": {
+        "internal/plugins/ospf/opaque_reachability_test.go::TestOpaqueType11UnreachableOriginatorNotUsable": "ae0a8ff343d51c2b"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5250"
+}
