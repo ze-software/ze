@@ -1,0 +1,42 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC5882-4.2-1": {
+      "note": "The sentence forbids a client taking control protocol action on (a) its own session going Up to AdminDown and (b) Up to Down caused by the remote's AdminDown. The tagged units TestRFC5882RemoteAdminDownIsDistinguished and TestRFC5882NeighborDownIsNotRemoteAdminDown (internal/component/bfd/engine/rfc5882_admindown_test.go) assert only what the BFD service PUBLISHES for clause (b) (State Down, RemoteAdminDown true vs false, same Diag); no tagged assertion goes red if a client tears down the BGP/OSPF adjacency on either clause, and clause (a) (local AdminDown) has no tagged assertion at all. The client-side behaviour is asserted by untagged TestBFDClientAdminDownDoesNotTeardown and TestBFDRemoteAdminDownDoesNotTeardown (internal/component/bgp/reactor/peer_bfd_test.go); tagging them would close this.",
+      "requirement_sha": "fd526adf282f84c2",
+      "tests": {
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "c179cec33f80bf77",
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "c179cec33f80bf77"
+      },
+      "units": {
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882NeighborDownIsNotRemoteAdminDown": "e12a0686a3d133a5",
+        "internal/component/bfd/engine/rfc5882_admindown_test.go::TestRFC5882RemoteAdminDownIsDistinguished": "e5b5a7f67c6a711f"
+      },
+      "verdict": "weak"
+    },
+    "RFC5882-4.4-1": {
+      "note": "Forbidden behaviour: two control protocols wanting a session to the same remote system for the same data protocol end up on two BFD sessions. Red assertions: TestBFDSharedSessionSameKey len(snap)!=1 and Refcount!=2 (same request twice); TestCanonicalCollapsesEveryClientShapeOntoOneKey, TestCanonicalCollapsesMultiHopShapesOntoOneKey, TestStrictPeerRequestReachesTheSharedKey, TestOSPFNeighborRequestReachesTheSharedKey and TestPinnedSessionReachesTheSharedKey assert BGP/OSPF/pinned request shapes reduce to one api.Key when the link table resolves one link. Negative TestBFDDistinctSessionsDifferentKey pins that different remotes are not aliased. Not the whole MUST: in the configurations api.SessionRequest.Canonical refuses to derive (IPv6 link-local peer, two links on one subnet, off-link peer, no route, egress with zero or several same-family addresses, multi-hop in a non-default VRF, no interface backend) two clients for one remote get two sessions, no tagged unit goes red on that, and untagged TestCanonicalRefusesToGuessAnAmbiguousLink asserts the two-key behaviour. The summary's Enrolment reason already records this as PARTIALLY met.",
+      "requirement_sha": "71fc9db5c164d0d0",
+      "tests": {
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "bda753f0d0b52051",
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "bda753f0d0b52051",
+        "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "1febb5fea3470596",
+        "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "1febb5fea3470596",
+        "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
+        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "d5b873645ef05522",
+        "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "4959bdf283761598"
+      },
+      "units": {
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "80c46a4bddb1069c",
+        "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "d77f8cd33231d94e",
+        "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "29e3843d4f16deb0",
+        "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "295d24b9f8d7d852",
+        "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "b3b18c6e78ffeaca",
+        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "10b4fc48ccff5b70",
+        "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "0104c72905069302"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5882"
+}
