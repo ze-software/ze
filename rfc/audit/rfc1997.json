@@ -13,6 +13,90 @@
         "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4": "a4b71ec0b0138f7a"
       },
       "verdict": "enforced"
+    },
+    "RFC1997-Well-1": {
+      "note": "First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT route advertised to an external peer. TestWellKnownNoExportRefusesExternalPeer asserts AllowsEgressTo(false) is false; TestForwardNoExportSkipsExternalPeerOnly asserts NotContains the eBGP address on the forward rail; wellknown-no-export-egress.ci covers the daemon wire. Negatives: the same route still reaches an internal peer (TestWellKnownNoExportAllowsInternalPeer, Contains iBGP), so a speaker that advertises to nobody goes red. Enforced.",
+      "requirement_sha": "58d22b491a5fae2c",
+      "tests": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "13c5ebffb9631cf5",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "13c5ebffb9631cf5",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "13c5ebffb9631cf5",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "f04334a58fd00e7c",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "f04334a58fd00e7c",
+        "test/plugin/wellknown-no-export-egress.ci": "5b9242c9c2a6c679",
+        "test/plugin/wellknown-no-export-egress.ci#2": "5b9242c9c2a6c679",
+        "test/plugin/wellknown-no-export-withdraw-egress.ci": "13738cb36161db8f"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "beb2711142d7872a",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "54a0341db126a505",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "858b88657ee735a1",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "3226720fb2478e07",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "91be597450cbc865",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "7ab3be1dbdd8af41",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "7ab3be1dbdd8af41",
+        "test/plugin/wellknown-no-export-egress.ci": "5b9242c9c2a6c679",
+        "test/plugin/wellknown-no-export-egress.ci#2": "5b9242c9c2a6c679",
+        "test/plugin/wellknown-no-export-withdraw-egress.ci": "13738cb36161db8f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1997-Well-2": {
+      "note": "First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_ADVERTISE route advertised to any peer. TestWellKnownNoAdvertiseRefusesEveryPeer asserts AllowsEgressTo false for internal and external; TestForwardNoAdvertiseSkipsEveryPeer asserts the forward set is empty; wellknown-no-advertise-egress.ci on the wire. Negative TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer asserts an ordinary community reaches both. Enforced.",
+      "requirement_sha": "50a97592f8c45bed",
+      "tests": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "13c5ebffb9631cf5",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "dec76563936c7c9c",
+        "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
+        "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoAdvertiseSkipsEveryPeer": "f195af0ab88d74eb",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseAbsentAdvertisesToEveryPeer": "0a72268fe1be4335",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoAdvertiseRefusesEveryPeer": "c98d7a73b890617d",
+        "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
+        "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1997-Well-3": {
+      "note": "First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a received NO_EXPORT_SUBCONFED route advertised to an external peer. TestWellKnownNoExportSubconfedRefusesExternalPeer asserts AllowsEgressTo(false) false and TestForwardNoExportSubconfedSkipsExternalPeerOnly asserts NotContains eBGP; the negative asserts an internal peer still receives it. The parenthesis extends 'external' to member-AS peers of a confederation, and with no confederation configurable no such peer exists apart from the external peers already asserted. Enforced.",
+      "requirement_sha": "2e97581e9ff97478",
+      "tests": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "13c5ebffb9631cf5",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "dec76563936c7c9c",
+        "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
+        "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "a241dcab4770c262",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "9a5811345372fbe9",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "8fd1df316654acf4",
+        "test/plugin/wellknown-no-advertise-egress.ci": "37d5d1f1c7b351ed",
+        "test/plugin/wellknown-no-advertise-egress.ci#2": "37d5d1f1c7b351ed"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1997-Well-4": {
+      "note": "First verdict 2026-09-27 (QF-2), row quoted verbatim from the Well-known Communities paragraph. Ze configures no confederation, so the AS boundary is the confederation boundary the sentence's own parenthesis defines. Forbidden: a community-aware speaker that applies the three operations only under operator policy, or not at all. TestWellKnownAllThreeOperationsImplemented asserts all three bits scanned from the wire with no policy and the route refused to both peer kinds; TestForwardWellKnownNeedsNoOperatorPolicy asserts no export filter is configured and the forward set is empty. Negatives: other reserved communities (NOPEER, LLGR_STALE, BLACKHOLE, GRACEFUL_SHUTDOWN) carry no egress prohibition (TestWellKnownIgnoresOtherReservedCommunities, TestForwardOtherReservedCommunitiesReachExternalPeer). Enforced.",
+      "requirement_sha": "766c63306188b1ae",
+      "tests": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardOtherReservedCommunitiesReachExternalPeer": "13c5ebffb9631cf5",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardWellKnownNeedsNoOperatorPolicy": "13c5ebffb9631cf5",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "dec76563936c7c9c",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "dec76563936c7c9c"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardOtherReservedCommunitiesReachExternalPeer": "2623f6891b6d1d27",
+        "internal/component/bgp/reactor/forward_wellknown_test.go::TestForwardWellKnownNeedsNoOperatorPolicy": "ba2100bdc24109ac",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownAllThreeOperationsImplemented": "438c2e23ce7e28a8",
+        "internal/component/bgp/wireu/wellknown_test.go::TestWellKnownIgnoresOtherReservedCommunities": "cadbd62f63463f10"
+      },
+      "verdict": "enforced"
     }
   },
   "rfc": "rfc1997"
