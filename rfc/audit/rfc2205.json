@@ -1,0 +1,217 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC2205-2-1": {
+      "note": "Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH's previous hop, one hop only. 'Upstream to all the sender hosts included in the sender selection': no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.",
+      "requirement_sha": "f80c0f879b7ce0e8",
+      "tests": {
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4"
+      },
+      "units": {
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3-1": {
+      "note": "Quote: must recognize the following classes (NULL, SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC, SENDER_TEMPLATE, SENDER_TSPEC, ADSPEC, ERROR_SPEC, POLICY_DATA, INTEGRITY, SCOPE, RESV_CONFIRM). Tagged units assert recognition of NULL, INTEGRITY, POLICY_DATA, ADSPEC, SCOPE, RESV_CONFIRM and the PATH/RESV mandatory set; ERROR_SPEC is in no 3-1 tagged unit, so classifying it unknown stays green here.",
+      "requirement_sha": "7d4829cbbc8e983c",
+      "tests": {
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "8d0e9940256c124f",
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "8d0e9940256c124f",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "12691630c6e2e34c"
+      },
+      "units": {
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "98be3b3f9ca2881a",
+        "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "30892bfebd817b46",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205KnownClassesRecognized": "e97155f0e98847e3",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205UnlistedClassNotRecognized": "a73323d3f842bdb5"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3-12": {
+      "note": "RA33 strict re-audit: weak. Forbidden: a PathTear routed differently from its PATH. TestRFC2205PathTearRoutedLikePath compares only Source, Destination and NextHop of the relayed PathTear's PathRoute with the PATH's; PathRoute also carries TableID, IfIndex and Lookup (transport.go), so a PathTear handed a different table, interface or loose-hop lookup than its PATH stays green. Only a transit relay is exercised: a PathTear the ingress originates at teardown is in no tagged unit. The negative (not via Send, source not the transit) proves a neighbouring addressing rule.",
+      "requirement_sha": "e7dad8019d5d3a1a",
+      "tests": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21"
+      },
+      "units": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearNotAddressedHopByHop": "164b45c9ab729d40",
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3-14": {
+      "note": "PathTear clause: TestRFC2205PathTearReleasesReservation asserts the reservation bandwidth is released and TestRFC2205PathTearForOtherLSPLeavesReservation that an unmatched tear leaves it. Timeout clause: no tagged unit expires path state by timeout and asserts the reservation is adjusted.",
+      "requirement_sha": "0e06fd2ac4e170be",
+      "tests": {
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "40d8aa6c3fe9e9e4",
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4"
+      },
+      "units": {
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "665d3697793570cb",
+        "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3-2": {
+      "note": "Forbidden: a PATH whose IP source is not the sender, or whose IP destination is not the session DestAddress. TestRFC2205PathIPAddressesAreSenderAndSession requires Source == sender and Destination == tunnel endpoint for an originated and a relayed PATH; TestRFC2205PathIPAddressesNeverHopAddresses requires neither to be a hop address.",
+      "requirement_sha": "bac5412ce5766f0f",
+      "tests": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "2bbb0ce4611ada21"
+      },
+      "units": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesAreSenderAndSession": "c62fedf19e356788",
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathIPAddressesNeverHopAddresses": "1e98a39b5e330057"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3-37": {
+      "note": "Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame's L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.",
+      "requirement_sha": "dfbe94e25bacd954",
+      "tests": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "900cfdf5bd3d05c0",
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+      },
+      "units": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "6eb7111ae6cccc8a",
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3-40": {
+      "note": "Single-polarity capability. Forbidden: the RSVP process not seeing arrival interface, IP source or IP TTL of a diverted message. TestIntegrationRSVPPathCarriage fails unless packet.Src, Dst, TTL and IfIndex match the sent route, TTL and receiving link, for a destination not local to the receiver.",
+      "requirement_sha": "d8ae5db17fd64df1",
+      "tests": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+      },
+      "units": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3-41": {
+      "note": "Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame's L2 destination is link 0's peer while the endpoint's ordinary route uses link 1, as the Send control on link 1 shows.",
+      "requirement_sha": "c1f96d0a085f7ad7",
+      "tests": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+      },
+      "units": {
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3.1-1": {
+      "note": "RA33 strict re-audit: weak. Forbidden: a header sent or accepted with Vers other than 1. Receive: TestRSVPDecodeHeaderBadVersion rejects Vers 2 only (DecodeHeader compares to rsvpVersion). Send: TestRSVPHeaderRoundTrip asserts decoded.Version == hdr.Version where hdr.Version is rsvpVersion itself, never the literal 1; with rsvpVersion changed to 3 the round trip stays green and the Vers-2 negative still rejects, so a node sending version 3 turns nothing red.",
+      "requirement_sha": "ba592ac3d76f6cc7",
+      "tests": {
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "edeb000ca6bd1f57",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "edeb000ca6bd1f57"
+      },
+      "units": {
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "be9f05986782b47f",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "5e35fdddc4b09470"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3.1-2": {
+      "note": "Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause ('ignored on receipt'): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green.",
+      "requirement_sha": "df5cdaad6bd6ea8e",
+      "tests": {
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "edeb000ca6bd1f57"
+      },
+      "units": {
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "87b69b9f6ada5045"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3.1.2-1": {
+      "note": "Forbidden: an object Length not a multiple of 4, sent or accepted. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires errBadObjLen for a Length-6 object. The positive tag's prose ('Decode does not enforce %4') is stale.",
+      "requirement_sha": "0a63901cb0272261",
+      "tests": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "edeb000ca6bd1f57"
+      },
+      "units": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
+        "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "9239315417834dc1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2205-3.1.3-1": {
+      "note": "Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. 'Logged locally' clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green.",
+      "requirement_sha": "c7f156dae3f19d60",
+      "tests": {
+        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "bb9f9aad959fe57d",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d"
+      },
+      "units": {
+        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "6dd9835e18cbfe05",
+        "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "6dd9835e18cbfe05",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "826c82ac19e88536",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "26830ea5d812e3d0",
+        "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-3.10-1": {
+      "note": "Reject clause: TestDecodeUnknownObjectClass asserts only that DecodeMessage flags HasUnknownObject for 0bbbbbbb classes; no tagged unit asserts the engine discards the message. Error clause: no tagged unit asserts an 'Unknown Object Class' (code 13) error is returned; the untagged assertion at frr_test.go:909 does, under another tag.",
+      "requirement_sha": "58eecccad889ff58",
+      "tests": {
+        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "52858b98606905a5",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "edeb000ca6bd1f57",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "edeb000ca6bd1f57",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "edeb000ca6bd1f57",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "edeb000ca6bd1f57",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "edeb000ca6bd1f57"
+      },
+      "units": {
+        "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "2b333a752e99d39c",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "2b333a752e99d39c",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "2b333a752e99d39c",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "2b333a752e99d39c",
+        "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "2b333a752e99d39c"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-4-4": {
+      "note": "RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green.",
+      "requirement_sha": "b3fbc1e412626010",
+      "tests": {
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
+        "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "f41b8974aa28db4d",
+        "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "f41b8974aa28db4d"
+      },
+      "units": {
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "a3c4af8ec1c20b2a",
+        "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "8190f845d9165b4e",
+        "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "6cb7cfbd88cd0ef8",
+        "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "6cb7cfbd88cd0ef8"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-x-1": {
+      "note": "RA33 strict re-audit: weak (agrees with blind reader). Forbidden: Path, PathTear or ResvConf leaving without Router Alert. TestIntegrationRSVPPathCarriage proves only that Transport.SendPath writes option 94040000 for a hand-built ResvConf the test passes it. The engine's own ResvConf emission (confirmation.go originate and handleResvConf relay, both e.transport.SendPath) is in no tagged unit: TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier's scenario emits no ResvConf and never asserts seen[MsgTypeResvConf], so its ResvConf switch arm is vacuous and switching ResvConf to Send stays green.",
+      "requirement_sha": "8c881c623b5c8b2f",
+      "tests": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "2bbb0ce4611ada21",
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+      },
+      "units": {
+        "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier": "98b1652f6e16c28a",
+        "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2205"
+}
