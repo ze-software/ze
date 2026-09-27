@@ -1,0 +1,120 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8654-3-1": {
+      "note": "Non-compliant: an extended-message peer whose malformed UPDATE resets the session instead of RFC 7606 handling. The tagged units call ValidateUpdateRFC7606 directly with no session and no Extended Message negotiation: the positive asserts a well-formed MP_REACH gets ActionNone, the negative that a COMMUNITY length conflict is treat-as-withdraw. They prove RFC 7606 behaviour in isolation, not that the extended-message session path applies it.",
+      "requirement_sha": "58d67f2664ef1bc5",
+      "tests": {
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "669936946251c215"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
+        "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "ef0a5b1fd070bfe9"
+      },
+      "verdict": "weak"
+    },
+    "RFC8654-3-2": {
+      "note": "Non-compliant: the capability advertised with a code other than 6. The tagged case asserts uint8(CodeExtendedMessage) == 6 only; no tagged assertion reads the code octet an ExtendedMessage capability writes or requires parse of code 6 to yield ExtendedMessage, so a Code() method or parser mapping another value stays green.",
+      "requirement_sha": "17ec49c1f17d39be",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "d5913b7c1261a415"
+      },
+      "verdict": "weak"
+    },
+    "RFC8654-3-3": {
+      "note": "The quote carries Code 6 and Length 0. The tagged round-trip case packs ExtendedMessage with WriteTo, parses it and asserts only that the parsed Code() equals the original Code(); nothing asserts packed length 2 or a Cap Len octet of 0, so a non-zero-length encoding that Parse accepts stays green, and the code value 6 is not asserted in this unit.",
+      "requirement_sha": "954f18394d7fca80",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityRoundTrip": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityRoundTrip": "ae959b6c34af083c"
+      },
+      "verdict": "weak"
+    },
+    "RFC8654-4-2": {
+      "note": "Non-compliant: an UPDATE on the wire larger than the negotiated maximum. TestSendUpdateWithSplitBoundsAnOversizePayload drives Peer.sendUpdateWithSplit with an over-4096 payload to a non-extended peer and asserts every wire frame length <= 4096 with the NLRI preserved; TestSendUpdateWithSplitTracksTheNegotiatedMaximum asserts the bound is 65535 when negotiated; BuildUnicastWithMaxSize refuses an oversize build (ErrUpdateTooLarge). Both polarities.",
+      "requirement_sha": "a3e1fd65268f54e7",
+      "tests": {
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "a23f0adaac63b3db",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "a23f0adaac63b3db",
+        "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "e87970ac24f6e98d",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitBoundsAnOversizePayload": "ced3ad313c9ae5a7",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitLeavesAFittingPayloadWhole": "ced3ad313c9ae5a7",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7"
+      },
+      "units": {
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "98db371592636a58",
+        "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "934405b4511f63b2",
+        "internal/component/bgp/message/update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "4efbe639d79d5b32",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "4aee02fb9c072981",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "9cd898c03e20535a",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "39a63c8b63ac95f4",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitBoundsAnOversizePayload": "d0b51a677c8ccf29",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitLeavesAFittingPayloadWhole": "4680d54e0c90591d",
+        "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitTracksTheNegotiatedMaximum": "2582754ce6cc96e4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8654-4-3": {
+      "note": "Non-compliant: an OPEN or KEEPALIVE allowed past 4096 because Extended Message was negotiated. TestValidateLengthWithMax requires an error for OPEN 4097 with extended=true (production gate: session_read.go:105 calls ValidateLengthWithMax); TestMaxMessageLength asserts OPEN and KEEPALIVE with extended both 4096, and UPDATE/NOTIFICATION/ROUTE-REFRESH 65535, covering the 'applies to all messages except' half.",
+      "requirement_sha": "c9ae6c36e44275b8",
+      "tests": {
+        "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8"
+      },
+      "units": {
+        "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "d7845b90aa377929",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8654-5-1": {
+      "note": "Non-compliant: accepting a message over 4096 when the capability was not advertised. TestValidateLengthWithMax requires Error for UPDATE, NOTIFICATION and ROUTE-REFRESH of 4097 with extended=false and accepts 65535 with extended=true; production receive paths session_read.go:105 and session_coalesce.go:91 pass s.extendedMessage into the same gate.",
+      "requirement_sha": "2f0a7ba066004af5",
+      "tests": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8"
+      },
+      "units": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8654-5-4": {
+      "note": "RFC 4271 error handling for a bad length is a NOTIFICATION Message Header Error / Bad Message Length whose Data carries the erroneous Length field, followed by closing the connection. The tagged unit asserts only ErrorCode and ErrorSubcode on the returned error; the Data field and the send-and-close are unasserted, and no session-level test is tagged.",
+      "requirement_sha": "df841e66398cf2dd",
+      "tests": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8"
+      },
+      "units": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa"
+      },
+      "verdict": "weak"
+    },
+    "RFC8654-6-1": {
+      "note": "The quote carries the lower bound 19 and the upper bound 4096/65535 by type and advertisement. Upper bounds are asserted in TestValidateLengthWithMax (UPDATE/NOTIFICATION/ROUTE-REFRESH 4097 rejected without extended, 65535 accepted with; OPEN capped). No tagged case has a length below 19; the negative tag is KEEPALIVE of 20, the RFC 4271 per-type rule, a neighbouring obligation.",
+      "requirement_sha": "e3cfe43c3eb21f36",
+      "tests": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8"
+      },
+      "units": {
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+        "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8654"
+}
