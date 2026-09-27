@@ -15,7 +15,7 @@
       "verdict": "enforced"
     },
     "RFC6138-x-1": {
-      "note": "(a) IsCutEdge answering from the stale graph while an SPF is armed; (b) TestLDPSyncCutEdgeUsesFreshSPF: SPFSnapshot empty before the query (negative), non-empty after IsCutEdge (positive), with an hour-long SPF delay so only the Appendix A flush can run it.",
+      "note": "SB-3 strict re-read 2026-09-27. Forbidden: a cut-edge check answering from the graph while an SPF is still pending. TestLDPSyncCutEdgeUsesFreshSPF fails if SPFSnapshot is empty after IsCutEdge, so the flush clause has a red assertion. The tagged 'negative' is the same unit's precondition (SPFSnapshot empty before the query), which violates nothing; the row carries no {single-polarity} marker. Nothing shows the answer changes with the fresh graph (a stale graph and the fresh one both yield non-cut-edge here).",
       "requirement_sha": "3b339a011fded81d",
       "tests": {
         "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "6225a1a69420b6e6",
@@ -25,7 +25,7 @@
         "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "09c5834568d22da6",
         "internal/plugins/ospf/spf/ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF#2": "09c5834568d22da6"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     }
   },
   "rfc": "rfc6138"
