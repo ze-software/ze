@@ -1,0 +1,240 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC5282-3-1": {
+      "note": "Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).",
+      "requirement_sha": "6a210d63f3f55d0c",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "a8ceaafea2f09fa7",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "b299e98f0fa022bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.1-1": {
+      "note": "Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze's LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.",
+      "requirement_sha": "07347e83ecb9a22a",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "fad3704e7ae63953",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "57e8ee3e0e037c8b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.1-2": {
+      "note": "Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.",
+      "requirement_sha": "f8e332e8d86a0bbb",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "8ff94d6c52a66b8d",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "b44b75b552e95ffb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.2-1": {
+      "note": "Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).",
+      "requirement_sha": "6b42be71dc5d4e4a",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "299d5307ac8d8ffa",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "d4da25f579091c7c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.2-2": {
+      "note": "Forbidden: supporting an AES GCM ICV other than 16, 8, 12. Red: TestRFC5282AEADRefusesAForbiddenICVLength fatals if OpenIKEAEAD(ENCR_AES_GCM_16) accepts a real 13, 14 or 15 octet ICV sealing; TestRFC5282AEADOpensTheFullLengthICV keeps 16 open. Lengths below 12 are not constructed (stdlib limit); ze's only GCM transform (20) fixes the tag at 16, so no other length is reachable.",
+      "requirement_sha": "085bec220b27ec83",
+      "tests": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV": "7023705f0a1c4b4b",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength": "7023705f0a1c4b4b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV": "cef667dcf43a1d67",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength": "3d1aaae396ecf58c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.2-3": {
+      "note": "Forbidden: not supporting AES CCM ICVs of 8 and 16. Red: TestRFC5282CCMSupportsTheEightAndSixteenOctetICV establishes under CCM8 and CCM16, measures the ICV (t.Errorf on mismatch) and expectOneDelete; TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV refuses a flipped ICV bit and a flipped ciphertext bit at each size.",
+      "requirement_sha": "e0684f005d92b996",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMSupportsTheEightAndSixteenOctetICV": "84917bde426d454e",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV": "84917bde426d454e"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMSupportsTheEightAndSixteenOctetICV": "9f746d2d1eeb8836",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV": "d4e5f24e2b69761e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-3.2-4": {
+      "note": "Forbidden: an AES CCM ICV length other than 8, 16, 12. Red: TestRFC5282CCMRefusesEveryOtherICVLength sweeps Transform IDs 0..35, errors if AEADICVOctets answers a length outside {8,12,16} or answers for any id beyond 14,15,16,20, and requires SealIKEAEAD/OpenIKEAEAD to refuse the rest; TestRFC5282CCMSupportsTheThreePermittedICVLengths seals and opens 8, 12 and 16.",
+      "requirement_sha": "7eafec6ff0bf1ee2",
+      "tests": {
+        "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength": "74209c0dcbc95d02",
+        "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMSupportsTheThreePermittedICVLengths": "74209c0dcbc95d02"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength": "858570df2d89be01",
+        "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMSupportsTheThreePermittedICVLengths": "9755688391761b15"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-4-1": {
+      "note": "Clause 'both the encryptor and decryptor construct the nonce by concatenating the salt with the IV' for AES GCM. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses IV||salt. Encryptor: no 4-1 tagged unit checks the nonce ze seals under; SealIKEAEAD calling ikeAEADNonce with its arguments swapped keeps the same length and turns no 4-1 unit red. TestRFC5282AEADSendIVIsEightOctets opens ze's own message under salt||IV but is tagged 3.1-1 only.",
+      "requirement_sha": "03cc06d5f60350ec",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "3c3543aea0fa581b",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "cb7cc91565c4006d"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-4-2": {
+      "note": "Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.",
+      "requirement_sha": "473cdde6936eb057",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "b369b23219eda929",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "1873a3f347a1340c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-4-3": {
+      "note": "Forbidden: an AES CCM nonce not built as salt||IV. Encryptor: TestRFC5282CCMNonceIsSaltThenIV opens ze's own sent message with an independent CCM under the 3 salt octets then the wire IV (fatal on failure). Decryptor: TestRFC5282CCMRefusesAReversedNonce refuses IV||salt.",
+      "requirement_sha": "0b6eaa465e007426",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV": "84917bde426d454e",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce": "84917bde426d454e"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV": "bb52c0a7c2453c0c",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce": "04fac410969b6d81"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-4-4": {
+      "note": "Forbidden: an AES CCM nonce other than 11 octets. Red: TestRFC5282CCMNonceIsElevenOctets asserts len(nonce)==11 and expectOneDelete; TestRFC5282CCMRefusesANonceThatIsNotElevenOctets refuses 10 and 12. Sender length is fixed by the shared newIKEAEAD (ccm.New with salt+IV), so a sender-only change is not reachable without reddening these.",
+      "requirement_sha": "d3bb63316a5b5d71",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets": "84917bde426d454e",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets": "84917bde426d454e"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets": "78f09ce69771fae8",
+        "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets": "a0188b3615488cf6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5282-5.1-1": {
+      "note": "The associated data MUST span the fixed header through the SK generic header, including intervening payloads. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts a test-sealed message over that span, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered Notify. Sender: the AAD ze seals under is cut in buildSKMessageAEADWithMsgID, a separate producer, and no 5.1-1 tagged unit checks it; a sender cutting the AAD at 32 octets or past the SK header turns no 5.1-1 unit red.",
+      "requirement_sha": "2e7176e219811541",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "2998e981b3381787",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "dd1267649a6aca17"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-5.1-2": {
+      "note": "The IV and Ciphertext MUST NOT be in the associated data. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts a span ending at the SK header, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses one covering the IV. Sender: no 5.1-2 tagged unit checks the AAD buildSKMessageAEADWithMsgID seals under; TestRFC5282AEADSendIVIsEightOctets opens ze's message under raw[:DataOffset] but is tagged 3.1-1 only.",
+      "requirement_sha": "98a21f9c2c7029d6",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "12bd50ab9f3079b3",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "1069cc8ca61b7ac5"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-7.1-1": {
+      "note": "Clause 'When AES GCM or AES CCM is used ... each key MUST be treated as having a size of zero'. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets asserts zero-length SK_ai/SK_ar and the SK_ei offset; TestRFC5282NonAEADIntegrityKeysAreDerived is the negative. AES CCM: no tagged unit derives a CCM key hierarchy, so a CCM derivation reserving integrity key material turns nothing red.",
+      "requirement_sha": "a57346841362cf06",
+      "tests": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADIntegrityKeysAreZeroOctets": "7023705f0a1c4b4b",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "7023705f0a1c4b4b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADIntegrityKeysAreZeroOctets": "517da2ba6e76e666",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived": "619697a93a2bbb58"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-7.1-2": {
+      "note": "Both bullets are obligations. AES GCM: TestRFC5282AEADEncryptionKeysCarryTheirSalt asserts 20/36 octets and a key-then-salt round trip; TestRFC5282NonAEADEncryptionKeysCarryNoSalt is the negative. AES CCM bullet (19 octets at 128 bits, key then 3 octets of salt): no 7.1-2 tagged unit asserts it; encKeyMaterialLen's CCM branch could size the key wrong with no 7.1-2 unit red.",
+      "requirement_sha": "bebed250d8147013",
+      "tests": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "7023705f0a1c4b4b",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "7023705f0a1c4b4b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "0c8faefce387f26b",
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "32f5cdea277e76fc"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-7.3-1": {
+      "note": "Clause 'any of the identifiers for AES GCM or AES CCM'. AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute asserts exactly one Key Length attribute on the IKE and ESP rails; TestRFC5282AEADOfferWithoutAKeyLengthIsRefused refuses a missing attribute. AES CCM (identifiers 14, 15, 16, offered on the IKE rail): no tagged unit asserts ze sends the attribute; assertKeyLength even fatals on any Transform ID other than 20.",
+      "requirement_sha": "d2a62399850c6bbe",
+      "tests": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "7023705f0a1c4b4b",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "76d2719bc0f4ac46",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "fe735abd044dc1f5"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-8-1": {
+      "note": "Clause 'for any SA (IKE or ESP)'. IKE SA: TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm asserts AUTH_NONE, zero key length and zero SK_ai/SK_ar; TestRFC5282AEADOfferWithIntegrityIsRefused refuses a peer's integrity transform beside AES GCM. ESP SA: no tagged unit asserts that ESP negotiation with an AEAD cipher selects no integrity algorithm.",
+      "requirement_sha": "7612d532bfa75002",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "0b39a6806fb65453",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "0b39a6806fb65453"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADOfferWithIntegrityIsRefused": "bbb5d867a1d341a1",
+        "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSelectionCarriesNoIntegrityAlgorithm": "184638515a99e3bb"
+      },
+      "verdict": "weak"
+    },
+    "RFC5282-8-2": {
+      "note": "Clause 'any proposal'. IKE proposal: TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform asserts zero Transform Type 3 from buildWireIKEProposals; TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform is the negative. ESP proposal: espProposalToWire's omission for an AEAD ESP proposal is not asserted by any 8-2 tagged unit.",
+      "requirement_sha": "861764685325f277",
+      "tests": {
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "c9abc80b09e13d14",
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "c9abc80b09e13d14"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "452af7dd73f4ff79",
+        "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "cbb537e63edae857"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5282"
+}
