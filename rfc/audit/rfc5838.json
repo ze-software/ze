@@ -1,0 +1,80 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5838-2.3-1": {
+      "note": "Forbidden behaviour: a prefix not conforming to the instance AF (e.g. length > 32 under IPv4) used in the route computation. The negative in TestV6PrefixToNetipAFWidth asserts only the converter v6PrefixToNetip returns ok=false for a 64-bit prefix under an IPv4 AF; no tagged unit feeds a non-conforming prefix through v6BuildRoutes and asserts it yields no route, so a route builder that ignored the ok flag keeps both units green. The positive (TestIPv4OverV3BuildRoutes) does go through v6BuildRoutes.",
+      "requirement_sha": "77dae112c4211bff",
+      "tests": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "4131d013fa9634a1",
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6PrefixToNetipAFWidth": "4131d013fa9634a1"
+      },
+      "units": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c",
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6PrefixToNetipAFWidth": "3f4ea899c28bd9fb"
+      },
+      "verdict": "weak"
+    },
+    "RFC5838-2.4-1": {
+      "note": "Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.",
+      "requirement_sha": "43c492e526df2eb9",
+      "tests": {
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "1f18d003751f1799",
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "1f18d003751f1799"
+      },
+      "units": {
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "986c4eef6c815748",
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "986c4eef6c815748"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5838-2.4-2": {
+      "note": "Forbidden behaviour (a): the base IPv6-unicast AF discarding a Hello whose AF-bit is clear. (b) TestAFBitIgnoredDefaultAF dispatches an AF-bit-less Hello to the default IPv6-unicast engine and asserts neighborSnapshot() has one row, so an applied AF-bit check goes red. Single-polarity marker holds (the base AF has no reject path).",
+      "requirement_sha": "ba63887227c48a43",
+      "tests": {
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "1f18d003751f1799"
+      },
+      "units": {
+        "internal/plugins/ospf/multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "2c0595984ef71387"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5838-2.6-1": {
+      "note": "The MUST binds the originator: the Forwarding Address in AS-external and NSSA LSAs of an IPv4 AF must encode an IPv4 address. TestV6ForwardingAddrAFWidth tests v6ForwardingAddr, the RECEIVE-side renderer, and never encodes an LSA; the producer forwardingAddressForAF (origination_v6_nssa.go) is untested by these tags. The IPv4 multicast AF is not covered either.",
+      "requirement_sha": "6aab692a4b517197",
+      "tests": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "4131d013fa9634a1",
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth#2": "4131d013fa9634a1"
+      },
+      "units": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "7876b3d4309b0cb9",
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth#2": "7876b3d4309b0cb9"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5838-2.6-2": {
+      "note": "The MUST is that the originator sets the bits after the leading 32 to zero. The tagged unit asserts the receiver renders 192.0.2.7 even when trailing octets are 0xff, i.e. it proves receive-side tolerance of non-zero bits, a neighbouring property; the producer forwardingAddressForAF (origination_v6_nssa.go) is never exercised.",
+      "requirement_sha": "ab1696848a715e70",
+      "tests": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "4131d013fa9634a1"
+      },
+      "units": {
+        "internal/plugins/ospf/afstrategy_v6_test.go::TestV6ForwardingAddrAFWidth": "7876b3d4309b0cb9"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5838-2.8-1": {
+      "note": "Forbidden behaviour: a virtual link formed without a global IPv6 address. The negative TestV6VirtualEndpointRequiresGlobalAddress covers only the neighbor side (neighbor advertises only fe80::2, resolution fails). No tagged unit removes THIS router's global address and asserts resolution fails, so v6ResolveVirtualEndpointLocked falling back to a link-local local source keeps both units green (the positive asserts src only when a global exists).",
+      "requirement_sha": "b0701552f09f76a3",
+      "tests": {
+        "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "571c66c643c8a516",
+        "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
+      },
+      "units": {
+        "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "9b40f1f425a2c135",
+        "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "8b9d91c00b1ded66"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5838"
+}
