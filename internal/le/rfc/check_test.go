@@ -233,6 +233,9 @@ func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
 		t.Run(one.name, func(t *testing.T) {
 			files := fixtureCorpus()
 			files[selftestSummaryRel] = checklist + one.baseline + highWater
+			// The row quote rule judges every row, so the RFC text carries the SHOULD
+			// sentence the high-water and new rows quote.
+			files[selftestSourceRel] = checkFixtureSource + "\n    A speaker SHOULD count widgets.\n"
 			root := commitFixtureTree(t, files, nil)
 			commitFixtureEmptyTip(t, root)
 			baseline, baselineCode := Check(root)

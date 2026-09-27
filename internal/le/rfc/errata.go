@@ -77,15 +77,6 @@ func treeErrata(tree, stem string) func(string) (string, bool) {
 	}
 }
 
-// blobErrata answers a reader of the errata one revision's blobs hold for one
-// stem.
-func blobErrata(blobs map[string]string, stem string) func(string) (string, bool) {
-	return func(number string) (string, bool) {
-		text, held := blobs[erratumPath(stem, number)]
-		return text, held
-	}
-}
-
 // parseErratum reads one stored erratum. It refuses a file that is not the
 // erratum it is named after, not of this stem's RFC, not verified, or missing
 // either text: an erratum that is only reported is a claim by its reporter,

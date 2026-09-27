@@ -113,6 +113,7 @@ names the rows.
 | D-12 | Owner decision (2026-09-27), RFC 3101 §3.2 translator election: a translator is a router with the B-bit in the NSSA, and "equivalent" means the same mask, the same metric and the same non-zero forwarding address. Changing the tagged tests for this is approved under D-8 |
 | D-13 | Owner decision (2026-09-27), revised the same day. The first ruling was to follow the draft with a bare UTF-8 Capability Value. That broke interop with FRR: FRR 10.3.1's bgp_capability_software_version reads the first octet as a length and tears the session down, and FRR and ExaBGP both send the length octet. Final ruling: support both forms. Ze decodes both: the length-prefixed form when the first octet equals the remaining length and the rest is valid UTF-8, otherwise the draft's bare string. The format Ze sends is a per-peer config choice, `draft` or `legacy`, defaulting to `draft` (owner's choice of default). A peer talking to FRR or ExaBGP must set `legacy`, and the docs and the config help say so. `legacy` is recorded as an owner-approved deviation from the draft |
 | D-14 | Owner decision (2026-09-27), RFC5880-6.7.3-12: follow the RFC literally and seed bfd.RcvAuthSeq before the digest check. TestRFC5880ForgedFirstPacketDoesNotSeedReplayFloor is rewritten under this approval. This knowingly accepts that one forged first packet can pin the replay floor, since nothing clears it while 6.8.1-13 is a gap |
+| D-15 | Owner decision (2026-09-27). With every row quoted (unquoted 0, from 3706), the strict re-read left 894 verdicts where the tests prove less than the sentence: 838 weak, 56 wrong, across 135 stems. Fixing them (test or row) moves to a separate spec, run by package. This spec closes after the phase 5 rule flip. The ledger already records each one as weak or wrong, so no claim outruns the evidence. Main-thread call inside D-15: the split-needed rows (about 80, from the stem reports) and the narrowing audit go to the same spec, because each split adds a row that owes tests |
 | D-3 | A row backed only by prose without an RFC 2119 keyword, or by a lowercase "must", is quoted verbatim and keeps its level. The level changes only when the sentence carries a different 2119 keyword. A demotion from MUST carries its correction paragraph |
 
 ## Required Reading
@@ -263,6 +264,36 @@ N-A: the change takes no new numeric input. The 24-character minimum quote is al
 | Test | Validates |
 |------|-----------|
 | `./le rfc check` over the real tree at the end of phase 4 and of phase 5 | AC-1 (output pasted into the spec) |
+
+AC-1 evidence, 2026-09-27, `./le --name l5 rfc check` (a fresh build) over HEAD
+4ea190082d plus the uncommitted phase 5 flip, so every row is judged. The
+unquoted figures no longer exist after the flip: an unquoted row is now a
+violation, and the output names none. The 18 violations are all foreign
+discrimination records whose producer changed; none is a row-quote refusal.
+Each line is cut after "(producer-changed)"; the rest of every line is the
+same explanation.
+
+```
+rfc-requirements: 18 violation(s)
+  * rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 positive at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc4271.json: the revert record for RFC4271-6.3-15 negative at internal/component/bgp/reactor/session_update_error_rfc4271_test.go::TestRFC4271UpdateMalformedAttributeList no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 negative at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc7611.json: the revert record for RFC7611-2.1-1 positive at internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc7705.json: the revert record for RFC7705-3.3-1 positive at internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 positive at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc7947.json: the mutant record for RFC7947-2.2.2.2-1 negative at internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-1 positive at internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-10-2 positive at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-10.5.2-1 negative at internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-1 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-2 positive at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.3-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClosureOnFreshDialIsNotRetried no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-2 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-4.4-3 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen no longer verifies (producer-changed) [...]
+  * rfc/discrimination/rfc8907.json: the revert record for RFC8907-5.4.2.2-1 negative at internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue no longer verifies (producer-changed) [...]
+```
 
 ### Interop Tests
 

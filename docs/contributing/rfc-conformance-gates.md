@@ -429,7 +429,9 @@ before.
 
 At column 0 a heading is a number (`3.1.  Title`, `4  Title`), a letter with a
 dot (`A.  Title`), a letter and a number with no dot between (`A2.  Title`, RFC
-4302), or `Appendix` or `APPENDIX` before a letter that ends in a dot or a colon
+4302), a letter and a dotted number with no trailing dot (`B.1 Level 1 Complete
+Sequence Numbers PDU`, the annex subsections of RFC 1195), or `Appendix` or
+`APPENDIX` before a letter that ends in a dot or a colon
 (`Appendix D:  Configuration Parameters`, RFC 3101). The colon is read only
 under the word, because a bare `S: 250 OK` is a line of a transcript. One line
 of that shape is still not a heading: a number written with no dot at all that
@@ -446,7 +448,10 @@ Full Copyright Statement` after section 7, RFC 2548). On 2026-09-27 this moved
 the sections or sites of RFC 1035, 1195, 1812, 2205, 2548, 2661, 2759, 2865,
 2869, 3101, 3579, 3602, 4301, 4302, 4303, 4456, 4861, 5072, 6482, 791 and sFlow
 v5, and every extraction artifact among them was re-walked with its decisions
-carried forward by quote.
+carried forward by quote. Reading the undotted annex subsection, later the same
+day, moved the sections of RFC 1195, 1812, 2328, 2473 and 3101 the same way; the
+rows of RFC 1195 that had cited `§8` for annex text now cite the annex
+subsection.
 <!-- source: internal/le/rfc/inventory.go -- columnZeroHeadings -->
 
 An RFC with no heading under either reading is the one exception (owner
@@ -466,7 +471,9 @@ before the first heading, is refused as an unresolved anchor. In the corpus of
 
 
 One haystack builder serves every quote path: `quoteHaystack`
-(`internal/le/rfc/inventory.go`) strips the page furniture, collapses the
+(`internal/le/rfc/inventory.go`) strips the page furniture (the footer, the
+form feed, and the running header up to its first blank line, which RFC 792
+writes on two lines), collapses the
 whitespace and joins a word the RFC hyphenated across a line break. The row
 check, `checkFeatureDeclined` and the level correction read by
 `checkLevelRatchet` all match against it, so a sentence one of them finds, the
@@ -518,31 +525,22 @@ the erratum's corrected text. Accepting the published text would pass a
 sentence the erratum may have withdrawn.
 <!-- source: internal/le/rfc/errata.go -- erratumRowRefusal, parseErratum, citedErrata -->
 
-The rule judges the rows that the commit under test adds or edits: a row HEAD
-holds and `HEAD^` does not, or holds with another quote, another cited
-section or other cited errata. Both sides are COMMITTED, the scope `checkDiscriminationRatchet` uses,
-because `./le verify worktree` checks the commit out detached, where the tree
-equals HEAD. A row still uncommitted is judged once it is committed.
-`readQuoteRevisions` (`internal/le/rfc/check_quote.go`) reads only the stems
-whose summary, RFC text or stored errata the commit changed, at both revisions.
+The rule judges every row in the corpus, against the summaries, the RFC texts
+and the stored errata of the tree under check. A row the commit under test did
+not touch is refused like a row it added, so a row that stops being verbatim
+because its RFC text or a cited erratum's file changed is refused too, and the
+refusal names that row. A stem with rows and no RFC text is refused row by row
+(the "No source" refusal), never skipped. `checkRowQuotes`
+(`internal/le/rfc/check_quote.go`) reads each stem's RFC text once.
 
-`checkUnquotedRatchet` refuses a stem whose count of unquoted rows rose from
-`HEAD^` to HEAD, and names the stem and both counts. The row check already
-refuses each row the commit added or edited. The ratchet also catches a row the
-commit left alone that stopped being verbatim because its RFC text or a cited
-erratum's file changed.
-
-Where git cannot answer, the quote rules judge nothing and say so. When `HEAD^`
-does not resolve, or git cannot name the changed paths, `./le rfc check` prints
-that the row quote rule and the ratchet judged nothing. A touched stem whose
-summary does not parse at one revision, or that has rows and no RFC text at one
-revision, is named as unjudged with its reason. It is never counted as zero.
-
-On success, `./le rfc check` prints the unquoted backlog of the tree: the total,
-the number of stems, the count of each stem that has one, and each stem with rows
-and no RFC text, which is counted in no figure. The figure is a measurement and
-not a violation. The JSON carries `unquoted`, `unquoted-total` and
-`unquoted-unjudged`.
+Until 2026-09-27 the rule judged only the rows a commit added or edited, and a
+ratchet refused a stem whose count of unquoted rows rose over `HEAD^`, while
+`./le rfc check` printed the backlog as a measurement. The hand backfill
+(`spec-rfc-requirement-quote-hand-backfill`) quoted every row the mechanical
+backfill left, taking the backlog to zero, and the change scope, the ratchet and the backlog figure were
+then deleted: with every row judged, an unquoted row is a violation, and a
+count of violations beside the violations would state the same fact twice.
+<!-- source: internal/le/rfc/check_quote.go -- checkRowQuotes, rowQuoteRefusal -->
 
 `./le rfc quote-backfill stem <stem>` rewrites the rows whose quote can be taken
 mechanically from the extraction walk. Without `apply` it writes nothing: it

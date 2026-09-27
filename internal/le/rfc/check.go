@@ -12,7 +12,6 @@
 package rfc
 
 import (
-	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -152,22 +151,6 @@ type CheckReport struct {
 	// check, and a ratchet that reds the tree over standing debt gets removed
 	// rather than obeyed.
 	UnscannedTags []UnscannedTag `json:"unscanned-tags,omitempty"`
-	// Unquoted counts, for each stem, the tree's rows whose text is not a
-	// verbatim span of the section they cite. Published debt, not a violation:
-	// the row quote rule judges only the rows the commit under test added or
-	// edited, and the ratchet refuses a stem whose count rose over HEAD^.
-	// UnquotedTotal renders at zero for the reason the discrimination figures
-	// do: an absent key reads as "no such stage".
-	Unquoted      map[string]int `json:"unquoted,omitempty"`
-	UnquotedTotal int            `json:"unquoted-total"`
-	// UnquotedUnjudged names each stem the quote rules could not judge, with
-	// the reason. It is counted in no figure above, because a stem nobody
-	// could read is not a stem with zero unquoted rows.
-	UnquotedUnjudged []string `json:"unquoted-unjudged,omitempty"`
-	// QuoteHistoryUnread says HEAD^ did not resolve or git could not name what
-	// the commit under test changed, so the row quote rule and the ratchet
-	// judged nothing.
-	QuoteHistoryUnread bool `json:"quote-history-unread,omitempty"`
 }
 
 // demonstratedStemsPhrase names the summaries that hold a demonstrated gap,
@@ -270,28 +253,6 @@ func (r *CheckReport) Text() string {
 			Str(" further tagged unit(s) could not be read at both HEAD and here, so the count ").
 			Str("above them counted neither. A unit key names a function, and one that resolves ").
 			Str("at neither revision is a measurement that did not run rather than a clean one.\n")
-	}
-	tb.Str("unquoted: ").Int(int64(r.UnquotedTotal)).Str(" row(s) across ").Int(int64(len(r.Unquoted))).
-		Str(" stem(s) are not a verbatim span of the section they cite. A MEASUREMENT of the backlog, not a violation: ").
-		Str("the rule judges the rows the commit under test added or edited, and a stem's count MUST NOT rise over ").
-		Str(priorRevision).Str(".\n")
-	if len(r.Unquoted) > 0 {
-		tb.Str("unquoted: per stem:")
-		for i, stem := range slices.Sorted(maps.Keys(r.Unquoted)) {
-			if i > 0 {
-				tb.Byte(',')
-			}
-			tb.Byte(' ').Str(stem).Byte(' ').Int(int64(r.Unquoted[stem]))
-		}
-		tb.Str(".\n")
-	}
-	if len(r.UnquotedUnjudged) > 0 {
-		tb.Str("unquoted: ").Int(int64(len(r.UnquotedUnjudged))).Str(" stem(s) unjudged and counted in no figure: ").
-			Str(strings.Join(r.UnquotedUnjudged, ", ")).Str(".\n")
-	}
-	if r.QuoteHistoryUnread {
-		tb.Str("unquoted: ").Str(priorRevision).
-			Str(" does not resolve, or git could not name what the commit under test changed, so the row quote rule and the unquoted ratchet judged nothing.\n")
 	}
 	if len(r.UnscannedTags) > 0 {
 		tb.Str("unscanned: ").Int(int64(len(r.UnscannedTags))).
@@ -482,9 +443,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	findings = append(findings, notes(compileErrors)...)
 	findings = append(findings, notes(checkLowerLayerProducer(discriminationSources, collected.Requirements))...)
 	findings = append(findings, notes(checkFeatureDeclined(tree, discriminationSources, collected.Requirements))...)
-	quotes := readQuoteRevisions(tree)
-	findings = append(findings, notes(checkRowQuotes(tree, collected.Requirements, quotes.scope, quotes.known))...)
-	findings = append(findings, notes(checkUnquotedRatchet(quotes))...)
+	findings = append(findings, notes(checkRowQuotes(tree, collected.Requirements))...)
 	findings = append(findings, notes(checkRollupTargets(collected.Requirements, collected.Enrolled))...)
 	findings = append(findings, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled))...)
 	findings = append(findings, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements))...)
@@ -594,12 +553,6 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	report.DiscriminationRemovable = discriminationRemovable(discrimination)
 	report.DiscriminationDrifted = discriminationDrifted(obligations)
 	report.DiscriminationChanged, report.DiscriminationUnresolved = discriminationChangedUnits(obligations)
-	report.Unquoted, report.UnquotedUnjudged = unquotedFigures(tree, collected.Requirements)
-	for _, count := range report.Unquoted {
-		report.UnquotedTotal += count
-	}
-	report.UnquotedUnjudged = append(report.UnquotedUnjudged, quotes.unjudged...)
-	report.QuoteHistoryUnread = !quotes.known
 	report.UnscannedTags, err = unscannedTags(tree, carriers)
 	if err != nil {
 		return CheckReport{}, err

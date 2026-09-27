@@ -152,8 +152,8 @@ func TestCitedErrataReadsTrailingParenthetical(t *testing.T) {
 // VALIDATES: D-11 through the entry point -- a tip commit adding a row that cites an erratum
 // is refused while the erratum's file is absent, naming the file, and is green once the
 // commit also carries the verified text. A later commit that edits only the erratum file so
-// the row stops being verbatim is caught by the unquoted ratchet, so the erratum store is
-// part of what a commit is judged on.
+// the row stops being verbatim has that row refused, so the erratum store is part of what
+// every row is judged on.
 // METHOD: fixture repositories checked by Check, the `./le rfc check` entry point.
 func TestCheckJudgesErratumRowThroughCommits(t *testing.T) {
 	const row = "- [ ] [RFC9999-2-3] [SHOULD] A receiver SHOULD count the frames it drops. (§2, erratum 1234)"
@@ -183,7 +183,7 @@ func TestCheckJudgesErratumRowThroughCommits(t *testing.T) {
 	base[erratumRel] = placed
 	edited := commitFixtureTip(t, base, map[string]string{erratumRel: strings.Replace(placed, "count the frames", "log the frames", 1)}, nil)
 	report, code = Check(edited)
-	if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), "unquoted rows 0 -> 1") {
-		t.Fatalf("an erratum edit that unquoted a row answered %d without the ratchet:\n%s", code, report.Text())
+	if code != 2 || len(report.Violations) != 1 || !strings.Contains(report.Violations[0], "RFC9999-2-3") {
+		t.Fatalf("an erratum edit that unquoted a row answered %d without refusing the row:\n%s", code, report.Text())
 	}
 }

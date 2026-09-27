@@ -264,8 +264,8 @@ Rules:
 - The row format is `- [ ] [<ID>] [<LEVEL>] <verbatim sentence> (§<section>)`,
   with any `{...}` marker after the parenthetical. The quote is at least 24
   characters and sits in the cited section or one of its subsections.
-- `./le rfc check` refuses a row a commit adds or edits whose quote is not
-  in its cited section, and a stem whose count of unquoted rows rises.
+- `./le rfc check` refuses every row in the corpus whose quote is not in its
+  cited section, whether or not the commit under test touched the row.
   The rules are in `docs/contributing/rfc-conformance-gates.md`, "The row quote".
 - To find the site sentence of an existing row, run
   `./le rfc quote-backfill stem <stem>`. Without `apply` it writes nothing

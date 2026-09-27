@@ -153,8 +153,8 @@ func quoteFixtureSummary(rows ...string) string {
 // the section and the text; the same commit adding a verbatim row stays green.
 // METHOD: two fixture repositories whose tip commit adds one SHOULD row (SHOULD, so no
 // coverage or extraction rule has anything to say about it), checked out detached as
-// `./le verify worktree` does. The paraphrase answers exactly two violations: the row
-// refusal, and the AC-8 ratchet over the stem's unquoted count, which the same row raised.
+// `./le verify worktree` does. The paraphrase answers exactly one violation: the row
+// refusal. No second rule counts the same row.
 func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 	quoted := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: quoteFixtureSummary(
 		"- [ ] [RFC9999-2-3] [SHOULD] A speaker MUST send the widget. (§2)")}, nil)
@@ -168,8 +168,8 @@ func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 		"- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")}, nil)
 	gitFixture(t, added, []string{"checkout", "-q", "--detach"})
 	report, code := Check(added)
-	if code != 2 || len(report.Violations) != 2 {
-		t.Fatalf("a paraphrased row the tip added answered %d with %d violation(s), want the row and the ratchet:\n%s",
+	if code != 2 || len(report.Violations) != 1 {
+		t.Fatalf("a paraphrased row the tip added answered %d with %d violation(s), want the row:\n%s",
 			code, len(report.Violations), report.Text())
 	}
 	row := ""
@@ -185,60 +185,50 @@ func TestCheckRefusesNewRowNotVerbatimInSection(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-7 -- an unquoted row the commit under test did not touch is not refused,
-// and it is counted in the stem's unquoted figure and the total `./le rfc check` prints.
-// METHOD: the unquoted row is in the BASE commit; the tip commit changes an unrelated file.
-func TestCheckCountsUnchangedUnquotedRow(t *testing.T) {
+// VALIDATES: AC-2 -- the row quote rule judges every row in the corpus: a row that is not
+// verbatim in its cited section, and that the commit under test did not touch, is refused,
+// naming the stem, the id, the section and the text, with the rule's reason.
+// METHOD: the unquoted row is in the BASE commit, identical at HEAD^ and HEAD; the tip
+// commit changes an unrelated file. Restoring a scope over the commit's added or edited
+// rows turns this red.
+func TestCheckRefusesUnchangedUnquotedRow(t *testing.T) {
+	const paraphrase = "Speakers ought to transmit widgets promptly"
 	base := fixtureCorpus()
 	base[selftestSourceRel] = selftestRFCSource
-	base[selftestSummaryRel] = quoteFixtureSummary(
-		"- [ ] [RFC9999-2-3] [SHOULD] Speakers ought to transmit widgets promptly (§2)")
+	base[selftestSummaryRel] = quoteFixtureSummary("- [ ] [RFC9999-2-3] [SHOULD] " + paraphrase + " (§2)")
 	root := commitFixtureTip(t, base, fixtureCorpusNudge(), nil)
 	report, code := Check(root)
-	if code != 0 {
-		t.Fatalf("an unquoted row the tip did not touch answered %d:\n%s", code, report.Text())
+	if code != 2 || len(report.Violations) != 1 {
+		t.Fatalf("an unquoted row the tip did not touch answered %d with %d violation(s), want the row:\n%s",
+			code, len(report.Violations), report.Text())
 	}
-	if report.Unquoted[selftestStem] != 1 || report.UnquotedTotal != 1 {
-		t.Fatalf("unquoted figures %v total %d, want %s 1 and total 1", report.Unquoted, report.UnquotedTotal, selftestStem)
-	}
-	text := report.Text()
-	for _, want := range []string{"unquoted: 1 row(s) across 1 stem(s)", selftestStem + " 1"} {
-		if !strings.Contains(text, want) {
-			t.Errorf("the report omits %q:\n%s", want, text)
+	for _, want := range []string{selftestStem, "RFC9999-2-3", "section 2", paraphrase, "not a verbatim span of section 2"} {
+		if !strings.Contains(report.Violations[0], want) {
+			t.Errorf("the row refusal omits %q: %q", want, report.Violations[0])
 		}
 	}
 }
 
-// VALIDATES: principles (no silent zero) -- a stem with rows and no RFC text is named as
-// unjudged and counted in no figure, never reported as zero unquoted.
-func TestCheckNamesStemWithoutRFCTextUnjudged(t *testing.T) {
-	root := commitFixtureTip(t, fixtureCorpus(), fixtureCorpusNudge(), nil)
-	figures, unjudged := unquotedFigures(root, []Requirement{*quoteRow(t, "A speaker MUST send the widget", "2"),
-		{RFC: "rfc7777", RID: "RFC7777-2-1", Text: "A speaker MUST send the widget (§2)", Section: "2"}})
-	if _, counted := figures["rfc7777"]; counted {
-		t.Errorf("a stem with no RFC text was counted: %v", figures)
+// VALIDATES: principles (no silent zero) -- a stem with rows and no RFC text is refused row
+// by row, each refusal naming the row and where to fetch the text, while a row of a stem
+// whose text is present and verbatim is accepted. It is never left unjudged.
+// METHOD: checkRowQuotes over the fixture tree, which holds rfc/full/rfc9999.txt and no
+// text for rfc7777, with one row of each stem.
+func TestCheckNamesStemWithoutRFCTextRefused(t *testing.T) {
+	root := checkFixtureTree(t, nil)
+	refusals := checkRowQuotes(root, []Requirement{*quoteRow(t, "A speaker MUST send the widget", "2"),
+		{RFC: "rfc7777", RID: "RFC7777-2-1", Text: "A speaker MUST send the widget (§2)", Section: "2"},
+		{RFC: "rfc7777", RID: "RFC7777-2-2", Text: "A receiver MUST NOT drop the widget (§2)", Section: "2"}})
+	if len(refusals) != 2 {
+		t.Fatalf("answered %d refusal(s), want one for each rfc7777 row: %q", len(refusals), refusals)
 	}
-	if len(unjudged) != 1 || !strings.Contains(unjudged[0], "rfc7777") {
-		t.Errorf("the stem with no RFC text is not named unjudged: %v", unjudged)
-	}
-}
-
-// VALIDATES: AC-8 through the entry point -- a tip commit that raises a stem's unquoted
-// count over HEAD^ is refused, naming the stem and both counts.
-func TestCheckRefusesUnquotedCountRise(t *testing.T) {
-	root := commitFixtureTip(t, fixtureCorpus(), map[string]string{selftestSummaryRel: quoteFixtureSummary(
-		"- [ ] [RFC9999-2-3] [SHOULD] Speakers ought to transmit widgets promptly (§2)")}, nil)
-	report, code := Check(root)
-	if code != 2 {
-		t.Fatalf("an unquoted count rise answered %d:\n%s", code, report.Text())
-	}
-	for _, violation := range report.Violations {
-		if strings.Contains(violation, "unquoted") && strings.Contains(violation, selftestStem) &&
-			strings.Contains(violation, "0 -> 1") {
-			return
+	for i, rid := range []string{"RFC7777-2-1", "RFC7777-2-2"} {
+		for _, want := range []string{rid, "the RFC's own text is not in this repository", "rfc/full/rfc7777.txt"} {
+			if !strings.Contains(refusals[i], want) {
+				t.Errorf("refusal %d omits %q: %q", i, want, refusals[i])
+			}
 		}
 	}
-	t.Errorf("no violation names %s's unquoted count moving 0 -> 1:\n%s", selftestStem, report.Text())
 }
 
 // VALIDATES: the functional case of the row quote rule -- an author commits a MUST the RFC
@@ -259,15 +249,13 @@ func TestRFCSelftestQuoteStageRefusesFabricatedRow(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-8, the case the row check cannot see -- a tip commit that changes only the
-// RFC text, so a row it left alone stops being verbatim, raises the stem's unquoted count and
-// is refused by the ratchet, while the row check, which judges only rows the commit edited,
-// says nothing about that row.
+// VALIDATES: a tip commit that changes only the RFC text, so a row it left alone stops
+// being verbatim, is refused, and the refusal names that row: the rule judges every row
+// against the text in the tree, not only the rows the commit edited.
 // METHOD: the base commit holds the two-sentence selftest RFC text and a verbatim SHOULD
 // row quoting its second sentence; the tip rewrites the sentence it quotes
-// in rfc/full/rfc9999.txt and touches no summary. Deleting the RFC-text paths from
-// quoteChangedStems, or the ratchet itself, turns this red.
-func TestCheckRefusesUnquotedCountRiseFromRFCTextChange(t *testing.T) {
+// in rfc/full/rfc9999.txt and touches no summary.
+func TestCheckRefusesRowAnRFCTextChangeUnquoted(t *testing.T) {
 	base := fixtureCorpus()
 	base[selftestSourceRel] = selftestRFCSource
 	base[selftestSummaryRel] = quoteFixtureSummary("- [ ] [RFC9999-2-3] [SHOULD] A receiver MUST NOT drop the widget. (§2)")
@@ -280,17 +268,16 @@ func TestCheckRefusesUnquotedCountRiseFromRFCTextChange(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("an RFC text change that unquoted a row answered %d:\n%s", code, report.Text())
 	}
-	ratchet := false
+	// The extraction rules also refuse the changed text; the row refusal is the one this
+	// test is about, and it must be there exactly once.
+	rows := 0
 	for _, violation := range report.Violations {
-		if strings.Contains(violation, "RFC9999-2-3") {
-			t.Errorf("the row check judged a row the tip commit did not edit: %s", violation)
-		}
-		if strings.Contains(violation, "unquoted rows 0 -> 1") && strings.Contains(violation, selftestStem) {
-			ratchet = true
+		if strings.Contains(violation, "RFC9999-2-3") && strings.Contains(violation, "not a verbatim span of section 2") {
+			rows++
 		}
 	}
-	if !ratchet {
-		t.Errorf("no violation names %s's unquoted count moving 0 -> 1:\n%s", selftestStem, report.Text())
+	if rows != 1 {
+		t.Errorf("%d violation(s) refuse RFC9999-2-3 as not verbatim, want 1:\n%s", rows, report.Text())
 	}
 }
 
