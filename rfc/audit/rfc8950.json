@@ -1,0 +1,58 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8950-3-2": {
+      "note": "The next hop is the VPN-IPv6 address with an 8-octet RD set to zero. TestParseMPReachNLRI_VPNWithIPv6NextHop decodes a zero-RD 24-byte next hop, and a decoder that skips the RD would pass whatever the RD holds. TestMPReachNLRI_RoundTrip_VPN encodes an IPv4 next hop (the RFC 4364 12-byte form, a neighbouring rule) and asserts only NH_Len = 12, never that the 8 RD bytes are zero. A writer emitting a non-zero RD passes both units. The 48-byte link-local form is untested.",
+      "requirement_sha": "e399c98a362732ab",
+      "tests": {
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_RoundTrip_VPN": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "956952d4c9cbe9bd"
+      },
+      "units": {
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_RoundTrip_VPN": "2de233ae11c22f66",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "630eb519ab626e3f"
+      },
+      "verdict": "weak"
+    },
+    "RFC8950-4-1": {
+      "note": "MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop once the peer supports ExtNH for the relevant AFI/SAFI pair. TestCanUseNextHopFor_* (reactor/peer_test.go) cover IPv4 unicast with the capability present, absent, and with a nil send context. No unit covers VPN-IPv4. No unit covers the pair-specific clause, where ExtNH is negotiated for another AFI/SAFI and not for the one advertised.",
+      "requirement_sha": "f608a02bce1fb9c0",
+      "tests": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "f87129e8344233a1",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "f87129e8344233a1",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "f87129e8344233a1"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap": "2044d66ac70676f4",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH": "3840c6ca12879693",
+        "internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx": "73442ab49b6d3c26"
+      },
+      "verdict": "weak"
+    },
+    "RFC8950-4-2": {
+      "note": "MUST determine peer support through Capability Advertisement for the pair(s) of interest. TestNegotiateExtendedNextHop and ...Mismatch (capability/negotiated_test.go) prove both-advertise and remote-absent. An implementation that treated any remote ExtNH capability as support for every pair passes both tagged units. The untagged TestNegotiateExtendedNextHopMultipleFamilies tests per-tuple negotiation and would close the clause if tagged.",
+      "requirement_sha": "3657dea459e3c135",
+      "tests": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "79de3d0b159f3a42"
+      },
+      "units": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHop": "7cfa7c59e93867e9",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateExtendedNextHopMismatch": "7c2c903b883f0b20"
+      },
+      "verdict": "weak"
+    },
+    "RFC8950-5-1": {
+      "note": "MUST NOT change the encoding of a next hop passed along unchanged. The non-compliant behaviour is the RR re-encoding the 16-byte IPv6 next hop. TestReactorForwardRRPreservesExtendedNextHop (reactor/forward_rr_test.go) asserts require.Equal(mpReach, attrs[14]) and the next-hop bytes 4:20, so any re-encoding goes red. Single-polarity positive per the row's marker.",
+      "requirement_sha": "6d05af78b9b46dbe",
+      "tests": {
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "0aacc49d3f8958ea"
+      },
+      "units": {
+        "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesExtendedNextHop": "36a17730ebd19e1b"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc8950"
+}
