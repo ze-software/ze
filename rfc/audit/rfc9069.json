@@ -1,0 +1,187 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9069-4.2-1": {
+      "note": "Forbidden: a locally sourced route conveyed under a peer type other than 3. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType drives oneBestChange, a BGP-learned route (protocol bgp, AS_PATH 65001), not a locally sourced one, so no assertion shows a locally sourced route (static, redistributed, aggregate) reaching the collector under type 3. The negative ::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType proves a neighbouring rule (non-local routes are not type 3), which the sentence does not forbid.",
+      "requirement_sha": "6cdb79aa32b0e12b",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "04358eb8400ea702"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "77e479748bdf19c7",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType": "168afb911be1b7c9"
+      },
+      "verdict": "weak"
+    },
+    "RFC9069-5.1-1": {
+      "note": "Forbidden: a timestamp that is not the install time (a wall clock on a replay), or zero where the install time is known. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime: got==0 Fatal and outside [before,after] Errorf; ::TestLocRIBReplayAndPeerUpCarryNoTimestamp: replay RM and Peer Up timestamps must be (0,0). Precision is implementation dependent, so microseconds are not owed.",
+      "requirement_sha": "e9c461a2597f18ff",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBReplayAndPeerUpCarryNoTimestamp": "04358eb8400ea702"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime": "fd549f95538cd862",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBReplayAndPeerUpCarryNoTimestamp": "f46366114e46ae3f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-5.2-1": {
+      "note": "Forbidden: a Sent OPEN that is not a BGP OPEN, lacks the 4-octet ASN or a needed capability, or carries a capability not used for Loc-RIB monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities asserts type OPEN, ASN4 == own ASN, one Multiprotocol per dumpFamilies and len(families)==len(dumpFamilies). The 'Only include capabilities if they will be used' clause is asserted for Multiprotocol only: an extra non-MP capability (Route Refresh, ADD-PATH, Graceful Restart) in the fabricated OPEN stays green.",
+      "requirement_sha": "7b21af20b10bac12",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "164e730b6f344d09"
+      },
+      "verdict": "weak"
+    },
+    "RFC9069-5.2.1-1": {
+      "note": "Forbidden: a Loc-RIB Peer Up without the type-3 TLV, a name other than 'global' for the zero-distinguisher default instance, a value outside 1..255 bytes, or a Peer Down missing the TLV. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName: Distinguisher 0, exactly one TLV, assertTableNameTLV (type, value, 1..255, length field) on Peer Up and on the Peer Down after reason 6. Negative ::TestMonitoredPeerUpCarriesNoTableNameTLV. 'If a name is configured' is conditional on a table-name leaf ze does not have.",
+      "requirement_sha": "aacb50e870ac85da",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerUpCarriesNoTableNameTLV": "04358eb8400ea702"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName": "93e75135c927872e",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerUpCarriesNoTableNameTLV": "f02c65177836e26f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-5.3-1": {
+      "note": "Forbidden: a Loc-RIB Peer Down with a reason other than 6. internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo: down.Reason != PeerDownTLVData Errorf, on the Loc-RIB peer type, read off the socket. Single-polarity marker.",
+      "requirement_sha": "4e4bb033f3c40bfb",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "904daa30c09ce18e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo": "4e838aa5423203c5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-5.4.1-1": {
+      "note": "Forbidden: 2-byte ASN encoding in Loc-RIB Route Monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs: AS_PATH length must be 2+4n (Fatal) and ASN 4200000001 must round-trip (Errorf). Both polarity tags on one unit, each clause asserted.",
+      "requirement_sha": "a496e9aab9d9bca7",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "e8233f0f8d9fecb8",
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "e8233f0f8d9fecb8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-6.1.1-1": {
+      "note": "Forbidden: a receiver that does not know which peer carries which address family. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies and ::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone each drive one peer per router and read the first peer recorded for the router address. No case has two peers on one router advertising different families, so an association keyed on the router rather than the peer stays green.",
+      "requirement_sha": "27b88c9759f04ed8",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "04358eb8400ea702"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "cef0cb7eb915d31a",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "605ab38739f5fb2e"
+      },
+      "verdict": "weak"
+    },
+    "RFC9069-6.1.3-1": {
+      "note": "Forbidden: a change that alters the session's behavior without a Peer Down / Peer Up sequence. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession asserts PeerDown then PeerUp for a monitored BGP peer on a route-monitoring-policy change. No tagged unit asserts the Loc-RIB emulated peer is bounced by a change that alters it (the loc-rib reload rails the row names carry no 6.1.3-1 tag), and the row prose names TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession / TestRFC8671UnrelatedBGPChangeBouncesNothing, which are not the tagged units. The negative ::TestAConfigurationThatAltersNoBehaviorBouncesNothing guards over-bouncing, which the sentence does not forbid.",
+      "requirement_sha": "8479b016ada2c878",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "04358eb8400ea702",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "04358eb8400ea702"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestAConfigurationThatAltersNoBehaviorBouncesNothing": "64581dcdd7e8cac6",
+        "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestBehaviorChangeBouncesThePeersOfALocRIBSession": "2e4e25f2ab1dcfed"
+      },
+      "verdict": "weak"
+    },
+    "RFC9069-x-1": {
+      "note": "Forbidden: a reserved (non-F) per-peer flag bit transmitted as 1 on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Flags != 0 is Errorf, red on any set bit. Single-polarity marker: no producer sets a flag, so no negative input exists. The row claims only the transmit half; the 'ignored on receipt' clause of the same sentence is not quoted and has no row.",
+      "requirement_sha": "94c63e0d5de6539c",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-x-2": {
+      "note": "Forbidden: a Loc-RIB instance with no emulated peer, i.e. no Loc-RIB Peer Up. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance: peerUps != 1 is Errorf, red on zero (and on one per BGP peer). Single-polarity marker. Ze runs one Loc-RIB instance, so the 'such as with VRFs' plurality has no second instance to exercise.",
+      "requirement_sha": "97426f7d41647786",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "3eda43fed7591d14"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-x-3": {
+      "note": "Forbidden: a received-OPEN field that is not a repeat of the sent OPEN. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM: len(up.SentOpenMsg)==0 is Fatal and !bytes.Equal(SentOpenMsg, ReceivedOpenMsg) is Errorf. Single-polarity marker. The fabricated-OPEN sentence is RFC9069-5.2-1's quote.",
+      "requirement_sha": "3e9c25ed3e737992",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "4a48461c2e40df46"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-x-4": {
+      "note": "Forbidden: initial synchronization of the Loc-RIB not delivered as Route Monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump asserts only that startLocRIB emits one replay-request with a distinct token. No assertion reads the dump off the collector socket as Route Monitoring messages, so a plugin that dropped or mis-encoded replay batches stays green.",
+      "requirement_sha": "edb522b575152ae8",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestStartLocRIBTriggersInitialDump": "2681d339da8f1c51"
+      },
+      "verdict": "weak"
+    },
+    "RFC9069-x-5": {
+      "note": "Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.",
+      "requirement_sha": "688398ffbc45c9e1",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-x-6": {
+      "note": "Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.",
+      "requirement_sha": "a3032001657ec349",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "6c7c67660027ad63",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "904daa30c09ce18e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9069-x-7": {
+      "note": "Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.",
+      "requirement_sha": "0835222fb0c435e2",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "6c7c67660027ad63"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9069"
+}
