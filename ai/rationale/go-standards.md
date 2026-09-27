@@ -49,5 +49,5 @@ Debug output is controlled by env vars, never removed. Losing diagnostic capabil
 
 ## History moved from rule points (2026-09-26)
 
-- `ai/rules/points/go-standards/directives/read-the-ze-style-guide-before-go-design-or-review.md`: (owner directive, 2026-08-18)
+- `ai/rules/points/go-standards/directives/read-the-ze-style-guide-before-go-design-or-review.md`: (owner directive, 2026-08-18) <!-- doc-links: ignore (history: the point was renamed on 2026-09-27) -->
 - 2026-09-27 (owner decision): the trigger changed from every session, before any code, to before a session's first Go edit. The point moved to `read-the-ze-style-guide-before-the-first-go-edit.md`, and `writeStyleGuideRead`, a check in the pre-write hook, enforces it: it refuses a Go write from a session or subagent with no Read or Bash print of the guide on record. Go written through a Bash heredoc bypasses the check.

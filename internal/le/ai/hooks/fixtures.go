@@ -159,11 +159,13 @@ var (
 	// a Read with no offset and a limit that reaches the last line, or a Bash
 	// cat, bat, nl, less or more of the file with no pipe, redirection,
 	// substitution or +N start line.
+	// Re-sealed 2026-09-27 after lint and compound-guard fixes: split guards in
+	// runsDeletion, testPath and hookStop; hookSessionStart returns nothing.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x2c, 0x34, 0xf7, 0xb7, 0xfd, 0x0b, 0x6e, 0x7f,
-		0xd1, 0x1b, 0x8c, 0xc4, 0x7a, 0x35, 0x05, 0xa3,
-		0x70, 0x49, 0x60, 0xaa, 0x26, 0x40, 0x7d, 0x41,
-		0xb5, 0x8b, 0xc4, 0x04, 0xd5, 0xaa, 0x34, 0x33,
+		0x69, 0x7c, 0x07, 0x47, 0x66, 0xce, 0xe7, 0x64,
+		0x65, 0xfb, 0x0e, 0xa5, 0x8f, 0x23, 0xc0, 0x91,
+		0x25, 0xb6, 0xb5, 0x9a, 0xf7, 0xa8, 0xb8, 0x93,
+		0x8e, 0xaa, 0xd3, 0xc7, 0xae, 0x46, 0x86, 0x28,
 	}
 )
 
@@ -220,10 +222,10 @@ var fixtureCategories = [...]fixtureCategory{
 	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
 	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/probe/probe.go", "docs/probe.md"},
 	{categoryDesignGate, "run_design_gate", hookWriteEditFile, "func writeDesignEvidence(", "source-read", "no-source-read"},
-	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "no-claimed-spec", "claimed-spec"},
+	{categoryDelegation, "run_delegation", hookLifecycleFile, "func hookStop(", "no-claimed-spec", probeClaimedSpec},
 	{categorySessionState, "run_session_state", hookLifecycleFile, "func hookEndSummary(", sessionStateKept, sessionStateRotated},
 	{categorySessionStateLocation, "run_session_state_location", hookLifecycleFile, "func stateFile(", "/state/session-state-", "tmp/session/shared/"},
-	{categorySubagentContext, "run_subagent_context", hookLifecycleFile, "func hookSubagentContext(", "claimed-spec", "no-claimed-spec"},
+	{categorySubagentContext, "run_subagent_context", hookLifecycleFile, "func hookSubagentContext(", probeClaimedSpec, "no-claimed-spec"},
 	{categoryRawJobAdmission, "run_raw_job_admission", hookBashFile, "func bashRawHeavy(", "./le test unit core", "go test ./..."},
 	{categoryJournalRowShape, "run_journal_row_shape", hookPostWriteFile, "func postJournal(", "| 2026-08-22 | spec-x | hooks | symptom | fix |", "| 2026-08-22 | spec-x | hooks | broken |"},
 	{categoryScriptWeakeningArms, "run_script_weakening_arms", hookWriteEditFile, writeWeakeningAnchor, "self.assertEqual(1, f())", "@pytest.mark.xfail\nself.assertEqual(1, f())"},
@@ -950,15 +952,19 @@ func validateSpecTree(value string) (string, error) {
 	return probeTree("validate-spec", map[string]string{"plan/" + probeSpecName: value})
 }
 
+// probeClaimedSpec is the fixture value that asks claimedSpecTree for a
+// checkout whose session claims a spec.
+const probeClaimedSpec = "claimed-spec"
+
 // claimedSpecTree builds a checkout whose session claims a spec, or claims
 // none. Naming the parent's spec is the one thing in the subagent context that
 // the tree decides, and a claim with no subagent spawned is the open state the
 // stop hook warns about.
 func claimedSpecTree(value string) (string, error) {
-	if value != "claimed-spec" {
-		return probeTree("claimed-spec", nil)
+	if value != probeClaimedSpec {
+		return probeTree(probeClaimedSpec, nil)
 	}
-	return probeTree("claimed-spec", map[string]string{
+	return probeTree(probeClaimedSpec, map[string]string{
 		"tmp/session/.session-" + probeSession: probeSpecName + "\n",
 	})
 }

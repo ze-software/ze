@@ -657,7 +657,13 @@ func lineWords(line string) ([]string, bool) {
 // group or xargs still counts.
 func runsDeletion(words []string) bool {
 	for _, word := range words {
-		if word == "rm" || strings.HasSuffix(word, "/rm") || word == "-delete" {
+		if word == "rm" {
+			return true
+		}
+		if strings.HasSuffix(word, "/rm") {
+			return true
+		}
+		if word == "-delete" {
 			return true
 		}
 	}
@@ -674,7 +680,10 @@ func runsDeletion(words []string) bool {
 // guarded.
 func testPath(path string) bool {
 	clean := filepath.ToSlash(filepath.Clean(path))
-	if clean == "test/draft" || strings.HasPrefix(clean, "test/draft/") {
+	if clean == "test/draft" {
+		return false
+	}
+	if strings.HasPrefix(clean, "test/draft/") {
 		return false
 	}
 	for _, suffix := range []string{"_test.go", ".ci", ".et"} {
@@ -694,15 +703,21 @@ func testPath(path string) bool {
 	anchored := "/" + clean + "/"
 	testTree := strings.Contains(anchored, "/internal/") || strings.Contains(anchored, "/test/")
 	for element := range strings.SplitSeq(clean, "/") {
-		if element == "test" || element == "testdata" {
+		if element == testElement {
 			return true
 		}
-		if testTree && strings.Contains(element, "test") {
+		if element == "testdata" {
+			return true
+		}
+		if testTree && strings.Contains(element, testElement) {
 			return true
 		}
 	}
 	return false
 }
+
+// testElement is the path element, or the part of one, that marks a test tree.
+const testElement = "test"
 
 // ze point: testing/directives/write-the-test-first-and-never-weaken-it
 // bashTestDeletion asks before a command deletes a test. A deleted test is

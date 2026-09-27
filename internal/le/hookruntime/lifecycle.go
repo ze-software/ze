@@ -40,7 +40,7 @@ const gitTimeout = 60 * time.Second
 func runLifecycleHook(kind string, ctx context, out, errOut io.Writer) (int, bool) {
 	switch kind {
 	case "session-start":
-		return hookSessionStart(ctx, out, errOut), true
+		hookSessionStart(ctx, out, errOut)
 	case "compaction-reminder":
 		hookCompactionReminder(ctx, errOut)
 	case "session-id":
@@ -138,7 +138,7 @@ type sessionStartReport struct {
 // The reports follow under sessionStartBudget, and one the budget cuts is named
 // on stderr with the ones after it, instead of the harness dropping the whole
 // message at its timeout.
-func hookSessionStart(ctx context, out, errOut io.Writer) int {
+func hookSessionStart(ctx context, out, errOut io.Writer) {
 	fmt.Fprintln(out, "Warning: RULE: Read spec + source files BEFORE writing any code")                                                                           //nolint:errcheck // hook protocol
 	fmt.Fprintln(out, "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers") //nolint:errcheck // hook protocol
 	if id, present := payloadSessionID(ctx.payload); present && id != "" {
@@ -158,12 +158,11 @@ func hookSessionStart(ctx context, out, errOut io.Writer) int {
 	}
 	state.specs, _ = specpath.All(ctx.root)
 	if !runSessionStartSteps(&state, sessionStartSteps, sessionStartBudget, out, errOut) {
-		return 0
+		return
 	}
 	if state.claim == "" && len(state.specs) != 0 {
 		fmt.Fprintln(out, "Tip: /ze-status for a cross-project attention view") //nolint:errcheck // hook protocol
 	}
-	return 0
 }
 
 // runSessionStartSteps runs the steps in order on one goroutine and prints each
@@ -458,7 +457,10 @@ func hookPreCompact(ctx context, errOut io.Writer) {
 func hookStop(ctx context, errOut io.Writer) int {
 	id := resolvedSessionID(ctx)
 	claim := readFirstLine(filepath.Join(ctx.root, "tmp", "session", ".session-"+id))
-	if claim == "" || claim == specUnassigned {
+	if claim == "" {
+		return 0
+	}
+	if claim == specUnassigned {
 		return 0
 	}
 	if report, _, closureErr := specstatus.CheckClosure(ctx.root, claim); closureErr == nil && report.Blocked() {

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -144,19 +145,22 @@ func reportDischargeError(err error) int {
 	return 2
 }
 
+// keywordCommit is the debt-discharge keyword that names one covered commit.
+const keywordCommit = "commit"
+
 // parseDischarge reads the closed keyword grammar into a request, and refuses
 // every shape the verifiers below cannot judge.
 func parseDischarge(args []string) (dischargeRequest, error) {
 	values, err := parseKeywords(args, map[string]keywordRule{
 		"shard": {Value: true}, "line": {Value: true, Repeat: true}, "kind": {Value: true},
-		"commit": {Value: true, Repeat: true}, "artifact": {Value: true}, "owner": {Value: true},
+		keywordCommit: {Value: true, Repeat: true}, "artifact": {Value: true}, "owner": {Value: true},
 	})
 	if err != nil {
 		return dischargeRequest{}, err
 	}
 	request := dischargeRequest{
 		Shard: values.one("shard"), Kind: values.one("kind"),
-		Commits: trimmedValues(values["commit"]),
+		Commits: trimmedValues(values[keywordCommit]),
 		// The authorisation is trimmed of its surrounding whitespace once, here,
 		// and recorded verbatim from this point on.
 		Artifact: strings.TrimSpace(values.one("artifact")),
@@ -1110,9 +1114,7 @@ func (c *commitCache) loadChunk(root string, revisions []string) {
 	}
 	facts := parseCommitFacts(shown)
 	diffs, unreadable := parseLedgerDiffs(patches)
-	for sha, files := range diffs {
-		c.diffs[sha] = files
-	}
+	maps.Copy(c.diffs, diffs)
 	for index, revision := range revisions {
 		sha := shas[index]
 		if sha == "" {
