@@ -1,0 +1,119 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1-1": {
+      "note": "the tagged unit drives ParseMUP, the decode-path parser, and asserts an unknown route type is returned as a parsed MUP value and the next NLRI is reached; it never asserts the unknown route is ignored on receipt. The ingress decision is RecognizeNLRI (rfc7606.go), which no tag of this row exercises",
+      "requirement_sha": "67906b468e34c9bf",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "2c05a008b471eab3"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10": {
+      "note": "asserts ParseMUP returns ErrMUPTLV for a TLV Length overrun on the decode path; nothing asserts Treat-as-withdraw, and ingress never walks TLVs, so the route is stored",
+      "requirement_sha": "20d0ce7c2dfefab5",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6": {
+      "note": "asserts ParseMUP returns ErrMUPTruncated, which is the decode path (DecodeNLRIHex, RunCLIDecode); nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) stores such a route, so the test would stay green with the MUST unmet",
+      "requirement_sha": "e24f1fbf9098af39",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength": "3d378f518f8e6810",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength#2": "3d378f518f8e6810"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7": {
+      "note": "asserts ParseMUP returns ErrMUPTLV for one leftover octet on the decode path; nothing asserts Treat-as-withdraw, and ingress (SplitMUP framing, RecognizeNLRI arch/route type) never validates TLVs, so the route is stored",
+      "requirement_sha": "3bffe26dbac60e46",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming": "5d81c00952fa1be0",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STTLVFraming#2": "5d81c00952fa1be0"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8": {
+      "note": "The positive drives ParseMUP (the decode path) with unknown TLV 0xF0 and asserts every mandatory field equals the TLV-less route, so a refusing decoder goes red. The negative tag sits on a truncated TLV, which is the -10 framing rule, not a violation of this row, and no {single-polarity} marker stands in for it. Ingress (SplitMUP framing, RecognizeNLRI) is never exercised, so a future ingress TLV check that refused unknown types would stay green.",
+      "requirement_sha": "70f1ba4d39ed7115",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "bbdb56a990114e09",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "bbdb56a990114e09"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9": {
+      "note": "asserts MUP.Bytes() reproduces the parsed NLRI with the unknown TLV; re-advertisement does not re-encode through Bytes, it forwards the NLRI stored opaque by SplitMUP/insertPoolNLRIs, so the path the row names is not exercised",
+      "requirement_sha": "c620e18c21726490",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "bbdb56a990114e09",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "bbdb56a990114e09"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3": {
+      "note": "The sentence binds the encoding of Endpoint Length, and ze's encoder (encode.go EncodeRoute, writeTEIDWithBits, parseTEIDWithBits) is driven by no tagged assertion, so an encoder that wrote address bits plus more than 32 stays green. The unit proves only receive-side refusal on the decode path: IPv4 Endpoint Length 64 parses with TEID 0x3039 and 72 is refused ErrMUPEndpointTooLong (types.go, one AFI-independent check). Ingress (SplitMUP, RecognizeNLRI) never applies the bound, so such a route is stored and forwarded.",
+      "requirement_sha": "6f8aa7a201b2de95",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "eb1fede070958e5a",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "eb1fede070958e5a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "34448cf8e7194f90",
+        "internal/component/bgp/plugins/nlri/mup/tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "34448cf8e7194f90"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.3-1": {
+      "note": "positive checks the ipv4/mup and ipv6/mup family constants and codec round trip, not a session negotiating and exchanging MUP NLRI for both AFIs; negative asserts the codec rejects non-MUP families, which the sentence does not state",
+      "requirement_sha": "b64f2c5f469e4df2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "2c05a008b471eab3",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "2c05a008b471eab3"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPFamiliesCoverBothAFIs": "cd644f71943efb51",
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPRejectsNonMUPFamily": "9fc78a1d7e8210eb"
+      },
+      "verdict": "weak"
+    },
+    "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2": {
+      "note": "asserts EncodeRoute puts a T1ST in MP_REACH_NLRI with the route's AFI and SAFI 85; the clause 'to all other BGP speakers within the SRv6 domain' is not asserted, so the unit proves one clause of the row",
+      "requirement_sha": "ad623a1fdd672d27",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "2c05a008b471eab3"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/mup/rfc_mup_safi_test.go::TestRFCMUPAnnounceUsesRouteAFIWithMUPSAFI": "94220b0eb85a5c0e"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "draft-ietf-bess-mup-safi"
+}
