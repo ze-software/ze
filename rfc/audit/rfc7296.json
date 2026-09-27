@@ -446,6 +446,11 @@
       },
       "verdict": "enforced"
     },
+    "RFC7296-2.4-2": {
+      "note": "No test carries an RFC requirement: RFC7296-2.4-2 tag; the only mentions are prose in plan/immediate/spec-ike-dpd-demand-driven.md, so nothing can go red on non-compliance and the row is unproven. The behaviour exists: newDPDState (internal/component/ike/engine/dpd.go) arms a periodic empty-INFORMATIONAL probe for every peer, the YANG dead-peer-detection interval defaulting to 30 seconds with range 1..3600, so an IKE SA that has received nothing protected recently is still checked. Owed: a tagged unit in both polarities (probe sent when no protected message arrived within the interval; none while a probe is outstanding), which the demand-driven DPD spec already plans.",
+      "requirement_sha": "11b8302cf30c6a4f",
+      "verdict": "weak"
+    },
     "RFC7296-2.4-3": {
       "note": "Re-read 2026-09-27; the quote was trimmed to the MUST NOT sentence (the MUST-conclude-only sentence is RFC7296-2.4-11). Two cases. Unprotected IKE messages: TestRteUnownedEstablishedSATrustsNothing fails if a cleartext Delete or CREATE_CHILD_SA moves the SA off Established; TestResponderAcceptsReinitAfterStaleSA and TestResponderKeepsOldSAOnUnauthenticatedInit fail if an unauthenticated IKE_SA_INIT disturbs the established SA. Routing information (e.g., ICMP): no tagged unit injects an ICMP error or unreachable and asserts the SA survives, so that clause has no assertion.",
       "requirement_sha": "cf7c5c842e6cd8d6",
