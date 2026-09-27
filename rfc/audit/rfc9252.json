@@ -1,0 +1,223 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC9252-3.1-1": {
+      "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
+      "requirement_sha": "b47821bc22d25891",
+      "tests": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "7f15c74c8a2ccc2b"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.1-2": {
+      "note": "(a) forbidden: a receiver that rejects or mis-parses a Service TLV whose RESERVED octet is non-zero. (b) TestExtractSRv6SID_ServiceReservedIgnored feeds RESERVED=0xFF and asserts ExtractSRv6SID still returns the SID; TestExtractSRv6SID_ServiceReservedZero is the positive. validateSRv6ServiceTLV (rfc7606.go) never reads the octet, so the UPDATE path does not reject it either.",
+      "requirement_sha": "323a628d8d9f5a36",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_ServiceReservedIgnored": "7d696fdb5e08ffca",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_ServiceReservedZero": "7d696fdb5e08ffca"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_ServiceReservedIgnored": "09fb98c8817fe122",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_ServiceReservedZero": "a36eedd2aeef4d1b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2-1": {
+      "note": "(a) forbidden: the sender emits a non-zero SID Information RESERVED1 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[7]==0. Single-polarity marker present.",
+      "requirement_sha": "5ef038ae3c80696c",
+      "tests": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "7f15c74c8a2ccc2b"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2-2": {
+      "note": "(a) forbidden: the sender emits a non-zero Service SID Flags octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[24]==0. The quote covers the sender half only; the receiver half (unknown flags MUST be ignored) has no row. Single-polarity marker present.",
+      "requirement_sha": "a705c750ebccad4f",
+      "tests": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "7f15c74c8a2ccc2b"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2-3": {
+      "note": "(a) forbidden: the sender emits a non-zero RESERVED2 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[27]==0, next to a behavior of 0x003e. Single-polarity marker present.",
+      "requirement_sha": "a1052316925d273a",
+      "tests": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "7f15c74c8a2ccc2b"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2-4": {
+      "note": "(a) forbidden: a receiver treating a SID with an unrecognized, argument-free Endpoint Behavior as invalid. (b) TestExtractSRv6SID_UnknownEndpointBehavior feeds behavior 0xFEED with no SID Structure and asserts the SID is returned. validateSRv6ServiceTLV never reads the behavior. The argument exception is the gap row RFC9252-3.2-5. Single-polarity marker present.",
+      "requirement_sha": "60f3d0d3bcc4613b",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_UnknownEndpointBehavior": "7d696fdb5e08ffca"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SID_UnknownEndpointBehavior": "82f68840138d345c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2.1-3": {
+      "note": "Both halves are detected: parseSIDStructure refuses sum>128 (TestExtractSRv6SIDFull_InvalidSIDStructure) and sum<offset+length (TestExtractSRv6SIDFull_SumBelowTransposition), checking HasTranspos==false. But both tests also assert that the SID is still valid, and ze then uses the attribute SID whole. Section 7 says such a SID value 'is invalid' and the path is ineligible, so an input that breaks this MUST still produces a usable SID and an eligible path, and no assertion goes red on that. The code accepts sum == offset+length (errata 7817) where the quoted text says 'greater than'.",
+      "requirement_sha": "179d5b0a1eb4aba0",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_InvalidSIDStructure": "7d696fdb5e08ffca",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_SumBelowTransposition": "7d696fdb5e08ffca",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_WithTransposition": "7d696fdb5e08ffca"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_InvalidSIDStructure": "f29b728e4c544904",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_SumBelowTransposition": "cabcad33c8827063",
+        "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_WithTransposition": "da8419bdc2b2159a"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-3.2.1-4": {
+      "note": "(a) forbidden: advertising a SID with a set bit inside the transposed range. (b) TestSRv6OriginRefusesNonzeroTransposedBits configures bit 79 set within offset 65 length 15 and requires ParseRouteAttributes to fail (validateSRv6OriginStructure); TestSRv6OriginTranspositionKeepsOnlyUntransposedBits is the positive, keeping the adjacent bit 64.",
+      "requirement_sha": "896b625dc8b5befb",
+      "tests": {
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginRefusesNonzeroTransposedBits": "320300b38039f539",
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginTranspositionKeepsOnlyUntransposedBits": "320300b38039f539"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginRefusesNonzeroTransposedBits": "61997ee033052444",
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginTranspositionKeepsOnlyUntransposedBits": "336e13890b0c3507"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2.1-5": {
+      "note": "(a) forbidden: no way to withhold an SRv6 service route from one neighbour while sending another service to it, or while sending the same service to another neighbour. (b) test/plugin/srv6-service-export-control.ci: filtered-peer has reject=pattern for the RT10 SID and expects the RT20 SID (per service); control-peer expects both SIDs (per neighbour). Losing either control turns an expect or reject red.",
+      "requirement_sha": "7a9827b5f9a77575",
+      "tests": {
+        "test/plugin/srv6-service-export-control.ci": "957a3e0dce547da6",
+        "test/plugin/srv6-service-export-control.ci#2": "957a3e0dce547da6"
+      },
+      "units": {
+        "test/plugin/srv6-service-export-control.ci": "957a3e0dce547da6",
+        "test/plugin/srv6-service-export-control.ci#2": "957a3e0dce547da6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.2.1-6": {
+      "note": "(a) forbidden: advertising a non-zero AL for a behavior with no argument. (b) TestSRv6OriginRefusesArgumentsForDT4 configures End.DT4 with AL=16 and requires ParseRouteAttributes to fail; TestSRv6OriginWithoutArguments asserts AL octet 0 for End.DT4. validateSRv6OriginStructure allows AL only for End.DT2M (0x0018).",
+      "requirement_sha": "e21d8995812067da",
+      "tests": {
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginRefusesArgumentsForDT4": "320300b38039f539",
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginWithoutArguments": "320300b38039f539"
+      },
+      "units": {
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginRefusesArgumentsForDT4": "c6a4952246b8e7b4",
+        "internal/component/bgp/config/routeattr_srv6_test.go::TestSRv6OriginWithoutArguments": "64b5c6ef4902c74f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.3-1": {
+      "note": "(a) forbidden: with the next hop unchanged, a forwarded Prefix-SID whose Reserved octets differ from those received. TestPrefixSIDPropagationNextHop asserts only that applyFactsNextHop emits no op for code 40; nothing compares the forwarded Prefix-SID bytes on the wire, so a re-encode that zeroed Reserved would pass. Its negative-tagged subtest asserts the next-hop-changed suppression, which is RFC9252-3.3-2, not a violation of this row.",
+      "requirement_sha": "a14cd59919a27569",
+      "tests": {
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "d8f44f5f89ee863f",
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "d8f44f5f89ee863f"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "3854bbbf90bd4167",
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "3854bbbf90bd4167"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-3.3-2": {
+      "note": "(a) forbidden: with the next hop changed, unrecognized Sub-TLVs or Sub-Sub-TLVs forwarded. (b) TestPrefixSIDPropagationNextHop 'next-hop changed removes Prefix-SID' asserts exactly one AttrModSuppress op on code 40, so the whole attribute and every unrecognized sub-TLV in it is removed; removing it would turn the assertion red. The negative subtest pins that next-hop-unchanged does not suppress. The SHOULD half (update with a local SID) is not done: ze removes the attribute.",
+      "requirement_sha": "332f8de9d0c327f1",
+      "tests": {
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "d8f44f5f89ee863f",
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "d8f44f5f89ee863f"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "3854bbbf90bd4167",
+        "internal/component/bgp/reactor/peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "3854bbbf90bd4167"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9252-3.4-1": {
+      "note": "Section 7 lists the malformed cases. Asserted to give treat-as-withdraw: trailing bytes after the last Sub-TLV (TestValidateSRv6ServiceTLV_TrailingBytes) and a SID Information Sub-TLV under 21 octets (TestValidateSRv6ServiceTLV_SIDInfoTooShort). Not asserted by any tagged unit: TLV Length less than 1, and TLV Length inconsistent with the Prefix-SID attribute length. The second one gives the wrong action: validatePrefixSIDAttr answers RFC7606ActionAttributeDiscard for a type 5 or 6 TLV that overruns the attribute, not treat-as-withdraw.",
+      "requirement_sha": "ea6bba09fa831885",
+      "tests": {
+        "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "41fae6472d6a1c4d",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "41fae6472d6a1c4d",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "41fae6472d6a1c4d"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "d4174f79b335902c",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "1168abe15907a099",
+        "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "621b82cdde55dca7"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-5-1": {
+      "note": "'any such' refers back to the Section 7 cases: transposition length wider than the label field, a SID Structure condition of Section 3.2.1 unmet, a non-zero transposition where none applies. TestIsSRv6Ineligible_InvalidSID covers only a SID Information Sub-TLV too short to hold a SID. isSRv6Ineligible decides on pool.ExtractSRv6SID, which returns a valid SID in each of the Section 7 cases, so such a path stays eligible. TestSRv6TranspositionWiderThanLabelFieldIsIneligible is tagged negative but asserts only that no SID is reconstructed, and says in its own comment that ineligibility is not asserted.",
+      "requirement_sha": "9e89afa433b86ebd",
+      "tests": {
+        "internal/component/bgp/plugins/rib/srv6_ineligible_test.go::TestIsSRv6Ineligible_InvalidSID": "c72623c62630c397",
+        "internal/component/bgp/plugins/rib/srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "c72623c62630c397",
+        "internal/component/bgp/plugins/rib/srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "fff9c223a3fde23a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/srv6_ineligible_test.go::TestIsSRv6Ineligible_InvalidSID": "83e8742884843e80",
+        "internal/component/bgp/plugins/rib/srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID": "df909dc03b5755bf",
+        "internal/component/bgp/plugins/rib/srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible": "7005266a1978bd6f"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-5-3": {
+      "note": "(a) forbidden: an ingress PE forwarding an SRv6 service route without IPv6 encapsulation. TestSRv6ServiceSIDSelectsIPv6Encapsulation asserts SEG6 encap mode 1 with the SID for the kernel backend (buildRichRoute). The VPP backend (internal/plugins/fib/vpp/srv6.go) has no test. The negative-tagged TestRouteWithoutServiceSIDKeepsMPLSEncapsulation proves a route without a SID keeps MPLS, which is not a violation of this row.",
+      "requirement_sha": "18afd49fba316531",
+      "tests": {
+        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "afeaff4068947c99",
+        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "afeaff4068947c99"
+      },
+      "units": {
+        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestRouteWithoutServiceSIDKeepsMPLSEncapsulation": "731be302b1ae9384",
+        "internal/plugins/fib/kernel/nexthop_srv6_linux_test.go::TestSRv6ServiceSIDSelectsIPv6Encapsulation": "2ba9af606b60e898"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-7-1": {
+      "note": "TestRFC9252FirstServiceTLVWins asserts the first of two L3 Service TLVs that both carry a valid SID is used. ExtractSRv6SIDFull returns the first TLV that yields a valid SID, so when the first instance carries none (for example a SID Information Sub-TLV under 21 octets, or no SID Information Sub-TLV) the second instance's SID is used instead of being ignored. No assertion covers that input.",
+      "requirement_sha": "a75b17e480924d39",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins": "8ced7eab1bcdb3be",
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins#2": "8ced7eab1bcdb3be"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins": "25c32cdf9d59b512",
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins#2": "25c32cdf9d59b512"
+      },
+      "verdict": "weak"
+    },
+    "RFC9252-7-2": {
+      "note": "Same unit and same gap as RFC9252-7-1, for the L2 Service TLV: the first instance wins only when it holds a valid SID; otherwise ExtractSRv6SIDFull falls through to the second instance, which Section 7 says MUST be ignored.",
+      "requirement_sha": "d301a6e8508330fc",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins": "8ced7eab1bcdb3be",
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins#2": "8ced7eab1bcdb3be"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins": "25c32cdf9d59b512",
+        "internal/component/bgp/plugins/rib/pool/first_service_tlv_rfc9252_test.go::TestRFC9252FirstServiceTLVWins#2": "25c32cdf9d59b512"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc9252"
+}
