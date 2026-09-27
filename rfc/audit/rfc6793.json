@@ -1,0 +1,395 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC6793-3-1": {
+      "note": "TestRFC6793AS4PathWireExcludesConfed: AS4Path.WriteTo/Len skip both confed types and keep AS_SEQUENCE/AS_SET, with Len matching bytes written.",
+      "requirement_sha": "0889a0e948e3b00c",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed#2": "fdd3980327455f38"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed": "7ff4acf27b7c04e4",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed#2": "7ff4acf27b7c04e4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.1-4": {
+      "note": "TestRFC6793EncodeFourOctetToNewSpeaker drives ASPath/Aggregator WriteToWithContext with an ASN4 context and asserts 4-byte AS_PATH stride and 8-octet AGGREGATOR; the negative shows the 2-octet form without the capability.",
+      "requirement_sha": "7bcd1198f9252155",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeFourOctetToNewSpeaker": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "fdd3980327455f38"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeFourOctetToNewSpeaker": "7b55411a915638de",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "9fc7a65a98c8b709"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.1-5": {
+      "note": "TestRFC6793DecodeFourOctetWhenNegotiated reads ParseASPath/ParseAggregator with fourByte=true and recovers 4200000001; the negative shows the same bytes decode on a 2-octet stride and an 8-octet AGGREGATOR is refused without the capability.",
+      "requirement_sha": "85a225abd5568a33",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "fdd3980327455f38"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "e426f08bfe6c6f60",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "35f72eec2c5c6841"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.1-6": {
+      "note": "AS4_PATH half is proven (originate builders toward a NEW speaker, and rfc6793-no-as4path-from-new-speaker.ci on the forward path). No unit tagged 4.1-6 proves AS4_AGGREGATOR is not carried between NEW speakers: the .ci input carries no AS4_AGGREGATOR, so its absence at conn=2 is vacuous, and the originate test checks as4PathASNs only.",
+      "requirement_sha": "2ec906b72a3df6f1",
+      "tests": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "25df6509f8ec949f",
+        "test/plugin/rfc6793-narrow-to-old-speaker.ci": "ef19474df8c628ea",
+        "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker": "bd621e569e53b228",
+        "test/plugin/rfc6793-narrow-to-old-speaker.ci": "ef19474df8c628ea",
+        "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
+      },
+      "verdict": "weak"
+    },
+    "RFC6793-4.1-7": {
+      "note": "TestRFC6793NewSpeakerAS4AttributesAreDiscarded (ReconcileASPathFamily, fromNew=true) discards both AS4_PATH and AS4_AGGREGATOR and keeps the UPDATE; the .ci proves it end to end for AS4_PATH; the negative keeps an AS4_PATH from an OLD speaker.",
+      "requirement_sha": "bb8b86c835097e4e",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "ef5cdafe1b9e158d",
+        "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793NewSpeakerAS4AttributesAreDiscarded": "1b967e2ef43e3377",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "bda7a9587182fabd",
+        "test/plugin/rfc6793-no-as4path-from-new-speaker.ci": "23120258971227f4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.1-1": {
+      "note": "TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS asserts the sent OPEN My AS is 23456 for AS 4200000001; the negative keeps 65001 as itself.",
+      "requirement_sha": "5e22ab9245f8205a",
+      "tests": {
+        "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS": "419ce83b3e0c3ed0",
+        "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsRealASWhenMappable": "419ce83b3e0c3ed0"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS": "1a91defadde2d106",
+        "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsRealASWhenMappable": "43e604f5876295d2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.2-1": {
+      "note": "TestRFC6793EncodeTwoOctetToOldSpeaker asserts a 2-octet AS_PATH with AS_TRANS toward a non-ASN4 context; the negative keeps mappable ASNs unsubstituted.",
+      "requirement_sha": "55a65c2ec3be5b71",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "fdd3980327455f38"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "9fc7a65a98c8b709",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "293049ca0273d949"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.2-2": {
+      "note": "Originate builders (message) and TranscodeASPath (wireu) both emit AS4_PATH with the real 4-octet AS toward an OLD speaker; negatives show no AS4_PATH when every AS is mappable.",
+      "requirement_sha": "37dec39d9d5d2eb2",
+      "tests": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathForANonMappableLocalAS": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "25df6509f8ec949f",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathForANonMappableLocalAS": "f3000ad5c64ac8f5",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "643fb90f959f56a3",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "ef3214d65f6ca840",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "9b40c63c0b6a8c06",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "c325d57571e03b93"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.2-3": {
+      "note": "Originate builders and TranscodeASPath omit AS4_PATH when all ASNs are mappable; negatives show it present for a non-mappable AS.",
+      "requirement_sha": "0db6ce76c03b5a3c",
+      "tests": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "25df6509f8ec949f",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "643fb90f959f56a3",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "ef3214d65f6ca840",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "9b40c63c0b6a8c06",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "c325d57571e03b93"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.2-4": {
+      "note": "TestRFC6793ConstructedAS4PathExcludesConfed drives TranscodeASPath 4->2 with an AS_CONFED_SEQUENCE only and asserts it is excluded from the constructed AS4_PATH while the AS_SEQUENCE is kept. The row names AS_CONFED_SEQUENCE or AS_CONFED_SET, and no AS_CONFED_SET reaches this path in any tagged unit, so half the exclusion is unproven",
+      "requirement_sha": "ce7d002377db9cfd",
+      "tests": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed": "0c86683be4e4471d",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed#2": "0c86683be4e4471d"
+      },
+      "verdict": "weak"
+    },
+    "RFC6793-4.2.2-5": {
+      "note": "Three producers (message originate, wireu TranscodeASPath, rib commit pack) each send AS_TRANS in a 6-octet AGGREGATOR plus AS4_AGGREGATOR with the real AS for a non-mappable aggregator; negatives keep a mappable AS with no companion.",
+      "requirement_sha": "ffb0a54bae5a731f",
+      "tests": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "25df6509f8ec949f",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "2c0614e3b7f3ae01",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "2c0614e3b7f3ae01",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "f73c2e0b7cfcb44a",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "a5eb3b4085eef86d",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "0a4c455d936a8564",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "b7e9710bbe1023f9",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "d0e4928b60e42085",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "d2a1a5b1a86cf310"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.2-6": {
+      "note": "Same three producers send no AS4_AGGREGATOR for a mappable aggregating AS; negatives show it present for a non-mappable one.",
+      "requirement_sha": "fc1c69985a6bd04a",
+      "tests": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "25df6509f8ec949f",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "25df6509f8ec949f",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "2c0614e3b7f3ae01",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "2c0614e3b7f3ae01",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "f73c2e0b7cfcb44a",
+        "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "a5eb3b4085eef86d",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "0a4c455d936a8564",
+        "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "b7e9710bbe1023f9",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "d0e4928b60e42085",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "d2a1a5b1a86cf310"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-1": {
+      "note": "TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath: ReconcileASPathFamily accepts AS_PATH+AS4_PATH from an OLD speaker and uses the AS4_PATH ASNs; the negative shows no 4-octet AS invented without AS4_PATH.",
+      "requirement_sha": "ee79e941fc1d5665",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "1d6516d3d1fb32af",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "bda7a9587182fabd"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-10": {
+      "note": "TestRFC6793LeadingConfedSegmentIsPrepended proves the leading-segment clause and TestRFC6793UnadjacentConfedSegmentIsNotPrepended a confederation segment that is neither leading nor adjacent. The second clause, a confederation segment adjacent to a prepended segment SHALL be prepended, has no input in any tagged unit",
+      "requirement_sha": "c3b7772fee212be8",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "4d46ce2a46cfd48b",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "c601dd630f9633f1"
+      },
+      "verdict": "weak"
+    },
+    "RFC6793-4.2.3-2": {
+      "note": "TestRFC6793ReceivedAS4AggregatorAccepted: the AGGREGATOR+AS4_AGGREGATOR pair from an OLD speaker is accepted and the 4-octet aggregating AS survives ingest (single-polarity marker).",
+      "requirement_sha": "a1df36166b90e99a",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "1b39548cc51c585c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-3": {
+      "note": "TestRFC6793AggregatorWithRealASIgnoresAS4Attributes: with AGGREGATOR.AS 64500 the AS4_PATH does not reach the path and the AS4_AGGREGATOR is discarded; negatives with AS_TRANS use both.",
+      "requirement_sha": "43aa1ed128401062",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "0ed609302867d6f5",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-4": {
+      "note": "Same unit: the AGGREGATOR (64500, 10.0.0.1) is the aggregating node; the AS_TRANS counterpart does not take it.",
+      "requirement_sha": "90660af7a2831aad",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-5": {
+      "note": "Same unit: the route path is the AS_PATH widened with AS_TRANS intact; the AS_TRANS counterpart reconstructs instead.",
+      "requirement_sha": "96172fa13d87b65c",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-6": {
+      "note": "TestRFC6793AggregatorWithASTransPromotesAS4Aggregator: with AGGREGATOR.AS AS_TRANS the stored aggregator is the AS4_AGGREGATOR value, not AS_TRANS; negative keeps a real-AS AGGREGATOR.",
+      "requirement_sha": "bc66f6811ededc90",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-7": {
+      "note": "Same unit: the aggregating node is 4200000001/10.0.0.1 from AS4_AGGREGATOR; negatives: not promoted when AGGREGATOR is real, nor when AS4_AGGREGATOR arrives alone.",
+      "requirement_sha": "4c5e8bc1ddb80795",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LoneAS4AggregatorIsDropped": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LoneAS4AggregatorIsDropped": "b9e71b3d654842d1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-8": {
+      "note": "TestRFC6793LongerAS4PathIsIgnored: AS_PATH 2 ASNs vs AS4_PATH 3 yields the widened AS_PATH only; negative shows AS4_PATH used when AS_PATH is longer.",
+      "requirement_sha": "668e3688ff314697",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "8685310c7b1a2bf6",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "c4be8c46d32a5fc8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-4.2.3-9": {
+      "note": "TestRFC6793LongerASPathPrependsLeadingHops, EqualCountsPrependNothing, LeadingASSetIsTakenWhole assert exact reconstructed bytes; negative: no prepend when AS4_PATH is longer.",
+      "requirement_sha": "c829176eeb670fa9",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793EqualCountsPrependNothing": "0e5e2e712d063d75",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingASSetIsTakenWhole": "559e8616c078ef74",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "8685310c7b1a2bf6",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "c4be8c46d32a5fc8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-6-1": {
+      "note": "TestRFC6793AS4PathMalformedRejected drives every Section 6 condition (odd length, <6 octets, zero and overrunning segment length, undefined type) through ParseAS4Path; positive accepts a well-formed path. The tag at rfc6793_reconcile_test.go TestRFC6793MalformedAS4PathIsDiscarded describes the RFC6793-6-4 discard obligation rather than this row.",
+      "requirement_sha": "55a6a0bc03464f13",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "ef5cdafe1b9e158d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "6de46a78a99b3e36",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "8e70d8d9c7bdb160",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "643f9e028c709dd5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-6-2": {
+      "note": "TestRFC6793AS4AggregatorLengthEight: ParseAS4Aggregator accepts 8 octets and refuses 0,6,7,9,12 with ErrInvalidLength.",
+      "requirement_sha": "9ed58a3ddec6f232",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight": "fdd3980327455f38",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight#2": "fdd3980327455f38"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight": "f44a81d1d63aba87",
+        "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight#2": "f44a81d1d63aba87"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-6-3": {
+      "note": "TestRFC6793ReceivedConfedInAS4PathDiscarded injects only an AS_CONFED_SEQUENCE, never an AS_CONFED_SET. Its assertions read the egress AS4_PATH, which AS4Path.WriteTo writes without confederation segments whatever it holds (RFC6793-3-1), so the unit cannot tell a receive-side discard from the encoder's output filter",
+      "requirement_sha": "76c64a2d4fa04e9a",
+      "tests": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded": "8f44a4ff2235d630",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded#2": "8f44a4ff2235d630"
+      },
+      "verdict": "weak"
+    },
+    "RFC6793-6-4": {
+      "note": "TestRFC6793MalformedAS4PathDiscarded: an odd-length AS4_PATH from an OLD speaker contributes nothing and the rewrite proceeds; negative keeps a well-formed one.",
+      "requirement_sha": "9f5f4d7041920059",
+      "tests": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded": "46921ad87659919b",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded": "46921ad87659919b"
+      },
+      "units": {
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded": "011836460c20876e",
+        "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded": "72452db2842ed5f3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6793-6-5": {
+      "note": "TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.",
+      "requirement_sha": "20ce2c1576d939e2",
+      "tests": {
+        "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator": "2ba8c2c3d2f55eba",
+        "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423": "2ba8c2c3d2f55eba"
+      },
+      "units": {
+        "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator": "662c49e9781805ca",
+        "internal/component/bgp/wireu/aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423": "ef2b6847ee5d358f"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc6793"
+}
