@@ -1,6 +1,130 @@
 {
   "audited": "2026-09-27",
   "requirements": {
+    "RFC7752-3.1-1": {
+      "note": "NLRI half holds: TestRFC7752UnknownTLVPreservedAndPropagated fails unless a Node NLRI with an unknown sub-TLV re-encodes byte-identically. Attribute half is proven only by AttrTLVsToJSON keeping the bytes under a generic key, not by the attribute TLV reaching a forwarded UPDATE, so 'propagated' is unasserted for the attribute. The negative TestRFC7752MalformedTLVNotPreserved exercises length-overrun framing (Section 6.2.2), a neighbouring rule, not this one. Same judgement as RFC9552-5.1-3.",
+      "requirement_sha": "6bcc9dd8d408a468",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6b87bb9b72af59d8",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "ee6151c6778bb298",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "69ac16c3974ad939"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.1-2": {
+      "note": "The units drive only the nlri/ls LinkDescriptor/NodeDescriptor/PrefixDescriptor encoders (mixed-family link addresses emit 260 before 261; the sweep finds no descending pair). ze's native Link NLRI producer, ls_export export_encode.go encodeNativeLink, builds descriptors itself and no RFC7752-3.1-2 tag drives its output, so a descending pair on that path stays green. Same judgement as RFC9552-5.1-1.",
+      "requirement_sha": "78829d490d0e5cd2",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "c2f66f24e95d7298",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "c2f66f24e95d7298"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "ff4b440ca0d46180",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "0118bbd3e6cc59b0"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.1-3": {
+      "note": "RFC 7752 orders same-type TLVs by 'treating the entire Value field as an opaque hexadecimal string and comparing leftmost octets first, regardless of the length of the string'. TestSRv6SIDOrderIsLengthBeforeValue asserts the opposite: a 2-octet ffff is emitted before a 16-octet all-zero value, which leftmost-octet comparison puts second. It proves the RFC 9552 Section 5.1 Length-then-Value rule, not this row's. Both units also place repeated sub-TLV 518 inside a Node Descriptor, which RFC9552-5.1-2 was judged wrong for.",
+      "requirement_sha": "08f9def912df079b",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNodeDescriptorOrdersRepeatedSRv6SIDs": "c2f66f24e95d7298",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestSRv6SIDOrderIsLengthBeforeValue": "c2f66f24e95d7298"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestNodeDescriptorOrdersRepeatedSRv6SIDs": "782a4aab978cd027",
+        "internal/component/bgp/plugins/nlri/ls/rfc9552_ordering_test.go::TestSRv6SIDOrderIsLengthBeforeValue": "b74f94aa6c6f42c6"
+      },
+      "verdict": "wrong"
+    },
+    "RFC7752-3.2-1": {
+      "note": "TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated asserts the (16388, 71) Multiprotocol capability encoding and that Negotiate marks the family supported when both sides carry it; the negative asserts Negotiate drops it when the peer is silent. Nothing drives the UPDATE send or receive path, so ze exchanging Link-State NLRI with a peer that did not negotiate the family leaves both units green. Same judgement as RFC9552-5.2-7.",
+      "requirement_sha": "3471b349f96fe2fe",
+      "tests": {
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "a88ca94f37b8836e",
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "a88ca94f37b8836e"
+      },
+      "units": {
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated": "2b30646c3e2cffd3",
+        "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent": "aebc3f3a909a342c"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.2-4": {
+      "note": "Forbidden: merging NLRIs that differ only in Identifier. TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse inserts two Node NLRIs identical except Identifier 0 and 1 and fails unless rib.Len() is 2, both are retrievable, and removing one leaves the other. Negative: TestRFC7752SameIdentifierIsOneRoutingUniverse fails unless a repeat with the same Identifier collapses to one route (Len 1), so the separation turns on the Identifier bytes.",
+      "requirement_sha": "2277338707e15b0d",
+      "tests": {
+        "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse": "83bbf6a5d59c5a03",
+        "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752SameIdentifierIsOneRoutingUniverse": "83bbf6a5d59c5a03"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse": "c00ad25821ef5c29",
+        "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752SameIdentifierIsOneRoutingUniverse": "d94ea69c007ac538"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7752-3.2-5": {
+      "note": "The positive asserts the BGPLSFamily constant is (16388, 71) and that a Node NLRI's Family() is that value; Link and Prefix NLRIs are not asserted, and no unit drives an encoded UPDATE from ze's producers (ls_export) to show the AFI/SAFI on the wire. The negative TestRFC7752NonLinkStateFamilyRefused refuses decoding under other families, a receive-side check, not the encoding obligation.",
+      "requirement_sha": "c02dc7b4d3d42fa3",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "6b87bb9b72af59d8",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "5e07d0147ccb6a0b",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "1591b4fc9d42f8e8"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.2-6": {
+      "note": "TestRFC7752VPNFamilyIsAFI16388SAFI72 asserts only the BGPLSVPNFamily constant (16388, 72) and its name; no VPN link, node or prefix NLRI is built and shown to carry SAFI 72. The negative refuses decoding under other family names, a receive-side check rather than the encoding obligation.",
+      "requirement_sha": "c926ab43db25b47a",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "6b87bb9b72af59d8",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "5e07d0147ccb6a0b",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752VPNFamilyIsAFI16388SAFI72": "abe0c1f1dd31a89a"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.2.1.4-3": {
+      "note": "{single-polarity: positive} carried on the row: the ordering duty is the sender's. Forbidden: node descriptor sub-TLVs out of ascending type order. TestRFC7752NodeDescriptorSubTLVsAscending fails unless NodeDescriptor.WriteTo emits exactly 512, 513, 514, 515, 516, 517 in that order. The native exporter builds its node descriptors through ls.NodeDescriptor (ls_export exportNodeID), so the asserted encoder is the one production uses.",
+      "requirement_sha": "decf334123c17969",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "2be55b191351f5b7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7752-3.3.2.3-1": {
+      "note": "TestRFC7752TEDefaultMetricZeroPadded drives lsTEDefaultMetric.WriteTo, whose input is already a uint32, so it cannot receive a narrower metric and the padding it asserts is the big-endian write of a small number. The place ze actually widens a narrow source metric is internal/plugins/isis/bgpls_export.go (the 3-octet IS-IS TE metric copied into v[1:] of a 4-octet value for TLV 1092), and ls_export originateAttributes writes that value verbatim; no tagged unit drives that path, so a producer copying into v[0:] stays green.",
+      "requirement_sha": "c0fcdb0b34ec6863",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "de1034561975ce60"
+      },
+      "verdict": "weak"
+    },
+    "RFC7752-3.4-1": {
+      "note": "{single-polarity: positive} carried on the row. Forbidden: a BGP-LS MP_REACH_NLRI whose next hop departs from the RFC 4760 layout. TestRFC7752BGPLSNextHopFollowsRFC4760 fails unless, for AFI 16388 SAFI 71, the encoder emits AFI, SAFI, next-hop length 4 or 16, the address, a zero reserved octet and then the NLRI, and the parse round-trips; IPv4 and IPv6 next hops both asserted.",
+      "requirement_sha": "02ea53cce036e83d",
+      "tests": {
+        "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "2ff5cf524c7273e0"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "70fced7dc6cef411"
+      },
+      "verdict": "enforced"
+    },
     "RFC7752-6.2.2-2": {
       "note": "Five listed checks. Asserted: a BGP-LS attribute TLV whose length overruns the attribute is refused (ErrBGPLSTruncated) and an exact-sum sequence is walked completely; a fixed-length TLV (1028 with 3 octets) is refused. The MP_REACH_NLRI sum, the MP_UNREACH_NLRI sum and the descriptor sum against Total NLRI Length have no assertion in either unit.",
       "requirement_sha": "d752ea60c051e852",
