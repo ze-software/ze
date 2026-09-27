@@ -240,7 +240,7 @@
       "claim-sha": "fa67728939a16987",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "cfd38112ffd6ca07",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "fd51c7cf90e38f51",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "cf4c9eb8d2ddc3ed",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -295,7 +295,7 @@
       "claim-sha": "31e32ec9701d0b4f",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -328,7 +328,7 @@
       "claim-sha": "edc4fdc11ee6e88e",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "2107aa7505177c7a",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "0fe37c63338bbe11",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -383,7 +383,7 @@
       "claim-sha": "ac3078f0efc87f6d",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "28a0708aa2399601",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -416,7 +416,7 @@
       "claim-sha": "65c2e159ee2fe454",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -427,7 +427,7 @@
       "claim-sha": "7b79b6baea0d9ca4",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "620cae911fc7e297",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "2ed8ff542129c21c",
       "route": "revert",
       "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
-      "producer-sha": "64acf1972456192a",
+      "producer-sha": "cd7a5179f145bb82",
       "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -482,7 +482,7 @@
       "claim-sha": "6c57e4961e79755f",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -493,7 +493,7 @@
       "claim-sha": "b6f763806b98084e",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -515,7 +515,7 @@
       "claim-sha": "10d74883e480da44",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -548,7 +548,7 @@
       "claim-sha": "608cea6040ee5461",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -559,7 +559,7 @@
       "claim-sha": "71f6a6f5cd2d6531",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -570,7 +570,7 @@
       "claim-sha": "efdc7537d76160c5",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -581,7 +581,7 @@
       "claim-sha": "d3f0a30ffcbee7ac",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -592,7 +592,7 @@
       "claim-sha": "a83d39d005451d1d",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -603,7 +603,7 @@
       "claim-sha": "0009207d4648ea90",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -614,7 +614,7 @@
       "claim-sha": "695e689767b579b1",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -636,7 +636,7 @@
       "claim-sha": "f6dd1cb198897b4e",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -647,7 +647,7 @@
       "claim-sha": "ae22e4c7c2971f32",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -658,7 +658,7 @@
       "claim-sha": "cba70b0860793eb4",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -669,7 +669,7 @@
       "claim-sha": "b67bffb2c38617fd",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -680,7 +680,7 @@
       "claim-sha": "261500750b3b53f3",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -691,7 +691,7 @@
       "claim-sha": "f479f7b0acb43f8a",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -702,7 +702,7 @@
       "claim-sha": "ed64f4bc7bd4c3ca",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -713,7 +713,7 @@
       "claim-sha": "3169cbc012d66bca",
       "route": "revert",
       "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
-      "producer-sha": "dbdf21d62f18ceab",
+      "producer-sha": "e8e9485b85f1e04a",
       "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -768,7 +768,7 @@
       "claim-sha": "ca646c1ba81336f4",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "b5d83b6f8eb1643a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -779,7 +779,7 @@
       "claim-sha": "b59465245f5748da",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "b5d83b6f8eb1643a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -834,7 +834,7 @@
       "claim-sha": "7029b10f408f505f",
       "route": "revert",
       "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
-      "producer-sha": "67edf1afbe814ad6",
+      "producer-sha": "846ee1f4761bd28a",
       "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -889,7 +889,7 @@
       "claim-sha": "855fcb75563cb7c8",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -900,7 +900,7 @@
       "claim-sha": "43f2fa81a17c4697",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
-      "producer-sha": "2c7d135766232ba0",
+      "producer-sha": "a794344059e50b81",
       "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -922,7 +922,7 @@
       "claim-sha": "b6f442a80196d65a",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::evaluateReadiness",
-      "producer-sha": "af1adf1a98e81293",
+      "producer-sha": "3c0d94a9ad273380",
       "break": "body of evaluateReadiness replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

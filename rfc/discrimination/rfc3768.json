@@ -64,7 +64,7 @@
       "claim-sha": "e4cca051e56576dc",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "a3b4f0f3cd8f7f4a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "3824e0fb0207c309",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "a3b4f0f3cd8f7f4a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "72fbcdbe949fb7f7",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "a3b4f0f3cd8f7f4a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "1184dd1a466aca96",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "a3b4f0f3cd8f7f4a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "088160f053c20df3",
       "route": "revert",
       "producer": "internal/plugins/vrrp/instance.go::onPacket",
-      "producer-sha": "a3b4f0f3cd8f7f4a",
+      "producer-sha": "3b27d6e7104c148e",
       "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

@@ -27,6 +27,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// itself is in its commit message, and repeating it here made this comment a
 	// changelog nobody reads.
 	//
+	// Re-sealed 2026-09-27 for 76fcaae9c0. Row-quote verdicts moved, deliberately:
+	// a quote is now matched with wrapped hyphens joined, under column-0 headings,
+	// and against the verified erratum its row cites. That commit re-walked the
+	// extraction artifacts whose sections moved. No discrimination verdict moved.
+	//
 	// Re-sealed 2026-09-27 for a07a7307c1. The audit and extraction ratchets now
 	// compare against HEAD^, so they judge the commit under test in the detached
 	// verify worktree. No verdict over an unchanged record moved.
@@ -347,7 +352,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// replaceAudit without a reaudit_note, and names the audit field literals as
 	// constants. It adds a writer of new verdicts and changes no existing
 	// verdict. No corpus verdict moved.
-	const want = "dc9301e3910349460af230a984774c4e559bf888a9375e69dfe1ecaf2f28e788"
+	const want = "d9da35656bdda6681b59f9fde8f00b5ec4513d99fded6b5e33384f7da4a74ff0"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

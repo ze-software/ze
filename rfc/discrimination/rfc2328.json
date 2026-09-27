@@ -394,7 +394,7 @@
       "claim-sha": "be30a574d1f92479",
       "route": "revert",
       "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateFromTopology",
-      "producer-sha": "e299b3eab2efcf26",
+      "producer-sha": "8bf32b8c07722529",
       "break": "body of OriginateFromTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
