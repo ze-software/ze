@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC4578-2.1-2": {
+      "note": "(a) accepting an option 93 whose length is odd or zero; (b) TestParsePXEArch table: 'too long' (3 octets) wants 0 not 7, 'too short' (1 octet) wants 0; the positive 'UEFI x64' (2 octets) wants 7. Removing the %2 check turns 'too long' red.",
+      "requirement_sha": "79c641e9e3619102",
+      "tests": {
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "31da40ad0d82bf37",
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "31da40ad0d82bf37"
+      },
+      "units": {
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch": "3df25d100736f8a5",
+        "internal/plugins/dhcpserver/handler_test.go::TestParsePXEArch#2": "3df25d100736f8a5"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc4578"
+}
