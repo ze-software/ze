@@ -1,0 +1,93 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7313-4-1": {
+      "note": "Single-polarity positive. (a) forbidden: re-advertising before the BoRR, and a locally initiated refresh with no BoRR; (b) TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR asserts the dispatched command list equals [borr, eorr] for a peer-requested (subtype 0) refresh on both rails, but the re-advertised routes do not pass through dispatchHook, so their order against the BoRR is not observed: a producer sending routes first stays green. The 'initiated locally' clause has no tagged unit: TestDispatchBGPPeerBoRR only proves an operator 'borr' command reaches SendBoRR, and TestRouteRefreshSubtypes only encodes subtype 1.",
+      "requirement_sha": "da0b53dde366af60",
+      "tests": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
+        "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerBoRR": "bf7992ea6a608871"
+      },
+      "units": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
+        "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerBoRR": "240b1f83aa9371f3"
+      },
+      "verdict": "weak"
+    },
+    "RFC7313-4-2": {
+      "note": "Single-polarity positive. (a) forbidden: sending the EoRR before the re-advertisement of the entire Adj-RIB-Out completes; (b) the rib unit asserts [borr, eorr] only; the two ribOut routes are not in the captured sequence, so an EoRR sent before or without the routes stays green. Dispatch and encoding units prove the command path and subtype byte 2 only.",
+      "requirement_sha": "6584db627c7f1be9",
+      "tests": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
+        "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871"
+      },
+      "units": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
+        "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
+        "internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f"
+      },
+      "verdict": "weak"
+    },
+    "RFC7313-4-3": {
+      "note": "(a) forbidden: handling a ROUTE-REFRESH without reading its subtype (every subtype treated alike); (b) no tagged assertion goes red on it. TestHandleRouteRefreshBoRR, TestHandleRouteRefreshEoRR, TestHandleRouteRefreshUnknown and TestHandleRouteRefresh_UnknownSubtype all assert only NoError and Established, the same outcome for every subtype, so a subtype-blind handler passes all of them. The differentiated action (only subtype 0 starts a refresh) lives in rib_structured.go and rs parseStructuredRefresh and is asserted only by an untagged rib test for subtype 1.",
+      "requirement_sha": "551f4e7a9d5d0c2c",
+      "tests": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "36ad5ca29acc4eb4",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "933b3c0fcb7d9bad"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "43ed522f8946174d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "2b609f04afb8968f",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "40fecd773bb351a7",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "3b1ffa2c587c08fe"
+      },
+      "verdict": "weak"
+    },
+    "RFC7313-5-1": {
+      "note": "(a) forbidden: not sending Error 7/subcode 1 for a BoRR or EoRR whose body is not 4 octets; (b) TestRouteRefreshBadLengthByMessageSubtype assertNotification(raw, NotifyRouteRefresh, NotifyRouteRefreshInvalidLength, ...) for subtype 1 and 2, too short and too long, and TestRouteRefreshInvalidLengthNotDelivered asserts notif[HeaderLen]==7 and [HeaderLen+1]==1. Negatives: subtype 0 draws Bad Message Length instead, a peer without capability 70 draws Bad Message Length, a 4-octet body draws nothing, and an unknown subtype of wrong length draws nothing.",
+      "requirement_sha": "15d178478c5a4262",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "933b3c0fcb7d9bad"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "6fd88cf95310ee55",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "6fd88cf95310ee55",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "f2e071f12d3ddd3b",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "8562c135b3ad1cf0",
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "d5741f71a517dda1",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "e5d31e6524dc7d92",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7313-5-3": {
+      "note": "(a) forbidden: acting on a ROUTE-REFRESH whose subtype is not 0, 1 or 2 (starting a re-advertisement, treating it as BoRR/EoRR, or tearing the session down); (b) the tagged units assert no error, no NOTIFICATION and Established for subtypes 5, 42 and 255, which catches only the teardown. The message is still delivered to onMessageReceived before handleRouteRefresh runs (session_read.go:342 then :378; the unit asserts delivered==1), and the actual ignore is done by each consumer (rib_structured.go and rs/server.go parseStructuredRefresh drop subtype != 0). No tagged unit asserts that an unknown subtype starts no re-advertisement. The negative on TestHandleRouteRefreshBoRR asserts only NoError, not that the BoRR was acted on.",
+      "requirement_sha": "e32285fafdfbe72c",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "34095483fd7ee6a0",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshReserved": "933b3c0fcb7d9bad",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "933b3c0fcb7d9bad"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "8562c135b3ad1cf0",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "2b609f04afb8968f",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshReserved": "0bf14fb30b5a4a0d",
+        "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "3b1ffa2c587c08fe"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc7313"
+}
