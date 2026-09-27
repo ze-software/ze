@@ -1,0 +1,247 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC4724-3-2": {
+      "note": "the sentence carries two obligations: zero on send and ignored on receive. TestGracefulRestartEncodeReservedBits proves only the sender half (WriteTo masks); no tagged unit parses a Restart Flags nibble with reserved bits set and asserts they are ignored (parseGracefulRestart does ignore them)",
+      "requirement_sha": "82503bdc2d2d8e2e",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-3-3": {
+      "note": "same split as 3-2 for the Address Family Flags byte: sender zeroing is proven by TestGracefulRestartEncodeReservedBits, the receiver-ignore half is not tested by any tagged unit",
+      "requirement_sha": "82503bdc2d2d8e2e",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "b3428c78168b854d",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
+        "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-3-4": {
+      "note": "two GR instances with distinct restart time and family; Negotiate must keep the second; fails on first-wins or merge. The negative tag is the complement of the positive's assertion on the same input (two hats), not an independent case",
+      "requirement_sha": "ba1419c2df9e18e2",
+      "tests": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "79de3d0b159f3a42",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "79de3d0b159f3a42"
+      },
+      "units": {
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "2d73d79b2835b798",
+        "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "2d73d79b2835b798"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4724-4-1": {
+      "note": "the positives are strong (sendInitialRoutes puts one marker per negotiated family on the wire, including a silent family and a no-MP session). The only negative (TestIsEndOfRIBAnyFamily) tests the EoR detector's format discrimination, a neighbouring rule, so no tagged unit violates this requirement; TestInitialSyncEORWaitsForPeerUpBarrier's no-marker-before-barrier assertion could carry it",
+      "requirement_sha": "3b50556b505890d9",
+      "tests": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "02487edfbf589113",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "02487edfbf589113",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "f04334a58fd00e7c"
+      },
+      "units": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "60545c5d079b485c",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "bb281df1bb3cb7e8",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "f55af084daac0b0e",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "e2d1e536367f28dc",
+        "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "dc3b6dc2d2cdd55f"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4-2": {
+      "note": "the tagged units call grStateManager.onSessionDown with wasNotification injected as true/false. In production handleStructuredState/handleStateEvent (gr.go) derive wasNotification from reason == \"notification\", and the only session-down producer (peer_run.go via notifyPeerClosed) sends \"session closed\" or \"connection lost\", so the NOTIFICATION branch is unreachable and routes are retained after a NOTIFICATION teardown. The tests stay green against that defect",
+      "requirement_sha": "27edc6747b36ca46",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNotificationBypass": "16cfa56e18a119dc",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "30a739dea259dade"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4-4": {
+      "note": "the tests prove the configured families are listed with F clear on a cold start, but not the MAY's condition (the family is listed only when the speaker can preserve its forwarding state for it), so a tuple for a family ze cannot preserve would still pass",
+      "requirement_sha": "e75e23c1c2e8a7b7",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "cd62d88923bda233",
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "cd62d88923bda233"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry": "4035e6d18bdb61eb",
+        "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession": "87e6d750ced694ad"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.1-4": {
+      "note": "TestSetRBitOnCapability proves grmarker.SetRBit sets 0x80; nothing tagged proves the OPEN sent inside the restart window carries it (production gate is restartFlagsFor in reactor/peer_gr_flags.go, not peer.go:574 as the tag says). The negative, TestSetRBitTimeGatePattern, re-implements the window check inside the test and cannot fail if the production gate breaks",
+      "requirement_sha": "869c311ad2e0caaa",
+      "tests": {
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "2d46d625f5cd415d",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "2d46d625f5cd415d"
+      },
+      "units": {
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "7e956c4c3231da02",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "64f41fecb7ba6475"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.1-7": {
+      "note": "TestBuildEOR_IPv4Unicast proves only the marker's encoding, not that it is sent once the initial update completes; the negative tests EoR detection, a neighbouring rule. No tagged unit drives the send",
+      "requirement_sha": "53683d3892cd3a1e",
+      "tests": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878"
+      },
+      "units": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-10": {
+      "note": "Insert of a stale prefix clears StaleLevel to fresh with the new attributes; the negative keeps an unrefreshed stale prefix stale while a new prefix is fresh",
+      "requirement_sha": "eb9b7c4980430e56",
+      "tests": {
+        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertClearsStale": "dc1f58aea4e1377e",
+        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertNewDuringStale": "dc1f58aea4e1377e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertClearsStale": "282085d10ccf597b",
+        "internal/component/bgp/plugins/rib/storage/stale_test.go::TestFamilyRIB_InsertNewDuringStale": "8d7ae43ea109aa66"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4724-4.2-11": {
+      "note": "TestGRStateManagerEORPurge asserts onEORReceived returns true per family; the removal is the purge-stale dispatch in handleEOREvent (gr.go), which no tagged unit asserts",
+      "requirement_sha": "3a7dc061a2a9ae09",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "ddefbb62b2a30101",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "f68e4286fabb5ec1"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-3": {
+      "note": "TestRFC4724SessionDownRetainsAndMarksRoutesStale asserts the production dispatch of retain-routes and mark-stale with the Restart Time; TestRFC4724RetentionCoversEveryAdvertisedFamily pins the family set to the capability's; the no-capability negative asserts nothing is dispatched",
+      "requirement_sha": "3a8fbfa725f71668",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNoGRCapability": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724RetentionCoversEveryAdvertisedFamily": "a3ee5fac7a4f45e2",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale": "a3ee5fac7a4f45e2",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing": "a3ee5fac7a4f45e2"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerNoGRCapability": "56954c1037a96328",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerRouteRetention": "30a739dea259dade",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724RetentionCoversEveryAdvertisedFamily": "c0c6e927daddfe42",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale": "c83955e3fbf98926",
+        "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing": "663208b397cbc663"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4724-4.2-4": {
+      "note": "the tagged unit asserts grStateManager's staleFamilies set is replaced on a second down; the deletion of previously stale routes is the purge-stale dispatch in gr.go, asserted only in TestRFC4724SessionDownRetainsAndMarksRoutesStale, which is tagged 4.2-3 and runs a first restart, not a consecutive one",
+      "requirement_sha": "488066b292b60d55",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "706a9b28958bec89",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "706a9b28958bec89"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-5": {
+      "note": "the positive (level-1 stale with higher LOCAL_PREF beats fresh) proves non-differentiation in selection. The negative is an LLGR level-2 route losing, which is RFC 9494 behaviour and does not violate this requirement, so no genuine negative exists",
+      "requirement_sha": "65b93110faa09f2e",
+      "tests": {
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "7e45dd7edaf7d8c5",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "7e45dd7edaf7d8c5"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "19eccc4948cfbb9e"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-6": {
+      "note": "the positive, TestSetRBitTimeGatePattern, re-implements the restart-window condition inside the test and never calls the production gate restartFlagsFor (reactor/peer_gr_flags.go), so it cannot fail if that gate sets R on a cold start. Tag prose cites peer.go:574, stale",
+      "requirement_sha": "3f66e2036378a8e6",
+      "tests": {
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "2d46d625f5cd415d",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "2d46d625f5cd415d"
+      },
+      "units": {
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitOnCapability": "7e956c4c3231da02",
+        "internal/component/bgp/grmarker/grmarker_test.go::TestSetRBitTimeGatePattern": "64f41fecb7ba6475"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-7": {
+      "note": "TestGRStateManagerTimerExpiry installs its own expiry callback and asserts it fires; it cannot see whether the production callback (gp.onTimerExpired) deletes the stale routes",
+      "requirement_sha": "1a6b5822ed2f2ffa",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerTimerExpiry": "ab686c26a339d576"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-8": {
+      "note": "TestGRStateManagerReconnectFBitZero asserts onSessionReestablished returns the F-bit-clear family; the purge-stale dispatch in gr.go is not asserted. The other two triggers (family absent, no GR capability) have tests (ReconnectMissingFamily, ReconnectNoGR) that are not tagged",
+      "requirement_sha": "53f5275147da817c",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "21af448503016e9e",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781"
+      },
+      "verdict": "weak"
+    },
+    "RFC4724-4.2-9": {
+      "note": "the positive TestInitialSyncEORReachesTheSilentFamilyToo proves the send; TestBuildEOR_IPv4Unicast proves encoding only; the negative tests EoR detection, a neighbouring rule",
+      "requirement_sha": "29d7f4477d6938f6",
+      "tests": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "02487edfbf589113"
+      },
+      "units": {
+        "internal/component/bgp/message/eor_test.go::TestBuildEOR_IPv4Unicast": "7abbe50b86d5a9cc",
+        "internal/component/bgp/message/eor_test.go::TestIsEndOfRIBAnyFamily": "e93ddad02f874260",
+        "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "a98aad1ea25261e2"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc4724"
+}
