@@ -1,0 +1,49 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7427-3-4": {
+      "note": "The sentence conditions method 14 on the notify having been sent AND received by each peer. Received half: TestRFC7427DigitalSignatureNeedsTheNotify asserts computeX509Auth returns errNoSignatureHashAlgos with sa.RemoteHashAlgos nil and method 14 once a list arrived; red on a producer that emits 14 without a received notify. Sent half: no tagged assertion goes red if ze stops sending its own SIGNATURE_HASH_ALGORITHMS notify in IKE_SA_INIT (buildSignatureHashAlgosNotify) while still emitting method 14; the tests rest on the comment that ze always sends it. TestAuthX509UsesMethod14 is positive only.",
+      "requirement_sha": "fd86df0dc23d2f24",
+      "tests": {
+        "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "1512edeef19e0be4",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify": "4090466f71eff50f",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify#2": "4090466f71eff50f"
+      },
+      "units": {
+        "internal/component/ike/engine/auth_test.go::TestAuthX509UsesMethod14": "6ccf4077bd9f89de",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify": "7012bbd47e52525c",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427DigitalSignatureNeedsTheNotify#2": "7012bbd47e52525c"
+      },
+      "verdict": "weak"
+    },
+    "RFC7427-3-5": {
+      "note": "Forbidden: with the notify exchanged and signature authentication in use, emitting a legacy AUTH method (1 RSA, 3 DSS) instead of Digital Signature (14). TestRFC7427DigitalSignatureMethodIsUsed asserts auth.AuthMethod == wire.AuthMethodDigitalSig with RemoteHashAlgos set (red on any other method) and, as the negative, that with no notify received computeX509Auth returns an error and a nil payload rather than falling back to a legacy method.",
+      "requirement_sha": "10c463074286513c",
+      "tests": {
+        "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "99c1f2646db3b221",
+        "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "99c1f2646db3b221"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "e4c84de1ab6e540c",
+        "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "e4c84de1ab6e540c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7427-4-1": {
+      "note": "Forbidden: signing with a hash algorithm the peer did not list in its SIGNATURE_HASH_ALGORITHMS notify. TestRFC7427SignatureAlgorithmIsOneThePeerSent asserts selectSignatureAlgorithm returns errNoMutualHashAlgo for every list lacking a usable algorithm (SHA-1 alone, SHA2-384 alone for P-256, SHA2-256 alone for P-384, nil) and that the chosen identifier equals the one the peer sent; TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend asserts computeX509Auth returns errNoMutualHashAlgo for a P-384 key against {2} and an RSA key against {1}. Both polarities. Residual: no computeX509Auth-level positive reads the AlgorithmIdentifier in AuthData, so the wiring from select to the encoded payload is proven only through the refusal path.",
+      "requirement_sha": "b34289a929f5e26b",
+      "tests": {
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend": "4090466f71eff50f",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent": "4090466f71eff50f",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent#2": "4090466f71eff50f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427AuthRefusesAnAlgorithmThePeerDidNotSend": "ca1c1953888d8746",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent": "a958fd3c38a0927e",
+        "internal/component/ike/engine/rfc7427_sighash_test.go::TestRFC7427SignatureAlgorithmIsOneThePeerSent#2": "a958fd3c38a0927e"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7427"
+}
