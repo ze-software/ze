@@ -1,0 +1,58 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5187-2.2-1": {
+      "note": "Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4), originated or accepted. TestGraceLSARoundTrip asserts the EncodeGraceLSA body length equals period(4)+reason(1)+addr(4) TLVs and round-trips GracePeriod; TestGraceLSADecodeMissingMandatory asserts DecodeGraceLSA rejects a Reason-only body. Neither reads the type octets: encode and decode both use GraceTLVPeriod, so a wrong type number (the TLV absent on the wire as Type 1) stays green. The tagged units are the shared codec; the OSPFv3 origination path (gr_restarter.go, LS type 0x000B) is not driven.",
+      "requirement_sha": "02624a9527143956",
+      "tests": {
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5187-2.2-2": {
+      "note": "Forbidden: a grace-LSA without the Graceful restart reason TLV (Type=2, Length=1). TestGraceLSARoundTrip asserts the encoded body length and round-trips Reason; TestGraceLSADecodeMissingMandatory asserts a Period-only body is rejected. No assertion reads the type octet: both sides use GraceTLVReason, so a wrong type number stays green. The OSPFv3 origination path (gr_restarter.go) is not driven.",
+      "requirement_sha": "8fd2ecb5b3d69054",
+      "tests": {
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "9c861bec0bc1802e",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "9c861bec0bc1802e"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "8de3af46933958f8",
+        "internal/plugins/ospf/packet/grace_lsa_test.go::TestGraceLSARoundTrip": "c35d39a0489d572e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5187-3.1-1": {
+      "note": "Forbidden: the restarted router re-originating a prefix under a different LSA ID. TestRestartFactPersistsAcrossRestart asserts only that a restartFact map written by the test reads back from the store (PrefixLSIDs[\"2001:db8::/64\"] == 42). The producers that capture the map before restart (capturePrefixLSIDs, gr_restarter.go:45) and apply it after (restorePrefixLSIDs, gr_restarter.go:148, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.",
+      "requirement_sha": "d1e577dcb3f1aabe",
+      "tests": {
+        "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44"
+      },
+      "units": {
+        "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9"
+      },
+      "verdict": "weak"
+    },
+    "RFC5187-3.2-1": {
+      "note": "Forbidden: the restarted router using a different OSPFv3 Interface ID for an interface. TestRestartFactPersistsAcrossRestart asserts only the store round-trip of a test-built InterfaceIDs map (eth1 == 9). captureInterfaceIDs (gr_restarter.go:44) and restoreInterfaceIDs (gr_restarter.go:149, gr_preserve.go) are not in any tagged unit, so a no-op capture or restore stays green. The negative, TestStaleRestartFactIgnored, proves expiry of the restart fact, a neighbouring rule.",
+      "requirement_sha": "61418cc467731ed5",
+      "tests": {
+        "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "a256e089d6594d44",
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "a256e089d6594d44"
+      },
+      "units": {
+        "internal/plugins/ospf/gr_nvs_test.go::TestRestartFactPersistsAcrossRestart": "ec65e669bd98b456",
+        "internal/plugins/ospf/gr_nvs_test.go::TestStaleRestartFactIgnored": "7af9532aa9d45cd9"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5187"
+}
