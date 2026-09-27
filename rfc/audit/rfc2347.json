@@ -1,0 +1,32 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2347-x-1": {
+      "note": "Forbidden: an OACK carrying an option the client did not request, and a server initiating negotiation. The server can emit two options (sendOACKAndWait, handler.go: blksize and tsize). TestRFC2347ServerOACKOnlyRequestedOptions requests only blksize and asserts opts[\"tsize\"] is absent, red if the server volunteers tsize. No tagged case requests only tsize (or no option) and asserts blksize is absent, so a server that always added blksize stays green; and no case sends a plain RRQ and asserts no OACK comes back (the hasOptions guard, handler.go:280), the 'only the client may initiate option negotiation' clause.",
+      "requirement_sha": "6fc794781f7d1ec5",
+      "tests": {
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "ed641cc88f895378",
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "ed641cc88f895378"
+      },
+      "units": {
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions": "0071a09f93f3c5db",
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions#2": "0071a09f93f3c5db"
+      },
+      "verdict": "weak"
+    },
+    "RFC2347-x-3": {
+      "note": "Forbidden: the server acting on an option it did not acknowledge (e.g. streaming windowsize-windowed DATA, or using an out-of-range blksize it declined). TestRFC2347ServerIgnoresUnacknowledgedOption asserts only the OACK contents: windowsize absent, blksize present. That is red on acknowledging windowsize, the x-1/OACK rule, not on using it: no assertion reads the DATA/ACK exchange after the OACK, so a server that omitted windowsize from the OACK but then sent windowed blocks stays green. The declined-blksize case (value outside 8..65464, parseRRQ) is untested. The client half governs a TFTP client, which Ze does not have.",
+      "requirement_sha": "e4b9f0ce82cbdb63",
+      "tests": {
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "ed641cc88f895378",
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "ed641cc88f895378"
+      },
+      "units": {
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption": "218d5a2faf690f7d",
+        "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerIgnoresUnacknowledgedOption#2": "218d5a2faf690f7d"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2347"
+}
