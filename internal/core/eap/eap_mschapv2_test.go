@@ -46,8 +46,6 @@ func TestMSCHAPv2ResponseFieldValidation(t *testing.T) {
 		// passes validation and is accepted.
 		// RFC requirement: RFC2759-x-3 positive -- a Response whose Value-Size is 49 passes
 		// validation and is accepted.
-		// RFC requirement: RFC2759-x-11 positive -- a Response with zero Reserved and zero
-		// Flags is accepted; the reject path fires only on non-zero fields.
 		res := server.handleResponse(td)
 		if res.Err != nil {
 			t.Fatalf("valid Response rejected: %v", res.Err)
@@ -64,8 +62,6 @@ func TestMSCHAPv2ResponseFieldValidation(t *testing.T) {
 
 		// RFC requirement: RFC2759-x-1 negative -- a Response with a non-zero Reserved octet
 		// is rejected as malformed (rejected before the NT-Response is even verified).
-		// RFC requirement: RFC2759-x-11 negative -- a non-zero Reserved octet in the Response
-		// MUST be rejected.
 		res := server.handleResponse(bad)
 		if res.Err == nil {
 			t.Fatal("non-zero Reserved octet must be rejected")
@@ -79,8 +75,6 @@ func TestMSCHAPv2ResponseFieldValidation(t *testing.T) {
 
 		// RFC requirement: RFC2759-x-2 negative -- a Response with a non-zero Flags octet is
 		// rejected as malformed.
-		// RFC requirement: RFC2759-x-11 negative -- a non-zero Flags octet in the Response
-		// MUST be rejected.
 		res := server.handleResponse(bad)
 		if res.Err == nil {
 			t.Fatal("non-zero Flags octet must be rejected")

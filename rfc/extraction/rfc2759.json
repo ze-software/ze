@@ -6,6 +6,7 @@
   "source-sha": "0b123d1db323bc28",
   "signed-off": "2026-08-30",
   "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 2 (Tier 1)",
+  "register-reason": "RFC 2759 is Informational and carries no RFC 2119 key-words paragraph, so its obligations are stated in a mix of capitalised MUSTs and lowercase 'must be zero' field rules. The derivation grades the source 'prose' and this sign-off claims exactly that grade.",
   "sections": [
     {
       "id": "front",
@@ -42,8 +43,7 @@
       "reason": "Response Packet. The Value sub-format list is site 4:1 and the Flag rule is site 4:2. Three further ids are read from prose here. RFC2759-x-3 states the Value-Size as 49, which the RFC never writes as a number: it is the sum of the sub-format list, 16 + 8 + 24 + 1. RFC2759-x-9 is read from 'The Peer-Challenge field is a 16-octet random number' together with the same randomness advisory as section 3. RFC2759-x-11 is the receiver-side counterpart of the two sender rules the sites carry: the RFC states that Reserved and Flags must be zero and never states the duty to reject a packet in which they are not. The domain-stripping rule is stated here too, in 'only the user name is used, without any associated Windows NT domain name'; it is attributed to section 8.2, where the pseudocode states it as a constraint on the hash input.",
       "unsourced-ids": [
         "RFC2759-x-3",
-        "RFC2759-x-9",
-        "RFC2759-x-11"
+        "RFC2759-x-9"
       ]
     },
     {
@@ -219,48 +219,6 @@
       "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below."
     },
     {
-      "id": "55",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759. The section splitter reads a column-0 line beginning with digits as a heading, and section 9.2 prints its vectors at column 0. This id comes from '55 73 65 72', the UserName vector. No text and no obligation."
-    },
-    {
-      "id": "63",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of '63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00', the UTF-16LE Password vector in section 9.2. No text and no obligation."
-    },
-    {
-      "id": "21",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of '21 40 23 24 25 5E 26 2A 28 29 5F 2B 3A 33 7C 7E', the PeerChallenge vector in section 9.2. No text and no obligation."
-    },
-    {
-      "id": "44",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of '44 EB BA 8D 53 12 B8 D6 11 47 44 11 F5 69 89 AE', the PasswordHash vector in section 9.2. No text and no obligation."
-    },
-    {
-      "id": "24",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of the label line '24 octet NT-Response:' in section 9.2. No text and no obligation."
-    },
-    {
-      "id": "82",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of '82 30 9E CD 8D 70 8B 5E A0 8F AA 39 81 CD 83 54 42 33 11 4A 3D 85 D6 DF', the NT-Response vector in section 9.2. No text and no obligation."
-    },
-    {
-      "id": "41",
-      "sites": 0,
-      "disposition": "walked",
-      "reason": "Not a section of RFC 2759: the splitter artifact of '41 C0 0C 58 4B D2 D9 1C 40 17 A2 A1 2F A5 9F 3F', the PasswordHashHash vector in section 9.2. No text and no obligation."
-    },
-    {
       "id": "9.3",
       "sites": 0,
       "disposition": "walked",
@@ -308,44 +266,39 @@
       "id": "4:1",
       "quote": "16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags",
       "disposition": "mapped",
-      "mapped-to": "RFC2759-x-1",
-      "reason": "The Response packet's Value sub-format list, which the splitter fuses into one site. Its only obligation is 'Reserved, must be zero' on the 8 octets between Peer-Challenge and NT-Response, which is RFC2759-x-1. The three remaining entries are field lengths: the 16-octet Peer-Challenge is RFC2759-x-9, the 24-octet NT-Response has no separate row, and the 1-octet Flags field carries its own rule in site 4:2. The authenticator enforces the zero-Reserved rule in handleResponse (internal/core/eap/eap_mschapv2.go), which walks td[21:29] and fails on any non-zero octet; both polarities are tagged in internal/core/eap/eap_mschapv2_test.go."
+      "mapped-to": "RFC2759-x-1"
     },
     {
       "id": "4:2",
       "quote": "The Flag field is reserved for future use and MUST be zero.",
       "disposition": "mapped",
-      "mapped-to": "RFC2759-x-2",
-      "reason": "The Flags rule, stated at MUST level and captured as RFC2759-x-2. handleResponse (internal/core/eap/eap_mschapv2.go) rejects a Response whose td[53] is non-zero, and both polarities are tagged in internal/core/eap/eap_mschapv2_test.go."
+      "mapped-to": "RFC2759-x-2"
     },
     {
       "id": "5:1",
       "quote": "The hexadecimal digits A-F (if present) MUST be uppercase.",
       "disposition": "mapped",
-      "mapped-to": "RFC2759-x-5",
-      "reason": "The case rule on the 40 hexadecimal digits of the S= field, captured as RFC2759-x-5. sendSuccess (internal/core/eap/eap_mschapv2.go) builds the field through strings.ToUpper, so no code path can emit lowercase; the summary records that as a single-polarity annotation and the positive assertion is tagged in internal/core/eap/eap_mschapv2_test.go."
+      "mapped-to": "RFC2759-x-5"
     },
     {
       "id": "5:2",
       "quote": "The authenticating peer MUST verify the authenticator response when a Success packet is received.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC2759-x-7",
-      "reason": "The Success-packet verification duty is stated in two sentences: this one names the act and site 5:3 names the consequence. rfc/short/rfc2759.md carries them as one row, RFC2759-x-7, whose declared text is the consequence sentence and whose annotation covers both halves ('never computes the expected Authenticator Response to compare or disconnect on mismatch'). Site 5:3 maps that row. Ze meets neither half: handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. Raised as an ask under AC-8 of plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md, not annotated here."
+      "reason": "The Success-packet verification duty is stated in two sentences: this one names the act and site 5:3 names the consequence. rfc/short/rfc2759.md carries them as one row, RFC2759-x-7, whose declared text is the consequence sentence and whose annotation covers both halves ('never computes the expected Authenticator Response to compare or disconnect on mismatch'). Site 5:3 maps that row. Ze meets neither half: handleMSCHAPv2Success (internal/core/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. Raised as an ask under AC-8 of plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md, not annotated here.",
+      "mapped-to": "RFC2759-x-7"
     },
     {
       "id": "5:3",
       "quote": "If the authenticator response is either missing or incorrect, the peer MUST end the session.",
       "disposition": "mapped",
-      "mapped-to": "RFC2759-x-7",
-      "reason": "The peer's duty to end the session when the authenticator response is missing or incorrect, captured as RFC2759-x-7. Ze plays this peer role in production: internal/component/ike/engine/fsm.go builds an eap.NewPeerSession(eap.TypeMSCHAPv2, ...) when it authenticates with EAP. handleMSCHAPv2Success (internal/core/eap/peer.go) is the producer and it does not implement the obligation, so the summary carries a gap annotation and no test tag. That gap is a void answer under ai/rules/rfc-compliance.md and is re-raised as an ask rather than cited."
+      "mapped-to": "RFC2759-x-7"
     },
     {
       "id": "6:1",
       "quote": "This field MUST be exactly 32 octets long and MUST be present.",
       "disposition": "mapped",
-      "mapped-to": "RFC2759-x-6",
-      "reason": "The C= field rule of the Failure packet, captured as RFC2759-x-6. Ze emits no MS-CHAPv2 Failure packet at all: sendFailure (internal/core/eap/eap_mschapv2.go) returns ErrMethodFailed and the session ends with an EAP-Failure, so the field this sentence constrains is never built. The summary carries a gap annotation and no test tag, and that gap is a void answer re-raised as an ask."
+      "mapped-to": "RFC2759-x-6"
     },
     {
       "id": "7:1",
@@ -361,6 +314,5 @@
       "excluded-kind": "not-a-requirement",
       "reason": "Boilerplate the site scan does not strip: the Internet Society Full Copyright Statement. Its 'must be followed' governs whoever republishes or translates the document under the Internet Standards process, not a speaker of MS-CHAPv2."
     }
-  ],
-  "register-reason": "RFC 2759 is Informational and carries no RFC 2119 key-words paragraph, so its obligations are stated in a mix of capitalised MUSTs and lowercase 'must be zero' field rules. The derivation grades the source 'prose' and this sign-off claims exactly that grade."
+  ]
 }
