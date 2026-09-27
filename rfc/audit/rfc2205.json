@@ -132,8 +132,8 @@
       "verdict": "weak"
     },
     "RFC2205-3.1-2": {
-      "note": "Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause ('ignored on receipt'): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green.",
-      "requirement_sha": "df5cdaad6bd6ea8e",
+      "note": "Quote: unused fields sent as zero and ignored on receipt. Send clause: TestRSVPReservedByteZeroOnSend asserts raw[5] == 0 on a built PATH. Receive clause ('ignored on receipt'): no tagged unit feeds a nonzero reserved octet and asserts the message is still accepted, so a decoder that rejected it would stay green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "requirement_sha": "f002ecbce4098c46",
       "tests": {
         "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "edeb000ca6bd1f57"
       },
@@ -156,8 +156,8 @@
       "verdict": "enforced"
     },
     "RFC2205-3.1.3-1": {
-      "note": "Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. 'Logged locally' clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green.",
-      "requirement_sha": "c7f156dae3f19d60",
+      "note": "Verify clause: TestDecodeMandatoryObjects requires DecodeMessage to fail for each message type missing a required object, and TestEnginePathWithoutTimeValuesDropped asserts no state. Not-reported-in-ERROR_SPEC clause: the same test asserts no PathErr and no RESV. 'Logged locally' clause: no tagged unit asserts a log record for the malformed message, so a silent drop stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "requirement_sha": "827c7b4c298934f8",
       "tests": {
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
         "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
@@ -196,8 +196,8 @@
       "verdict": "weak"
     },
     "RFC2205-4-4": {
-      "note": "RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green.",
-      "requirement_sha": "b3fbc1e412626010",
+      "note": "RA33 strict re-audit: weak. Quote obliges verifying the construction of EACH RSVP message received. Tagged negatives cover a PATH without SESSION (errObjectAbsent) and RESV object-order violations (wire_rfc3209_test.go); no tagged unit feeds a malformed PathTear, ResvTear, PathErr, ResvErr or ResvConf, so dropping construction checks for those types stays green. Re-judged 2026-09-27 by QF-2 after the row's citation moved to the appendix the sentence is in; the text is unchanged and the tagged units were re-read. Weak stands.",
+      "requirement_sha": "84a28efb33078d5d",
       "tests": {
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
         "internal/plugins/rsvpte/wire_rfc2205_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
