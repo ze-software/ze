@@ -1,0 +1,201 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC9012-13-10": {
+      "note": "TunnelTLV.Preference read through unrecognized short- and long-header sub-TLVs equals the Preference read from the TLV alone; negative shows unrecognized sub-TLVs yield nothing, so they are skipped rather than misread",
+      "requirement_sha": "b4333e2a81b4313c",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing": "5c54113fd4e9f845",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing#2": "5c54113fd4e9f845"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-11": {
+      "note": "same unit round-trips the attribute byte-identically and asserts both unrecognized sub-TLVs (1- and 2-octet length headers) are enumerated with values intact",
+      "requirement_sha": "970865cc386ad4fe",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "5bd482dea7fba1aa",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "5bd482dea7fba1aa"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-12": {
+      "note": "a Preference sub-TLV of the wrong length is skipped (the next well-formed one is used), still enumerated and round-tripped; the negative shows the same type at the right length is used, isolating the malformation as the cause",
+      "requirement_sha": "ae6e342552796f6f",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "a794ebe4d8d51aa9",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "a794ebe4d8d51aa9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-16": {
+      "note": "a VXLAN Encapsulation sub-TLV inside a type-15 TLV does not change the value ze processes (Preference); negative shows a meaningful sub-TLV change is observed. ze forms no encapsulation header, so what ze processes out of the TLV is the whole observable boundary",
+      "requirement_sha": "6eb9e53c070a2d18",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-18": {
+      "note": "the attribute holding a meaningless VXLAN Encapsulation sub-TLV parses and both sub-TLVs enumerate; the negative (truncated TLV header refused) is a framing case, a neighbouring rule",
+      "requirement_sha": "469cfd0d44defe64",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-19": {
+      "note": "round-trip of the TLV with the meaningless sub-TLV is byte-identical, so removal before distribution would fail the unit",
+      "requirement_sha": "792fe366e5d00a94",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "b3dc33dfbd302427",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "b3dc33dfbd302427"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-3": {
+      "note": "TestRFC9012UnrecognizedTunnelTypeIsCarried: an attribute holding an unassigned tunnel type (0xFFFE) beside a type-15 TLV parses without error through ParseTunnelEncap and the recognized TLV's Preference is still read; the test fails if ParseTunnelEncap refused unknown types. Negative (TestRFC9012MalformedAttributeIsRejected, TLV length overrun refused) shows the parser is not blanket-accepting, a neighbouring framing rule (13-1/13-2) rather than a violation of this one",
+      "requirement_sha": "591f3d4d672f65af",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "fbefb1e9b40920c0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-5": {
+      "note": "positive round-trips ParseTunnelEncap then TunnelEncap.WriteTo and asserts byte identity, so dropping the unrecognized TLV on re-encode fails it; the negative only shows the stripped encoding differs, which demonstrates the comparison can discriminate rather than exercising the producer",
+      "requirement_sha": "2b94c49f2df3ca4c",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTLVRemovalIsObservable": "4526e26768d2b466",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "fbefb1e9b40920c0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-13-7": {
+      "note": "the RFC sentence covers the seven RFC 9012 single-instance sub-TLVs (Tunnel Egress Endpoint, Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, Prefix-SID); TestRFC9012DuplicateSingleInstanceSubTLVs duplicates the RFC 9830 Preference sub-TLV (type 12), which is not in that list, and ze decodes none of the seven (TunnelTLV.Preference in internal/core/bgp/attribute/tunnel_encap.go is the only sub-TLV reader). The assertions are correct evidence for RFC9830-2.4-1, which the same lines also tag, not for this row",
+      "requirement_sha": "72c5536aa01a7c62",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "39f4c837d65f3fa6"
+      },
+      "verdict": "wrong"
+    },
+    "RFC9012-13-8": {
+      "note": "positive duplicates the RFC 9830 Preference sub-TLV, not one of the RFC 9012 single-instance types the sentence names; ParseTunnelEncap and SubTLVs are type-blind so the behavior likely holds, but no buffer with a duplicated listed type (e.g. two Tunnel Egress Endpoint sub-TLVs) is asserted. The negative (stray trailing octet refused) violates the TLV framing rule, not this one",
+      "requirement_sha": "19966c8f02106fc2",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "39f4c837d65f3fa6",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5"
+      },
+      "verdict": "weak"
+    },
+    "RFC9012-13-9": {
+      "note": "the sentence is the duplicate-sub-TLV paragraph's propagation clause; TestRFC9012AllSubTLVsPropagate round-trips one Preference and two unknown sub-TLVs with no duplicate, so an implementation that dropped second occurrences on propagation would pass this unit (duplicate round-trip is asserted only in the 13-8/13-7 unit, with a non-listed type)",
+      "requirement_sha": "3701b8ec3386db8c",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate": "5bd482dea7fba1aa",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012AllSubTLVsPropagate#2": "5bd482dea7fba1aa"
+      },
+      "verdict": "weak"
+    },
+    "RFC9012-3.1-3": {
+      "note": "a Tunnel Egress Endpoint sub-TLV with Reserved octets 0xA5 round-trips through ParseTunnelEncap/WriteTo byte-identically, so normalizing the Reserved subfield would fail it",
+      "requirement_sha": "1fa5b1a0043f06c7",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "b123d2005cc5982f",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "b123d2005cc5982f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.2.1-2": {
+      "note": "a VXLAN Encapsulation sub-TLV with all R bits set round-trips byte-identically, so masking them on propagation would fail it",
+      "requirement_sha": "159921325e956116",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "b123d2005cc5982f",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "b123d2005cc5982f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-3.5-3": {
+      "note": "an Embedded Label Handling sub-TLV in a type-15 TLV (no VNI) is still enumerated and the attribute round-trips byte-identically, so stripping it before propagation would fail the unit",
+      "requirement_sha": "0dca9bfc4e076796",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped": "c9496f99d8afd74f",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012EmbeddedLabelHandlingNotStripped#2": "c9496f99d8afd74f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9012-4.3-2": {
+      "note": "ParseExtendedCommunities then ExtendedCommunities.WriteTo reproduces a Color Extended Community's octets exactly for two distinct colors, so a changed value on propagation would fail it",
+      "requirement_sha": "09bf668af6b0717d",
+      "tests": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "933a41681c46181c",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "933a41681c46181c"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "f387c0e7d216e29b",
+        "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "f387c0e7d216e29b"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9012"
+}
