@@ -6,7 +6,7 @@
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7296-1.2-1": {
-      "note": "TestInitialExchangeEncryptionBoundary: IKE_SA_INIT carries no SK and is refused by decryptAndParse; IKE_AUTH carries SK and the peer decrypts it",
+      "note": "Clauses of the quoted span: IKE_SA_INIT negotiates algorithms, exchanges nonces and does a Diffie-Hellman exchange; IKE_AUTH authenticates the previous messages, exchanges identities and certificates and establishes the first Child SA. TestInitialExchangeEncryptionBoundary asserts only the encryption boundary (IKE_SA_INIT carries no SK and decryptAndParse refuses it; IKE_AUTH carries SK and decrypts). No assertion in the tagged unit covers the negotiation, nonce, DH, authentication, identity or Child SA clauses.",
       "requirement_sha": "fd6232ea3dc33023",
       "tests": {
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "bf1e8ec52b6ed4c2",
@@ -16,7 +16,7 @@
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "cc07ff143101d2da",
         "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "cc07ff143101d2da"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-1.3.3-1": {
       "note": "initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
@@ -71,7 +71,7 @@
       "verdict": "enforced"
     },
     "RFC7296-2.10-2": {
-      "note": "PayloadNonce.ReadFrom refuses 15 octets, accepts 16; sender nonceLen 32 asserted in TestNonceMeetsHalfPRFKeySize",
+      "note": "Clause: nonces used in IKEv2 are at least 128 bits. The obligation binds the nonce Ze sends. TestNonceLengthBounds asserts only the receive floor (ReadFrom refuses 15 octets, accepts 16/32/256, refuses 257) and the NonceMinLen constant; the nonce Ze generates (nonceLen in newInitiatorSA/newResponderSA/rekey) is not asserted in the tagged unit, so a sender emitting an 8-octet nonce stays green here.",
       "requirement_sha": "b2bc95ac2caf9d95",
       "tests": {
         "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "459954f82bfe6b71",
@@ -81,7 +81,7 @@
         "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "6a5b7aefa912b132",
         "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds#2": "6a5b7aefa912b132"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-2.10-3": {
       "note": "positive tag claims every rekey nonce uses nonceLen (rekey.go) but only newInitiatorSA/newResponderSA nonces are asserted; PRF list is hand-written in the test, not read from prfRegistry; negative is a tightness guard, not a violating input",
@@ -235,7 +235,7 @@
       "verdict": "weak"
     },
     "RFC7296-2.21.2-1": {
-      "note": "truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed",
+      "note": "Clauses: a request with an unsupported critical payload, or a wholly malformed request, is rejected in its entirety and draws only UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX. The malformed half is asserted (truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed). The unsupported-critical-payload half has no assertion in the tagged units: no request carrying one is shown to draw exactly an UNSUPPORTED_CRITICAL_PAYLOAD response (see RFC7296-2.5-18, weak).",
       "requirement_sha": "81f9339824544b40",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
@@ -247,7 +247,7 @@
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "89c93e44ce0eb218",
         "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "89c93e44ce0eb218"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-2.21.2-2": {
       "note": "initiator establishes despite piggybacked error notify; AUTHENTICATION_FAILED still kills the SA",
@@ -314,7 +314,7 @@
       "verdict": "enforced"
     },
     "RFC7296-2.21.4-7": {
-      "note": "protected INFORMATIONAL notify answered and changes no SA state; protected Delete does change state",
+      "note": "Clauses: a node receiving a suspicious message from an address with which it has an IKE SA SHOULD send a Notify in an INFORMATIONAL exchange over that SA; the recipient MUST NOT change the state of any SAs. The MUST NOT is asserted (a protected INFORMATIONAL notify is answered and changes no SA state; a protected Delete does change state, the control). The SHOULD-send clause has no assertion: no unit feeds Ze a suspicious message and checks a Notify goes out over the existing SA.",
       "requirement_sha": "cf7ff0e7a0d6315f",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "4e9aa4949328a3c4",
@@ -324,7 +324,7 @@
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "ba463a9e833cddbe",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "ba463a9e833cddbe"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-2.23-1": {
       "note": "TestNATDetectionPresent/Absent call DetectNAT on hand-built hashes; no tagged unit shows the initiator checks the received NAT_DETECTION payloads during IKE_SA_INIT, so the tests stay green if the engine stopped calling DetectNAT",
@@ -667,7 +667,7 @@
       "verdict": "weak"
     },
     "RFC7296-3.1-4": {
-      "note": "IKE_SA_INIT request octets 8..15 zero; response carries non-zero responder SPI; cookie-repeat clause not separately exercised",
+      "note": "Clauses: Responder's SPI is zero in the first message of an initial exchange, including repeats of that message including a cookie. TestSPIZeroRules asserts octets 8..15 are zero in Ze's IKE_SA_INIT request and non-zero in the response. The cookie-repeat clause of the quote has no case: a retried IKE_SA_INIT carrying a COOKIE is never checked for a zero Responder's SPI.",
       "requirement_sha": "aec2989709fac5ae",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
@@ -677,7 +677,7 @@
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
         "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.1-7": {
       "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
@@ -706,7 +706,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.1-9": {
-      "note": "R bit matches direction on built messages; responder refuses a request marked as response",
+      "note": "Clauses: R cleared in all requests; set in all responses. The positive asserts both on engine-built messages. The negative tag (the responder refuses a request whose R bit is set) exercises the receive-side rule of RFC7296-3.1-12, a neighbouring one, and is not a discriminator of the sender assertion; the row carries no {single-polarity} marker.",
       "requirement_sha": "501ace8bd2b37543",
       "tests": {
         "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "d3f001fc2a77226f",
@@ -716,7 +716,7 @@
         "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "41c4a84a5f756197",
         "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection#2": "41c4a84a5f756197"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.10-3": {
       "note": "PayloadNotify codec round-trips a test-built struct with SPISize 0; no Ze producer of an IKE-SA notification (INITIAL_CONTACT, error notifies) is asserted to send SPI Size 0",
@@ -775,7 +775,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.10.1-3": {
-      "note": "one uncovered error class (truncated inner chain) draws INVALID_SYNTAX; negative covers the encrypted-and-verified precondition",
+      "note": "Clause: INVALID_SYNTAX MUST be sent in response to ANY error not covered by another status type. One uncovered error class is asserted (a truncated inner chain in an authenticated request draws INVALID_SYNTAX); the negative covers the encrypted-and-verified precondition. Other uncovered errors (a bad payload length, an invalid field value in a protected request) have no case, so a responder answering them with another type or nothing stays green.",
       "requirement_sha": "35b5fca16beae05c",
       "tests": {
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
@@ -785,7 +785,7 @@
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
         "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "d402e5e224dde39e"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.11-1": {
       "note": "PayloadDelete holds one ProtocolID by construction; two protocols need two payloads",
@@ -857,7 +857,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.14-3": {
-      "note": "all-zero, all-ones and ascending IVs all decrypt",
+      "note": "Clause: recipients MUST accept any IV. The positive asserts all-zero, all-ones and ascending IVs decrypt. The negative tag exercises checksum corruption, a neighbouring integrity rule, not a violation of IV acceptance, and the row carries no {single-polarity} marker, so there is no pair.",
       "requirement_sha": "94d965b11c7d747c",
       "tests": {
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "29950a5975949ea7",
@@ -867,7 +867,7 @@
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "343c340a9ca5f816",
         "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt#2": "343c340a9ca5f816"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.14-5": {
       "note": "minimum pad and +16/+32 accepted; over-long Pad Length refused with a valid MAC",
@@ -883,7 +883,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.15.1-2": {
-      "note": "no engine-built message carries CP(CFG_REQUEST); peer netmask in a request tolerated",
+      "note": "Clause: a CFG_REQUEST MUST NOT include a non-empty INTERNAL_IP4_NETMASK. The positive asserts no engine-built message carries CP(CFG_REQUEST). The negative tag asserts the receive side tolerates a peer's non-empty netmask, a neighbouring rule (Section 2.5 no-rejection), not a discriminator of this one; no {single-polarity} marker.",
       "requirement_sha": "f8e396762d072fc7",
       "tests": {
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "38bdb8cdc7d2fb80",
@@ -893,7 +893,7 @@
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "7f5a11b266fb9186",
         "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "7f5a11b266fb9186"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.16-1": {
       "note": "EAP peer copies request Identifier into each response over three rounds with unrelated ids",
@@ -1064,8 +1064,8 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.2-1": {
-      "note": "buildWireIKEProposals emits exactly one ENCR/PRF/INTEG/DH per IKE proposal; a PRF-less proposal fails NegotiateIKE",
-      "requirement_sha": "65b5c673fd3ea0eb",
+      "note": "The row now quotes the Section 3.3.3 span through the IKE line of the table (IKE mandatory: ENCR, PRF, INTEG*, D-H) and the sentence that a compliant implementation MUST understand all mandatory and optional types for each protocol it supports. Asserted: Ze's IKE proposal carries exactly one ENCR, PRF, INTEG and DH (countTransform != 1 fails), and a peer IKE proposal without PRF draws ErrNoProposalChosen. Not asserted: a peer proposal missing ENCR, INTEG or D-H, and the understand-every-type clause (tagged under RFC7296-3.3.3-1 only).",
+      "requirement_sha": "8057d3405db4009b",
       "tests": {
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "bf1e8ec52b6ed4c2",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "bf1e8ec52b6ed4c2"
@@ -1074,7 +1074,7 @@
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
         "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.3.3-1": {
       "note": "transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal",
@@ -1107,7 +1107,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.3.5-5": {
-      "note": "AES-CBC and AES-CTR offers without Key Length refused with ErrKeyLengthMissing; with it accepted",
+      "note": "Clauses: for such transforms the Key Length attribute MUST always be included (sender); proposals not containing it MUST be rejected (receiver). The receiver clause is asserted (AES-CBC and AES-CTR offers without Key Length refused with ErrKeyLengthMissing, accepted with it). The sender clause has no assertion: no Ze-built proposal is checked for a Key Length attribute on AES-CBC/CTR.",
       "requirement_sha": "92c60c00c9c96b95",
       "tests": {
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "08f2f5dac8da8a2b",
@@ -1117,11 +1117,11 @@
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "2147dde0c243ba79",
         "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.3.6-1": {
-      "note": "negative of TestResponderRequiresKEForDH removes the KE PAYLOAD (still offering the DH transform), so it violates the KE-payload rule, not the missing-mandatory-Transform-Type rule quoted; no tagged unit offers a proposal missing the D-H transform",
-      "requirement_sha": "e575295e5d7e3980",
+      "note": "The row now quotes the Section 3.3.3 span that makes D-H a mandatory Transform Type for IKE and understanding every mandatory type a MUST. TestResponderRequiresKEForDH's negative removes the KE PAYLOAD from an IKE_SA_INIT whose SA proposals still carry the D-H transform (buildWireIKEProposals), and asserts the SA goes dead: that is the KE-payload rule (Sections 1.2, 3.4), a neighbouring obligation. No tagged unit offers an IKE proposal missing the D-H transform, so the tags attribute the neighbouring rule's evidence to this row.",
+      "requirement_sha": "315421de1b3b2feb",
       "tests": {
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "bf1e8ec52b6ed4c2",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "bf1e8ec52b6ed4c2"
@@ -1130,7 +1130,7 @@
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "efe18c0971cb0c7d",
         "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "efe18c0971cb0c7d"
       },
-      "verdict": "weak"
+      "verdict": "wrong"
     },
     "RFC7296-3.3.6-5": {
       "note": "the engine positive uses D-H NONE, a transform Ze understands and refuses, not one it does not understand; the crypto unit's positive proves another PROPOSAL is accepted (3.3.6-4), not a sibling transform; the Transform Attribute not-understood clause is not exercised",
@@ -1163,7 +1163,7 @@
       "verdict": "enforced"
     },
     "RFC7296-3.5-5": {
-      "note": "refuseIDTerminators refuses NUL/CR/LF in ID_FQDN and ID_RFC822_ADDR, ValidateIdentities refuses them in config; clean ids and ID_KEY_ID accepted. Test comment quotes a paraphrase as RFC text",
+      "note": "Clauses: the ID_FQDN string MUST NOT contain terminators; all characters are ASCII, with IDNA syntax for internationalized names. The terminator clause is asserted (refuseIDTerminators refuses NUL/CR/LF in ID_FQDN and ID_RFC822_ADDR, ValidateIdentities refuses them in config; clean ids accepted). The ASCII/IDNA clause has no assertion: a non-ASCII FQDN is neither sent nor refused in any tagged unit.",
       "requirement_sha": "991740adb20955b8",
       "tests": {
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "3aea182e6ec56bb9",
@@ -1173,7 +1173,7 @@
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "23a0a6d9ee6be57d",
         "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "dcd48c0b46fd4aa5"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     },
     "RFC7296-3.6-2": {
       "note": "Re-read 2026-09-27. Two clauses: send and accept both Hash and URL formats. Send: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encoding 12 and 13 with the SHA-1 and URL. Accept: the tagged units prove only the OFF default (TestChuHashAndURLIsOffByDefault drops a received encoding 12); no 3.6-2-tagged unit asserts that a received encoding 12 or 13 is resolved and accepted when configured. The .ci proves only that the leaves commit.",
