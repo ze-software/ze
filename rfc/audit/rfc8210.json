@@ -1,0 +1,398 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC8210-10-1": {
+      "note": "two ApplyDelta batches on one ROACache stand in for two caches; no two sessions are driven, and the negative (origin mismatch is Invalid) violates RFC 6811 origin validation, not source distinction",
+      "requirement_sha": "8254049d2f18a190",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "bc6fefeb87099bc9",
+        "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "bc6fefeb87099bc9"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "2ac661a9b04f6422",
+        "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "2ac661a9b04f6422"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-10-2": {
+      "note": "Forbidden: an update from one cache applied to another cache's data (unmarked source). TestRTRCacheSwitchKeepsSerialBasesSeparate gives both caches the same Session ID and serial; after switching 2->3->2 it asserts the query sequence ends {2, pduResetQuery} (not a Serial Query against the other cache's base) and that only the selected cache's prefix and ASPA provider validate (roas.Validate / aspas.isProvider per candidate), so a merge or reuse goes red.",
+      "requirement_sha": "106112228a6dabf0",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "35b120fedd68e009",
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "35b120fedd68e009"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate": "c1679960dc16d025",
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestRTRCacheSwitchKeepsSerialBasesSeparate#2": "c1679960dc16d025"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-12-1": {
+      "note": "positive drives a fatal Error Report 4 to TCP closure; negative only calls isFatalError(errNoDataAvail) and never shows a non-fatal error keeps the session, so a session that dropped on every error still passes",
+      "requirement_sha": "d8dc4e038ef44ea3",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "c5beca1060fa5391",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestIsFatalError": "2e5f67639117e4d9",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestHandlePDUVersionDowngrade": "deeb71b07c673003"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-3-1": {
+      "note": "Forbidden: using a cache with no trust relationship or over an untrusted channel. TLS path is asserted: TestRTRTLSRejectsUnauthenticatedCaches 'untrusted issuer' and 'no client authentication' are refused (assertRTRTLSRefused), TestRTRTLSAuthenticatedCache succeeds with the named CA. The unprotected-TCP path, where the trusted channel is the operator's trusted-network declaration, has no assertion in a tagged unit: the refusal of a cache with neither tls nor trusted-network is in TestRTRTLSConfigRejectsUnsafeTransport, which does not carry this id.",
+      "requirement_sha": "5050492fc80cec76",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-4-1": {
+      "note": "startSessions contacts the lowest preference value first and never the standby while it answers; the next cache takes over when the preferred one refuses",
+      "requirement_sha": "f1776b40118c197f",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "35b120fedd68e009",
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "35b120fedd68e009"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "ca1b4a0d18891da9",
+        "internal/component/bgp/plugins/rpki/rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "ca1b4a0d18891da9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-5-1": {
+      "note": "Transmit clause proven: TestWriteResetQueryZeroesReservedOverGarbage asserts octets 2-3 of the Reset Query zero over a 0xFF buffer (the only reserved field in a PDU ze writes). Receipt clause proven only for the IPv4 and IPv6 Prefix PDUs (TestReservedPrefixFieldsPreserveValidation, dirty header and octet-11 bytes still authorize). The Cache Reset PDU's reserved octets 2-3 are never sent nonzero by any tagged unit (TestCacheResetTriggersResetQuery uses a zeroed buffer), so a handlePDU that refused a Cache Reset with nonzero reserved octets stays green",
+      "requirement_sha": "143c7094ef946fee",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "d7a1a5261ccc5a89",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "d7a1a5261ccc5a89",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "c5beca1060fa5391",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "c5beca1060fa5391"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "1356098b10a98b07",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "a3cc3f0ada1c140e",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "1cd570d9509161cf"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-5.1-1": {
+      "note": "receipt side: reserved Flags bits (0xFF/0xFE) ignored by parseIPv4Prefix and through handlePDU in a v1 session; bit 0 alone decides announce/withdraw. Ze writes no Flags field, so the transmit clause has no producer",
+      "requirement_sha": "ab7941f1a8ec6c11",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "d7a1a5261ccc5a89",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored": "c5beca1060fa5391",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored#2": "c5beca1060fa5391"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored": "8502744eba1558c8",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParsePrefixPDUFlagsHighBitsIgnored#2": "8502744eba1558c8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-5.1-2": {
+      "note": "parsePrefixPDU accepts maxLen 24 >= prefixLen 8 and rejects maxLen 16 < prefixLen 24 with the 'invalid' error; input isolated (prefix length check passes first)",
+      "requirement_sha": "286219cb3c5511e2",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c5beca1060fa5391"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "0d0466e247e4adf7",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "f43777808456f294"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-5.11-1": {
+      "note": "positive: an Error Report with version 99 gets no reply byte before EOF (readLoop); negative: malformed ASPA PDU does draw an Error Report on the wire",
+      "requirement_sha": "99375afb02930375",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRErrorReportIsNotAnswered": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "d36b3d3dab633423",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRErrorReportIsNotAnswered": "be7d69809f6ab5de"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-5.11-4": {
+      "note": "single-polarity: transmitted Error Report ends with a zero Length of Error Text after the encapsulated PDU",
+      "requirement_sha": "56bfe768964079f7",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestASPAProviderListErrorOnWire": "d36b3d3dab633423"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-5.2-1": {
+      "note": "Forbidden: a startup Serial Notify erroring the session or being adopted, including one for an unexpected protocol version. TestSerialNotifyIgnoredDuringStartup asserts no error, done=false, serial/sessionID/state/version untouched, and the negative that a Cache Response in the same window is acted on; but its notify carries rtrVersionMax, the expected version. The clause 'even if the Serial Notify PDU is for an unexpected protocol version' has no assertion: removing the Serial Notify exemption from handlePDU's version check leaves both subtests green (same gap as RFC8210-7-8)",
+      "requirement_sha": "5d8fd30bd7892694",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup": "ba3e11c9d3461b0d",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup#2": "ba3e11c9d3461b0d"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-6-2": {
+      "note": "synctest: lease expiry removes VRPs and ASPAs and notifies consumers; a completed EOD renews, an incomplete response does not; a late serial EOD after expiry is refused with errRtrDataExpired",
+      "requirement_sha": "325aff883a674117",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal": "51b37202fe4cb34c",
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal#2": "51b37202fe4cb34c",
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRSerialDeltaCannotRenewAnElapsedLease": "51b37202fe4cb34c"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal": "9eeeb83d4b220ab0",
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRDataExpiryAndRenewal#2": "9eeeb83d4b220ab0",
+        "internal/component/bgp/plugins/rpki/rtr_expire_test.go::TestRTRSerialDeltaCannotRenewAnElapsedLease": "60186caa30ad7939"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-7-1": {
+      "note": "single-polarity: first bytes on a fresh transport are a Reset Query, or a Serial Query when resuming, observed at a real listener",
+      "requirement_sha": "98981788af06ce75",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "cd7fc1c865e783f3",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "cd7fc1c865e783f3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-7-3": {
+      "note": "Forbidden: continuing at the router's version after a version 0 reply (neither downgrading nor terminating). TestRTRUnknownNegotiationVersion 'unsupported v0': a v0 Cache Response makes syncOnce return errRtrUnsupportedProtocol and the cache's read reach io.EOF (the connection is terminated); a router that kept reading would leave the fake cache blocked until its deadline, not EOF. Negative TestRFC8210V1CacheResponseIsNotTerminated: a v1 response to a v1 query keeps version 1, publishes its VRP (Validate Valid) and draws no trailing bytes, so a check that refused every Cache Response goes red",
+      "requirement_sha": "d68ef9667f5bbda2",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "ee77a712b1e28351",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_rfc8210_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "1f8f77433dc4fae3",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "97a99b4688b5e693"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-7-7": {
+      "note": "Forbidden: accepting a PDU with an unrecognized version, or terminating silently, or answering an unknown-version Error Report with an Error Report. TestRTRUnknownNegotiationVersion asserts versions 0 and 99 yield errRtrUnsupportedProtocol, an Error Report PDU with code 4 (got.report[1], got.report[2:4]) and EOF, and version 2 completes. The exception clause 'unless the received PDU is itself an Error Report PDU' has no assertion in the tagged unit (it is asserted only in TestRTRErrorReportIsNotAnswered, which carries RFC8210-5.11-1, not this id).",
+      "requirement_sha": "c2e34e481c7b7121",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "97a99b4688b5e693",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion#2": "97a99b4688b5e693"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-7-8": {
+      "note": "Forbidden: a startup Serial Notify erroring the session or adopting its serial/Session ID, for ANY Protocol Version in the notify. TestSerialNotifyIgnoredDuringStartup asserts no error, done=false, serial and sessionID unchanged, but only for a notify at rtrVersionMax, called on handlePDU directly. The clause 'regardless of the Protocol Version field' is unasserted: deleting the hdr.Type != pduSerialNotify exemption from the version check in handlePDU (rtr_session.go) leaves both subtests green.",
+      "requirement_sha": "437c765e0fcccd4a",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup": "ba3e11c9d3461b0d",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestSerialNotifyIgnoredDuringStartup#2": "ba3e11c9d3461b0d"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-8.1-1": {
+      "note": "single-polarity: cacheGroup.Run re-polls with real Reset then Serial Query on the cache-supplied 1s refresh (retry 7200)",
+      "requirement_sha": "fb9a9478a7d9e024",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure": "3d3a19a38ac8d5a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure": "e28be3114055366b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-8.1-2": {
+      "note": "Forbidden: a new transport on which the router sends nothing first, or something other than a Reset/Serial Query. TestFirstPDUOnConnectionIsAQuery requires io.ReadFull of the first PDU to succeed and asserts buf[1] == pduResetQuery (fresh) and == pduSerialQuery (resuming). Row carries {single-polarity: positive}.",
+      "requirement_sha": "b87d62e0795b6161",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "cd7fc1c865e783f3",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "cd7fc1c865e783f3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-8.1-3": {
+      "note": "Forbidden: a Serial Query when the router lacks the data for fast resynchronization, i.e. data expired, a different cache, or no remembered Session ID. TestRFC8210ResetQueryFallback asserts only the Cache Reset case (buf[1] == pduResetQuery) and the held-serial negative. The expired-data case (rtr_expire.go clears serial), the cache-switch case (startFullSync) and the version-downgrade case have no assertion in the tagged unit.",
+      "requirement_sha": "c1be3184bdc95278",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback": "2d07978113bb370e",
+        "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback#2": "2d07978113bb370e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback": "169bd3f47fd3330a",
+        "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback#2": "169bd3f47fd3330a"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-8.3-1": {
+      "note": "asserts handlePDU clears s.serial to 0 on Cache Reset, not that a Reset Query is sent and a full load obtained; tag prose says ze runs every cache in parallel, which rtr_preference_test contradicts (preference-ordered cacheGroup since 2026-09-20), so the 'no more-preferred caches' condition is not exercised",
+      "requirement_sha": "c26f04aba26c108d",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "7bb270d513e8b8c6",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "7bb270d513e8b8c6"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-8.4-1": {
+      "note": "Forbidden: after No Data Available with no other cache, stopping, sending Serial Queries, or not repeating. TestNoDataAvailableKeepsResetQueryMode (single-cache group) asserts three consecutive queries are pduResetQuery each within 4s at a 1s retry, and the negative that after a usable load the next query is pduSerialQuery (the 'until it gets a new usable load' bound).",
+      "requirement_sha": "7a6fedb083db8d9b",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode": "85f26ae7b3bd4a1a",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode#2": "85f26ae7b3bd4a1a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode": "0e9dd875028c53d8",
+        "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode#2": "0e9dd875028c53d8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9-1": {
+      "note": "the only tagged unit asserts the parsed default port is 323; no tagged unit drives an unprotected TCP RTR session from config",
+      "requirement_sha": "c36afe55d7037dc6",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "b46576524b72d4df"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53"
+      },
+      "verdict": "weak"
+    },
+    "RFC8210-9-3": {
+      "note": "configured TLS carries the actual RTR exchange; a TLS-configured session never falls back to a plaintext RTR stream at the same address",
+      "requirement_sha": "182f0dad42ac7bfc",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSNoPlaintextFallback": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSNoPlaintextFallback": "946a64c1c97da575"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-1": {
+      "note": "cache observes the configured router leaf and intermediates in PeerCertificates; missing/unusable named credentials refuse the session before any query",
+      "requirement_sha": "b4d412cdea8ebe27",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "46b884503ab4ccd2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-10": {
+      "note": "Forbidden: authenticating a cache by its CN. Negative TestRTRTLSRejectsUnauthenticatedCaches 'CN only' (CN cache.rtr.test, no DNS SAN) is refused via assertRTRTLSRefused. Positive TestRTRTLSAuthenticatedCache: a cert whose CN is not-the-cache-reference.invalid but whose DNS-ID matches authenticates, so a CN check is not used either way.",
+      "requirement_sha": "3d3218794ff62414",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-11": {
+      "note": "Forbidden: a TLS client that cannot authenticate the cache by DNS-ID (dNSName SAN). Positive TestRTRTLSAuthenticatedCache: a DNS-ID cert with a differing CN syncs and publishes VRP and ASPA. Negative TestRTRTLSRejectsUnauthenticatedCaches: wrong DNS, CN only, IP SAN only are refused (assertRTRTLSRefused). The server-implementation clause binds a role Ze does not fill: Ze has no RTR cache server (only rtr_session.go and rtr_pdu.go, both client-side).",
+      "requirement_sha": "3c56182a49922018",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-2": {
+      "note": "router certificate with an iPAddress SAN is presented; a router identity without an iPAddress SAN is refused. Positive does not assert the SAN content itself, only that the issued fixture certificate is the one sent",
+      "requirement_sha": "c4557d38bc48c6b4",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "46b884503ab4ccd2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-4": {
+      "note": "matching dNSName authenticates the cache; wrong DNS reference and a certificate without dNSName SAN are refused before publication",
+      "requirement_sha": "ed4c2dce5b22552f",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-5": {
+      "note": "differing CN with correct DNS-ID authenticates; CN-only certificate matching the name is refused",
+      "requirement_sha": "35847d6d2af2ff68",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8210-9.2-8": {
+      "note": "Forbidden: using a reference identifier other than the cache DNS name (the connected IP, or any name the certificate carries). Negative TestRTRTLSRejectsUnauthenticatedCaches: 'wrong DNS' (server-name other.rtr.test vs cert cache.rtr.test) and 'IP SAN only' (connect to 127.0.0.1, cert has only that IP SAN) both go red via assertRTRTLSRefused (syncOnce error, zero query bytes, nothing published). Positive TestRTRTLSDNSAddressIsTheReference: omitted server-name uses the configured cache DNS name, asserting state.ServerName == localhost and a published VRP.",
+      "requirement_sha": "febe8a56eb4a75af",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSDNSAddressIsTheReference": "cc96e0e57341d7a8",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSDNSAddressIsTheReference": "7d29a0c3c20dcde4",
+        "internal/component/bgp/plugins/rpki/rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc8210"
+}
