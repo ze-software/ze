@@ -19,6 +19,14 @@ label and no SRGB. Segment Routing attaches to them. The byte layout is in
   Extended Link TLV fields are copied verbatim from the matching decoded
   Router-LSA link.
   <!-- source: internal/plugins/ospf/ext_prefix.go -- extPrefixOnOriginate, extPrefixOnReceive -->
+- **An Extended Prefix LSA whose Segment Routing TLV or sub-TLV has an invalid
+  length is ignored whole.** RFC 8665 Section 9 says that "if the length is
+  invalid, the LSA in which it is advertised is considered malformed and MUST be
+  ignored." The LSA yields no prefix, and because it replaces the instance
+  before it, the prefixes that instance applied are withdrawn. The malformed
+  counter for its opaque type counts it.
+  <!-- source: internal/plugins/ospf/ext_prefix.go -- extPrefixOnReceive -->
+  <!-- source: internal/plugins/ospf/sr_malformed.go -- srExtPrefixLengthInvalid -->
   <!-- source: internal/plugins/ospf/ext_link.go -- extLinkOnOriginate, extLinkOnReceive -->
 - **An Extended Link Opaque LSA carries exactly one Extended Link TLV** (RFC
   7684 Section 3.1). Decode uses the first and counts the extras.
