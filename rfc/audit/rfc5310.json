@@ -1,0 +1,97 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5310-3.2-1": {
+      "note": "The sentence binds Level 1 Sequence Number PDUs (CSNP/PSNP). Both tagged units drive an LSP (authTestLSP): TestISISAuthEngineSignLevel round-trips an L1 LSP through signLevelPDU/verifyFrame, and TestISISAuthChainSelection rejects an L1 LSP signed with the IIH key. They prove the neighbouring rule that L1 LSPs use the area string. No tagged unit signs or verifies an L1 SNP, so an SNP signed with the domain or IIH string stays green.",
+      "requirement_sha": "e7b9c4a773d149e8",
+      "tests": {
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthChainSelection": "d28d44c51c3cd500",
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthEngineSignLevel": "d28d44c51c3cd500"
+      },
+      "units": {
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthChainSelection": "a8ede8f520c42404",
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthEngineSignLevel": "13d4e7f89ad5885c"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5310-3.2-3": {
+      "note": "(a) forbidden: an IIH authenticated with a string other than the Link Level one (the area or domain string); (b) no tagged assertion goes red on it. The positive round-trips signHelloPDU through verifyFrame, which stays green if both sides switched to the area chain (self-consistent). The negative rejects an IIH with no TLV 10, which proves 'authentication is required', not which string. The untagged wrong-key case uses an unconfigured key 'nope'. Missing: an IIH signed with the area/domain key rejected, and a check that the sender picks the per-interface chain.",
+      "requirement_sha": "a6b88459b143242a",
+      "tests": {
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthReject": "d28d44c51c3cd500",
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthReject#2": "d28d44c51c3cd500"
+      },
+      "units": {
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthReject": "4e628bbde1d2460e",
+        "internal/plugins/isis/auth_wiring_test.go::TestISISAuthReject#2": "4e628bbde1d2460e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5310-3.2-5": {
+      "note": "Single-polarity positive. (a) forbidden: computing the IIH CRYPTO_AUTH result before padding to MTU; (b) TestISISHelloSignedOverPaddedPDU len(cs.pdu)!=wantPDU and the Padding TLV 8 check go red on sign-before-pad, but only on a LAN circuit (lanCircuit, SendHello->sendLANHello). The P2P IIH producer (sendP2PHello, runtime.go) has no tagged assertion, so a sign-before-pad there stays green. Ze has no padding-disable option, so the conditional branch does not arise.",
+      "requirement_sha": "117c020645b89acb",
+      "tests": {
+        "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "544e1e1ec48412a8"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
+      },
+      "verdict": "weak"
+    },
+    "RFC5310-3.4-1": {
+      "note": "Single-polarity positive. (a) forbidden: computing the digest before the auth-type byte and TLV length are in place; (b) TestISISAuthHMACSHAApadPreimage recomputes HMAC-SHA-256 over the signed PDU (which carries the final type 3 byte and length) with the data region Apad-filled and asserts bytes.Equal(onWire, wantApad): a digest computed over a pre-image lacking the type or length differs and goes red. TestISISAuthSignVerifyHMACSHA256 pins AuthType 3 and value length 34 on every PDU class.",
+      "requirement_sha": "9e4a13dfa4bb20d0",
+      "tests": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthHMACSHAApadPreimage": "588beac7fc863006",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACSHA256": "588beac7fc863006"
+      },
+      "units": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthHMACSHAApadPreimage": "58f76fce256f21da",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACSHA256": "14edcafd3e20040a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5310-3.4-2": {
+      "note": "Same unit and gap as RFC5310-3.2-5: the pad-before-sign assertion (len == MTU-LLC, Padding TLV 8 present) runs on the LAN IIH only; the P2P IIH producer sendP2PHello has no tagged assertion.",
+      "requirement_sha": "a825f69fb3dfd783",
+      "tests": {
+        "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "544e1e1ec48412a8"
+      },
+      "units": {
+        "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
+      },
+      "verdict": "weak"
+    },
+    "RFC5310-4-1": {
+      "note": "Single-polarity positive. (a) forbidden: including the Remaining Lifetime in the CRYPTO_AUTH digest; (b) the only assertion that goes red on it, TestISISAuthLSPChecksumAfterSign 'VerifyPDU after lifetime change', signs with HMAC-MD5 (RFC 5304 type 54), not a CRYPTO_AUTH key. The type-3 unit TestISISAuthRotationOverlapAccepts only round-trips an LSP without touching the lifetime, so it stays green if the lifetime were hashed on both sides. The zeroing in auth_sign.go is shared across algorithms today, but no tagged unit proves it on the RFC 5310 path.",
+      "requirement_sha": "dac40dbe8e12a096",
+      "tests": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "588beac7fc863006",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "588beac7fc863006"
+      },
+      "units": {
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "286edc3be7c23485",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "64748bb7178ee641"
+      },
+      "verdict": "weak"
+    },
+    "RFC5310-4-2": {
+      "note": "Positive is sound: TestISISAuthRotationOverlapAccepts verifies PDUs signed by either of two candidate keys, and TestISISAuthRotation asserts verifyKeys returns 2 keys before and after rollover; a one-key store goes red. The negative tags (TestISISAuthWrongKeyRejected, TestISISAuthKeyIDMismatchRejected) prove a neighbouring rule, rejection of an unknown key or Key ID (RFC 5304 sec 2 / RFC 5310 sec 3.5), not a violation of 'store and use more than one key'. No true negative and no {single-polarity} marker.",
+      "requirement_sha": "af5b9ba6dd2fcc8b",
+      "tests": {
+        "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation": "488fb8b461157d91",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "588beac7fc863006",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "588beac7fc863006",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "588beac7fc863006"
+      },
+      "units": {
+        "internal/plugins/isis/auth_keystore_test.go::TestISISAuthRotation": "3b1ea2939cedb4e1",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "9b74c9aa09deaf52",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts": "64748bb7178ee641",
+        "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "c0055a6db57ff144"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5310"
+}
