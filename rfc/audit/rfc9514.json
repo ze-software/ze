@@ -1,0 +1,223 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9514-3.1-1": {
+      "note": "Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).",
+      "requirement_sha": "a8f9b83f79fae37b",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "3534ed7ab329be12",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "3534ed7ab329be12"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "8804c79f1d32ff93",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "8804c79f1d32ff93"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-3.1-2": {
+      "note": "Forbidden: a non-zero Reserved word in an originated TLV 1038. TestRFC9514NativeSRv6ReservedCleared feeds source reserved 0xffff and require.Equal on the emitted value {0x40,0,0,0} goes red if any reserved byte leaks; the positive pins the clean encoding with the flags preserved.",
+      "requirement_sha": "677e06e227fe3500",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-3.1-3": {
+      "note": "Receipt clause: TestRFC9514CapabilitiesReservedIgnored decodes TLV 1038 with Reserved 0xffff and asserts the exact map (flags only, following node-name present), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved word in TLV 1038; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "84dc54bd7e45450a",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesDecode": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesReservedIgnored": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesDecode": "965ad0f8efd31710",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514CapabilitiesReservedIgnored": "e2fe1f8d6eb464af"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-4.1-1": {
+      "note": "Forbidden: a non-zero Reserved octet in an originated End.X SID TLV 1106. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for both clean and all-ones native flags/weight.",
+      "requirement_sha": "4b198a325c1b9018",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-4.1-2": {
+      "note": "Receipt clause: TestRFC9514EndXSIDReservedIgnored require.NoError on Reserved 0xFF and assert.Equal(zero, set) for TLV 1106, red on a refusal or the octet reaching a decoded field. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved octet in TLV 1106; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "92c3b8bc9d969327",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-4.2-1": {
+      "note": "Forbidden: a non-zero Reserved octet in an originated LAN End.X SID TLV. TestRFC9514ISISEndXReservedZero fails on got[0][5]!=0 for TLV 1107 with clean and all-ones native values. Ze originates no OSPFv3 1108 (no SRv6 code in internal/plugins/ospf).",
+      "requirement_sha": "f3e1e56ae03dbaf5",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "3534ed7ab329be12",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "3534ed7ab329be12"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero": "eb2d071572107e38",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndXReservedZero#2": "eb2d071572107e38"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-4.2-2": {
+      "note": "Receipt clause: TestRFC9514EndXSIDReservedIgnored subtests for 1107 and 1108, require.NoError and assert.Equal(zero, set), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved octet in TLV 1107; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "63e161c6ceabd73f",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored": "c9d55a15d8f4a9c6",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored#2": "c9d55a15d8f4a9c6"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-5.1-1": {
+      "note": "Forbidden: a non-zero Reserved word in an originated SRv6 Locator TLV 1162. TestRFC9514NativeSRv6ReservedCleared feeds reserved 0xffff and require.Equal on the whole emitted value goes red on a leak or on damage to following fields.",
+      "requirement_sha": "03fa4d76e1c476a1",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-5.1-2": {
+      "note": "Receipt clause: TestRFC9514LocatorReservedIgnored asserts the exact decoded map of TLV 1162 with Reserved 0xffff, red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved word in TLV 1162; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "fefc787ab84df78c",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorDecode": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorReservedIgnored": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorDecode": "d1d277dc9064e01f",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514LocatorReservedIgnored": "717646b02a665a32"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-6-1": {
+      "note": "Forbidden: SRv6 SID Descriptors with zero or several SID Information TLVs. TestRFC9514NativeSRv6Advertisements require.Equal(t, [][]byte{sid[:]}, exportTLVValues(..., 518)) goes red on none or two; the row carries a {single-polarity} marker because the encoder writes one field.",
+      "requirement_sha": "b6b4ea2ecd2e864c",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-7.1-1": {
+      "note": "Forbidden: an SRv6 SID NLRI whose attribute lacks TLV 1250. Positive require.Equal on the 1250 values goes red if absent; TestRFC9514NativeSIDRequiresEndpointBehavior require.Error on a replacement without 1250 and Len(commands,3) go red if it is advertised.",
+      "requirement_sha": "4360b23352cee3b3",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "e13778e6707c4418",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-7.1-2": {
+      "note": "Forbidden: undefined flag bits set in an originated TLV 1250. TestRFC9514ISISEndpointBehaviorFlagsZero feeds native End SID flags 0xff and bytes.Equal to {0,1,0,0} goes red on any flag bit; IS-IS End SID defines no flag (RFC 9352), so every bit is undefined.",
+      "requirement_sha": "11fb3a96a69c5572",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "3534ed7ab329be12",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "3534ed7ab329be12"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero": "83c3426158131d92",
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorFlagsZero#2": "83c3426158131d92"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-7.1-3": {
+      "note": "Forbidden: a non-zero algorithm for a SID whose locator has no algorithm, or another algorithm than the locator's. TestRFC9514ISISEndpointBehaviorAlgorithm fails on got[0][3]!=algo for locator algorithm 0 and 1. {single-polarity} marker: both branches are conforming outputs.",
+      "requirement_sha": "5663450865438114",
+      "tests": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "3534ed7ab329be12"
+      },
+      "units": {
+        "internal/plugins/isis/bgpls_export_rfc9514_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "409fe4f35e0f7431"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9514-7.1-4": {
+      "note": "Receipt clause: TestRFC9514EndpointBehaviorUndefinedFlagsIgnored require.NoError on flags 0xFF and equality of EndpointBehavior and Algorithm with the clear case, red on a refusal or on behaviour changing. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero undefined flag in TLV 1250; that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "4911510c5aec9d08",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "6df1040e2d4e0632",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "6df1040e2d4e0632"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-7.2-5": {
+      "note": "Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved flag bits, require.NoError on 0xFF and equality of Weight, PeerAS, PeerBGPID with the 0xE0 case, red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero reserved flag bit in TLV 1251 (the sibling RFC9514-7.2-2 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "b4c034f294c24269",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-7.2-6": {
+      "note": "Receipt clause: TestRFC9514PeerNodeSIDReservedIgnored subtest reserved field, require.NoError on 0xFFFF and assert.Equal(base, set), red on a refusal or a leak. Originate clause ('MUST be set to 0 when originated'): no assertion in a tagged unit of this row goes red if Ze originated a non-zero Reserved field in TLV 1251 (the sibling RFC9514-7.2-3 carries a {gap}); that proof sits only in the sibling originate-only row's units, and the quote of this row carries both clauses. Weak.",
+      "requirement_sha": "3a6c142d5f35274d",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "7a1d6ac0c2d3e3d7",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "7a1d6ac0c2d3e3d7"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "e1975d3f0776c205",
+        "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "e1975d3f0776c205"
+      },
+      "verdict": "weak"
+    },
+    "RFC9514-8-1": {
+      "note": "Forbidden: advertising a SID Structure whose four lengths sum above 128. TestRFC9514NativeSIDStructureBoundary accepts 32+32+16+48=128 (require.Equal on the emitted 1252) and require.Error plus Len(commands,3) go red if 129 is accepted or advertised.",
+      "requirement_sha": "f61aaf4b69dd9570",
+      "tests": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary": "7d3a493ffb46e118",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7d3a493ffb46e118"
+      },
+      "units": {
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary": "7094a2e46b150b1f",
+        "internal/component/bgp/plugins/ls_export/export_rfc9514_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7094a2e46b150b1f"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9514"
+}
