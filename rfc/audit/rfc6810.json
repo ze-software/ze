@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6810-5.1-1": {
+      "note": "Forbidden: accepting a Prefix PDU whose Max Length is below its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen (prefix 24, max 16, otherwise valid) fails unless parseIPv4Prefix errors with \"invalid\"; the check sits in parsePrefixPDU, which the IPv6 parser shares. Positive: max 24 over prefix 8 yields a VRP with MaxLength 24.",
+      "requirement_sha": "66e805741a47791a",
+      "tests": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c5beca1060fa5391"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "0d0466e247e4adf7",
+        "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "f43777808456f294"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc6810"
+}
