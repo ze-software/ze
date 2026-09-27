@@ -79,7 +79,7 @@
       "verdict": "weak"
     },
     "RFC2181-8-1": {
-      "note": "TestRFC2181_TTLSignBitBound: parseTTL accepts 2147483647 with the sign bit clear and rejects 2147483648; the configured value is the one packed into the 32-bit TTL field. The 0 lower bound is not exercised, but a uint parse cannot go below it.",
+      "note": "TestRFC2181_TTLSignBitBound drives parseTTL alone: it accepts 2147483647 and rejects 2147483648, so a config parse that let the sign bit through goes red. Two clauses stay unproven: the 'when transmitted' clause (no assertion reads the TTL field of an emitted RR, so a TTL from another source, SOA/NS/as112 constants, or a pack that set the top bit, stays green) and the minimum value of 0 (parseTTL(\"0\") is never accepted under test).",
       "requirement_sha": "0ede5207edff953a",
       "tests": {
         "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "609bb27b7d22e156",
@@ -89,7 +89,7 @@
         "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
         "internal/plugins/geodns/config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8"
       },
-      "verdict": "enforced"
+      "verdict": "weak"
     }
   },
   "rfc": "rfc2181"
