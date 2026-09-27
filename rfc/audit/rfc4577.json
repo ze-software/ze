@@ -1,0 +1,54 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC4577-4.1.4-2": {
+      "note": "A MAY: the permission is proven by the capability working. TestRFC2328VirtualCostChangeReoriginatesBackbone brings a virtual link to Full through real Hello/DD ingress (establishVirtualRoute) and asserts the backbone Router-LSA advertises the virtual neighbor at metric 10, red if the area 0 adjacency cannot run over a virtual link. Single-polarity marker on the MAY.",
+      "requirement_sha": "55546ed380fafc7f",
+      "tests": {
+        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "275bbc417919f739"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "d4f5e4cfc4fc39c0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4577-4.2.6-5": {
+      "note": "Forbidden: a route learned from a type 4 LSA reaching BGP. TestRFC4577Type4SummaryNotRedistributed asserts ComputeInterArea yields no RouteEntry for a Type 4 summary and TestRFC4577Type3SummaryBecomesRedistributableRoute that a Type 3 does. Neither drives the redistribution rail (redistribute/source.go emitDelta) to BGP; the note of the earlier pass itself says that link is structural and not exercised, so a redistribution source that read the LSDB directly would leave both green. Separately, the row binds the PE role the 2026-09-21 owner decision did not select.",
+      "requirement_sha": "ac8e7d47ae2dafd0",
+      "tests": {
+        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type3SummaryBecomesRedistributableRoute": "7f5aa5799736cf64",
+        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type4SummaryNotRedistributed": "7f5aa5799736cf64"
+      },
+      "units": {
+        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type3SummaryBecomesRedistributableRoute": "d6dc5d7b9783444c",
+        "internal/plugins/ospf/spf/rfc4577_test.go::TestRFC4577Type4SummaryNotRedistributed": "00d755eebd71c3c6"
+      },
+      "verdict": "weak"
+    },
+    "RFC4577-6-1": {
+      "note": "Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The quote's first sentence, the operator SHOULD, is row 6-2.",
+      "requirement_sha": "c8f72acc3b4a7f22",
+      "tests": {
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0bc0258d507913b",
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "a0bc0258d507913b"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "f2ce93a0ca214591",
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "53b01dbc52e03fe0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4577-6-2": {
+      "note": "An operator SHOULD for the PE role the 2026-09-21 owner decision did not select: not-applicable in substance, but the row is tagged, so the verdict stays weak and the tag is reported. The tag claims the configured link authenticates its outgoing Hello, but the test builds and signs the Hello itself (signedHello calls packet.Sign directly); the engine's Hello transmit path is never exercised, so a link that configured a key chain but sent unauthenticated packets would stay green.",
+      "requirement_sha": "b6b2c2276854aa23",
+      "tests": {
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0bc0258d507913b"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "f2ce93a0ca214591"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc4577"
+}
