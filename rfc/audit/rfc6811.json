@@ -1,0 +1,25 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6811-2-1": {
+      "note": "The Validate units (TestValidateValid/Invalid) prove the lookup result, and TestRPKIOriginASFromASPathRFC6811 the origin derivation, but no tagged assertion checks that the Route's stored state is SET from that result: TestBatchValidateTypedMatchesString only compares the string and typed paths to each other, so a bug that stored the wrong state on both paths (e.g. left Pending or defaulted Valid) stays green.",
+      "requirement_sha": "d2e83be9aa782043",
+      "tests": {
+        "internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go::TestBatchValidateTypedMatchesString": "f9d62b8342617ec1",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestRPKIOriginASFromASPathRFC6811": "37ec6b9726496eb3",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestRPKIOriginASFromASPathRFC6811#2": "37ec6b9726496eb3",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestValidateInvalid": "37ec6b9726496eb3",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestValidateValid": "37ec6b9726496eb3"
+      },
+      "units": {
+        "internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go::TestBatchValidateTypedMatchesString": "3651bf306dc7952c",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestRPKIOriginASFromASPathRFC6811": "151c7e4e9c7c792b",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestRPKIOriginASFromASPathRFC6811#2": "151c7e4e9c7c792b",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestValidateInvalid": "b470d10777372ca1",
+        "internal/component/bgp/plugins/rpki/validate_test.go::TestValidateValid": "75aa28885889fd43"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc6811"
+}
