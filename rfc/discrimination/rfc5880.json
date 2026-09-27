@@ -240,7 +240,7 @@
       "claim-sha": "4d61d3ccd3f4977d",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::onStateChange",
-      "producer-sha": "c220eb8bc474197f",
+      "producer-sha": "e03e28e1d9903e22",
       "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "1edd915e171c28a1",
       "route": "revert",
       "producer": "internal/component/bfd/session/timers.go::rescheduleTxLocked",
-      "producer-sha": "ed24e2188c314950",
+      "producer-sha": "4b0e582f7350be72",
       "break": "body of rescheduleTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "95973b588d7b98af",
       "route": "revert",
       "producer": "internal/component/bfd/session/timers.go::rescheduleTxLocked",
-      "producer-sha": "ed24e2188c314950",
+      "producer-sha": "4b0e582f7350be72",
       "break": "body of rescheduleTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -339,7 +339,7 @@
       "claim-sha": "d224bf6100ef32da",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "b11dab95ee96c3b1",
+      "producer-sha": "a78f25ff2c103765",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -350,7 +350,7 @@
       "claim-sha": "239e549266dd9ccb",
       "route": "revert",
       "producer": "internal/component/bfd/session/fsm.go::Receive",
-      "producer-sha": "b11dab95ee96c3b1",
+      "producer-sha": "a78f25ff2c103765",
       "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,7 +372,7 @@
       "claim-sha": "6d287037e4392296",
       "route": "revert",
       "producer": "internal/component/bfd/session/timers.go::rescheduleTxLocked",
-      "producer-sha": "ed24e2188c314950",
+      "producer-sha": "4b0e582f7350be72",
       "break": "body of rescheduleTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

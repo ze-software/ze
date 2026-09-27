@@ -53,7 +53,7 @@
       "claim-sha": "8a326ef203433f79",
       "route": "revert",
       "producer": "internal/component/bfd/config.go::toSessionRequest",
-      "producer-sha": "3c44ec226e6f21e8",
+      "producer-sha": "d4c5cdd8de6ff796",
       "break": "body of toSessionRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "e513a95bf443dc24",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor",
-      "producer-sha": "290611dc81b1d504",
+      "producer-sha": "93110ab36e7c325f",
       "break": "body of bfdRequestFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
