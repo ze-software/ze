@@ -6,16 +6,16 @@
   "source-sha": "3b04fcfbb0d22e5a",
   "signed-off": "2026-09-22",
   "reviewer": "Main integration; independent source-mapping review: OAuthMappingReview",
-  "resign-reason": "The 2026-09-22 source walk retains direct mappings for the absolute-URI and fragment requirements. The historical increase in exclusions treated a retained request-parameter obligation as an applicability exclusion; source provenance now remains mapped while the summary preserves the owner's 2026-09-21 absent-request-feature decision. The remaining exclusions concern front-matter licensing, an introductory security assumption and an explicitly cited RFC 6749 obligation. Historical audience IDs remain allocated and disclose RFC 7519 provenance. The bounded 2026-09-22 independent review accepted those mappings and annotations, without completing signing or proving implementation behaviour. The new RFC8707-2-4 citation correction needs review by Thomas or an independently assigned RFC reviewer before re-signing; this file carries no signature. Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. ASPA retired 5-1/5-2 identities and RFC8571-x-4 retirement remain unresolved where applicable; no replacement obligation was invented.",
+  "resign-reason": "The 2026-09-22 source walk retains direct mappings for the absolute-URI and fragment requirements. The historical increase in exclusions treated a retained request-parameter obligation as an applicability exclusion; source provenance now remains mapped while the summary preserves the owner's 2026-09-21 absent-request-feature decision. The remaining exclusions concern front-matter licensing, an introductory security assumption and an explicitly cited RFC 6749 obligation. The historical audience ids RFC8707-5-1 and RFC8707-5-2 state RFC 7519 Section 4.1.3 and were retired under owner decision D-10 (rfc/corrections/rfc8707.md). The bounded 2026-09-22 independent review accepted those mappings and annotations, without completing signing or proving implementation behaviour. The new RFC8707-2-4 citation correction needs review by Thomas or an independently assigned RFC reviewer before re-signing; this file carries no signature. Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. Refreshed 2026-09-27 after that retirement: with two gated rows left the source derives its capitalised-keyword sites only, so the three lowercase sites (front:1, 1:1, 2.2:1, each excluded before) no longer derive; every remaining decision carried forward.",
   "sections": [
     {
       "id": "front",
-      "sites": 1,
+      "sites": 0,
       "disposition": "walked"
     },
     {
       "id": "1",
-      "sites": 1,
+      "sites": 0,
       "disposition": "walked"
     },
     {
@@ -50,7 +50,7 @@
     },
     {
       "id": "2.2",
-      "sites": 1,
+      "sites": 0,
       "disposition": "walked",
       "reason": "Section 2 permits including the resource parameter with MAY. Section 2.2 states: When the resource parameter is used on an access token request made to the token endpoint, for all grant types, it indicates the target service or protected resource where the client intends to use the requested access token. The retained permission row now cites Sections 2 and 2.2 rather than Section 4, which concerns privacy.",
       "unsourced-ids": [
@@ -71,11 +71,7 @@
       "id": "5",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Provenance exception, not an obligation read from Section 5: RFC 8707 Section 5 is IANA Considerations and sources neither allocated JWT audience ID. Their actual primary source is RFC 7519 Section 4.1.3 (https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3): Each principal intended to process the JWT MUST identify itself with a value in the audience claim. It also requires rejection when the processing principal is not identified and defines string/array audience forms. Exact StringOrURI comparison comes from RFC 7519 Section 2. rfc/corrections/rfc8707.md records that correction. The schema has no separate cross-document requirement-provenance field, so this historical Section 5 entry retains the IDs with their actual source stated explicitly; it must not be represented as normative RFC 8707 text.",
-      "unsourced-ids": [
-        "RFC8707-5-1",
-        "RFC8707-5-2"
-      ]
+      "reason": "IANA Considerations. No site: the section registers parameters and binds no implementer. The two JWT audience rows once filed here state RFC 7519 Section 4.1.3, and were retired under owner decision D-10 (rfc/corrections/rfc8707.md)."
     },
     {
       "id": "5.1",
@@ -105,20 +101,6 @@
   ],
   "sites": [
     {
-      "id": "front:1",
-      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
-      "disposition": "excluded",
-      "excluded-kind": "not-a-requirement",
-      "reason": "The sentence about Code Components including Simplified BSD License text is IETF Trust licensing boilerplate governing reuse of document material; it states no OAuth wire or processing requirement."
-    },
-    {
-      "id": "1:1",
-      "quote": "To prevent misuse, several important security assumptions must hold, one of which is that an access token must only be valid for use at a specific protected resource and for a specific scope of access.",
-      "disposition": "excluded",
-      "excluded-kind": "not-a-requirement",
-      "reason": "The introductory sentence describes the security assumption motivating resource indicators: an access token must only be valid for use at a specific protected resource and scope. Section 1.1 reserves BCP 14 force for uppercase keywords. This does not remove JWT recipient audience checks: retained RFC8707-5-1 and RFC8707-5-2 identify their actual RFC 7519 Sections 2 and 4.1.3 source in the checklist and Section 5 provenance exception."
-    },
-    {
       "id": "2:1",
       "quote": "Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986].",
       "disposition": "mapped",
@@ -129,13 +111,6 @@
       "quote": "The URI MUST NOT include a fragment component.",
       "disposition": "mapped",
       "mapped-to": "RFC8707-2-1"
-    },
-    {
-      "id": "2.2:1",
-      "quote": "As specified in Section 5.1 of [RFC6749], the authorization server must indicate the access token's effective scope to the client in the \"scope\" response parameter value when it differs from the scope requested by the client.",
-      "disposition": "excluded",
-      "excluded-kind": "cross-document",
-      "reason": "The sentence explicitly begins As specified in Section 5.1 of [RFC6749] and repeats that RFC's requirement to report the token's effective scope when it differs from the requested scope. This cross-document attribution does not create an RFC 8707 token-issuing role for Ze."
     }
   ]
 }

@@ -127,7 +127,7 @@ func TestRFC2865ResponseSourceAddress(t *testing.T) {
 	respAuth := ResponseAuthenticator(CodeAccessAccept, id, HeaderLen, reqAuth, nil, secret)
 	copy(resp[4:4+AuthenticatorLen], respAuth[:])
 
-	// RFC requirement: RFC2865-3-5 negative -- a response arriving from a source address other
+	// A response arriving from a source address other
 	// than the one the request was sent to has no matching waiter and is not delivered.
 	client.dispatchResponse(responseKey{server: "192.0.2.99:1812", id: id}, resp)
 	select {
@@ -136,7 +136,7 @@ func TestRFC2865ResponseSourceAddress(t *testing.T) {
 	default:
 	}
 
-	// RFC requirement: RFC2865-3-5 positive -- a response arriving from the server address the
+	// A response arriving from the server address the
 	// request was sent to matches its waiter and is delivered.
 	client.dispatchResponse(key, resp)
 	select {

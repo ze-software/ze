@@ -11,11 +11,7 @@
     {
       "id": "front",
       "sites": 4,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC905-x-6",
-        "RFC905-x-7"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "1",
@@ -1608,10 +1604,7 @@
     {
       "id": "B.2",
       "sites": 1,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC905-x-5"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "B.3",

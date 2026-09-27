@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc3032",
+  "records": [
+    {
+      "rid": "RFC3032-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/fsm_test.go::TestLSPTableAllocateSkipsReservedLabels",
+      "unit-sha": "51b0c1c73004db41",
+      "claim-sha": "eb2e5101e0b1d329",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/fsm.go::AllocateLabel",
+      "producer-sha": "0946400fb137b4da",
+      "break": "body of AllocateLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

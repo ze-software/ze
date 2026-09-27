@@ -117,7 +117,7 @@ func ikev2MethodSelectionConfig(t *testing.T) eap.MethodConfig {
 // package declares. Each one is handed to newEAPSession with a configuration that
 // satisfies every EAP method, and the session it returns is asked DerivesKey.
 func TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod(t *testing.T) {
-	// RFC requirement: RFC3748-7.10-3 positive -- every ipsec.AuthMode that
+	// RFC requirement: RFC7296-2.16-16 positive -- every ipsec.AuthMode that
 	// ipsec.IsEAPMode names is accepted by newEAPSession (eap_auth.go), the producer
 	// that picks the EAP method of an IKEv2 exchange for the authenticator, and the
 	// eap.Session it returns answers true to DerivesKey for every one of those modes
@@ -168,7 +168,7 @@ func TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod(t *testing.T) {
 // method deriving no key must be a mode the ipsec package names and must draw the
 // adoption warning. Every other value must draw none.
 func TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod(t *testing.T) {
-	// RFC requirement: RFC3748-7.10-3 negative -- the body sweeps ipsec.AuthMode from
+	// RFC requirement: RFC7296-2.16-16 negative -- the body sweeps ipsec.AuthMode from
 	// zero to authModeSweepMax, which declaredAuthModes checks is past the last value
 	// ipsec names, and asks both producers what each value selects: the authenticator
 	// producer newEAPSession (eap_auth.go) and the peer producer startEAPExchange

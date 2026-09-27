@@ -291,7 +291,7 @@ func TestVerifyJWT_RejectAudienceMismatch(t *testing.T) {
 		Keys:             keys,
 		Clock:            newFixedClock(now),
 	})
-	// RFC requirement: RFC8707-5-1 negative -- historical ID sourced to RFC 7519 Section 4.1.3: verifyJWT rejects a signed token for https://wrong/ when this recipient is https://mcp/ with errJWTAudienceMismatch.
+	// RFC 7519 Section 4.1.3: verifyJWT rejects a signed token for https://wrong/ when this recipient is https://mcp/ with errJWTAudienceMismatch.
 	if !errors.Is(err, errJWTAudienceMismatch) {
 		t.Fatalf("expected errJWTAudienceMismatch, got %v", err)
 	}
@@ -301,7 +301,7 @@ func TestVerifyJWT_AudienceArrayForm(t *testing.T) {
 	// RFC 7519 allows aud to be a string OR array. Array form must work.
 	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
 	now := time.Unix(1_700_000_000, 0)
-	// RFC requirement: RFC8707-5-2 positive -- historical ID sourced to RFC 7519 Section 4.1.3: a signed token with the JSON aud array ["https://one/","https://mcp/"] authenticates alice when this recipient is https://mcp/.
+	// RFC 7519 Section 4.1.3: a signed token with the JSON aud array ["https://one/","https://mcp/"] authenticates alice when this recipient is https://mcp/.
 	claims := map[string]any{
 		"iss": "iss",
 		"aud": []string{"https://one/", "https://mcp/"},
@@ -505,7 +505,7 @@ func TestAudClaim_Matches(t *testing.T) {
 	if !a.Matches("https://one/") {
 		t.Fatal("should match https://one/")
 	}
-	// RFC requirement: RFC8707-5-2 negative -- historical ID sourced to RFC 7519 Section 4.1.3: neither value in the audience array identifies https://three/, so the audience comparison rejects it.
+	// RFC 7519 Section 4.1.3: neither value in the audience array identifies https://three/, so the audience comparison rejects it.
 	if a.Matches("https://three/") {
 		t.Fatal("should not match unknown audience")
 	}

@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "requirements": {
     "RFC2205-2-1": {
       "note": "Reverse-path clause: TestRFC2205ResvSentToPreviousHop asserts the egress RESV goes to the PATH's previous hop, one hop only. 'Upstream to all the sender hosts included in the sender selection': no tagged unit follows the RESV hop by hop to the sender or covers a sender selection with more than one sender. The negative (no relay without path state) proves a neighbouring rule.",
@@ -11,6 +11,19 @@
       "units": {
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
         "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06"
+      },
+      "verdict": "weak"
+    },
+    "RFC2205-2.3-1": {
+      "note": "Positive: TestRefreshResendsPathAndResv proves one refreshPaths tick re-sends a PATH for an ingress LSP and a RESV for an egress or transit LSP, not that refresh recurs periodically. Negative: TestRefreshDoesNotStampEgressPSB proves an unrefreshed PSB becomes eligible in expiredPSBs, not that the state is deleted at cleanup timeout, and nothing asserts Resv state expiry.",
+      "requirement_sha": "e4233a90dbb58ca4",
+      "tests": {
+        "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
+        "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72"
+      },
+      "units": {
+        "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
+        "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50"
       },
       "verdict": "weak"
     },

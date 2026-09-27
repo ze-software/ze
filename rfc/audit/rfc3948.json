@@ -25,6 +25,19 @@
       },
       "verdict": "wrong"
     },
+    "RFC3948-2.3-1": {
+      "note": "The tagged unit TestIsNATKeepalive proves only classification: IsNATKeepalive answers true for the single byte 0xFF and false for 0xFF 0x00 and 0x00. The obligation is that the receiver ignores the keepalive; the ignoring is the 'continue' in the receive loop of internal/component/ike/engine/register.go, and no tagged unit goes red if that loop processes a keepalive instead of dropping it.",
+      "requirement_sha": "1ed60af40793d8f1",
+      "tests": {
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "5e9bb9c1bf045ab6",
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "5e9bb9c1bf045ab6"
+      },
+      "units": {
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "982bc94a9fc44d14",
+        "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "982bc94a9fc44d14"
+      },
+      "verdict": "weak"
+    },
     "RFC3948-2.3-2": {
       "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
       "requirement_sha": "e03b3988d738b573",

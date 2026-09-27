@@ -356,8 +356,8 @@ func TestAudClaimMatchesExactIdentifier(t *testing.T) {
 
 // TestOAuthAudienceIdentity sends tokens through the HTTP authentication entry.
 // It distinguishes exact matches from slash, query, and Unicode aliases.
-// RFC requirement: RFC8707-5-1 positive -- historical ID sourced to RFC 7519 Sections 2 and 4.1.3: a token with the exact configured audience reaches the MCP tools/list HTTP handler.
-// RFC requirement: RFC8707-5-1 negative -- historical ID sourced to RFC 7519 Sections 2 and 4.1.3: tokens differing from the configured audience by slash, query or Unicode spelling receive HTTP 401 invalid audience.
+// RFC 7519 Sections 2 and 4.1.3: a token with the exact configured audience reaches the MCP tools/list HTTP handler.
+// RFC 7519 Sections 2 and 4.1.3: tokens differing from the configured audience by slash, query or Unicode spelling receive HTTP 401 invalid audience.
 func TestOAuthAudienceIdentity(t *testing.T) {
 	as := newTestAS(t)
 	s, err := NewStreamable(StreamableConfig{

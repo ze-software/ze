@@ -29,3 +29,7 @@ System Number fields in increasing numeric order.", which row
 DRAFT-IETF-SIDROPS-8210BIS-5.12-3 quotes with its uniqueness sentence. No sentence
 asks a router to verify the order, so the router SHOULD it claimed has no source.
 It had no tags.
+
+Retired 2026-09-27: `DRAFT-IETF-SIDROPS-8210BIS-5.12-2` states an obligation this draft does not carry. Read §5.12, the ASPA PDU, then the whole text: it requires unique, ascending provider numbers but never forbids the customer among its providers. draft-ietf-sidrops-aspa-profile §3.3 states it: "The customerASID value MUST NOT appear in any PAS in the providers field." That draft has no summary in rfc/short, so under owner decision D-10 the row is retired, and a journal row asks for it to be enrolled. The row carried no tag.
+
+Retired 2026-09-27: `DRAFT-IETF-SIDROPS-8210BIS-5.12-7` states an obligation this draft does not carry. Read §5.12 and the whole text: no sentence reserves customer AS 0. draft-ietf-sidrops-aspa-profile §3 and §3.2 state it, through "CAS ::= INTEGER (1..4294967295)" and "The customerASID field contains a positive integer". That draft has no summary in rfc/short, so under owner decision D-10 the row is retired, and a journal row asks for it to be enrolled. The row carried no tag.

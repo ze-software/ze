@@ -35,7 +35,10 @@
       "id": "2.1",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Encoding the Label Stack. The document's wire-format section: the 4-octet label stack entry with its 20-bit Label, 3-bit Exp, 1-bit S and 8-bit TTL fields, the ordering rule that the top of the stack appears earliest and the network layer packet follows the entry with S set, what a successful top-label lookup yields, and the reserved label values 0 to 15. Written entirely in the indicative, and the layout, the ordering and the reserved values are carried by the Wire Formats, Encoding Rules and Constants tables of rfc/short/rfc3032.md. Its two sites both state the disposition of an Explicit NULL label and are excluded below. Ze's shim encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which carries the Label and the S bit and no TTL; the 4-octet on-wire entry is built by the kernel or by VPP."
+      "reason": "Encoding the Label Stack. The document's wire-format section: the 4-octet label stack entry with its 20-bit Label, 3-bit Exp, 1-bit S and 8-bit TTL fields, the ordering rule that the top of the stack appears earliest and the network layer packet follows the entry with S set, what a successful top-label lookup yields, and the reserved label values 0 to 15. Written entirely in the indicative, and the layout, the ordering and the reserved values are carried by the Wire Formats, Encoding Rules and Constants tables of rfc/short/rfc3032.md. Its two sites both state the disposition of an Explicit NULL label and are excluded below. Ze's shim encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which carries the Label and the S bit and no TTL; the 4-octet on-wire entry is built by the kernel or by VPP.",
+      "unsourced-ids": [
+        "RFC3032-2.1-1"
+      ]
     },
     {
       "id": "2.2",

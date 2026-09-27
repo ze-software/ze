@@ -2,6 +2,28 @@
   "rfc": "rfc3948",
   "records": [
     {
+      "rid": "RFC3948-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive",
+      "unit-sha": "6477086c8a2093b1",
+      "claim-sha": "05f16ce6cfb7cd91",
+      "route": "revert",
+      "producer": "internal/component/ike/transport/nat.go::IsNATKeepalive",
+      "producer-sha": "3dd51bbc3d4835c0",
+      "break": "body of IsNATKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3948-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive",
+      "unit-sha": "6477086c8a2093b1",
+      "claim-sha": "8c542837acfa07ec",
+      "route": "revert",
+      "producer": "internal/component/ike/transport/nat.go::IsNATKeepalive",
+      "producer-sha": "3dd51bbc3d4835c0",
+      "break": "body of IsNATKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3948-3.1.1-1",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace",

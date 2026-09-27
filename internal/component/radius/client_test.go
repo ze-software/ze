@@ -103,7 +103,7 @@ func TestClientExchangeAccept(t *testing.T) {
 		},
 	}
 
-	// RFC requirement: RFC2865-3-5 positive -- a response arriving from the server address
+	// A response arriving from the server address
 	// the request was sent to is accepted (the waiter is keyed by that resolved address).
 	resp, err := client.Exchange(context.Background(), pkt, sharedKey, srv.addr)
 	if err != nil {

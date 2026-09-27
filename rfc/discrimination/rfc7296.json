@@ -244,6 +244,28 @@
       "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7296-2.16-16",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod",
+      "unit-sha": "2a078d277358fb00",
+      "claim-sha": "c6e6b5eed9cadf26",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::newEAPSession",
+      "producer-sha": "82e9bf9b298d6afa",
+      "break": "body of newEAPSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.16-16",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod",
+      "unit-sha": "3861fe981d655c22",
+      "claim-sha": "357d167cad6f2356",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/fsm.go::startEAPExchange",
+      "producer-sha": "7d1bc2e72c98ae1e",
+      "break": "body of startEAPExchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7296-2.16-5",
       "polarity": "negative",
       "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK",
@@ -352,6 +374,28 @@
       "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
       "producer-sha": "391521701bb06eef",
       "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-12",
+      "polarity": "positive",
+      "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarker",
+      "unit-sha": "c849e80d30356333",
+      "claim-sha": "9d1d452c966e3499",
+      "route": "revert",
+      "producer": "internal/component/ike/transport/nat.go::StripNonESPMarker",
+      "producer-sha": "8ca0bde9664c9e48",
+      "break": "body of StripNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.23-12",
+      "polarity": "negative",
+      "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket",
+      "unit-sha": "576fc4da03a994ef",
+      "claim-sha": "b8d10b1a8e86afbb",
+      "route": "revert",
+      "producer": "internal/component/ike/transport/nat.go::StripNonESPMarker",
+      "producer-sha": "8ca0bde9664c9e48",
+      "break": "body of StripNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7296-2.23-8",

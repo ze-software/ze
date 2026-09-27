@@ -123,6 +123,28 @@
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/softstate_test.go::TestRefreshDoesNotStampEgressPSB",
+      "unit-sha": "3f6c62b571d655d1",
+      "claim-sha": "eb1f2ccdee807c29",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/fsm.go::expiredPSBs",
+      "producer-sha": "54b5441a363226eb",
+      "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-2.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/softstate_test.go::TestRefreshResendsPathAndResv",
+      "unit-sha": "c34f561a1aa2dffe",
+      "claim-sha": "f8063d341d05959a",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+      "producer-sha": "16323bbbb2f31d7a",
+      "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-3-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected",

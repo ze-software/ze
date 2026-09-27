@@ -1,5 +1,6 @@
 {
   "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC8414-2-1": {
       "note": "The sentence makes issuer REQUIRED and defines it as a URL that uses https and has no query or fragment. Presence: TestFetchASMetadata_MissingIssuer goes red if a document without issuer is accepted (err must contain 'missing issuer'); TestFetchASMetadata positive decodes it. The https, no-query and no-fragment clauses have no assertion in a 2-1-tagged unit: asMetadataURL/oauthHTTPSURL enforce them, and TestRFC8414MetadataRequiresHTTPS (tagged 3.3-1) and TestConfiguredIssuerQueryRejectedBeforeMetadataFetch (untagged) cover https and query, but no unit covers an issuer with a fragment.",
@@ -18,8 +19,8 @@
       "note": "Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity 'HTTP keys' subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; 'redirect to HTTP' asserts the same for an https jwks_uri redirecting to http. Positive 'labeled keys' verifies a token with the key fetched over https.",
       "requirement_sha": "a96dd431b6a7578b",
       "tests": {
-        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "6a623fa3f72e255f",
-        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "6a623fa3f72e255f"
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "8035c109889da094",
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "8035c109889da094"
       },
       "units": {
         "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "a32bc861f26718e8",
@@ -59,9 +60,9 @@
       "tests": {
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "61104ab130a18819",
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "61104ab130a18819",
-        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "6a623fa3f72e255f",
-        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "6a623fa3f72e255f",
-        "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "6a623fa3f72e255f"
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "8035c109889da094",
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "8035c109889da094",
+        "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "8035c109889da094"
       },
       "units": {
         "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "93bb9c8813eeb775",

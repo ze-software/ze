@@ -19,3 +19,5 @@ maximum-value sentinel for an unavailable counter in a list governed by a recomm
 indicated in the structure definitions)." The list item itself carries no keyword. Same
 requirement id, corrected text, level and citation. The MUST that sits beside it, that a
 counter is always available or always unavailable within a session, is SFLOW-V5-x-32.
+
+Retired 2026-09-27: `SFLOW-V5-x-8` states an obligation sFlow v5 does not carry. Read §5 and the whole text: sFlow v5 writes its datagram in XDR notation and imports XDR by reference, "The format of the sFlow datagram is specified using the XDR standard [32]". The 4-byte count prefix and the zero padding are RFC 4506 §4.10 and §4.13. RFC 4506 has no summary in rfc/short, so under owner decision D-10 the row is retired, and a journal row asks for it to be enrolled. Its one tag, on TestSFlowSampledHeader in internal/plugins/flowexport/sflow/flow_test.go, was removed; the comment now names RFC 4506 and the test stays.

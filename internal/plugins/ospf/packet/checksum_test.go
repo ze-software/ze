@@ -27,8 +27,6 @@ func TestOSPFPacketChecksum(t *testing.T) {
 // VALIDATES: AC-3 - the 8-byte Authentication field is outside packet-checksum coverage.
 // PREVENTS: simple/auth data changes invalidating an otherwise correct packet checksum.
 //
-// RFC requirement: RFC1071-x-1 positive -- mutating the excluded 8-byte Auth field leaves the packet checksum valid, proving coverage excludes buf[16:24] (PacketChecksum two-segment sum, checksum.go:13-17).
-// RFC requirement: RFC1071-x-1 negative -- mutating a covered body byte makes VerifyPacketChecksum reject the packet (VerifyPacketChecksum, checksum.go:23-32).
 // RFC requirement: RFC2328-A.3.1-2 positive -- the packet header checksum is computed over the whole packet EXCLUDING the 64-bit Authentication field: mutating buf[16:24] leaves it valid while mutating a covered body octet invalidates it (PacketChecksum two-segment sum, checksum.go:13-18).
 func TestOSPFPacketChecksumExcludesAuth(t *testing.T) {
 	h := sampleHeader(t, PacketTypeHello)
@@ -52,7 +50,7 @@ func TestOSPFPacketChecksumExcludesAuth(t *testing.T) {
 // VALIDATES: AC-4 - AuType 2 leaves the packet checksum field zero.
 // PREVENTS: ospf-12 signing packets that peers reject because Checksum is non-zero.
 //
-// RFC requirement: RFC1071-x-2 positive -- an AuType2 packet leaves the Checksum field zero and VerifyPacketChecksum accepts the zero checksum (WriteTo header.go:317-321, VerifyPacketChecksum checksum.go:28-30).
+// RFC requirement: RFC2328-D.4.3-1 positive -- an AuType2 packet leaves the Checksum field zero and VerifyPacketChecksum accepts the zero checksum (WriteTo header.go:317-321, VerifyPacketChecksum checksum.go:28-30).
 func TestOSPFPacketChecksumZeroForAuType2(t *testing.T) {
 	h := sampleHeader(t, PacketTypeHello)
 	h.AuType = AuTypeCryptographic
@@ -70,8 +68,7 @@ func TestOSPFPacketChecksumZeroForAuType2(t *testing.T) {
 // VALIDATES: AC-5 - LSA Fletcher is backfilled and verifies over LSA minus LS Age.
 // PREVENTS: peers rejecting LSAs due to wrong Fletcher application.
 //
-// RFC requirement: RFC905-x-6 positive -- LSA Fletcher applied over lsa[2:] (LS Age excluded) and verifies (FinalizeLSAChecksum/VerifyLSAChecksum, checksum.go:37-56).
-// RFC requirement: RFC905-x-7 positive -- encode (FinalizeLSAChecksum backfills X,Y) then decode (VerifyLSAChecksum accepts) round trip (checksum.go:37-56).
+// RFC requirement: RFC905-x-3 positive -- encode (FinalizeLSAChecksum backfills X,Y) then decode (VerifyLSAChecksum accepts) round trip (checksum.go:37-56).
 // RFC requirement: RFC2328-12.1.7-1 positive -- the LS (Fletcher) checksum is computed over the complete LSA excluding LS Age, backfilled non-zero into the LS Checksum field, and verifies (FinalizeLSAChecksum/VerifyLSAChecksum, checksum.go:37-56).
 func TestOSPFLSAChecksum(t *testing.T) {
 	wire := encodeLSA(t, sampleRouterLSA(t))
@@ -96,9 +93,8 @@ func TestOSPFLSAChecksum(t *testing.T) {
 // VALIDATES: AC-5 - LS Age bytes are excluded from LSA Fletcher coverage.
 // PREVENTS: ordinary age increments invalidating flooded LSAs.
 //
-// RFC requirement: RFC905-x-6 negative -- mutating a covered octet (Options) makes VerifyLSAChecksum reject the LSA (VerifyLSAChecksum, checksum.go:47-56).
+// RFC requirement: RFC2328-12.1.7-1 negative -- mutating a covered octet (Options) makes VerifyLSAChecksum reject the LSA (VerifyLSAChecksum, checksum.go:47-56).
 // RFC requirement: RFC905-x-4 negative -- the verification re-sum rejects a corrupted covered region (FletcherVerify, types/checksum.go:61-68).
-// RFC requirement: RFC905-x-7 negative -- decode rejects a wrong vector, guarding against the encode-correct/verify-always-true bug (VerifyLSAChecksum, checksum.go:47-56).
 // RFC requirement: RFC2328-12.1.7-1 positive -- the covered region starts after LS Age: mutating the two LS Age octets leaves the Fletcher checksum valid, while mutating a covered octet invalidates it (FletcherChecksum over lsa[2:], checksum.go:41-55).
 func TestOSPFLSAChecksumExcludesAge(t *testing.T) {
 	wire := encodeLSA(t, sampleRouterLSA(t))

@@ -30,9 +30,8 @@
       "id": "2.1",
       "sites": 2,
       "disposition": "walked",
-      "reason": "UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two, and the demultiplexing rule the summary reads across 2.1, 2.2 and 2.3 together, are listed below.",
+      "reason": "UDP-Encapsulated ESP Header Format. The wire diagram, the three UDP-header bullets and the zero-SPI ban. The splitter fuses the three bullets into one site, so only the first of them has a site of its own. The other two are listed below. The demultiplexing rule once filed here is RFC 7296 Section 2.23, and lives in that summary.",
       "unsourced-ids": [
-        "RFC3948-2.1-3",
         "RFC3948-2.1-4",
         "RFC3948-2.1-5"
       ]

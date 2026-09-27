@@ -23,8 +23,8 @@ func testLSABytes() []byte {
 // VALIDATES: AC-10 - OSPF LSA Fletcher accepts the covered window beginning at Options.
 // PREVENTS: downstream codec code passing `lsa[2:]` and getting a checksum over the wrong bytes.
 //
-// RFC requirement: RFC905-x-6 positive -- OSPF LSA Fletcher over the covered window starting at Options (FletcherChecksum, checksum.go:20-26).
-// RFC requirement: RFC905-x-7 positive -- encodes the checksum then decodes it: FletcherVerify accepts the placed vector (checksum.go:32-40).
+// RFC requirement: RFC2328-12.1.7-1 positive -- OSPF LSA Fletcher over the covered window starting at Options (FletcherChecksum, checksum.go:20-26).
+// RFC requirement: RFC905-x-3 positive -- encodes the checksum then decodes it: FletcherVerify accepts the placed vector (checksum.go:32-40).
 func TestFletcherRFC905Vectors(t *testing.T) {
 	lsa := testLSABytes()
 	covered := lsa[2:]
@@ -43,7 +43,7 @@ func TestFletcherRFC905Vectors(t *testing.T) {
 // VALIDATES: AC-10 - LS Age is outside the Fletcher covered range.
 // PREVENTS: age changes in flight invalidating an otherwise correct LSA checksum.
 //
-// RFC requirement: RFC905-x-6 positive -- mutating the excluded LS Age bytes leaves the Fletcher checksum unchanged, proving coverage starts at Options (FletcherChecksum, checksum.go:20-26).
+// RFC requirement: RFC2328-12.1.7-1 positive -- mutating the excluded LS Age bytes leaves the Fletcher checksum unchanged, proving coverage starts at Options (FletcherChecksum, checksum.go:20-26).
 func TestFletcherIgnoresLSAge(t *testing.T) {
 	lsa := testLSABytes()
 	before := FletcherChecksum(lsa[2:])

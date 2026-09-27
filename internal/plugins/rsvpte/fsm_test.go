@@ -67,7 +67,7 @@ func TestLSPTableAllocateLabel(t *testing.T) {
 // and 100 allocations never reach MaxLabel, so the floor check alone passes with the
 // wrap target set to any value at all, including a reserved one.
 func TestLSPTableAllocateSkipsReservedLabels(t *testing.T) {
-	// RFC requirement: RFC3209-4.1-3 positive -- allocated labels start at firstDynamicLabel (1000, fsm.go:184/205) and stay >= it (wrap resets to firstDynamicLabel, fsm.go:215-217), so the reserved 0-15 label range is never allocated.
+	// RFC requirement: RFC3032-2.1-1 positive -- allocated labels start at firstDynamicLabel (1000, fsm.go:184/205) and stay >= it (wrap resets to firstDynamicLabel, fsm.go:215-217), so the reserved 0-15 label range is never allocated.
 	table := newLSPTable()
 	for range 100 {
 		l := table.AllocateLabel()

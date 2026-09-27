@@ -16,7 +16,6 @@ import (
 // RFC requirement: RFC905-x-2 positive -- generation pass 1 zeroes the two checksum octets and runs C0/C1 over the region (Checksum, checksum.go:67-76).
 // RFC requirement: RFC905-x-3 positive -- generation pass 2 places the closed-form X,Y at checkOff/checkOff+1 so re-summing yields zero (Checksum, checksum.go:98-105).
 // RFC requirement: RFC905-x-4 positive -- verification re-sums the region with the field in place and both C0,C1 are zero (VerifyChecksum, checksum.go:114-121).
-// RFC requirement: RFC905-x-7 positive -- exercises encode (X,Y placement) then decode (verify-to-zero) across a range of lengths and offsets (Checksum + VerifyChecksum).
 func TestISISChecksumVectors(t *testing.T) {
 	// The checksum field sits at a fixed offset inside the checksummed region.
 	// For an IS-IS LSP the region begins at the octet after Remaining Lifetime

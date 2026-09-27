@@ -173,5 +173,3 @@ copied rows were retired, as `rfc/corrections/draft-ietf-sidrops-8210bis.md`
 records: the two AFI rows (5.12-6, 5.12-9) state what no document says, and the
 ordering row (5.12-8) repeats what 5.12-3 quotes.
 
-- [ ] [DRAFT-IETF-SIDROPS-8210BIS-5.12-2] [MUST NOT] Customer AS MUST NOT appear in its own provider set (§5.12)
-- [ ] [DRAFT-IETF-SIDROPS-8210BIS-5.12-7] [MUST NOT] Customer AS 0 is reserved, MUST NOT appear (§5.12)
