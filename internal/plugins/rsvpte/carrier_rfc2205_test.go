@@ -12,7 +12,6 @@ import (
 )
 
 // RFC requirement: RFC2205-x-1 negative -- no PATH or PathTear the engine emits ever leaves through Transport.Send, the carrier that writes no Router Alert option: over an ingress PATH, a transit PATH relay, a RESV relay and a PathTear relay, every PATH and PathTear goes through SendPath and the RESV through Send.
-// RFC requirement: RFC3209-x-1 negative -- an LSP_TUNNEL PATH, originated or relayed along its ERO, never leaves through Transport.Send, which carries no Router Alert option; only SendPath carries it.
 func TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier(t *testing.T) {
 	ingress, ingressTransport, _ := testEngine(t, rfc2205Ingress.String(), nil)
 	psb := rfc2205PSB()

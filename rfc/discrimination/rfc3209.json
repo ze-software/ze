@@ -330,17 +330,6 @@
       "producer": "internal/plugins/rsvpte/build.go::buildPath",
       "producer-sha": "4d5759141b333cdd",
       "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC3209-x-1",
-      "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/carrier_rfc2205_test.go::TestRFC2205PathNeverLeavesWithoutRouterAlertCarrier",
-      "unit-sha": "df0d17034b9076ea",
-      "claim-sha": "a682b8f041e776d3",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::sendPath",
-      "producer-sha": "529788b1fb577511",
-      "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

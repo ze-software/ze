@@ -388,7 +388,6 @@ func rsvpWirePSB() *pathStateBlock {
 // TestIntegrationRSVPPathCarriage checks PATH, PathTear and ResvConf on the wire
 // and at a transit receiver whose local address differs from the destination.
 // RFC requirement: RFC2205-x-1 positive -- production PATH carriage includes the IPv4 Router Alert option on the captured frame.
-// RFC requirement: RFC3209-x-1 positive -- an explicitly routed PATH retains Router Alert while the kernel sends it to the selected next hop.
 // RFC requirement: RFC2205-3-37 positive -- native route queries send PATH and PathTear toward the explicit hop rather than the endpoint's ordinary route.
 // RFC requirement: RFC2205-3-40 positive -- the transit receiver observes the actual incoming interface, original IP source and IP TTL.
 // RFC requirement: RFC2205-3-41 positive -- native carriage selects the explicit hop's link while preserving an IP destination routed through the other link.
