@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5561-6-4": {
+      "note": "Forbidden behaviours: (1) reacting to an unsupported U=1 Capability Parameter (e.g. sending a Notification) instead of silently ignoring it, (2) refusing the session because of it. (1): TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification fails on processMessages returning an error and on expectNoPDU seeing any PDU on the pipe. (2): TestRFC5561UnknownCapabilityWithUBitSetIsIgnored requires rx.State() == StateOperational and the peer's 30s keepalive negotiated, and that DecodeInit still reads the Common Session Parameters beside the parameter. Every capabilityCases code point runs both.",
+      "requirement_sha": "7ac90ef5ee36edcc",
+      "tests": {
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "e20921043d725b31",
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "e20921043d725b31"
+      },
+      "units": {
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification": "fbfc246e2438a6f5",
+        "internal/plugins/ldp/capability_rfc5561_test.go::TestRFC5561UnknownCapabilityWithUBitSetIsIgnored": "c6f089e09752eafb"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5561"
+}
