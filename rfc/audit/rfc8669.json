@@ -1,0 +1,156 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC8669-3-1": {
+      "note": "Clause 'ignored': a validator rejecting an unknown TLV type goes red at message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored require.Equal(RFC7606ActionNone). Clause 'propagated unmodified': the only byte-equality assertion runs after ValidateUpdateRFC7606, not after any forward or re-advertise path, so a forward rail that strips or rewrites the unknown TLV (or drops the whole attribute, as applyFactsNextHop does on a next-hop change) turns nothing red. The propagation half has no assertion.",
+      "requirement_sha": "86075c5141e1f486",
+      "tests": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "c396cd02e76541ca"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669UnknownTLVIsIgnored": "7f0ca5f0dffb7627"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.1-2": {
+      "note": "RA33 strict re-audit: weak (agrees with blind reader). The unit proves only that the SRv6 extractor steps over TLV type 1. The {single-polarity} premise that no other reader of TLV type 1 exists in internal/core/bgp is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses a Label-Index whose length is not 7, and the JSON formatter emits sr-label-index, both regardless of AFI/SAFI. No tagged unit feeds a Label-Index on a non-labeled-unicast route through validation or decode, so acting on it there (erroring or reporting it) stays green.",
+      "requirement_sha": "30f781814532f3d1",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "8151d23cfc7d9244"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.1-3": {
+      "note": "RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Reserved emitted. There are two Label-Index encoders: EncodePrefixSID's simple path (asserted sid[3]==0) and parsePrefixSIDWithSRGB (prefixsid.go:120), which builds its own Label-Index TLV. TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission inspects only sid[10:], so a non-zero Reserved in the SRGB path's Label-Index stays green. The {single-polarity} note calls the encoder ParsePrefixSID and names one encoder.",
+      "requirement_sha": "fdafa7899931e228",
+      "tests": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "184d0b5dc42dc364"
+      },
+      "units": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.1-4": {
+      "note": "RA33 strict re-audit: weak. Reception clause proven: a Reserved 0xFF Label-Index yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units, and the units tagged RFC8669-3.1-3 leave the SRGB-path Label-Index encoder unasserted (see 3.1-3).",
+      "requirement_sha": "766845e506eae9e5",
+      "tests": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "c396cd02e76541ca",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "c396cd02e76541ca"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "d8b4711cce14ab9e",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "f4b89a3d0c38a5d4"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.1-5": {
+      "note": "RA33 strict re-audit: weak. Forbidden: non-zero Label-Index Flags emitted. sid[4:6]=={0,0} is asserted only for EncodePrefixSID's simple Label-Index path; the Label-Index TLV that parsePrefixSIDWithSRGB (prefixsid.go:120) builds is not inspected by any tagged unit, so non-zero Flags there stay green.",
+      "requirement_sha": "00eec3b1db3275a6",
+      "tests": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "184d0b5dc42dc364"
+      },
+      "units": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.1-6": {
+      "note": "RA33 strict re-audit: weak. Reception clause proven: Flags 0xFFFF yields RFC7606ActionNone with unchanged bytes. The quoted transmission clause has no assertion in this row's tagged units, and RFC8669-3.1-5's unit misses the SRGB-path Label-Index encoder.",
+      "requirement_sha": "923a1b0e03387b29",
+      "tests": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroFlagsIgnored": "c396cd02e76541ca",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "c396cd02e76541ca"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroFlagsIgnored": "9bb303402e764ffb",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "f4b89a3d0c38a5d4"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.2-1": {
+      "note": "Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.",
+      "requirement_sha": "0dbfd3b32f15d2b5",
+      "tests": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "184d0b5dc42dc364"
+      },
+      "units": {
+        "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "acb10accb7b04bcd"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8669-3.2-2": {
+      "note": "RA33 strict re-audit: weak. Reception clause: SRGB Flags 0xFFFF yields RFC7606ActionNone (no byte-unchanged assertion, unlike 3.1-4/3.1-6). The quoted transmission clause ('MUST be clear on transmission') has no assertion in this row's tagged units; it is proven only by the unit tagged RFC8669-3.2-1.",
+      "requirement_sha": "67eb1f44573c65f2",
+      "tests": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "c396cd02e76541ca",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "c396cd02e76541ca"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "81f204421b0ee317",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "ba12537f8edc0fc4"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-3.2-4": {
+      "note": "RA33 strict re-audit: weak. The unit proves only that the SRv6 extractor steps over TLV type 3. The {single-polarity} premise that the only SRGB code is the config-side encoder is false: attribute/prefixsid_wire.go validatePrefixSIDTLVs refuses an Originator SRGB whose length is not 2 + 6N, and the JSON formatter decodes it, regardless of AFI/SAFI. No tagged unit covers an SRGB on a non-labeled-unicast route through those paths.",
+      "requirement_sha": "4117e88ffffd020d",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "3377f5bbf00be1c6"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-4-1": {
+      "note": "Clause 'MUST discard': a Prefix-SID kept from an unconfigured EBGP peer goes red at reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault assert.False(found) after enforceRFC7606, and for repeated copies at rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP. Clause 'unless configured': an over-firing strip goes red at TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured assert.True(found); IBGP not affected is pinned in TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy.",
+      "requirement_sha": "0d8e9cf3d7db0bde",
+      "tests": {
+        "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP": "4be6127888cf07a8",
+        "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy": "4be6127888cf07a8",
+        "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured": "dc67df8654d6f8da",
+        "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault": "dc67df8654d6f8da"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP": "1930bc112b4e8abf",
+        "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy": "28599d93d7c02281",
+        "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured": "13f13a332c1b7f10",
+        "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault": "682ff8a4f03542b0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8669-6-1": {
+      "note": "Malformed via TLV overrun: message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised asserts discard and absence after ApplyAttrDiscard; trailing bytes: TestRFC8669TrailingBytesDiscarded asserts discard only, not removal. Unasserted clauses: (1) 'invalid' (no Label-Index TLV, per 4.1) is never computed, so an invalid attribute is kept and advertised and no tagged unit goes red; (2) 'a TLV length that doesn't conform to the length constraints for the TLV' is not checked by validatePrefixSIDAttr (a Label-Index TLV of length 6 or an SRGB TLV of length 3 is accepted), and no test drives it; (3) 'not meeting the minimum attribute length' (e.g. a zero-length attribute) is accepted and untested.",
+      "requirement_sha": "66fc373820ba8477",
+      "tests": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "c396cd02e76541ca",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "c396cd02e76541ca",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "c396cd02e76541ca"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "586d04d5cd526763",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "da00864ad34bf411",
+        "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "2e552c52d3356afa"
+      },
+      "verdict": "weak"
+    },
+    "RFC8669-6-3": {
+      "note": "Tagged units pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins and ::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst prove first-wins reading of duplicate SRv6 L3 Service TLVs in ExtractSRv6SIDFull, which is the RFC 9252 rule 'all but the first instance MUST be ignored'. Unasserted: that the later occurrences are DISCARDED (they stay in the attribute bytes forwarded on, same shape as the RFC8669-6-2 gap), and duplicates of RFC 8669's own single-occurrence TLV (Label-Index) are never driven.",
+      "requirement_sha": "f72d6db1a19968f4",
+      "tests": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "880d4dcf544fb926",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "880d4dcf544fb926"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVCannotOverrideFirst": "98375fef4cd15f32",
+        "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669DuplicateRecognizedTLVFirstWins": "99938dd144ab230b"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8669"
+}
