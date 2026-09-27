@@ -49,6 +49,11 @@ the owner.
   old row text, and the mechanical backfill (1821 rows) never did. Every row whose
   text changed since the quoting began is compared against its pre-quote text for
   an obligation the quote dropped. Each one found joins the split-needed set.
+- **The row-quality corrections.** The blind samples and send-back re-reads of
+  2026-09-27 found rows that lose no obligation but quote a fragment, a list
+  pointer or a bare pronoun, carry a level their sentence does not, duplicate
+  another row, or are tagged by a unit that proves a neighbour. They are listed in
+  "Row-quality corrections" below.
 
 The ledger already records each finding as `weak` or `wrong`, so no public claim
 outruns the evidence while this spec is open.
@@ -64,41 +69,48 @@ audit files change as the work proceeds.
 | The same, grouped by the package of each tagged test | the same filter, emitting the directory of every key of `.value.tests` (the part before `::`) |
 | The narrowing set: rows whose text changed since the quoting began | every `rfc/short/<stem>.md` row whose text differs between `0bf0696576^` (the parent of the commit that landed the quote check and the backfill) and `HEAD`, compared by id |
 
-### Measured 2026-09-27
+### Measured 2026-09-27, after the blind samples and the send-back re-reads
 
-838 `weak` and 56 `wrong`, 894 in all, across 135 stems of the 150 audit files.
-Every one names at least one tagged test.
+920 `weak` and 61 `wrong`, 981 in all, across 144 stems of the 156 audit files,
+counted from `rfc/audit/*.json` in the working tree after the 14 send-back
+commits of 2026-09-27, which the source spec's Mistake Log lists. Every one names
+at least one tagged test. The first count, before the samples, was 838 `weak` and
+56 `wrong`, 894 in all, across 135 stems of 150 files: the strict re-reads moved 87
+more verdicts out of `enforced` and added six audit files, which together raised the total by 87.
 
 | Stem | Weak + wrong | Of which wrong |
 |------|--------------|----------------|
 | rfc4271 | 58 | 3 |
-| rfc5880 | 45 | 3 |
-| rfc2328 | 31 | 1 |
+| rfc5880 | 50 | 3 |
+| rfc7296 | 36 | 2 |
+| rfc2328 | 32 | 1 |
+| rfc3768 | 28 | 2 |
 | rfc9830 | 25 | 0 |
-| rfc7296 | 24 | 1 |
+| rfc3748 | 23 | 0 |
 | rfc9568 | 22 | 1 |
 | rfc5798 | 21 | 0 |
-| rfc9552 | 18 | 1 |
+| rfc5216 | 18 | 1 |
 | rfc8907 | 18 | 0 |
-| rfc5216 | 17 | 0 |
+| rfc9552 | 18 | 1 |
 | rfc2661 | 17 | 0 |
-| rfc3768 | 16 | 1 |
-| rfc7950 | 15 | 2 |
-| rfc1195 | 15 | 2 |
-| rfc4724 | 14 | 0 |
+| rfc4301 | 17 | 5 |
+| rfc1195 | 16 | 2 |
 
 Top test packages, by verdicts that tag a test in them (a verdict tagging two
-packages counts in both): `internal/component/bgp/reactor` 69,
-`internal/plugins/ospf` 61, `internal/component/bgp/message` 40,
-`internal/core/bgp/attribute` 36, `internal/plugins/rsvpte` 31,
-`internal/plugins/vrrp` 28, `internal/core/eap` 27,
-`internal/component/ike/engine` 25, `internal/plugins/ospf/lsdb` 19,
-`internal/component/bgp/plugins/rib` 19.
+packages counts in both): `internal/component/bgp/reactor` 76,
+`internal/plugins/ospf` 66, `internal/core/eap` 49,
+`internal/core/bgp/attribute` 48, `internal/component/bgp/message` 40,
+`internal/component/ike/engine` 38, `internal/plugins/vrrp` 37,
+`internal/plugins/rsvpte` 32, `internal/component/bgp/plugins/rib` 24,
+`internal/plugins/vrrp/packet` 20.
 
 ### Split-needed rows
 
 Recorded by the stem agents of the source spec in their reports under
 `tmp/session/2026-09-26-f7fd86a1-7a8c-495e-89c0-011b55afa13e/scratch/work/agents/`.
+The rows from RFC5880-6.7.2-4 and from RFC2328-8.2-3 onwards, and the rfc8210 missing
+rows, come from the blind samples and send-back re-reads of 2026-09-27 (BS-A, SB-1,
+SB-3, RA-8210 in the same directory).
 That directory is scratch and does not last, so the facts are copied here. Each
 row names the id whose quote dropped an obligation, what was dropped, and where
 the RFC states it. "Row correction" marks a claim no sentence states, which is a
@@ -125,6 +137,9 @@ correction of the row, not a new row.
 | RFC5880-6.7.3-8 | Sequence Number MUST be set to bfd.XmitAuthSeq, for SHA1 (the Simple Password claim was fabricated: row correction) | §6.7.4 |
 | RFC5880-6.7.3-9 | Keyed SHA1 receive window | §6.7.4 |
 | RFC5880-6.7.3-10 | Meticulous SHA1 receive window | §6.7.4 |
+| RFC5880-6.7.2-4 | the Auth Type discard for Keyed MD5 and Keyed SHA1; the quote is the Simple Password case, while the row's parenthetical still cites §6.7.3 and §6.7.4 | §6.7.3, §6.7.4 |
+| RFC5880-6.7.2-5 | the Auth Key ID discard for Keyed MD5 and Keyed SHA1; the quote says "configured password", §6.7.2 only, while the parenthetical still cites §6.7.3 and §6.7.4 | §6.7.3, §6.7.4 |
+| RFC5880-6.7.2-6 | the Auth Len discard for Keyed MD5 (24) and Keyed SHA1 (28); the quote is the Simple Password rule, password length plus three | §6.7.3, §6.7.4 |
 | RFC3101-2.2-1 | the aggregate's forwarding address is set to 0.0.0.0 | §3.2 step (3), §2.3 |
 | RFC1994-2-1 | SHOULD take action to terminate the link | §4.2 |
 | RFC2205-2-9 | must not prevent a different receiver from establishing a smaller reservation Q0 | §2 |
@@ -180,6 +195,18 @@ correction of the row, not a new row.
 | SFLOW-V5-x-7, x-9, x-10, x-12, x-15, x-20, x-24 | claims the document does not state ("wrapping", "2^30-1", "since boot", "[1, 2*N-1]", XDR alignment) or states in a sibling row: row correction | §3.1, §4.3, §5 |
 | SFLOW-V5-x-11 | a `sample_pool` field description tagged MUST; no sentence states an obligation: row correction (the code defect is D2 of `plan/immediate/spec-bmp-sflow-export-rfc-defects.md`) | §5 |
 | RFC1661-5.8-5 | the same Magic-Number sentence for Discard-Request, "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic-Number MUST be transmitted as zero.": no row states it for §5.9 (RFC1661-5.9-1 says Ze sends no Discard-Request today) | §5.9 |
+| RFC2328-8.2-3 | authenticate every received packet; accept a non-Hello packet only from an active neighbor. Neither is consecutive with the AuType sentence the row quotes | §D.4, §8.2 later paragraph |
+| RFC2328-10.5-1 | declare bidirectional communication only when the router is listed in the neighbor's Hello | §10.5 later paragraph, §9.5 |
+| RFC2328-10.6-1 | process DD packets in sequence and, as slave, reply to each; the quote is the §10.8 duplicate resend only | §10.6 |
+| RFC2328-12.2-1 | a network-LSA is looked up on its Link State ID alone | §16.1 |
+| RFC2328-12.4-1 | flush an AS-external-LSA for an unreachable destination, and an LSA no longer advertisable to an area; the quote is the §12.4.3 summary-LSA case | §12.4.4, §16.7 |
+| RFC2328-12.4.3-1 | condense summaries as the configured area address ranges require | §12.4.3 |
+| RFC2328-13-3 | drop an LS Acknowledgment from a neighbor below Exchange; the quote is the §13 LS Update case | §13.7 |
+| RFC2328-13.3-3 | on non-broadcast networks, delayed LS Acknowledgments are sent as separate unicasts | §13.5 |
+| RFC2328-13.4-1 | re-originate or flush by premature aging a received self-originated LSA; the quote is the detection only | §13.4 later paragraph, §14.1 |
+| RFC2328-16.2-2 | the same skips for AS-external-LSAs; the quote is the §16.2 summary-LSA steps | §16.4 |
+| RFC2328-D.3-2 | the sequence number is non-decreasing and reset to zero when the neighbor goes Down; Figure 18 separates it from the quoted sentence, so one span cannot carry both | §D.3 |
+| RFC2347-x-2 | the client "must not use those options which were not acknowledged by the server"; RFC2347-x-3 does not carry it either (blind sample BS-A) | Negotiation Protocol |
 
 Rows the stem agents found missing outright, which also owe tests:
 
@@ -189,6 +216,42 @@ Rows the stem agents found missing outright, which also owe tests:
 | rfc5798 | the same for ICMPv6 redirects (lowercase must) | §8.2.1 |
 | rfc5798 | advertisements to 224.0.0.18 should be encapsulated per RFC 1469 (lowercase should, Token Ring) | §A.2 |
 | rfc9582 / 8210bis | the self-provider prohibition (RFC9582-5.12-2) and the multi-provider AS 0 MUST NOT (RFC9582-5.12-7) need their own 8210bis rows | 8210bis §5.12 |
+| rfc8210 | SHOULD: "If the router has never issued a successful query against a particular cache, it SHOULD retry periodically using the default Retry Interval, above." | §6 |
+| rfc8210 | SHOULD, cache side: the cache "SHOULD reject the connection if none of the iPAddress identities match the connection." (RFC8210-9.2-3 quotes only the MUST check before it) | §9.2 |
+| rfc8210 | MAY: "host authentication MAY be supported. Implementations MAY support password authentication." (RFC8210-9.1-2 quotes only the user-authentication MUST before it) | §9.1 |
+
+### Row-quality corrections
+
+Found by the blind samples BS-A, BS-B and BS-C and the send-back re-reads SB-1,
+SB-2, SB-3 and RA-8210 of 2026-09-27. Each row states an obligation, or the verdict
+is judged against text the quote does not carry. None of them loses an obligation
+outright, so none is in the split-needed table. Each is corrected, merged or
+re-tagged in this pass, or a dated correction says why it stands.
+
+| Kind | Rows | What is wrong | Correction owed |
+|------|------|---------------|-----------------|
+| list-pointer quote | RFC4301-4.4.1.1-1, 4.4.1-6, 4.4.2.1-1, 5.1-1, 5.2-3, 6.2-2 | each quote ends in "the following ...:" and states no obligation; the list that carries it is not quoted, and the verdicts were judged against the list | widen the span through the list, or split one row per list item |
+| fragment quote, referent in a sibling row | RFC7296-3.1-8, 3.2-2, 3.2-4, 3.2-6, 2.10-2, 2.10-3, 2.21.4-4, 2.21.4-6, 2.5-7, 3.5-3, 3.14-3 | a sub-span of a sentence whose subject is in a sibling row's clause | widen to the list-item head |
+| fragment quote, no referent | RFC7296-3.16-1, 3.16-2, 3.11-2, 3.1-9, 3.1-11 | the quote names no subject, and the span can be widened without a sibling | widen the span |
+| bare-pronoun quote | RFC9012-3.1-3 ("it MUST be propagated unchanged"), 3.1-2 ("It MUST be disregarded"), 3.2.1-1 ("They MUST"), 3.7-2, 4.2-1, 4.3-2 ("the value") | the subject, such as the Reserved subfield, is in the sentence before | widen the span to the sentence that names the subject |
+| level over a stronger keyword | RFC9012-11-7 | levelled SHOULD, but its quote also carries "MUST be able to filter the attribute from outgoing BGP UPDATE messages" | split the MUST into its own row, or re-level |
+| level over a weaker keyword | RFC2759-x-8, x-9 | levelled MUST over a sentence whose only keyword is SHOULD | re-level, with a correction paragraph |
+| level with no BCP 14 keyword | RFC7296-1.2-1, 2.6-1, 2.9-1, 2.23-3, 2.23-12, 2.4-1, 1.4-1, 2.8-2 (MUST NOT), 2.2-3; RFC4301-4.1-4, 7-1 (MUST NOT); RFC3748-4-2, 2-2, 4.2-1; RFC2759-x-3, x-10, x-12 (format and vector text); RFC3768-6.4.3-9 (pseudocode); RFC5301-3-8 (MUST NOT over "The string is not null-terminated."); RFC8050-4.2-1 (descriptive); RFC8050-x-4 (rationale) | D-3 permits a MUST level over a normative sentence without a keyword, so these are for review, not automatic demotion. SB-2 counted 17 of them in its four stems, the blind samples 4 more | review each; a demotion needs a correction paragraph per stem and an owner call on the format-definition rows |
+| lowercase keyword | RFC8092-4-1 ("should") | levelled as a BCP 14 keyword | review the level |
+| duplicate span | RFC7296-3.3.2-1 and RFC7296-3.3.6-1 | both now quote the same §3.3.3 span ("MUST understand all types" through the IKE line of the table); 3.3.6-1 is the D-H subset of 3.3.2-1 | merge, moving the tags of 3.3.6-1 |
+| duplicate span | RFC8210-7-8 and RFC8210-5.2-1 | the §7 "The router MUST ignore any Serial Notify PDUs ... during this initial startup period" is the obligation 5.2-1 states, and 5.2-1 already cites §7 | merge |
+| duplicate span | RFC3748-7.10-1 and 7.10-2 | 7.10-2 quotes a sub-span of 7.10-1's sentence; the tags of each cover a different half, so both are weak | merge, keeping every tag |
+| duplicate span | RFC3748-4.1-11 against RFC3748-4.1-5 and RFC3748-2.1-3 | its first sentence duplicates 4.1-5, its Nak-after-non-Nak sentence duplicates 2.1-3 | merge into the two rows |
+| id names another section | RFC5880-4.1-1 | the id names §4.1, but the quote and cite are the §6.8.7 transmit rule; no obligation is lost (the receive half is RFC5880-6.8.6-1), and an id is permanent | a dated correction saying why the id stands |
+| text after the cite, or a wrapped hyphen | RFC3630-1-1 (prose after the section cite); DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1 ("strict- mode"), RFC7684-5-1 ("sub- TLV") | the prose is not RFC text, and the hyphen split is the RFC's line wrap carried into the quote | move the prose out of the quote; join the hyphen |
+
+Mistagged units, whose tag names a row the unit does not prove:
+
+| Unit | Tagged under | What it proves instead | Correction owed |
+|------|--------------|------------------------|-----------------|
+| `internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`, and `rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused` | RFC7296-2.9-1 | TS payload presence in a rekey answer, a neighbouring obligation; the verdict stays `enforced` on the other units | move the tags to the row that states the TS presence rule, or add it |
+| `internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector` | RFC4301-4.4.1-4 | direction mirroring, not administrator ordering; the verdict stays `enforced` on the ordering units | move the tag |
+| `internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery` | RFC8210-8.3-1 | the tag prose says "ze runs every configured cache in parallel", but `cacheGroup` is preference-ordered since 2026-09-20 | correct the tag prose, and re-judge the unit against the more-preferred-cache SHOULD of the quote |
 
 ### Code defects recorded by the stem agents
 
@@ -332,6 +395,7 @@ Dropped after reading, with the reason:
 | AC-4 | the narrowing set | every row compared against its pre-quote text, and every dropped obligation handled as AC-3 |
 | AC-5 | every spec in the code-defects pointer list | this spec declares none of their defects and does not fix them; a test this spec corrects whose producer one of them changes waits for, or lands with, that spec |
 | AC-6 | `./le rfc check` | no violation, no stale verdict |
+| AC-7 | every row and unit in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |
 
 ## 🧪 TDD Test Plan
 
@@ -364,6 +428,7 @@ Dropped after reading, with the reason:
 2. **Phase: BGP, BFD, OSPF, VRRP, IKE packages** - one agent per package; independent re-audit per package
 3. **Phase: the remaining packages** - same brief
 4. **Phase: split rows and missing rows** - add the rows, tag and audit them
+5. **Phase: row-quality corrections** - the row-quality and mistagged-unit tables, one stem at a time, re-judging each changed row
 
 ## Key Design Decisions
 
