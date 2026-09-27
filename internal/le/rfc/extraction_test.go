@@ -1157,7 +1157,7 @@ func TestATwoLineRunningHeaderIsFurniture(t *testing.T) {
 	}
 }
 
-// annexSubsectionSource carries RFC 1195's annex forms: a centred "Annex B"
+// annexSubsectionSource carries RFC 1195's annex forms: a centered "Annex B"
 // title, then subsections at column 0 numbered after the letter with no dot
 // after the number ("B.1 Level 1 ...", "C.1.1 Databases"). The field legend
 // lines numbered "7" inside an annex are not headings.
