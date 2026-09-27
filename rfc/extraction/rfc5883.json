@@ -25,11 +25,7 @@
     {
       "id": "2",
       "sites": 1,
-      "disposition": "walked",
-      "unsourced-ids": [
-        "RFC5883-7-1",
-        "RFC5883-7-2"
-      ]
+      "disposition": "walked"
     },
     {
       "id": "3",
@@ -117,7 +113,7 @@
       "quote": "In these scenarios it is required that the operator correctly provision the rates at which BFD is transmitted to avoid congestion (e.g link, I/O, CPU) and false failure detection.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "Section 2 Applicability is descriptive deployment guidance addressed to the operator ('it is required that the operator correctly provision the rates'), with a lowercase keyword and no obligation on a BFD implementation. The implementation-side congestion obligation lives in RFC 5880 Section 7, which the summary already carries as RFC5883-7-1 and RFC5883-7-2."
+      "reason": "Section 2 Applicability is descriptive deployment guidance addressed to the operator ('it is required that the operator correctly provision the rates'), with a lowercase keyword and no obligation on a BFD implementation. The implementation-side congestion obligation lives in RFC 5880 Section 7, which rfc/short/rfc5880.md carries as RFC5880-7-1 and RFC5880-7-2."
     },
     {
       "id": "3:1",

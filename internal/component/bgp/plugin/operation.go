@@ -73,11 +73,11 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 		return nil, nil
 	}
 	disturbed := req.DisturbedAddresses
-	activeRoot, err := parseBGPOperationRoot(req.ActiveRoot)
+	activeRoot, err := parseBGPSection(req.ActiveRoot)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation decompose active: %w", err)
 	}
-	candidateRoot, err := parseBGPOperationRoot(req.CandidateRoot)
+	candidateRoot, err := parseBGPSection(req.CandidateRoot)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation decompose candidate: %w", err)
 	}
@@ -175,20 +175,6 @@ type bgpPeerChange struct {
 	name      string
 	active    bgpOperationPeer
 	candidate bgpOperationPeer
-}
-
-func parseBGPOperationRoot(raw string) (map[string]any, error) {
-	if raw == "" {
-		return map[string]any{}, nil
-	}
-	var root map[string]any
-	if err := json.Unmarshal([]byte(raw), &root); err != nil {
-		return nil, err
-	}
-	if bgp, ok := root[configRootBGP].(map[string]any); ok {
-		return bgp, nil
-	}
-	return root, nil
 }
 
 func collectBGPOperationPeers(root map[string]any) (map[string]bgpOperationPeer, error) {

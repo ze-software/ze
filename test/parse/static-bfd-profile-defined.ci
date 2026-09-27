@@ -1,0 +1,31 @@
+# Test: a static next-hop naming a BFD profile the config defines is accepted.
+#
+# VALIDATES: `ze config validate` refuses a next-hop `bfd-profile` that names no
+#            profile under `bfd { profile ... }`, naming the route and the next-hop.
+#            static reads the bfd root (ConfigReads), and its verifier asks the bfd
+#            plugin's own check (api.CheckProfile).
+# PREVENTS: the typo passing commit and being refused only at session start, where
+#           the route then runs with no BFD monitoring and a log line as the only trace.
+
+stdin=config:terminator=EOF_CONF
+bfd {
+    profile fast {
+        detect-multiplier 5;
+    }
+}
+static {
+    table default {
+        route 192.0.2.0/24 {
+            next {
+                hop 10.0.0.1 {
+                    bfd-profile fast;
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

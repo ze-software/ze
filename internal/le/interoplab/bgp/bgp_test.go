@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/softver"
+
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/linuxle"
@@ -479,17 +481,69 @@ func TestBespokeCheckerBranches(t *testing.T) {
 	t.Run(rpkiReloadScenario, rpkiReloadCheckerBranches)
 
 	t.Run("bfd-frr", func(t *testing.T) {
-		if bfdSessionDown("BGP state = Established") {
-			t.Fatal("Established BGP session was reported down")
+		const established = "BGP state = Established, up for 00:00:05\n  Connections established 1; dropped 0\n"
+		const reestablished = "BGP state = Established, up for 00:00:00\n  Connections established 2; dropped 1\n"
+		if dropped, ok := bgpConnectionsDropped(established); !ok || dropped != 0 {
+			t.Fatalf("dropped count = %d, %v; want 0, true", dropped, ok)
 		}
-		if !bfdSessionDown("BGP state = Idle") {
-			t.Fatal("non-Established BGP session was not reported down")
+		if _, ok := bgpConnectionsDropped("BGP state = Established"); ok {
+			t.Fatal("a missing dropped count was read as a number")
+		}
+		if bgpSessionReset(established, 0) {
+			t.Fatal("an Established session with no new drop was reported reset")
+		}
+		if !bgpSessionReset("BGP state = Idle", 0) {
+			t.Fatal("a non-Established BGP session was not reported reset")
+		}
+		if !bgpSessionReset(reestablished, 0) {
+			t.Fatal("a session that dropped and came back was not reported reset")
 		}
 		if err := requireBFDTeardownBudget(1999 * time.Millisecond); err != nil {
 			t.Fatalf("sub-two-second teardown failed: %v", err)
 		}
 		if err := requireBFDTeardownBudget(2 * time.Second); err == nil {
 			t.Fatal("two-second teardown passed the strict budget")
+		}
+		const cease = "level=INFO msg=\"sent NOTIFICATION\" code=Cease subcode=\"BFD Down\"\n"
+		if !bfdCeaseLoggedSince("", cease) {
+			t.Fatal("a Cease logged after the break was not counted")
+		}
+		if bfdCeaseLoggedSince(cease, cease+"level=INFO msg=\"peer up\"\n") {
+			t.Fatal("a Cease logged before the break passed as the break's")
+		}
+		if !bfdCeaseLoggedSince(cease, cease+cease) {
+			t.Fatal("a second Cease after an earlier one was not counted")
+		}
+	})
+
+	t.Run("frr-software-version", func(t *testing.T) {
+		const neighbor = `{"172.30.0.2":{"bgpState":"Established",` +
+			`"neighborCapabilities":{"softwareVersion":{"advertisedSoftwareVersion":"FRRouting/10.3.1","receivedSoftwareVersion":"Ze/0.1.0"}}}}`
+		if version, ok := frrReceivedSoftwareVersion(neighbor); !ok || version != zeSoftwareVersion {
+			t.Fatalf("received version = %q, %v; want %q, true", version, ok, zeSoftwareVersion)
+		}
+		if version, ok := frrReceivedSoftwareVersion(`{"172.30.0.2":{"neighborCapabilities":{"softwareVersion":{"advertisedSoftwareVersion":"FRRouting/10.3.1"}}}}`); ok {
+			t.Fatalf("FRR's own advertised version passed as the one it received from ze: %q", version)
+		}
+		if _, ok := frrReceivedSoftwareVersion("not json"); ok {
+			t.Fatal("an unreadable answer passed as a received version")
+		}
+		const refused = `{"peers":{"fd00:1e::3":{"state":"active","last-notification":{"code":2,"subcode":0,"direction":"received","time":"2026-09-27T15:21:04Z"}}}}`
+		if code, subcode, ok := zeLastNotificationReceived(refused, "fd00:1e::3"); !ok || code != 2 || subcode != 0 {
+			t.Fatalf("last notification = %d/%d, %v; want 2/0, true", code, subcode, ok)
+		}
+		sent := strings.Replace(refused, `"received"`, `"sent"`, 1)
+		if _, _, ok := zeLastNotificationReceived(sent, "fd00:1e::3"); ok {
+			t.Fatal("a NOTIFICATION ze sent passed as one FRR sent")
+		}
+		if _, _, ok := zeLastNotificationReceived(refused, "fd00:1e::4"); ok {
+			t.Fatal("another peer's NOTIFICATION passed as this peer's")
+		}
+		if _, _, ok := zeLastNotificationReceived(`{"peers":{"fd00:1e::3":{"state":"established"}}}`, "fd00:1e::3"); ok {
+			t.Fatal("a peer with no NOTIFICATION passed as refused")
+		}
+		if _, _, ok := zeLastNotificationReceived(`{"peers":{"fd00:1e::3":{"last-notification":{"direction":"received"}}}}`, "fd00:1e::3"); ok {
+			t.Fatal("a NOTIFICATION with no code read as code 0")
 		}
 	})
 
@@ -1867,5 +1921,16 @@ func TestISISPerLevelHelloNeighborTable(t *testing.T) {
 	// A Down row is not an Up row, whatever holding time it prints.
 	if isisBothLevelsUp(" frr-isis-perlevel   eth0        1  Up    8   x\n frr-isis-perlevel   eth0        2  Init  9   x\n") {
 		t.Error("an Init Level-2 adjacency passed as Up")
+	}
+}
+
+// TestZeSoftwareVersionMatchesProducer checks the frr-software-version
+// checker's copy of ze's version string against the one the encoder sends.
+//
+// VALIDATES: zeSoftwareVersion equals softver.ZeVersion.
+// PREVENTS: a version bump that leaves the scenario asserting the old string.
+func TestZeSoftwareVersionMatchesProducer(t *testing.T) {
+	if zeSoftwareVersion != softver.ZeVersion {
+		t.Fatalf("zeSoftwareVersion = %q, softver.ZeVersion = %q", zeSoftwareVersion, softver.ZeVersion)
 	}
 }

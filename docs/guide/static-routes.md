@@ -183,6 +183,15 @@ static {
 
 If all BFD-tracked next-hops go down, the route is withdrawn entirely.
 
+The session to a next-hop is single-hop. The daemon at startup, a commit,
+a SIGHUP reload and `ze config validate` each refuse a `bfd-profile` that
+names no profile under
+`bfd { profile ... }`, and one whose profile sets `passive`, because RFC
+5881 §3 requires both ends of a single-hop session to be Active. The error
+names the route and the next-hop.
+<!-- source: internal/plugins/static/register.go — checkBFDProfiles -->
+<!-- source: internal/component/bfd/api/profile_check.go — CheckProfile -->
+
 ### Blackhole and reject
 
 Blackhole silently discards matching packets. Reject discards and sends

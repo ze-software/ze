@@ -110,14 +110,15 @@ module ze-bfd-conf {
                 type boolean;
                 default false;
                 description "Active, which is the default, transmits from session creation. Passive transmits nothing until a
-                    Control packet arrives from the peer. RFC 5883 Section 4.3.";
+                    Control packet arrives from the peer. RFC 5883 Section 4.3. A single-hop session, BGP peer or static
+                    next-hop that uses a passive profile is refused: RFC 5881 Section 3 requires the Active role on a single hop.";
                 ze:help "Wait for a peer Control packet before this session transmits.";
             }
 
             container echo {
                 presence "enables BFD Echo mode on sessions using this profile";
                 description "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo mode. Echo mode is single-hop only, because RFC 5883
-                    Section 4 explicitly prohibits multi-hop echo, and the parser rejects echo on a multi-hop session.
+                    Section 3 prohibits multi-hop echo: a multi-hop session or BGP peer that uses an echo profile is refused.
                     When echo is active, the engine sends echo packets on UDP port 3785 at the peer's advertised
                     RequiredMinEchoRxInterval. The engine then slows its async Control TX to the peer's
                     RequiredMinRxInterval.";
@@ -181,10 +182,11 @@ module ze-bfd-conf {
                     type string;
                     mandatory true;
                     ze:sensitive;
-                    description "Shared secret. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the
-                        secret, SHA1 variants the first 20, and both pad a shorter secret with zeros. The simple-password
-                        type carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused
-                        at parse time (RFC 5880 Section 6.7.2).";
+                    description "Shared secret. Redacted from `ze config show` output. The MD5 variants take a secret of up to 16
+                        bytes (RFC 5880 Section 6.7.3) and the SHA1 variants one of up to 20 bytes (Section 6.7.4). Both pad
+                        a shorter secret with zeros, and a longer one is refused at parse time. The simple-password type
+                        carries the secret itself on the wire, so it must be 1 to 16 bytes, and a longer one is refused at
+                        parse time too (RFC 5880 Section 6.7.2).";
                     ze:help "Shared secret, redacted from `ze config show` output.";
                 }
             }

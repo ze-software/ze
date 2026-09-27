@@ -247,15 +247,70 @@ configured operating interval, per RFC 5880 §6.8.3. Once the FSM reaches
 `Up`, `onStateChange` initiates a Poll Sequence to switch to the configured
 fast intervals. The Poll bit stays set on outgoing packets until the peer
 replies with `F=1`, at which point `Receive` clears `PollOutstanding`.
+Every entry into a state other than `Up`, `AdminDown` included, restores
+the 1 second floor, and clears the echo slow-down flag so the engine's
+`ClearEchoSchedule` cannot put the configured sub-second value back.
 
 The detection deadline is cleared after a detection-time fire so subsequent
-ticks do not see a stale past time. RFC 5880 §6.8.1's requirement to clear
-`bfd.RemoteDiscr` is honored only on detection-driven Down transitions, not
-on peer-signaled Down (a peer-signaled Down still leaves the peer reachable
-and clearing the discriminator would force an unnecessary handshake reset).
+ticks do not see a stale past time. RFC 5880 §6.8.1 clears `bfd.RemoteDiscr`
+when a Detection Time passes without a valid packet, in every state. From
+`Init` or `Up` that is the detection-driven Down. A peer-signaled Down keeps
+the discriminator, because the peer is still reachable, and `CheckDetection`
+clears it only if the peer then stays silent for a Detection Time.
+
+A Passive session transmits only while `bfd.RemoteDiscr` is nonzero (RFC 5880
+§6.8.7). `transmitPermitted` gates every place that arms the TX deadline, so
+a Passive session whose discriminator was cleared falls silent until the peer
+speaks again.
+
+When a received packet changes `bfd.RemoteMinRxInterval`, `Receive`
+recalculates the transmit interval and moves the pending TX deadline
+(`rescheduleTxLocked`, RFC 5880 §6.8.3 and §6.8.7). The deadline becomes the
+previous transmission plus the new interval, with the jitter drawn for that
+packet scaled to it. A reduction that has already elapsed fires on the next
+tick, and an increase delays the next packet. An immediate send that a state
+change asked for is left alone. Reverting the echo slow-down lowers
+`bfd.DesiredMinTxInterval` and moves the pending deadline the same way
+(`revertEchoSlowdownLocked`). An increase made while Up waits for its Poll
+Sequence, as RFC 5880 §6.8.3 requires: before the echo slow-down or the Up
+transition raises `bfd.DesiredMinTxInterval`, `holdDesiredMinTxLocked` keeps
+the value in force, and the transmit interval is computed from that held value
+(`desiredMinTxInForceUs`) until the Final arrives. `Receive` then releases the
+hold and moves the pending deadline to the raised interval
+(`releaseDesiredMinTxLocked`), and leaving Up drops the hold too. A decrease is
+never held. `AdvanceTxWithJitter` records the interval each wait was drawn
+from, and `rescheduleTxLocked` rescales against that record.
+<!-- source: internal/component/bfd/session/timers.go -- desiredMinTxInForceUs, holdDesiredMinTxLocked, releaseDesiredMinTxLocked -->
+
+Only one Poll Sequence runs at a time. The echo slow-down and its revert
+each need a Poll, and the engine asks for the slow-down on the first echo
+tick after `Up`, while the Up Poll is usually still outstanding. RFC 5880
+§6.8.3 gives three ways to order two such changes, and ze takes the third:
+after the Final that ends a Poll, a Control packet with F clear must arrive
+before another Poll starts. `Receive` tracks that wait (`pollSettling`), and
+`ApplyEchoSlowdown` and `revertEchoSlowdownLocked` return without changing
+anything while a Poll is outstanding or settling (`pollSequenceIdle`). The
+engine calls both on every echo tick, so the deferred change lands on the
+first tick after the peer's next periodic packet. Its two interval changes
+then ride one Poll packet.
+
+When a received packet changes Required Min Echo RX Interval, `Receive` moves
+the pending echo deadline to the previous echo plus the new `EchoInterval`
+(`rescheduleEchoLocked`, RFC 5880 §6.8.9). A raised floor delays the next
+echo, and a lowered one brings it forward.
+
+A packet with `Your Discriminator` zero is discarded when its own State field
+is `Init` or `Up` (RFC 5880 §6.8.6). The local state does not enter into it:
+a restarted peer sends `Your Discriminator` zero with State `Down`, and that
+packet takes a live session Down.
 
 <!-- source: internal/component/bfd/session/fsm.go -- onStateChange -->
 <!-- source: internal/component/bfd/session/timers.go -- CheckDetection -->
+<!-- source: internal/component/bfd/session/timers.go -- rescheduleTxLocked -->
+<!-- source: internal/component/bfd/session/timers.go -- revertEchoSlowdownLocked -->
+<!-- source: internal/component/bfd/session/timers.go -- pollSequenceIdle, ApplyEchoSlowdown, rescheduleEchoLocked -->
+<!-- source: internal/component/bfd/session/timers.go -- transmitPermitted -->
+<!-- source: internal/component/bfd/session/fsm.go -- Receive -->
 
 ### Memory lifecycle
 

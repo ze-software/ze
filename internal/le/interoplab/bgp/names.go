@@ -26,11 +26,10 @@ const (
 // of peerGoBGP and names a different thing: the client binary, not the
 // container it runs in.
 const (
-	cmdVtysh    = "vtysh"
-	cmdBirdc    = "birdc"
-	cmdGoBGP    = "gobgp"
-	cmdCat      = "cat"
-	cmdIptables = "iptables"
+	cmdVtysh = "vtysh"
+	cmdBirdc = "birdc"
+	cmdGoBGP = "gobgp"
+	cmdCat   = "cat"
 	// leBinary is the entrypoint of a harness peer, and leTestWord the first
 	// word of its command: every harness command answers as `le test <name>`.
 	leBinary   = linuxle.Name
@@ -107,8 +106,9 @@ const (
 	linkDown           = "down"
 )
 
-// nft(8) words. The GTSM scenario counts a rejected segment with them, and the
-// flowspec scenario reads the ruleset ze lowered.
+// nft(8) words. The GTSM scenario counts a rejected segment with them, the
+// flowspec scenario reads the ruleset ze lowered, and the BFD scenario drops
+// ze's BFD Control traffic.
 const (
 	cmdNft           = "nft"
 	nftActionAdd     = "add"
@@ -121,13 +121,13 @@ const (
 	nftObjectTable   = "table"
 )
 
-// iptables words. The BFD failover scenario drops the BFD control port with
-// them.
+// The BFD failover scenario drops ze's inbound BFD Control packets (RFC 5881
+// Section 4, UDP destination port 3784) in this nft table of ze's container.
 const (
-	iptablesChainOutput         = "OUTPUT"
-	iptablesDestinationPortFlag = "--dport"
-	iptablesProtocolUDP         = "udp"
-	iptablesTargetDrop          = "DROP"
+	bfdLabTable    = "bfdlab"
+	bfdLabChain    = "input"
+	bfdControlPort = "3784"
+	nftProtocolUDP = "udp"
 )
 
 // Docker arguments.
@@ -171,7 +171,21 @@ const (
 	gobgpLabAddress    = "172.30.0.5"
 	pmacctLabAddress   = "172.30.0.13"
 	vrrpVirtualAddress = "172.30.0.100"
+	// vrrpOwnerAddress is both a real address of ze's eth0 and the virtual
+	// address of its VRRPv2 group, which makes ze the address owner. It sits
+	// above keepalived's source on purpose: see the scenario's ze.conf.
+	vrrpOwnerAddress = "172.30.0.60"
 )
+
+// vrrpOwnerVirtualInterfaceAddress is the owner address as ze installs it on
+// the virtual-MAC interface: a /32. eth0 carries the same address as a /24, so
+// this spelling is present only while ze is Master.
+const vrrpOwnerVirtualInterfaceAddress = vrrpOwnerAddress + "/32"
+
+// vrrpOwnerDiscardField is the packet-errors key `show vrrp statistics` counts
+// a VRRPv2 advertisement under when the address owner discards it
+// (packet.ReasonOwner).
+const vrrpOwnerDiscardField = "owner"
 
 // The pmacct BMP collector: the file its msglog writes, and the JSON tokens the
 // RFC 9069 scenario reads out of it.

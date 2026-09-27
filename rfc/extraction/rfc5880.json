@@ -620,8 +620,8 @@
       "id": "6.7.3:5",
       "quote": "The authentication key value is a binary string of up to 16 bytes, and MUST be placed into the Auth Key/Digest field, padded with trailing zero bytes as necessary.",
       "disposition": "mapped",
-      "mapped-to": "RFC5880-6.7.3-2",
-      "reason": "The key placement step of the digest calculation RFC5880-6.7.3-2 states. The digest is taken over a packet that carries the key in the Auth Key/Digest field, so the placement is part of the calculation, not a separate obligation."
+      "mapped-to": "RFC5880-6.7.3-13",
+      "reason": "Its own obligation: the key is at most 16 bytes and is placed into the Auth Key/Digest field padded with trailing zero bytes. It bounds the configured key and fixes the padding, which the whole-packet digest of RFC5880-6.7.3-2 does not state."
     },
     {
       "id": "6.7.3:6",
@@ -746,8 +746,8 @@
       "id": "6.7.4:5",
       "quote": "The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary.",
       "disposition": "mapped",
-      "mapped-to": "RFC5880-6.7.4-2",
-      "reason": "The key placement step of the hash calculation RFC5880-6.7.4-2 states, which is taken over a packet that carries the key in the Auth Key/Hash field."
+      "mapped-to": "RFC5880-6.7.4-7",
+      "reason": "Its own obligation: the key is at most 20 bytes and is placed into the Auth Key/Hash field with trailing zero padding. It bounds the configured key and fixes the padding, which the whole-packet hash of RFC5880-6.7.4-2 does not state."
     },
     {
       "id": "6.7.4:6",

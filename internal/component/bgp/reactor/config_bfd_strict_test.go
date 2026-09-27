@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"maps"
 	"net/netip"
 	"testing"
 
@@ -240,4 +241,50 @@ func TestStrictPeerRequestReachesTheSharedKey(t *testing.T) {
 	named.BFD = &BFDSettings{Enabled: true, Strict: true, Interface: "eth0"}
 	require.Equal(t, want, bfdRequestFor(named).Canonical(api.Topology{Links: links}).Key(),
 		"naming the interface and the local address must not build a second key")
+}
+
+// TestBFDRequestCarriesThePeerProfile checks the reactor half of profile
+// resolution: the name the operator wrote under `connection bfd { profile }`
+// reaches the BFD plugin, which resolves it into timers in EnsureSession. The
+// request carried no name before, so the peer's profile was dropped and the
+// session ran at the slow-start one second.
+func TestBFDRequestCarriesThePeerProfile(t *testing.T) {
+	named := NewPeerSettings(netip.MustParseAddr("172.30.0.3"), 65001, 65002, 1)
+	named.BFD = &BFDSettings{Enabled: true, Profile: "fast"}
+	require.Equal(t, "fast", bfdRequestFor(named).Profile)
+
+	bare := NewPeerSettings(netip.MustParseAddr("172.30.0.3"), 65001, 65002, 1)
+	bare.BFD = &BFDSettings{Enabled: true}
+	require.Empty(t, bfdRequestFor(bare).Profile, "a peer that names no profile asks for none")
+}
+
+// VALIDATES: the coarse BGP apply a bfd-only edit produces leaves an unchanged
+// peer in place. Method: reconcile a tree whose peer names bfd profile fast,
+// then reconcile the same bgp tree again, which is what the BGP plugin's
+// OnConfigApply does (register.go, ReconcilePeersWithJournal over the verified
+// bgp section) when only the bfd root it reads changed. The second reconcile
+// must record no operation, and the reactor must still hold the same *Peer, so
+// its session is never stopped and restarted.
+// PREVENTS: a bfd profile edit bouncing every BGP session. bgp owns no
+// operation in that transaction, so it receives its coarse section apply with
+// the bfd root (docs/architecture/config/transaction-protocol.md, read roots).
+func TestBFDOnlyEditCoarseApplyKeepsUnchangedPeers(t *testing.T) {
+	r := New(&Config{})
+	peerBFD := func() map[string]any {
+		return map[string]any{"enabled": "true", "mode": "single-hop", "profile": "fast"}
+	}
+
+	boot := &testJournal{}
+	require.NoError(t, r.ReconcilePeersWithJournal(bfdStrictTree(peerBFD()), boot))
+	require.NotZero(t, boot.recordCount, "boot must add the peer")
+	before := maps.Clone(r.peers)
+	require.Len(t, before, 1)
+
+	bfdOnly := &testJournal{}
+	require.NoError(t, r.ReconcilePeersWithJournal(bfdStrictTree(peerBFD()), bfdOnly))
+	require.Zero(t, bfdOnly.recordCount, "an unchanged bgp tree must reconcile to no operation")
+	require.Len(t, r.peers, 1)
+	for key, peer := range before {
+		require.Same(t, peer, r.peers[key], "an unchanged peer must not be replaced (session bounce)")
+	}
 }

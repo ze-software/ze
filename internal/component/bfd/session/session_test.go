@@ -59,6 +59,13 @@ func (r *stateRecorder) notify(s packet.State, d packet.Diag) {
 	r.transitions = append(r.transitions, transition{s, d})
 }
 
+// peerLearnedDiscr is the Your Discriminator of a peer packet whose State is
+// Init or Up: that peer has heard the local session, so the field is nonzero,
+// and RFC 5880 Section 6.8.6 discards such a packet when it carries zero.
+// Receive does not compare it with bfd.LocalDiscr; the engine's session lookup
+// does, so any nonzero value stands for it here.
+const peerLearnedDiscr uint32 = 0xCAFEBABE
+
 // recv builds a synthetic peer Control packet. Tests pretend the peer's
 // MyDiscriminator is always 1; yourDisc is whatever the local session is
 // expected to recognize (0 during the first packet, the local discriminator
@@ -74,6 +81,27 @@ func recv(state packet.State, yourDisc uint32) packet.Control {
 		DesiredMinTxInterval:      300_000,
 		RequiredMinRxInterval:     300_000,
 		RequiredMinEchoRxInterval: 0,
+	}
+}
+
+// settlePoll ends the outstanding Poll Sequence the way the peer does: a
+// packet with the Final bit set, then a periodic packet with it clear, which
+// RFC 5880 Section 6.8.3 choice 3 requires before another Poll Sequence may
+// start. Both packets repeat the peer's current values, so nothing else moves.
+func settlePoll(t *testing.T, m *Machine) {
+	t.Helper()
+	c := recv(packet.StateUp, m.vars.LocalDiscr)
+	c.DesiredMinTxInterval = m.vars.RemoteDesiredMinTx
+	c.RequiredMinRxInterval = m.vars.RemoteMinRxInterval
+	c.RequiredMinEchoRxInterval = m.vars.RemoteMinEchoRxInterval
+	for _, final := range []bool{true, false} {
+		c.Final = final
+		if err := m.Receive(c); err != nil {
+			t.Fatalf("settlePoll Receive (F=%v): %v", final, err)
+		}
+	}
+	if m.PollOutstanding() {
+		t.Fatal("settlePoll: a Poll is still outstanding")
 	}
 }
 
@@ -130,8 +158,10 @@ func TestTransitionTable(t *testing.T) {
 			// Force the local FSM into the desired starting state.
 			m.vars.SessionState = c.from
 			pkt := recv(c.recv, m.vars.LocalDiscr)
-			if c.from == packet.StateDown {
-				// Down accepts YourDisc=0 to avoid the reset rule.
+			if c.recv == packet.StateDown || c.recv == packet.StateAdminDown {
+				// A peer that is Down or AdminDown may not know the local
+				// discriminator: the reset rule admits Your Discriminator 0
+				// in exactly those packets.
 				pkt.YourDiscriminator = 0
 			}
 			if err := m.Receive(pkt); err != nil {
@@ -145,8 +175,8 @@ func TestTransitionTable(t *testing.T) {
 	}
 }
 
-// VALIDATES: a packet with YourDiscriminator=0 is rejected when the local
-// session is not in Down/AdminDown.
+// VALIDATES: a packet with YourDiscriminator=0 is rejected when its State
+// field is not Down or AdminDown.
 // PREVENTS: the trivial reset attack described in RFC 5880 Section 6.8.6.
 func TestReceiveZeroYourDiscRejected(t *testing.T) {
 	clk := newFakeClock()
@@ -369,7 +399,7 @@ func TestEchoSlowdown(t *testing.T) {
 	m.Init(req, 0xCAFEBABE, clk, func(packet.State, packet.Diag) {})
 
 	// Drive the machine to Up so the slow-down can apply.
-	echoRecv := recv(packet.StateInit, 0)
+	echoRecv := recv(packet.StateInit, peerLearnedDiscr)
 	echoRecv.RequiredMinEchoRxInterval = 50_000
 	if err := m.Receive(echoRecv); err != nil {
 		t.Fatalf("Receive Init: %v", err)
@@ -387,7 +417,8 @@ func TestEchoSlowdown(t *testing.T) {
 			m.vars.DesiredMinEchoTxInterval, m.vars.RemoteMinEchoRxInterval)
 	}
 
-	// Apply: both intervals rise to 1 s.
+	// Apply: both intervals rise to 1 s, once the Up Poll has settled.
+	settlePoll(t, m)
 	m.ApplyEchoSlowdown()
 	if m.vars.DesiredMinTxInterval < EchoSlowdownIntervalUs {
 		t.Fatalf("DesiredMinTxInterval %d < %d after ApplyEchoSlowdown",

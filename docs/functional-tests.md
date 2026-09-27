@@ -1200,7 +1200,26 @@ inside Skew_Time when Ze is sent SIGTERM (which is Ze's RFC 9568 Section 6.4.3
 Priority 0 advertisement being accepted, not a timeout), and Ze preempts and
 takes it back. Before it existed, VRRP had 150 unit tags and no executed interop.
 
+`vrrp-v2-owner-keepalived` covers the VRRPv2 address owner. Ze owns the run's
+`.60` address (a real eth0 address and the group's only virtual address), and
+keepalived claims the same VRID and address at priority 255 over unicast from
+`.8`. keepalived is unicast so that it never hears Ze: keepalived 2.3.1 lowers
+itself to 254 when a second owner advertises to it. RFC 3768 Section 7.1 has the
+owner discard every advertisement, and without the discard keepalived's equal
+priority from a greater address demotes Ze. The scenario requires the `/32` on
+Ze's virtual-MAC interface, keepalived holding the address, the same `/32`
+still there eight seconds later, and at least three `owner` entries under
+`packet-errors` in `show vrrp statistics`. With the discard removed, Ze never
+keeps the `/32` and assertion 1 fails. The owned `.60` sits above keepalived's
+`.8` and Ze sends from `.2`, so the discard-removed run is red only while the
+tie-break compares the sender with the address Ze sends from; a tie-break
+against the first virtual address would keep Ze Master and hide the missing
+discard. The scenario's QEMU path is `v2-owner-keeps-the-address` under
+`./le test qemu vrrp-keepalived-test`, with the same assertions on the runtime
+kernel (`docs/architecture/testing/qemu-integration.md`).
+
 <!-- source: internal/le/interoplab/bgp/checkers.go -- vrrp-mastership-keepalived -->
+<!-- source: internal/le/test/qemu/vrrp_owner_linux.go -- runOwnerKeepsTheAddress -->
 
 **Positive tests** (expect success):
 ```

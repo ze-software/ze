@@ -1,0 +1,121 @@
+# Test: a BGP edit is accepted while a peer names a defined bfd profile
+#
+# VALIDATES: a SIGHUP that adds an unrelated peer is accepted: BGP checks peer1's profile against the bfd section the reload delivers whole.
+# PREVENTS: BGP verifying peer1's profile against an empty bfd section, so every bgp edit is refused while any peer names a profile.
+#
+# Method: ze starts on the first config, the trigger fixture copies the second
+# over it and sends SIGHUP once the daemon is ready, and the daemon's own
+# reload outcome line is asserted. The server delivers a plugin that reads the
+# bfd root (registry ConfigReads) every root it holds, whole, when any of them
+# changed (plugin/server reloadConfigSections).
+
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile fast
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=next.conf:terminator=EOF_NEXT
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile fast
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+	peer peer2 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.253
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_NEXT
+
+cmd=background:seq=1:exec=le test fixture reload/bgp-bfd-profile-reload-accepted-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=sighup reload complete:then=stop
+reject=stderr:contains=reload error
+reject=stderr:contains=has no bfd section

@@ -442,7 +442,7 @@ func newUDPTransport6(mode api.HopMode, vrf, device string) *transport.UDP {
 
 // newEchoTransport allocates an IPv4 UDP transport bound to the
 // RFC 5881 echo port (3785). Single-hop loops only; the plugin
-// config parser rejects multi-hop echo per RFC 5883 Section 4.
+// config refuses multi-hop echo per RFC 5883 Section 3 (profileConfig.permitsMode).
 // The transport is always created for single-hop loops so a
 // reload that enables echo on an existing session can begin
 // transmitting without a socket-level change.
@@ -523,6 +523,13 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	// through this method, so Canonical here is what makes the OSPF request
 	// and the BGP request for one neighbor land on one key, and so on one
 	// session (api/session_identity.go).
+	// A protocol client names a profile and carries no timers (BGP's
+	// `connection bfd { profile ... }`, a static route's next-hop), so the
+	// profile is resolved here, the one place every client passes through.
+	req, err := resolveProfile(req, s.state.cfg.profiles)
+	if err != nil {
+		return nil, err
+	}
 	normalized := req.Canonical(topologyFor(req, connectedLinks()))
 	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
 	loop, err := s.state.loopFor(lk, loopDeviceFor(normalized))

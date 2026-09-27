@@ -298,7 +298,7 @@ RFC 5880 §6.5 and §6.8.2 define how timer parameters change on a session that 
 
 Until the F bit arrives, the local end keeps sending with P=1 and continues using the **old** intervals for its own detection time, so a brief inconsistency does not cause a tear-down.
 
-A Poll sequence applies to any parameter change: a new DesiredMinTx, a new RequiredMinRx, a new DetectMult. Only one Poll can be in flight at a time; if a new change arrives while a Poll is outstanding, queue it until F arrives, then start a second Poll.
+A Poll sequence applies to any parameter change: a new DesiredMinTx, a new RequiredMinRx, a new DetectMult. Only one Poll can be in flight at a time; if a new change arrives while a Poll is outstanding, queue it until F arrives and then until a further packet with F clear arrives (RFC 5880 §6.8.3, choice 3), then start a second Poll. Ze does this for the echo slow-down and its revert.
 
 ### Starting Out
 
@@ -310,7 +310,7 @@ When a session first goes Up (Init → Up or Down → Up), the local end typical
 
 ### Echo Mode (RFC 5880 §6.4)
 
-**Prerequisites.** Echo mode is available only if both ends support it and the far end advertises a non-zero `RequiredMinEchoRX`. It is further restricted to single-hop sessions (RFC 5883 §4 prohibits multi-hop echo).
+**Prerequisites.** Echo mode is available only if both ends support it and the far end advertises a non-zero `RequiredMinEchoRX`. It is further restricted to single-hop sessions (RFC 5883 §3 prohibits multi-hop echo).
 
 **Operation.** When echo is active on a session:
 

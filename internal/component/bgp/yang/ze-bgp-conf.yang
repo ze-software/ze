@@ -631,8 +631,12 @@ module ze-bgp-conf {
 
                 leaf profile {
                     type string;
-                    description "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An
-                        empty value selects the BFD plugin defaults.";
+                    description "The referenced profile supplies the session's detect-multiplier, desired-min-tx-us,
+                        required-min-rx-us, passive role, authentication and echo interval, and replaces whatever the peer
+                        would otherwise use. The running daemon refuses to start, and refuses a commit or a SIGHUP reload, when the profile is not
+                        defined, when it sets passive on a single-hop peer (RFC 5881 Section 3), or when it enables echo on a
+                        multi-hop peer (RFC 5883 Section 3). ze config validate does not run this check. An empty value
+                        selects the BFD plugin defaults.";
                     ze:help "Name of a profile defined under the top-level bfd { profile ... } block.";
                 }
 

@@ -29,30 +29,41 @@ type reloadSignalPlan struct {
 // work directory, so the relative name is the same file for both.
 const peerEstablishedFile = "established"
 
+// bfdProfileReloadNext is the tmpfs file the bfd-profile reload tests stage
+// as the config their trigger copies over the running one.
+const bfdProfileReloadNext = "next.conf"
+
 func init() {
 	for name, plan := range map[string]reloadSignalPlan{
-		"reload/config-apply-ordering-coarse-root-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/config-apply-ordering-create-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/config-apply-ordering-mixed-rollback-trigger": {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
-		"reload/reload-add-bgp-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/reload-add-peer-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
-		"reload/reload-plugin-only-no-change-trigger":         {hups: 1, requireReady: true},
-		"reload/tx-bgp-rollback-trigger":                      {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-apply-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-bgp-chain-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-create-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-modify-key-trigger":           {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-tunnel-remove-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-apply-trigger":             {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-modify-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-iface-wireguard-remove-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-protocol-exclusion-trigger":                {source: fileConfig2Conf, destination: fileBGPConf, hups: 2, requireReady: true},
-		"reload/tx-protocol-external-plugin-trigger":          {source: "updated.conf", destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-protocol-rollback-trigger":                 {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/tx-protocol-sighup-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/pki-reference-reload-trigger":                 {source: "addref.conf", destination: "hub.conf", hups: 1},
-		"reload/pki-reference-reload-broken-trigger":          {source: "broken.conf", destination: "hub.conf", hups: 1},
+		"reload/config-apply-ordering-coarse-root-trigger":       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/config-apply-ordering-create-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/config-apply-ordering-mixed-rollback-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
+		"reload/reload-add-bgp-trigger":                          {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/reload-add-peer-trigger":                         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/reload-dynamic-peer-survives-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
+		"reload/reload-plugin-only-no-change-trigger":            {hups: 1, requireReady: true},
+		"reload/tx-bgp-rollback-trigger":                         {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-apply-trigger":                          {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-bgp-chain-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-create-trigger":                  {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-modify-key-trigger":              {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-tunnel-remove-trigger":                  {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-apply-trigger":                {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-modify-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-iface-wireguard-remove-trigger":               {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-protocol-exclusion-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 2, requireReady: true},
+		"reload/tx-protocol-external-plugin-trigger":             {source: "updated.conf", destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-protocol-rollback-trigger":                    {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/tx-protocol-sighup-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/pki-reference-reload-trigger":                    {source: "addref.conf", destination: "hub.conf", hups: 1},
+		"reload/pki-reference-reload-broken-trigger":             {source: "broken.conf", destination: "hub.conf", hups: 1},
+		"reload/bgp-bfd-profile-reload-accepted-trigger":         {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/bgp-bfd-profile-reload-deleted-trigger":          {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/bgp-bfd-profile-reload-passive-trigger":          {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/bgp-bfd-profile-reload-peer-and-profile-trigger": {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/static-bfd-profile-reload-accepted-trigger":      {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/static-bfd-profile-reload-deleted-trigger":       {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
+		"reload/static-bfd-profile-reload-passive-trigger":       {source: bfdProfileReloadNext, destination: fileBGPConf, hups: 1, requireReady: true},
 	} {
 		Register(name, reloadSignalDriver(plan))
 	}

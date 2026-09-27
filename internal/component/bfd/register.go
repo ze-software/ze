@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/bfd/api"
 	bfdyang "github.com/ze-software/ze/internal/component/bfd/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -16,10 +17,14 @@ import (
 // different things: a rename of one does not rename the other.
 const (
 	pluginName = "bfd"
-	configRoot = "bfd"
+	configRoot = api.ConfigRoot
 )
 
 func init() {
+	// A BGP peer or a static next-hop that names a profile asks this at
+	// commit (api.CheckProfile), so a typo is refused where it was typed.
+	api.SetProfileChecker(checkClientProfile)
+
 	reg := registry.Registration{
 		Name:                    pluginName,
 		Description:             "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",

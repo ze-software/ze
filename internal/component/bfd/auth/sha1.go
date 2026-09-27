@@ -140,7 +140,8 @@ func newDigestVerifier(cfg Settings, bodyLen int, digest digestFunc, meticulous 
 func (v *digestVerifier) AuthType() uint8 { return v.authType }
 
 // Verify runs the RFC 5880 §6.8.6 reception check: length, key-id,
-// replay-protection, constant-time digest compare. data MUST span at
+// replay-protection (seeding bfd.RcvAuthSeq from the first packet),
+// constant-time digest compare. data MUST span at
 // least c.Length bytes; shorter input returns ErrShortAuthBody.
 func (v *digestVerifier) Verify(data []byte, c packet.Control, seqState *SeqState) error {
 	expectedLen := packet.MandatoryLen + v.bodyLen
@@ -166,8 +167,19 @@ func (v *digestVerifier) Verify(data []byte, c packet.Control, seqState *SeqStat
 		return ErrDigestMismatch
 	}
 	seq := binary.BigEndian.Uint32(data[off+4:])
-	if err := seqState.Check(seq, v.meticulous); err != nil {
+	// RFC 5880 Section 6.7.3, Section 6.7.4.
+	if err := seqState.Check(seq, v.meticulous, c.DetectMult); err != nil {
 		return err
+	}
+	// RFC 5880 Section 6.7.3: "Otherwise (bfd.AuthSeqKnown is 0),
+	// bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to
+	// the value of the received Sequence Number field."
+	// Section 6.7.4 states the same for SHA1. The step precedes the digest
+	// comparison, in the order the RFC lists them (owner decision D-14,
+	// 2026-09-27), so a first packet that then fails the digest has still
+	// set the floor.
+	if !seqState.Initialized() {
+		seqState.Advance(seq)
 	}
 	// Reuse the pre-allocated per-verifier scratch. v.received is sized
 	// bodyLen-8 (the digest length, fixed by algorithm) and v.scratch is
@@ -182,7 +194,7 @@ func (v *digestVerifier) Verify(data []byte, c packet.Control, seqState *SeqStat
 	if subtle.ConstantTimeCompare(h, v.received) != 1 {
 		return ErrDigestMismatch
 	}
-	seqState.Advance(seq, v.meticulous)
+	seqState.Advance(seq)
 	return nil
 }
 

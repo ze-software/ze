@@ -28,10 +28,12 @@ var (
 	ErrUnsupportedType = errors.New("bfd auth: unsupported auth type")
 
 	// ErrKeyLengthInvalid is returned when the provided secret is
-	// outside the range the selected Auth Type accepts. Only Simple
-	// Password has such a range (1 to 16 bytes, RFC 5880 Section
-	// 6.7.2); the keyed digests pad or truncate any secret to their
-	// fixed key slot.
+	// outside the range the selected Auth Type accepts: 1 to 16 bytes
+	// for Simple Password (RFC 5880 Section 6.7.2), up to 16 bytes for
+	// the MD5 types (Section 6.7.3) and up to 20 for the SHA1 types
+	// (Section 6.7.4). A longer keyed secret has no slot to go in, and
+	// truncating it would authenticate with a key the operator never
+	// configured.
 	ErrKeyLengthInvalid = errors.New("bfd auth: invalid key length")
 
 	// ErrDigestMismatch is returned by Verifier.Verify when the
@@ -39,11 +41,12 @@ var (
 	// the received Key ID does not match the configured one.
 	ErrDigestMismatch = errors.New("bfd auth: digest mismatch")
 
-	// ErrSequenceRegress is returned when a received packet carries
-	// a sequence number below the replay floor. RFC 5880 Section 6.8.1
-	// ("RcvAuthSeq") defines the floor per the Meticulous vs
-	// non-Meticulous rules.
-	ErrSequenceRegress = errors.New("bfd auth: sequence regress")
+	// ErrSequenceOutsideWindow is returned when a received packet
+	// carries a sequence number outside the replay window that RFC 5880
+	// Sections 6.7.3 and 6.7.4 open above bfd.RcvAuthSeq: behind it,
+	// equal to it for the Meticulous types, or more than 3 * Detect Mult
+	// ahead of it.
+	ErrSequenceOutsideWindow = errors.New("bfd auth: sequence number outside the replay window")
 
 	// ErrShortAuthBody is returned when the auth section body is
 	// shorter than the layout expected for the configured Auth Type.
@@ -109,7 +112,7 @@ type Verifier interface {
 	// is advanced according to the Meticulous rules.
 	//
 	// Returns nil on success, ErrDigestMismatch on bad digest or
-	// wrong key-id, ErrSequenceRegress on replay, and
+	// wrong key-id, ErrSequenceOutsideWindow on replay, and
 	// ErrShortAuthBody on a truncated section.
 	Verify(data []byte, c packet.Control, seqState *SeqState) error
 }
@@ -119,8 +122,16 @@ type Verifier interface {
 func NewSigner(cfg Settings) (Signer, error) {
 	switch cfg.Type {
 	case packet.AuthTypeKeyedSHA1, packet.AuthTypeMeticulousKeyedSHA1:
+		// RFC 5880 Section 6.7.4.
+		if len(cfg.Secret) > packet.KeyedSHA1KeyLenMax {
+			return nil, ErrKeyLengthInvalid
+		}
 		return newSHA1Signer(cfg), nil
 	case packet.AuthTypeKeyedMD5, packet.AuthTypeMeticulousKeyedMD5:
+		// RFC 5880 Section 6.7.3.
+		if len(cfg.Secret) > packet.KeyedMD5KeyLenMax {
+			return nil, ErrKeyLengthInvalid
+		}
 		return newMD5Signer(cfg), nil
 	case packet.AuthTypeSimplePassword:
 		if !simplePasswordLenValid(len(cfg.Secret)) {
@@ -136,8 +147,16 @@ func NewSigner(cfg Settings) (Signer, error) {
 func NewVerifier(cfg Settings) (Verifier, error) {
 	switch cfg.Type {
 	case packet.AuthTypeKeyedSHA1, packet.AuthTypeMeticulousKeyedSHA1:
+		// RFC 5880 Section 6.7.4.
+		if len(cfg.Secret) > packet.KeyedSHA1KeyLenMax {
+			return nil, ErrKeyLengthInvalid
+		}
 		return newSHA1Verifier(cfg), nil
 	case packet.AuthTypeKeyedMD5, packet.AuthTypeMeticulousKeyedMD5:
+		// RFC 5880 Section 6.7.3.
+		if len(cfg.Secret) > packet.KeyedMD5KeyLenMax {
+			return nil, ErrKeyLengthInvalid
+		}
 		return newMD5Verifier(cfg), nil
 	case packet.AuthTypeSimplePassword:
 		if !simplePasswordLenValid(len(cfg.Secret)) {

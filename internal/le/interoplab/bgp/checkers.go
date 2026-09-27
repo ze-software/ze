@@ -920,6 +920,19 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpVirtualAddress}, timeout: 40 * time.Second},
 		{kind: opRequireAbsent, peer: peerKeepalived, command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, absent: []string{vrrpVirtualAddress}, proof: []string{containerInterface}},
 	},
+	// RFC 3768 Section 7.1: the VRRPv2 address owner discards every
+	// advertisement. keepalived claims ze's owned address at priority 255 from
+	// a greater source address, which demotes a router that processes it.
+	// keepalived holding the address shows it runs as Master and advertises.
+	// The owner counter shows its advertisements reached ze. The /32 on ze's
+	// virtual-MAC interface, still present after several advertisement
+	// intervals, shows ze stayed Master.
+	"vrrp-v2-owner-keepalived": {
+		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpOwnerVirtualInterfaceAddress}, timeout: 40 * time.Second},
+		{kind: opWaitContains, peer: peerKeepalived, command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpOwnerAddress}, timeout: 20 * time.Second},
+		{kind: opDelayRequireContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpOwnerVirtualInterfaceAddress}, delay: 8 * time.Second},
+		{kind: opRequireJSONFields, peer: "ze", command: zeCommand("show vrrp statistics"), minimum: map[string]int{vrrpOwnerDiscardField: 3}},
+	},
 }
 
 // ospfIPsecPeerSetup keys FRR's kernel for the ospf-ipsec scenarios, which is what

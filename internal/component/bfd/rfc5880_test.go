@@ -25,7 +25,7 @@ func rfc5880AuthFields(typeStr, keyID, secret string) map[string]any {
 
 // RFC requirement: RFC5880-6.7.3-7 positive -- the MD5 key management
 // interface accepts ASCII strings. parseAuthConfig
-// (internal/component/bfd/config.go:297-306) reads the `secret` leaf as a
+// (internal/component/bfd/config.go) reads the `secret` leaf as a
 // string and stores []byte(secret) verbatim, so the operator's ASCII key
 // reaches the signer unchanged.
 // RFC requirement: RFC5880-6.7.4-5 positive -- the same leaf and the same
@@ -41,7 +41,7 @@ func TestRFC5880KeyManagementAcceptsASCIIStrings(t *testing.T) {
 		{"keyed-sha1", packet.AuthTypeKeyedSHA1},
 		{"meticulous-keyed-sha1", packet.AuthTypeMeticulousKeyedSHA1},
 	}
-	const secret = "Correct Horse Battery Staple 42!"
+	const secret = "Horse Staple 42!"
 	for _, tt := range cases {
 		t.Run(tt.enum, func(t *testing.T) {
 			ac, err := parseAuthConfig("p", rfc5880AuthFields(tt.enum, "7", secret))

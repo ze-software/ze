@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc5881",
+  "records": [
+    {
+      "rid": "RFC5881-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/enabled_test.go::TestRFC5881ClientMultiHopPassiveProfileAccepted",
+      "unit-sha": "68ae703a590c0915",
+      "claim-sha": "58a1c11e183d2b8b",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::permitsMode",
+      "producer-sha": "48dd0409b4f1c92c",
+      "break": "body of permitsMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/enabled_test.go::TestRFC5881ClientSingleHopPassiveProfileRefused",
+      "unit-sha": "06eb168cc28a2666",
+      "claim-sha": "8c55ebbe8f48508b",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::permitsMode",
+      "producer-sha": "48dd0409b4f1c92c",
+      "break": "body of permitsMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopActiveProfileAccepted",
+      "unit-sha": "6a03b635eed9bbbd",
+      "claim-sha": "13625d09ad833b67",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::validate",
+      "producer-sha": "37c227c96756fd4b",
+      "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5881-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopPassiveProfileRejected",
+      "unit-sha": "b1d3a3368501cd8f",
+      "claim-sha": "ffa51a526617d100",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::validate",
+      "producer-sha": "37c227c96756fd4b",
+      "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

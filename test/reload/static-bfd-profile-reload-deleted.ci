@@ -1,0 +1,71 @@
+# Test: a bfd-only edit that deletes a profile a static next-hop names is refused
+#
+# VALIDATES: a SIGHUP whose only change deletes profile fast is refused by static, because the bfd change makes static a participant.
+# PREVENTS: a bfd-only change reaching only the bfd plugin, so the commit accepts a profile a next-hop still names.
+#
+# Method: ze starts on the first config, the trigger fixture copies the second
+# over it and sends SIGHUP once the daemon is ready, and the daemon's own
+# reload outcome line is asserted. The server delivers a plugin that reads the
+# bfd root (registry ConfigReads) every root it holds, whole, when any of them
+# changed (plugin/server reloadConfigSections).
+
+# static loads the interface plugin, which needs a Linux backend, as every
+# test under test/static does.
+option=needs-linux:caps=net-admin
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fast
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=next.conf:terminator=EOF_NEXT
+bfd {
+	enabled true
+	profile slow {
+		detect-multiplier 5
+	}
+}
+
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fast
+				}
+			}
+		}
+	}
+}
+EOF_NEXT
+
+cmd=background:seq=1:exec=le test fixture reload/static-bfd-profile-reload-deleted-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+# Stop once the refused reload has reported, never after a timer.
+await=stderr:contains=reload error:then=stop
+# The refusal names the plugin that verified, so another plugin's check cannot
+# stand in for this one.
+expect=stderr:contains=plugin static verify failed: static route
+expect=stderr:contains=is not defined under bfd
+reject=stderr:contains=sighup reload complete

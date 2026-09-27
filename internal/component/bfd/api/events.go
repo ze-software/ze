@@ -112,8 +112,10 @@ type SessionRequest struct {
 	Passive bool
 
 	// Profile is the optional name of the YANG profile this request was
-	// derived from. The engine does not consult it but exposes it through
-	// Snapshot so operators see which profile a session inherits.
+	// derived from. The BFD plugin's EnsureSession resolves it, overwriting
+	// the timers, Passive, Auth and the echo interval with the profile's,
+	// and refuses a name its config does not define. The engine exposes it
+	// through Snapshot so operators see which profile a session inherits.
 	Profile string
 
 	// Auth is the RFC 5880 Section 6.7 authentication configuration
@@ -134,9 +136,9 @@ type SessionRequest struct {
 
 	// DesiredMinEchoTxInterval requests RFC 5880 Section 6.4 Echo
 	// mode at this rate (microseconds). Zero means echo is
-	// disabled. Only valid on single-hop sessions; the config
-	// parser rejects echo on multi-hop sessions because RFC 5883
-	// Section 4 prohibits multi-hop echo.
+	// disabled. Only valid on single-hop sessions; the bfd plugin
+	// refuses echo on multi-hop sessions, configured or client-named,
+	// because RFC 5883 Section 3 prohibits multi-hop echo.
 	DesiredMinEchoTxInterval uint32
 }
 

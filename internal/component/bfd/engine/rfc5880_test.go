@@ -24,7 +24,7 @@ import (
 
 // rfc5880Secret is the shared authentication key used by the engine-level
 // authentication tests.
-var rfc5880Secret = []byte("rfc5880-engine-key")
+var rfc5880Secret = []byte("rfc5880-engine")
 
 // rfc5880Inbound builds a wire-encoded single-hop Control packet wrapped in a
 // transport.Inbound. mut lets a test set the flags or intervals it cares
@@ -651,5 +651,206 @@ func TestRFC5880UnknownEchoDropped(t *testing.T) {
 
 	if hook.rxs.Load() != 0 {
 		t.Fatalf("an echo matching no session was delivered: OnEchoRx fired %d times", hook.rxs.Load())
+	}
+}
+
+// rfc5880EchoTick runs one echo scheduler pass at now under the loop lock, the
+// way the express loop does.
+func rfc5880EchoTick(l *Loop, now time.Time) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.echoTickLocked(now)
+}
+
+// rfc5880PeerUp delivers a Control packet from the peer declaring Up. final
+// sets the F bit, and echoRxUs is the Required Min Echo RX Interval it
+// advertises.
+func rfc5880PeerUp(l *Loop, key api.Key, yd uint32, final bool, echoRxUs uint32) {
+	l.handleInbound(rfc5880Inbound(key.Peer, key.Local, key.Interface, yd, func(c *packet.Control) {
+		c.State = packet.StateUp
+		c.Final = final
+		c.RequiredMinEchoRxInterval = echoRxUs
+	}))
+}
+
+// rfc5880ReturnEcho hands the last echo the session sent back to it, as the
+// peer's forwarding plane would, so the echo detection ring stays clear.
+func rfc5880ReturnEcho(l *Loop, key api.Key, echoCT *captureTransport) {
+	l.handleEchoInbound(transport.Inbound{
+		From:      key.Peer,
+		Local:     key.Local,
+		Interface: key.Interface,
+		Mode:      api.SingleHop,
+		TTL:       255,
+		Bytes:     append([]byte(nil), echoCT.last.Bytes...),
+	})
+}
+
+// RFC requirement: RFC5880-6.8.3-6 negative -- a second timer change does not
+// start a Poll Sequence while another is outstanding, nor after its Final until
+// a packet with F clear has arrived (choice 3). rfc5880EchoLoop reaches Up with
+// the Up Poll outstanding, carrying the configured 10 ms intervals.
+// echoTickLocked asks for the echo slow-down on that tick, and ApplyEchoSlowdown
+// (internal/component/bfd/session/timers.go) defers it: both intervals keep the
+// values the Up Poll carries, and still do after the Final that ends it.
+// MUTATION: removing the pollSequenceIdle guard from ApplyEchoSlowdown applies
+// the 1 s slow-down during the Up Poll and this test fails.
+func TestRFC5880EchoSlowdownWaitsForOutstandingPoll(t *testing.T) {
+	l, _, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	if !m.PollOutstanding() {
+		t.Fatal("precondition: the Up Poll must be outstanding")
+	}
+
+	rfc5880EchoTick(l, time.Now())
+	if got := m.DesiredMinTxIntervalUs(); got != 10_000 {
+		t.Fatalf("bfd.DesiredMinTxInterval = %d us while the Up Poll is outstanding, want the 10000 it carries", got)
+	}
+	if got := m.Build().RequiredMinRxInterval; got != 10_000 {
+		t.Fatalf("bfd.RequiredMinRxInterval = %d us while the Up Poll is outstanding, want the 10000 it carries", got)
+	}
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), true, 50_000)
+	if m.PollOutstanding() {
+		t.Fatal("precondition: the Final must end the Up Poll")
+	}
+	rfc5880EchoTick(l, time.Now())
+	if m.PollOutstanding() {
+		t.Fatal("a second Poll Sequence started before a packet with F clear followed the Final")
+	}
+	if got := m.DesiredMinTxIntervalUs(); got != 10_000 {
+		t.Fatalf("bfd.DesiredMinTxInterval = %d us before a packet with F clear, want 10000", got)
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-6 positive -- once the Up Poll has completed
+// and a packet with F clear has followed its Final, the deferred echo slow-down
+// starts its own Poll Sequence, and both of its interval changes ride that one
+// Poll packet (choice 1 within it, choice 3 between the two Polls).
+// MUTATION: dropping the pollSettling reset on a packet with F clear in Receive
+// (internal/component/bfd/session/fsm.go) holds the slow-down back forever and
+// this test fails.
+func TestRFC5880EchoSlowdownPollsAfterSettledPoll(t *testing.T) {
+	l, _, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), true, 50_000)
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 50_000)
+
+	rfc5880EchoTick(l, time.Now())
+	if !m.PollOutstanding() {
+		t.Fatal("the echo slow-down started no Poll Sequence after the Up Poll settled")
+	}
+	c := m.Build()
+	if !c.Poll {
+		t.Fatal("the packet carrying the slow-down does not set P")
+	}
+	if c.DesiredMinTxInterval != 1_000_000 {
+		t.Fatalf("Poll packet Desired Min TX = %d us, want 1000000", c.DesiredMinTxInterval)
+	}
+	if c.RequiredMinRxInterval != 1_000_000 {
+		t.Fatalf("Poll packet Required Min RX = %d us, want 1000000", c.RequiredMinRxInterval)
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-6 negative -- reverting the echo slow-down is
+// a timer change too, and it waits for the slow-down's own Poll the same way.
+// The peer withdraws echo while that Poll is outstanding; ClearEchoSchedule
+// (revertEchoSlowdownLocked in internal/component/bfd/session/timers.go) keeps
+// the 1 s intervals until the Poll has completed and a packet with F clear has
+// followed, and only then restores 10 ms under a new Poll.
+// MUTATION: removing the pollSequenceIdle guard from revertEchoSlowdownLocked
+// restores 10 ms during the slow-down Poll and this test fails.
+func TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll(t *testing.T) {
+	l, _, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), true, 50_000)
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 50_000)
+	rfc5880EchoTick(l, time.Now())
+	if !m.PollOutstanding() || m.DesiredMinTxIntervalUs() != 1_000_000 {
+		t.Fatalf("precondition: slow-down Poll outstanding at 1 s, got poll=%v tx=%d",
+			m.PollOutstanding(), m.DesiredMinTxIntervalUs())
+	}
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 0)
+	rfc5880EchoTick(l, time.Now())
+	if got := m.DesiredMinTxIntervalUs(); got != 1_000_000 {
+		t.Fatalf("bfd.DesiredMinTxInterval = %d us while the slow-down Poll is outstanding, want 1000000", got)
+	}
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), true, 0)
+	rfc5880EchoTick(l, time.Now())
+	if got := m.DesiredMinTxIntervalUs(); got != 1_000_000 {
+		t.Fatalf("bfd.DesiredMinTxInterval = %d us before a packet with F clear, want 1000000", got)
+	}
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 0)
+	rfc5880EchoTick(l, time.Now())
+	if got := m.DesiredMinTxIntervalUs(); got != 10_000 {
+		t.Fatalf("bfd.DesiredMinTxInterval = %d us after the Poll settled, want the configured 10000", got)
+	}
+	if !m.PollOutstanding() {
+		t.Fatal("the revert started no Poll Sequence")
+	}
+}
+
+// RFC requirement: RFC5880-6.8.9-3 positive -- when the peer raises Required
+// Min Echo RX Interval, the next echo waits for the raised value measured from
+// the previous echo. Receive (internal/component/bfd/session/fsm.go) calls
+// rescheduleEchoLocked (timers.go), so the deadline AdvanceEcho set at the old
+// 50 ms moves to 200 ms. The scheduler is driven, not EchoInterval read, so the
+// assertion is on the transmit spacing itself.
+// MUTATION: removing the rescheduleEchoLocked call from Receive sends the next
+// echo 50 ms after the previous one and this test fails.
+func TestRFC5880EchoRaisedPeerFloorDelaysNextEcho(t *testing.T) {
+	l, echoCT, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	t0 := time.Now()
+	rfc5880EchoTick(l, t0)
+	if !echoCT.sent {
+		t.Fatal("precondition: the first echo must leave on the first tick")
+	}
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 200_000)
+	for _, at := range []time.Duration{60 * time.Millisecond, 199 * time.Millisecond} {
+		echoCT.sent = false
+		rfc5880EchoTick(l, t0.Add(at))
+		if echoCT.sent {
+			t.Fatalf("echo sent %v after the previous one, below the peer's 200ms Required Min Echo RX", at)
+		}
+	}
+	echoCT.sent = false
+	rfc5880EchoTick(l, t0.Add(200*time.Millisecond))
+	if !echoCT.sent {
+		t.Fatal("no echo 200ms after the previous one, although the raised floor has passed")
+	}
+}
+
+// RFC requirement: RFC5880-6.8.9-3 negative -- the peer's value bounds the
+// echo spacing from below and does not hold it there: after the peer lowers
+// Required Min Echo RX Interval from 200 ms back to 50 ms, the next echo leaves
+// 50 ms after the previous one rather than at the stale 200 ms. Without this the
+// positive could pass on code that only ever lengthened the spacing.
+// MUTATION: removing the rescheduleEchoLocked call from Receive leaves the
+// deadline at 200 ms and this test fails.
+func TestRFC5880EchoLoweredPeerFloorTakesEffect(t *testing.T) {
+	l, echoCT, key := rfc5880EchoLoop(t)
+	m := machineFor(t, l, key)
+	t0 := time.Now()
+	rfc5880EchoTick(l, t0)
+	rfc5880ReturnEcho(l, key, echoCT)
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 200_000)
+	t1 := t0.Add(200 * time.Millisecond)
+	echoCT.sent = false
+	rfc5880EchoTick(l, t1)
+	if !echoCT.sent {
+		t.Fatal("precondition: an echo must leave 200ms after the first")
+	}
+	rfc5880ReturnEcho(l, key, echoCT)
+
+	rfc5880PeerUp(l, key, m.LocalDiscriminator(), false, 50_000)
+	echoCT.sent = false
+	rfc5880EchoTick(l, t1.Add(50*time.Millisecond))
+	if !echoCT.sent {
+		t.Fatal("no echo 50ms after the previous one although the peer lowered its floor to 50ms")
 	}
 }

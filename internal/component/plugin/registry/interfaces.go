@@ -186,6 +186,9 @@ type BGPReactorHandle interface {
 	AddMessageCallback(cb MessageCallback)
 	// Transaction protocol: verify config and return peer change count for budget estimation.
 	PeerDiffCount(bgpTree map[string]any) (int, error)
+	// VerifyPeerBFDProfiles refuses a peer whose `connection bfd { profile }`
+	// the candidate bfd section (bfdData, empty when absent) cannot serve.
+	VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error
 	// Transaction protocol: apply config with journal wrapping for rollback support.
 	ReconcilePeersWithJournal(bgpTree map[string]any, j ConfigJournal) error
 }

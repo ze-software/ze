@@ -106,6 +106,10 @@ func init() {
 		Features:    "yang",
 		YANG:        staticyang.ZeStaticConfYANG,
 		ConfigRoots: []string{pluginName},
+		// A next-hop's bfd-profile names a profile under the bfd root, so
+		// commit hands static the candidate bfd section to check it against
+		// (checkBFDProfiles). A read never auto-loads static.
+		ConfigReads: []string{bfdapi.ConfigRoot},
 		// The system RIB is where a main-table static route is arbitrated against
 		// every other protocol offering the same prefix, so static cannot run
 		// without it. It is not a data-plane choice: sysrib seeds every
@@ -152,12 +156,48 @@ func init() {
 }
 
 func verifyStaticConfig(sections []sdk.ConfigSection) error {
+	_, _, err := verifyStaticSections(sections, routingtable.GetRegistry())
+	return err
+}
+
+// verifyStaticSections parses the candidate static section and answers the
+// routes it holds, and whether the commit carried a static section at all.
+func verifyStaticSections(sections []sdk.ConfigSection, tables *routingtable.Registry) ([]staticRoute, bool, error) {
 	for _, section := range sections {
 		if section.Root != pluginName {
 			continue
 		}
-		if _, err := parseStaticConfig(section.Data, routingtable.GetRegistry()); err != nil {
-			return err
+		routes, err := parseStaticConfig(section.Data, tables)
+		if err != nil {
+			return nil, true, err
+		}
+		if err := checkBFDProfiles(routes, sections); err != nil {
+			return nil, true, err
+		}
+		return routes, true, nil
+	}
+	return nil, false, nil
+}
+
+// checkBFDProfiles refuses a next-hop whose bfd-profile the candidate bfd
+// section does not define, or defines with a setting a single-hop session may
+// not use. Without it the commit succeeds and the session is refused at start,
+// so the route runs unmonitored with a log line as the only trace.
+func checkBFDProfiles(routes []staticRoute, sections []sdk.ConfigSection) error {
+	var bfdData string
+	for _, section := range sections {
+		if section.Root == bfdapi.ConfigRoot {
+			bfdData = section.Data
+		}
+	}
+	for i := range routes {
+		for _, nh := range routes[i].NextHops {
+			if nh.BFDProfile == "" {
+				continue
+			}
+			if err := bfdapi.CheckProfile(bfdData, nh.BFDProfile, staticBFDMode); err != nil {
+				return fmt.Errorf("static route %s next-hop %s: %w", routes[i].Prefix, nh.Address, err)
+			}
 		}
 	}
 	return nil
@@ -229,28 +269,28 @@ func runStaticPlugin(conn net.Conn) int {
 		// transaction that later aborted cannot be applied by a reload that
 		// carries no static section of its own.
 		pending.reset()
-		for _, section := range sections {
-			if section.Root != pluginName {
-				continue
-			}
-			routes, err := parseStaticConfig(section.Data, routingtable.GetRegistry())
-			if err != nil {
-				return err
-			}
+		routes, found, err := verifyStaticSections(sections, routingtable.GetRegistry())
+		if err != nil {
+			return err
+		}
+		if found {
 			pending.set(routes)
 		}
 		return nil
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != pluginName {
-				continue
-			}
-			routes, err := parseStaticConfig(section.Data, routingtable.GetRegistry())
-			if err != nil {
-				return err
-			}
+		// The startup config gets the same check a commit gets
+		// (verifyStaticSections, which reads the bfd section this plugin is
+		// delivered through ConfigReads). A route naming an undefined bfd
+		// profile therefore cannot boot, rather than boot and then have every
+		// later commit that reaches static refused for a profile the commit
+		// never touched.
+		routes, found, err := verifyStaticSections(sections, routingtable.GetRegistry())
+		if err != nil {
+			return err
+		}
+		if found {
 			mu.Lock()
 			currentRoutes = routes
 			mu.Unlock()
@@ -347,8 +387,12 @@ func runStaticPlugin(conn net.Conn) int {
 		// interface-only next-hop's reference is possible (the payload is
 		// otherwise blind to interface config: BuildPluginConfigSections sends
 		// only declared roots). The verify/configure handlers below still skip
-		// non-"static" sections, so an interface-only reload is a parse + diff
-		// no-op (spec-fixit-static-interface-nexthops C-8/R-10/R-11).
+		// non-"static" sections. Static also reads `bfd` (the registry's
+		// ConfigReads, which the server joins to these roots), so a reload that
+		// changes any of static, interface or bfd delivers all three whole
+		// (server reloadConfigSections): an interface-only reload re-parses the
+		// unchanged static section and applyRoutes diffs it to a no-op
+		// (spec-fixit-static-interface-nexthops C-8/R-10/R-11).
 		WantsConfig:  []string{pluginName, "interface"},
 		VerifyBudget: 1,
 		ApplyBudget:  2,

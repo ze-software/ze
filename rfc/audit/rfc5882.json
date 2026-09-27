@@ -1,5 +1,9 @@
 {
   "audited": "2026-09-26",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC5882-4.2-1": {
       "note": "The sentence forbids a client taking control protocol action on (a) its own session going Up to AdminDown and (b) Up to Down caused by the remote's AdminDown. The tagged units TestRFC5882RemoteAdminDownIsDistinguished and TestRFC5882NeighborDownIsNotRemoteAdminDown (internal/component/bfd/engine/rfc5882_admindown_test.go) assert only what the BFD service PUBLISHES for clause (b) (State Down, RemoteAdminDown true vs false, same Diag); no tagged assertion goes red if a client tears down the BGP/OSPF adjacency on either clause, and clause (a) (local AdminDown) has no tagged assertion at all. The client-side behaviour is asserted by untagged TestBFDClientAdminDownDoesNotTeardown and TestBFDRemoteAdminDownDoesNotTeardown (internal/component/bgp/reactor/peer_bfd_test.go); tagging them would close this.",
@@ -23,7 +27,7 @@
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "1febb5fea3470596",
         "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "1febb5fea3470596",
         "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
-        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "d5b873645ef05522",
+        "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "7309aa741867a1b8",
         "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "4959bdf283761598"
       },
       "units": {

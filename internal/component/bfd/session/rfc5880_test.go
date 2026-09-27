@@ -158,7 +158,7 @@ func TestRFC5880InitVariablesAreNotConstants(t *testing.T) {
 func TestRFC5880RemoteDiscrClearedOnDetectionExpiry(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	if m.State() != packet.StateUp {
@@ -186,7 +186,7 @@ func TestRFC5880RemoteDiscrClearedOnDetectionExpiry(t *testing.T) {
 func TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	learned := m.RemoteDiscriminator()
@@ -234,7 +234,7 @@ func TestRFC5880SlowStartFloorWhileNotUp(t *testing.T) {
 func TestRFC5880SlowStartFloorLiftedWhenUp(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	if m.State() != packet.StateUp {
@@ -288,7 +288,7 @@ func TestRFC5880DetectMultZeroRequestSubstituted(t *testing.T) {
 func TestRFC5880StatePreservedForOneDetectionTime(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	detect := m.DetectionInterval()
@@ -315,7 +315,7 @@ func TestRFC5880StatePreservedForOneDetectionTime(t *testing.T) {
 func TestRFC5880DetectionExpiryDownDiagOne(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	clk.advance(m.DetectionInterval())
@@ -337,7 +337,7 @@ func TestRFC5880DetectionExpiryDownDiagOne(t *testing.T) {
 func TestRFC5880DetectionExpiryIgnoredWhenDown(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	// Force back to Down with a different diagnostic, keeping the armed
@@ -448,7 +448,7 @@ func TestRFC5880PollInitiatedOnIntervalChange(t *testing.T) {
 	if m.PollOutstanding() {
 		t.Fatal("precondition: no Poll should be outstanding at Init")
 	}
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	if m.State() != packet.StateUp {
@@ -483,7 +483,7 @@ func TestRFC5880NoPollWhenIntervalsUnchanged(t *testing.T) {
 	}
 	m := &Machine{}
 	m.Init(req, 0x4242, newFakeClock(), nil)
-	if err := m.Receive(recv(packet.StateInit, 0)); err != nil {
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
 		t.Fatalf("Receive: %v", err)
 	}
 	if m.State() != packet.StateUp {
@@ -697,34 +697,39 @@ func TestRFC5880DemandBitClearWhenAnyConditionFails(t *testing.T) {
 // ---------------------------------------------------------------------
 
 // RFC requirement: RFC5880-6.8.6-8 negative -- a packet whose Your
-// Discriminator is zero MUST be discarded when bfd.SessionState is neither
-// Down nor AdminDown. Receive (internal/component/bfd/session/fsm.go:43-47)
-// returns ErrYourDiscriminatorReset and mutates nothing, which is what blocks
-// the single-packet reset attack.
+// Discriminator is zero MUST be discarded when its own State field is neither
+// Down nor AdminDown, whatever the local bfd.SessionState. Receive
+// (internal/component/bfd/session/fsm.go) tests the received State and
+// returns ErrYourDiscriminatorReset, mutating nothing. The local Down case is
+// the one a gate on bfd.SessionState would let through.
 func TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive(t *testing.T) {
-	for _, st := range []packet.State{packet.StateInit, packet.StateUp} {
-		clk := newFakeClock()
-		m, _ := newMachine(t, clk)
-		m.vars.SessionState = st
-		m.vars.RemoteDiscr = 0x55
+	for _, local := range []packet.State{packet.StateDown, packet.StateInit, packet.StateUp} {
+		for _, sent := range []packet.State{packet.StateInit, packet.StateUp} {
+			clk := newFakeClock()
+			m, _ := newMachine(t, clk)
+			m.vars.SessionState = local
+			m.vars.RemoteDiscr = 0x55
 
-		err := m.Receive(recv(packet.StateDown, 0))
-		if !errors.Is(err, ErrYourDiscriminatorReset) {
-			t.Fatalf("state %v: got err %v, want ErrYourDiscriminatorReset", st, err)
-		}
-		if m.State() != st {
-			t.Fatalf("state mutated to %v by a discarded packet", m.State())
-		}
-		if m.RemoteDiscriminator() != 0x55 {
-			t.Fatalf("RemoteDiscr mutated to %d by a discarded packet", m.RemoteDiscriminator())
+			err := m.Receive(recv(sent, 0))
+			if !errors.Is(err, ErrYourDiscriminatorReset) {
+				t.Fatalf("local %v, packet %v: got err %v, want ErrYourDiscriminatorReset", local, sent, err)
+			}
+			if m.State() != local {
+				t.Fatalf("local %v, packet %v: state mutated to %v by a discarded packet", local, sent, m.State())
+			}
+			if m.RemoteDiscriminator() != 0x55 {
+				t.Fatalf("local %v, packet %v: RemoteDiscr mutated to %d by a discarded packet", local, sent, m.RemoteDiscriminator())
+			}
 		}
 	}
 }
 
-// RFC requirement: RFC5880-6.8.6-8 positive -- the discard is scoped to the
-// live states: while bfd.SessionState is Down or AdminDown a zero Your
-// Discriminator is legitimate (it is how a session bootstraps), and the guard
-// at fsm.go:43-45 lets it through.
+// RFC requirement: RFC5880-6.8.6-8 positive -- the discard is scoped to a
+// packet whose State field is Up or Init: a zero Your Discriminator in a
+// packet whose State is Down or AdminDown is legitimate in every local state.
+// It is how a session bootstraps, and how a restarted peer takes a live
+// session Down. Receive (fsm.go) lets both through, and the live session
+// follows the packet to Down with diagnostic Neighbor Signaled Session Down.
 func TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown(t *testing.T) {
 	clk := newFakeClock()
 	m, _ := newMachine(t, clk)
@@ -740,6 +745,20 @@ func TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown(t *testing.T) {
 	m2.vars.SessionState = packet.StateAdminDown
 	if err := m2.Receive(recv(packet.StateDown, 0)); err != nil {
 		t.Fatalf("packet with Your Discriminator 0 rejected while AdminDown: %v", err)
+	}
+
+	for _, sent := range []packet.State{packet.StateDown, packet.StateAdminDown} {
+		m3, _ := newMachine(t, newFakeClock())
+		m3.vars.SessionState = packet.StateUp
+		if err := m3.Receive(recv(sent, 0)); err != nil {
+			t.Fatalf("Up session: packet %v with Your Discriminator 0 rejected: %v", sent, err)
+		}
+		if m3.State() != packet.StateDown {
+			t.Fatalf("Up session: state after packet %v = %v, want Down", sent, m3.State())
+		}
+		if m3.LocalDiag() != packet.DiagNeighborSignaledDown {
+			t.Fatalf("Up session: diag after packet %v = %v, want Neighbor Signaled Session Down", sent, m3.LocalDiag())
+		}
 	}
 }
 
@@ -819,7 +838,7 @@ func TestRFC5880EchoCeasesWhenPeerAdvertisesZero(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	on := recv(packet.StateInit, 0)
+	on := recv(packet.StateInit, peerLearnedDiscr)
 	on.RequiredMinEchoRxInterval = 50_000
 	if err := m.Receive(on); err != nil {
 		t.Fatalf("Receive echo-capable: %v", err)
@@ -856,7 +875,7 @@ func TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	on := recv(packet.StateInit, 0)
+	on := recv(packet.StateInit, peerLearnedDiscr)
 	on.RequiredMinEchoRxInterval = 75_000
 	if err := m.Receive(on); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -879,7 +898,7 @@ func TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	silent := recv(packet.StateInit, 0)
+	silent := recv(packet.StateInit, peerLearnedDiscr)
 	silent.RequiredMinEchoRxInterval = 0
 	if err := m.Receive(silent); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -902,7 +921,7 @@ func TestRFC5880EchoIntervalHonorsPeerFloor(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	p := recv(packet.StateInit, 0)
+	p := recv(packet.StateInit, peerLearnedDiscr)
 	p.RequiredMinEchoRxInterval = 200_000
 	if err := m.Receive(p); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -921,7 +940,7 @@ func TestRFC5880EchoIntervalNotBelowLocalTarget(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	p := recv(packet.StateInit, 0)
+	p := recv(packet.StateInit, peerLearnedDiscr)
 	p.RequiredMinEchoRxInterval = 20_000
 	if err := m.Receive(p); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -947,7 +966,7 @@ func TestRFC5880EchoMissDetectedAndReported(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	p := recv(packet.StateInit, 0)
+	p := recv(packet.StateInit, peerLearnedDiscr)
 	p.RequiredMinEchoRxInterval = 50_000
 	if err := m.Receive(p); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -984,7 +1003,7 @@ func TestRFC5880EchoReturnClearsMissAndFailIsScoped(t *testing.T) {
 	clk := newFakeClock()
 	m := rfc5880EchoMachine(t, clk)
 
-	p := recv(packet.StateInit, 0)
+	p := recv(packet.StateInit, peerLearnedDiscr)
 	p.RequiredMinEchoRxInterval = 50_000
 	if err := m.Receive(p); err != nil {
 		t.Fatalf("Receive: %v", err)
@@ -1186,5 +1205,358 @@ func TestRFC5880AuthSequenceFieldFollowsAdvance(t *testing.T) {
 	}
 	if second != first+1 {
 		t.Fatalf("Sequence Number = %d after advance, want %d", second, first+1)
+	}
+}
+
+// ---------------------------------------------------------------------
+// Owner decision D-8 fixes (2026-09-27)
+// ---------------------------------------------------------------------
+
+// RFC requirement: RFC5880-6.8.1-5 positive -- the clear holds in every
+// state, not only on the Init or Up expiry. A peer that signals Down keeps its
+// discriminator; when it then stays silent for a Detection Time, CheckDetection
+// (internal/component/bfd/session/timers.go) clears bfd.RemoteDiscr while the
+// session stays Down and reports no state change. Before the Detection Time
+// passes the discriminator is kept.
+func TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+		t.Fatalf("Receive Init: %v", err)
+	}
+	if err := m.Receive(recv(packet.StateDown, m.vars.LocalDiscr)); err != nil {
+		t.Fatalf("Receive Down: %v", err)
+	}
+	learned := m.RemoteDiscriminator()
+	if m.State() != packet.StateDown || learned == 0 {
+		t.Fatalf("precondition: want Down with a learned RemoteDiscr, got %v and %d", m.State(), learned)
+	}
+
+	clk.advance(m.DetectionInterval() - time.Millisecond)
+	m.CheckDetection(clk.Now())
+	if got := m.RemoteDiscriminator(); got != learned {
+		t.Fatalf("bfd.RemoteDiscr = %d before a Detection Time passed, want %d", got, learned)
+	}
+
+	clk.advance(2 * time.Millisecond)
+	if m.CheckDetection(clk.Now()) {
+		t.Fatal("CheckDetection reported a state change for a session already Down")
+	}
+	if got := m.RemoteDiscriminator(); got != 0 {
+		t.Fatalf("bfd.RemoteDiscr = %d after a Detection Time of silence while Down, want 0", got)
+	}
+	if m.LocalDiag() != packet.DiagNeighborSignaledDown {
+		t.Fatalf("bfd.LocalDiag overwritten to %v", m.LocalDiag())
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-1 positive -- the one-second floor returns on
+// EVERY entry into a state other than Up. onStateChange
+// (internal/component/bfd/session/fsm.go) restores it on AdminDown entered
+// from Up, and an echo slow-down that was active does not survive the engine's
+// ClearEchoSchedule to put the configured sub-second value back. The Up Poll
+// settles first, because the slow-down waits for it (RFC 5880 Section 6.8.3).
+func TestRFC5880SlowStartFloorRestoredOnAdminDown(t *testing.T) {
+	for _, echo := range []bool{false, true} {
+		clk := newFakeClock()
+		m, _ := newMachine(t, clk)
+		if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+			t.Fatalf("Receive: %v", err)
+		}
+		if m.State() != packet.StateUp || m.DesiredMinTxIntervalUs() != 300_000 {
+			t.Fatalf("precondition: want Up at 300000 us, got %v at %d", m.State(), m.DesiredMinTxIntervalUs())
+		}
+		if echo {
+			settlePoll(t, m)
+			m.ApplyEchoSlowdown()
+			if got := m.DesiredMinTxIntervalUs(); got != EchoSlowdownIntervalUs {
+				t.Fatalf("precondition: echo slow-down not applied, bfd.DesiredMinTxInterval = %d", got)
+			}
+		}
+		m.AdminDown(packet.DiagAdminDown)
+		m.ClearEchoSchedule()
+		if got := m.DesiredMinTxIntervalUs(); got < 1_000_000 {
+			t.Fatalf("echo %v: bfd.DesiredMinTxInterval = %d us in AdminDown, want >= 1000000", echo, got)
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-5 positive -- a reduced
+// bfd.RemoteMinRxInterval is honored at once: Receive calls
+// rescheduleTxLocked (internal/component/bfd/session/timers.go), which moves
+// the pending deadline to the previous transmission plus the new interval, and
+// to a deadline already past when that interval has elapsed. The jitter drawn
+// for the last packet keeps its share of the new interval.
+// RFC requirement: RFC5880-6.8.7-4 positive -- the transmit interval is
+// recalculated when bfd.RemoteMinRxInterval changes in either direction: an
+// increase moves the pending deadline later, so the next packet does not go
+// out at the old, shorter interval.
+func TestRFC5880RemoteMinRxChangeReschedulesNextTx(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	m.vars.SessionState = packet.StateUp
+	m.vars.DesiredMinTxInterval = 300_000
+
+	advertise := func(requiredMinRxUs uint32) {
+		t.Helper()
+		c := recv(packet.StateUp, m.vars.LocalDiscr)
+		c.RequiredMinRxInterval = requiredMinRxUs
+		if err := m.Receive(c); err != nil {
+			t.Fatalf("Receive %d us: %v", requiredMinRxUs, err)
+		}
+	}
+
+	advertise(900_000)
+	sent := clk.Now()
+	m.AdvanceTxWithJitter(sent, 0)
+	clk.advance(100 * time.Millisecond)
+	advertise(400_000)
+	if got, want := m.NextTxDeadline(), sent.Add(400*time.Millisecond); !got.Equal(want) {
+		t.Fatalf("after the reduction to 400ms the next TX is due %v after the last, want 400ms", got.Sub(sent))
+	}
+
+	sent = clk.Now()
+	m.AdvanceTxWithJitter(sent, 0)
+	advertise(1_200_000)
+	if got, want := m.NextTxDeadline(), sent.Add(1200*time.Millisecond); !got.Equal(want) {
+		t.Fatalf("after the increase to 1.2s the next TX is due %v after the last, want 1.2s", got.Sub(sent))
+	}
+
+	sent = clk.Now()
+	m.AdvanceTxWithJitter(sent, 300*time.Millisecond)
+	clk.advance(700 * time.Millisecond)
+	advertise(400_000)
+	if got, want := m.NextTxDeadline(), sent.Add(300*time.Millisecond); !got.Equal(want) {
+		t.Fatalf("jittered wait of 900ms of 1.2s rescaled to %v, want 300ms of 400ms", got.Sub(sent))
+	}
+	if !m.NextTxDeadline().Before(clk.Now()) {
+		t.Fatal("a deadline the new interval has already passed is not due at once")
+	}
+}
+
+// RFC requirement: RFC5880-6.8.7-4 positive -- the transmit interval is
+// recalculated when bfd.DesiredMinTxInterval changes: reverting the echo
+// slow-down while Up (ClearEchoSchedule, revertEchoSlowdownLocked in
+// internal/component/bfd/session/timers.go) lowers bfd.DesiredMinTxInterval
+// from 1s to the configured 300ms, and the pending deadline moves from 1s to
+// 300ms after the previous transmission, the greater of the new
+// bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval (100ms). The slow-down
+// Poll settles before the revert, which waits for it (RFC 5880 Section 6.8.3).
+func TestRFC5880DesiredMinTxChangeReschedulesNextTx(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	m.vars.SessionState = packet.StateUp
+	m.vars.ConfiguredDesiredMinTxInterval = 300_000
+	m.vars.DesiredMinTxInterval = 300_000
+	m.vars.RemoteMinRxInterval = 100_000
+
+	m.ApplyEchoSlowdown()
+	// The raised interval is in force only once its Poll has terminated
+	// (RFC 5880 Section 6.8.3, RFC5880-6.8.3-3), so the Poll settles first.
+	settlePoll(t, m)
+	sent := clk.Now()
+	m.AdvanceTxWithJitter(sent, 0)
+	if got, want := m.NextTxDeadline(), sent.Add(time.Second); !got.Equal(want) {
+		t.Fatalf("precondition: under the echo slow-down the next TX is due %v after the last, want 1s", got.Sub(sent))
+	}
+	clk.advance(100 * time.Millisecond)
+	m.ClearEchoSchedule()
+	if m.vars.DesiredMinTxInterval != 300_000 {
+		t.Fatalf("precondition: bfd.DesiredMinTxInterval = %d after the revert, want 300000", m.vars.DesiredMinTxInterval)
+	}
+	if got, want := m.NextTxDeadline(), sent.Add(300*time.Millisecond); !got.Equal(want) {
+		t.Fatalf("after bfd.DesiredMinTxInterval fell to 300ms the next TX is due %v after the last, want 300ms", got.Sub(sent))
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-5 negative -- rescheduling is bound to a
+// change of the interval: a packet that carries the same Required Min RX
+// Interval leaves the pending deadline where AdvanceTxWithJitter put it.
+func TestRFC5880UnchangedRemoteMinRxKeepsNextTx(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	m.vars.SessionState = packet.StateUp
+	m.vars.DesiredMinTxInterval = 300_000
+	c := recv(packet.StateUp, m.vars.LocalDiscr)
+	c.RequiredMinRxInterval = 900_000
+	if err := m.Receive(c); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	sent := clk.Now()
+	m.AdvanceTxWithJitter(sent, 100*time.Millisecond)
+	clk.advance(50 * time.Millisecond)
+	if err := m.Receive(c); err != nil {
+		t.Fatalf("Receive again: %v", err)
+	}
+	if got, want := m.NextTxDeadline(), sent.Add(800*time.Millisecond); !got.Equal(want) {
+		t.Fatalf("next TX moved to %v after the last with no interval change, want 800ms", got.Sub(sent))
+	}
+}
+
+// RFC requirement: RFC5880-6.8.7-5 positive -- the Passive silence holds
+// whenever bfd.RemoteDiscr is zero, not only at Init. A Passive session that
+// times out, from Up or while Down after a peer-signaled Down, loses the
+// discriminator and schedules no transmission: onStateChange and
+// CheckDetection (internal/component/bfd/session/fsm.go, timers.go) both ask
+// transmitPermitted before arming nextTxAt.
+func TestRFC5880PassiveSilentOnceRemoteDiscrCleared(t *testing.T) {
+	clk := newFakeClock()
+	m := newPassiveMachine(t, clk)
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if m.State() != packet.StateUp || m.NextTxDeadline().IsZero() {
+		t.Fatalf("precondition: want Up and transmitting, got %v, deadline %v", m.State(), m.NextTxDeadline())
+	}
+	clk.advance(10 * time.Second)
+	if !m.CheckDetection(clk.Now()) {
+		t.Fatal("precondition: detection did not fire")
+	}
+	if m.RemoteDiscriminator() != 0 {
+		t.Fatal("precondition: RemoteDiscr not cleared by the detection expiry")
+	}
+	if !m.NextTxDeadline().IsZero() {
+		t.Fatal("Passive session with bfd.RemoteDiscr zero scheduled a transmission after the timeout")
+	}
+
+	m2 := newPassiveMachine(t, clk)
+	if err := m2.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+		t.Fatalf("Receive Init: %v", err)
+	}
+	if err := m2.Receive(recv(packet.StateDown, m2.vars.LocalDiscr)); err != nil {
+		t.Fatalf("Receive Down: %v", err)
+	}
+	clk.advance(10 * time.Second)
+	m2.CheckDetection(clk.Now())
+	if !m2.NextTxDeadline().IsZero() {
+		t.Fatal("Passive session kept transmitting after a Detection Time of silence while Down")
+	}
+}
+
+// RFC requirement: RFC5880-6.8.7-5 negative -- the silence is lifted by the
+// peer: once a packet from the peer sets bfd.RemoteDiscr again, the Passive
+// session that fell silent transmits.
+func TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned(t *testing.T) {
+	clk := newFakeClock()
+	m := newPassiveMachine(t, clk)
+	if err := m.Receive(recv(packet.StateInit, peerLearnedDiscr)); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	clk.advance(10 * time.Second)
+	m.CheckDetection(clk.Now())
+	if !m.NextTxDeadline().IsZero() {
+		t.Fatal("precondition: Passive session must be silent after the timeout")
+	}
+	if err := m.Receive(recv(packet.StateDown, 0)); err != nil {
+		t.Fatalf("Receive: %v", err)
+	}
+	if m.NextTxDeadline().IsZero() {
+		t.Fatal("Passive session stayed silent after the peer's packet set bfd.RemoteDiscr")
+	}
+}
+
+// RFC requirement: RFC5880-6.8.3-3 positive -- an increase of
+// bfd.DesiredMinTxInterval while Up leaves the actual transmission interval
+// unchanged until the Poll Sequence it started has terminated. Two increases
+// are driven: the echo slow-down (ApplyEchoSlowdown raises 300ms to 1s) and
+// the Up transition to a configured interval above the one-second slow start
+// (onStateChange raises 1s to 2s). Both paths that compute the interval are
+// asserted while the Poll is outstanding: AdvanceTxWithJitter, which schedules
+// the next packet, and Receive, whose rescheduleTxLocked would move a pending
+// deadline to the raised interval.
+// MUTATION: TransmitInterval reading m.vars.DesiredMinTxInterval in place of
+// desiredMinTxInForceUs turns every assertion below red.
+func TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates(t *testing.T) {
+	t.Run("echo slow-down", func(t *testing.T) {
+		clk := newFakeClock()
+		m, _ := newMachine(t, clk)
+		m.vars.SessionState = packet.StateUp
+		m.vars.ConfiguredDesiredMinTxInterval = 300_000
+		m.vars.DesiredMinTxInterval = 300_000
+		m.vars.RemoteMinRxInterval = 100_000
+
+		m.ApplyEchoSlowdown()
+		if !m.PollOutstanding() || m.vars.DesiredMinTxInterval != 1_000_000 {
+			t.Fatalf("precondition: slow-down not applied (poll=%v desired=%d)", m.PollOutstanding(), m.vars.DesiredMinTxInterval)
+		}
+		if got := m.TransmitInterval(); got != 300*time.Millisecond {
+			t.Fatalf("transmit interval %v while the slow-down Poll is outstanding, want the pre-Poll 300ms", got)
+		}
+		sent := clk.Now()
+		m.AdvanceTxWithJitter(sent, 0)
+		if got, want := m.NextTxDeadline(), sent.Add(300*time.Millisecond); !got.Equal(want) {
+			t.Fatalf("next TX due %v after the last while the Poll is outstanding, want 300ms", got.Sub(sent))
+		}
+		clk.advance(100 * time.Millisecond)
+		c := recv(packet.StateUp, m.vars.LocalDiscr)
+		c.RequiredMinRxInterval = 100_000
+		if err := m.Receive(c); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := m.NextTxDeadline(), sent.Add(300*time.Millisecond); !got.Equal(want) {
+			t.Fatalf("a packet without Final moved the next TX to %v after the last, want 300ms", got.Sub(sent))
+		}
+	})
+
+	t.Run("Up transition", func(t *testing.T) {
+		clk := newFakeClock()
+		m, _ := newMachine(t, clk)
+		m.vars.ConfiguredDesiredMinTxInterval = 2_000_000
+		if err := m.Receive(recv(packet.StateInit, m.vars.LocalDiscr)); err != nil {
+			t.Fatal(err)
+		}
+		if m.State() != packet.StateUp || !m.PollOutstanding() || m.vars.DesiredMinTxInterval != 2_000_000 {
+			t.Fatalf("precondition: state %v poll=%v desired=%d, want Up with a Poll carrying 2s", m.State(), m.PollOutstanding(), m.vars.DesiredMinTxInterval)
+		}
+		if got := m.TransmitInterval(); got != time.Second {
+			t.Fatalf("transmit interval %v while the Up Poll is outstanding, want the pre-Poll 1s", got)
+		}
+	})
+}
+
+// RFC requirement: RFC5880-6.8.3-3 negative -- the hold ends with the Poll
+// Sequence: the Final that terminates it makes the raised interval the actual
+// one, and moves the pending deadline to it, so the hold never pins the
+// session at the old rate. A session that leaves Up drops the hold with the
+// Poll.
+func TestRFC5880RaisedDesiredMinTxAppliedAtFinal(t *testing.T) {
+	clk := newFakeClock()
+	m, _ := newMachine(t, clk)
+	m.vars.SessionState = packet.StateUp
+	m.vars.ConfiguredDesiredMinTxInterval = 300_000
+	m.vars.DesiredMinTxInterval = 300_000
+	m.vars.RemoteMinRxInterval = 100_000
+
+	m.ApplyEchoSlowdown()
+	sent := clk.Now()
+	m.AdvanceTxWithJitter(sent, 0)
+	clk.advance(100 * time.Millisecond)
+	c := recv(packet.StateUp, m.vars.LocalDiscr)
+	c.RequiredMinRxInterval = 100_000
+	c.Final = true
+	if err := m.Receive(c); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.TransmitInterval(); got != time.Second {
+		t.Fatalf("transmit interval %v after the Final, want the raised 1s", got)
+	}
+	if got, want := m.NextTxDeadline(), sent.Add(time.Second); !got.Equal(want) {
+		t.Fatalf("after the Final the next TX is due %v after the last, want 1s", got.Sub(sent))
+	}
+
+	m2, _ := newMachine(t, clk)
+	m2.vars.SessionState = packet.StateUp
+	m2.vars.ConfiguredDesiredMinTxInterval = 300_000
+	m2.vars.DesiredMinTxInterval = 300_000
+	m2.ApplyEchoSlowdown()
+	down := recv(packet.StateDown, m2.vars.LocalDiscr)
+	if err := m2.Receive(down); err != nil {
+		t.Fatal(err)
+	}
+	if m2.State() != packet.StateDown {
+		t.Fatalf("precondition: state %v, want Down", m2.State())
+	}
+	if got := m2.TransmitInterval(); got != time.Second {
+		t.Fatalf("transmit interval %v after leaving Up, want the 1s slow-start floor", got)
 	}
 }

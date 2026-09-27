@@ -1,0 +1,120 @@
+# Test: one commit that defines a bfd profile and points a peer at it is accepted
+#
+# VALIDATES: a SIGHUP that adds profile slow AND moves peer1 from profile fast to slow is accepted: bgp decomposes its own root and the bfd root it reads is the bfd plugin's to apply.
+# VALIDATES: after that reload peer1's BFD session runs on profile slow: the session opens again naming slow, and no "profile ... is not defined" refusal is logged, so bfd applied the new profile before bgp asked for it.
+# PREVENTS: the transaction's coverage guard counting the read root bfd as bgp's, so every commit that edits a peer and a bfd profile together aborts with "plugin bgp, root bfd".
+# PREVENTS: an accepted reload whose peer asks bfd for profile slow before bfd has applied it, so EnsureSession refuses and the peer silently runs without BFD.
+#
+# Method: ze starts on the first config, the trigger fixture copies the second
+# over it and sends SIGHUP once the daemon is ready, and the daemon's own
+# reload outcome line is asserted. The peer edit makes bgp emit operations for
+# root bgp (decomposeBGPOperations), so the reload takes the operation path
+# and checkOperationRootCoverage runs over bgp's participant, whose read root
+# bfd is Participant.WantsConfig (buildTxInputs). The second fence needle is
+# the peer's "bfd session opened for peer" line (peer_bfd.go), whose last
+# attributes name the profile the session was opened with; boot opens it with
+# fast, so only the reload can print slow. The peer is strict because a strict
+# peer opens BFD before its FSM starts (peer_run.go), while a non-strict one
+# waits for Established, which this peer, with nothing listening, never reaches.
+
+option=env:var=ze.bfd.test-parallel:value=true
+# The peer's "bfd session opened for peer" line is logged at info.
+option=env:var=ze.log.bgp.reactor.peer:value=info
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile fast
+				strict true
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=next.conf:terminator=EOF_NEXT
+bfd {
+	enabled true
+	profile slow {
+		detect-multiplier 5
+		desired-min-tx-us 300000
+		required-min-rx-us 300000
+	}
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+			remote {
+				ip 127.0.0.254
+			}
+			bfd {
+				enabled true
+				mode single-hop
+				profile slow
+				strict true
+			}
+		}
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_NEXT
+
+cmd=background:seq=1:exec=le test fixture reload/bgp-bfd-profile-reload-peer-and-profile-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=sighup reload complete:then=stop
+await=stderr:contains=strict=true profile=slow
+reject=stderr:contains=reload error
+reject=stderr:contains=is not defined
+reject=stderr:contains=runs without BFD
+reject=stderr:contains=root bfd

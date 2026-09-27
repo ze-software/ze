@@ -1,0 +1,74 @@
+# Test: a static edit is accepted while a next-hop names a defined bfd profile
+#
+# VALIDATES: a SIGHUP that adds an unrelated route is accepted: static checks the next-hop's profile against the bfd section the reload delivers whole.
+# PREVENTS: static verifying the next-hop's profile against an empty bfd section, so every static edit is refused.
+#
+# Method: ze starts on the first config, the trigger fixture copies the second
+# over it and sends SIGHUP once the daemon is ready, and the daemon's own
+# reload outcome line is asserted. The server delivers a plugin that reads the
+# bfd root (registry ConfigReads) every root it holds, whole, when any of them
+# changed (plugin/server reloadConfigSections).
+
+# static loads the interface plugin, which needs a Linux backend, as every
+# test under test/static does.
+option=needs-linux:caps=net-admin
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fast
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=next.conf:terminator=EOF_NEXT
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+}
+
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile fast
+				}
+			}
+		}
+		route 198.51.100.0/24 {
+			next {
+				hop 10.0.0.2 { }
+			}
+		}
+	}
+}
+EOF_NEXT
+
+cmd=background:seq=1:exec=le test fixture reload/static-bfd-profile-reload-accepted-trigger
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=sighup reload complete:then=stop
+reject=stderr:contains=reload error
+reject=stderr:contains=has no bfd section

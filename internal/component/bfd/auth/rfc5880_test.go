@@ -10,16 +10,19 @@ package auth
 
 import (
 	"bytes"
+	"crypto/md5"  //nolint:gosec // RFC 5880 Section 6.7.3 names MD5
+	"crypto/sha1" //nolint:gosec // RFC 5880 Section 6.7.4 names SHA1
 	"errors"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
 
-// rfc5880Secret is the shared key used by every test below. It is longer than
-// the MD5 key slot (16 bytes) and shorter than the SHA1 slot (20) so both
-// truncation and zero-padding paths are exercised.
-var rfc5880Secret = []byte("rfc5880-shared-key")
+// rfc5880Secret is the shared key used by every test below. It is shorter
+// than both the MD5 key slot (16 bytes) and the SHA1 slot (20), so the
+// zero-padding path is exercised; a key longer than its slot is refused
+// (TestKeyedSecretLongerThanSlotRefused).
+var rfc5880Secret = []byte("rfc5880-key")
 
 // rfc5880Signed returns a freshly signed packet for cfg carrying seq, along
 // with the parsed Control the verifier expects.
@@ -389,22 +392,27 @@ func TestRFC5880DigestMatchAccepted(t *testing.T) {
 
 // RFC requirement: RFC5880-6.7.3-11 negative -- a packet whose digest does not
 // match the computed value is discarded, whether the digest bytes were flipped
-// or the packet was signed with a different secret (sha1.go:181-184). The
-// replay floor is left untouched so a forged packet cannot poison
-// bfd.RcvAuthSeq.
+// or the packet was signed with a different secret (digestVerifier.Verify,
+// sha1.go). Once bfd.AuthSeqKnown is 1 the replay floor is left untouched, so
+// a forged packet cannot move bfd.RcvAuthSeq (the first packet seeds it before
+// the digest step: RFC5880-6.7.3-12, owner decision D-14).
 func TestRFC5880DigestMismatchDiscarded(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
 	buf, c, _ := rfc5880Signed(t, cfg, 44)
 	v := rfc5880Verifier(t, cfg)
 
+	var s1 SeqState
+	floor, fc0, _ := rfc5880Signed(t, cfg, 40)
+	if err := v.Verify(floor, fc0, &s1); err != nil {
+		t.Fatalf("authentic packet setting the floor: %v", err)
+	}
 	flipped := bytes.Clone(buf)
 	flipped[len(flipped)-1] ^= 0xFF
-	var s1 SeqState
 	if err := v.Verify(flipped, c, &s1); !errors.Is(err, ErrDigestMismatch) {
 		t.Fatalf("flipped digest: got %v, want ErrDigestMismatch", err)
 	}
-	if s1.Initialized() {
-		t.Fatal("replay floor advanced on a packet with a bad digest")
+	if s1.Last() != 40 {
+		t.Fatalf("replay floor moved to %d on a packet with a bad digest, want 40", s1.Last())
 	}
 
 	wrongKey := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: []byte("a-different-key")}
@@ -418,7 +426,7 @@ func TestRFC5880DigestMismatchDiscarded(t *testing.T) {
 // RFC requirement: RFC5880-6.8.1-12 positive -- bfd.AuthSeqKnown is
 // initialized to zero. The zero value of SeqState
 // (internal/component/bfd/auth/meticulous.go:28-34) has initialized false,
-// which Initialized() reports, and Check (meticulous.go:43-45) therefore
+// which Initialized() reports, and Check (meticulous.go) therefore
 // accepts any first sequence number.
 func TestRFC5880AuthSeqKnownStartsZero(t *testing.T) {
 	var state SeqState
@@ -428,17 +436,17 @@ func TestRFC5880AuthSeqKnownStartsZero(t *testing.T) {
 	if state.Last() != 0 {
 		t.Fatalf("bfd.RcvAuthSeq = %d on a fresh session, want 0", state.Last())
 	}
-	if err := state.Check(0xFFFF0000, true); err != nil {
+	if err := state.Check(0xFFFF0000, true, 3); err != nil {
 		t.Fatalf("first sequence rejected while bfd.AuthSeqKnown is 0: %v", err)
 	}
 }
 
 // RFC requirement: RFC5880-6.8.1-12 negative -- the zero is an initial value
-// rather than a constant: Advance (meticulous.go:63-67) sets initialized on
+// rather than a constant: Advance (meticulous.go) sets initialized on
 // the first accepted packet, so bfd.AuthSeqKnown does become 1.
 func TestRFC5880AuthSeqKnownSetAfterFirstPacket(t *testing.T) {
 	var state SeqState
-	state.Advance(9000, true)
+	state.Advance(9000)
 	if !state.Initialized() {
 		t.Fatal("bfd.AuthSeqKnown still 0 after accepting a packet")
 	}
@@ -446,8 +454,8 @@ func TestRFC5880AuthSeqKnownSetAfterFirstPacket(t *testing.T) {
 
 // RFC requirement: RFC5880-6.7.3-12 positive -- when bfd.AuthSeqKnown is 0 it
 // is set to 1 and bfd.RcvAuthSeq is set to the received Sequence Number.
-// Verify (internal/component/bfd/auth/sha1.go:185) calls Advance, which on an
-// uninitialized state stores seq and sets initialized (meticulous.go:63-67).
+// digestVerifier.Verify (internal/component/bfd/auth/sha1.go) calls Advance,
+// which stores seq and sets initialized (meticulous.go).
 func TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
 	const seq uint32 = 0xDEAD00
@@ -468,52 +476,90 @@ func TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC5880-6.7.3-12 negative -- the seeding happens only for a
-// packet that actually passed authentication: Verify returns before reaching
-// Advance when the digest fails (sha1.go:181-184), so a forged first packet
-// leaves bfd.AuthSeqKnown at 0 instead of pinning the floor to an
-// attacker-chosen sequence.
-func TestRFC5880ForgedFirstPacketDoesNotSeedReplayFloor(t *testing.T) {
+// RFC requirement: RFC5880-6.7.3-12 positive -- the seeding comes BEFORE the
+// digest step, in the order Section 6.7.3 lists them (owner decision D-14,
+// 2026-09-27). digestVerifier.Verify (internal/component/bfd/auth/sha1.go)
+// seeds bfd.AuthSeqKnown and bfd.RcvAuthSeq from the received Sequence Number
+// and only then compares the digest, so a first packet whose digest fails is
+// still discarded and has still set the floor. An authentic packet below that
+// floor is then discarded, and one inside the window above it is accepted.
+func TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
+	v := rfc5880Verifier(t, cfg)
 	buf, c, _ := rfc5880Signed(t, cfg, 0x7000)
 	forged := bytes.Clone(buf)
 	forged[len(forged)-2] ^= 0xFF
 
 	var state SeqState
-	if err := rfc5880Verifier(t, cfg).Verify(forged, c, &state); err == nil {
-		t.Fatal("forged packet accepted")
+	if err := v.Verify(forged, c, &state); !errors.Is(err, ErrDigestMismatch) {
+		t.Fatalf("forged first packet: got %v, want ErrDigestMismatch", err)
 	}
-	if state.Initialized() {
-		t.Fatal("bfd.AuthSeqKnown set by a packet that failed authentication")
+	if !state.Initialized() {
+		t.Fatal("bfd.AuthSeqKnown still 0 after the first packet reached the Sequence Number step")
 	}
-	if state.Last() != 0 {
-		t.Fatalf("bfd.RcvAuthSeq = %#x after a forged packet, want 0", state.Last())
+	if state.Last() != 0x7000 {
+		t.Fatalf("bfd.RcvAuthSeq = %#x, want the received %#x", state.Last(), 0x7000)
+	}
+	below, bc, _ := rfc5880Signed(t, cfg, 0x6FFF)
+	if err := v.Verify(below, bc, &state); !errors.Is(err, ErrSequenceOutsideWindow) {
+		t.Fatalf("authentic packet below the seeded floor: got %v, want ErrSequenceOutsideWindow", err)
+	}
+	inside, ic, _ := rfc5880Signed(t, cfg, 0x7001)
+	if err := v.Verify(inside, ic, &state); err != nil {
+		t.Fatalf("authentic packet inside the window above the seeded floor: %v", err)
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-12 negative -- the seeding is the
+// "Otherwise (bfd.AuthSeqKnown is 0)" branch, so once bfd.AuthSeqKnown is 1 a
+// packet does not re-seed bfd.RcvAuthSeq. digestVerifier.Verify
+// (internal/component/bfd/auth/sha1.go) seeds only an uninitialized SeqState:
+// a forged packet inside the window of a known floor is discarded by the
+// digest step and leaves bfd.RcvAuthSeq where the authentic packet set it.
+func TestRFC5880KnownSequenceNotReseededByForgedPacket(t *testing.T) {
+	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
+	v := rfc5880Verifier(t, cfg)
+	var state SeqState
+
+	buf, c, _ := rfc5880Signed(t, cfg, 100)
+	if err := v.Verify(buf, c, &state); err != nil {
+		t.Fatalf("authentic first packet: %v", err)
+	}
+	next, nc, _ := rfc5880Signed(t, cfg, 105)
+	forged := bytes.Clone(next)
+	forged[len(forged)-2] ^= 0xFF
+	if err := v.Verify(forged, nc, &state); !errors.Is(err, ErrDigestMismatch) {
+		t.Fatalf("forged in-window packet: got %v, want ErrDigestMismatch", err)
+	}
+	if state.Last() != 100 {
+		t.Fatalf("bfd.RcvAuthSeq = %d after a forged packet with bfd.AuthSeqKnown 1, want 100", state.Last())
 	}
 }
 
 // RFC requirement: RFC5880-6.7.3-9 positive -- for the Keyed (non-meticulous)
-// variants a Sequence Number at or above bfd.RcvAuthSeq is accepted. Check
-// (internal/component/bfd/auth/meticulous.go:53-56) rejects only seq < last,
-// so an equal or greater sequence passes and advances the floor.
+// variants a Sequence Number from bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect
+// Mult) inclusive is accepted. Check (internal/component/bfd/auth/meticulous.go)
+// admits an equal sequence and one exactly 3 * Detect Mult (9) ahead, and each
+// accepted sequence advances bfd.RcvAuthSeq.
 func TestRFC5880KeyedSequenceAtOrAboveFloorAccepted(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
 	v := rfc5880Verifier(t, cfg)
 	var state SeqState
 
-	for _, seq := range []uint32{100, 100, 101, 500} {
+	for _, seq := range []uint32{100, 100, 101, 110} {
 		buf, c, _ := rfc5880Signed(t, cfg, seq)
 		if err := v.Verify(buf, c, &state); err != nil {
 			t.Fatalf("sequence %d rejected with floor %d: %v", seq, state.Last(), err)
 		}
 	}
-	if state.Last() != 500 {
-		t.Fatalf("bfd.RcvAuthSeq = %d, want 500", state.Last())
+	if state.Last() != 110 {
+		t.Fatalf("bfd.RcvAuthSeq = %d, want 110", state.Last())
 	}
 }
 
 // RFC requirement: RFC5880-6.7.3-9 negative -- a Sequence Number below
-// bfd.RcvAuthSeq is discarded with ErrSequenceRegress
-// (internal/component/bfd/auth/meticulous.go:53-55), which is the replay
+// bfd.RcvAuthSeq is discarded with ErrSequenceOutsideWindow
+// (internal/component/bfd/auth/meticulous.go), which is the replay
 // protection: a captured older packet cannot be re-injected.
 func TestRFC5880KeyedSequenceBelowFloorDiscarded(t *testing.T) {
 	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
@@ -525,8 +571,8 @@ func TestRFC5880KeyedSequenceBelowFloorDiscarded(t *testing.T) {
 		t.Fatalf("floor packet: %v", err)
 	}
 	old, oc, _ := rfc5880Signed(t, cfg, 399)
-	if err := v.Verify(old, oc, &state); !errors.Is(err, ErrSequenceRegress) {
-		t.Fatalf("got %v, want ErrSequenceRegress for a sequence below the floor", err)
+	if err := v.Verify(old, oc, &state); !errors.Is(err, ErrSequenceOutsideWindow) {
+		t.Fatalf("got %v, want ErrSequenceOutsideWindow for a sequence below the floor", err)
 	}
 	if state.Last() != 400 {
 		t.Fatalf("bfd.RcvAuthSeq moved to %d on a rejected packet", state.Last())
@@ -536,7 +582,7 @@ func TestRFC5880KeyedSequenceBelowFloorDiscarded(t *testing.T) {
 // RFC requirement: RFC5880-6.7.3-4 negative -- for Meticulous Keyed MD5 the
 // per-packet increment of bfd.XmitAuthSeq is mandatory: a transmitter that
 // re-used the previous sequence is rejected by the peer, because Check
-// (internal/component/bfd/auth/meticulous.go:47-51) requires strictly greater
+// (internal/component/bfd/auth/meticulous.go) requires strictly greater
 // for the meticulous variants.
 // RFC requirement: RFC5880-6.7.4-4 negative -- the same strict rule applies to
 // Meticulous Keyed SHA1 through the same producer.
@@ -551,7 +597,7 @@ func TestRFC5880MeticulousRejectsUnincrementedSequence(t *testing.T) {
 			t.Fatalf("type %d: first packet: %v", at, err)
 		}
 		again, ac, _ := rfc5880Signed(t, cfg, 50)
-		if err := v.Verify(again, ac, &state); !errors.Is(err, ErrSequenceRegress) {
+		if err := v.Verify(again, ac, &state); !errors.Is(err, ErrSequenceOutsideWindow) {
 			t.Fatalf("type %d: a repeated sequence was accepted (%v)", at, err)
 		}
 		next, nc, _ := rfc5880Signed(t, cfg, 51)
@@ -785,5 +831,182 @@ func TestRFC5880SimplePasswordMalformedSectionRejected(t *testing.T) {
 	over.Length = uint8(len(trailing))
 	if err := v.Verify(trailing, over, nil); !errors.Is(err, ErrPasswordMismatch) {
 		t.Fatalf("trailing bytes behind a matching password were accepted: %v", err)
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-9 negative -- the window is bounded above
+// too: for the Keyed variants a sequence more than 3 * Detect Mult ahead of
+// bfd.RcvAuthSeq is discarded with ErrSequenceOutsideWindow and leaves
+// bfd.RcvAuthSeq where it was. Check (internal/component/bfd/auth/meticulous.go)
+// reads Detect Mult (3 here) from the received packet.
+func TestRFC5880KeyedSequenceBeyondWindowDiscarded(t *testing.T) {
+	for _, at := range []uint8{packet.AuthTypeKeyedMD5, packet.AuthTypeKeyedSHA1} {
+		cfg := Settings{Type: at, KeyID: 1, Secret: rfc5880Secret}
+		v := rfc5880Verifier(t, cfg)
+		var state SeqState
+
+		buf, c, _ := rfc5880Signed(t, cfg, 400)
+		if err := v.Verify(buf, c, &state); err != nil {
+			t.Fatalf("type %d: floor packet: %v", at, err)
+		}
+		far, fc, _ := rfc5880Signed(t, cfg, 410)
+		if err := v.Verify(far, fc, &state); !errors.Is(err, ErrSequenceOutsideWindow) {
+			t.Fatalf("type %d: sequence 10 ahead with Detect Mult 3: got %v, want ErrSequenceOutsideWindow", at, err)
+		}
+		if state.Last() != 400 {
+			t.Fatalf("type %d: bfd.RcvAuthSeq moved to %d on a rejected packet", at, state.Last())
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-9 positive -- the window is circular: with
+// bfd.RcvAuthSeq two short of the 32-bit wrap, a Keyed sequence that wrapped
+// to 3 lies 5 ahead and is accepted.
+func TestRFC5880KeyedSequenceWindowWraps(t *testing.T) {
+	cfg := Settings{Type: packet.AuthTypeKeyedSHA1, KeyID: 1, Secret: rfc5880Secret}
+	v := rfc5880Verifier(t, cfg)
+	var state SeqState
+
+	buf, c, _ := rfc5880Signed(t, cfg, 0xFFFFFFFE)
+	if err := v.Verify(buf, c, &state); err != nil {
+		t.Fatalf("floor packet: %v", err)
+	}
+	wrapped, wc, _ := rfc5880Signed(t, cfg, 3)
+	if err := v.Verify(wrapped, wc, &state); err != nil {
+		t.Fatalf("sequence 3 after 0xFFFFFFFE rejected: %v", err)
+	}
+	if state.Last() != 3 {
+		t.Fatalf("bfd.RcvAuthSeq = %#x, want 3", state.Last())
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-10 positive -- for the Meticulous variants a
+// sequence from bfd.RcvAuthSeq+1 to bfd.RcvAuthSeq+(3*Detect Mult) inclusive
+// is accepted, wrapping at 32 bits: Check
+// (internal/component/bfd/auth/meticulous.go) admits one ahead, exactly nine
+// ahead with Detect Mult 3, and 0 after 0xFFFFFFFF.
+func TestRFC5880MeticulousSequenceInsideWindowAccepted(t *testing.T) {
+	for _, at := range []uint8{packet.AuthTypeMeticulousKeyedMD5, packet.AuthTypeMeticulousKeyedSHA1} {
+		cfg := Settings{Type: at, KeyID: 1, Secret: rfc5880Secret}
+		v := rfc5880Verifier(t, cfg)
+		var state SeqState
+
+		for _, seq := range []uint32{0xFFFFFFF5, 0xFFFFFFF6, 0xFFFFFFFF, 0} {
+			buf, c, _ := rfc5880Signed(t, cfg, seq)
+			if err := v.Verify(buf, c, &state); err != nil {
+				t.Fatalf("type %d: sequence %#x rejected with bfd.RcvAuthSeq %#x: %v", at, seq, state.Last(), err)
+			}
+		}
+		if state.Last() != 0 {
+			t.Fatalf("type %d: bfd.RcvAuthSeq = %#x, want 0", at, state.Last())
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-10 negative -- for the Meticulous variants a
+// sequence more than 3 * Detect Mult ahead of bfd.RcvAuthSeq is discarded, as
+// is one equal to it or behind it, and none of them moves bfd.RcvAuthSeq.
+func TestRFC5880MeticulousSequenceOutsideWindowDiscarded(t *testing.T) {
+	for _, at := range []uint8{packet.AuthTypeMeticulousKeyedMD5, packet.AuthTypeMeticulousKeyedSHA1} {
+		cfg := Settings{Type: at, KeyID: 1, Secret: rfc5880Secret}
+		v := rfc5880Verifier(t, cfg)
+		var state SeqState
+
+		buf, c, _ := rfc5880Signed(t, cfg, 50)
+		if err := v.Verify(buf, c, &state); err != nil {
+			t.Fatalf("type %d: floor packet: %v", at, err)
+		}
+		for _, seq := range []uint32{60, 50, 49} {
+			out, oc, _ := rfc5880Signed(t, cfg, seq)
+			if err := v.Verify(out, oc, &state); !errors.Is(err, ErrSequenceOutsideWindow) {
+				t.Fatalf("type %d: sequence %d with bfd.RcvAuthSeq 50: got %v, want ErrSequenceOutsideWindow", at, seq, err)
+			}
+		}
+		if state.Last() != 50 {
+			t.Fatalf("type %d: bfd.RcvAuthSeq moved to %d on rejected packets", at, state.Last())
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-13 positive -- a Keyed MD5 or Meticulous
+// Keyed MD5 key of 16 bytes, the whole Auth Key/Digest field, is accepted by
+// NewSigner and NewVerifier (internal/component/bfd/auth/signer.go).
+// RFC requirement: RFC5880-6.7.3-13 negative -- a 17-byte MD5 key cannot be
+// placed into the 16-byte field, and NewSigner and NewVerifier refuse it with
+// ErrKeyLengthInvalid rather than truncating it.
+// RFC requirement: RFC5880-6.7.4-7 positive -- a Keyed SHA1 or Meticulous
+// Keyed SHA1 key of 20 bytes, the whole field, is accepted by NewSigner and
+// NewVerifier.
+// RFC requirement: RFC5880-6.7.4-7 negative -- a 21-byte SHA1 key is refused
+// by NewSigner and NewVerifier with ErrKeyLengthInvalid.
+//
+// VALIDATES: a keyed secret longer than its Auth Key/Digest slot, 16 bytes for
+// the MD5 types (RFC 5880 Section 6.7.3) and 20 for the SHA1 types (Section
+// 6.7.4), is refused by NewSigner and NewVerifier with ErrKeyLengthInvalid,
+// while a secret that fills the slot exactly is accepted.
+// PREVENTS: silently truncating the configured key, which authenticates with
+// a key the operator never configured.
+func TestKeyedSecretLongerThanSlotRefused(t *testing.T) {
+	cases := []struct {
+		authType uint8
+		slot     int
+	}{
+		{packet.AuthTypeKeyedMD5, packet.KeyedMD5KeyLenMax},
+		{packet.AuthTypeMeticulousKeyedMD5, packet.KeyedMD5KeyLenMax},
+		{packet.AuthTypeKeyedSHA1, packet.KeyedSHA1KeyLenMax},
+		{packet.AuthTypeMeticulousKeyedSHA1, packet.KeyedSHA1KeyLenMax},
+	}
+	for _, tc := range cases {
+		fits := Settings{Type: tc.authType, KeyID: 1, Secret: bytes.Repeat([]byte{'k'}, tc.slot)}
+		if _, err := NewSigner(fits); err != nil {
+			t.Fatalf("type %d: NewSigner with a %d-byte key: %v", tc.authType, tc.slot, err)
+		}
+		if _, err := NewVerifier(fits); err != nil {
+			t.Fatalf("type %d: NewVerifier with a %d-byte key: %v", tc.authType, tc.slot, err)
+		}
+		long := Settings{Type: tc.authType, KeyID: 1, Secret: bytes.Repeat([]byte{'k'}, tc.slot+1)}
+		if _, err := NewSigner(long); !errors.Is(err, ErrKeyLengthInvalid) {
+			t.Fatalf("type %d: NewSigner with a %d-byte key: got %v, want ErrKeyLengthInvalid", tc.authType, tc.slot+1, err)
+		}
+		if _, err := NewVerifier(long); !errors.Is(err, ErrKeyLengthInvalid) {
+			t.Fatalf("type %d: NewVerifier with a %d-byte key: got %v, want ErrKeyLengthInvalid", tc.authType, tc.slot+1, err)
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.3-13 positive -- a key shorter than 16 bytes is
+// placed into the Auth Key/Digest field padded with trailing zero bytes before
+// the MD5 digest is taken. The expected digest is computed here, independently
+// of digestSigner.Sign (internal/component/bfd/auth/sha1.go), over the signed
+// packet with the field replaced by the key and its zero padding, and it MUST
+// equal the digest Sign transmitted.
+// RFC requirement: RFC5880-6.7.4-7 positive -- under Keyed SHA1 a key shorter
+// than 20 bytes is placed into the Auth Key/Hash field padded with trailing
+// zero bytes before the SHA1 hash is taken, checked the same way.
+func TestRFC5880ShortKeyZeroPaddedIntoDigestField(t *testing.T) {
+	cases := []struct {
+		authType uint8
+		slot     int
+		sum      func([]byte) []byte
+	}{
+		{packet.AuthTypeKeyedMD5, packet.KeyedMD5KeyLenMax, func(b []byte) []byte { h := md5.Sum(b); return h[:] }},    //nolint:gosec // RFC 5880 Section 6.7.3 names MD5
+		{packet.AuthTypeKeyedSHA1, packet.KeyedSHA1KeyLenMax, func(b []byte) []byte { h := sha1.Sum(b); return h[:] }}, //nolint:gosec // RFC 5880 Section 6.7.4 names SHA1
+	}
+	for _, tc := range cases {
+		if len(rfc5880Secret) >= tc.slot {
+			t.Fatalf("type %d: the test key must be shorter than the %d-byte field", tc.authType, tc.slot)
+		}
+		cfg := Settings{Type: tc.authType, KeyID: 1, Secret: rfc5880Secret}
+		buf, c, _ := rfc5880Signed(t, cfg, 12)
+		field := packet.MandatoryLen + 8
+		sent := bytes.Clone(buf[field : field+tc.slot])
+
+		keyed := bytes.Clone(buf[:c.Length])
+		padded := make([]byte, tc.slot)
+		copy(padded, rfc5880Secret)
+		copy(keyed[field:field+tc.slot], padded)
+		if want := tc.sum(keyed); !bytes.Equal(sent, want) {
+			t.Fatalf("type %d: transmitted digest %x, want %x over the key padded with trailing zero bytes", tc.authType, sent, want)
+		}
 	}
 }

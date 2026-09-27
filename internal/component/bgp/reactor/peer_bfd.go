@@ -43,6 +43,7 @@
 package reactor
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -68,26 +69,37 @@ type bfdClient struct {
 	// session whose subscriber nothing would ever stop.
 	starting bool
 
-	// state is the draft-ietf-idr-bgp-bfd-strict-mode Section 3
-	// bfd.SessionState attribute, as an api.State. It is atomic rather
-	// than under mu because the OPEN rail reads it on the session's
-	// read goroutine while the subscriber writes it (Peer.bfdSessionState).
-	state atomic.Int32
+	// reading is the session's state and the time it entered that state,
+	// published as ONE value. It is atomic rather than under mu because the
+	// OPEN rail reads it on the session's read goroutine while the
+	// subscriber writes it (Peer.bfdSessionState). The two facts share one
+	// pointer because two atomics tear: a reader between the subscriber's
+	// two stores saw the new state beside the OLD state's entry time, and
+	// Section 10's hold-down then measured an Up from before it happened.
+	reading atomic.Pointer[bfdReading]
 
 	// live says whether a BFD session is open at all. A closed session
 	// and a session in Down state are different facts: the strict-mode
 	// gate holds for both, but only the first means no forwarding-path
 	// check is running (session_bfd_strict.go, bfdStrictHolds).
 	live atomic.Bool
+}
 
-	// since is when the session entered the state `state` holds, as Unix
-	// nanoseconds. It is what draft-ietf-idr-bgp-bfd-strict-mode Section
-	// 10 measures -- "the BFD session has been Up for the desired amount
-	// of time" -- and it is a property of the BFD session rather than of
-	// any one BGP connection, which is why it lives here: Section 7
-	// keeps the BFD session open across a teardown, so a link that has
-	// been up for a minute owes no hold-down on the next attempt.
-	since atomic.Int64
+// bfdReading is one reading of a peer's BFD session. It is immutable once
+// published: the subscriber replaces the pointer rather than editing the value.
+type bfdReading struct {
+	// state is the draft-ietf-idr-bgp-bfd-strict-mode Section 3
+	// bfd.SessionState attribute.
+	state api.State
+
+	// since is when the session entered state. It is what
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 10 measures -- "the BFD
+	// session has been Up for the desired amount of time" -- and it is a
+	// property of the BFD session rather than of any one BGP connection,
+	// which is why it lives on the peer: Section 7 keeps the BFD session
+	// open across a teardown, so a link that has been up for a minute owes
+	// no hold-down on the next attempt.
+	since time.Time
 }
 
 // bfdStrict reports whether this peer runs the strict-mode procedures of
@@ -110,12 +122,10 @@ func (p *Peer) bfdSessionState() (api.State, time.Time, bool) {
 	if !p.bfd.live.Load() {
 		return api.StateAdminDown, time.Time{}, false
 	}
-	state := api.State(p.bfd.state.Load()) //nolint:gosec // api.State is a uint8 written by this file alone
-	since := time.Time{}
-	if nanos := p.bfd.since.Load(); nanos != 0 {
-		since = time.Unix(0, nanos)
-	}
-	return state, since, true
+	// startBFDClient publishes a reading before it sets live, so a live
+	// session always has one.
+	reading := p.bfd.reading.Load()
+	return reading.state, reading.since, true
 }
 
 // bfdSubState answers the draft-ietf-idr-bgp-bfd-strict-mode Section 8.1
@@ -235,9 +245,9 @@ func (p *Peer) startBFDClient() {
 	// TRANSITION -- which for a stable link never comes -- and never
 	// established.
 	//
-	// Read before live is published, so no reader can ever observe the zero
-	// value of the atomic: api.StateAdminDown is 0, and bfdStrictHolds reads
-	// AdminDown as "proceed" (ai/rules/principles.md).
+	// Read before live is published, so no reader can ever observe a live
+	// session with no reading: api.StateAdminDown is 0, and bfdStrictHolds
+	// reads AdminDown as "proceed" (ai/rules/principles.md).
 	state, since := api.StateDown, p.clock.Now()
 	select {
 	case snapshot := <-sub:
@@ -258,8 +268,7 @@ func (p *Peer) startBFDClient() {
 		peerLogger().Debug("bfd service delivered no initial state; assuming down",
 			"peer", p.settings.Address)
 	}
-	p.bfd.state.Store(int32(state))
-	p.bfd.since.Store(since.UnixNano())
+	p.bfd.reading.Store(&bfdReading{state: state, since: since})
 	p.bfd.live.Store(true)
 
 	peerLogger().Info("bfd session opened for peer",
@@ -309,8 +318,14 @@ func (p *Peer) runBFDSubscriber(
 			// place, so both paths answer on one clock: mixing them is
 			// invisible in production, where both are real, and makes the
 			// hold-down remainder nonsense the moment a test injects one.
-			if api.State(p.bfd.state.Swap(int32(change.State))) != change.State { //nolint:gosec // api.State is a uint8
-				p.bfd.since.Store(bfdChangeTime(change, p.clock.Now()).UnixNano())
+			//
+			// This goroutine is the only writer once live is set, so no other
+			// store can land between the load and the store below.
+			if p.bfd.reading.Load().state != change.State {
+				p.bfd.reading.Store(&bfdReading{
+					state: change.State,
+					since: bfdChangeTime(change, p.clock.Now()),
+				})
 			}
 			if change.Initial {
 				// startBFDClient already consumed the snapshot in the normal
@@ -330,8 +345,11 @@ func (p *Peer) runBFDSubscriber(
 				// real BfdDown when strict is negotiated, which is why only
 				// the snapshot is suppressed here.
 				//
-				// Recording it above is the whole job; the OPEN rail reads it.
-				p.bfd.since.Store(bfdChangeTime(change, p.clock.Now()).UnixNano())
+				// Recording it is the whole job; the OPEN rail reads it.
+				p.bfd.reading.Store(&bfdReading{
+					state: change.State,
+					since: bfdChangeTime(change, p.clock.Now()),
+				})
 				continue
 			}
 			// RFC 5882 Section 4.2: "If a BFD session transitions from Up state
@@ -352,8 +370,8 @@ func (p *Peer) runBFDSubscriber(
 			// path that really failed takes the session down on the hold time
 			// rather than not at all.
 			//
-			// The recording above is deliberately left to run. p.bfd.state and
-			// p.bfd.since are read by the OPEN rail, and bfdStrictHolds then
+			// The recording above is deliberately left to run. p.bfd.reading
+			// is read by the OPEN rail, and bfdStrictHolds then
 			// sees Down, which is correct: the session genuinely is not Up.
 			// What this suppresses is the FSM event, which is the "control
 			// protocol action" the RFC names.
@@ -479,10 +497,9 @@ func (p *Peer) stopBFDClient() {
 // bfdRequestFor builds an api.SessionRequest from PeerSettings. The
 // peer's Address and LocalAddress supply the session tuple; the BFD
 // block supplies mode, min-TTL, and the optional egress interface.
-// Timer fields are left zero so the BFD plugin uses its profile-driven
-// defaults (the profile name is not carried in the SessionRequest
-// because api.SessionRequest is timer-valued; profile resolution
-// happens on the plugin side in a future pass).
+// Timer fields are left zero and the profile name is carried instead:
+// the BFD plugin resolves it into timers, role and authentication in
+// EnsureSession, and refuses a name its config does not define.
 func bfdRequestFor(s *PeerSettings) api.SessionRequest {
 	mode := api.SingleHop
 	if s.BFD != nil && s.BFD.MultiHop {
@@ -496,6 +513,44 @@ func bfdRequestFor(s *PeerSettings) api.SessionRequest {
 	if s.BFD != nil {
 		req.Interface = s.BFD.Interface
 		req.MinTTL = s.BFD.MinTTL
+		req.Profile = s.BFD.Profile
 	}
 	return req
+}
+
+// VerifyPeerBFDProfiles is the commit check for BGP's config verify, reached
+// through registry.BGPReactorHandle (verifyPeerBFDProfiles).
+func (r *Reactor) VerifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
+	return verifyPeerBFDProfiles(bgpTree, bfdData)
+}
+
+// verifyPeerBFDProfiles is the commit check for every peer's
+// `connection bfd { profile ... }`: bfdData is the candidate bfd section BGP
+// reads (empty when the candidate has none). A profile the candidate does not
+// define, or one the peer's hop mode may not use, is refused here, because
+// EnsureSession would refuse it at session start and a non-strict peer would
+// then run with no BFD and a log line as the only trace. The request is built
+// by bfdRequestFor, so the mode checked is the mode the session would use.
+func verifyPeerBFDProfiles(bgpTree map[string]any, bfdData string) error {
+	peers, err := PeersFromTree(bgpTree)
+	if err != nil {
+		return err
+	}
+	for _, s := range peers {
+		// The gate startBFDClient applies: no session, so no profile to check.
+		if s.BFD == nil {
+			continue
+		}
+		if !s.BFD.Enabled {
+			continue
+		}
+		req := bfdRequestFor(s)
+		if req.Profile == "" {
+			continue
+		}
+		if err := api.CheckProfile(bfdData, req.Profile, req.Mode); err != nil {
+			return fmt.Errorf("peer %s: connection bfd: %w", s.Address, err)
+		}
+	}
+	return nil
 }

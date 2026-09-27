@@ -161,7 +161,8 @@ module ze-static-conf {
                                     type string;
                                     description "BFD profile name (from bfd/profile list). When the BFD session to this next-hop goes down, Ze
                                         removes the next-hop from the ECMP group. Ze then reprograms the route with the remaining active
-                                        next-hops.";
+                                        next-hops. The session is single-hop, so a commit is refused when the profile is not defined or
+                                        sets passive (RFC 5881 Section 3).";
                                     ze:help "BFD profile name for this next-hop, from the bfd/profile list.";
                                 }
                             }

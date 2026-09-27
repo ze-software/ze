@@ -1,0 +1,41 @@
+# Test: a static next-hop naming an undefined bfd profile cannot boot
+#
+# VALIDATES: the daemon refuses a startup config whose static next-hop names bfd profile missing, which the bfd section does not define: static's OnConfigure runs the commit's profile check.
+# PREVENTS: the config booting, and every later commit that reaches static (a bfd-only or an interface edit included) then being refused for a profile the commit never touched.
+#
+# Method: ze boots the config and the exit code and the refusal line are
+# asserted. The refusal names the static route, so it cannot be another
+# plugin's check. Linux only: static loads the interface plugin, which has no
+# backend on darwin.
+
+option=needs-linux:caps=net-admin
+option=env:var=ze.bfd.test-parallel:value=true
+# BFD binds the RFC 5881 fixed ports; see test/plugin/bgp-bfd-opt-in.ci.
+option=exclusive:group=bfd-ports
+
+stdin=ze-bgp:terminator=EOF_CONF
+bfd {
+	enabled true
+	profile fast {
+		detect-multiplier 3
+	}
+}
+
+static {
+	table default {
+		route 192.0.2.0/24 {
+			next {
+				hop 10.0.0.1 {
+					bfd-profile missing
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=static route 192.0.2.0/24 next-hop 10.0.0.1
+expect=stderr:contains=is not defined under bfd
+reject=stderr:contains=static routes loaded

@@ -43,6 +43,14 @@ const (
 	// string, and MUST be from 1 to 16 bytes in length".
 	SimplePasswordLenMin = 1
 	SimplePasswordLenMax = 16
+
+	// KeyedMD5KeyLenMax and KeyedSHA1KeyLenMax bound the key of the keyed
+	// Auth Types: the size of the Auth Key/Digest slot a key is padded
+	// into. RFC 5880 Section 6.7.3: "The authentication key value is a
+	// binary string of up to 16 bytes". Section 6.7.4: "The authentication
+	// key value is a binary string of up to 20 bytes".
+	KeyedMD5KeyLenMax  = 16
+	KeyedSHA1KeyLenMax = 20
 )
 
 // AuthHeader is the parsed two-byte authentication-section header. The

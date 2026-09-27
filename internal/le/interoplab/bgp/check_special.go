@@ -35,6 +35,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	ospfVirtualLinkScenario:                 checkOSPFVirtualLink,
 	ospfv3VirtualLinkScenario:               checkOSPFVirtualLink,
 	"bfd-frr":                               checkBFDFailover,
+	"frr-software-version":                  checkSoftwareVersionFRR,
 	"show-rib-under-frr-load":               checkShowRIBUnderFRRLoad,
 	"bgp-addpath-rail-agreement-speaker":    checkAddPathRailAgreement,
 	"bgp-addpath-readvertise-collision-frr": checkAddPathReadvertiseCollision,
@@ -87,48 +88,174 @@ func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resu
 		return err
 	}
 
+	// Status up is reached at the slow-start intervals: RFC 5880 Section 6.8.3
+	// keeps bfd.DesiredMinTxInterval at one second or more until Up, and the
+	// Poll Sequence that moves both ends to the configured 300ms runs after
+	// it. A break before that Poll completes measures a 3s slow-start
+	// Detection Time against a budget sized for the 900ms operating one, so
+	// the break waits until ze advertises its configured intervals to FRR.
+	var jsonCommand textbuf.Buffer
+	operating := []string{cmdVtysh, "-c", jsonCommand.Str("show bfd peer ").Str(neighbor).Str(" json").String()}
+	if err := waitJSONFields(ctx, check.Lab, peerFRR, operating, 30*time.Second, bfdOperatingTimers, nil); err != nil {
+		last, queryErr := check.Lab.Query(ctx, peerFRR, operating, nil)
+		if queryErr != nil {
+			return fmt.Errorf("BFD never left the slow-start intervals: %w; the last read failed: %w", err, queryErr)
+		}
+		return fmt.Errorf("BFD never left the slow-start intervals: %w; FRR last answered:\n%s", err, strings.TrimSpace(last))
+	}
+
+	// The timers both ends negotiated, read before the break, so a teardown
+	// over budget names its cause rather than only a number.
+	var peerCommand textbuf.Buffer
+	timers, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", peerCommand.Str("show bfd peer ").Str(neighbor).String()}, nil)
+	if err != nil {
+		return fmt.Errorf("read BFD timers: %w", err)
+	}
+
+	// FRR's reset counter, read before the break. ze's Cease takes the session
+	// down and FRR reconnects at once, since BFD gates nothing on FRR's side,
+	// so the down window can be shorter than one probe: a sampled state of
+	// Established proves nothing, and the counter moving does.
+	before, err := check.Lab.Query(ctx, peerFRR, session, nil)
+	if err != nil {
+		return fmt.Errorf("read BGP resets: %w", err)
+	}
+	droppedBefore, ok := bgpConnectionsDropped(before)
+	if !ok {
+		return fmt.Errorf("FRR reports no dropped-connection count:\n%s", strings.TrimSpace(before))
+	}
+
+	// ze's own record of BFD Down Ceases, read before the break, so only a
+	// Cease logged after it counts as the one this break caused.
+	logsBefore, err := check.Lab.Logs(ctx, "ze", bfdLogLinesMax)
+	if err != nil {
+		return fmt.Errorf("read ze log before the BFD break: %w", err)
+	}
+	if !logsBefore.Available {
+		return errors.New("ze's log is not readable, so a BFD Down Cease could not be tied to the break")
+	}
+
+	// The break is ze's inbound BFD Control traffic, dropped in a table of
+	// ze's own container, so ze's detection timer is what expires and ze is
+	// what tears the session down. The FRR image ships no iptables, and the
+	// table is outside the ze_ prefix, so ze's firewall never sweeps it.
 	started := time.Now()
-	drop := []string{cmdIptables, "-I", iptablesChainOutput, "1", "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
-	if _, err := check.Lab.Exec(ctx, peerFRR, drop, nil); err != nil {
-		return err
+	for _, argv := range [][]string{
+		{cmdNft, nftActionAdd, nftObjectTable, nftFamilyInet, bfdLabTable},
+		{cmdNft, nftActionAdd, nftObjectChain, nftFamilyInet, bfdLabTable, bfdLabChain, "{ type filter hook input priority -300; policy accept; }"},
+		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, bfdLabTable, bfdLabChain, nftProtocolUDP, "dport", bfdControlPort, "drop"},
+	} {
+		if _, err := check.Lab.Exec(ctx, "ze", argv, nil); err != nil {
+			return fmt.Errorf("drop BFD traffic: %w", err)
+		}
 	}
 	restored := false
+	restore := []string{cmdNft, nftActionDelete, nftObjectTable, nftFamilyInet, bfdLabTable}
 	defer func() {
 		if restored {
 			return
 		}
-		restore := []string{cmdIptables, "-D", iptablesChainOutput, "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
-		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), peerFRR, restore, nil)
+		_, restoreErr := check.Lab.Exec(context.WithoutCancel(ctx), "ze", restore, nil)
 		if restoreErr != nil && resultErr == nil {
 			resultErr = fmt.Errorf("restore BFD traffic: %w", restoreErr)
 		}
 	}()
 
-	_, report, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	reset, report, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     5 * time.Second,
 		Interval:    100 * time.Millisecond,
 		Description: "BGP teardown after BFD failure",
 	}, func(probeCtx context.Context) (string, error) {
 		return check.Lab.Query(probeCtx, peerFRR, session, nil)
-	}, bfdSessionDown)
+	}, func(output string) bool {
+		return bgpSessionReset(output, droppedBefore)
+	})
 	if err != nil {
-		return errors.New("BGP session still Established 5.0s after BFD link break")
+		after, queryErr := check.Lab.Query(ctx, peerFRR, operating, nil)
+		if queryErr != nil {
+			after = queryErr.Error()
+		}
+		return fmt.Errorf("BGP session not reset 5.0s after BFD link break; FRR BFD peer before the break:\n%s\nand after it:\n%s",
+			strings.TrimSpace(timers), strings.TrimSpace(after))
 	}
 	elapsed := time.Since(started)
 	elapsed = max(elapsed, report.Elapsed)
 	if err := requireBFDTeardownBudget(elapsed); err != nil {
-		return err
+		return fmt.Errorf("%w; FRR BFD peer before the break:\n%s", err, strings.TrimSpace(timers))
 	}
-	restore := []string{cmdIptables, "-D", iptablesChainOutput, "-p", iptablesProtocolUDP, iptablesDestinationPortFlag, "3784", "-j", iptablesTargetDrop}
-	if _, err := check.Lab.Exec(ctx, peerFRR, restore, nil); err != nil {
+	// The reset has to be the one BFD caused: ze's Cease with subcode BFD Down
+	// (RFC 9384), and not a reset some other fault produced inside the window.
+	// FRR's neighbor view forgets the reason once the session is back up, so
+	// the evidence is ze's own record of the NOTIFICATION it sent.
+	logs, err := check.Lab.Logs(ctx, "ze", bfdLogLinesMax)
+	if err != nil {
+		return fmt.Errorf("read ze log for the BFD Down Cease: %w", err)
+	}
+	if !logs.Available {
+		return fmt.Errorf("BGP reset, but ze's log is not readable, so its cause is unproven; FRR shows:\n%s", strings.TrimSpace(reset))
+	}
+	if !bfdCeaseLoggedSince(logsBefore.Text, logs.Text) {
+		return fmt.Errorf("BGP reset, but ze logged no BFD Down Cease after the break; FRR shows:\n%s", strings.TrimSpace(reset))
+	}
+	if _, err := check.Lab.Exec(ctx, "ze", restore, nil); err != nil {
 		return fmt.Errorf("restore BFD traffic: %w", err)
 	}
 	restored = true
 	return nil
 }
 
-func bfdSessionDown(output string) bool {
-	return !strings.Contains(output, "BGP state = Established")
+// bfdOperatingTimers are the session state and the intervals ze's profile
+// "fast" configures, in the milliseconds FRR reports them in, as FRR reads
+// them from ze's packets.
+var bfdOperatingTimers = map[string]string{
+	"status":                   "up",
+	"remote-receive-interval":  "300",
+	"remote-transmit-interval": "300",
+}
+
+// bfdCeaseLog is the field ze's session log writes when it sends a Cease
+// NOTIFICATION with subcode 10, BFD Down.
+const bfdCeaseLog = `subcode="BFD Down"`
+
+// bfdLogLinesMax bounds each read of ze's log in the BFD scenario. The whole
+// scenario logs a few hundred lines, so both reads hold every Cease ze sent,
+// and the count comparison in bfdCeaseLoggedSince sees the complete history.
+const bfdLogLinesMax = 20000
+
+// bfdCeaseLoggedSince reports whether ze logged a BFD Down Cease after the
+// log was read as before: after holds more of them than before did. A Cease
+// logged before the break appears in both reads, so it cannot pass.
+func bfdCeaseLoggedSince(before, after string) bool {
+	return strings.Count(after, bfdCeaseLog) > strings.Count(before, bfdCeaseLog)
+}
+
+var bgpDroppedPattern = regexp.MustCompile(`Connections established \d+; dropped (\d+)`)
+
+// bgpConnectionsDropped reads FRR's count of dropped BGP connections from
+// `show bgp neighbor`, and reports false when the line is absent.
+func bgpConnectionsDropped(output string) (int, bool) {
+	match := bgpDroppedPattern.FindStringSubmatch(output)
+	if match == nil {
+		return 0, false
+	}
+	dropped, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, false
+	}
+	return dropped, true
+}
+
+// bgpSessionReset reports whether the session went down since the count
+// droppedBefore was read: it is down now, or it went down and came back.
+func bgpSessionReset(output string, droppedBefore int) bool {
+	if !strings.Contains(output, "BGP state = Established") {
+		return true
+	}
+	dropped, ok := bgpConnectionsDropped(output)
+	if !ok {
+		return false
+	}
+	return dropped > droppedBefore
 }
 
 func requireBFDTeardownBudget(elapsed time.Duration) error {

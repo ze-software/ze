@@ -89,7 +89,7 @@ configuration change.
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1] [MUST NOT] "If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead" (§4, Event 35)
+- [ ] [DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1] [MUST NOT] If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead. (§4)
 - [ ] [DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1] [MUST] A BGP speaker which supports capabilities advertisement and has BFD strict-mode enabled MUST include the BFD Strict-Mode Capability in its OPEN message. (§6)
 - [ ] [DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1] [MUST] To avoid deadlock when utilizing both BFD hold-down and BFD strict- mode, when strict-mode is enabled for a peer, the BGP FSM MUST be enabled. (§10)
 - [ ] [DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2] [MUST NOT] That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker. (§10)

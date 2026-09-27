@@ -10,6 +10,7 @@ package session
 
 import (
 	"errors"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 )
@@ -17,10 +18,10 @@ import (
 // Errors returned by Receive.
 var (
 	// ErrYourDiscriminatorReset signals an RFC 5880 Section 6.8.6 violation:
-	// a packet with Your Discriminator == 0 arrived for a session that is
-	// not in Down or AdminDown. The engine MUST discard the packet without
-	// updating any state.
-	ErrYourDiscriminatorReset = errors.New("bfd: your-discriminator zero on non-Down session")
+	// a packet with Your Discriminator == 0 carried a State field other than
+	// Down or AdminDown. The engine MUST discard the packet without updating
+	// any state.
+	ErrYourDiscriminatorReset = errors.New("bfd: your-discriminator zero in a packet whose state is not Down or AdminDown")
 
 	// ErrAuthMismatch signals an authenticated/unauthenticated mismatch
 	// between local configuration and the received packet. The engine MUST
@@ -39,10 +40,14 @@ var (
 // packet.ParseControl and never reach Receive. Even on a successful return,
 // the caller may need to send a Final packet (see ShouldSendFinal).
 func (m *Machine) Receive(c packet.Control) error {
-	// RFC 5880 Section 6.8.6 zero-discriminator rule.
+	// RFC 5880 Section 6.8.6: "If the Your Discriminator field is zero and
+	// the State field is not Down or AdminDown, the packet MUST be
+	// discarded." The State field is the packet's, not bfd.SessionState: a
+	// restarted peer announces itself with Your Discriminator zero and State
+	// Down, and that packet takes a live session Down.
 	if c.YourDiscriminator == 0 &&
-		m.vars.SessionState != packet.StateDown &&
-		m.vars.SessionState != packet.StateAdminDown {
+		c.State != packet.StateDown &&
+		c.State != packet.StateAdminDown {
 		return ErrYourDiscriminatorReset
 	}
 
@@ -59,11 +64,32 @@ func (m *Machine) Receive(c packet.Control) error {
 	m.vars.RemoteMinRxInterval = c.RequiredMinRxInterval
 	m.vars.RemoteDesiredMinTx = c.DesiredMinTxInterval
 	m.vars.RemoteDetectMult = c.DetectMult
+	remoteMinEchoRxPrev := m.vars.RemoteMinEchoRxInterval
 	m.vars.RemoteMinEchoRxInterval = c.RequiredMinEchoRxInterval
 
-	// Section 6.8.6: terminate Poll on F=1.
+	// RFC 5880 Section 6.8.7, Section 6.8.3.
+	m.rescheduleTxLocked()
+
+	// RFC 5880 Section 6.8.9: "The interval between transmitted BFD Echo
+	// packets MUST NOT be less than the value advertised by the remote
+	// system in Required Min Echo RX Interval".
+	if m.vars.RemoteMinEchoRxInterval != remoteMinEchoRxPrev {
+		m.rescheduleEchoLocked()
+	}
+
+	// Section 6.8.6: terminate Poll on F=1. RFC 5880 Section 6.8.3 choice 3:
+	// "an additional BFD Control packet with the Final (F) bit *clear* MUST
+	// be received after the Poll Sequence has completed prior to the
+	// initiation of another Poll Sequence". The Final that ends the Poll
+	// starts that wait, and the next packet with F clear ends it.
 	if m.vars.PollOutstanding && c.Final {
 		m.vars.PollOutstanding = false
+		m.pollSettling = true
+		// RFC 5880 Section 6.8.3: an increase held for this Poll now
+		// takes effect.
+		m.releaseDesiredMinTxLocked()
+	} else if !c.Final {
+		m.pollSettling = false
 	}
 
 	now := m.clk.Now()
@@ -138,17 +164,34 @@ func (m *Machine) onStateChange(prev packet.State) {
 		// intervals to the configured operating values.
 		if m.vars.DesiredMinTxInterval != m.vars.ConfiguredDesiredMinTxInterval ||
 			m.vars.RequiredMinRxInterval != m.vars.ConfiguredRequiredMinRxInterval {
+			// RFC 5880 Section 6.8.3: a configured interval above the
+			// slow-start one is an increase made in Up.
+			m.holdDesiredMinTxLocked(m.vars.ConfiguredDesiredMinTxInterval)
 			m.vars.DesiredMinTxInterval = m.vars.ConfiguredDesiredMinTxInterval
 			m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
 			m.vars.PollOutstanding = true
 		}
 	}
 
-	if m.vars.SessionState == packet.StateDown && prev != packet.StateDown {
-		// Section 6.8.3: while not Up, restore slow-start interval
-		// floor on the local TX rate.
+	if m.vars.SessionState != packet.StateUp {
+		// The hold belongs to a Poll made in Up; leaving Up ends both.
+		m.txDesiredHeld = false
+		// RFC 5880 Section 6.8.3: "When bfd.SessionState is not Up, the
+		// system MUST set bfd.DesiredMinTxInterval to a value of not less
+		// than one second (1,000,000 microseconds)." Every entry into a
+		// state other than Up passes here, AdminDown included.
 		m.vars.DesiredMinTxInterval = SlowStartIntervalUs
+		// Clear the echo slow-down flag so ClearEchoSchedule, which the
+		// engine runs once the session has left Up, does not restore the
+		// configured sub-second interval over the floor set above, and so a
+		// session that recovers to Up does not carry a stale flag from the
+		// previous echo activation.
+		m.echoSlowdownApplied = false
+	}
+
+	if m.vars.SessionState == packet.StateDown && prev != packet.StateDown {
 		m.vars.PollOutstanding = false
+		m.pollSettling = false
 		// RFC 5880 §6.8.1: RemoteDiscr MUST be cleared when a
 		// Detection Time passes without a valid packet -- NOT on
 		// every Down transition. A peer-signaled Down still leaves
@@ -160,16 +203,14 @@ func (m *Machine) onStateChange(prev packet.State) {
 			m.vars.LocalDiag == packet.DiagEchoFailed {
 			m.vars.RemoteDiscr = 0
 		}
-		// Clear the echo slow-down flag so a session that recovers
-		// to Up does not carry a stale flag from the previous echo
-		// activation. ClearEchoSchedule also clears this, but the
-		// engine's echoTickLocked may not run between onStateChange
-		// and the next Up tick.
-		m.echoSlowdownApplied = false
 	}
 
-	// Send the next packet immediately to communicate the new state.
-	m.nextTxAt = now
+	// Send the next packet immediately to communicate the new state, unless
+	// the Passive role forbids it (RFC 5880 Section 6.8.7).
+	m.nextTxAt = time.Time{}
+	if m.transmitPermitted() {
+		m.nextTxAt = now
+	}
 
 	m.notify(m.vars.SessionState, m.vars.LocalDiag)
 }
@@ -196,7 +237,6 @@ func (m *Machine) AdminEnable() {
 	prev := m.vars.SessionState
 	m.vars.SessionState = packet.StateDown
 	m.vars.LocalDiag = packet.DiagNone
-	m.vars.DesiredMinTxInterval = SlowStartIntervalUs
 	m.onStateChange(prev)
 }
 

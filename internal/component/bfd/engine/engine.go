@@ -383,8 +383,9 @@ func NewLoop(t transport.Transport, clk clock.Clock) *Loop {
 // a nil echo transport is equivalent to NewLoop.
 //
 // Only single-hop Loops should attach an echo transport; RFC 5883
-// Section 4 prohibits multi-hop echo and the plugin config parser
-// rejects it at load time.
+// Section 3 prohibits multi-hop echo and the bfd plugin refuses it,
+// at load for a configured session and at commit or session start
+// for a client-named profile.
 func NewLoopWithEcho(t, echo transport.Transport, clk clock.Clock) *Loop {
 	l := NewLoop(t, clk)
 	l.echoTransport = echo

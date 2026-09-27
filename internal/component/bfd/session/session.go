@@ -114,7 +114,9 @@ type Machine struct {
 	authPair *AuthPair
 
 	// rcvAuthSeq tracks bfd.RcvAuthSeq for the receive-side replay
-	// protection. Advanced by Verify on successful authentication.
+	// protection. Seeded by Verify from the first packet's Sequence Number
+	// before the digest step (RFC 5880 Section 6.7.3), then advanced by
+	// Verify on successful authentication.
 	rcvAuthSeq auth.SeqState
 
 	// State (mutable, owned by the express-loop goroutine)
@@ -128,13 +130,49 @@ type Machine struct {
 	// or session is AdminDown).
 	nextDetectAt time.Time
 
-	// nextTxAt is the deadline for the next periodic Control packet.
+	// nextTxAt is the deadline for the next periodic Control packet. Zero
+	// means no transmission is scheduled: a Passive session with no
+	// bfd.RemoteDiscr (RFC 5880 Section 6.8.7).
 	nextTxAt time.Time
+
+	// lastTxAt is when AdvanceTxWithJitter last recorded a periodic TX,
+	// txWait is the jittered wait it scheduled from there, and txInterval is
+	// the transmit interval that wait was drawn from. Zero until the first
+	// periodic TX. rescheduleTxLocked rescales txWait and updates txInterval
+	// when the transmit interval changes.
+	lastTxAt   time.Time
+	txWait     time.Duration
+	txInterval time.Duration
 
 	// nextEchoAt is the deadline for the next RFC 5880 §6.4 echo
 	// packet. Zero means echo is not scheduled (session down or echo
 	// not negotiated). Advanced by AdvanceEcho after every echo TX.
 	nextEchoAt time.Time
+
+	// lastEchoAt is when AdvanceEcho last recorded an echo TX. Zero until
+	// the first echo of the current Up period. rescheduleEchoLocked
+	// measures the next echo from it when the peer changes Required Min
+	// Echo RX Interval.
+	lastEchoAt time.Time
+
+	// pollSettling is true from the Final that terminates a Poll Sequence
+	// until a Control packet with the Final bit clear arrives. It is the
+	// guard behind RFC 5880 Section 6.8.3 choice 3: while it is set, or
+	// while a Poll is outstanding, no timer change that needs a Poll may
+	// start one (pollSequenceIdle). Choice 3 is unavailable in Demand mode,
+	// and local Demand mode is never activated (Vars.DemandMode has no
+	// writer), so the peer's periodic packets always clear it.
+	pollSettling bool
+
+	// txDesiredHeld is true while an increase of bfd.DesiredMinTxInterval
+	// made in Up waits for its Poll Sequence to terminate, and
+	// txDesiredHeldUs is the bfd.DesiredMinTxInterval that was in force
+	// before the increase. TransmitInterval uses the held value
+	// (desiredMinTxInForceUs) until the Final ends the Poll, or the session
+	// leaves Up. holdDesiredMinTxLocked sets it, releaseDesiredMinTxLocked
+	// clears it.
+	txDesiredHeld   bool
+	txDesiredHeldUs uint32
 
 	// echoSequence is the monotonic counter carried inside the ZEEC
 	// envelope's Sequence field. Incremented by NextEchoSequence on

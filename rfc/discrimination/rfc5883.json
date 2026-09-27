@@ -2,6 +2,28 @@
   "rfc": "rfc5883",
   "records": [
     {
+      "rid": "RFC5883-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused",
+      "unit-sha": "957b1dd7fd6532ce",
+      "claim-sha": "5f2614ab40daf01b",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::permitsMode",
+      "producer-sha": "48dd0409b4f1c92c",
+      "break": "body of permitsMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5883-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted",
+      "unit-sha": "ffede41b2882849d",
+      "claim-sha": "b33575d1cc6622ac",
+      "route": "revert",
+      "producer": "internal/component/bfd/config.go::permitsMode",
+      "producer-sha": "48dd0409b4f1c92c",
+      "break": "body of permitsMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5883-4.1-1",
       "polarity": "positive",
       "unit": "internal/component/bfd/engine/multihop_pair_rfc5883_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",

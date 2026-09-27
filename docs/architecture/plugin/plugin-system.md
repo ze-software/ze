@@ -45,7 +45,7 @@ Optional metadata:
 | `Families` | `[]string` | Address families handled, as `afi/safi` |
 | `CapabilityCodes` | `[]uint8` | Capability codes this plugin decodes |
 | `ConfigRoots` | `[]string` | Config roots the plugin owns. A present root auto-loads the plugin |
-| `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
+| `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `ze config validate` hands them to an in-process verifier, and the daemon's server joins them into the roots it delivers at a commit and a SIGHUP reload, where a change to any of the plugin's roots delivers all of them whole. The server finds the entry through the implementation the process runs (`use bgp-rpki` under a block named `rpki` still gets `pki`). A read root is delivered and never owned: the transaction lists it as the participant's `WantsConfig`, so it reaches verify and a coarse section apply, and the operation coverage guard never counts it as the reader's (`docs/architecture/config/transaction-protocol.md`). `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
 | `Dependencies` | `[]string` | Plugin names that must also load. A missing name gives `ErrMissingDependency` |
 | `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence |
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
@@ -136,6 +136,11 @@ block names is read by starting that block's own `run` command under a shell,
 even where this binary carries a plugin of the same name: the block names
 another program, so answering it from the registration would put commands that
 program does not serve into a row that reads `kind: external`.
+
+`PluginConfig.RunsExternalProgram` states the rule once, and every caller
+that asks whether a registration is a block's asks it: dependency expansion,
+startup and removal tiers, the roots a plugin reads, and the roots a removed
+plugin is recovered for.
 
 The same rule governs DEPENDENCIES and startup ORDER. `ResolveDependencies` and
 `TopologicalTiers` take the set of names an `external` block declared, and

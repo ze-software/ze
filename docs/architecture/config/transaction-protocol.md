@@ -77,6 +77,67 @@ Examples:
 
 Plugins with neither declaration do not receive transaction events.
 
+A plugin's registry entry can also declare `ConfigReads`, the roots its
+verifier reads without owning them (`docs/architecture/plugin/plugin-system.md`).
+The server joins those roots into the roots it delivers to the plugin when the
+plugin registers, so `ConfigReads` is the one declaration and the SDK's
+`WantsConfig` does not repeat it. Static and BGP read `bfd` this way, and
+`bgp-rpki` reads `pki`. The server finds the registry entry through the plugin
+the process runs, not the operator's block name: `plugin { internal rpki { use
+bgp-rpki } }` names the process `rpki`, and its `pki` section still arrives,
+because the lookup resolves the `use` or `run` spelling first
+(`plugin.RegistryName`). An `external` block that runs a program of its own gets
+nothing from the registry, even where it shares a compiled-in plugin's name:
+`external bgp-rpki { run "/opt/x" }` names another program, so it is not handed
+the `pki` section the compiled-in `bgp-rpki` reads. That is the rule the loader
+applies to dependencies, stated once as `PluginConfig.RunsExternalProgram` and
+applied before the lookup. The recovery of a removed plugin finds its roots the
+same way.
+
+A read root is delivered and never owned. In the transaction the server lists a
+plugin's `ConfigReads` as the participant's `WantsConfig` and the rest of its
+roots as its `ConfigRoots`. Verify and the section apply deliver both, so a
+reader is verified whenever a root it reads changes. The operation coverage
+guard (`checkOperationRootCoverage`) counts only `ConfigRoots`: BGP decomposes
+root `bgp` into operations, and a commit that defines a profile and points a
+peer at it in one go leaves the `bfd` root to the bfd plugin rather than
+aborting with "plugin bgp, root bfd".
+
+A read root can still reach the reader's apply, and that is deliberate. The
+rule is per transaction: a reader that owns at least one operation in the
+transaction gets no apply for its read roots, and a reader that owns none gets
+its coarse section apply, carrying every root it was delivered, read roots
+included. `bgp-rpki` needs this: its `OnConfigApply` is what puts a verified
+`pki` change into use, so a verify-only read root would leave a certificate
+change checked and never applied. BGP takes a `bfd`-only edit the same way,
+since it decomposes nothing when root `bgp` did not change and no address a
+peer binds moves. A plugin's apply
+must therefore accept a delivery whose only changed root is one it reads.
+
+Because a read root gates a commit to the reader's own roots, the startup
+config gets the same check. Static and BGP run their bfd-profile check in
+`OnConfigure`, so a route or a peer naming a profile the `bfd` section does not
+define stops the daemon at boot. Without it the config would boot, and every
+later commit that reached the plugin, a `bfd`-only edit or an unrelated
+interface edit included, would be refused for a profile it never touched.
+
+A reader checks a relation across roots, such as a BGP peer or a static
+next-hop naming a profile under `bfd`. So on a SIGHUP reload a plugin with
+`ConfigReads` receives every root it holds, whole, as soon as any one of them
+changed. A `bgp` edit then carries the `bfd` section to check against, and a
+`bfd`-only edit reaches BGP, with the `bgp` section, so deleting a profile a
+peer still names is refused. A plugin without `ConfigReads` receives only the
+roots that changed. For every plugin, a root that changed and left the tree is
+delivered as an empty section, which is its deletion; a root that did not
+change and is absent is not delivered at all.
+<!-- source: internal/component/plugin/server/startup.go -- joinConfigReads -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
+<!-- source: internal/component/plugin/server/startup.go -- registryConfigReads -->
+<!-- source: internal/component/plugin/server/startup.go -- registryRow -->
+<!-- source: internal/component/plugin/types.go -- PluginConfig.RunsExternalProgram -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- buildTxInputs -->
+<!-- source: internal/component/config/transaction/orchestrator.go -- checkOperationRootCoverage -->
+
 Among participating plugins, every one must respond to verify. The engine sends
 each plugin only the diffs for the roots it declared (`ConfigRoots` or
 `WantsConfig`). A plugin never sees config for roots it did not declare

@@ -206,9 +206,9 @@ type BFDSettings struct {
 	// api.MultiHop at conversion time.
 	MultiHop bool
 	// Profile is the name of a profile defined under the top-level
-	// bfd { profile ... } block. The BFD plugin resolves it; the BGP
-	// parser does not validate it (cross-component lookup would pull
-	// the BGP tree into the BFD plugin's lifecycle).
+	// bfd { profile ... } block. The BFD plugin resolves it at session
+	// start. The BGP parser does not look it up; BGP's commit verify does,
+	// against the candidate bfd section BGP reads (verifyPeerBFDProfiles).
 	Profile string
 	// MinTTL is the multi-hop minimum receive TTL. Zero means use the
 	// BFD plugin default (254).

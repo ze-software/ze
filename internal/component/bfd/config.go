@@ -303,12 +303,29 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 	// RFC 5880 Section 6.7.2: "The password is a binary string, and MUST
 	// be 1 to 16 bytes in length." The Auth Len field is one byte holding
 	// the password length plus three, so a longer password has no wire
-	// encoding. The keyed digests carry no such bound: they pad or
-	// truncate the secret to their fixed key slot.
+	// encoding.
 	if wire == packet.AuthTypeSimplePassword && len(secret) > packet.SimplePasswordLenMax {
 		return nil, fmt.Errorf(
 			"bfd: profile %q: auth type simple-password secret is %d bytes, RFC 5880 Section 6.7.2 allows %d to %d",
 			profileName, len(secret), packet.SimplePasswordLenMin, packet.SimplePasswordLenMax)
+	}
+	// RFC 5880 Section 6.7.3: "The authentication key value is a binary
+	// string of up to 16 bytes, and MUST be placed into the Auth Key/Digest
+	// field, padded with trailing zero bytes as necessary." A longer key
+	// does not fit the slot, and truncating it would authenticate with a
+	// key the operator never configured.
+	if keyedMD5(wire) && len(secret) > packet.KeyedMD5KeyLenMax {
+		return nil, fmt.Errorf(
+			"bfd: profile %q: auth type %s secret is %d bytes, RFC 5880 Section 6.7.3 allows up to %d",
+			profileName, typeStr, len(secret), packet.KeyedMD5KeyLenMax)
+	}
+	// RFC 5880 Section 6.7.4: "The authentication key value is a binary
+	// string of up to 20 bytes, and MUST be placed into the Auth Key/Hash
+	// field, padding with trailing zero bytes as necessary."
+	if keyedSHA1(wire) && len(secret) > packet.KeyedSHA1KeyLenMax {
+		return nil, fmt.Errorf(
+			"bfd: profile %q: auth type %s secret is %d bytes, RFC 5880 Section 6.7.4 allows up to %d",
+			profileName, typeStr, len(secret), packet.KeyedSHA1KeyLenMax)
 	}
 	return &authConfig{
 		authType:   wire,
@@ -316,6 +333,22 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 		secret:     []byte(secret),
 		meticulous: meticulous,
 	}, nil
+}
+
+// keyedMD5 reports whether wire is one of the two MD5 Auth Types.
+func keyedMD5(wire uint8) bool {
+	if wire == packet.AuthTypeKeyedMD5 {
+		return true
+	}
+	return wire == packet.AuthTypeMeticulousKeyedMD5
+}
+
+// keyedSHA1 reports whether wire is one of the two SHA1 Auth Types.
+func keyedSHA1(wire uint8) bool {
+	if wire == packet.AuthTypeKeyedSHA1 {
+		return true
+	}
+	return wire == packet.AuthTypeMeticulousKeyedSHA1
 }
 
 // parseSingleHopSession decodes one entry under `single-hop-session`. The
@@ -462,41 +495,109 @@ func (s sessionConfig) toSessionRequest(profiles map[string]profileConfig) api.S
 	}
 	if s.profile != "" {
 		if p, ok := profiles[s.profile]; ok {
-			req.DesiredMinTxInterval = p.desiredMinTxUs
-			req.RequiredMinRxInterval = p.requiredMinRxUs
-			req.DetectMult = p.detectMult
-			req.Passive = p.passive
-			if p.auth != nil {
-				req.Auth = &api.AuthSettings{
-					Type:       p.auth.authType,
-					KeyID:      p.auth.keyID,
-					Secret:     p.auth.secret,
-					Meticulous: p.auth.meticulous,
-				}
-			}
-			if p.echo != nil {
-				req.DesiredMinEchoTxInterval = p.echo.desiredMinEchoTxUs
-			}
+			p.applyTo(&req)
 		}
 	}
 	return req
 }
 
+// resolveProfile fills req from the profile it names. A request that names
+// no profile is returned as it came: its client chose its own timers, as
+// OSPF does from its interface block. A request that names a profile the
+// config does not define is an error, because answering with the slow-start
+// defaults would run the session at timers the operator never asked for.
+func resolveProfile(req api.SessionRequest, profiles map[string]profileConfig) (api.SessionRequest, error) {
+	if req.Profile == "" {
+		return req, nil
+	}
+	p, ok := profiles[req.Profile]
+	if !ok {
+		return req, fmt.Errorf("bfd: profile %q is not defined under bfd { profile ... }", req.Profile)
+	}
+	// RFC 5881 Section 3 and RFC 5883 Section 3: a client request passes the
+	// same hop-mode check a pinned session passes in validate.
+	if err := p.permitsMode(req.Mode); err != nil {
+		return req, fmt.Errorf("bfd: %s session: %w", req.Mode, err)
+	}
+	p.applyTo(&req)
+	return req, nil
+}
+
+// checkClientProfile answers the api.CheckProfile seam: a client names a
+// profile at commit and the candidate bfd section decides, through
+// resolveProfile, the same function EnsureSession runs at session start.
+func checkClientProfile(bfdData, profile string, mode api.HopMode) error {
+	if bfdData == "" {
+		return fmt.Errorf("bfd: profile %q is not defined: the config has no bfd section", profile)
+	}
+	cfg, err := parseBFDSection(bfdData)
+	if err != nil {
+		return err
+	}
+	_, err = resolveProfile(api.SessionRequest{Profile: profile, Mode: mode}, cfg.profiles)
+	return err
+}
+
+// permitsMode answers whether a session in mode may use this profile. It is
+// the one hop-mode check, shared by validate (pinned sessions) and
+// resolveProfile (every client request), so the two paths cannot drift apart.
+func (p *profileConfig) permitsMode(mode api.HopMode) error {
+	if mode == api.SingleHop {
+		// RFC 5881 Section 3: "In this application, there will be
+		// only a single BFD session between two systems over a given
+		// interface (logical or physical) for a particular protocol.
+		// The BFD session must be bound to this interface. As such,
+		// both sides of a session MUST take the "Active" role".
+		if p.passive {
+			return fmt.Errorf("profile %q sets passive, and RFC 5881 Section 3 requires both sides of a single-hop session to take the Active role", p.name)
+		}
+		return nil
+	}
+	// RFC 5883 Section 3: "Finally, the Echo function MUST NOT be used
+	// over multiple hops."
+	if p.echo != nil {
+		return fmt.Errorf("profile %q enables echo, and RFC 5883 Section 3 forbids the Echo function over multiple hops", p.name)
+	}
+	return nil
+}
+
+// applyTo copies the profile's timers, role, authentication and echo
+// interval into req, overwriting what the request carried.
+func (p *profileConfig) applyTo(req *api.SessionRequest) {
+	req.DesiredMinTxInterval = p.desiredMinTxUs
+	req.RequiredMinRxInterval = p.requiredMinRxUs
+	req.DetectMult = p.detectMult
+	req.Passive = p.passive
+	req.Auth = nil
+	if p.auth != nil {
+		req.Auth = &api.AuthSettings{
+			Type:       p.auth.authType,
+			KeyID:      p.auth.keyID,
+			Secret:     p.auth.secret,
+			Meticulous: p.auth.meticulous,
+		}
+	}
+	req.DesiredMinEchoTxInterval = 0
+	if p.echo != nil {
+		req.DesiredMinEchoTxInterval = p.echo.desiredMinEchoTxUs
+	}
+}
+
 // validate checks a parsed pluginConfig for post-parse constraints
-// that cross profile/session boundaries. RFC 5883 Section 4 forbids
-// multi-hop echo, so a multi-hop session referencing an
-// echo-enabled profile is rejected here rather than silently.
+// that cross profile/session boundaries: a pinned session whose profile
+// its hop mode forbids is refused at load (profileConfig.permitsMode).
 func (cfg *pluginConfig) validate() error {
 	for _, s := range cfg.sessions {
-		if s.mode != api.MultiHop || s.profile == "" {
+		if s.profile == "" {
 			continue
 		}
 		p, ok := cfg.profiles[s.profile]
 		if !ok {
-			continue
+			return fmt.Errorf("bfd: %s-session %s: unknown profile %q", s.mode, s.peer, s.profile)
 		}
-		if p.echo != nil {
-			return fmt.Errorf("bfd: multi-hop-session %s uses profile %q with echo enabled (RFC 5883 Section 4 prohibits multi-hop echo)", s.peer, s.profile)
+		// RFC 5881 Section 3, RFC 5883 Section 3.
+		if err := p.permitsMode(s.mode); err != nil {
+			return fmt.Errorf("bfd: %s-session %s: %w", s.mode, s.peer, err)
 		}
 	}
 	return nil

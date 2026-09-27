@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 
+	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/bgp/transaction"
 	bgpyang "github.com/ze-software/ze/internal/component/bgp/yang"
 	zeplugin "github.com/ze-software/ze/internal/component/plugin"
@@ -75,11 +76,15 @@ func init() {
 	zeplugin.RegisterDefaultEventNamespace(bgpevents.Namespace)
 
 	reg := registry.Registration{
-		Name:               pluginNameBGP,
-		Description:        "BGP routing daemon",
-		Features:           "yang",
-		YANG:               bgpyang.ZeBGPConfYANG,
-		ConfigRoots:        []string{configRootBGP},
+		Name:        pluginNameBGP,
+		Description: "BGP routing daemon",
+		Features:    "yang",
+		YANG:        bgpyang.ZeBGPConfYANG,
+		ConfigRoots: []string{configRootBGP},
+		// A peer's `connection bfd { profile ... }` names a profile under the
+		// bfd root, so commit hands BGP the candidate bfd section to check it
+		// against (reactor.VerifyPeerBFDProfiles). A read never auto-loads BGP.
+		ConfigReads:        []string{bfdapi.ConfigRoot},
 		FatalOnConfigError: true,
 		RunEngine:          runBGPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -106,6 +111,67 @@ func init() {
 	}
 }
 
+// parseBGPSection answers the tree the reactor parsers read from a delivered
+// bgp section. It is the ONE parser of that shape: the config verify
+// (OnConfigVerify below) and the operation decomposer (decomposeBGPOperations)
+// both receive a section the server built with config.ExtractConfigSubtree,
+// which wraps the contents in the root key, so the data is {"bgp": {...}}.
+// Handed the wrapper, PeersFromTree finds no `peer` key and answers no peers,
+// so every check over the peers passes.
+//
+// "{}" is a deleted or absent root (marshalOperationRoot and the reload
+// delivery both write it), which is an empty tree. Every other shape is
+// refused, never read as empty: an empty tree reaches the peer reconcile as
+// "no peers" and removes every peer, so a non-empty object without the bgp
+// key, a bgp value that is not an object, and a JSON null are errors.
+func parseBGPSection(data string) (map[string]any, error) {
+	var section map[string]any
+	if err := json.Unmarshal([]byte(data), &section); err != nil {
+		return nil, fmt.Errorf("bgp section: unmarshal: %w", err)
+	}
+	if section == nil {
+		return nil, errors.New("bgp section: null is not an object")
+	}
+	inner, present := section[configRootBGP]
+	if !present {
+		if len(section) == 0 {
+			return map[string]any{}, nil
+		}
+		return nil, fmt.Errorf("bgp section: the delivered object has no bgp key (%d other keys)", len(section))
+	}
+	bgpTree, ok := inner.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("bgp section: the bgp value holds %T, not an object", inner)
+	}
+	return bgpTree, nil
+}
+
+// verifyStartupPeerBFDProfiles runs the commit's peer bfd-profile check
+// (BGPReactorHandle.VerifyPeerBFDProfiles) over the startup delivery: the bgp
+// section and the bfd section this plugin reads (registry ConfigReads). A
+// startup delivery without a bgp section has no peer to check.
+func verifyStartupPeerBFDProfiles(h registry.BGPReactorHandle, sections []sdk.ConfigSection) error {
+	var bfdData string
+	for _, s := range sections {
+		if s.Root == bfdapi.ConfigRoot {
+			bfdData = s.Data
+		}
+	}
+	for _, s := range sections {
+		if s.Root != configRootBGP {
+			continue
+		}
+		bgpTree, err := parseBGPSection(s.Data)
+		if err != nil {
+			return fmt.Errorf("bgp configure: %w", err)
+		}
+		if err := h.VerifyPeerBFDProfiles(bgpTree, bfdData); err != nil {
+			return fmt.Errorf("bgp configure: %w", err)
+		}
+	}
+	return nil
+}
+
 // runBGPEngine is the engine-mode entry point for the BGP plugin.
 func runBGPEngine(conn net.Conn) int {
 	log := slogutil.Logger("bgp.plugin")
@@ -116,7 +182,7 @@ func runBGPEngine(conn net.Conn) int {
 
 	var bgpReactor registry.BGPReactorHandle
 
-	p.OnConfigure(func(_ []sdk.ConfigSection) error {
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		bgpMu.Lock()
 		server := bgpServer
 		bgpMu.Unlock()
@@ -140,6 +206,15 @@ func runBGPEngine(conn net.Conn) int {
 		bgpReactor, err = factoryFn(coord)
 		if err != nil {
 			return fmt.Errorf("bgp: create reactor: %w", err)
+		}
+
+		// The startup config gets the bfd-profile check a commit gets, before
+		// anything starts: a peer naming an undefined profile cannot boot,
+		// rather than boot and then have every later commit that reaches bgp
+		// (a bfd-only edit included, bfd being a root bgp reads) refused for a
+		// profile the commit never touched.
+		if err := verifyStartupPeerBFDProfiles(bgpReactor, sections); err != nil {
+			return err
 		}
 
 		// Wire reactor to hub-owned infrastructure.
@@ -194,23 +269,26 @@ func runBGPEngine(conn net.Conn) int {
 	var operationMu sync.Mutex
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		var bfdData string
+		for _, s := range sections {
+			if s.Root == bfdapi.ConfigRoot {
+				bfdData = s.Data
+			}
+		}
 		for _, s := range sections {
 			if s.Root != configRootBGP {
 				continue
 			}
-			// s.Data is the bgp subtree (contents of "bgp { ... }" as
-			// produced by ExtractConfigSubtree on the server side) --
-			// NOT wrapped in another "bgp" key. Unmarshal directly.
-			var bgpTree map[string]any
-			if err := json.Unmarshal([]byte(s.Data), &bgpTree); err != nil {
-				return fmt.Errorf("bgp verify: unmarshal: %w", err)
-			}
-			if bgpTree == nil {
-				bgpTree = map[string]any{}
+			bgpTree, err := parseBGPSection(s.Data)
+			if err != nil {
+				return fmt.Errorf("bgp verify: %w", err)
 			}
 			// Validate via reactor (checks peer field constraints).
 			if bgpReactor != nil {
 				if _, err := bgpReactor.PeerDiffCount(bgpTree); err != nil {
+					return fmt.Errorf("bgp verify: %w", err)
+				}
+				if err := bgpReactor.VerifyPeerBFDProfiles(bgpTree, bfdData); err != nil {
 					return fmt.Errorf("bgp verify: %w", err)
 				}
 			}

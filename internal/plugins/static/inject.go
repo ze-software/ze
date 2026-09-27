@@ -253,6 +253,11 @@ func (rm *routeManager) programRouteLocked(rs *routeState) error {
 	return nil
 }
 
+// staticBFDMode is the hop mode of every next-hop BFD session: a static
+// next-hop is a directly connected neighbor. Commit (verifyStaticSections)
+// checks a next-hop's profile against this same mode.
+const staticBFDMode = bfdapi.SingleHop
+
 func (rm *routeManager) setupBFDLocked(rs *routeState) {
 	if rm.bfd == nil {
 		return
@@ -264,7 +269,7 @@ func (rm *routeManager) setupBFDLocked(rs *routeState) {
 		}
 		req := bfdapi.SessionRequest{
 			Peer:    nhs.nh.Address,
-			Mode:    bfdapi.SingleHop,
+			Mode:    staticBFDMode,
 			Profile: nhs.nh.BFDProfile,
 		}
 		if nhs.nh.Interface != "" {
