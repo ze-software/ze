@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "reaudit_history": [
     "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/rfc7606_session_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22.",
     "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched.",
@@ -364,6 +364,19 @@
         "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "232c90b703220ea8",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "826916eb61da357d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "3ae6f048c392bc4f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7606-4-3": {
+      "note": "Forbidden: locating the NLRI from an overrunning attribute's own length instead of the Total Attribute Length. TestRFC7606NLRILocatedByTotalAttributeLength builds an UPDATE whose COMMUNITY declares 8 octets where 4 remain, confirms the validator returns TreatAsWithdraw at code 8, and fails unless SynthesizeWithdraw's Withdrawn Routes equal the two prefixes at the Total Attribute Length offset (assert.Equal nlri); the negative assert.NotEqual rejects the tail the overrun would have pointed at. SynthesizeWithdraw is SynthesizeWithdrawFamilies(body, nil), the same locator the receive path calls in session_read.go.",
+      "requirement_sha": "28b6c6bea6a31eef",
+      "tests": {
+        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "3fecff6fd636a994",
+        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "3fecff6fd636a994"
+      },
+      "units": {
+        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "2a3919fd56715e92",
+        "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "2a3919fd56715e92"
       },
       "verdict": "enforced"
     },
