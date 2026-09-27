@@ -1,0 +1,49 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9136-3.1-1": {
+      "note": "Receive half only. (a) forbidden: accepting an RT-5 whose Length is neither 34 nor 58; (b) TestEVPNType5InvalidLength require.Error on a 33-octet RT-5 goes red if the len(data)!=34&&!=58 guard in parseEVPNType5 is removed (the parser then slices past the buffer). But the assertion is a generic require.Error, not ErrEVPNInvalidAddress, and only one wrong length is driven. The positives decode 34 as IPv4 and 58 as IPv6. The send half (ze's encoder writes Length 34 for IPv4 and 58 for IPv6) has no tagged assertion, so an encoder writing any other Length stays green.",
+      "requirement_sha": "4046509169a59356",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "60cbb0884ac0e457",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "35b5c224ba322436"
+      },
+      "verdict": "weak"
+    },
+    "RFC9136-3.1-3": {
+      "note": "Single-polarity positive (row marker). (a) forbidden: decoding the RD or the Ethernet Tag ID at other than the RFC 7432 layout (8-octet RD, 4-octet tag after the 10-octet ESI); (b) TestEVPNType5IPv4 assert.Equal(\"0:65000:100\", evpn.RD().String()) and assert.Equal(uint32(10), evpn.EthernetTag()) go red on a misplaced or misdecoded field. Only a type-0 RD is driven; RD type decoding is the shared ParseRouteDistinguisher.",
+      "requirement_sha": "fb71b0b3f1accf09",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9136-3.1-5": {
+      "note": "(a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.",
+      "requirement_sha": "2e49d3e847576fd8",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "f73c00755f3c5f59",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "f73c00755f3c5f59"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "60cbb0884ac0e457",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "eee3027d638d1be7",
+        "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "eee3027d638d1be7"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9136"
+}
