@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5301-3-8": {
+      "note": "(a) a TLV 137 value carrying a NUL terminator; (b) TestISISHostnameTLVFraming: bytes.IndexByte(value,0)>=0 errors, len(value)!=len(name) errors, and the [137][len+1][name,0] run errors; TestISISHostnameTLVIsPrintableASCII rejects any octet outside 0x20..0x7e and requires exactly one [137][len][value] run.",
+      "requirement_sha": "9d61db2578036272",
+      "tests": {
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "1c2f6a347217b7d4",
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "1c2f6a347217b7d4"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVFraming": "5a5bb2cdc914f175",
+        "internal/plugins/isis/lsdb/encode_test.go::TestISISHostnameTLVIsPrintableASCII": "d880bac2e92342e6"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5301"
+}
