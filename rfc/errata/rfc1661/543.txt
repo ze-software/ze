@@ -1,0 +1,21 @@
+Errata ID: 543
+RFC: 1661
+Status: Verified
+Type: Editorial
+Location: Section 5.4
+Date Verified: 2012-04-26
+Source: https://www.rfc-editor.org/errata/eid543
+
+Original Text:
+   On reception of a Configure-Reject, the Identifier field MUST
+   match that of the last transmitted Configure-Request.
+   Additionally, the Configuration Options in a Configure-Reject MUST
+   be a proper subset of those in the last transmitted Configure-
+   Request.  Invalid packets are silently discarded.
+
+Corrected Text:
+   On reception of a Configure-Reject, the Identifier field MUST
+   match that of the last transmitted Configure-Request.
+   Additionally, the Configuration Options in a Configure-Reject MUST
+   be a subset of those in the last transmitted Configure-
+   Request.  Invalid packets are silently discarded.

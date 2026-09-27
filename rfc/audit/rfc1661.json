@@ -1,0 +1,240 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC1661-2-1": {
+      "note": "Sentence: all Protocols MUST be odd (LSB of the least significant octet 1), MUST be assigned with the LSB of the most significant octet 0, and received frames breaking these rules MUST be treated as an unrecognized Protocol. (a) Even Protocol 0xC020 treated as LCP: TestRFC1661NonCompliantProtocolTreatedUnrecognized goes red (Code != LCPProtocolReject, Rejected-Protocol != 0xC020, state moved). (b) A received Protocol whose most significant octet has LSB 1 (e.g. 0xC121) treated as recognized: no tagged unit sends one, so no assertion goes red. The transmit-side oddness clause has no assertion either (ze sends only constants). Weak on the most-significant-octet clause.",
+      "requirement_sha": "d38d0dc4f4ee74bc",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "19e015b5d17e37e8"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "95aab366be3298dd",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "85e93b8a5b282a91"
+      },
+      "verdict": "weak"
+    },
+    "RFC1661-3.7-1": {
+      "note": "Sentence: the receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack. (a) Disconnecting at once on Terminate-Request: TestRFC1661TerminateAckSentAndLinkHeld goes red (term true, state != Stopping, or EventSessionDown drained). (b) Disconnecting after the Ack but before one Restart time has passed (a shorter timer, or a disconnect on the next event): the test never advances time and asserts nothing after the instant of receipt, so no assertion pins the one-Restart-time floor. Single-polarity by marker; still weak on the time bound.",
+      "requirement_sha": "376a67e775b4a6f4",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "19e015b5d17e37e8"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1"
+      },
+      "verdict": "weak"
+    },
+    "RFC1661-5.2-2": {
+      "note": "Sentence: the acknowledged Configuration Options MUST NOT be reordered or modified in any way. (a) Reordering: TestRFC1661ConfigureAckDoesNotReorderOptions sends MRU,Magic and Magic,MRU and bytes.Equal(pkt.Data, data) goes red on a normalized order. (b) Modifying: TestRFC1661ConfigureAckEchoesOptionsVerbatim bytes.Equal(pkt.Data, data) goes red on any changed value or length; TestRFC1877ConfigureAckEchoesAcceptable carries the same check for IPCP.",
+      "requirement_sha": "e4e0a40a9df761c7",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "a65c290db4ba68a7"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "a665a70e308bc642",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "d94762f04091a218",
+        "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "bbba5bcde2729466"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-5.3-1": {
+      "note": "Sentence: if every instance of the received options is recognizable but some values are not acceptable, the implementation MUST transmit a Configure-Nak. (a) Answering an unacceptable MRU 2000 with Ack, Reject or nothing: TestRFC1661ConfigureNakSuggestsAcceptableValue findCode(LCPConfigureNak) fails. (b) Nak where all values are acceptable: TestRFC1661NoNakForAcceptableValue findCode(LCPConfigureNak) ok goes red.",
+      "requirement_sha": "b5f424f6b06d75bf",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "19e015b5d17e37e8"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "ed8353763fa234db",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "ffd0dd58968a4914"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-5.3-6": {
+      "note": "Sentence: all acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the options from the Configure-Request MUST NOT be reordered. (a) Reordering: TestRFC1661NakPreservesRequestOrder and TestRFC1661NakOrderFollowsRequestNotAFixedOrder check naks[0]/naks[1] Types in both request orders, red on a fixed order. (b) Leaving an acceptable option in the Nak: neither tagged unit feeds an acceptable option beside the Nak-earning ones, so an implementation that copies an acceptable option into the Nak passes. Weak on the filtering clause.",
+      "requirement_sha": "fec504f4c705c5ef",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "19e015b5d17e37e8"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "f6cdbaed55098e1c",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "5d4805744ceb7f11"
+      },
+      "verdict": "weak"
+    },
+    "RFC1661-5.4-2": {
+      "note": "Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.",
+      "requirement_sha": "725c709d8d815751",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "19e015b5d17e37e8",
+        "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "628d91af81c6cdb9",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "628d91af81c6cdb9"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "9c86493b35ab748f",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2": "9c86493b35ab748f",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "73e363618b39fdbb",
+        "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "01ea5207dfc1ae98",
+        "internal/component/l2tp/ppp/rfc1877_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "81d311016702fec4",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "e394fa4de543ba28",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "e394fa4de543ba28"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-5.4-4": {
+      "note": "Sentence (erratum 543): the options in a Configure-Reject MUST be a subset of those in the last transmitted Configure-Request; invalid packets are silently discarded. (a) Accepting a Reject naming an option never requested, or with a changed value: TestLCPRepliesMatchOutstandingRequest cases Reject unrequested option and Reject changed value go red (state or frame count changes); TestClientLCPReplyCorrelation covers modified. (b) Refusing a Reject equal to the whole request, the case the erratum restores: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all goes red if the replacement request is not emitted; a proper-subset check in ppp would also redden TestLCPRejectedOptionsStayRemoved (all=true), which carries the 5.4-5 tag only.",
+      "requirement_sha": "1db404df8454e0e0",
+      "tests": {
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "e0085efaa973fd91"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPReplyCorrelation": "70c6abe342bd58ca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-5.4-5": {
+      "note": "Sentence: when a new Configure-Request is sent after a valid Configure-Reject, it MUST NOT include any of the rejected options. (a) Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (only MRU, and all options) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) go red on bytes.Equal(next.Data, want) / len(next.Data) != 0. Negative: un-rejected options stay byte-identical.",
+      "requirement_sha": "0f0699a656379b2d",
+      "tests": {
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "e0085efaa973fd91",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "e0085efaa973fd91"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
+        "internal/component/l2tp/ppp/lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "ab469c94ab893f0e",
+        "internal/component/l2tp/pppoeclient/lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "ab469c94ab893f0e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-5.5-2": {
+      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestTerminateRequestIdentifierChanges sends two Terminate-Requests with no Data change and no reply and asserts the Identifiers differ. (a) Keeping the Identifier across a Data change: never exercised. (b) Keeping it after a valid Terminate-Ack: never exercised. The assertion instead forbids an unchanged Identifier on a retransmission, which the next sentence of Section 5.5 permits (MAY remain unchanged). It catches only an implementation that never changes the Identifier.",
+      "requirement_sha": "db76e473ecf13877",
+      "tests": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "782ab2fe91715eef",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "782ab2fe91715eef"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges": "69caed534fdcd0bd",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestTerminateRequestIdentifierChanges#2": "69caed534fdcd0bd"
+      },
+      "verdict": "weak"
+    },
+    "RFC1661-5.8-4": {
+      "note": "Sentence: on transmission the Identifier MUST be changed whenever the Data field content changes, and whenever a valid reply has been received for a previous request. TestEchoRequestIdentifierChanges sends two Echo-Requests with no Data change and no Echo-Reply between them and asserts differing Identifiers; the Echo-Reply copy it also checks is the separate On-reception sentence. (a) Data-change clause and (b) valid-reply clause: neither is exercised, and the assertion forbids a retransmission keeping its Identifier, which Section 5.8 permits.",
+      "requirement_sha": "382d025d3d2e4cdc",
+      "tests": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "782ab2fe91715eef",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "782ab2fe91715eef"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges": "f1ceed5985393870",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestEchoRequestIdentifierChanges#2": "f1ceed5985393870"
+      },
+      "verdict": "weak"
+    },
+    "RFC1661-5.8-5": {
+      "note": "Sentence: until the Magic-Number option has been successfully negotiated, the Magic-Number MUST be transmitted as zero. (a) Sending the chosen Magic-Number before negotiation: TestMagicNumberZeroUntilNegotiated goes red on req != 0 || rep != 0 before any Ack, and again after a Configure-Ack that carries no option 5. Positive: after an Ack with option 5 both packets carry the value. Echo-Request and Echo-Reply both covered; the identical Discard-Request sentence is Section 5.9 and ze sends no Discard-Request.",
+      "requirement_sha": "b8270377c0536f55",
+      "tests": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "782ab2fe91715eef",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "782ab2fe91715eef"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated": "674a14893314861c",
+        "internal/component/l2tp/ppp/magic_echo_rfc1661_test.go::TestMagicNumberZeroUntilNegotiated#2": "674a14893314861c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-6-1": {
+      "note": "Sentence: a negotiable option received with an invalid or unrecognized Length SHOULD draw a Configure-Nak carrying the desired option with an appropriate Length and Data. (a) Rejecting or ignoring it, or Naking with a bad Length or value: TestRFC1661LCPInvalidOptionLengthDrawsNak (Length 3, 1, 0) goes red on onlyLCPNak, ParseLCPOptions, len(opts[0].Data) != 2 and value != 1500; TestRFC1661LCPWrongLengthMagicIsNakedNotRejected checks Magic at 4 octets, non-zero; TestRFC1661InvalidOptionLengthDrawsNak and TestRFC1661ClientInvalidOptionLengthDrawsNak cover IPCP and the PPPoE client. Negative: valid Length draws an Ack, unrecognized Type draws a Reject.",
+      "requirement_sha": "a410f8b8a2cad25f",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "2325ea607f732027",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "628d91af81c6cdb9",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "628d91af81c6cdb9"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "3a4f39019c412d8c",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak#2": "3a4f39019c412d8c",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak": "98884b3640a7a1d6",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak#2": "98884b3640a7a1d6",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "574c3e977e88ab81",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected": "f2965136bf3d86a8",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "f2965136bf3d86a8",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "a80bf5d77b2ac323",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "a80bf5d77b2ac323",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "3e4913d7d90e8bf7",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "3e4913d7d90e8bf7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-6-2": {
+      "note": "Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.",
+      "requirement_sha": "a0457771dff06e0e",
+      "tests": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "2325ea607f732027",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "628d91af81c6cdb9",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "628d91af81c6cdb9"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2a9aad41c5045293",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded#2": "2a9aad41c5045293",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded": "ca5e4e18e51f86e7",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded#2": "ca5e4e18e51f86e7",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded": "e698bbd2b2648518",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "e698bbd2b2648518",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "106dd38c4124f05a",
+        "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "106dd38c4124f05a",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "82ee016724d111fc",
+        "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "82ee016724d111fc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1661-6.4-6": {
+      "note": "Sentence: if the received Magic-Number equals the one last sent, a Configure-Nak MUST be sent specifying a different Magic-Number value. (a) Acking or Rejecting the equal value, or Naking with the same value: TestEqualMagicNumberIsNaked goes red on len(acks) != 0, len(rejects) != 0, offered == localMagic (and offered == 0). Negative: a different value is Acked unchanged.",
+      "requirement_sha": "910cf82f88998ca1",
+      "tests": {
+        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked": "9f240fbd5fc8e9de",
+        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked#2": "9f240fbd5fc8e9de"
+      },
+      "units": {
+        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked": "49c0203728e52dac",
+        "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked#2": "49c0203728e52dac"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc1661"
+}
