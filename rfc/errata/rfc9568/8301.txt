@@ -1,0 +1,41 @@
+Errata ID: 8301
+RFC: 9568
+Status: Verified
+Type: Technical
+Location: Section 6.1
+Date Verified: 2025-03-06
+Source: https://www.rfc-editor.org/errata/eid8301
+
+Original Text:
+Advertisement_Interval  Time interval between VRRP Advertisements
+   (centiseconds) sent by this Virtual Router. Default is 100
+   centiseconds (1 second).
+
+
+ and section 7.1 says:
+
+ * It MUST verify that the VRID is configured on the receiving
+   interface and the local router is not the IPvX address owner
+   (Priority = 255 (decimal)).
+
+If any one of the above checks fails, the receiver MUST discard the
+packet, SHOULD log the event (subject to rate-limiting), and MAY
+indicate via network management that an error occurred.
+
+Corrected Text:
+Advertisement_Interval  Time interval between VRRP Advertisements
+   (centiseconds) sent by this Virtual Router. Configurable value
+   in the range 1-4095 (centiseconds). Default is 100 centiseconds
+   (1 second).
+
+ and section 7.1 should say:
+
+ * It MUST verify that the VRID is configured on the receiving
+   interface and the local router is not the IPvX address owner
+   (Priority = 255 (decimal)).
+
+ *  It MUST verify that the Max Advertise Interval is non zero.
+
+If any one of the above checks fails, the receiver MUST discard the
+packet, SHOULD log the event (subject to rate-limiting), and MAY
+indicate via network management that an error occurred.

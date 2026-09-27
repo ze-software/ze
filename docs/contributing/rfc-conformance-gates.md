@@ -14,6 +14,7 @@ names in snake_case. The Go names below are the current ones.
 | Path | Holds |
 |------|-------|
 | `rfc/full/<stem>.txt`, `rfc/drafts/` | The RFC's own text. The source, and the only thing a conformance claim may quote |
+| `rfc/errata/<stem>/<number>.txt` | The verified text of one erratum a row cites: its original and corrected text as the RFC Editor publishes them. A row that cites it is quoted against it ("The row quote") |
 | `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
 | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc index-update`: which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
@@ -94,7 +95,7 @@ means the evidence held rather than that nobody looked.
 | Enrolment is monotonic | `checkEnrolment` | an RFC whose MUSTs were gated stops being gated |
 | Proof is monotonic | `checkCoverageRatchet` | a requirement loses a polarity it had at HEAD. A `{gap}` is NOT an escape: it is the move being blocked |
 | Gating is monotonic | `checkLevelRatchet` | a requirement leaves the MUST-level population, because its level was gated at `HEAD^` and is advisory now. The baseline is `HEAD^`, not HEAD, so the ratchet sees a demotion the commit under test made in the detached verify worktree. That is the cheapest route from red to green, cheaper than `{gap}` and cheaper than deleting the row, because the id and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md`, naming the id and quoting at least 24 characters of the RFC verbatim, matched against the same page-stripped haystack as a row quote. The record lives beside the summary rather than in it, because a summary carries what the RFC obliges and not a log of what this repository once got wrong. A row GAINING a gated level is never reported |
-| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC that `HEAD^` holds disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed. The one accepted disappearance is a row no sentence of the RFC states: a `Retired <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md` names the id in backticks and every section read as `§<n>`, after the tags have moved (`retiredIDs`, format in `rfc/corrections/README.md`). A `Correction` paragraph does not retire a row, and `checkIDAllocation` refuses any row that carries a retired id again |
+| Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC that `HEAD^` holds disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed. The one accepted disappearance is a row no sentence of the RFC states: a `Retired <YYYY-MM-DD>:` paragraph in `rfc/corrections/<stem>.md` names the id as its first backticked id, and every section read as `§<n>`, after the tags have moved. It retires that first id only, so the row a tag moved to can be named after it (`retiredIDs`, format in `rfc/corrections/README.md`). A `Correction` paragraph does not retire a row, and `checkIDAllocation` refuses any row that carries a retired id again |
 | Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since `HEAD^` declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at `HEAD^` carries none now, or a signed stem's exclusion count RISES over its `HEAD^` count without a `resign-reason` and a bumped `signed-off` date. The baseline is `HEAD^` (`baselineExtractions`), so the ratchet sees what the commit under test did in the detached verify worktree. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
@@ -401,6 +402,8 @@ these is true:
 | Unresolved anchor | the RFC has headings, and the cited section is not one of them, and no heading ancestor of it is. A row that cites no section is refused the same way. An RFC with no heading is never refused this way (below) |
 | Wrong section | the quote is verbatim in the RFC, but not in the cited section or its subsections. The refusal names the section that holds it |
 | Not verbatim | the quote is in no section of the RFC |
+| Erratum not stored | the row cites an erratum and `rfc/errata/<stem>/<number>.txt` is absent, not verified, or not that erratum. The refusal names the file |
+| Replaced by an erratum | the quote is verbatim in the cited section as published, and an erratum the row cites replaced it |
 
 The cited section resolves to its nearest heading ancestor: `3.b` resolves to
 `3`, and `2.1.4` resolves to `2.1` when `2.1` is the deepest heading. The match
@@ -424,6 +427,28 @@ read at its margin and finds headings there: 329 sections, in the order of its
 table of contents. Every other text derives the sections and site ids it did
 before.
 
+At column 0 a heading is a number (`3.1.  Title`, `4  Title`), a letter with a
+dot (`A.  Title`), a letter and a number with no dot between (`A2.  Title`, RFC
+4302), or `Appendix` or `APPENDIX` before a letter that ends in a dot or a colon
+(`Appendix D:  Configuration Parameters`, RFC 3101). The colon is read only
+under the word, because a bare `S: 250 OK` is a line of a transcript. One line
+of that shape is still not a heading: a number written with no dot at all that
+is not the next top-level section, meaning one more than the highest top-level
+number opened so far. Zero is never one. That is how the attribute tables of
+RFC 2865, RFC 2869 and RFC 3579 open their rows (`0        0       0-1     0-1
+101   Error-Cause`, `1        1       1       1           80
+Message-Authenticator`), and how the RFC 2759 hash example opens its byte dumps
+(`55 73 65 72`) and one label (`24 octet NT-Response:`). Read as headings, they
+filed a table's notes under a section `0`, or back under section `1`, so a
+verbatim quote of Note 1 was refused as outside the section it is in. A dotted
+number keeps the plain reading, because a dotted heading can skip a number (`10.
+Full Copyright Statement` after section 7, RFC 2548). On 2026-09-27 this moved
+the sections or sites of RFC 1035, 1195, 1812, 2205, 2548, 2661, 2759, 2865,
+2869, 3101, 3579, 3602, 4301, 4302, 4303, 4456, 4861, 5072, 6482, 791 and sFlow
+v5, and every extraction artifact among them was re-walked with its decisions
+carried forward by quote.
+<!-- source: internal/le/rfc/inventory.go -- columnZeroHeadings -->
+
 An RFC with no heading under either reading is the one exception (owner
 decision D-1, 2026-09-26). Its whole text is one citable section, and every
 citation resolves to it, whether the row cites an unnumbered title such as
@@ -441,24 +466,71 @@ before the first heading, is refused as an unresolved anchor. In the corpus of
 
 
 One haystack builder serves every quote path: `quoteHaystack`
-(`internal/le/rfc/inventory.go`) strips the page furniture and collapses the
-whitespace. The row check, `checkFeatureDeclined` and the level correction read
-by `checkLevelRatchet` all match against it, so a sentence one of them finds,
-the others find too. The strip is necessary because 163 of 6243 keyword
-sentences in the corpus cross a page break. The match is case-sensitive.
+(`internal/le/rfc/inventory.go`) strips the page furniture, collapses the
+whitespace and joins a word the RFC hyphenated across a line break. The row
+check, `checkFeatureDeclined` and the level correction read by
+`checkLevelRatchet` all match against it, so a sentence one of them finds, the
+others find too. The strip is necessary because 163 of 6243 keyword sentences in
+the corpus cross a page break. The join is there because the collapse reads
+`close-` at the end of one line and `notify` on the next as `close- notify`:
+the haystack and every quote drop the blank after a hyphen that ends a word, so
+a row may write `close-notify` or `close- notify` and both match. A hyphen with
+a blank on both sides is a dash and stays. The match is case-sensitive.
+<!-- source: internal/le/rfc/inventory.go -- joinWrappedHyphens, quoteNeedle -->
+
+### A row that cites an erratum
+
+A row may state an obligation an erratum corrected or added. It then cites the
+erratum in its section parenthetical, `(§7.1, erratum 8301)`, and its quote is
+judged against the RFC as that erratum corrects it (owner decision D-11,
+2026-09-27). `errata 543` and `Errata ID 7840` are read the same way. A number
+written anywhere else in the row is not a citation.
+
+The erratum's text lives in `rfc/errata/<stem>/<number>.txt`: a header of
+`Key: value` lines, then an `Original Text:` line and the text the erratum
+says the RFC holds, then a `Corrected Text:` line and the text it should hold.
+Both blocks are copied from `https://www.rfc-editor.org/errata/eid<number>`
+("says" and "It should say"). The check takes the file only when its `Errata
+ID` is the number in its name, its `RFC` is the stem's, its `Status` is
+`Verified`, and both blocks are present: a reported erratum is its reporter's
+claim, and nobody verified it. `Location: Section X` names where the original
+text is.
+
+A quote that cites errata passes when it is one of these:
+
+| Passes as | Condition |
+|-----------|-----------|
+| The corrected text | the quote is a verbatim span of the corrected text of one cited erratum |
+| The corrected section | the quote is a verbatim span of the cited section once every cited erratum is applied: its original text replaced by its corrected text, in the section its `Location` names and that section's subsections |
+
+The quote never passes as a span joining an erratum's text to the section around
+it. Once the erratum is applied that text is in the section, so the second row
+of the table covers it. A sentence the erratum left alone passes as before, so a
+row citing an erratum only as context, such as `RFC9568-5.2.5-1`, keeps its
+published sentence.
+
+An erratum whose original text is not verbatim in the section it names cannot
+be applied. That happens when one erratum corrects two sections at once, as
+erratum 8301 corrects RFC 9568 sections 6.1 and 7.1, or when its `Location` names
+no section. The check then cannot tell which published sentence the erratum
+replaced, so it refuses every published sentence of the row and accepts only
+the erratum's corrected text. Accepting the published text would pass a
+sentence the erratum may have withdrawn.
+<!-- source: internal/le/rfc/errata.go -- erratumRowRefusal, parseErratum, citedErrata -->
 
 The rule judges the rows that the commit under test adds or edits: a row HEAD
-holds and `HEAD^` does not, or holds with another quote or another cited
-section. Both sides are COMMITTED, the scope `checkDiscriminationRatchet` uses,
+holds and `HEAD^` does not, or holds with another quote, another cited
+section or other cited errata. Both sides are COMMITTED, the scope `checkDiscriminationRatchet` uses,
 because `./le verify worktree` checks the commit out detached, where the tree
 equals HEAD. A row still uncommitted is judged once it is committed.
 `readQuoteRevisions` (`internal/le/rfc/check_quote.go`) reads only the stems
-whose summary or RFC text the commit changed, at both revisions.
+whose summary, RFC text or stored errata the commit changed, at both revisions.
 
 `checkUnquotedRatchet` refuses a stem whose count of unquoted rows rose from
 `HEAD^` to HEAD, and names the stem and both counts. The row check already
 refuses each row the commit added or edited. The ratchet also catches a row the
-commit left alone that stopped being verbatim because its RFC text changed.
+commit left alone that stopped being verbatim because its RFC text or a cited
+erratum's file changed.
 
 Where git cannot answer, the quote rules judge nothing and say so. When `HEAD^`
 does not resolve, or git cannot name the changed paths, `./le rfc check` prints

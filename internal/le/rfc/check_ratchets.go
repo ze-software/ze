@@ -301,9 +301,13 @@ func loadCorrections(tree, stem string) []correction {
 }
 
 // retires reports whether this paragraph retires rid: a `Retired` paragraph
-// that names the id in backticks and records at least one section read. No
-// quote is asked for, because the row is retired for having no sentence to
+// whose FIRST backticked id is rid and that records at least one section read.
+// No quote is asked for, because the row is retired for having no sentence to
 // quote; the § references are the record of the search that found none.
+//
+// Only the first id, because the ids after it are where the retired row's tags
+// moved, the row that states the obligation instead. Read as retired, each
+// would be a live row the gate refuses to keep and an id it frees.
 func (c *correction) retires(rid string) bool {
 	if c.Kind != correctionRetirement {
 		return false
@@ -311,7 +315,10 @@ func (c *correction) retires(rid string) bool {
 	if len(c.Sections) == 0 {
 		return false
 	}
-	return slices.Contains(c.RIDs, rid)
+	if len(c.RIDs) == 0 {
+		return false
+	}
+	return c.RIDs[0] == rid
 }
 
 // retiredIDs reads every rfc/corrections/<stem>.md of the tree and answers the
@@ -412,7 +419,7 @@ func correctionAuthorizes(rid string, corrections []correction, source string) b
 			continue
 		}
 		for _, quote := range correction.Quotes {
-			quote = squashWhitespace(quote)
+			quote = quoteNeedle(quote)
 			if len(quote) >= minCorrectionQuote && strings.Contains(haystack, quote) {
 				return true
 			}

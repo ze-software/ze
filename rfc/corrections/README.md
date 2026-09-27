@@ -45,8 +45,8 @@ say MUST, restore the level instead, and read `ai/rules/rfc-compliance.md`,
 A row that no sentence of the RFC states is retired rather than kept
 (owner decision D-2, 2026-09-26). `checkRetiredRequirements` refuses an id of an
 enrolled RFC that `HEAD^` held and the summary no longer carries, unless a
-retirement paragraph in this file names it. `retiredIDs` reads every record, and
-an id counts only from the record of its own stem.
+retirement paragraph in this file names it first. `retiredIDs` reads every
+record, and an id counts only from the record of its own stem.
 
 Retire only after reading the whole RFC for the obligation, not just the section
 the row cites. When another document states it, that is a re-attribution, not a
@@ -58,7 +58,7 @@ tag, a mapping or a verdict that names a missing id.
 | Part | Requirement |
 |------|-------------|
 | Opener | `Retired <YYYY-MM-DD>:` on the first line of the paragraph. A leading `>` is allowed |
-| The row | The requirement id in backticks. A paragraph naming a neighbour does not retire this row |
+| The row | The requirement id in backticks, the FIRST backticked id of the paragraph. A paragraph retires that id and no other, so one paragraph retires one row. The ids after it, such as the row a tag moved to, are named and not retired. A paragraph naming a neighbour first does not retire this row |
 | The search | At least one section reference written `§<n>`, naming the sections read. No quote is asked for, because the row is retired for having no sentence to quote |
 | The moves | Where each tag went, in words. No gate reads this part, so the reviewer does |
 
@@ -71,6 +71,6 @@ to `RFC9999-2-1`, which states the obligation the test proves.
 The two kinds never stand in for each other. A `Correction` paragraph does not
 retire a row, and a `Retired` paragraph does not authorize a level change, even
 when it quotes the RFC. A retired id is never allocated again: `checkIDAllocation`
-refuses any row that carries an id a retirement paragraph names, in the commit
+refuses any row that carries an id a retirement paragraph retires, in the commit
 that retires it and in every commit after. So a retirement paragraph is
 permanent; deleting it would free the id.

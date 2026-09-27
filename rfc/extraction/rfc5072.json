@@ -4,8 +4,9 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc5072.txt",
   "source-sha": "b75abcda38d89696",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -95,6 +96,18 @@
       "id": "9.2",
       "sites": 0,
       "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
     }
   ],
   "sites": [

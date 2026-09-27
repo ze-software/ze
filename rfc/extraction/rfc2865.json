@@ -4,8 +4,10 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc2865.txt",
   "source-sha": "5082eacae1b57b82",
-  "signed-off": "2026-08-30",
-  "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 2 (Tier 1, rfc2865)",
+  "signed-off": "2026-09-27",
+  "reviewer": "claude",
+  "register-reason": "Standards Track, with an RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords across sections 1.1 to 9. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade.",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -16,9 +18,9 @@
     },
     {
       "id": "1",
-      "sites": 1,
+      "sites": 0,
       "disposition": "walked",
-      "reason": "Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own. Its one derived site is the Section 5.44 table legend, which the section parser attached here because the legend line begins with '1'."
+      "reason": "Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own and derives no site."
     },
     {
       "id": "1.1",
@@ -66,7 +68,7 @@
       "id": "2.5",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full. The exponential-backoff row RFC2865-2.5-2 is a ze implementation constraint at SHOULD level, not a sentence of this section, and a SHOULD row never gates."
+      "reason": "Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full."
     },
     {
       "id": "2.6",
@@ -82,8 +84,7 @@
       "unsourced-ids": [
         "RFC2865-3-1",
         "RFC2865-3-2",
-        "RFC2865-3-3",
-        "RFC2865-3-5"
+        "RFC2865-3-3"
       ]
     },
     {
@@ -389,15 +390,9 @@
     },
     {
       "id": "5.44",
-      "sites": 3,
+      "sites": 4,
       "disposition": "walked",
-      "reason": "Table of Attributes. Three sites, all in Note 1 and Note 2, restating Section 4.1's credential and identification rules. The table's own cells and its legend are covered by the two legend sites the section parser split off into sections '1' and '0'."
-    },
-    {
-      "id": "0",
-      "sites": 1,
-      "disposition": "walked",
-      "reason": "The trailing legend block of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because its first line begins with '0'. Its one site is the '0' legend entry."
+      "reason": "Table of Attributes. Three sites in Note 1 and Note 2, restating Section 4.1's credential and identification rules, and the legend site that defines what the table's cells mean."
     },
     {
       "id": "6",
@@ -494,33 +489,24 @@
   ],
   "sites": [
     {
-      "id": "1:1",
-      "quote": "Exactly one instance of this attribute MUST be present in packet.",
-      "disposition": "excluded",
-      "excluded-kind": "not-a-requirement",
-      "reason": "The legend of the Section 5.44 Table of Attributes, which the section parser attached to section 1 because the line begins with '1'. It defines what the table entry '1' means and binds no speaker: 'this attribute' names none. No column of that table carries '1' for any RFC 2865 attribute, so the case it defines is never exercised."
-    },
-    {
       "id": "1.1:1",
       "quote": "A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-1.1-1",
-      "reason": "Binds a NAS, which is the role ze plays. Ze offers operator login and framed PPP access, and its dictionary (internal/component/radius/dict.go) declares no attribute for LAT, AppleTalk, IPX, callback or character-mode login. Captured as RFC2865-1.1-1."
+      "mapped-to": "RFC2865-1.1-1"
     },
     {
       "id": "1.1:2",
       "quote": "For example, a NAS that is unable to offer ARAP service MUST NOT implement the RADIUS attributes for ARAP.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-1.1-1",
       "excluded-kind": "duplicate-of",
-      "reason": "The ARAP example restating the sentence before it. RFC2865-1.1-1 carries the obligation and site 1.1:1 maps it."
+      "reason": "The ARAP example restating the sentence before it. RFC2865-1.1-1 carries the obligation and site 1.1:1 maps it.",
+      "mapped-to": "RFC2865-1.1-1"
     },
     {
       "id": "1.1:3",
       "quote": "A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-1.1-2",
-      "reason": "Binds a NAS reading an Access-Accept, which is ze on both RADIUS paths. Captured as RFC2865-1.1-2 and enforced by serviceTypeOffered in internal/component/radius/authenticator.go and internal/component/l2tp/plugins/authradius/handler.go."
+      "mapped-to": "RFC2865-1.1-2"
     },
     {
       "id": "2:1",
@@ -624,37 +610,33 @@
       "id": "2.5:1",
       "quote": "If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven't changed, you MUST use the same Request Authenticator, ID, and source port.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-2.5-1",
-      "reason": "Binds the NAS retransmitting to the same server, which is ze. Captured as RFC2865-2.5-1: Exchange resends the identical pre-encoded buffer to the same address (internal/component/radius/client.go), so the Identifier, the Request Authenticator and the source port are unchanged by construction."
+      "mapped-to": "RFC2865-2.5-1"
     },
     {
       "id": "2.5:2",
       "quote": "If any attributes have changed, you MUST use a new Request Authenticator and ID.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-5",
       "excluded-kind": "duplicate-of",
-      "reason": "Restates in the retransmission-hints section what Section 4.1 states for the Identifier field and for the Request Authenticator. RFC2865-4.1-5 carries the Identifier half and site 4.1:6 maps it; RFC2865-4.1-6 carries the Request Authenticator half and site 4.1:8 maps that."
+      "reason": "Restates in the retransmission-hints section what Section 4.1 states for the Identifier field and for the Request Authenticator. RFC2865-4.1-5 carries the Identifier half and site 4.1:6 maps it; RFC2865-4.1-6 carries the Request Authenticator half and site 4.1:8 maps that.",
+      "mapped-to": "RFC2865-4.1-5"
     },
     {
       "id": "3:1",
       "quote": "Octets outside the range of the Length field MUST be treated as padding and ignored on reception.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-3-6",
-      "reason": "Binds any receiver, which is ze reading a reply. Captured as RFC2865-3-6: Decode walks attributes only to pktLen and readLoop truncates the datagram to pktLen (internal/component/radius/packet.go, client.go)."
+      "mapped-to": "RFC2865-3-6"
     },
     {
       "id": "3:2",
       "quote": "If the packet is shorter than the Length field indicates, it MUST be silently discarded.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-3-7",
-      "reason": "Binds any receiver. Captured as RFC2865-3-7: Decode refuses a Length field larger than the datagram, and readLoop drops such a datagram before dispatch."
+      "mapped-to": "RFC2865-3-7"
     },
     {
       "id": "3:3",
       "quote": "The secret MUST NOT be empty (length 0) since this would allow packets to be trivially forged.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-3-8",
-      "reason": "Binds both ends of a shared secret, ze included. Captured as RFC2865-3-8. Found unmet by this walk and fixed: Exchange (internal/component/radius/client.go) now refuses an empty secret, which the YANG key leaf still permits."
+      "mapped-to": "RFC2865-3-8"
     },
     {
       "id": "3:4",
@@ -674,8 +656,7 @@
       "id": "4.1:1",
       "quote": "An implementation wishing to authenticate a user MUST transmit a RADIUS packet with the Code field set to 1 (Access-Request).",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-1",
-      "reason": "Binds the implementation authenticating a user, which is ze. Captured as RFC2865-4.1-1: both Access-Request builders name CodeAccessRequest."
+      "mapped-to": "RFC2865-4.1-1"
     },
     {
       "id": "4.1:2",
@@ -688,44 +669,39 @@
       "id": "4.1:3",
       "quote": "It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-2",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-2. Found unmet on the L2TP path by this walk and fixed: buildAuthAttrs emitted neither attribute when nas-identifier was unset and no IPv4 source address was configured (internal/component/l2tp/plugins/authradius/handler.go)."
+      "mapped-to": "RFC2865-4.1-2"
     },
     {
       "id": "4.1:4",
       "quote": "An Access-Request MUST contain either a User-Password or a CHAP- Password or a State.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-3",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-3: the admin path always carries User-Password and the subscriber path carries User-Password for PAP, CHAP-Password for CHAP and the MS-CHAPv2 vendor attributes that Section 4.1's future-extensions sentence permits in their place."
+      "mapped-to": "RFC2865-4.1-3"
     },
     {
       "id": "4.1:5",
       "quote": "An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-4",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-4: the credential is a switch with one arm per method, so no builder adds both."
+      "mapped-to": "RFC2865-4.1-4"
     },
     {
       "id": "4.1:6",
       "quote": "The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-5",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-5: SendToServers takes NextID for each attempt (internal/component/radius/client.go)."
+      "mapped-to": "RFC2865-4.1-5"
     },
     {
       "id": "4.1:7",
       "quote": "For retransmissions, the Identifier MUST remain unchanged.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-2.5-1",
       "excluded-kind": "duplicate-of",
-      "reason": "The retransmission half of the Identifier rule, which Section 2.5 states in full. RFC2865-2.5-1 carries it and site 2.5:1 maps it."
+      "reason": "The retransmission half of the Identifier rule, which Section 2.5 states in full. RFC2865-2.5-1 carries it and site 2.5:1 maps it.",
+      "mapped-to": "RFC2865-2.5-1"
     },
     {
       "id": "4.1:8",
       "quote": "The Request Authenticator value MUST be changed each time a new Identifier is used.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.1-6",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-6. Found unmet by this walk and fixed: SendToServers assigned a new Identifier per server and carried the old Request Authenticator across, which repeats a request value under a secret two servers often share."
+      "mapped-to": "RFC2865-4.1-6"
     },
     {
       "id": "4.2:1",
@@ -738,8 +714,7 @@
       "id": "4.2:2",
       "quote": "The Response Authenticator field MUST contain the correct response for the pending Access-Request.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-3-4",
-      "reason": "Read at the receiver: Section 4.2 states it under 'On reception of an Access-Accept'. That is the NAS obligation the summary declares as RFC2865-3-4, and dispatchResponse enforces it with VerifyResponseAuth before a reply reaches any waiter (internal/component/radius/client.go, packet.go)."
+      "mapped-to": "RFC2865-3-4"
     },
     {
       "id": "4.3:1",
@@ -759,24 +734,23 @@
       "id": "4.4:2",
       "quote": "Additionally, the Response Authenticator field MUST contain the correct response for the pending Access-Request.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-3-4",
       "excluded-kind": "duplicate-of",
-      "reason": "Section 4.4 repeats for an Access-Challenge what Section 4.2 states for an Access-Accept. RFC2865-3-4 carries it and site 4.2:2 maps it."
+      "reason": "Section 4.4 repeats for an Access-Challenge what Section 4.2 states for an Access-Accept. RFC2865-3-4 carries it and site 4.2:2 maps it.",
+      "mapped-to": "RFC2865-3-4"
     },
     {
       "id": "4.4:3",
       "quote": "If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-4.4-1",
-      "reason": "Binds a NAS with no challenge/response support, which ze is on the PAP and CHAP paths: neither has a way back to the operator for a second request, so `(*radiusAuthenticator).result` (`internal/component/radius/authenticator.go`) answers an Access-Challenge with aaa.ErrAuthRejected. The two EAP auth-methods DO support challenge/response and consume every challenge in `authenticateEAP` before that function is reached, so this rule does not bind them and RFC2865-5.24-1 does. Captured as RFC2865-4.4-1. Found unmet by this walk and fixed: the admin authenticator returned a generic error for an Access-Challenge, and ChainAuthenticator reads a non-rejection error as an infra failure and asks the next backend, so a server demanding a second factor handed the login to the local password database."
+      "mapped-to": "RFC2865-4.4-1"
     },
     {
       "id": "4.4:4",
       "quote": "If the NAS cannot do so, it MUST treat the Access-Challenge as though it had received an Access-Reject instead.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.4-1",
       "excluded-kind": "duplicate-of",
-      "reason": "The PAP-forwarding variant of the same sentence: a NAS that cannot forward the Reply-Message treats the challenge as a reject. RFC2865-4.4-1 carries it and site 4.4:3 maps it."
+      "reason": "The PAP-forwarding variant of the same sentence: a NAS that cannot forward the Reply-Message treats the challenge as a reject. RFC2865-4.4-1 carries it and site 4.4:3 maps it.",
+      "mapped-to": "RFC2865-4.4-1"
     },
     {
       "id": "5:1",
@@ -789,59 +763,53 @@
       "id": "5:2",
       "quote": "A RADIUS server or client MUST NOT have any dependencies on the order of attributes of different types.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-4",
-      "reason": "Binds a RADIUS client, which is ze. Captured as RFC2865-5-4: attribute lookup is a type scan over the decoded list (FindAttr, FindAllAttr)."
+      "mapped-to": "RFC2865-5-4"
     },
     {
       "id": "5:3",
       "quote": "A RADIUS server or client MUST NOT require attributes of the same type to be contiguous.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-5",
-      "reason": "Binds a RADIUS client. Captured as RFC2865-5-5: FindAllAttr walks the whole list, so same-type attributes need not sit together."
+      "mapped-to": "RFC2865-5-5"
     },
     {
       "id": "5:4",
       "quote": "If an Attribute is received in an Access-Accept, Access-Reject or Access-Challenge packet with an invalid length, the packet MUST either be treated as an Access-Reject or else silently discarded.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-6",
-      "reason": "Binds the receiver of an Access-Accept, Access-Reject or Access-Challenge, which is ze. Captured as RFC2865-5-6: Decode refuses an invalid attribute length and Exchange discards a response that fails to decode."
+      "mapped-to": "RFC2865-5-6"
     },
     {
       "id": "5:5",
       "quote": "Servers and servers and clients MUST be able to deal with embedded nulls.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-7",
-      "reason": "Binds servers and clients, ze among them. Captured as RFC2865-5-7: an attribute value is a length-counted byte slice throughout, never a C string."
+      "mapped-to": "RFC2865-5-7"
     },
     {
       "id": "5:6",
       "quote": "Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-8",
-      "reason": "Binds the sender. Captured as RFC2865-5-8. Found unmet by this walk and fixed: EncodeTo now omits an attribute whose value is empty (internal/component/radius/packet.go), which is what the sentence asks for."
+      "mapped-to": "RFC2865-5-8"
     },
     {
       "id": "5:7",
       "quote": "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5-8",
       "excluded-kind": "duplicate-of",
-      "reason": "The String paragraph repeating the Text paragraph's sentence word for word. RFC2865-5-8 covers both and site 5:6 maps it."
+      "reason": "The String paragraph repeating the Text paragraph's sentence word for word. RFC2865-5-8 covers both and site 5:6 maps it.",
+      "mapped-to": "RFC2865-5-8"
     },
     {
       "id": "5.1:1",
       "quote": "It MUST be sent in Access-Request packets if available.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5-1",
-      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-5-1: every Access-Request builder adds User-Name unconditionally."
+      "mapped-to": "RFC2865-5-1"
     },
     {
       "id": "5.4:1",
       "quote": "Either NAS-IP- Address or NAS-Identifier MUST be present in an Access-Request packet.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-2",
       "excluded-kind": "duplicate-of",
-      "reason": "The NAS-IP-Address section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+      "reason": "The NAS-IP-Address section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it.",
+      "mapped-to": "RFC2865-4.1-2"
     },
     {
       "id": "5.4:2",
@@ -861,16 +829,15 @@
       "id": "5.6:1",
       "quote": "A NAS is not required to implement all of these service types, and MUST treat unknown or unsupported Service-Types as though an Access-Reject had been received instead.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-1.1-2",
       "excluded-kind": "duplicate-of",
-      "reason": "The Service-Type section stating for one attribute what Section 1.1 states in general. RFC2865-1.1-2 names both sections and site 1.1:3 maps it."
+      "reason": "The Service-Type section stating for one attribute what Section 1.1 states in general. RFC2865-1.1-2 names both sections and site 1.1:3 maps it.",
+      "mapped-to": "RFC2865-1.1-2"
     },
     {
       "id": "5.11:1",
       "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5.11-1",
-      "reason": "Binds any implementation reading Filter-Id. Captured as RFC2865-5.11-1, which names the five sections carrying the same sentence. Ze reads Filter-Id as an authorization profile name, which is the filter-list naming Section 5.11 defines, and never as a protocol-level decision."
+      "mapped-to": "RFC2865-5.11-1"
     },
     {
       "id": "5.18:1",
@@ -883,24 +850,23 @@
       "id": "5.18:2",
       "quote": "It is intended to be human readable, and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5.11-1",
       "excluded-kind": "duplicate-of",
-      "reason": "Reply-Message repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.18 and site 5.11:1 maps it."
+      "reason": "Reply-Message repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.18 and site 5.11:1 maps it.",
+      "mapped-to": "RFC2865-5.11-1"
     },
     {
       "id": "5.22:1",
       "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5.11-1",
       "excluded-kind": "duplicate-of",
-      "reason": "Framed-Route repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.22 and site 5.11:1 maps it."
+      "reason": "Framed-Route repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.22 and site 5.11:1 maps it.",
+      "mapped-to": "RFC2865-5.11-1"
     },
     {
       "id": "5.24:1",
       "quote": "This Attribute is available to be sent by the server to the client in an Access-Challenge and MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5.24-1",
-      "reason": "Binds a NAS that SUPPORTS challenge/response, and ze became one: the two EAP auth-methods answer an Access-Challenge with a new Access-Request. `authenticateEAP` (`internal/component/radius/authenticator_eap.go`) reads the challenge's State with resp.FindAttr(AttrState) and hands it to `eapCredential`, which appends the value unread. Captured as RFC2865-5.24-1. This site was excluded as `binds-another-role` until 2026-09-04, on the ground that Section 4.4 let ze treat every Access-Challenge as an Access-Reject; that was true of the PAP and CHAP paths and stopped being true of the tree when plan/spec-radius-admin-eap.md added the EAP challenge loop."
+      "mapped-to": "RFC2865-5.24-1"
     },
     {
       "id": "5.24:2",
@@ -913,24 +879,23 @@
       "id": "5.24:3",
       "quote": "In either usage, the client MUST NOT interpret the attribute locally.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5.25-1",
       "excluded-kind": "duplicate-of",
-      "reason": "State stating what Section 5.25 states for Class in the same words. RFC2865-5.25-1 names both sections and site 5.25:1 maps it."
+      "reason": "State stating what Section 5.25 states for Class in the same words. RFC2865-5.25-1 names both sections and site 5.25:1 maps it.",
+      "mapped-to": "RFC2865-5.25-1"
     },
     {
       "id": "5.25:1",
       "quote": "The client MUST NOT interpret the attribute locally.",
       "disposition": "mapped",
-      "mapped-to": "RFC2865-5.25-1",
-      "reason": "Binds the client, which is ze. Captured as RFC2865-5.25-1. Found unmet by this walk and fixed: the profile-attribute leaf offered a 'class' value that read a ze authorization profile name out of the Class attribute, and the enum now carries filter-id alone."
+      "mapped-to": "RFC2865-5.25-1"
     },
     {
       "id": "5.26:1",
       "quote": "It MUST not affect the operation of the RADIUS protocol.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5.11-1",
       "excluded-kind": "duplicate-of",
-      "reason": "Vendor-Specific repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.26 and site 5.11:1 maps it."
+      "reason": "Vendor-Specific repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.26 and site 5.11:1 maps it.",
+      "mapped-to": "RFC2865-5.11-1"
     },
     {
       "id": "5.26:2",
@@ -943,9 +908,9 @@
       "id": "5.32:1",
       "quote": "Either NAS-IP-Address or NAS-Identifier MUST be present in an Access-Request packet.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-2",
       "excluded-kind": "duplicate-of",
-      "reason": "The NAS-Identifier section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+      "reason": "The NAS-Identifier section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it.",
+      "mapped-to": "RFC2865-4.1-2"
     },
     {
       "id": "5.32:2",
@@ -986,40 +951,40 @@
       "id": "5.33:4",
       "quote": "The content of any Proxy-State other than the one added by the current server should be treated as opaque octets and MUST NOT affect operation of the protocol.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-5.11-1",
       "excluded-kind": "duplicate-of",
-      "reason": "Proxy-State repeating the Filter-Id sentence for the Proxy-States a speaker did not add. RFC2865-5.11-1 names Section 5.33 and site 5.11:1 maps it."
+      "reason": "Proxy-State repeating the Filter-Id sentence for the Proxy-States a speaker did not add. RFC2865-5.11-1 names Section 5.33 and site 5.11:1 maps it.",
+      "mapped-to": "RFC2865-5.11-1"
     },
     {
       "id": "5.44:1",
       "quote": "[Note 1] An Access-Request MUST contain either a User-Password or a CHAP-Password or State.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-3",
       "excluded-kind": "duplicate-of",
-      "reason": "Note 1 of the Table of Attributes restating Section 4.1's credential rule. RFC2865-4.1-3 carries it and site 4.1:4 maps it."
+      "reason": "Note 1 of the Table of Attributes restating Section 4.1's credential rule. RFC2865-4.1-3 carries it and site 4.1:4 maps it.",
+      "mapped-to": "RFC2865-4.1-3"
     },
     {
       "id": "5.44:2",
       "quote": "An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-4",
       "excluded-kind": "duplicate-of",
-      "reason": "The second sentence of Note 1, restating Section 4.1's both-credentials prohibition. RFC2865-4.1-4 carries it and site 4.1:5 maps it."
+      "reason": "The second sentence of Note 1, restating Section 4.1's both-credentials prohibition. RFC2865-4.1-4 carries it and site 4.1:5 maps it.",
+      "mapped-to": "RFC2865-4.1-4"
     },
     {
       "id": "5.44:3",
       "quote": "[Note 2] An Access-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both).",
       "disposition": "excluded",
-      "mapped-to": "RFC2865-4.1-2",
       "excluded-kind": "duplicate-of",
-      "reason": "Note 2 of the Table of Attributes restating Section 4.1's NAS identification rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+      "reason": "Note 2 of the Table of Attributes restating Section 4.1's NAS identification rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it.",
+      "mapped-to": "RFC2865-4.1-2"
     },
     {
-      "id": "0:1",
-      "quote": "This attribute MUST NOT be present in packet.",
+      "id": "5.44:4",
+      "quote": "0 This attribute MUST NOT be present in packet. 0+ Zero or more instances of this attribute MAY be present in packet. 0-1 Zero or one instance of this attribute MAY be present in packet. 1 Exactly one instance of this attribute MUST be present in packet.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "The legend of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because the line begins with '0'. It defines what a '0' cell means and binds no speaker: 'this attribute' names none. The obligations it expands to are the table's per-attribute rows, and both ze Access-Request builders send only attributes the Request column permits."
+      "reason": "The legend of the Section 5.44 Table of Attributes, defining what the cells 0, 0+, 0-1 and 1 mean. It binds no speaker: 'this attribute' names none. The obligations it expands to are the table's per-attribute rows, and both ze Access-Request builders send only attributes the Request column permits."
     },
     {
       "id": "9:1",
@@ -1028,6 +993,5 @@
       "excluded-kind": "not-a-requirement",
       "reason": "A Change Log entry describing a change made between RFC 2138 and this document. It quotes the Section 5 sentence at site 5:1, whose speaker is a proxy, and binds nobody itself."
     }
-  ],
-  "register-reason": "Standards Track, with an RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords across sections 1.1 to 9. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+  ]
 }

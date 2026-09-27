@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc2205.txt",
   "source-sha": "81606f8d5072deae",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -20,7 +21,10 @@
     {
       "id": "2",
       "sites": 23,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2205-2.3-1"
+      ]
     },
     {
       "id": "3",
@@ -35,8 +39,32 @@
     },
     {
       "id": "4",
-      "sites": 14,
+      "sites": 0,
       "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 5 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 4 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "D",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix D. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 4, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
     }
   ],
   "sites": [
@@ -770,25 +798,25 @@
       "mapped-to": "RFC2205-3-43"
     },
     {
-      "id": "4:1",
+      "id": "A:1",
       "quote": "This field must be non-zero.",
       "disposition": "mapped",
       "mapped-to": "RFC2205-4-1"
     },
     {
-      "id": "4:2",
+      "id": "A:2",
       "quote": "This field must be non-zero.",
       "disposition": "mapped",
       "mapped-to": "RFC2205-4-2"
     },
     {
-      "id": "4:3",
+      "id": "A:3",
       "quote": "The addresses must be listed in ascending numerical order.",
       "disposition": "mapped",
       "mapped-to": "RFC2205-4-3"
     },
     {
-      "id": "4:4",
+      "id": "A:4",
       "quote": "Must be non-zero.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -796,27 +824,27 @@
       "mapped-to": "RFC2205-4-1"
     },
     {
-      "id": "4:5",
+      "id": "B:1",
       "quote": "Reservation or path message has been rejected for administrative reasons, for example, required credentials not submitted, insufficient quota or balance, or administrative preemption.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "the description of an error code value: what Error Code 2 means, with credentials named as an example"
     },
     {
-      "id": "4:6",
+      "id": "B:2",
       "quote": "Error Value field contains an API error code, for an API error that was detected asynchronously and must be reported via an upcall. o Error Code = 21: Traffic Control Error",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
       "reason": "the description of an error code value carrying an API error, not an obligation on the protocol"
     },
     {
-      "id": "4:7",
+      "id": "B:3",
       "quote": "Similarly, each node is required to verify the correct construction of each RSVP message it receives.",
       "disposition": "mapped",
       "mapped-to": "RFC2205-4-4"
     },
     {
-      "id": "4:8",
+      "id": "B:4",
       "quote": "o Required object class (specify) missing",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -824,7 +852,7 @@
       "mapped-to": "RFC2205-4-4"
     },
     {
-      "id": "4:9",
+      "id": "B:5",
       "quote": "o Violation of required object order o Flow descriptor count wrong for style or message type",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -832,13 +860,13 @@
       "mapped-to": "RFC2205-4-4"
     },
     {
-      "id": "4:10",
+      "id": "C:1",
       "quote": "To use RSVP, such hosts must encapsulate RSVP messages in UDP.",
       "disposition": "mapped",
       "mapped-to": "RFC2205-4-5"
     },
     {
-      "id": "4:11",
+      "id": "C:2",
       "quote": "The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -846,7 +874,7 @@
       "mapped-to": "RFC2205-4-5"
     },
     {
-      "id": "4:12",
+      "id": "C:3",
       "quote": "Here Ta must be the TTL to exactly reach R.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -854,7 +882,7 @@
       "mapped-to": "RFC2205-4-5"
     },
     {
-      "id": "4:13",
+      "id": "C:4",
       "quote": "The host Hu must be explicitly configured with Ra and Ta.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -862,7 +890,7 @@
       "mapped-to": "RFC2205-4-5"
     },
     {
-      "id": "4:14",
+      "id": "D:1",
       "quote": "An RSVP session defines one simplex unicast or multicast data flow for which reservations are required.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",

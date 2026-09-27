@@ -61,8 +61,16 @@ func readQuoteRevisions(tree string) quoteRevisions {
 		paths = append(paths, stemPath(summaryRel, stem, ".md"), stemPath(fullRel, stem, ".txt"),
 			stemPath(draftsRel, stem, ".txt"))
 	}
-	headBlobs, headOK := gitCatBlobs(tree, headRevision, paths)
-	priorBlobs, priorOK := gitCatBlobs(tree, priorRevision, paths)
+	headErrata, headListed := errataPathsAt(tree, headRevision, stems)
+	priorErrata, priorListed := errataPathsAt(tree, priorRevision, stems)
+	if !headListed {
+		return quoteRevisions{}
+	}
+	if !priorListed {
+		return quoteRevisions{}
+	}
+	headBlobs, headOK := gitCatBlobs(tree, headRevision, append(slices.Clone(paths), headErrata...))
+	priorBlobs, priorOK := gitCatBlobs(tree, priorRevision, append(slices.Clone(paths), priorErrata...))
 	if !headOK {
 		return quoteRevisions{}
 	}
@@ -98,11 +106,11 @@ func readQuoteRevisions(tree string) quoteRevisions {
 	return out
 }
 
-// quoteChangedStems answers the stems whose summary or RFC text the commit
-// under test changed, sorted, and false when git could not answer.
+// quoteChangedStems answers the stems whose summary, RFC text or stored errata
+// the commit under test changed, sorted, and false when git could not answer.
 func quoteChangedStems(tree string) ([]string, bool) {
 	raw, ok := gitOutput(tree, "diff", "--name-only", "--no-renames", "-z", priorRevision, headRevision,
-		"--", summaryRel, fullRel, draftsRel)
+		"--", summaryRel, fullRel, draftsRel, errataRel)
 	if !ok {
 		return nil, false
 	}
@@ -114,9 +122,35 @@ func quoteChangedStems(tree string) ([]string, bool) {
 			stems[strings.TrimSuffix(name, ".md")] = true
 		case (dir == fullRel+"/" || dir == draftsRel+"/") && strings.HasSuffix(name, ".txt"):
 			stems[strings.TrimSuffix(name, ".txt")] = true
+		case strings.HasPrefix(dir, errataRel+"/") && strings.HasSuffix(name, ".txt"):
+			stems[strings.TrimSuffix(strings.TrimPrefix(dir, errataRel+"/"), "/")] = true
 		}
 	}
 	return sortedSet(stems), true
+}
+
+// errataPathsAt answers the erratum files a revision stores for the stems, and
+// false when git could not list them.
+func errataPathsAt(tree, revision string, stems []string) ([]string, bool) {
+	if len(stems) == 0 {
+		return nil, true // No pathspec would list the whole revision.
+	}
+	args := make([]string, 0, 6+len(stems))
+	args = append(args, "ls-tree", "-r", "-z", "--name-only", revision, "--")
+	for _, stem := range stems {
+		args = append(args, errataRel+"/"+stem)
+	}
+	raw, ok := gitOutput(tree, args...)
+	if !ok {
+		return nil, false
+	}
+	var paths []string
+	for rel := range strings.SplitSeq(string(raw), "\x00") {
+		if rel != "" {
+			paths = append(paths, rel)
+		}
+	}
+	return paths, true
 }
 
 // stemPath answers dir/stem+suffix.
@@ -147,16 +181,17 @@ func quoteRowsAt(blobs map[string]string, stem string) ([]Requirement, bool) {
 func quoteSourceAt(blobs map[string]string, stem string) *quoteSource {
 	for _, dir := range []string{fullRel, draftsRel} {
 		if text, held := blobs[stemPath(dir, stem, ".txt")]; held {
-			return newQuoteSource(text)
+			return newQuoteSource(text).withErrata(blobErrata(blobs, stem))
 		}
 	}
 	return nil
 }
 
 // scopeChangedRows adds to scope each HEAD row that HEAD^ does not hold, or
-// holds with another quote or another cited section. A row whose cited section
-// moved is an edit too: the same sentence can be verbatim in one section and
-// absent from the next.
+// holds with another quote, another cited section or other cited errata. A
+// row whose cited section moved is an edit too: the same sentence can be
+// verbatim in one section and absent from the next, and a cited erratum
+// changes the text the quote is judged against.
 func scopeChangedRows(scope map[string]bool, headRows, priorRows []Requirement) {
 	prior := make(map[string]*Requirement, len(priorRows))
 	for i := range priorRows {
@@ -172,6 +207,10 @@ func scopeChangedRows(scope map[string]bool, headRows, priorRows []Requirement) 
 			continue
 		}
 		if was.Quote() != row.Quote() || was.Section != row.Section {
+			scope[row.RID] = true
+			continue
+		}
+		if !slices.Equal(citedErrata(was.Text), citedErrata(row.Text)) {
 			scope[row.RID] = true
 		}
 	}
@@ -209,7 +248,7 @@ func unquotedFigures(tree string, requirements []Requirement) (map[string]int, [
 	for _, stem := range slices.Sorted(maps.Keys(byStem)) {
 		var source *quoteSource
 		if text, found := SourceText(tree, stem); found {
-			source = newQuoteSource(text)
+			source = newQuoteSource(text).withErrata(treeErrata(tree, stem))
 		}
 		count, judged := unquotedCount(byStem[stem], source)
 		if !judged {
@@ -242,7 +281,7 @@ func checkRowQuotes(tree string, requirements []Requirement, scope map[string]bo
 		source, loaded := sources[req.RFC]
 		if !loaded {
 			if text, found := SourceText(tree, req.RFC); found {
-				source = newQuoteSource(text)
+				source = newQuoteSource(text).withErrata(treeErrata(tree, req.RFC))
 			}
 			sources[req.RFC] = source
 		}
@@ -255,7 +294,9 @@ func checkRowQuotes(tree string, requirements []Requirement, scope map[string]bo
 
 // rowQuoteRefusal judges one row's quote against its RFC. It answers the
 // refusal and true, or "" and false when the row's text is a verbatim span of
-// the section it cites or one of that section's subsections. A nil source
+// the section it cites or one of that section's subsections. A row that cites
+// an erratum is judged by erratumRowRefusal against the RFC as the erratum
+// corrects it. A nil source
 // means the RFC's text is not in the repository, which is refused: a quote
 // nobody can check is the claim this rule exists to replace.
 func rowQuoteRefusal(req *Requirement, source *quoteSource) (string, bool) {
@@ -275,6 +316,9 @@ func rowQuoteRefusal(req *Requirement, source *quoteSource) (string, bool) {
 	resolved, ok := source.resolve(req.Section)
 	if !ok {
 		return tb.Str("unresolved anchor: the cited section names no heading of the RFC, and no heading ancestor of it does either. Cite the section the sentence is in").String(), true
+	}
+	if cited := citedErrata(req.Text); len(cited) > 0 {
+		return erratumRowRefusal(&tb, req, source, resolved, quote, cited)
 	}
 	if source.inSection(resolved, quote) {
 		return "", false

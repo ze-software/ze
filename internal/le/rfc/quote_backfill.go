@@ -112,7 +112,7 @@ func quoteBackfill(tree, stem string, apply bool) (*quoteBackfillReport, error) 
 		}
 		return report, nil
 	}
-	source := newQuoteSource(text)
+	source := newQuoteSource(text).withErrata(treeErrata(tree, stem))
 
 	sites, unsourced, extracted, err := backfillSites(tree, stem)
 	if err != nil {
@@ -455,7 +455,7 @@ var backfillStopWords = backfillWordSet("the and for that this with from are was
 // backfillWordSet answers the space-separated words as a set.
 func backfillWordSet(words string) map[string]bool {
 	set := map[string]bool{}
-	for _, word := range strings.Fields(words) {
+	for word := range strings.FieldsSeq(words) {
 		set[word] = true
 	}
 	return set

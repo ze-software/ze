@@ -1028,3 +1028,110 @@ func TestAColumnZeroTextIgnoresIndentedLookalikes(t *testing.T) {
 		t.Errorf("sections %v, want %v", ids, want)
 	}
 }
+
+// columnZeroTableSource is a text laid out as RFC 3579 Section 3.3 and RFC 2759
+// Section 9.2 are: an attribute table whose rows open "0" and "1" at column 0,
+// and a hash example whose byte dumps and one label ("24 octet NT-Response:")
+// open with a bare number at column 0. A real heading written as a bare number
+// ("4  Security Considerations") follows them.
+const columnZeroTableSource = "1.  Introduction\n\n   Intro text.\n\n" +
+	"3.3.  Attribute Table\n\n" +
+	"Request  Accept  Reject  Challenge   #    Attribute\n" +
+	"0        0       0       0            2   User-Password [Note 1]\n" +
+	"1        1       1       1           80   Message-Authenticator [Note 1]\n" +
+	"0        0       0-1     0-1        101   Error-Cause\n\n" +
+	"   [Note 1] An Access-Request MUST NOT contain more than one type of those four attributes.\n\n" +
+	"3.4.  Hash Example\n\n" +
+	"0-to-256-char UserName:\n55 73 65 72\n\n" +
+	"16-octet PasswordHash:\n44 EB BA 8D 53 12 B8 D6\n\n" +
+	"24 octet NT-Response:\n82 30 9E CD\n\n" +
+	"   The response MUST be sent.\n\n" +
+	"4  Security Considerations\n\n   A speaker MUST log it.\n"
+
+// VALIDATES: a column-0 table row or byte dump that opens with a bare number is
+// not a heading, and a bare-number heading that numbers the next section is.
+// PREVENTS: the RFC 3579 and RFC 2869 attribute tables filing their [Note 1]
+// under a section "0" or back under section "1", and the RFC 2759 hash example
+// ending section 9.2 at its first byte dump, so a verbatim quote from those
+// notes and examples was refused as outside the section it is in.
+// METHOD: sectionBodies, sitesFor and newQuoteSource over columnZeroTableSource.
+func TestAColumnZeroTableRowIsNotAHeading(t *testing.T) {
+	var ids []string
+	for _, one := range sectionBodies(columnZeroTableSource) {
+		ids = append(ids, one.id)
+	}
+	want := []string{frontSection, "1", "3.3", "3.4", "4"}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("sections %v, want %v", ids, want)
+	}
+	var located []string
+	for _, site := range sitesFor(columnZeroTableSource, siteKeywordRE) {
+		located = append(located, site.ID)
+	}
+	wantSites := []string{"3.3:1", "3.4:1", "4:1"}
+	if !slices.Equal(located, wantSites) {
+		t.Fatalf("sites %v, want %v", located, wantSites)
+	}
+	source := newQuoteSource(columnZeroTableSource)
+	if !source.inSection("3.3", "[Note 1] An Access-Request MUST NOT contain more than one type") {
+		t.Error("the note under the attribute table is not a span of section 3.3")
+	}
+	if !source.inSection("3.4", "44 EB BA 8D 53 12 B8 D6") {
+		t.Error("the byte dump is not a span of section 3.4")
+	}
+}
+
+// appendixHeadingSource carries the appendix heading forms the corpus writes:
+// a colon after the letter (RFC 3101, RFC 4302), a letter and a number with no
+// dot between them (RFC 4302 "A2."), and the word in capitals (RFC 2205). A
+// transcript line ("S: 250 OK") at column 0 is not one.
+const appendixHeadingSource = "1.  Introduction\n\n   Intro.\n\n" +
+	"Appendix A: The Options Field\n\n   A speaker MUST set it.\n\n" +
+	"A2.  IPv6 Extension Headers\n\n   AH MUST skip it.\n\n" +
+	"B2.1.  Managing the Window\n\n   The window MUST slide.\n\n" +
+	"Appendix D:  Configuration Parameters\n\n   Implementations must provide it.\n\n" +
+	"S: 250 OK\n\n" +
+	"APPENDIX E. Object Definitions\n\n   The object MUST be sent.\n"
+
+// VALIDATES: every appendix heading form the corpus writes opens its section,
+// under the id a row cites ("§D", "§A2", "§E").
+// PREVENTS: an appendix read as part of the last numbered section, so a row
+// citing the appendix it quotes was refused as an unresolved anchor.
+// METHOD: sectionBodies over appendixHeadingSource.
+func TestEveryAppendixHeadingFormOpensItsSection(t *testing.T) {
+	var ids []string
+	for _, one := range sectionBodies(appendixHeadingSource) {
+		ids = append(ids, one.id)
+	}
+	want := []string{frontSection, "1", "A", "A2", "B2.1", "D", "E"}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("sections %v, want %v", ids, want)
+	}
+}
+
+// VALIDATES: a quote matches a word the RFC hyphenated across a line break,
+// written either joined ("close-notify") or as the text collapses it
+// ("close- notify"), in the row check and in a level correction alike.
+// PREVENTS: a verbatim quote refused because the RFC wrapped a hyphenated word,
+// and a rule that fixes one spelling by breaking quotes already committed in
+// the other.
+// METHOD: quoteSource.inSection and correctionAuthorizes over one wrapped line.
+func TestAQuoteMatchesAcrossALineWrapHyphen(t *testing.T) {
+	const text = "1.  Introduction\n\n   The peer MUST send a close-\n   notify alert before it closes the connection.\n"
+	source := newQuoteSource(text)
+	for _, quote := range []string{
+		"The peer MUST send a close-notify alert before it closes",
+		"The peer MUST send a close- notify alert before it closes",
+	} {
+		if !source.inSection("1", quote) {
+			t.Errorf("%q is not a span of section 1", quote)
+		}
+		level := "Correction 2026-09-27: `RFC9999-1-1` read §1: \"" + quote + "\".\n"
+		if !correctionAuthorizes("RFC9999-1-1", parseCorrections(level), text) {
+			t.Errorf("a correction quoting %q does not authorize", quote)
+		}
+	}
+	if source.inSection("1", "The peer MUST send a close notify alert") {
+		t.Error("a quote that drops the hyphen matched")
+	}
+}

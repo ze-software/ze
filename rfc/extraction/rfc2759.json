@@ -216,7 +216,7 @@
       "id": "9.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below."
+      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/core/eap/mschapv2_test.go)."
     },
     {
       "id": "9.3",

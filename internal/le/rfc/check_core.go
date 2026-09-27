@@ -727,7 +727,7 @@ func featureDeclinedQuote(where string, req Requirement, sources map[string]stri
 			Str(fullRel).Byte('/').Str(req.RFC).Str(".txt or ").Str(draftsRel).Byte('/').
 			Str(req.RFC).Str(".txt").String()}
 	}
-	if strings.Contains(quoteHaystack(source), squashWhitespace(req.Annotation.Quote)) {
+	if strings.Contains(quoteHaystack(source), quoteNeedle(req.Annotation.Quote)) {
 		return nil
 	}
 	var tb textbuf.Buffer

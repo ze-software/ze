@@ -1,0 +1,19 @@
+Errata ID: 7949
+RFC: 9568
+Status: Verified
+Type: Technical
+Location: Section 6.4.2
+Date Verified: 2024-06-27
+Source: https://www.rfc-editor.org/errata/eid7949
+
+Original Text:
+         o  For each IPv4 address associated with the Virtual Router,
+            broadcast a gratuitous ARP message containing the Virtual
+            Router MAC address and with the target link-layer address
+            set to the Virtual Router MAC address.
+
+Corrected Text:
+         o  For each IPv4 address associated with the Virtual Router,
+            broadcast a gratuitous ARP message containing the Virtual
+            Router IPv4 address and with the target link-layer address
+            set to the Virtual Router MAC address.

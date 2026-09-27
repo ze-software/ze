@@ -74,7 +74,9 @@ const retirementParagraph = "Retired 2026-09-26: `RFC9999-2-3` states no obligat
 // malformed one retires nothing.
 // PREVENTS: the retirement route turning into a silent delete. A paragraph
 // with no date, no backticked id or no section reference records no search,
-// and a paragraph that names a neighbor says nothing about this row.
+// and a paragraph that names a neighbor says nothing about this row. A
+// paragraph retires the first id it names only: the ids after it are where
+// its tags moved, and reading them as retired would free a live row's id.
 func TestARetirementParagraphRetiresOnlyWhatItNames(t *testing.T) {
 	for _, one := range []struct {
 		name    string
@@ -91,6 +93,8 @@ func TestARetirementParagraphRetiresOnlyWhatItNames(t *testing.T) {
 		{"a longer id sharing the prefix", "Retired 2026-09-26: `RFC9999-2-33` read §2.\n", false},
 		{"a level correction", "Correction 2026-09-26: `RFC9999-2-3` read §2: \"A speaker SHOULD count widgets\".\n", false},
 		{"opener not first", "Note.\nRetired 2026-09-26: `RFC9999-2-3` read §2.\n", false},
+		{"named first, the tag's destination after", "Retired 2026-09-26: `RFC9999-2-3` read §2. Its tag moved to `RFC9999-2-1`.\n", true},
+		{"named as another retirement's destination", "Retired 2026-09-26: `RFC9999-2-2` read §2. Its tag moved to `RFC9999-2-3`.\n", false},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			retires := false

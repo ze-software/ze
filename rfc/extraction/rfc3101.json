@@ -4,8 +4,9 @@
   "register": "prose",
   "source-path": "rfc/full/rfc3101.txt",
   "source-sha": "7061642290964ece",
-  "signed-off": "2026-09-21",
+  "signed-off": "2026-09-27",
   "reviewer": "claude",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -119,8 +120,44 @@
     },
     {
       "id": "7.0",
-      "sites": 9,
+      "sites": 0,
       "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "B",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix B. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 1 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "C",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Appendix C. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "D",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Appendix D. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 3 site(s) were walked; every decision is carried forward by its verbatim quote."
+    },
+    {
+      "id": "E",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix E. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "F",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Appendix F. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of section 7.0, where its 2 site(s) were walked; every decision is carried forward by its verbatim quote."
     }
   ],
   "sites": [
@@ -327,20 +364,20 @@
       "reason": "Section 4.0 describes what the [DIGI] document contains; it is a pointer, not an obligation of this document."
     },
     {
-      "id": "7.0:1",
+      "id": "A:1",
       "quote": "If the N-bit is set in the options field, the E-bit must be clear.",
       "disposition": "mapped",
       "mapped-to": "RFC3101-x-1"
     },
     {
-      "id": "7.0:2",
+      "id": "B:1",
       "quote": "All of the router's links to the area must be described in a single router-LSA.",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
       "reason": "Appendix B describes the Type-1 router-LSA and defers outright: \"For details concerning the construction of router-LSAs, see [OSPF] Section 12.4.1.\" The single-router-LSA rule is RFC 2328's."
     },
     {
-      "id": "7.0:3",
+      "id": "C:1",
       "quote": "The Options field must have the N/P bit set as described in Appendix A when the originating router desires that the external route be propagated throughout the OSPF domain.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -348,7 +385,7 @@
       "mapped-to": "RFC3101-2.4-1"
     },
     {
-      "id": "7.0:4",
+      "id": "C:2",
       "quote": "If the P-bit is set, the forwarding address must be non-zero, otherwise it may be 0.0.0.0.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -356,25 +393,25 @@
       "mapped-to": "RFC3101-2.4-2"
     },
     {
-      "id": "7.0:5",
+      "id": "D:1",
       "quote": "Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs.",
       "disposition": "mapped",
       "mapped-to": "RFC3101-x-3"
     },
     {
-      "id": "7.0:6",
+      "id": "D:2",
       "quote": "For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes.",
       "disposition": "mapped",
       "mapped-to": "RFC3101-x-4"
     },
     {
-      "id": "7.0:7",
+      "id": "D:3",
       "quote": "Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs.",
       "disposition": "mapped",
       "mapped-to": "RFC3101-x-5"
     },
     {
-      "id": "7.0:8",
+      "id": "F:1",
       "quote": "When summary routes are not imported into an NSSA, the default LSA originated by its border routers must be a Type-3 summary-LSA.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
@@ -382,7 +419,7 @@
       "mapped-to": "RFC3101-2.7-2"
     },
     {
-      "id": "7.0:9",
+      "id": "F:2",
       "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",

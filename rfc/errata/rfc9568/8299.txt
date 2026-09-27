@@ -1,0 +1,27 @@
+Errata ID: 8299
+RFC: 9568
+Status: Verified
+Type: Technical
+Location: Section 7.1
+Date Verified: 2025-03-06
+Source: https://www.rfc-editor.org/errata/eid8299
+
+Original Text:
+ * It MUST verify that the VRID is configured on the receiving
+   interface and the local router is not the IPvX address owner
+   (Priority = 255 (decimal)).
+
+If any one of the above checks fails, the receiver MUST discard the
+packet, SHOULD log the event (subject to rate-limiting), and MAY
+indicate via network management that an error occurred.
+
+Corrected Text:
+ * It MUST verify that the VRID is configured on the receiving
+   interface and the local router is not the IPvX address owner
+   (Priority = 255 (decimal)).
+
+ * It MUST verify that IPvX Addr Count is non zero.
+
+If any one of the above checks fails, the receiver MUST discard the
+packet, SHOULD log the event (subject to rate-limiting), and MAY
+indicate via network management that an error occurred.

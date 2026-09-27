@@ -18,7 +18,7 @@ import (
 	"encoding/hex"
 	"os"
 	"regexp"
-	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -78,15 +78,23 @@ func reBoilerplate() string {
 
 // sectionHeadingRE matches a heading at column 0. The numeric form tolerates a
 // missing dot; the alpha form REQUIRES it, because "A speaker MUST ..." at
-// column 0 would otherwise read as appendix A.
+// column 0 would otherwise read as appendix A. The alpha form takes a number
+// after the letter with no dot between ("A2.  IPv6 Extension Headers", RFC
+// 4302), and under the word Appendix, in either case, the letter may end in a
+// colon ("Appendix D:  Configuration Parameters", RFC 3101). Only under the
+// word, because a bare "S: 250 OK" is a line of a transcript.
+//
+// Groups: 1 the appendix letter written under the word, 2 the number, 3 the
+// dot after the number, 4 the letter, 5 the title.
 //
 // It OVER-MATCHES, deliberately and unavoidably: RFCs put column-0 attribute
 // tables, packet diagrams and tables of contents in the same text stream, and
 // no pattern can separate "3.1  Route Selection" from a table row numbered 3.1
 // by shape alone. The derivation is built to SURVIVE a false match rather than
-// to prevent one -- see sectionBodies.
+// to prevent one -- see sectionBodies. The one false match it refuses is the
+// undotted number out of sequence, see columnZeroHeadings.
 var sectionHeadingRE = regexp.MustCompile(
-	`^(?:Appendix\s+)?(?:(\d+(?:\.\d+)*)\.?|([A-Z](?:\.\d+)*)\.)[ \t]+(\S.*)$`)
+	`^(?:(?:Appendix|APPENDIX)[ \t]+([A-Z]\d*(?:\.\d+)*)[.:]|(?:(?:Appendix|APPENDIX)[ \t]+)?(\d+(?:\.\d+)*)(\.?)|([A-Z]\d*(?:\.\d+)*)\.)[ \t]+(\S.*)$`)
 
 // indentedHeadingRE matches a heading once the body margin is cut off its line,
 // in a text where sectionHeadingRE finds nothing (owner decision D-5,
@@ -286,7 +294,7 @@ type sectionBody struct {
 // 1, so both would produce a site "7:1" and one would silently disappear.
 func sectionBodies(text string) []sectionBody {
 	lines := strings.Split(text, "\n")
-	heading := columnZeroHeading
+	heading := columnZeroHeadings()
 	if !hasColumnZeroHeading(lines) {
 		heading = indentedHeadings(lines)
 	}
@@ -321,23 +329,66 @@ func sectionBodies(text string) []sectionBody {
 // title when it does.
 type headingReader func(lines []string, at int) (string, string, bool)
 
-// hasColumnZeroHeading answers whether any line matches sectionHeadingRE. One
+// hasColumnZeroHeading answers whether any line is a column-0 heading. One
 // such line decides the reading of the whole text, so a text that has always
 // been cut at column 0 keeps every site id it had.
 func hasColumnZeroHeading(lines []string) bool {
-	return slices.ContainsFunc(lines, sectionHeadingRE.MatchString)
+	heading := columnZeroHeadings()
+	for at := range lines {
+		if _, _, found := heading(lines, at); found {
+			return true
+		}
+	}
+	return false
 }
 
-// columnZeroHeading reads lines[at] by sectionHeadingRE alone.
-func columnZeroHeading(lines []string, at int) (string, string, bool) {
-	found := sectionHeadingRE.FindStringSubmatch(lines[at])
-	if found == nil {
-		return "", "", false
+// columnZeroHeadings answers the reader for a text cut at column 0: a line
+// sectionHeadingRE matches, unless it is an undotted number that does not
+// number the next section. The reader is stateful and reads the lines in
+// order, once; not safe for concurrent use.
+//
+// The exception is what separates a heading from a table row or a byte dump
+// that opens with a number at column 0. The RFC 3579 and RFC 2869 attribute
+// tables open each row "0" or "1" ("1        1       1       1           80
+// Message-Authenticator"), and the RFC 2759 hash example opens each dump with
+// a byte ("55 73 65 72") and one label with a count ("24 octet
+// NT-Response:"). Read as headings, they end the section they sit in and file
+// its notes under a section "0", or back under section "1", so a verbatim
+// quote from them is refused as outside the section the RFC puts it in.
+//
+// A heading written as a bare number opens the section after the highest one
+// opened so far, and such a row repeats a number, goes back, or skips ahead,
+// so an undotted number is a heading only when it is that next number. Zero is
+// never one. A dotted number keeps the old reading: every such row and dump
+// in the corpus opens with an undotted number (measured 2026-09-27), and a
+// dotted heading can skip a number ("10.  Full Copyright Statement" after
+// section 7, RFC 2548).
+func columnZeroHeadings() headingReader {
+	highest := 0
+	return func(lines []string, at int) (string, string, bool) {
+		found := sectionHeadingRE.FindStringSubmatch(lines[at])
+		if found == nil {
+			return "", "", false
+		}
+		if found[1] != "" {
+			return found[1], found[5], true
+		}
+		if found[4] != "" {
+			return found[4], found[5], true
+		}
+		id := found[2]
+		top, _, dotted := strings.Cut(id, ".")
+		number, err := strconv.Atoi(top)
+		if err != nil {
+			return "", "", false // A run of digits no int holds is a value, not a section number.
+		}
+		undotted := !dotted && found[3] == ""
+		if undotted && number != highest+1 {
+			return "", "", false
+		}
+		highest = max(highest, number)
+		return id, found[5], true
 	}
-	if found[1] != "" {
-		return found[1], found[3], true
-	}
-	return found[2], found[3], true
 }
 
 // indentedHeadings answers the reader for a text with no column-0 heading. A
@@ -431,7 +482,9 @@ func bodyMargin(lines []string) int {
 }
 
 // quoteHaystack is the ONE text a quote is matched against: the source with its
-// page furniture stripped and its whitespace collapsed. Three readers hold a
+// page furniture stripped, its whitespace collapsed and its wrapped hyphens
+// joined (joinWrappedHyphens). Every quote is held against it in the form
+// quoteNeedle gives, so the two compare in one form. Three readers hold a
 // quote against an RFC, a requirement row (checkRowQuotes), a {feature-declined}
 // annotation (featureDeclinedQuote) and a level correction
 // (correctionAuthorizes), and all three call this, so a sentence one of them
@@ -441,14 +494,65 @@ func bodyMargin(lines []string) int {
 // a page break (measured 2026-09-26), and a raw collapse leaves the footer and
 // the running header inside each of them.
 func quoteHaystack(source string) string {
-	return squashWhitespace(stripPageFurniture(source))
+	return joinWrappedHyphens(squashWhitespace(stripPageFurniture(source)))
+}
+
+// quoteNeedle answers the form a quote is searched for in a quoteHaystack: its
+// whitespace collapsed and its wrapped hyphens joined, the two steps the
+// haystack takes after its page furniture goes.
+func quoteNeedle(quote string) string {
+	return joinWrappedHyphens(squashWhitespace(quote))
+}
+
+// joinWrappedHyphens drops the blank after a hyphen that ends a word. An RFC
+// wraps a hyphenated word at its hyphen ("close-" at the end of one line,
+// "notify" on the next), and the whitespace collapse reads that as
+// "close- notify". A row copying the word writes "close-notify", and a row
+// copying the collapsed text writes "close- notify". Joined on both sides,
+// either spelling matches, and a quote that matched before still does.
+//
+// A hyphen with a blank on both sides (" - ") is a dash, not a wrapped word,
+// and stays as it is.
+func joinWrappedHyphens(text string) string {
+	if !strings.Contains(text, "- ") {
+		return text
+	}
+	var joined strings.Builder
+	joined.Grow(len(text))
+	for at := 0; at < len(text); at++ {
+		joined.WriteByte(text[at])
+		if endsWrappedWord(text, at) {
+			at++ // The blank after the hyphen.
+		}
+	}
+	return joined.String()
+}
+
+// endsWrappedWord answers whether text[at] is a hyphen that ends a word and is
+// followed by a blank: the shape a wrapped hyphenated word collapses to.
+func endsWrappedWord(text string, at int) bool {
+	if text[at] != '-' {
+		return false
+	}
+	if at == 0 {
+		return false
+	}
+	if at+1 == len(text) {
+		return false
+	}
+	return text[at-1] != ' ' && text[at+1] == ' '
 }
 
 // quoteSource is one RFC's text cut into sections, each body already a quote
 // haystack, for the row check that scopes a quote to the section it cites.
-// Safe for concurrent use once built: nothing writes to it after newQuoteSource.
+// Safe for concurrent use once built: nothing writes to it after newQuoteSource
+// and withErrata.
 type quoteSource struct {
 	sections []sectionBody
+	// readErratum answers the stored text of one of this RFC's errata by
+	// number, false when the store holds none (errata.go). Nil when no store
+	// was given, and a row citing an erratum is then refused.
+	readErratum func(number string) (string, bool)
 }
 
 // wholeText answers whether the RFC has no heading under either reading
@@ -518,10 +622,11 @@ func (q *quoteSource) has(id string) bool {
 }
 
 // inSection answers whether quote is one contiguous span of the section id or
-// of one of its subsections. Each body is searched on its own, because a span
-// joining the end of one section to the start of the next is no sentence of
-// the RFC.
+// of one of its subsections, compared in quoteNeedle's form. Each body is
+// searched on its own, because a span joining the end of one section to the
+// start of the next is no sentence of the RFC.
 func (q *quoteSource) inSection(id, quote string) bool {
+	quote = quoteNeedle(quote)
 	prefix := id + "."
 	for _, section := range q.sections {
 		if section.id != id && !strings.HasPrefix(section.id, prefix) {
@@ -537,6 +642,7 @@ func (q *quoteSource) inSection(id, quote string) bool {
 // sectionOf answers the first section whose body carries quote, so a refusal
 // can name where the sentence really is. False when no section carries it.
 func (q *quoteSource) sectionOf(quote string) (string, bool) {
+	quote = quoteNeedle(quote)
 	for _, section := range q.sections {
 		if strings.Contains(section.body, quote) {
 			return section.id, true

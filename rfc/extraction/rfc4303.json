@@ -4,8 +4,10 @@
   "register": "rfc2119",
   "source-path": "rfc/full/rfc4303.txt",
   "source-sha": "ec4c9d4414570513",
-  "signed-off": "2026-08-31",
-  "reviewer": "ze-work agent, spec-rfcgate-6 phase 2, rfc4303",
+  "signed-off": "2026-09-27",
+  "reviewer": "claude",
+  "register-reason": "Standards Track with an RFC 2119 key-words paragraph in section 1 and capitalised keywords throughout sections 1 to 5. The derivation grades the source rfc2119 and this sign-off claims exactly that grade.",
+  "resign-reason": "The heading reader changed on 2026-09-27: a column-0 table row or byte dump that opens with an undotted number out of sequence is no longer a heading, and an appendix heading written with a colon, in capitals, or with a number after the letter now is. Sites moved into the sections the RFC writes them in, and every decision was carried forward by its verbatim quote; a site whose sentence changed with the cut carries the decision of the site whose sentence it contains.",
   "sections": [
     {
       "id": "front",
@@ -286,7 +288,61 @@
       "id": "10.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "The derived span carries the Informative References and Appendix A, Extended (64-bit) Sequence Numbers. The appendix describes the receiver's ESN window management and its optional resynchronisation heuristic. It states no MUST-level obligation: no capitalised MUST, SHALL or REQUIRED appears anywhere after the section 10 heading."
+      "reason": "Informative References. A reference list: no capitalised MUST, SHALL or REQUIRED appears in it. Appendix A, which this span carried until the heading reader read its heading on 2026-09-27, is its own sections now."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A2.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A2.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A2.3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A3. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A3.1. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
+    },
+    {
+      "id": "A3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Appendix A3.2. Until 2026-09-27 the heading reader did not read this appendix's heading, so its text was read as part of the section before it. It carries no site, so no decision moved."
     }
   ],
   "sites": [
@@ -294,22 +350,19 @@
       "id": "1:1",
       "quote": "Typically, this binding is effected through the use of a shared, symmetric key.) Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-1-1",
-      "reason": "The document's service-selection obligation. Ze offers integrity-only ESP as a selectable service and makes it configurable: an OSPFv3 interface with protocol esp, an integrity algorithm and key, and encryption-algorithm null installs an ESP SA with a null cipher (buildIPsecSA, internal/plugins/ospf/ipsec_install.go; validateESPConfidentiality, internal/plugins/ospf/config_ipsec.go). Declared by this walk as RFC4303-1-1."
+      "mapped-to": "RFC4303-1-1"
     },
     {
       "id": "1:2",
       "quote": "- confidentiality-only (MAY be supported) - integrity only (MUST be supported) - confidentiality and integrity (MUST be supported)",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-1-1",
-      "reason": "The bulleted list states the same two service-combination obligations as the paragraph above it: integrity-only MUST be supported and confidentiality-with-integrity MUST be supported. RFC4303-1-1 carries both, so the list is the same obligation restated in a table rather than a second one."
+      "mapped-to": "RFC4303-1-1"
     },
     {
       "id": "2:1",
       "quote": "The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers).",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2-1",
-      "reason": "The protocol number obligation. Every ESP SA Ze installs carries protocol 50: the IKE Child SA path sets protoESP = 50 (internal/component/ike/engine/child.go) and the OSPFv3 manual path resolves it through ipsecProtoNumber (internal/plugins/ospf/ipsec_install.go). Declared by this walk as RFC4303-2-1."
+      "mapped-to": "RFC4303-2-1"
     },
     {
       "id": "2:2",
@@ -322,15 +375,13 @@
       "id": "2.1:1",
       "quote": "This mechanism for mapping inbound traffic to unicast SAs MUST be supported by all ESP implementations.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.2-1",
-      "reason": "The unicast SPI-to-SA mapping mechanism. RFC4303-3.4.2-1 is the row for unicast SA lookup by SPI (or SPI plus protocol), which is the mechanism this sentence obliges an implementation to support."
+      "mapped-to": "RFC4303-3.4.2-1"
     },
     {
       "id": "2.1:2",
       "quote": "If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.2-2",
-      "reason": "The multicast SAD lookup algorithm this sentence mandates is the one RFC4303-3.4.2-2 declares: for multicast the destination address is used in the lookup as well as the SPI."
+      "mapped-to": "RFC4303-3.4.2-2"
     },
     {
       "id": "2.1:3",
@@ -350,22 +401,19 @@
       "id": "2.1:5",
       "quote": "The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547].",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.1-2",
-      "reason": "The obligation binds the SA installer, which is Ze. The OSPFv3 manual path sets the match indication as a side effect of manual configuration (SASelector {::/0, ::/0, upper protocol 89} in buildIPsecSA, internal/plugins/ospf/ipsec_install.go), and the IKE path sets it from the negotiated peer addresses (installChildSA, internal/component/ike/engine/child.go). Declared by this walk as RFC4303-2.1-2."
+      "mapped-to": "RFC4303-2.1-2"
     },
     {
       "id": "2.1:6",
       "quote": "The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.1-1",
-      "reason": "The document's SPI-zero prohibition, captured verbatim as RFC4303-2.1-1 at [MUST NOT]."
+      "mapped-to": "RFC4303-2.1-1"
     },
     {
       "id": "2.2:1",
       "quote": "For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.2-1",
-      "reason": "The per-packet sequence increment, captured as RFC4303-2.2-1 at [MUST]."
+      "mapped-to": "RFC4303-2.2-1"
     },
     {
       "id": "2.2:2",
@@ -379,8 +427,8 @@
       "quote": "Processing of the Sequence Number field is at the discretion of the receiver, but all ESP implementations MUST be capable of performing the processing described in Sections 3.3.3 and 3.4.3.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC4303-3.4.3-1",
-      "reason": "The sentence adds no obligation of its own. It says an ESP implementation must be capable of the processing described in sections 3.3.3 and 3.4.3, whose obligations this walk already accounts for: RFC4303-3.3.3-1, RFC4303-2.2-2 and the RFC4303-3.4.3 rows."
+      "reason": "The sentence adds no obligation of its own. It says an ESP implementation must be capable of the processing described in sections 3.3.3 and 3.4.3, whose obligations this walk already accounts for: RFC4303-3.3.3-1, RFC4303-2.2-2 and the RFC4303-3.4.3 rows.",
+      "mapped-to": "RFC4303-3.4.3-1"
     },
     {
       "id": "2.2:4",
@@ -393,15 +441,13 @@
       "id": "2.2:5",
       "quote": "Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.2-3",
-      "reason": "The 2^32 reset obligation, captured as RFC4303-2.2-3 at [MUST]."
+      "mapped-to": "RFC4303-2.2-3"
     },
     {
       "id": "2.2.1:1",
       "quote": "Use of an ESN MUST be negotiated by an SA management protocol.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.2.1-2",
-      "reason": "The ESN negotiation obligation, declared as RFC4303-2.2.1-2. This walk corrected that row's level from [SHOULD] to [MUST]: the source sentence is a capitalised MUST, and an advisory row never gates. Ze offers exactly one Transform Type 5 value (espESNNotExtended, internal/component/ike/engine/initiator.go) and refuses a response selecting any other (acceptedESPESNConsistent, errAcceptedOfferESN), so no SA it keys uses an ESN that was not negotiated."
+      "mapped-to": "RFC4303-2.2.1-2"
     },
     {
       "id": "2.3:1",
@@ -435,8 +481,7 @@
       "id": "2.4:1",
       "quote": "Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.4-1",
-      "reason": "The padding support obligation on an ESP implementation, which RFC4303-2.4-1 declares."
+      "mapped-to": "RFC4303-2.4-1"
     },
     {
       "id": "2.4:2",
@@ -464,15 +509,14 @@
       "quote": "To facilitate the rapid generation and discarding of the padding traffic in support of traffic flow confidentiality (see Section 2.4), the protocol value 59 (which means \"no next header\") MUST be used to designate a \"dummy\" packet.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC4303-2.6-1",
-      "reason": "The value convention and the capability are one obligation stated twice in adjacent sentences. RFC4303-2.6-1 names the value 59 and the dummy packet, and site 2.6:2 maps it."
+      "reason": "The value convention and the capability are one obligation stated twice in adjacent sentences. RFC4303-2.6-1 names the value 59 and the dummy packet, and site 2.6:2 maps it.",
+      "mapped-to": "RFC4303-2.6-1"
     },
     {
       "id": "2.6:2",
       "quote": "A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field, and a receiver MUST be prepared to discard such packets, without indicating an error.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.6-1",
-      "reason": "The transmitter half of this sentence, declared as RFC4303-2.6-1. The receiver half of the same sentence is RFC4303-2.6-2, which has no site of its own and is listed in the unsourced-ids of section 2.6."
+      "mapped-to": "RFC4303-2.6-1"
     },
     {
       "id": "2.6:3",
@@ -506,8 +550,7 @@
       "id": "3.2:1",
       "quote": "Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.2-1",
-      "reason": "The both-NULL prohibition. It binds the SA parameter selection, which is Ze: parseESPProposal refuses a non-AEAD ESP proposal with no hash (internal/component/ike/ipsec/config.go) and validateIPsecInterface refuses an ESP interface with no integrity algorithm and key (internal/plugins/ospf/config_ipsec.go), so no Ze-installed ESP SA can carry NULL encryption and NULL integrity together. Declared by this walk as RFC4303-3.2-1."
+      "mapped-to": "RFC4303-3.2-1"
     },
     {
       "id": "3.3.2.1:1",
@@ -541,8 +584,7 @@
       "id": "3.3.3:1",
       "quote": "In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-2.2-2",
-      "reason": "The counter-cycling prohibition. The summary anchors it at section 2.2, whose own sentence states it in lowercase prose; this section 3.3.3 sentence is the capitalised statement of the same obligation."
+      "mapped-to": "RFC4303-2.2-2"
     },
     {
       "id": "3.3.3:2",
@@ -555,8 +597,7 @@
       "id": "3.3.4:1",
       "quote": "In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.3.4-2",
-      "reason": "The PMTU obligation, captured as RFC4303-3.3.4-2 at [MUST]."
+      "mapped-to": "RFC4303-3.3.4-2"
     },
     {
       "id": "3.4.1:1",
@@ -569,23 +610,21 @@
       "id": "3.4.2:1",
       "quote": "If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.2-1",
-      "reason": "The discard-on-no-valid-SA half of RFC4303-3.4.2-1, whose row text carries both the unicast lookup rule and this discard."
+      "mapped-to": "RFC4303-3.4.2-1"
     },
     {
       "id": "3.4.3:1",
       "quote": "All ESP implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC4303-3.4.3-1",
-      "reason": "Supporting the anti-replay service and supporting its sliding window are the same obligation at two grains, and RFC4303-3.4.3-1 is proven by the evidence this sentence would need: the production Child SA path installs a 64-packet window on both directions (internal/component/ike/engine/child.go). A second row proven by the same assertion would be one fact declared twice."
+      "reason": "Supporting the anti-replay service and supporting its sliding window are the same obligation at two grains, and RFC4303-3.4.3-1 is proven by the evidence this sentence would need: the production Child SA path installs a 64-packet window on both directions (internal/component/ike/engine/child.go). A second row proven by the same assertion would be one fact declared twice.",
+      "mapped-to": "RFC4303-3.4.3-1"
     },
     {
       "id": "3.4.3:2",
       "quote": "This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.3-2",
-      "reason": "The anti-replay-needs-integrity prohibition, captured as RFC4303-3.4.3-2 at [MUST NOT]. Read at the producer: every ESP SA Ze installs carries integrity, because parseESPProposal refuses a non-AEAD proposal with no hash and planStateAlgos gives ESP either Crypt+Auth or a single AEAD transform, and every replay window Ze sets is on an SA that carries integrity: the IKE Child SAs (replayWindow = 64, internal/component/ike/engine/child.go), and the OSPFv3 manual SAs, whose optional replay-window leaf sits on a path where validateIPsecInterface refuses any interface with no integrity algorithm and key (internal/plugins/ospf/config_ipsec.go)."
+      "mapped-to": "RFC4303-3.4.3-2"
     },
     {
       "id": "3.4.3:3",
@@ -612,8 +651,7 @@
       "id": "3.4.3:6",
       "quote": "A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed; a window size of 64 is preferred and SHOULD be employed as the default.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.3-1",
-      "reason": "The minimum window size, captured as RFC4303-3.4.3-1 at [MUST]; the preferred 64 default in the same sentence is RFC4303-3.4.3-4 at [SHOULD]. Ze projects 64 on both directions of every Child SA (internal/component/ike/engine/child.go)."
+      "mapped-to": "RFC4303-3.4.3-1"
     },
     {
       "id": "3.4.4.1:1",
@@ -626,8 +664,7 @@
       "id": "3.4.4.1:2",
       "quote": "If integrity checking and encryption are performed in parallel, integrity checking MUST be completed before the decrypted packet is passed on for further processing.",
       "disposition": "mapped",
-      "mapped-to": "RFC4303-3.4.4.1-1",
-      "reason": "The ordering obligation for separate confidentiality and integrity algorithms, captured as RFC4303-3.4.4.1-1: the integrity check completes before the decrypted packet goes further."
+      "mapped-to": "RFC4303-3.4.4.1-1"
     },
     {
       "id": "3.4.4.2:1",
@@ -655,8 +692,8 @@
       "quote": "Additionally, if an implementation claims to support multicast traffic, it MUST comply with the additional requirements specified for support of such traffic.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC4303-3.4.2-2",
-      "reason": "The conformance section restates the multicast obligation captured as RFC4303-3.4.2-2, which site 2.1:2 maps."
+      "reason": "The conformance section restates the multicast obligation captured as RFC4303-3.4.2-2, which site 2.1:2 maps.",
+      "mapped-to": "RFC4303-3.4.2-2"
     },
     {
       "id": "5:3",
@@ -670,8 +707,8 @@
       "quote": "NOTE that although integrity and encryption may each be \"NULL\" under the circumstances noted above, they MUST NOT both be \"NULL\".",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "mapped-to": "RFC4303-3.2-1",
-      "reason": "The conformance section restates the both-NULL prohibition captured as RFC4303-3.2-1, which site 3.2:1 maps."
+      "reason": "The conformance section restates the both-NULL prohibition captured as RFC4303-3.2-1, which site 3.2:1 maps.",
+      "mapped-to": "RFC4303-3.2-1"
     },
     {
       "id": "7:1",
@@ -680,6 +717,5 @@
       "excluded-kind": "not-a-requirement",
       "reason": "Section 7 is the change log against RFC 2406. The keywords appear inside a description of what this revision changed, 'Confidentiality-only service -- now a MAY, not a MUST', so the sentence reports a level rather than stating one. The obligations it points at are stated normatively in sections 1, 2.1, 2.2.1, 2.6, 2.7 and 3.4.4."
     }
-  ],
-  "register-reason": "Standards Track with an RFC 2119 key-words paragraph in section 1 and capitalised keywords throughout sections 1 to 5. The derivation grades the source rfc2119 and this sign-off claims exactly that grade."
+  ]
 }
