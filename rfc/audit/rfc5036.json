@@ -1,0 +1,201 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC5036-2.5.1-1": {
+      "note": "The positive TestRFC5036SessionSendsInitializationFirst calls sess.SendInit directly and checks the emitted message is an Initialization, which holds whatever the session-start path does: it would not fail if runSession stopped sending the Initialization. No unit distinguishes the active role, which initiates, from the passive role, which waits. The negative only shows the FSM does not go operational without ze's own Initialization.",
+      "requirement_sha": "400b56f09eddd61f",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionSendsInitializationFirst": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit": "4cc2da86c7f3636f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionSendsInitializationFirst": "18a5e88e13f6578e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5036-2.5.1-2": {
+      "note": "TestRFC5036KeepaliveNegotiationAdoptsLower (peer 20s, ours 60s gives 20s) and TestRFC5036KeepaliveNegotiationRefusesHigher (peer 180s, ours 30s keeps 30s) drive the production handleInit and assert the exact negotiated value in both directions.",
+      "requirement_sha": "7301ea13d9cec874",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "d377cc54aff3a449",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "f6ac792bfda4c9f3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-2.5.3-1": {
+      "note": "TestRFC5036KeepalivesSentPeriodically reads four KeepAlives through runSession, but each read has a 2s deadline and the negotiated KeepAlive Time is 150ms, so a sender whose interval exceeds the KeepAlive Time still passes: the bound 'at least every KeepAlive Time period' is not asserted. The negative only shows KeepAlives are not continuous.",
+      "requirement_sha": "8dacd29a7ef3b171",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesNotSentContinuously": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesNotSentContinuously": "2dc358f84646f789",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepalivesSentPeriodically": "0825a0ded1843918"
+      },
+      "verdict": "weak"
+    },
+    "RFC5036-2.6.1.2-2": {
+      "note": "The units show an egress FEC is mapped at once and a non-egress FEC with only a third-party binding is not mapped, but no unit shows the second half of the obligation: that the FEC IS mapped and passed upstream once a label from the downstream LSR arrives. A code that never maps a transit FEC passes both units.",
+      "requirement_sha": "0a71a332a4cb1b43",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "c6ff5bec5e7892ba",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "c6ff5bec5e7892ba"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "b1ec24fb20f14c36",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "829c896633a5c741"
+      },
+      "verdict": "weak"
+    },
+    "RFC5036-3.1-1": {
+      "note": "Global uniqueness is an operator property ze can only police by refusing its own identifier: TestRFC5036OwnLSRIDFormsNoAdjacency does that. The positive TestRFC5036DistinctLSRIDFormsAdjacency's PDU-header half encodes a literal 10.0.0.1 through encodePDUHeader and reads it back, which cannot fail and does not show the configured lsr-id reaches the header of a PDU ze sends.",
+      "requirement_sha": "54c7aeee0a8bbab5",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036DistinctLSRIDFormsAdjacency": "c6ff5bec5e7892ba",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036OwnLSRIDFormsNoAdjacency": "c6ff5bec5e7892ba"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036DistinctLSRIDFormsAdjacency": "324be7aa74081bc4",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036OwnLSRIDFormsNoAdjacency": "3cdabeee15a0c6d8"
+      },
+      "verdict": "weak"
+    },
+    "RFC5036-3.3-1": {
+      "note": "TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up.",
+      "requirement_sha": "726151364760073b",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "c6ff5bec5e7892ba",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "c6ff5bec5e7892ba"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "e25215107eea4618",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "736b05c3dd598a51"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.4.4.1-2": {
+      "note": "TestRFC5036HopCountAboveMaximumDrawsLoopDetected checks a hop count above the configured maximum draws a Loop Detected Notification referring to the Label Mapping, the mapping is not applied and the session stays up; TestRFC5036HopCountWithinMaximumIsApplied checks a hop count at the maximum draws no Notification.",
+      "requirement_sha": "8808099b55d76524",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "c6ff5bec5e7892ba",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "c6ff5bec5e7892ba"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "df8a68a89ce160da",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "45dd72d50ddc6b2d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.2-1": {
+      "note": "TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.",
+      "requirement_sha": "2436e8e56f006425",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "7b40deb43fc43277",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "b46d209e271ea52b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-1": {
+      "note": "TestRFC5036InitNonZeroKeepaliveTimeAccepted takes a non-zero KeepAlive Time to operational with no Notification; TestRFC5036InitZeroKeepaliveTimeRejected checks a zero KeepAlive Time draws Session Rejected/Bad KeepAlive Time referring to the Initialization, errBadKeepaliveTime, no operational state and no zero reaching the timers.",
+      "requirement_sha": "d546589c03be24a5",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitZeroKeepaliveTimeRejected": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted": "9e0f6bd532a6a1c8",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitZeroKeepaliveTimeRejected": "61b026202e9244b1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-5": {
+      "note": "TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection reads the Initialization ze sends and checks D=0 with PVLim 0; TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection gives EncodeInit a limit of 7 and checks 0 reaches the wire beside D=0 and 7 beside D=1.",
+      "requirement_sha": "4f722a9ee8016940",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "1f56b47e08a7a4c7",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "1f56b47e08a7a4c7"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "af529b72d5feed7b",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "67bf4958c3f10ff1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-6": {
+      "note": "TestRFC5036InitReservedBitsZeroOnTransmission checks the six reserved bits of the Common Session Parameters flags octet are zero in the sent Initialization; TestRFC5036InitReservedBitsIgnoredOnReceipt sets them all and checks A and D are not read from them, the session goes operational and no Notification is sent. ze sends no ATM or Frame Relay Session Parameters (RFC5036-3.5.3-13 gap).",
+      "requirement_sha": "38160fab47d2e744",
+      "tests": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "1f56b47e08a7a4c7",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "1f56b47e08a7a4c7"
+      },
+      "units": {
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt": "25342ad526c9fc25",
+        "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission": "bce63c08b2edc184"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-3.5.3-9": {
+      "note": "TestRFC5036InitFromHelloAdjacencyAccepted checks an Initialization from the adjacency's LDP Identifier goes operational with no write; TestRFC5036InitWithoutHelloAdjacencyRejected checks another LSR ID and another label space each draw Session Rejected/No Hello referring to the Initialization and no session.",
+      "requirement_sha": "600ab36a6335c739",
+      "tests": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036InitFromHelloAdjacencyAccepted": "c6ff5bec5e7892ba",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036InitWithoutHelloAdjacencyRejected": "c6ff5bec5e7892ba"
+      },
+      "units": {
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036InitFromHelloAdjacencyAccepted": "23677e1e3ef36a69",
+        "internal/plugins/ldp/procedures_rfc5036_test.go::TestRFC5036InitWithoutHelloAdjacencyRejected": "3ca3b841e84835b5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-x-1": {
+      "note": "TestRFC5036PDUVersionOneAccepted reads the PDU header SendInit emits and checks Version 1, and decodes a Version 1 header; TestRFC5036PDUVersionOtherRejected checks versions 0, 2 and 65535 are refused by decodePDUHeader and that processDiscoveryPacket forms no adjacency from a version 2 Hello.",
+      "requirement_sha": "d76130d3521c30e4",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "c1f621207b794990",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "a85855a331b62d55"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-x-2": {
+      "note": "TestRFC5036HelloReservedBitsZeroOnTransmit checks the 14 reserved bits of the Common Hello Parameters TLV are zero from EncodeHello for all four T/R combinations; TestRFC5036HelloReservedBitsIgnoredOnReceipt sets every reserved bit and checks DecodeHello reads neither T nor R nor a changed hold time.",
+      "requirement_sha": "a7d282a6034073f3",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "5bf1d4aee254b32f",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "56341f28cc1858ac"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5036-x-3": {
+      "note": "TestRFC5036InitProtocolVersionOne reads the Initialization SendInit emits and checks Protocol Version 1, and drives processMessages to operational on version 1; TestRFC5036InitProtocolVersionOtherRejected checks versions 0, 2 and 65535 draw the Bad Protocol Version Notification, errBadVersion and no operational state.",
+      "requirement_sha": "550b2628bbe2eb29",
+      "tests": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOne": "8d2396dc9fc73f44",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOtherRejected": "8d2396dc9fc73f44"
+      },
+      "units": {
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOne": "417947d376c9647b",
+        "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitProtocolVersionOtherRejected": "7d9f0dce55c956ea"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5036"
+}
