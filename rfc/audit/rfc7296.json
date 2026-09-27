@@ -1,0 +1,1246 @@
+{
+  "audited": "2026-09-27",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC7296-1.2-1": {
+      "note": "TestInitialExchangeEncryptionBoundary: IKE_SA_INIT carries no SK and is refused by decryptAndParse; IKE_AUTH carries SK and the peer decrypts it",
+      "requirement_sha": "fd6232ea3dc33023",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "bf1e8ec52b6ed4c2",
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "cc07ff143101d2da",
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "cc07ff143101d2da"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-1.3.3-1": {
+      "note": "initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
+      "requirement_sha": "b883c2b9ab5dc7a6",
+      "tests": {
+        "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/responder_test.go::TestRespondIKERekey": "478f1638e9e680a0",
+        "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "0e9663c6ad3e960d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-1.4-1": {
+      "note": "Child SA Delete response carries a Delete naming the paired inbound SPI; IKE SA Delete draws an empty response",
+      "requirement_sha": "70583a75d4a84af9",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "15034f1360bdd628",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "15034f1360bdd628"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "3383bc20c009d2ff",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "39d23e157bd81834"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-1.4.1-4": {
+      "note": "TestLcyInformationalResponseCarriesNoDeletePayload never sets up crossed deletes (the exception the MUST NOT governs); its premise that ze attaches no Delete to any response is now false (TestDelResponseCarriesThePairedDelete), so the comment is stale and the unit asserts an unknown-SPI Delete draws none",
+      "requirement_sha": "48702badce76b398",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload": "575a4c6966d68814",
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload#2": "575a4c6966d68814"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload": "3c2658c42cecdc9d",
+        "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyInformationalResponseCarriesNoDeletePayload#2": "3c2658c42cecdc9d"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-1.7-2": {
+      "note": "HMAC PRFs accept 1..200-octet keys and consume the key",
+      "requirement_sha": "a4adab3d42e08661",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "ce60f877fa4f6f7e",
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "ce60f877fa4f6f7e"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "9dae1dd2fe963564",
+        "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "9dae1dd2fe963564"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.10-2": {
+      "note": "PayloadNonce.ReadFrom refuses 15 octets, accepts 16; sender nonceLen 32 asserted in TestNonceMeetsHalfPRFKeySize",
+      "requirement_sha": "b2bc95ac2caf9d95",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "6a5b7aefa912b132",
+        "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds#2": "6a5b7aefa912b132"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.10-3": {
+      "note": "positive tag claims every rekey nonce uses nonceLen (rekey.go) but only newInitiatorSA/newResponderSA nonces are asserted; PRF list is hand-written in the test, not read from prfRegistry; negative is a tightness guard, not a violating input",
+      "requirement_sha": "310ac223e95176d0",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "29950a5975949ea7",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "29950a5975949ea7"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize": "765878a8889d35d0",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestNonceMeetsHalfPRFKeySize#2": "765878a8889d35d0"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.11-2": {
+      "note": "TestNattRepliesToTheObservedSourcePort asserts the stored peerEndpoint/remoteUDPAddr port, never reads the reply datagram on the odd-port listener it opens; the negative (forged packet does not move the endpoint) is the 2.23 dynamic-update bound, not a violation of this row",
+      "requirement_sha": "0d57af8ddbfd3571",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "f33281d04b335fdb",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "f33281d04b335fdb"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort": "970af1bba30bf5fb",
+        "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "91db65ce82b27316"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.13-2": {
+      "note": "the tags assert SK_* key sizing, which is RFC7296-2.13-3; no supported cipher has invalid key values (AES only), so nothing tests this row's rule. no supported transform has invalid key values (encryptionRegistry is AES CBC/GCM/CCM only, no DES/3DES); the tags assert SK_* key sizing, which is RFC7296-2.13-3",
+      "requirement_sha": "c4272b98c2f98dc3",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms": "ce60f877fa4f6f7e",
+        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms#2": "ce60f877fa4f6f7e"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms": "6938fceff65b243d",
+        "internal/component/ike/crypto/rfc7296_test.go::TestSKKeyLengthsComeFromTransforms#2": "6938fceff65b243d"
+      },
+      "verdict": "wrong"
+    },
+    "RFC7296-2.15-2": {
+      "note": "asserts parseAuthConfig keeps the PSK length and adds no NUL; the claimed use path computePSKAuth (engine/auth.go) is not exercised, so a NUL appended at use would stay green",
+      "requirement_sha": "2cc3de1d48a12793",
+      "tests": {
+        "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "ceba76468bf16893",
+        "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "ceba76468bf16893"
+      },
+      "units": {
+        "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "6bffd906d334a3b1",
+        "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "6bffd906d334a3b1"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.16-11": {
+      "note": "EAP responder AUTH is an RFC 7427 signature verified under the cert key; no-cert EAP refused at setup and config; initiator refuses PSK AUTH from EAP responder; PSK peers unaffected",
+      "requirement_sha": "59559f7deb3530b9",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "293652cabae2214c",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "293652cabae2214c",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthInitiatorRefusesPreSharedKeyResponder": "293652cabae2214c",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthNonEAPPreSharedKeyStillAuthenticates": "293652cabae2214c",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate": "293652cabae2214c",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderSignsWithPublicKey": "293652cabae2214c"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigAcceptsPreSharedKeyPeer": "27e507c05aa40f85",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthConfigRejectsEAPWithoutCertificate": "74a9db148d59158a",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthInitiatorRefusesPreSharedKeyResponder": "2757f536d01769d0",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthNonEAPPreSharedKeyStillAuthenticates": "ce3c75018fd924e6",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderRefusesWithoutCertificate": "045bf2938df9f96e",
+        "internal/component/ike/engine/rfc7296_eap_auth_test.go::TestEapAuthResponderSignsWithPublicKey": "f7e5cfe9878ffdec"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.16-16": {
+      "note": "Non-compliant behaviour: an IKEv2 exchange selecting an EAP method that establishes no key when the operator did not name one. Positive: TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod fails ('auth mode %s selected an EAP method that derives no key') for any EAP mode other than AuthEAPMD5 whose newEAPSession session answers false to DerivesKey. Negative: TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod sweeps every AuthMode value through newEAPSession and startEAPExchange, and assertKeylessModeIsNamedAndAnnounced goes red when a keyless method is reached by an unnamed value or without the adoption warning. The SHOULD NOT is met as a deviation the operator must name, which the warning makes visible.",
+      "requirement_sha": "c81b7cdf23badad2",
+      "tests": {
+        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "73ec0b7d5e707b6d",
+        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "73ec0b7d5e707b6d"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2EAPModesSelectAKeyDerivingMethod": "518b5131067059a4",
+        "internal/component/ike/engine/rfc3748_ikev2_method_selection_test.go::TestRFC3748IKEv2NoAuthModeSelectsAKeylessMethod": "9df895fefa308d6e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.17-1": {
+      "note": "DeriveChildSAKeys slices recomputed prf+ KEYMAT with both initiator keys before responder keys",
+      "requirement_sha": "5420d232f664a6b1",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "ce60f877fa4f6f7e",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "ce60f877fa4f6f7e"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "275a850ead3da96a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.17-2": {
+      "note": "encryption key then integrity key per direction, positional, asserted against recomputed KEYMAT",
+      "requirement_sha": "6a907b588d629355",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "ce60f877fa4f6f7e",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "ce60f877fa4f6f7e"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
+        "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "275a850ead3da96a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.18-3": {
+      "note": "TestPropDHNoneRefusedForIKESA covers the responder refusing DH NONE in NegotiateIKE; the initiator half (MUST NOT propose NONE when rekeying) and the rekey context are not asserted",
+      "requirement_sha": "d527c452043c2ad9",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA": "08f2f5dac8da8a2b",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "08f2f5dac8da8a2b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA": "bfa24950423107a5",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropDHNoneRefusedForIKESA#2": "bfa24950423107a5"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.2-3": {
+      "note": "finishResponderEstablish advances only the inbound counter; responder's first request id 0 is classified as new by the initiator",
+      "requirement_sha": "6288b242eb184ce2",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_msgid_responder_request_test.go::TestResponderFirstRequestMatchesWhatTheInitiatorExpects": "71774b33deb0f09c",
+        "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidResponderEstablishDoesNotWrapTheCounter": "627835c6b1b632fb"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_msgid_responder_request_test.go::TestResponderFirstRequestMatchesWhatTheInitiatorExpects": "ee1fb2c93cb7ede0",
+        "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidResponderEstablishDoesNotWrapTheCounter": "8791c36986131a6d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.20-1": {
+      "note": "sweep over engineBuiltChains finds no APPLICATION_VERSION; no unit sends Ze a CP(CFG_REQUEST) carrying APPLICATION_VERSION and asserts the reply carries no CP or an empty string",
+      "requirement_sha": "ce57bff15d289ceb",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "38bdb8cdc7d2fb80",
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "086ac4931ee14b25",
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.21.2-1": {
+      "note": "truncated inner chain answered with INVALID_SYNTAX only; bad payload contents not treated as malformed",
+      "requirement_sha": "81f9339824544b40",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "02e1b5b1293a3513",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "02e1b5b1293a3513"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "89c93e44ce0eb218",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "89c93e44ce0eb218"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.2-2": {
+      "note": "initiator establishes despite piggybacked error notify; AUTHENTICATION_FAILED still kills the SA",
+      "requirement_sha": "5e30f24d597070ad",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "4e9aa4949328a3c4",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "4e9aa4949328a3c4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "653c8bc742fd22c7",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "653c8bc742fd22c7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.4-2": {
+      "note": "INVALID_IKE_SPI answer copies SPIs, Message ID and exchange type with Response flag, per request; answered over the arrival socket framing; .ci covers arrival socket",
+      "requirement_sha": "43bc91a35bea0d27",
+      "tests": {
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "46d06959b3cb4475",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "46d06959b3cb4475",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+      },
+      "units": {
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "e44152a2c3d1b0ca",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "e44152a2c3d1b0ca",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.4-4": {
+      "note": "answer holds exactly one INVALID_IKE_SPI Notify with empty SPI and data",
+      "requirement_sha": "3588193f7dd78275",
+      "tests": {
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+      },
+      "units": {
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+        "internal/component/ike/engine/notify_error_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+        "test/ipsec/ipsec-error-notify-no-loop.ci": "ccc1fec3215c93af",
+        "test/ipsec/ipsec-error-notify-no-loop.ci#2": "ccc1fec3215c93af"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.4-6": {
+      "note": "unprotected notify leaves state, counters, child SA and DPD timer untouched; same notify protected reaches handlers",
+      "requirement_sha": "c54e327cae6c7e7c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "4e9aa4949328a3c4",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "4e9aa4949328a3c4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState": "068fa25f50632492",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState#2": "068fa25f50632492"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.21.4-7": {
+      "note": "protected INFORMATIONAL notify answered and changes no SA state; protected Delete does change state",
+      "requirement_sha": "cf7ff0e7a0d6315f",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "4e9aa4949328a3c4",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "4e9aa4949328a3c4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "ba463a9e833cddbe",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "ba463a9e833cddbe"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.23-1": {
+      "note": "TestNATDetectionPresent/Absent call DetectNAT on hand-built hashes; no tagged unit shows the initiator checks the received NAT_DETECTION payloads during IKE_SA_INIT, so the tests stay green if the engine stopped calling DetectNAT",
+      "requirement_sha": "bbd53970fb7dbb3a",
+      "tests": {
+        "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "5e9bb9c1bf045ab6",
+        "internal/component/ike/transport/nat_test.go::TestNATDetectionPresent": "5e9bb9c1bf045ab6"
+      },
+      "units": {
+        "internal/component/ike/transport/nat_test.go::TestNATDetectionAbsent": "1def2ef48b085e7c",
+        "internal/component/ike/transport/nat_test.go::TestNATDetectionPresent": "1bf700762d664b80"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.23-10": {
+      "note": "every Child SA accepts both ESP forms inbound (AcceptBothESPForms) and both forms are programmable; kernel behavior measured by the cited QEMU tests",
+      "requirement_sha": "f3ea7ec017873610",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "6a655475396b0532",
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "6a655475396b0532"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "d2da5f9a3068b806",
+        "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "d6fe123fc4a563da"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.23-12": {
+      "note": "Second sentence enforced: TestNonESPMarker fails ('StripNonESPMarker returned false for valid IKE packet') when a zero-marked packet is not recognised as IKE, and TestNonESPMarkerESPPacket fails ('ESP packet should not be recognized as IKE') when a non-zero SPI is taken for IKE. First sentence unproven: no tagged unit asserts that a UDP-encapsulated ESP packet Ze sends carries the ESP header immediately after the UDP header (the kernel XFRM encapsulation Ze configures).",
+      "requirement_sha": "e077b34274e6e8cd",
+      "tests": {
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
+      },
+      "units": {
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.23-2": {
+      "note": "TestChildSANATTEncapPorts asserts ESP UDP encap on 4500 when NAT is detected; the quote says ALL subsequent traffic moves to 4500, and no tagged unit asserts IKE traffic floats to 4500",
+      "requirement_sha": "91d409bd36d2f443",
+      "tests": {
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c8069f4319f7f90",
+        "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360",
+        "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap": "7a3ddc4e6dceae10"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.23-3": {
+      "note": "Re-read 2026-09-27 after the RFC3948-2.2-1 tags were deleted and the RFC3948-2.1-3 tags moved to RFC7296-2.23-12 in these units (comment lines only; bodies unchanged). Forbidden behaviour: an IKE message sent on UDP port 4500 without the four zero octets prepended, or not immediately after the UDP header. TestNonESPMarker exercises AddNonESPMarker/StripNonESPMarker in isolation and TestNonESPMarkerESPPacket shows a non-zero SPI is not stripped; no tagged unit shows an IKE message Ze sends on port 4500 carries the four zero octets",
+      "requirement_sha": "1132d646ea62c03e",
+      "tests": {
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
+      },
+      "units": {
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
+        "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.24-1": {
+      "note": "installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs",
+      "requirement_sha": "4fbe1dd526068730",
+      "tests": {
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.24-2": {
+      "note": "same units: XFRM state carries no NOECN path, VPP sets DECAP_COPY_ECN; transport mode refused by VPP backend",
+      "requirement_sha": "79a9734e767384bd",
+      "tests": {
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
+      },
+      "units": {
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
+        "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
+        "internal/component/ike/dataplane/vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
+        "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.4-1": {
+      "note": "empty INFORMATIONAL request answered by an encrypted INFORMATIONAL response with zero inner payloads echoing the message ID; a response is not answered",
+      "requirement_sha": "a013c2b509cbd737",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "bf1e8ec52b6ed4c2",
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "037e8d1a1a8ac004",
+        "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "037e8d1a1a8ac004"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.4-3": {
+      "note": "Re-read 2026-09-27; the quote was trimmed to the MUST NOT sentence (the MUST-conclude-only sentence is RFC7296-2.4-11). Two cases. Unprotected IKE messages: TestRteUnownedEstablishedSATrustsNothing fails if a cleartext Delete or CREATE_CHILD_SA moves the SA off Established; TestResponderAcceptsReinitAfterStaleSA and TestResponderKeepsOldSAOnUnauthenticatedInit fail if an unauthenticated IKE_SA_INIT disturbs the established SA. Routing information (e.g., ICMP): no tagged unit injects an ICMP error or unreachable and asserts the SA survives, so that clause has no assertion.",
+      "requirement_sha": "cf7c5c842e6cd8d6",
+      "tests": {
+        "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "0bd066ff172d78f8",
+        "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "f133fd37f92cb793",
+        "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "f133fd37f92cb793"
+      },
+      "units": {
+        "internal/component/ike/engine/responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "39587d1dcc28ebea",
+        "internal/component/ike/engine/responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "77ceeb12989e7f95",
+        "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "d23db3dc53605f85",
+        "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "d23db3dc53605f85"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.4-4": {
+      "note": "Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
+      "requirement_sha": "7a75a12e3c5c39ca",
+      "tests": {
+        "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "0bd066ff172d78f8",
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/responder_test.go::TestInitiatorEmitsInitialContact": "f259e9f58519674e",
+        "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "9e6df4d49da9fbcb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.5-13": {
+      "note": "Nonce/KE/SA order parses with all three; engine handleAuthResponse accepts unconventional order",
+      "requirement_sha": "f07285c9cd6ed5e6",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity": "a5da88be7077d0e0",
+        "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity#2": "a5da88be7077d0e0",
+        "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity": "790dd823854417da",
+        "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity#2": "790dd823854417da",
+        "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected": "554c1f99e44b6589",
+        "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected#2": "554c1f99e44b6589"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.5-18": {
+      "note": "TestCritUnknownCriticalPayloadNamesItsType asserts the parse error carries the payload type; no tagged unit asserts the RESPONSE carries an UNSUPPORTED_CRITICAL_PAYLOAD Notify whose data is that one-octet type (producer inbound.go:289 untested)",
+      "requirement_sha": "2f594e489b0bdf99",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType": "02e1b5b1293a3513",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType#2": "02e1b5b1293a3513"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType": "e5e9d9cac0cd2515",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType#2": "e5e9d9cac0cd2515"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.5-7": {
+      "note": "reserved-bit ignore is asserted for the generic payload header flags and the CP reserved bit only; the quote covers every RESERVED field (header, proposal, transform, ID, AUTH, TS, etc.)",
+      "requirement_sha": "ed8723e2d3199649",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt": "7ea878f0c1bb3f8e",
+        "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt#2": "7ea878f0c1bb3f8e",
+        "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt": "2bfd4018f2bf8673",
+        "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt#2": "2bfd4018f2bf8673",
+        "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt": "ccb262e24f23851e",
+        "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt#2": "ccb262e24f23851e"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.5-8": {
+      "note": "undefined payload type decoded as payloadRaw and the chain continues, outer and inner chain; defined type not demoted",
+      "requirement_sha": "09e06f3991651987",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType": "b59b31b934d5e2ea",
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType#2": "b59b31b934d5e2ea",
+        "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType": "3587d156c4033588",
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType#2": "3587d156c4033588",
+        "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped": "3dd63a985288d0c7",
+        "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped#2": "3dd63a985288d0c7"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.6-1": {
+      "note": "TestHeaderRoundtrip only round-trips the two 8-octet SPI fields and TestDecodeTruncatedHeader refuses a short header; neither asserts the SPI pair is used to identify/map the IKE SA, which is what the quote states",
+      "requirement_sha": "64fb033e8e542797",
+      "tests": {
+        "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "ca60d932fbc393ad",
+        "internal/component/ike/wire/header_test.go::TestHeaderRoundtrip": "ca60d932fbc393ad"
+      },
+      "units": {
+        "internal/component/ike/wire/header_test.go::TestDecodeTruncatedHeader": "5033372fa93a1158",
+        "internal/component/ike/wire/header_test.go::TestHeaderRoundtrip": "29cbad6e5625175d"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-2.7-1": {
+      "note": "NegotiateIKE picks one proposal or returns ErrNoProposalChosen; TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one transform of the type and maps refusal to NO_PROPOSAL_CHOSEN",
+      "requirement_sha": "1641f0dba643a5b2",
+      "tests": {
+        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationFirstMatch": "a6de5fb37ffc1f6e",
+        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
+        "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
+        "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "1b13f2045a7cde2a",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "1b13f2045a7cde2a"
+      },
+      "units": {
+        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
+        "internal/component/ike/crypto/proposal_test.go::TestProposalNegotiationNoMatch": "fd3e619539d52379",
+        "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "a7b63ca86fb81625",
+        "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "a7b63ca86fb81625",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "af3bf92a86a8c0e8",
+        "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "6bcd7a5aa4526b9b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.8-2": {
+      "note": "no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)",
+      "requirement_sha": "a8e4d60828a97692",
+      "tests": {
+        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "968b97d18a6360a6",
+        "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rekey_test.go::TestSALifetimeTime": "7a4b514516a21d66",
+        "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "615b681d343b1fc5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-2.9-1": {
+      "note": "narrowChildSelectors answers a disjoint proposal with TS_UNACCEPTABLE and accepts an overlapping one; initiator refuses a widened answer (errTSWidened). Two further tagged units (TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused, TestRekeyWithoutTrafficSelectorsIsRefused) test TS payload presence in rekey, a neighbouring obligation",
+      "requirement_sha": "c05dbf88d2b667b3",
+      "tests": {
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "9292e36d3f2033df",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "9292e36d3f2033df",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9292e36d3f2033df",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9292e36d3f2033df",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "968b97d18a6360a6",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "968b97d18a6360a6",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "24cf973ee458ee3d",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "24cf973ee458ee3d"
+      },
+      "units": {
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "52181625a166f793",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "52181625a166f793",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "9ca0c928a277a969",
+        "internal/component/ike/engine/child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "9ca0c928a277a969",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "107830d2836cbfc7",
+        "internal/component/ike/engine/rekey_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "107830d2836cbfc7",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
+        "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-11": {
+      "note": "V bit clear on every built message; set V bit on receipt changes nothing",
+      "requirement_sha": "10244e09703cee9f",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-13": {
+      "note": "only the DPD probe is asserted (TestWp2DPDProbeIBitFollowsRole/DiffersByRole); flags are passed per call site (buildEncryptedMessageEx flags argument), so one message kind does not prove every message the original initiator/responder sends",
+      "requirement_sha": "719e75eee1468763",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "3aea182e6ec56bb9",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "3aea182e6ec56bb9"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "b6c1b1389db7461a",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "9e04a951b1503cb5"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.1-2": {
+      "note": "IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard",
+      "requirement_sha": "91df2a46a9386eaa",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "29950a5975949ea7",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "29950a5975949ea7"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "359f0099d0ac11d4",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "359f0099d0ac11d4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-3": {
+      "note": "GenerateSPI and new SAs asserted non-zero; the negative tag claims dispatchInbound drops a zero initiator SPI on receipt (register.go) but the body never exercises dispatchInbound",
+      "requirement_sha": "df0a427bb2fa29ae",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.1-4": {
+      "note": "IKE_SA_INIT request octets 8..15 zero; response carries non-zero responder SPI; cookie-repeat clause not separately exercised",
+      "requirement_sha": "aec2989709fac5ae",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "582f67f7d5d15335",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "582f67f7d5d15335"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-7": {
+      "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
+      "requirement_sha": "a83889dde379df73",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-8": {
+      "note": "IKE_SA_INIT with all X bits set is processed as the clean one; R bit set changes treatment",
+      "requirement_sha": "a80d7400e445d775",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "15de1868282682bf",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "15de1868282682bf"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.1-9": {
+      "note": "R bit matches direction on built messages; responder refuses a request marked as response",
+      "requirement_sha": "501ace8bd2b37543",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "d3f001fc2a77226f",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection#2": "d3f001fc2a77226f"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "41c4a84a5f756197",
+        "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection#2": "41c4a84a5f756197"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.10-3": {
+      "note": "PayloadNotify codec round-trips a test-built struct with SPISize 0; no Ze producer of an IKE-SA notification (INITIAL_CONTACT, error notifies) is asserted to send SPI Size 0",
+      "requirement_sha": "3b619678dd934c11",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI": "846cba357c0a13b6",
+        "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI#2": "846cba357c0a13b6"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.10-4": {
+      "note": "SPI-bearing notify with AH/ESP round-trips; Protocol ID 0,1,4,255 beside an SPI refused with ErrNotifyProtocolID",
+      "requirement_sha": "b8b0031f06f5f459",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP": "e2c639ea8eaa7585",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP#2": "e2c639ea8eaa7585"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP": "8acb152cff089bd4",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP#2": "8acb152cff089bd4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.10-5": {
+      "note": "WriteTo zeroes Protocol ID for an empty SPI; ReadFrom discards it; kept when an SPI is present",
+      "requirement_sha": "d6ca06c09ece11ee",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt": "e2c639ea8eaa7585",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt#2": "e2c639ea8eaa7585",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero": "e2c639ea8eaa7585",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero#2": "e2c639ea8eaa7585"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt": "f7d6898987a0b4cd",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt#2": "f7d6898987a0b4cd",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero": "75ab36199bb4083e",
+        "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero#2": "75ab36199bb4083e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.10.1-1": {
+      "note": "unrecognized error-range notify in an IKE_AUTH response ends the exchange; unrecognized status type ignored and SA establishes",
+      "requirement_sha": "291e605c6b74ad60",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling": "4e9aa4949328a3c4",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling#2": "4e9aa4949328a3c4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling": "31a05714961180b5",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling#2": "31a05714961180b5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.10.1-3": {
+      "note": "one uncovered error class (truncated inner chain) draws INVALID_SYNTAX; negative covers the encrypted-and-verified precondition",
+      "requirement_sha": "35b5fca16beae05c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "4e9aa4949328a3c4",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "4e9aa4949328a3c4"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
+        "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "d402e5e224dde39e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.11-1": {
+      "note": "PayloadDelete holds one ProtocolID by construction; two protocols need two payloads",
+      "requirement_sha": "cf09aab1718f8b98",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol": "22331fe941bd9ace",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol#2": "22331fe941bd9ace"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.11-2": {
+      "note": "the engine refuses an ESP Delete with SPI Size 3 (INVALID_SYNTAX) and accepts 4; the wire positive round-trips test-chosen sizes and the wire negative is truncation, a neighbouring rule; IKE Delete with non-zero SPI Size and AH with a wrong size are not exercised on receipt",
+      "requirement_sha": "4e968c625adee1be",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "15034f1360bdd628",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "15034f1360bdd628",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "769fa4c4e84033af",
+        "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "2e00e2efbe6af953",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "e80be1f42aec7a7b",
+        "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "e80be1f42aec7a7b"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.13.1-1": {
+      "note": "selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero",
+      "requirement_sha": "f9a6633b996ca03e",
+      "tests": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+      },
+      "units": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.13.1-2": {
+      "note": "all-ports End Port 65535; single-port 443 discriminator",
+      "requirement_sha": "95053d78048c3563",
+      "tests": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+      },
+      "units": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.13.1-3": {
+      "note": "PortOpaque encodes 65535/0 and ANY is not emitted in that form",
+      "requirement_sha": "6de0d80d4f1433e8",
+      "tests": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "7ec56b7d86f07a26",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "7ec56b7d86f07a26"
+      },
+      "units": {
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
+        "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.14-3": {
+      "note": "all-zero, all-ones and ascending IVs all decrypt",
+      "requirement_sha": "94d965b11c7d747c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "29950a5975949ea7",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt#2": "29950a5975949ea7"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "343c340a9ca5f816",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt#2": "343c340a9ca5f816"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.14-5": {
+      "note": "minimum pad and +16/+32 accepted; over-long Pad Length refused with a valid MAC",
+      "requirement_sha": "f3bfd65be332a314",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "29950a5975949ea7",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "29950a5975949ea7"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength": "6d72b0944f499449",
+        "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyAligningPadLength#2": "6d72b0944f499449"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.15.1-2": {
+      "note": "no engine-built message carries CP(CFG_REQUEST); peer netmask in a request tolerated",
+      "requirement_sha": "f8e396762d072fc7",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "38bdb8cdc7d2fb80",
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "38bdb8cdc7d2fb80"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "7f5a11b266fb9186",
+        "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "7f5a11b266fb9186"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.16-1": {
+      "note": "EAP peer copies request Identifier into each response over three rounds with unrelated ids",
+      "requirement_sha": "11df6aca1d35a9e9",
+      "tests": {
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest": "a7ebbbf496930178",
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest#2": "a7ebbbf496930178"
+      },
+      "units": {
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest": "07e511a1766f0661",
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest#2": "07e511a1766f0661"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.16-2": {
+      "note": "PayloadEAP EAP Length equals Payload Length minus four across five body sizes",
+      "requirement_sha": "c39cc88bca2af3f9",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength": "7d14d8da7a50965e",
+        "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength#2": "7d14d8da7a50965e"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength": "16eab53ad07e8df9",
+        "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength#2": "16eab53ad07e8df9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.16-3": {
+      "note": "Success/Failure encode to four octets with no Type; Request keeps Type",
+      "requirement_sha": "6dafe9bcc0647f41",
+      "tests": {
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField": "a7ebbbf496930178",
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField#2": "a7ebbbf496930178"
+      },
+      "units": {
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField": "62a14eef2419bfbc",
+        "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField#2": "62a14eef2419bfbc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.2-2": {
+      "note": "critical Nonce parsed like uncritical at outer and inner chain; critical unknown type refused",
+      "requirement_sha": "40026ea9f3a6767f",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType": "b59b31b934d5e2ea",
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType#2": "b59b31b934d5e2ea",
+        "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType": "56a2593fb00909e3",
+        "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType#2": "56a2593fb00909e3",
+        "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType": "eabeb50bdbbb1955",
+        "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType#2": "eabeb50bdbbb1955"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.2-3": {
+      "note": "decodePayload yields a concrete type for all sixteen types 33-48; type 204 is ErrUnknownPayload",
+      "requirement_sha": "73ad99a2a73e2893",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood": "459954f82bfe6b71",
+        "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood#2": "459954f82bfe6b71"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood": "2bb83f39fd753d82",
+        "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood#2": "2bb83f39fd753d82"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.2-4": {
+      "note": "sweep of engine-built outer and inner chains plus a source walk refusing any Critical write in engine",
+      "requirement_sha": "d716a0267551ee3c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical": "9b98dffef0326303",
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical#2": "9b98dffef0326303",
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestEngineSourceNeverSetsTheCriticalField": "9b98dffef0326303"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical": "245c86afd281a724",
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical#2": "245c86afd281a724",
+        "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestEngineSourceNeverSetsTheCriticalField": "7749bea75072228b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.2-5": {
+      "note": "zero bit on the wire from the encoded bytes; recipient skips as PayloadRaw; set bit refused",
+      "requirement_sha": "9996d9b1ce413d5c",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip": "02e1b5b1293a3513",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip#2": "02e1b5b1293a3513"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip": "56a75cf7c3df9c3e",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip#2": "56a75cf7c3df9c3e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.2-6": {
+      "note": "one bit on the wire; recipient rejects the whole message with ErrUnsupportedCrit",
+      "requirement_sha": "87d740a06368b9bf",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection": "02e1b5b1293a3513",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection#2": "02e1b5b1293a3513"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection": "014ac3ab0ea6561e",
+        "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection#2": "014ac3ab0ea6561e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3-1": {
+      "note": "send side emits AEAD and non-AEAD in separate proposals (TestESPProposalsNeverMixAEADClass); receive side refuses a mixed proposal and accepts AEAD alone (rfc7296_aead_mix_test.go)",
+      "requirement_sha": "81063204dec4fd71",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "e2b129c524e22893",
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "e2b129c524e22893",
+        "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "abeb51a4922d4ca4",
+        "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "98effe87177aa276",
+        "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "304e342b5f71e225"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3-2": {
+      "note": "AEAD ESP proposal built with no INTEG transform, non-AEAD keeps it (TestESPWireProposalAEADIntegNone)",
+      "requirement_sha": "42c9b0dc31cef85c",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "bf1e8ec52b6ed4c2",
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "0faf220465920fd5",
+        "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "0faf220465920fd5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3-7": {
+      "note": "the obligation binds the proposer; the unit only proves PayloadSA.ReadFrom parses two ENCR transforms and refuses one transform with two key lengths; no Ze-built proposal offering alternate key lengths is asserted",
+      "requirement_sha": "bf233a0425655731",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms": "ef5bab924185575c",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms#2": "ef5bab924185575c"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms": "24e39fff4bb53ed9",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms#2": "24e39fff4bb53ed9"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.3.1-2": {
+      "note": "Ze's IKE_SA_INIT proposals carry SPI Size 0; responder kills an initial request with SPI Size 8 and answers nothing",
+      "requirement_sha": "4f9f8b625b745aef",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize": "8aeccaad3f083196",
+        "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize#2": "8aeccaad3f083196",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol": "ef5bab924185575c",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol#2": "ef5bab924185575c"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize": "c821f59c50c793db",
+        "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize#2": "c821f59c50c793db",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol": "b4514efd5902a77c",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol#2": "b4514efd5902a77c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3.2-1": {
+      "note": "buildWireIKEProposals emits exactly one ENCR/PRF/INTEG/DH per IKE proposal; a PRF-less proposal fails NegotiateIKE",
+      "requirement_sha": "65b5c673fd3ea0eb",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "bf1e8ec52b6ed4c2",
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
+        "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3.3-1": {
+      "note": "transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal",
+      "requirement_sha": "b346b35bec83b562",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "08f2f5dac8da8a2b",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "08f2f5dac8da8a2b",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "9cc8a5a2893de8b9",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "9cc8a5a2893de8b9"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "282e572dfb0c83ef",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "282e572dfb0c83ef",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "0b9cc19fe7225bda",
+        "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "0b9cc19fe7225bda"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3.5-3": {
+      "note": "256 encodes 01 00; swapped octets read as 1",
+      "requirement_sha": "0dc5b88116e28191",
+      "tests": {
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder": "ef5bab924185575c",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder#2": "ef5bab924185575c"
+      },
+      "units": {
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder": "01971afe3fcad493",
+        "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder#2": "01971afe3fcad493"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3.5-5": {
+      "note": "AES-CBC and AES-CTR offers without Key Length refused with ErrKeyLengthMissing; with it accepted",
+      "requirement_sha": "92c60c00c9c96b95",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "08f2f5dac8da8a2b",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "08f2f5dac8da8a2b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "2147dde0c243ba79",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.3.6-1": {
+      "note": "negative of TestResponderRequiresKEForDH removes the KE PAYLOAD (still offering the DH transform), so it violates the KE-payload rule, not the missing-mandatory-Transform-Type rule quoted; no tagged unit offers a proposal missing the D-H transform",
+      "requirement_sha": "e575295e5d7e3980",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "bf1e8ec52b6ed4c2",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "bf1e8ec52b6ed4c2"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "efe18c0971cb0c7d",
+        "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "efe18c0971cb0c7d"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.3.6-5": {
+      "note": "the engine positive uses D-H NONE, a transform Ze understands and refuses, not one it does not understand; the crypto unit's positive proves another PROPOSAL is accepted (3.3.6-4), not a sibling transform; the Transform Attribute not-understood clause is not exercised",
+      "requirement_sha": "23d7364b03dabbb1",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "08f2f5dac8da8a2b",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "08f2f5dac8da8a2b",
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "ff3d9ab01e05bb35",
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "ff3d9ab01e05bb35"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "4a993fd959306c98",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "4a993fd959306c98",
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "5e4fa5e5c62520e7",
+        "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "2606dc524a2b1607"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-3.5-3": {
+      "note": "Re-read 2026-09-27. Forbidden: refusing ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR or ID_KEY_ID under configuration. TestRemoteIDAcceptsEveryMandatoryType fails if checkRemoteIdentity refuses any of the four with a matching remote-id, and (anti-vacuity) if it accepts a wrong one. TestRemoteIDRefusesTypesItCannotCompare shows acceptance is per-type; its comment names ID_DER_ASN1_DN as refused but the body tests only ID_DER_ASN1_GN (stale comment).",
+      "requirement_sha": "0ea86e2fed69f691",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "b51a9435fce862dd",
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "b51a9435fce862dd"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "12232de186188625",
+        "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "ca88a74c148f6949"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.5-5": {
+      "note": "refuseIDTerminators refuses NUL/CR/LF in ID_FQDN and ID_RFC822_ADDR, ValidateIdentities refuses them in config; clean ids and ID_KEY_ID accepted. Test comment quotes a paraphrase as RFC text",
+      "requirement_sha": "991740adb20955b8",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "3aea182e6ec56bb9",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "3aea182e6ec56bb9"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "23a0a6d9ee6be57d",
+        "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "dcd48c0b46fd4aa5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-3.6-2": {
+      "note": "Re-read 2026-09-27. Two clauses: send and accept both Hash and URL formats. Send: TestChuBothHashAndURLFormatsAreConfigurable fails unless buildCertPayloads emits encoding 12 and 13 with the SHA-1 and URL. Accept: the tagged units prove only the OFF default (TestChuHashAndURLIsOffByDefault drops a received encoding 12); no 3.6-2-tagged unit asserts that a received encoding 12 or 13 is resolved and accepted when configured. The .ci proves only that the leaves commit.",
+      "requirement_sha": "d4a12ddfe05c9f47",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable": "3ca3e5c857155f3a",
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable#2": "3ca3e5c857155f3a",
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashAndURLIsOffByDefault": "3ca3e5c857155f3a",
+        "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable": "3a168a4f5f695fbd",
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable#2": "3a168a4f5f695fbd",
+        "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashAndURLIsOffByDefault": "8984e7d914c9e144",
+        "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-4-4": {
+      "note": "Re-read 2026-09-27. Forbidden: a configuration that cannot accept RSA-1024/2048 PKIX under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, ID_DER_ASN1_DN, or PSK under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR. TestCfmConformanceConfigurationSetIsAcceptable fails if verifyRemoteAuth refuses RSA-1024+FQDN, RSA-2048+RFC822, RSA-2048+DN, RSA-2048+KEY_ID or PSK with each of the three; TestCfmConformanceSetDoesNotAcceptWhatItMustNot shows a mismatched identity is refused; the .ci tests show the DN remote-id commits and remote-id-type is a closed set. Every key size and every ID type is covered, not the full cross product.",
+      "requirement_sha": "13aad53fa52d08cf",
+      "tests": {
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable": "15b287689f37c517",
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable#2": "15b287689f37c517",
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceSetDoesNotAcceptWhatItMustNot": "15b287689f37c517",
+        "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e",
+        "test/parse/ipsec-remote-id-type-enum.ci": "7d66ea9b32d48e68"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable": "4bce994fea49ab9f",
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable#2": "4bce994fea49ab9f",
+        "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceSetDoesNotAcceptWhatItMustNot": "79844da7ff4dc910",
+        "test/parse/ipsec-hash-and-url-accepted.ci": "cb40e2e73b59857e",
+        "test/parse/ipsec-remote-id-type-enum.ci": "7d66ea9b32d48e68"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7296-5-2": {
+      "note": "asserts LookupIntegrity/LookupEncryption refuse none/null names and no registry entry maps AUTH_NONE; NegotiateIKE is never given a peer offer carrying ENCR_NULL or AUTH_NONE beside a non-AEAD cipher, and specifiedIntegrity (proposal.go) admits AUTH_NONE",
+      "requirement_sha": "0636fb68d1c52210",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "ce60f877fa4f6f7e",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "ce60f877fa4f6f7e"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "04bc32fb68231a7d",
+        "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms#2": "04bc32fb68231a7d"
+      },
+      "verdict": "weak"
+    },
+    "RFC7296-5-3": {
+      "note": "NegotiateIKE refuses a registered 64-bit PRF; prfOutputAcceptable floor at 128; every specified PRF at or above it",
+      "requirement_sha": "6c4904d655f48cf6",
+      "tests": {
+        "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits": "73f01db67d340370",
+        "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits#2": "73f01db67d340370",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused": "08f2f5dac8da8a2b",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused#2": "08f2f5dac8da8a2b"
+      },
+      "units": {
+        "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits": "a90074ea687891fa",
+        "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits#2": "a90074ea687891fa",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused": "77203506f6c86bbd",
+        "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused#2": "77203506f6c86bbd"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7296"
+}
