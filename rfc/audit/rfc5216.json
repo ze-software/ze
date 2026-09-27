@@ -1,0 +1,503 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5216-2.1.1-1": {
+      "note": "positive proves the peer certificate reached the authenticator (a peer omitting it would fail the handshake); the negative asserts the authenticator ClientAuth config, which is the certificate_request precondition, not a peer that omits certificate or certificate_verify",
+      "requirement_sha": "93cfbce29401fdaf",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "90b0b7edc9557e50",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.1-10": {
+      "note": "Forbidden: a peer answering a resuming server_hello with more than change_cipher_spec and finished (certificate, client_key_exchange, certificate_verify). The units assert only that the peer installs a ClientSessionCache with resumption on and none with it off; no resumed conversation is driven and no peer flight is decoded, so a peer sending a full flight on resumption passes.",
+      "requirement_sha": "a4623332d55d280b",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.1-2": {
+      "note": "Forbidden: the answer to the Start is not an EAP-Response of Type 13, or its data is not a TLS record carrying client_hello. TestEAPTLSPeerFirstResponseCarriesClientHello fatals on Code != CodeResponse or Type != TypeTLS, and assertHandshakeRecord fails unless the TypeData holds a handshake record of type client_hello. Negative: TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging fatals if a peer whose TLS engine produced nothing sends any Response instead of errTLSClientStalled, so an EAP-TLS Response with no client_hello is refused.",
+      "requirement_sha": "bcd0f831cd05295d",
+      "tests": {
+        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "ab1c361f29703a0d",
+        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "ab1c361f29703a0d"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "706520c303aed14d",
+        "internal/core/eap/eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "8a5286332a11a78b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.1-3": {
+      "note": "Forbidden: after the Identity the server sends anything but a Request of Type 13 with only the S flag, or sends a Start before an Identity. TestRFC5216StartAnswersTheIdentityResponse fatals on Code != CodeRequest, Type != TypeTLS, or TypeData != {S}; TestRFC5216NoStartBeforeTheIdentityIsReceived fatals if Begin opens with an EAP-TLS packet or a stale Identity Response draws any packet.",
+      "requirement_sha": "eafe21097edf8741",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216NoStartBeforeTheIdentityIsReceived": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216StartAnswersTheIdentityResponse": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216NoStartBeforeTheIdentityIsReceived": "20e0078d782de99a",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216StartAnswersTheIdentityResponse": "d0b319610ea4af33"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.1-4": {
+      "code": {
+        "internal/core/eap/eap_tls.go::newTLSMethod": "331d7f0fff03214f"
+      },
+      "note": "The tagged units assert session-ticket keys and resumption-off config, which prove the ticket rule, not the sessionId choice this sentence names. Gap: crypto/tls, as newTLSMethod (internal/core/eap/eap_tls.go) configures it, sets ServerHello.sessionId only in doResumeHandshake (echoing the client), so a TLS 1.2 full handshake sends an empty session_id and the server chooses no sessionId for the new session.",
+      "requirement_sha": "aed07a9f6964af4f",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5216-2.1.1-5": {
+      "note": "Forbidden: a resumed session negotiating a ciphersuite other than the one that established it. No tagged assertion reads a resumed ConnectionState.CipherSuite against the original: the units assert only UnwrapSession nil with resumption on and set with it off, which decides whether resumption happens, not which suite it uses. crypto/tls enforces the match, but no unit drives a resumption or observes it.",
+      "requirement_sha": "3260e6d733fefa3f",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.1-6": {
+      "note": "the units assert one installed certificate and no config without a parsable certificate; the second clause, server_hello_done last in that EAP-Request, is not asserted by any tagged unit",
+      "requirement_sha": "a5b31546f57258ed",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.1-8": {
+      "note": "Forbidden: a peer configured for EAP-TLS answering the EAP-TLS Request with anything but an EAP-TLS Response (a Nak, another type). TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS fatals on Code != CodeResponse or Type != TypeTLS and on TypeData without a handshake record. Negative for the condition: TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS fatals if an MS-CHAPv2 peer answers with Type 13 and wantLegacyNak requires the Nak.",
+      "requirement_sha": "f198a45726d00eed",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS": "79998b55ab5cbc9d",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS": "e12cb0e6190ad39b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.1-9": {
+      "note": "positive asserts ClientAuth=RequireAndVerify and one peer certificate, which is the 2.1.1-1 certificate clause, not client_key_exchange, change_cipher_spec and finished in the peer flight",
+      "requirement_sha": "aa652a71dde99132",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.2-1": {
+      "note": "Forbidden: a resuming server sending certificate, server_key_exchange or certificate_request after server_hello. The units assert only ticket installation (SessionTicketsDisabled false, UnwrapSession nil) and the refusal when resumption is off; no resumed flight is driven or its handshake types read, so extra messages after server_hello pass.",
+      "requirement_sha": "f0f6ae8c0ada3b5a",
+      "tests": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "95ff222a03453512",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "95ff222a03453512"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "150c8e5618bd7c52",
+        "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "3224a6e9120841d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.3-1": {
+      "note": "Forbidden: the server answering the peer's alert with anything but EAP-Failure, or later than the next packet. TestRFC5216ServerRepliesEAPFailureToPeerAlert fatals if no Failure is sent, errors on any Success, and errors unless failureAt == alertAt+1. Negative: TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate errors if a mutually authenticated conversation draws any Failure.",
+      "requirement_sha": "82aa7318bed7b2aa",
+      "tests": {
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "62aa13fd49a71dab",
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2dd0fc2cca5c3428",
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.3-3": {
+      "note": "Forbidden: the server concluding (EAP-Failure) on the round it sends its alert, instead of waiting for the peer's Response. alertFlight fatals if the round that records the cause carries CodeFailure, TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors unless that round is an EAP-Request with a TLS alert record, and only the later Response draws the Failure. Negative: TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend fatals if a failure with no alert to send reports no error, so the wait is bound to an alert.",
+      "requirement_sha": "ab9e7542ea0e4170",
+      "tests": {
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "e222ad1f56734ddc",
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "6b9bf0e9fc1216ed",
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.3-4": {
+      "note": "Clause 1 (a no-data Response to the alert draws EAP-Failure): TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors on last.Code != CodeFailure, and TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure errors unless the Failure follows the alert. Clause 2 (terminate the conversation): no tagged unit feeds a packet after the EAP-Failure or asserts the session is closed, so an authenticator that keeps processing Responses after its Failure passes. The negative (no alert runs to EAP-Success) is sound.",
+      "requirement_sha": "8089903a1b56451e",
+      "tests": {
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc",
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "e222ad1f56734ddc",
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "62aa13fd49a71dab"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99",
+        "internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure": "13510c58710e62a3",
+        "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.3-5": {
+      "note": "Forbidden: the packet before EAP-Success is not an EAP-TLS Request carrying change_cipher_spec then the Finished handshake record, or a rejected peer receives that flight. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess fatals on a non-Request/non-TLS packet or a bare ACK there, errors unless record types are [change_cipher_spec, handshake], and requires equal non-zero MSKs. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any change_cipher_spec record sent to a rejected peer.",
+      "requirement_sha": "9697324aefd997fd",
+      "tests": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "6bc974f99c7a9efb",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.3-6": {
+      "note": "Forbidden: the peer terminating on the round it discovers the failure, before the server replies. TestRFC5216PeerRepliesBeforeItTerminates fatals if that round returns Err or no Response, errors if the Response is a bare ACK rather than the alert, and requires the error only from the round that processes the server's EAP-Failure. Negative: TestRFC5216PeerDoesNotWaitWhenItSentNothing errors if a peer that sent nothing parks its error or sends a Response.",
+      "requirement_sha": "3f3c974797907d9d",
+      "tests": {
+        "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "38aaea74d3fe410a",
+        "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "38aaea74d3fe410a"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "50d4c5aaa786527e",
+        "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "424072c276ebeaca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.3-7": {
+      "note": "Forbidden: the peer answering the server's closing flight with anything but a no-data EAP-TLS Response. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless bareEAPTLSResponse(peerSent[successAt-1]). Negative: TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse errors if a peer refusing the server sends the no-data Response as its last packet.",
+      "requirement_sha": "009b12e84674488f",
+      "tests": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "6bc974f99c7a9efb",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "4bc306464590658a",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.3-8": {
+      "note": "Forbidden: the server answering the peer's no-data Response with anything but EAP-Success. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless serverSent[successAt].Code == CodeSuccess directly after that Response. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any Success to a rejected peer.",
+      "requirement_sha": "c1f354ff6707f33a",
+      "tests": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "6bc974f99c7a9efb",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "6bc974f99c7a9efb"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
+        "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-1": {
+      "note": "positive round-trips a 3000-octet message over fragments; the negative asserts the reassembly cap on an oversized L length, a neighbouring DoS bound, not an implementation that fails to fragment or reassemble",
+      "requirement_sha": "b7485b4874dfa938",
+      "tests": {
+        "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "0826b1125d3c6177",
+        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "0826b1125d3c6177"
+      },
+      "units": {
+        "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "b6f673c522bbab14",
+        "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "71bcc302538985a2"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.1.5-2": {
+      "note": "Forbidden: the peer answering an M-set Request with data or with anything but an EAP-TLS Response. TestRFC5216PeerAcksEachServerFragmentWithNoData errors unless every M-set Request is answered by bareEAPTLSResponse, and errors if the last fragment (M clear) draws the no-data ACK instead of the TLS flight; driveFragmentedFlight fatals unless both sides fragment and the MSKs match.",
+      "requirement_sha": "66609512c62b7660",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData": "90d4ea1bc29a0086",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData#2": "90d4ea1bc29a0086"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-3": {
+      "note": "Forbidden: the server sending another fragment before the ACK for the current one arrives. driveFragmentedFlight feeds a Response carrying the previous Identifier after every server fragment and fatals if it draws any packet or moves outOffset; TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is the continuation Request carrying data with neither S nor L.",
+      "requirement_sha": "9d1231b9f53498ff",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck": "f3dce9dcec1fb16f",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "f3dce9dcec1fb16f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-4": {
+      "note": "Clause 1 forbidden: a fragment Request whose Identifier is not the previous plus one; TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem errors on req.Identifier != prev+1. Clause 2 forbidden: an ACK carrying another Identifier; the same test errors on ack.Identifier != req.Identifier, and driveFragmentedFlight fatals if a stale-Identifier ACK draws a packet.",
+      "requirement_sha": "9adcb0f9ef6b8502",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem": "7149e96d2ed9c21d",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem#2": "7149e96d2ed9c21d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-5": {
+      "note": "Forbidden: the server answering an M-set Response with data or with a non-EAP-TLS Request. TestRFC5216ServerAcksEachPeerFragmentWithNoData errors unless each M-set Response is followed by a Request of Type 13 with TypeData exactly 0x00, and errors if the peer's last fragment is answered with an ACK instead of the closing flight.",
+      "requirement_sha": "7738541e62929b56",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData": "efb34dfac9000d6f",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData#2": "efb34dfac9000d6f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-6": {
+      "note": "Forbidden: the peer sending its next fragment before an EAP-Request arrives. driveFragmentedFlight feeds the peer an undefined-Code packet after each of its fragments and fatals if probe.Response != nil or peer.outOffset moves; TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is a continuation Response carrying TLS data without L.",
+      "requirement_sha": "d23b3d324ba1bf2c",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck": "9dc6c0e13c1eea25",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "9dc6c0e13c1eea25"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.1.5-7": {
+      "note": "Clause 1 forbidden: an ACK Identifier that is not the previous Request plus one; TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem errors on ack.Identifier != serverSent[i].Identifier+1. Clause 2 forbidden: the peer fragment after an ACK carries another Identifier; the same test errors on next.Identifier != ack.Identifier, and driveFragmentedFlight fatals if the authenticator accepts a fragment re-numbered with a stale Identifier.",
+      "requirement_sha": "efb4362590c90d65",
+      "tests": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem": "2d0ca832c5975065",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem#2": "2d0ca832c5975065"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem": "8d103b637937995d",
+        "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem#2": "8d103b637937995d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-2.3-1": {
+      "note": "MSK = first 64 octets of the TLS 1.2 export under the literal label, control label differs; EMSK = Key_Material(64,127) is derived by exportEAPTLSKeys but no tagged unit asserts it",
+      "requirement_sha": "d3491a145ec72315",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "3990b6e26fb0e890"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "e482c403b597818e"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.4-1": {
+      "note": "Forbidden: a peer offering a version below TLS 1.0. The tagged assertion reads the NEGOTIATED ps.Version >= TLS10, not the offer, and it cannot go red: crypto/tls has no version below TLS 1.0. What Ze installs for the layer below, the peer tls.Config MinVersion TLS 1.2, is asserted by no tagged unit, so lowering it passes. The single-polarity marker is sound; the positive proves nothing Ze controls.",
+      "requirement_sha": "3f2b411fe539e697",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.4-2": {
+      "note": "Forbidden: a server offering a version below TLS 1.0. The tagged assertion reads the negotiated ss.Version >= TLS10, which crypto/tls cannot violate, so it cannot go red. The authenticator MinVersion TLS 1.2 assertion lives in TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry, which is not tagged for this row.",
+      "requirement_sha": "017cf68000dadaf9",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.4-3": {
+      "note": "the only assertion is HandshakeComplete on both sides, which cannot fail on compression; the property is structural in crypto/tls and would read more honestly as a lower-layer annotation",
+      "requirement_sha": "89a16df9f9563eb3",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-2.4-4": {
+      "note": "the assertion is a 64-octet equal non-zero MSK; it cannot fail if the TLS ciphersuite were used to choose the IKE/ESP data ciphers",
+      "requirement_sha": "b74d63a88039b56f",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-3-1": {
+      "note": "positive: first fragment of a multi-fragment message carries L and the 4-octet length; the negative asserts L clear on middle and last fragments, which RFC 5216 does not state (the tag prose calls it a MUST NOT)",
+      "requirement_sha": "1180bf078feee7b0",
+      "tests": {
+        "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "0826b1125d3c6177",
+        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "0826b1125d3c6177"
+      },
+      "units": {
+        "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "41dd7add1d483b6b",
+        "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "afa5a1cf765f76ff"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-3-2": {
+      "note": "Single-polarity positive. Forbidden: an emitted flags octet with any of bits 3-7 set. TestTLSFragmentReservedFlagBitsAreZero fatals if the S constant or any flags octet nextFragment produces for first (L+M), middle (M), last and single-fragment (L) sends intersects 0x1F. The only other flags octet sent is the literal 0x00 ACK.",
+      "requirement_sha": "01d913c8c583d432",
+      "tests": {
+        "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "0826b1125d3c6177"
+      },
+      "units": {
+        "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "c08ada895dc29ab8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-3-3": {
+      "note": "Forbidden: a Request that repeats the Identifier of the packet before it. TestRFC5216IdentifierChangesOnEveryRequest errors on cur.Identifier == prev.Identifier for every Request of a full TLS 1.2 conversation and fatals if fewer than 3 Requests ran; the negative pins that EAP-Success (not a Request) repeats the answered Identifier.",
+      "requirement_sha": "10d720712f5b141e",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest#2": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest": "a65dd067028a4bb0",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest#2": "a65dd067028a4bb0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-3-4": {
+      "note": "Forbidden: octets past the Length field read as packet data. TestRFC5216PaddingPastTheLengthIsIgnored decodes a packet with seven padding octets shaped like flags and a TLS record header and errors if TypeData differs from the unpadded TypeData, if its length exceeds Length less 5, or if the padding bytes appear inside TypeData; the unpadded decode is the positive.",
+      "requirement_sha": "2bce7f43dc354485",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored#2": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored": "8d74fd98b1b2268d",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored#2": "8d74fd98b1b2268d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-3-5": {
+      "note": "Reception clause enforced: TestRFC5216ReservedFlagBitsAreIgnoredOnReception sets all five reserved bits on a Start (peer fatals unless it answers with a client_hello) and on a whole client_hello (authenticator fatals on a bare ACK, i.e. a reserved bit read as M, or on a non-handshake answer). The quoted sentence also carries \"MUST set the reserved bits to zero\", and no unit tagged RFC5216-3-5 asserts the flags octet a sender emits has bits 3-7 clear; that clause is RFC5216-3-2 and its proof is not tagged here.",
+      "requirement_sha": "88270eb73714c321",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "1615dc0d237369cf",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "1615dc0d237369cf"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-3-6": {
+      "note": "Forbidden: a Response whose Identifier differs from the Request it answers. TestRFC5216ResponseIdentifierMatchesTheRequest errors on res.Identifier != serverSent[i].Identifier over a full conversation; TestRFC5216ResponseIdentifierIsCopiedNotCounted fatals if Requests 0x80 then 0x05 are not answered 0x80 then 0x05, which refuses a peer that counts its own Identifiers.",
+      "requirement_sha": "1b1300e5edb4fc36",
+      "tests": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierIsCopiedNotCounted": "50ee52d235cf2a36",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierMatchesTheRequest": "50ee52d235cf2a36"
+      },
+      "units": {
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierIsCopiedNotCounted": "6a72b6f281376e92",
+        "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierMatchesTheRequest": "ddc0dd62e3a42de8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5216-5.3-1": {
+      "note": "both path-validation SHOULDs proven (server refuses untrusted client chain, peer refuses untrusted server chain, peer without anchor refuses to start); the quoted span also carries intermediate-certificate retrieval and the server SHOULD send its chain minus the root, which no tagged unit asserts",
+      "requirement_sha": "9d15c5a52d004cd6",
+      "tests": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "90b0b7edc9557e50",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "90b0b7edc9557e50",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "90b0b7edc9557e50",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "90b0b7edc9557e50"
+      },
+      "units": {
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "d4fb00b5a58de25b",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "432ee039a9ba8d55",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "fc011b6ca87a557b",
+        "internal/core/eap/eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "ff285ebc6f33ea4c"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-5.4-1": {
+      "note": "the TLS 1.2 units prove the authenticator refusing a CRL-revoked client certificate and completing with an empty list; the peer half (peer acting on a CRL over TLS 1.2) has no tagged unit for this id",
+      "requirement_sha": "90205fa573853cfd",
+      "tests": {
+        "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "b20b4e35d426ac54",
+        "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "b20b4e35d426ac54"
+      },
+      "units": {
+        "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "1d1e1b453e978163",
+        "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "f34d73c2202cfb6f"
+      },
+      "verdict": "weak"
+    },
+    "RFC5216-5.4-2": {
+      "note": "Forbidden: a peer with no revocation check after authentication. TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked fatals if startServerCertRecheck (called from established.go after the exchange) starts no check or reports no verdict when the OCSP responder says revoked; TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood fatals on any verdict when it says good. The eap units prove the accepted TLS 1.2 chain is kept for the check and none is published on a refused handshake. The first unit's name claims the SA closes; it asserts only the verdict.",
+      "requirement_sha": "c5d8d8fde6e4d2dc",
+      "tests": {
+        "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked": "e55247a29eb28e98",
+        "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood": "e55247a29eb28e98",
+        "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck": "a72a60b945073db0",
+        "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt": "a72a60b945073db0"
+      },
+      "units": {
+        "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked": "a6900aa6aeb6a782",
+        "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood": "f3e3e30f6864ea55",
+        "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck": "f700a3123d797eb2",
+        "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt": "92fb014c08422c11"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc5216"
+}
