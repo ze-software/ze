@@ -114,7 +114,7 @@ func TestOSPFAuthExtendedSequence(t *testing.T) {
 }
 
 // RFC requirement: RFC2328-D.3-2 positive -- an accepted packet's sequence number becomes the stored value for that neighbor, so a later, higher sequence is accepted against it (authStore.verify, auth_keystore.go:352-362).
-// RFC requirement: RFC2328-D.3-2 negative -- the sequence is treated as non-decreasing: a packet whose sequence is below (or equal to) the last accepted value is discarded as a replay (authStore.verify, auth_keystore.go:356-360).
+// RFC requirement: RFC2328-D.3-2 negative -- the sequence is treated as non-decreasing: a packet whose sequence is below the last accepted value is discarded as a replay, while an equal sequence is accepted (authStore.verify, replayedSequence).
 func TestOSPFAuthReplay(t *testing.T) {
 	s := newAuthStore()
 	s.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "topsecret"}))
@@ -137,14 +137,57 @@ func TestOSPFAuthReplay(t *testing.T) {
 	require.True(t, ok2, "seq 11 (>10) accepted")
 	// RFC requirement: RFC7474-2-5 negative -- a sequence lower than the last accepted (5 < 11) is dropped as a replay (authStore.verify auth_keystore.go:357-359).
 	// RFC requirement: RFC7474-2-6 negative -- a same-type sequence at or below the per-type high-water mark is rejected, proving the mark actually gates packets of that type (authStore.verify auth_keystore.go:357-359).
-	// RFC requirement: RFC5709-3.1-3 negative -- the 32-bit Cryptographic Sequence Number is enforced per RFC 2328 App D on the AuType 2 path: a packet carrying a sequence at or below the last accepted (5 < 11, and the equal-11 case below) is dropped as a replay, so the sequence field is load-bearing anti-replay state (authStore.verify auth_keystore.go:357-359).
+	// RFC requirement: RFC5709-3.1-3 negative -- the 32-bit Cryptographic Sequence Number is enforced per RFC 2328 App D on the AuType 2 path: a packet carrying a sequence below the last accepted (5 < 11) is dropped as a replay, so the sequence field is load-bearing anti-replay state (authStore.verify auth_keystore.go:357-359).
 	reason, replayOK := s.verify("eth0", peer, [4]byte{}, mk(5))
 	assert.False(t, replayOK, "seq 5 (< last accepted 11) rejected as replay")
 	assert.Equal(t, "replay", reason)
-	// RFC 7474 §2: an EQUAL sequence is also a replay (strictly-greater required).
-	eqReason, eqOK := s.verify("eth0", peer, [4]byte{}, mk(11))
-	assert.False(t, eqOK, "seq 11 (== last accepted) rejected as replay")
-	assert.Equal(t, "replay", eqReason)
+	// RFC 2328 Section D.4.3 (2) discards only a sequence "less than" the recorded one, so on
+	// AuType 2 an EQUAL sequence is accepted (Section D.3: "non-decreasing").
+	_, eqOK := s.verify("eth0", peer, [4]byte{}, mk(11))
+	assert.True(t, eqOK, "AuType 2: seq 11 (== last accepted) accepted")
+	// The stored value is 11, not 10: seq 10 is now below it and is discarded.
+	stale, staleOK := s.verify("eth0", peer, [4]byte{}, mk(10))
+	assert.False(t, staleOK, "seq 10 (< stored 11) rejected as replay")
+	assert.Equal(t, "replay", stale)
+}
+
+// TestOSPFAuthReplayEqualSequenceByAuType drives authStore.verify with an equal sequence on
+// both cryptographic AuTypes: RFC 2328 Section D.4.3 accepts it on AuType 2, RFC 7474 Section 2
+// drops it on AuType 3, whose sequence MUST be strictly greater.
+func TestOSPFAuthReplayEqualSequenceByAuType(t *testing.T) {
+	peer := ridOf("2.2.2.2")
+	key := packet.AuthKey{KeyID: 1, Algorithm: "hmac-sha-256", Secret: []byte("k")}
+	sign := func(auType packet.AuType, seq uint64) []byte {
+		p := packet.Packet{Header: packet.Header{Type: packet.PacketTypeHello, AuType: auType}, Hello: &packet.Hello{NetworkMask: [4]byte{255, 255, 255, 0}, HelloInterval: 10, DeadInterval: 40}}
+		buf := make([]byte, p.EncodedLen())
+		n := p.WriteTo(buf, 0)
+		signed, err := packet.Sign(buf[:n], auType, key, seq, [4]byte{})
+		require.NoError(t, err)
+		return signed
+	}
+
+	classic := newAuthStore()
+	classic.configure(authCfg(keyConfig{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "k"}))
+	_, ok := classic.verify("eth0", peer, [4]byte{}, sign(packet.AuTypeCryptographic, 7))
+	require.True(t, ok, "AuType 2: first packet accepted")
+	// RFC requirement: RFC2328-D.3-2 positive -- AuType 2: a sequence EQUAL to the recorded
+	// one is not "less than" it, so the packet is accepted.
+	_, eqOK := classic.verify("eth0", peer, [4]byte{}, sign(packet.AuTypeCryptographic, 7))
+	assert.True(t, eqOK, "AuType 2: an equal sequence is accepted")
+
+	extended := newAuthStore()
+	extended.configure(ospfConfig{
+		KeyChains:  []keyChainConfig{{Name: "kc1", ExtendedSequence: true, Keys: []keyConfig{{KeyID: 1, Algorithm: "hmac-sha-256", Secret: "k"}}}},
+		Areas:      []areaConfig{{AreaID: types.BackboneArea, AuthKeyChain: "kc1"}},
+		Interfaces: []interfaceConfig{{Name: "eth0", AreaID: types.BackboneArea, Authentication: authConfig{Mode: "inherit"}}},
+	})
+	_, ok = extended.verify("eth0", peer, [4]byte{}, sign(packet.AuTypeCryptographicESN, 7))
+	require.True(t, ok, "AuType 3: first packet accepted")
+	// RFC requirement: RFC7474-2-5 negative -- AuType 3: a sequence EQUAL to the last accepted
+	// is not greater than it, so the packet is dropped as a replay.
+	reason, eqESN := extended.verify("eth0", peer, [4]byte{}, sign(packet.AuTypeCryptographicESN, 7))
+	assert.False(t, eqESN, "AuType 3: an equal sequence is a replay")
+	assert.Equal(t, "replay", reason)
 }
 
 func TestOSPFAuthReplayPerType(t *testing.T) {

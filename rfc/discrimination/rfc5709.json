@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc5709",
+  "records": [
+    {
+      "rid": "RFC5709-3.1-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+      "unit-sha": "56fedea51ab8e1cc",
+      "claim-sha": "c27cc7e9756ba2ef",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+      "producer-sha": "72fc611d0163d903",
+      "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

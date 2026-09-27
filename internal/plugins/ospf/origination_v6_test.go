@@ -103,7 +103,7 @@ func TestVirtualRecordInBackboneRouterLSA(t *testing.T) {
 	neighbor := types.RouterID{172, 30, 0, 1}
 	opts := ospfv3types.OptV6 | ospfv3types.OptR
 	ifaces := []ospflsdb.InterfaceInfo{v6VirtualInterface(types.BackboneArea, router, neighbor, 25)}
-	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, opts, ifaces, false, true, false, false); !ok {
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, opts, ifaces, false, true, false, false, false); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
@@ -133,7 +133,7 @@ func TestV6VirtualLinkVBitInTransitArea(t *testing.T) {
 	// The transit area's Router-LSA is built from its real interfaces (no virtual iface),
 	// with virtualEndpoint=true.
 	realIface := v6P2PInterface(transit, router, types.RouterID{172, 30, 0, 3})
-	if _, ok := e.v6OriginateRouter(transit, router, opts, []ospflsdb.InterfaceInfo{realIface}, false, true, false, true); !ok {
+	if _, ok := e.v6OriginateRouter(transit, router, opts, []ospflsdb.InterfaceInfo{realIface}, false, true, false, false, true); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	lsa, ok := e.lsdb.LookupLSA(transit, v6RouterKey(router))
@@ -163,7 +163,7 @@ func TestVirtualLinkCostEqualsTransitCost(t *testing.T) {
 	router := types.RouterID{172, 30, 0, 2}
 	neighbor := types.RouterID{172, 30, 0, 1}
 	ifaces := []ospflsdb.InterfaceInfo{v6VirtualInterface(types.BackboneArea, router, neighbor, 33)}
-	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, true, false, false); !ok {
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, true, false, false, false); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
@@ -184,7 +184,7 @@ func TestVirtualLinkWithdrawnWhenDown(t *testing.T) {
 	neighbor := types.RouterID{172, 30, 0, 1}
 	iface := v6VirtualInterface(types.BackboneArea, router, neighbor, 25)
 	iface.Neighbors[0].State = ospflsdb.NeighborStateExchange
-	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, true, false, false); !ok {
+	if _, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, true, false, false, false); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	body := v6DecodeBackboneRouter(t, e, types.BackboneArea, router)
@@ -201,7 +201,7 @@ func TestOSPFv6OriginateRouterLSA(t *testing.T) {
 	opts := ospfv3types.OptV6 | ospfv3types.OptR
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, neighbor)}
 
-	h, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -251,7 +251,7 @@ func TestOSPFv6OriginateRouterLSA(t *testing.T) {
 	}
 
 	// An unchanged topology must re-originate nothing (idempotent, no needless flood).
-	if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false); ok {
+	if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, false, false, false, false, false); ok {
 		t.Errorf("second v6OriginateRouter re-originated an unchanged Router-LSA")
 	}
 }
@@ -265,7 +265,7 @@ func TestOSPFv6OriginateRouterLSAABRNtBits(t *testing.T) {
 	area := types.AreaID{0, 0, 0, 9}
 	opts := ospfv3types.OptV6 | ospfv3types.OptR | ospfv3types.OptN
 
-	h, ok := e.v6OriginateRouter(area, router, opts, nil, false, true, true, false)
+	h, ok := e.v6OriginateRouter(area, router, opts, nil, false, true, true, false, false)
 	if !ok {
 		t.Fatal("v6OriginateRouter returned false")
 	}
@@ -299,7 +299,7 @@ func TestOSPFv6OriginateRouterLSAMaxMetric(t *testing.T) {
 	area := types.BackboneArea
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})}
 
-	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, true, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, true, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -326,7 +326,7 @@ func TestOSPFv6OriginateRouterLSANoFullNeighbor(t *testing.T) {
 	iface := v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})
 	iface.Neighbors[0].State = ospflsdb.NeighborStateExchange
 
-	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, []ospflsdb.InterfaceInfo{iface}, false, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
@@ -414,7 +414,7 @@ func TestOSPFv6OriginateFlushesStale(t *testing.T) {
 	area := types.BackboneArea
 	ifaces := []ospflsdb.InterfaceInfo{v6P2PInterface(area, router, types.RouterID{172, 30, 0, 1})}
 
-	if _, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, false, false, false); !ok {
+	if _, ok := e.v6OriginateRouter(area, router, ospfv3types.OptV6|ospfv3types.OptR, ifaces, false, false, false, false, false); !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}
 	p, _ := netipToV6Prefix(netip.MustParsePrefix("2001:db8:2::/64"), 10)

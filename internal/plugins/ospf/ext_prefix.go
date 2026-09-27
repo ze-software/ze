@@ -234,6 +234,16 @@ func (e *engine) extPrefixOnReceive(r opaqueReceived) {
 		e.ext.malformed.With(opaqueTypeLabel(r.OpaqueType)).Inc()
 		return
 	}
+	// RFC 8665 Section 9: "For any new TLVs/sub-TLVs defined in this document, if the
+	// length is invalid, the LSA in which it is advertised is considered malformed and
+	// MUST be ignored." The LSA yields no prefix, and this instance replaces the one
+	// whose prefixes were applied before, so those are withdrawn.
+	if srExtPrefixLengthInvalid(&lsa) {
+		e.ext.malformed.With(opaqueTypeLabel(r.OpaqueType)).Inc()
+		e.extRecv.withdrawPrefixes(r.AdvertisingRouter, r.OpaqueID)
+		e.refreshExtMetrics()
+		return
+	}
 	// RFC 5250 sec 5: a Type-11 LSA from an unreachable originator is present-but-unusable.
 	usable := r.Scope != OpaqueScopeAS || r.Reachable
 	seen := map[[5]byte]bool{}

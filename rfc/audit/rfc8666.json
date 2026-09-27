@@ -1,0 +1,325 @@
+{
+  "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC8666-10-1": {
+      "code": {
+        "internal/plugins/ospf/sr/codec_v6.go::DecodeAdjSIDValueV6": "46977e3e2729b9ba",
+        "internal/plugins/ospf/sr/codec_v6.go::DecodeExtPrefixRangeValueV6": "d037c2c499400626",
+        "internal/plugins/ospf/sr/codec_v6.go::DecodeLANAdjSIDValueV6": "bb0a7a24daf45bd7",
+        "internal/plugins/ospf/sr/codec_v6.go::DecodePrefixSIDValueV6": "9ad67636c31ab28c",
+        "internal/plugins/ospf/sr_malformed.go::srV3ExtendedLengthInvalid": "e0a00b76fff68391"
+      },
+      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 10 (rfc8666.txt, s10): 'For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' Kept weak; DF-OSPF-E's gaps confirmed. Proven through the IPv6 Prefix-SID reader (srRemotePrefixSIDsV6, len(sids) != 0 goes red): Prefix-SID one octet too long (TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA), too short, length-and-flags, Extended Prefix Range carrying a length-and-flags-invalid Prefix-SID (TestRFC8666LengthBeforeFlagsIgnoresLSA), with positive polarity for well-formed and flag-only cases. Unproven: the Adj-SID and LAN Adj-SID clauses are asserted only on the gate srV3ExtendedLengthInvalid, never on a reader that ignores the LSA; LAN Adj-SID too short has no case; the SID/Label sub-TLV (s3.1) has no LSA-level case.",
+      "requirement_sha": "bf2fa94be562ee36",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "b49f5c425b220588",
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "b49f5c425b220588",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "83e5fc62a1790cf7",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "83e5fc62a1790cf7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "c24d181943c907ac",
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "c24d181943c907ac",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "bcc42817caef5319",
+        "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "bcc42817caef5319"
+      },
+      "verdict": "weak"
+    },
+    "RFC8666-11-1": {
+      "note": "malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode",
+      "requirement_sha": "47397c9a8d9a2f91",
+      "tests": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SRTLVMalformed": "b898637e07666ee9",
+        "internal/plugins/ospf/sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "4c31345aa8a7ddcb"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3ExtPrefixRangeTLVRoundTrip": "28b2d01095e0e685",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SRTLVMalformed": "c3a55ee7b69680b4",
+        "internal/plugins/ospf/sr_reception_v6_test.go::TestOSPFv3ReceptionMalformedNoPanic": "6cc00cb85c94df67"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-5-1": {
+      "note": "single-polarity positive: v6EInterAreaPrefixBody (the only range producer) decodes to Range Size 1 for a /128; 1 never exceeds what any Prefix Length satisfies",
+      "requirement_sha": "7614081de1ad4cc2",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "81be8c5c109a55c8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-5-2": {
+      "note": "positive asserts the encoded Flags octet is zero; the other tag sets Flags=0xFF and asserts header, address and Prefix-SID decode unchanged",
+      "requirement_sha": "ea251ec39b07c313",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsZeroOnSend": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive": "66b77c98eb161694",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsZeroOnSend": "cbbfcb6917a54a47"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-5-7": {
+      "note": "0xFFFFFF in Reserved decodes identically to zero (and encoder sends zero); negative bounds the ignore by showing the adjacent AF octet is honoured",
+      "requirement_sha": "aa4465919943ca6c",
+      "tests": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "b898637e07666ee9"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "8df0184123137542",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "1816868428900699"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-1": {
+      "note": "NP set through the real OSPFv3 carriage and installer: push 16009, swap 18009->16009, no pop entry; negative shows NP clear does pop",
+      "requirement_sha": "598e389887c7dcad",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "c6ed225cb7ebf033"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-11": {
+      "note": "NP clear programs a PHP pop of 18009 and no push or swap; negative: NP set programs no pop",
+      "requirement_sha": "61e796d1eb8192ba",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "c6ed225cb7ebf033"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-12": {
+      "note": "NP set, E clear keeps the SRGB label on the stack (push 16009, swap to 16009); negative: NP clear pops",
+      "requirement_sha": "36051aae331a1508",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "c6ed225cb7ebf033"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-13": {
+      "note": "NP+E set replaces the SID with Explicit NULL 2 at ingress and in the swap; negative: NP set, E clear does not",
+      "requirement_sha": "5594228de2e23f6b",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-14": {
+      "note": "M=1,NP=0,E=1 keeps 16009 with no pop and no Explicit NULL (both flags ignored); same input without M pops",
+      "requirement_sha": "b364b405b60ae381",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "e3beb9349250fa3b",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "b6918d04acb1daca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-2": {
+      "note": "NP+E set imposes ExplicitNullV6 (2) at ingress and in the transit swap; E clear imposes the SRGB label. IPv4 clause (label 0) does not arise: OSPFv3 reception rejects a non-IPv6 AF",
+      "requirement_sha": "35b6c0124c279ad8",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-3": {
+      "note": "all defined flags set encode as 0x7C with bits 0/6/7 clear; reserved bits 0x83 set on receive decode identically",
+      "requirement_sha": "ab9415529acedac2",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive": "dc69d6ffc23cea94",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend": "c6e9ec3100478fb6"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-4": {
+      "note": "Reserved=0xFFFF decodes identically; negative bounds the ignore to Reserved by showing the Algorithm octet is honoured",
+      "requirement_sha": "78d41de20492597f",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDAlgorithmOctetNotIgnored": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFieldIgnoredOnReceive": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDAlgorithmOctetNotIgnored": "a137ee16688b98aa",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFieldIgnoredOnReceive": "347457cacf68cd24"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-5": {
+      "note": "algorithm 0 not in the originator's SR-Algorithm list installs no mpls-fib entry; advertised algorithm installs push 16009",
+      "requirement_sha": "14f6b666aa332fb3",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "af8e4917c7867ac2",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "beb27cde8f9a57dd"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-6": {
+      "note": "V=1/L=0 and V=0/L=1 are rejected by DecodePrefixSIDValueV6, whose error drops the TLV in v6PrefixSIDFromTLV; valid V/L pairs decode",
+      "requirement_sha": "fc278fea6100294c",
+      "tests": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "b898637e07666ee9",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "b898637e07666ee9"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "85934b8e6e6b35b7",
+        "internal/plugins/ospf/sr/codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "c92162de6f626fde"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-6-7": {
+      "code": {
+        "internal/plugins/ospf/sr_malformed.go::add": "a34575fa9cf375ab",
+        "internal/plugins/ospf/sr_malformed.go::resolve": "99df496e869c4403"
+      },
+      "note": "RA-OSPF2 strict re-audit 2026-09-27 (independent of DF-OSPF-E). RFC 8666 Section 6 (rfc8666.txt:380-381): 'If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.' Proven clauses: one router's repeated Prefix-SID, equal (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored positive, two sub-TLVs and two LSAs) or differing (TestRFC8666PrefixSIDsKeyedByAlgorithm positive), each asserting rs.Duplicate; scope limits prefix, algorithm, router and area kept in the negative cases. Topology: the RFC 8666 Prefix-SID sub-TLV carries Flags, Algorithm, Reserved and SID only (s6 figure), so there is no second topology value to test. Weak because no tagged unit proves the consequence 'ignored': every assertion stops at the Duplicate marker. Removing `|| rs.Duplicate` from the installer (sr_install.go:80) leaves every RFC8666-6-7 unit green (only the RFC8665-tagged TestRFC8665DuplicatePrefixSIDsAllIgnored goes red), and removing it from srTILFAResolver.PrefixSIDLabel (sr_tilfa.go:40) leaves them green too (work/agents/RA-OSPF2/mutation.log). The cross-router tests TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored and TestOSPFv3ReceptionSameSIDNotDuplicate no longer carry this tag, correctly: they prove Ze policy.",
+      "requirement_sha": "1a6a08384a2674eb",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm": "b49f5c425b220588",
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm#2": "b49f5c425b220588",
+        "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored": "4dc005b115e8b238",
+        "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored#2": "4dc005b115e8b238"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm": "9a2f6b6f1b6aab8e",
+        "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm#2": "9a2f6b6f1b6aab8e",
+        "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored": "513f8a5f1e46c181",
+        "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored#2": "513f8a5f1e46c181"
+      },
+      "verdict": "weak"
+    },
+    "RFC8666-6-8": {
+      "note": "tagged positive proves the label is taken from the next-hop router's SRGB (20009), which is not the flag obligation; the negative shows a non-originator next hop does not apply the originator's PHP. No unit tagged 6-8 shows the flags applied when the next hop did advertise the SID (TestRFC8666PHPPopsPrefixSID does, but is tagged 6-11/6-1)",
+      "requirement_sha": "0a235ac2ce8aa307",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "e0347c6857ae7ab7"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "1b884b1aac8e81f6",
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "4de3a9aa6729c037"
+      },
+      "verdict": "weak"
+    },
+    "RFC8666-6-9": {
+      "note": "v6InterAreaPrefixSIDRule sets NP and clears E for a propagated prefix and keeps flags when directly attached; TestOSPFv3OriginateInterAreaPropagation asserts NP set/E clear on the real propagated LSA",
+      "requirement_sha": "639c04002daed3b8",
+      "tests": {
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "4d7580beb8e88dd1",
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "4d7580beb8e88dd1"
+      },
+      "units": {
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "1dd747256a907a64",
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "1dd747256a907a64"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-7.1-1": {
+      "note": "all defined Adj-SID flags encode 0xF8 with bits 5-7 clear; 0x07 set on receive decodes identically",
+      "requirement_sha": "8f1acd07989f890c",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFlagBitsIgnoredOnReceive": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFlagBitsZeroOnSend": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFlagBitsIgnoredOnReceive": "59009f9830e01ae8",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFlagBitsZeroOnSend": "d5ba9e57aeb226e8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-7.1-2": {
+      "note": "Reserved=0xFFFF decodes identically and encoder sends zero; negative bounds the ignore by showing Weight is honoured",
+      "requirement_sha": "d253623277a116ba",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFieldIgnoredOnReceive": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDWeightOctetNotIgnored": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFieldIgnoredOnReceive": "02164d5ba8af3860",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDWeightOctetNotIgnored": "5273cbceefc73e04"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-7.2-1": {
+      "note": "LAN Adj-SID Reserved=0xFFFF decodes identically and encoder sends zero; negative shows Neighbor ID is honoured",
+      "requirement_sha": "cc9fff053c749a50",
+      "tests": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDNeighborIDNotIgnored": "fc78f1bb66bf1d61",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive": "fc78f1bb66bf1d61"
+      },
+      "units": {
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDNeighborIDNotIgnored": "8123b9b92baad055",
+        "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive": "2b177f04f5680f6f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-8.2-1": {
+      "note": "intra-area Prefix-SID learned in area 1 is re-originated by v6OriginateInterAreaSR into the backbone E-Inter-Area-Prefix-LSA and not back into area 1",
+      "requirement_sha": "566c417ccecc4056",
+      "tests": {
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "4d7580beb8e88dd1",
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "4d7580beb8e88dd1"
+      },
+      "units": {
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation": "47977f9757d3cd3e",
+        "internal/plugins/ospf/sr_interarea_v6_test.go::TestOSPFv3OriginateInterAreaPropagation#2": "47977f9757d3cd3e"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8666-8.4.1-1": {
+      "note": "TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops calls srAdjManager.neighborLost directly; no tagged unit drives a neighbor state change below 2-Way through the FSM hook (engine.srAdjNeighborLost, sr_adjsid.go), so removing that call stays green",
+      "requirement_sha": "c6013fe365987b92",
+      "tests": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "e0347c6857ae7ab7",
+        "internal/plugins/ospf/sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "b07bfcd1929996dc",
+        "internal/plugins/ospf/sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8666"
+}

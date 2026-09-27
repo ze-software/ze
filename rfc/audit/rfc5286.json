@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "requirements": {
     "RFC5286-x-1": {
       "note": "Forbidden: accepting an alternate N with D_opt(N,D) >= D_opt(N,S)+D_opt(S,D). TestRFC5286LoopFreeInequality1 negative builds the equality case D(N,D)=21 == 10+11 with finite forward and reverse cost, and the `if _, ok := runSelect(...); ok { t.Fatalf(...) }` goes red on any selectLFA that accepts it (a <= or a missing check). Positive 11 < 21 asserts the backup is returned with next-hop N. Isolated: no other gate trips on either input. Unit-level on selectLFA (lfa.go), which is the production LFA selector.",
@@ -15,32 +15,47 @@
       "verdict": "enforced"
     },
     "RFC5286-x-2": {
-      "note": "Forbidden: using an alternate next-hop along an OSPF link whose cost or reverse cost is the maximum (costed-out) value. OSPF router-LSA link metrics are 16-bit (packet RouterLink Metric uint16); the costed-out value is MaxLinkMetric 0xffff (RFC 6987 Section 3, which obsoletes the RFC 3137 that RFC 5286 Section 3.5 cites, 'to eliminate any confusion about the interpretation of LSInfinity'), and ze's own origination uses lsdb.LSInfinity = 0xffff for cost-out (lsdb/origination.go:19). The gate at spf/lfa.go:274 compares against spf.LSInfinity = 0x00ffffff, which no router-LSA link metric can carry. TestRFC5286CostReverseCostGate negatives inject rev/fwd = 0x00ffffff, a value the real inputs never produce, so they assert what the code does, not what the RFC says: a link at 0xffff passes both the gate and the test. IS-IS clauses (maximum cost, overload bit) have no producer: ze computes no IS-IS LFA (see RFC5286-x-4).",
+      "code": {
+        "internal/plugins/ospf/spf/lfa.go::selectLFA": "94a7a04967ffb784"
+      },
+      "note": "Forbidden: an alternate over an OSPF link whose forward or reverse cost is costed out. A Router-LSA link metric is 16 bits, so the costed-out value is MaxLinkMetric 0xffff (RFC 6987 Section 3). selectLFA (spf/lfa.go) now gates forwardCost and reverseCost on spf.MaxLinkMetric = 0xffff. TestRFC5286CostedOutLinkMetric drives selectLFA with forward cost 0xffff and reverse cost 0xffff (each must return no backup) and with 0xfffe on both (must return one), so a gate on the 24-bit LSInfinity or a missing gate goes red. The older TestRFC5286CostReverseCostGate still injects 0x00ffffff, a value no link carries; it stays true and adds nothing.",
       "requirement_sha": "0c65877b00c0e21c",
       "tests": {
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric": "ee3ad4d8add4a264",
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric#2": "ee3ad4d8add4a264",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate": "73162faa1d592207",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#2": "73162faa1d592207",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#3": "73162faa1d592207"
       },
       "units": {
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric": "655cfa7402e25105",
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric#2": "655cfa7402e25105",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate": "fddbb191d2b5e5b0",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#2": "fddbb191d2b5e5b0",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#3": "fddbb191d2b5e5b0"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC5286-x-3": {
-      "note": "Forbidden: using N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. TestRFC5286ReverseCostAllInfinite negative builds N with no link back to S at all (reverseP2PCost -> LSInfinity), which is the bidirectional-link rule of Section 3.6 step 3, a neighbouring rule, not N advertising its links to S at the costed-out metric. It then feeds a synthetic rev = 0x00ffffff to selectLFA, the same assertion as RFC5286-x-2's reverse negative. No tagged assertion builds N with parallel links back to S all at the costed-out metric 0xffff; reverseP2PCost (lfa.go:443) returns 0xffff for such N, which is below spf.LSInfinity 0x00ffffff, so the gate at lfa.go:274 lets N through and no test goes red.",
+      "code": {
+        "internal/plugins/ospf/spf/lfa.go::reverseP2PCost": "805effd779e4ad18",
+        "internal/plugins/ospf/spf/lfa.go::selectLFA": "94a7a04967ffb784"
+      },
+      "note": "RA-FIX re-read 2026-09-27. Forbidden: N_i as an alternate when every link from S to N_i has reverse cost LSInfinity. Asserted for point-to-point links only: TestRFC5286AllReverseLinksCostedOut and TestRFC5286ReverseCostAllInfinite derive the reverse cost with reverseP2PCost (spf/lfa.go) over parallel P2P links back to S, all 0xffff or none, and require no backup, with one finite link requiring the backup. A neighbour reached over a transit (broadcast) network takes its reverse cost from reverseTransitCost, which no tagged unit drives at 0xffff, so 'all links' is proven for one of the two link kinds lfa.go enumerates. IS-IS computes no LFA in ze, so the row binds OSPF only.",
       "requirement_sha": "c55d1fdc66e7e20e",
       "tests": {
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut": "ee3ad4d8add4a264",
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut#2": "ee3ad4d8add4a264",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite": "73162faa1d592207",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "73162faa1d592207"
       },
       "units": {
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut": "42f27e8389a19248",
+        "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut#2": "42f27e8389a19248",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite": "8030f7886c10f3da",
         "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286ReverseCostAllInfinite#2": "8030f7886c10f3da"
       },
-      "verdict": "wrong"
+      "verdict": "weak"
     }
   },
   "rfc": "rfc5286"

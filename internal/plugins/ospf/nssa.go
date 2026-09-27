@@ -9,6 +9,7 @@ package ospf
 import (
 	"bytes"
 	"maps"
+	"net/netip"
 	"time"
 
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
@@ -237,12 +238,13 @@ func electNSSATranslator(self types.RouterID, role string, abrs []types.RouterID
 	return true
 }
 
-// nssaABRs returns the Router IDs of the translator-candidate ABRs currently present in
-// the NSSA area's link-state database -- the translator-election candidate set. RFC 3101
-// §3.5: only routers advertising the Nt-bit are candidates, so a higher-Router-ID ABR
-// configured `translate never` (Nt clear) does not wedge translation off for a willing
-// lower-Router-ID candidate. The B-bit is also required (a translator is an ABR).
-func (e *engine) nssaABRs(db *ospflsdb.LSDB, area types.AreaID) []types.RouterID {
+// nssaABRs returns the Router IDs of the NSSA area's routers whose Router-LSA carries every
+// bit in flags. With B|Nt it is the translator-election candidate set: RFC 3101 §3.5 makes
+// only routers advertising the Nt-bit candidates, so a higher-Router-ID ABR configured
+// `translate never` (Nt clear) does not wedge translation off for a willing lower-Router-ID
+// candidate. With B alone it is the NSSA's border routers, the "NSSA translators" of RFC 3101
+// Section 3.2 step (2) (owner decision D-12).
+func (e *engine) nssaABRs(db *ospflsdb.LSDB, area types.AreaID, flags uint8) []types.RouterID {
 	var abrs []types.RouterID
 	for _, h := range db.Summary(area) {
 		if h.Type != types.LSTypeRouter || h.Age.IsMaxAge() {
@@ -253,12 +255,92 @@ func (e *engine) nssaABRs(db *ospflsdb.LSDB, area types.AreaID) []types.RouterID
 			continue
 		}
 		body, err := lsa.DecodeRouter()
-		if err != nil || body.Flags&packet.RouterFlagB == 0 || body.Flags&packet.RouterFlagNt == 0 {
+		if err != nil {
+			continue
+		}
+		if body.Flags&flags != flags {
 			continue
 		}
 		abrs = append(abrs, h.AdvertisingRouter)
 	}
 	return abrs
+}
+
+// equivalentType5 reports whether one of the higher-Router-ID translators' Type-5s is
+// functionally equivalent to the Type-7 body describing network.
+// RFC 3101 Section 3.2 step (2): "the calculating router has the highest router ID amongst NSSA
+// translators that have originated a functionally equivalent Type-5 LSA (i.e. same destination,
+// cost and non-zero forwarding address)". Destination is the masked Link State ID with the same
+// mask; cost is the metric (owner decision D-12).
+func equivalentType5(yieldTo []packet.LSA, network [4]byte, nssa packet.ExternalLSA) bool {
+	if nssa.ForwardingAddr == ([4]byte{}) {
+		return false // no non-zero forwarding address, so no Type-5 can be equivalent
+	}
+	for i := range yieldTo {
+		external, err := yieldTo[i].DecodeExternal()
+		if err != nil {
+			continue // an undecodable Type-5 describes no destination
+		}
+		if external.NetworkMask != nssa.NetworkMask {
+			continue
+		}
+		if maskIPv4([4]byte(yieldTo[i].Header.LinkStateID), nssa.NetworkMask) != maskIPv4(network, nssa.NetworkMask) {
+			continue
+		}
+		if external.Metric != nssa.Metric {
+			continue
+		}
+		if external.ForwardingAddr != nssa.ForwardingAddr {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// equivalentType5V6 is the OSPFv3 form of equivalentType5: the destination is the body's
+// prefix, since an OSPFv3 Link State ID carries no addressing semantics (RFC 5340 Section 4.4.3).
+// RFC 3101 Section 3.2 step (2): "functionally equivalent Type-5 LSA (i.e. same destination,
+// cost and non-zero forwarding address)".
+func equivalentType5V6(yieldTo []packet.LSA, nssa ospfv3packet.ExternalLSA) bool {
+	if !nssa.HasForwardingAddr {
+		return false
+	}
+	if nssa.ForwardingAddr == ([16]byte{}) {
+		return false
+	}
+	for i := range yieldTo {
+		decoded, err := ospfv3packet.DecodeLSA(yieldTo[i].RawBytes)
+		if err != nil {
+			continue
+		}
+		external, err := decoded.DecodeExternal()
+		if err != nil {
+			continue
+		}
+		if external.Prefix.Length != nssa.Prefix.Length {
+			continue
+		}
+		if !bytes.Equal(external.Prefix.Address, nssa.Prefix.Address) {
+			continue
+		}
+		if external.Metric != nssa.Metric {
+			continue
+		}
+		if !external.HasForwardingAddr {
+			continue
+		}
+		if external.ForwardingAddr != nssa.ForwardingAddr {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// maskIPv4 returns address with every bit outside mask cleared.
+func maskIPv4(address, mask [4]byte) [4]byte {
+	return [4]byte{address[0] & mask[0], address[1] & mask[1], address[2] & mask[2], address[3] & mask[3]}
 }
 
 // nssaTranslation is one desired Type 7 -> Type 5 translation.
@@ -311,10 +393,13 @@ func (e *engine) translateNSSA(now time.Time) {
 		}
 		for _, n := range nssas {
 			p := policyByArea[n.area]
-			elected := electNSSATranslator(self, p.role, e.nssaABRs(db, n.area))
+			elected := electNSSATranslator(self, p.role, e.nssaABRs(db, n.area, packet.RouterFlagB|packet.RouterFlagNt))
 			if !e.translatorEffective(n.area, elected, now, p.stability) {
 				continue
 			}
+			// RFC 3101 Section 3.2: the Type-5s that higher-Router-ID NSSA translators
+			// originated, against which each Type-7 is checked for a functional equivalent.
+			yieldTo := db.HigherRIDTranslatorExternals(types.LSTypeASExternal, e.nssaABRs(db, n.area, packet.RouterFlagB), self)
 			for _, h := range db.Summary(n.area) {
 				if h.Type != types.LSTypeNSSA || h.Age.IsMaxAge() {
 					continue
@@ -331,11 +416,8 @@ func (e *engine) translateNSSA(now time.Time) {
 				if redist[network] {
 					continue // RFC 3101 §3.6: keep the locally-redistributed Type 5; do not translate
 				}
-				// RFC 3101 §3.6: when an equivalent Type 5 for this network is already advertised
-				// by a translator with a higher Router ID, suppress our translation so only the
-				// highest-Router-ID translator injects the Type 5 (no duplicate, even while a
-				// deposed translator's stability grace overlaps the newly-elected one).
-				if db.HigherRIDType5Exists(network, self) {
+				// RFC 3101 Section 3.2 step (2)
+				if equivalentType5(yieldTo, network, body) {
 					continue
 				}
 				desired[network] = nssaTranslation{network: network, mask: body.NetworkMask, type2: body.ExternalType2, metric: body.Metric, fwd: body.ForwardingAddr, tag: body.ExternalRouteTag, area: n.area}
@@ -427,10 +509,12 @@ func (e *engine) translateNSSAV6(now time.Time) {
 		}
 		for _, n := range nssas {
 			p := policyByArea[n.area]
-			elected := electNSSATranslator(self, p.role, e.nssaABRsV6(db, n.area))
+			elected := electNSSATranslator(self, p.role, e.nssaABRsV6(db, n.area, ospfv3packet.RouterFlagB|ospfv3packet.RouterFlagNt))
 			if !e.translatorEffective(n.area, elected, now, p.stability) {
 				continue
 			}
+			// RFC 3101 Section 3.2 (RFC 5340 Section 4.4.3.6 carries it to OSPFv3).
+			yieldTo := db.HigherRIDTranslatorExternals(types.LSType(ospfv3types.LSTypeASExternal), e.nssaABRsV6(db, n.area, ospfv3packet.RouterFlagB), self)
 			for _, h := range db.Summary(n.area) {
 				if !h.Type.NSSA() || h.Age.IsMaxAge() {
 					continue
@@ -450,11 +534,21 @@ func (e *engine) translateNSSAV6(now time.Time) {
 				if !body.HasForwardingAddr || body.ForwardingAddr == ([16]byte{}) {
 					continue // a zero forwarding address is not translatable
 				}
+				// RFC 5340 Appendix A.4.7: the forwarding address "MUST NOT be set to the
+				// IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address
+				// (Prefix FE80/10)", and "an OSPFv3 implementation advertising a forwarding
+				// address MUST advertise a global IPv6 address". The translated Type-5 copies
+				// the Type-7's address (RFC 3101 Section 3.2), so a received NSSA-LSA whose
+				// address is not global is not translated.
+				if !v6UsableForwardingAddress(netip.AddrFrom16(body.ForwardingAddr)) {
+					continue
+				}
 				lsid := h.LinkStateID
 				if redist[[4]byte(lsid)] {
 					continue // RFC 3101 §3.6: keep the locally-redistributed Type 5; do not translate
 				}
-				if db.HigherRIDType5LSIDExists(types.LSType(ospfv3types.LSTypeASExternal), lsid, self) {
+				// RFC 3101 Section 3.2 step (2)
+				if equivalentType5V6(yieldTo, body) {
 					continue
 				}
 				body.Prefix.Options &^= ospfv3types.OptPrefixP
@@ -465,7 +559,9 @@ func (e *engine) translateNSSAV6(now time.Time) {
 	e.applyTranslationsV6(db, self, desired)
 }
 
-func (e *engine) nssaABRsV6(db *ospflsdb.LSDB, area types.AreaID) []types.RouterID {
+// nssaABRsV6 is the OSPFv3 counterpart of nssaABRs; the Router-LSA MUST also carry the
+// N option, so a router that is not attached to the NSSA as an NSSA is never counted.
+func (e *engine) nssaABRsV6(db *ospflsdb.LSDB, area types.AreaID, flags uint8) []types.RouterID {
 	var abrs []types.RouterID
 	for _, h := range db.Summary(area) {
 		if h.Type != types.LSType(ospfv3types.LSTypeRouter) || h.Age.IsMaxAge() {
@@ -480,7 +576,13 @@ func (e *engine) nssaABRsV6(db *ospflsdb.LSDB, area types.AreaID) []types.Router
 			continue
 		}
 		body, err := decoded.DecodeRouter()
-		if err != nil || body.Flags&ospfv3packet.RouterFlagB == 0 || body.Flags&ospfv3packet.RouterFlagNt == 0 || !body.Options.NSSA() {
+		if err != nil {
+			continue
+		}
+		if body.Flags&flags != flags {
+			continue
+		}
+		if !body.Options.NSSA() {
 			continue
 		}
 		abrs = append(abrs, h.AdvertisingRouter)

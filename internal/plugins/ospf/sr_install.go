@@ -38,8 +38,8 @@ type srRoute struct {
 }
 
 // srRemotePrefixSID is a Prefix-SID received for one prefix, with its originator
-// and a Duplicate marker (RFC 8665 §5: multiple Prefix-SIDs for the same prefix are
-// all ignored).
+// and a Duplicate marker (RFC 8665 §5: multiple Prefix-SIDs for the same prefix,
+// topology and algorithm are all ignored).
 type srRemotePrefixSID struct {
 	Originator types.RouterID
 	SID        sr.PrefixSID
@@ -248,22 +248,29 @@ func (e *engine) srRemoteCapabilities() (map[types.RouterID]sr.SRGB, map[types.R
 }
 
 // srRemotePrefixSIDs reads the received Prefix-SID per prefix from the address family's
-// carriage. A prefix advertised with more than one (conflicting) Prefix-SID is marked
-// Duplicate so it is ignored (RFC 8665 §5 / RFC 8666 §6). The IPv6 family reads the RFC
-// 8362 Extended prefix LSAs (sr_reception_v6.go); the IPv4 family reads the RFC 7684
-// Extended Prefix Opaque LSAs.
+// carriage. The duplicate judgement is per prefix, topology and algorithm, and per
+// advertising router in each area (srPrefixSIDScope.resolve, RFC 8665 Section 5 / RFC 8666
+// Section 6). The IPv6 family reads
+// the RFC 8362 Extended prefix LSAs (sr_reception_v6.go); the IPv4 family reads the RFC
+// 7684 Extended Prefix Opaque LSAs.
 func (e *engine) srRemotePrefixSIDs() map[netip.Prefix]srRemotePrefixSID {
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.srRemotePrefixSIDsV6()
 	}
-	out := make(map[netip.Prefix]srRemotePrefixSID)
+	table := newSRPrefixSIDTable()
 	for _, v := range e.lsdb.OpaqueLSAsByType(packet.ExtPrefixOpaqueType) {
 		lsa, err := packet.DecodeExtPrefixLSA(v.Body)
 		if err != nil {
 			continue
 		}
+		// RFC 8665 Section 9: "if the length is invalid, the LSA in which it is advertised
+		// is considered malformed and MUST be ignored."
+		if srExtPrefixLengthInvalid(&lsa) {
+			srMetrics.Load().observeMalformed(e.srAF(), "prefix-sid")
+			continue
+		}
 		for i := range lsa.Prefixes {
-			tlv := lsa.Prefixes[i]
+			tlv := &lsa.Prefixes[i]
 			if tlv.AF != 0 {
 				continue // IPv4 unicast only in the Extended Prefix Opaque LSA
 			}
@@ -272,21 +279,18 @@ func (e *engine) srRemotePrefixSIDs() map[netip.Prefix]srRemotePrefixSID {
 				if sub.Type != sr.V4TypePrefixSID {
 					continue
 				}
+				// A Prefix-SID with an invalid V/L-Flag combination is ignored alone (RFC
+				// 8665 Section 5); a length error was already judged for the whole LSA.
 				ps, derr := sr.DecodePrefixSIDValue(sub.Value)
 				if derr != nil {
 					srMetrics.Load().observeMalformed(e.srAF(), "prefix-sid")
 					continue
 				}
-				if existing, dup := out[pfx]; dup {
-					existing.Duplicate = true
-					out[pfx] = existing
-					continue
-				}
-				out[pfx] = srRemotePrefixSID{Originator: v.AdvertisingRouter, SID: ps}
+				table.add(srRemotePrefixSID{Originator: v.AdvertisingRouter, SID: ps}, pfx, v.Area)
 			}
 		}
 	}
-	return out
+	return table.byPrefix()
 }
 
 // srAF returns this engine's SR address-family metric label.

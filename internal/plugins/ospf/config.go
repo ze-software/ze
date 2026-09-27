@@ -1490,6 +1490,13 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 			return ic, err
 		}
 		ic.TE = &teCfg
+		// RFC 5392 Section 4: "Hellos MUST NOT be exchanged over the inter-AS link, and
+		// consequently, an OSPF adjacency MUST NOT be formed." An interface carrying an
+		// inter-as block is therefore passive whatever its `passive` leaf says: it stays in
+		// area state, and activeInterfaces runs no Hello or neighbor FSM on it.
+		if teCfg.InterAS != nil {
+			ic.Passive = true
+		}
 	}
 	// RFC 6549 §3: the per-interface Interface Instance ID(s). A leaf-list so one physical
 	// interface can host several coexisting OSPFv2 instances; absent means the base

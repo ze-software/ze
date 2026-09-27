@@ -63,6 +63,18 @@ and Type 7 to Type 5 translation.
   filter on the B-bit alone lets a higher-Router-ID `translate never` ABR wedge
   translation off. A stability grace keeps a router translating after it loses
   the election, so a transient flap opens no Type 5 gap.
+- **A translator yields a Type 7 only to a functionally equivalent Type 5.**
+  RFC 3101 Section 3.2 step (2) keeps the translation with the highest Router ID
+  among the NSSA translators that originated a Type 5 with the same destination,
+  cost and non-zero forwarding address. Ze counts as a translator every router
+  whose Router-LSA in the NSSA carries the B-bit, and compares mask, metric and
+  forwarding address (OSPFv3: prefix, metric and forwarding address, since its
+  Link State ID carries no address). A higher-Router-ID Type 5 that differs in
+  any of those, or comes from a router that is not a border router of the NSSA,
+  does not suppress the translation. The RFC's "reachable over area 0 and the
+  NSSA" condition is not checked yet.
+  <!-- source: internal/plugins/ospf/nssa.go -- equivalentType5, equivalentType5V6 -->
+  <!-- source: internal/plugins/ospf/lsdb/nssa.go -- HigherRIDTranslatorExternals -->
 - **External metrics precede NSSA source preference.** RFC 3101 Section 2.5
   compares E1/E2 path type and cost first. Only functionally equivalent LSAs
   with the same non-zero forwarding address use the Type-7 P=1, Type-5,

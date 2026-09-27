@@ -2,7 +2,7 @@
 // (store removal + not-found), SetNSSATranslatorAreas / isNSSATranslatorArea (RFC 3101
 // Nt-bit area set), SetOnChange (SPF trigger fires on install), SetSelfFlushSuppress
 // (RFC 3623 graceful-restart self-flush suppression flips handleSelfReceived), and
-// HigherRIDType5LSIDExists (RFC 3101 Section 3.6 OSPFv3 higher-Router-ID Type 5 test).
+// HigherRIDTranslatorExternals (RFC 3101 Section 3.2 strict Router-ID ordering).
 // PREVENTS: a Delete that reports success for a missing LSA, a translator set that keeps
 // on=false entries, an SPF trigger that never fires, a GR suppression that still flushes,
 // and a higher-RID test that ignores the strict Router-ID ordering.
@@ -105,7 +105,7 @@ func TestSetSelfFlushSuppressGatesFightBack(t *testing.T) {
 	}
 }
 
-func TestHigherRIDType5LSIDExistsStrictOrdering(t *testing.T) {
+func TestHigherRIDTranslatorExternalsStrictOrdering(t *testing.T) {
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
 	a0 := area("0.0.0.0")
@@ -116,26 +116,23 @@ func TestHigherRIDType5LSIDExistsStrictOrdering(t *testing.T) {
 	if !db.Install(a0, externalLSA(t, rid("5.5.5.5"), types.InitialSequenceNumber)) {
 		t.Fatalf("install external adv 5.5.5.5 rejected")
 	}
-	target := lsid("203.0.113.0") // the fixed Link State ID externalLSA advertises
+	both := []types.RouterID{rid("2.2.2.2"), rid("5.5.5.5")}
 
-	// A router lower than 5.5.5.5 sees a strictly-higher-RID Type 5 -> true.
-	if !db.HigherRIDType5LSIDExists(types.LSTypeASExternal, target, rid("3.3.3.3")) {
-		t.Fatalf("HigherRIDType5LSIDExists(self 3.3.3.3) = false, want true (5.5.5.5 is higher)")
+	// A router lower than 5.5.5.5 but above 2.2.2.2 sees exactly the 5.5.5.5 Type 5.
+	got := db.HigherRIDTranslatorExternals(types.LSTypeASExternal, both, rid("3.3.3.3"))
+	if len(got) != 1 || got[0].Header.AdvertisingRouter != rid("5.5.5.5") {
+		t.Fatalf("self 3.3.3.3: got %d LSAs, want only 5.5.5.5's", len(got))
 	}
-	// self == the highest advertiser: strictly-greater, so no higher exists -> false.
-	if db.HigherRIDType5LSIDExists(types.LSTypeASExternal, target, rid("5.5.5.5")) {
-		t.Fatalf("HigherRIDType5LSIDExists(self 5.5.5.5) = true, want false (no strictly higher RID)")
+	// self == the highest advertiser: strictly-greater, so nothing is returned.
+	if got := db.HigherRIDTranslatorExternals(types.LSTypeASExternal, both, rid("5.5.5.5")); len(got) != 0 {
+		t.Fatalf("self 5.5.5.5: got %d LSAs, want 0 (no strictly higher RID)", len(got))
 	}
-	// self above every advertiser -> false.
-	if db.HigherRIDType5LSIDExists(types.LSTypeASExternal, target, rid("9.9.9.9")) {
-		t.Fatalf("HigherRIDType5LSIDExists(self 9.9.9.9) = true, want false")
+	// A higher-RID advertiser that is not a translator is not counted.
+	if got := db.HigherRIDTranslatorExternals(types.LSTypeASExternal, []types.RouterID{rid("2.2.2.2")}, rid("1.1.1.1")); len(got) != 1 {
+		t.Fatalf("translators {2.2.2.2}: got %d LSAs, want 1", len(got))
 	}
-	// A different Link State ID has no matching Type 5 -> false.
-	if db.HigherRIDType5LSIDExists(types.LSTypeASExternal, lsid("198.51.100.0"), rid("3.3.3.3")) {
-		t.Fatalf("HigherRIDType5LSIDExists(other LSID) = true, want false")
-	}
-	// A non-external LS type does not match the AS-External entries -> false.
-	if db.HigherRIDType5LSIDExists(types.LSTypeRouter, target, rid("3.3.3.3")) {
-		t.Fatalf("HigherRIDType5LSIDExists(router type) = true, want false")
+	// A non-external LS type does not match the AS-External entries.
+	if got := db.HigherRIDTranslatorExternals(types.LSTypeRouter, both, rid("1.1.1.1")); len(got) != 0 {
+		t.Fatalf("router type: got %d LSAs, want 0", len(got))
 	}
 }

@@ -11,6 +11,7 @@
 package ospf
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 
@@ -312,16 +313,20 @@ type srRemoteCapabilities struct {
 }
 
 // srDecodeRemoteCapabilities extracts SR capabilities from an RI LSA body for the given
-// address family. Ranges are concatenated in advertised order (RFC 8665 §3.2). A
-// malformed range TLV (truncated, or a reserved/out-of-space label range rejected by the
-// RFC 8665 §10 / RFC 8666 §11 receive hardening) is skipped and counted, not fatal, so
-// one bad range does not discard the rest nor source a reserved label.
+// address family. Ranges are concatenated in advertised order (RFC 8665 §3.2).
+//
+// Two kinds of bad TLV are told apart. A TLV whose length is invalid for its layout
+// (sr.ErrLength) makes the whole LSA malformed, so no capability from it is applied and
+// the empty result is returned. A range TLV of valid length whose content is rejected (a
+// zero Range Size, other than one SID/Label sub-TLV, or the RFC 8665 §10 / RFC 8666 §11
+// reserved or out-of-space label hardening) is that TLV alone ignored, so it cannot source
+// a reserved label and the rest of the LSA still applies. Both are counted.
 func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
-	var caps srRemoteCapabilities
 	tlvs, err := packet.DecodeRITLVStream(body)
 	if err != nil {
-		return caps
+		return srRemoteCapabilities{}
 	}
+	var caps srRemoteCapabilities
 	var srgb, srlb []sr.LabelRange
 	for _, tlv := range tlvs {
 		switch tlv.Type {
@@ -335,27 +340,42 @@ func srDecodeRemoteCapabilities(af string, body []byte) srRemoteCapabilities {
 				caps.Algorithms = algos
 			}
 		case sr.V4TypeSRGB:
-			if r, rerr := sr.DecodeRangeValue(tlv.Value); rerr == nil {
-				srgb = append(srgb, r)
-			} else {
+			r, rerr := sr.DecodeRangeValue(tlv.Value)
+			if rerr != nil {
 				srMetrics.Load().observeMalformed(af, "srgb")
+				// RFC 8665 Section 9: "if the length is invalid, the LSA in which it is
+				// advertised is considered malformed and MUST be ignored."
+				if errors.Is(rerr, sr.ErrLength) {
+					return srRemoteCapabilities{}
+				}
+				continue
 			}
+			srgb = append(srgb, r)
 		case sr.V4TypeSRLB:
-			if r, rerr := sr.DecodeRangeValue(tlv.Value); rerr == nil {
-				srlb = append(srlb, r)
-			} else {
+			r, rerr := sr.DecodeRangeValue(tlv.Value)
+			if rerr != nil {
 				srMetrics.Load().observeMalformed(af, "srlb")
+				// RFC 8665 Section 9
+				if errors.Is(rerr, sr.ErrLength) {
+					return srRemoteCapabilities{}
+				}
+				continue
 			}
+			srlb = append(srlb, r)
 		case sr.V4TypeSRMS:
+			pref, perr := sr.DecodeSRMSValue(tlv.Value)
+			if perr != nil {
+				// RFC 8665 Section 9: DecodeSRMSValue fails only on an invalid length.
+				srMetrics.Load().observeMalformed(af, "srms")
+				return srRemoteCapabilities{}
+			}
 			// RFC 8665 §3.4: the FIRST SRMS Preference TLV occurrence in the RI Opaque LSA
 			// is used; subsequent instances are ignored.
 			if caps.HasSRMS {
 				continue
 			}
-			if pref, perr := sr.DecodeSRMSValue(tlv.Value); perr == nil {
-				caps.HasSRMS = true
-				caps.SRMSPref = pref
-			}
+			caps.HasSRMS = true
+			caps.SRMSPref = pref
 		}
 	}
 	caps.SRGB = sr.NewSRGB(srgb)

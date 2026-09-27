@@ -26,26 +26,36 @@
       "verdict": "weak"
     },
     "RFC3623-5-2": {
-      "note": "Not wrong: TestUnplannedGraceLSAFloodsToAllSPFRouters asserts a real clause (a grace-LSA flooded in an LSU goes to 224.0.0.5; floodDestination returning AllDRouters would go red) and does not assert the defect as correct. But it builds a DR-state interface with a Full opaque-capable neighbor, the one case where the destination is AllSPFRouters anyway. Unproven clauses: sent before any Hello (asserted nowhere); flooded to AllSPFRouters when the router does not know its DR state. The code is defective there (see findings): floodLink (lsdb/link_scope.go) sends nothing with no flood-eligible neighbor, the unplanned-restart case, and floodDestination (lsdb/flooding.go) returns AllDRouters on a broadcast interface not in DR/Backup. The single-polarity marker's claim that standard flooding delivers the LSA is false for the no-adjacency case. Row carries a passing test of another clause, so weak with the defect in findings rather than {gap}.",
+      "code": {
+        "internal/plugins/ospf/lsdb/link_scope.go::floodLink": "8a4cfafc2fa299f1"
+      },
+      "note": "floodLink sends a Grace-LSA originated in restart (isGraceLSA, selfFlushSuppressed) to AllSPFRouters on every interface type (allSPFRoutersFor). TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts a broadcast DROther interface sends it to 224.0.0.5, not AllDRouters. Weak: the 'before any Hello' ordering clause is not asserted by this unit.",
       "requirement_sha": "434fdf3482aa1635",
       "tests": {
+        "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "c18573d417c1737d",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAFloodsToAllSPFRouters": "14aadc44b2fc97ad"
       },
       "units": {
+        "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "6dfb2571d64862cc",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAFloodsToAllSPFRouters": "b63d6d5f7742569a"
       },
       "verdict": "weak"
     },
     "RFC3623-5-3": {
-      "note": "Verdict wrong, not unimplemented: the gate refuses a {gap} annotation on a tagged row, and the tagged unit proves a neighbouring property. The RFC sends the grace-LSAs out all interfaces in Link State Updates even with no adjacencies. grOriginateGraceLSAs installs one per active interface, but floodLink (lsdb/link_scope.go) returns without sending when no neighbor is flood-eligible, which is the unplanned-restart case. TestUnplannedGraceLSAPerActiveInterface asserts LSDB installation per interface (a neighbouring property) and never observes a transmitted packet; its engine has no neighbors, so it would stay green whatever is sent. The single-polarity marker's claim that standard LSU flooding delivers the LSA is false for the no-adjacency case. Code: internal/plugins/ospf/lsdb/link_scope.go::floodLink, internal/plugins/ospf/gr_restarter.go::grOriginateGraceLSAs.",
+      "code": {
+        "internal/plugins/ospf/lsdb/link_scope.go::floodLink": "8a4cfafc2fa299f1"
+      },
+      "note": "floodLink sends a Grace-LSA originated in restart in a Link State Update even when no neighbor qualified for the retransmit list. TestRFC3623RestartGraceLSAFloodedToAllSPFRouters asserts one send with no neighbor while restarting and none outside restart; red observed with the restart branch disabled (scratch DF-OSPF-B/red-gr.log).",
       "requirement_sha": "f5f95d9986f91745",
       "tests": {
+        "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "c18573d417c1737d",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAPerActiveInterface": "14aadc44b2fc97ad"
       },
       "units": {
+        "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "6dfb2571d64862cc",
         "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAPerActiveInterface": "0d390a71680433a5"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
     },
     "RFC3623-5-4": {
       "note": "The obligation is on the reason carried IN the grace-LSAs. The tagged unit asserts grUnplannedReason() and e.gr.reason are 0 or 3, but never decodes an originated grace-LSA (the engine in TestUnplannedGraceBeforeHello has no running interface, so none is originated). maybeUnplannedRestart passing another reason to grOriginateGraceLSAs than it records keeps the unit green.",

@@ -886,6 +886,10 @@ func (a *bgplsArea) extendedV2Link(v *ospflsdb.NativeLSAView, views []ospflsdb.N
 	if err != nil || !ext.HasLink {
 		return
 	}
+	// RFC 8665 Section 9: a malformed Extended Link LSA is ignored, so none of it is exported.
+	if srExtLinkLengthInvalid(&ext.Link) {
+		return
+	}
 	native := packet.RouterLink{Type: ext.Link.LinkType, LinkID: ext.Link.LinkID, LinkData: ext.Link.LinkData}
 	link, ok := a.v2Link(v, &native, views)
 	if !ok {
@@ -974,6 +978,10 @@ func (a *bgplsArea) extendedV2Prefix(v *ospflsdb.NativeLSAView, id linkstateeven
 	if err != nil {
 		return
 	}
+	// RFC 8665 Section 9: a malformed Extended Prefix LSA is ignored, so none of it is exported.
+	if srExtPrefixLengthInvalid(&ext) {
+		return
+	}
 	for _, native := range ext.Prefixes {
 		if native.AF != packet.ExtPrefixAFIPv4Unicast || native.PrefixLength > 32 {
 			continue
@@ -1011,8 +1019,8 @@ func (a *bgplsArea) extendedV2Prefix(v *ospflsdb.NativeLSAView, id linkstateeven
 			}
 		}
 	}
-	// RFC 8665 range values have no exported decoder; the container decoder
-	// above validates framing, then the existing Prefix-SID codec owns values.
+	// srExtPrefixLengthInvalid above already refused a range of invalid length; this loop
+	// reads the fixed fields, and the Prefix-SID codec owns the SID values.
 	for _, r := range ext.Ranges {
 		if len(r.Value) < 12 || r.Value[0] > 32 || r.Value[1] != 0 {
 			continue
@@ -1122,6 +1130,10 @@ func (a *bgplsArea) extendedV3(v *ospflsdb.NativeLSAView, id linkstateevents.Nod
 	}
 	ext, err := v3packet.DecodeExtendedLSABody(v.Body[offset:])
 	if err != nil {
+		return
+	}
+	// RFC 8666 Section 10: a malformed Extended-LSA is ignored, so none of it is exported.
+	if srV3ExtendedLengthInvalid(ext.TLVs) {
 		return
 	}
 	if typ == v3types.LSTypeERouter {

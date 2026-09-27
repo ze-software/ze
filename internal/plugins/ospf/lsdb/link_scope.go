@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -284,6 +285,7 @@ func (d *LSDB) floodLink(ifaceName string, area types.AreaID, key types.LSAKey) 
 		return
 	}
 	raw := lsa.RawBytes
+	restartGrace := isGraceLSA(key) && d.selfFlushSuppressed()
 	queued := false
 	for _, nbr := range iface.Neighbors {
 		if !isFloodEligibleNeighborState(nbr.State) || nbr.RouterID == (types.RouterID{}) {
@@ -300,10 +302,39 @@ func (d *LSDB) floodLink(ifaceName string, area types.AreaID, key types.LSAKey) 
 			queued = true
 		}
 	}
+	if restartGrace {
+		// RFC 3623 Section 5: "The grace-LSAs are encapsulated in Link State Update Packets
+		// and sent out to all interfaces, even though the restarted router has no adjacencies
+		// and no knowledge of previous adjacencies." and "On broadcast networks, this LSA must
+		// be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting
+		// router is not aware of its previous DR state."
+		d.sendLSUpdate(iface.Name, allSPFRoutersFor(iface), area, []packet.LSA{lsa})
+		return
+	}
 	if !queued {
 		return
 	}
 	d.sendLSUpdate(iface.Name, floodDestination(iface), area, []packet.LSA{lsa})
+}
+
+// isGraceLSA reports whether key names a Grace-LSA: the OSPFv2 Type-9 opaque LSA of opaque
+// type 3 (RFC 3623 Appendix A) or the OSPFv3 Grace-LSA (RFC 5187 Section 2.1).
+func isGraceLSA(key types.LSAKey) bool {
+	if key.Type == types.LSTypeGraceV6 {
+		return true
+	}
+	if key.Type != types.LSTypeOpaqueLink {
+		return false
+	}
+	return packet.OpaqueTypeOf(key.LinkStateID) == packet.GraceOpaqueType
+}
+
+// allSPFRoutersFor returns the AllSPFRouters group of the interface's address family.
+func allSPFRoutersFor(iface InterfaceInfo) netip.Addr {
+	if iface.IsV6 {
+		return allSPFRoutersV6
+	}
+	return transport.AllSPFRouters
 }
 
 func (d *LSDB) deletePurgedLinkIfAcked(iface string, area types.AreaID, key types.LSAKey) {

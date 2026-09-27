@@ -51,10 +51,14 @@ extended 64-bit cryptographic sequence).
   every key whose window has closed (refusing stale beats authenticating a
   neighbor the operator retired).
   <!-- source: internal/plugins/ospf/auth_keystore.go -- resolvedKey.acceptsAt, authStore.verify -->
-- **Replay rejects an EQUAL sequence, not only a lower one.** RFC 7474 Section 2
-  requires the received sequence to be strictly greater than the last accepted.
-  The send counter increments per packet, so an equal sequence is always a
-  duplicate.
+- **Replay treats an EQUAL sequence by AuType.** On AuType 3 (extended
+  sequence) RFC 7474 Section 2 requires the received sequence to be strictly
+  greater than the last accepted, so an equal sequence is a replay. On AuType 2
+  RFC 2328 Section D.4.3 discards only a sequence "less than" the recorded one,
+  and Section D.3 calls the sequence "non-decreasing", so an equal sequence is
+  accepted. RFC 7474 defines its rule for its own AuType and leaves AuType 2
+  unchanged.
+  <!-- source: internal/plugins/ospf/auth_keystore.go -- replayedSequence -->
 - **The replay high-water mark is per OSPF PACKET TYPE**, not per neighbor and
   key-id alone. A single slot drops a legitimately reordered packet of another
   type as a false replay. Exercise an equal sequence AND a second packet type.

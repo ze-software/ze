@@ -253,14 +253,16 @@ func TestRFC8666DuplicatePrefixSIDsAllIgnored(t *testing.T) {
 // first and programmed into the forwarding plane.
 //
 // Nothing is hand-injected: the Duplicate verdict comes from the detector
-// (internal/plugins/ospf/sr_reception_v6.go:163-178). Both originators advertise algorithm
+// (srPrefixSIDScope.resolve, internal/plugins/ospf/sr_malformed.go). Both originators advertise algorithm
 // 0 and an SRGB wide enough for either index, so the duplicate verdict is the only thing
 // standing between this prefix and an installed push entry -- remove it and both
 // assertions below redden.
 //
-// RFC requirement: RFC8666-6-7 positive -- when a prefix carries more than one (differing)
-// Prefix-SID for the same topology and algorithm, ALL of them are ignored: no forwarding
-// entry is installed for that prefix.
+// This is Ze's cross-router policy, which RFC 8666 does not state: when DIFFERENT routers
+// bind DIFFERENT SIDs to one prefix, topology and algorithm, there is no binding to
+// prefer, so all of them are ignored and no forwarding entry is installed for that
+// prefix. The RFC's own rule, per advertising router, is proven by
+// TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored.
 func TestRFC8666DuplicatePrefixSIDsDetectedAndIgnored(t *testing.T) {
 	eng := newV6RIEngine(t)
 	loop := netip.MustParsePrefix("2001:db8::5/128")

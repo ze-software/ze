@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc3623",
+  "records": [
+    {
+      "rid": "RFC3623-5-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters",
+      "unit-sha": "8ed37536a5700eef",
+      "claim-sha": "22ad6912b07b89b2",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/link_scope.go::floodLink",
+      "producer-sha": "788557d47c29db25",
+      "break": "body of floodLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3623-5-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters",
+      "unit-sha": "8ed37536a5700eef",
+      "claim-sha": "0d2f42845f36255a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/link_scope.go::floodLink",
+      "producer-sha": "788557d47c29db25",
+      "break": "body of floodLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

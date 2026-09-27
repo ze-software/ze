@@ -52,12 +52,14 @@ func v6EPrefixHeaderLen(t ospfv3types.LSType) int {
 }
 
 // v6ReceivedPrefixSIDs reads every Extended prefix LSA in the LSDB and returns each
-// Prefix-SID it carries. A malformed body is counted and skipped, never fatal.
+// Prefix-SID it carries, every algorithm included. A malformed body is counted and
+// skipped, never fatal.
 func (e *engine) v6ReceivedPrefixSIDs() []v6ReceivedPrefixSID {
 	if e.lsdb == nil {
 		return nil
 	}
 	var out []v6ReceivedPrefixSID
+	var sids []sr.PrefixSID
 	for _, lt := range v6EPrefixLSTypes {
 		hdr := v6EPrefixHeaderLen(lt)
 		for _, v := range e.lsdb.LSAViewsByType(types.LSType(lt)) {
@@ -69,78 +71,104 @@ func (e *engine) v6ReceivedPrefixSIDs() []v6ReceivedPrefixSID {
 				srMetrics.Load().observeMalformed(interfaceFamilyIPv6, "e-prefix")
 				continue
 			}
+			// RFC 8666 Section 10: "if the length is invalid, the LSA in which it is
+			// advertised is considered malformed and MUST be ignored."
+			if srV3ExtendedLengthInvalid(ext.TLVs) {
+				srMetrics.Load().observeMalformed(interfaceFamilyIPv6, "prefix-sid")
+				continue
+			}
 			for i := range ext.TLVs {
-				pfx, ps, ok := v6PrefixSIDFromTLV(ext.TLVs[i])
-				if !ok {
-					continue
+				var pfx netip.Prefix
+				pfx, sids = v6PrefixSIDsFromTLV(ext.TLVs[i], sids[:0])
+				for _, ps := range sids {
+					out = append(out, v6ReceivedPrefixSID{
+						Prefix:     pfx,
+						SID:        ps,
+						Originator: v.AdvertisingRouter,
+						Area:       v.Area,
+						LSType:     lt,
+					})
 				}
-				out = append(out, v6ReceivedPrefixSID{
-					Prefix:     pfx,
-					SID:        ps,
-					Originator: v.AdvertisingRouter,
-					Area:       v.Area,
-					LSType:     lt,
-				})
 			}
 		}
 	}
 	return out
 }
 
-// v6PrefixSIDFromTLV extracts the prefix and its Prefix-SID from one top-level Extended-LSA
-// TLV, honoring both the Intra/Inter/External Prefix TLV (nested Prefix-SID sub-TLV) and
-// the Extended Prefix Range TLV (starting Prefix-SID). A TLV that carries no Prefix-SID, or
-// is malformed, returns false without panicking.
-func v6PrefixSIDFromTLV(tlv ospfv3packet.ExtendedTLV) (netip.Prefix, sr.PrefixSID, bool) {
+// v6PrefixSIDsFromTLV appends to sids every Prefix-SID one top-level Extended-LSA TLV
+// carries and returns the TLV's prefix, honoring both the Intra/Inter/External Prefix TLV
+// (nested Prefix-SID sub-TLVs) and the Extended Prefix Range TLV (starting Prefix-SIDs).
+// A TLV that carries no Prefix-SID, or is malformed, appends nothing and never panics.
+// A Prefix-SID sub-TLV MAY appear more than once, one per algorithm, so every one is kept
+// for the duplicate judgement (srPrefixSIDTable) rather than the first one winning.
+func v6PrefixSIDsFromTLV(tlv ospfv3packet.ExtendedTLV, sids []sr.PrefixSID) (netip.Prefix, []sr.PrefixSID) {
 	switch tlv.Type {
 	case extTLVExtPrefixRange:
 		rng, err := sr.DecodeExtPrefixRangeValueV6(tlv.Value)
-		if err != nil || rng.AF != 1 || len(rng.PrefixSIDs) == 0 {
-			return netip.Prefix{}, sr.PrefixSID{}, false
+		if err != nil {
+			return netip.Prefix{}, sids
+		}
+		if rng.AF != 1 {
+			return netip.Prefix{}, sids // RFC 8666 Section 5: AF 1 is IPv6 unicast
 		}
 		pfx, ok := v6PrefixFromWords(rng.PrefixLength, rng.AddressV6)
 		if !ok {
-			return netip.Prefix{}, sr.PrefixSID{}, false
+			return netip.Prefix{}, sids
 		}
-		return pfx, rng.PrefixSIDs[0], true
+		return pfx, append(sids, rng.PrefixSIDs...)
 	case extTLVIntraAreaPrefix, extTLVInterAreaPrefix, extTLVExternalPrefix:
-		return v6PrefixSIDFromPrefixTLV(tlv.Value)
+		return v6PrefixSIDsFromPrefixTLV(tlv.Value, sids)
 	default:
-		return netip.Prefix{}, sr.PrefixSID{}, false
+		return netip.Prefix{}, sids
 	}
 }
 
-// v6PrefixSIDFromPrefixTLV parses an RFC 8362 §3.11 Intra/Inter/External Prefix TLV value:
+// v6PrefixSIDsFromPrefixTLV parses an RFC 8362 §3.11 Intra/Inter/External Prefix TLV value:
 // Metric(4) PrefixLength(1) PrefixOptions(1) Reserved(2) AddressPrefix(words) Sub-TLVs, and
-// returns the prefix plus the first Prefix-SID sub-TLV (type 4). Bound-checked throughout.
-func v6PrefixSIDFromPrefixTLV(value []byte) (netip.Prefix, sr.PrefixSID, bool) {
+// appends every Prefix-SID sub-TLV (type 4) to sids. Bound-checked throughout. A Prefix-SID
+// with an invalid V/L-Flag combination is dropped alone (RFC 8666 Section 6: "any SID
+// Advertisement received with an invalid setting for V- and L-Flags MUST be ignored").
+func v6PrefixSIDsFromPrefixTLV(value []byte, sids []sr.PrefixSID) (netip.Prefix, []sr.PrefixSID) {
 	if len(value) < 8 {
-		return netip.Prefix{}, sr.PrefixSID{}, false
+		return netip.Prefix{}, sids
 	}
 	plen := value[4]
 	words := v6PrefixTLVWordBytes(plen)
 	if len(value) < 8+words {
-		return netip.Prefix{}, sr.PrefixSID{}, false
+		return netip.Prefix{}, sids
 	}
 	pfx, ok := v6PrefixFromWords(plen, value[8:8+words])
 	if !ok {
-		return netip.Prefix{}, sr.PrefixSID{}, false
+		return netip.Prefix{}, sids
+	}
+	for _, sub := range v6PrefixTLVSubTLVs(value) {
+		if sub.Type != sr.V6TypePrefixSID {
+			continue
+		}
+		ps, err := sr.DecodePrefixSIDValueV6(sub.Value)
+		if err != nil {
+			continue
+		}
+		sids = append(sids, ps)
+	}
+	return pfx, sids
+}
+
+// v6PrefixTLVSubTLVs returns the sub-TLVs of an Intra/Inter/External Prefix TLV value, or
+// nil when the fixed part or the sub-TLV framing is malformed.
+func v6PrefixTLVSubTLVs(value []byte) []ospfv3packet.ExtendedTLV {
+	if len(value) < 8 {
+		return nil
+	}
+	words := v6PrefixTLVWordBytes(value[4])
+	if len(value) < 8+words {
+		return nil
 	}
 	subs, err := ospfv3packet.SubTLVsAt(value, 8+words)
 	if err != nil {
-		return netip.Prefix{}, sr.PrefixSID{}, false
+		return nil
 	}
-	for i := range subs {
-		if subs[i].Type != sr.V6TypePrefixSID {
-			continue
-		}
-		ps, derr := sr.DecodePrefixSIDValueV6(subs[i].Value)
-		if derr != nil {
-			return netip.Prefix{}, sr.PrefixSID{}, false
-		}
-		return pfx, ps, true
-	}
-	return netip.Prefix{}, sr.PrefixSID{}, false
+	return subs
 }
 
 // v6PrefixFromWords reconstructs an IPv6 netip.Prefix from a padded ((PrefixLength+31)/32)
@@ -157,28 +185,12 @@ func v6PrefixFromWords(prefixLen uint8, words []byte) (netip.Prefix, bool) {
 }
 
 // srRemotePrefixSIDsV6 aggregates the received IPv6 Prefix-SIDs into the shared install
-// map keyed by prefix. Two advertisements of the same prefix carrying the SAME SID (an ABR
-// re-advertising an intra-area Prefix-SID inter-area, RFC 8666 §8.2) are not a conflict;
-// two DIFFERENT SIDs for one prefix are a duplicate and all are ignored (RFC 8666 §6).
+// map keyed by prefix. The duplicate judgement is per prefix, topology and algorithm,
+// and per advertising router in each area (srPrefixSIDScope.resolve, RFC 8666 Section 6).
 func (e *engine) srRemotePrefixSIDsV6() map[netip.Prefix]srRemotePrefixSID {
-	out := make(map[netip.Prefix]srRemotePrefixSID)
+	table := newSRPrefixSIDTable()
 	for _, r := range e.v6ReceivedPrefixSIDs() {
-		ex, seen := out[r.Prefix]
-		if !seen {
-			out[r.Prefix] = srRemotePrefixSID{Originator: r.Originator, SID: r.SID}
-			continue
-		}
-		if ex.Duplicate || v6PrefixSIDEqual(ex.SID, r.SID) {
-			continue
-		}
-		ex.Duplicate = true
-		out[r.Prefix] = ex
+		table.add(srRemotePrefixSID{Originator: r.Originator, SID: r.SID}, r.Prefix, r.Area)
 	}
-	return out
-}
-
-// v6PrefixSIDEqual reports whether two Prefix-SIDs bind the same SID (index/label +
-// algorithm) to a prefix, so a propagated re-advertisement is not mistaken for a conflict.
-func v6PrefixSIDEqual(a, b sr.PrefixSID) bool {
-	return a.IsLabel == b.IsLabel && a.Index == b.Index && a.Label == b.Label && a.Algorithm == b.Algorithm
+	return table.byPrefix()
 }

@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc5286",
+  "records": [
+    {
+      "rid": "RFC5286-x-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric",
+      "unit-sha": "9f025b431746b48e",
+      "claim-sha": "c546f43cfd21b552",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::selectLFA",
+      "producer-sha": "74837ae59fde8918",
+      "break": "body of selectLFA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5286-x-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric",
+      "unit-sha": "9f025b431746b48e",
+      "claim-sha": "34614e83586e485c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::selectLFA",
+      "producer-sha": "74837ae59fde8918",
+      "break": "body of selectLFA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5286-x-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut",
+      "unit-sha": "af295735335e7131",
+      "claim-sha": "2e60dbcf2431d222",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::selectLFA",
+      "producer-sha": "74837ae59fde8918",
+      "break": "body of selectLFA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5286-x-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286AllReverseLinksCostedOut",
+      "unit-sha": "af295735335e7131",
+      "claim-sha": "3e884b3c810d0972",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/spf/lfa.go::selectLFA",
+      "producer-sha": "74837ae59fde8918",
+      "break": "body of selectLFA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

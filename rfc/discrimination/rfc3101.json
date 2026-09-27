@@ -145,6 +145,116 @@
       "break": "body of applyAreaTypePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit",
+      "unit-sha": "e06450e383ec4cee",
+      "claim-sha": "bdb1bd9aba8d8ce5",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit",
+      "unit-sha": "e06450e383ec4cee",
+      "claim-sha": "638bf2706f50f4aa",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/origination.go::NSSABorderEBit",
+      "producer-sha": "b97e562cf30a61a0",
+      "break": "body of NSSABorderEBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
+      "unit-sha": "40af562f3a0b0fff",
+      "claim-sha": "0f2a8180aadb26ab",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/nssa.go::HigherRIDTranslatorExternals",
+      "producer-sha": "f71ef1fbf8760122",
+      "break": "body of HigherRIDTranslatorExternals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists",
+      "unit-sha": "40af562f3a0b0fff",
+      "claim-sha": "08d2fd62b2539051",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/nssa.go::HigherRIDTranslatorExternals",
+      "producer-sha": "f71ef1fbf8760122",
+      "break": "body of HigherRIDTranslatorExternals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
+      "unit-sha": "b4eac4c7c3e6aa35",
+      "claim-sha": "6a5f48bf9dbc519a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5",
+      "producer-sha": "b4644f3e2e29b155",
+      "break": "body of equivalentType5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses",
+      "unit-sha": "b4eac4c7c3e6aa35",
+      "claim-sha": "97d7ad4e7f2f097d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5",
+      "producer-sha": "b4644f3e2e29b155",
+      "break": "body of equivalentType5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5",
+      "unit-sha": "4f681046acf3b04d",
+      "claim-sha": "f30eb1c5da10055c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5",
+      "producer-sha": "b4644f3e2e29b155",
+      "break": "body of equivalentType5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5",
+      "unit-sha": "4f681046acf3b04d",
+      "claim-sha": "5255108cd85efb13",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5",
+      "producer-sha": "b4644f3e2e29b155",
+      "break": "body of equivalentType5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6",
+      "unit-sha": "ef59a5ac8bad23dd",
+      "claim-sha": "e4c732e0440f1403",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5V6",
+      "producer-sha": "db333c7c23617694",
+      "break": "body of equivalentType5V6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6",
+      "unit-sha": "ef59a5ac8bad23dd",
+      "claim-sha": "bb58bc4b30700c7e",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::equivalentType5V6",
+      "producer-sha": "db333c7c23617694",
+      "break": "body of equivalentType5V6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC3101-x-4",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NSSAAreaAcceptsType7",

@@ -51,7 +51,7 @@ func TestOSPFv6OriginateExternal(t *testing.T) {
 	}
 
 	// The Router-LSA must now carry the E-bit (this router is an ASBR).
-	h, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, nil, false, false, false, false)
+	h, ok := e.v6OriginateRouter(types.BackboneArea, router, ospfv3types.OptV6|ospfv3types.OptR, nil, false, false, false, false, false)
 	if !ok {
 		t.Fatal("v6OriginateRouter returned false")
 	}

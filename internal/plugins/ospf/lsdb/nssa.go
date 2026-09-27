@@ -5,6 +5,7 @@ package lsdb
 
 import (
 	"bytes"
+	"slices"
 
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -75,47 +76,43 @@ func (d *LSDB) selfOriginatesType5(network [4]byte, router types.RouterID) bool 
 	return e != nil && e.self && !e.purged
 }
 
-// HigherRIDType5Exists reports whether a non-purged Type 5 AS-External LSA for network is
-// advertised by some router with a Router ID strictly greater than self. RFC 3101 §3.6: a
-// translator must NOT translate a Type 7 when an equivalent Type 5 from a higher-Router-ID
-// translator already exists, so only the highest-Router-ID translator injects the Type 5 and
-// no duplicate is produced (including while a deposed translator's stability grace overlaps
-// the newly-elected one).
-func (d *LSDB) HigherRIDType5Exists(network [4]byte, self types.RouterID) bool {
-	lsid := types.LinkStateID(network)
+// HigherRIDTranslatorExternals returns every non-purged AS-External LSA of type typ that a
+// router in translators, with a Router ID strictly greater than self, advertises. It serves
+// the translator-side test of RFC 3101 Section 3.2 step (2): a Type-5 is generated when "the
+// calculating router has the highest router ID amongst NSSA translators that have originated a
+// functionally equivalent Type-5 LSA (i.e. same destination, cost and non-zero forwarding
+// address)". The caller judges equivalence, because OSPFv2 carries the destination in the Link
+// State ID and Network Mask while OSPFv3 carries it in the body's prefix. translators MUST hold
+// only the NSSA's border routers: a Type-5 from any other router says nothing about which
+// translator yields.
+func (d *LSDB) HigherRIDTranslatorExternals(typ types.LSType, translators []types.RouterID, self types.RouterID) []packet.LSA {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	if d.asExternal == nil {
-		return false
+		return nil
 	}
+	now := d.now()
+	var externals []packet.LSA
 	for key, e := range d.asExternal.entries {
-		if key.Type != types.LSTypeASExternal || key.LinkStateID != lsid || e.purged {
+		if key.Type != typ {
 			continue
 		}
-		if bytes.Compare(key.AdvertisingRouter[:], self[:]) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// HigherRIDType5LSIDExists is the OSPFv3 counterpart of HigherRIDType5Exists: the
-// AS-External Link State ID is an arbitrary 32-bit value rather than an IPv4 network.
-func (d *LSDB) HigherRIDType5LSIDExists(typ types.LSType, lsid types.LinkStateID, self types.RouterID) bool {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	if d.asExternal == nil {
-		return false
-	}
-	for key, e := range d.asExternal.entries {
-		if key.Type != typ || key.LinkStateID != lsid || e.purged {
+		if e.purged {
 			continue
 		}
-		if bytes.Compare(key.AdvertisingRouter[:], self[:]) > 0 {
-			return true
+		if bytes.Compare(key.AdvertisingRouter[:], self[:]) <= 0 {
+			continue
 		}
+		if !slices.Contains(translators, key.AdvertisingRouter) {
+			continue
+		}
+		lsa, ok := e.LSA(now)
+		if !ok {
+			continue // a stored entry shorter than its header is not an LSA to compare
+		}
+		externals = append(externals, lsa)
 	}
-	return false
+	return externals
 }
 
 // PurgeNSSA MaxAge-purges this router's self-originated OSPFv2 Type 7 for network in the

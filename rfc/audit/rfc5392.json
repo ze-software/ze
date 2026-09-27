@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "requirements": {
     "RFC5392-3.2.1-1": {
       "note": "Forbidden: a Type-6 Inter-AS-TE-v2 Link TLV that carries the Link ID sub-TLV (type 2). Red on it: TestInterAsTEOriginateScopePolicy asserts `if l.HasLinkID { t.Fatalf }` on the Link TLV teOriginateType6 emits, for both area and AS scope. Negative polarity: TestTEReceiveMalformedNoEntry feeds a type-6 Link TLV that is otherwise valid (Link Type, Remote AS, IPv4 Remote ASBR ID) plus a Link ID and asserts no TED entry (validateReceivedTELink rejects l.HasLinkID for InterAsTEOpaqueType).",
@@ -60,16 +60,33 @@
       },
       "verdict": "weak"
     },
-    "RFC5392-4-2": {
-      "note": "The quoted sentence forbids exchanging Hellos over the inter-AS link and forming an OSPF adjacency on it. The tagged unit TestInterASTEOriginatesWithoutNeighbor proves a neighbouring property: teOriginateType6 originates the inter-AS Link LSA from config with an empty topology. No assertion goes red if ze sends Hellos on, or forms an adjacency over, the interface carrying the inter-as block (the fixture puts inter-as on eth0, a point-to-point OSPF interface in area 0, and ze has no guard making that interface passive, per the row's own marker, te_config.go:45-53).",
-      "requirement_sha": "d27f7a0b44d708b1",
+    "RFC5392-4-1": {
+      "code": {},
+      "note": "Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). parseInterface (config.go) forces Passive on an interface carrying an inter-as block, and activeInterfaces, the only set that runs Hellos, excludes passive interfaces. The negative TestRFC5392InterASInterfaceIsPassive asserts an inter-as interface without a passive leaf is passive and not active, with an intra-AS TE control that stays active. The unit reads the config decision, not a Hello on a wire. REV-OSPF independent re-audit 2026-09-27: kept enforced. RFC 5392 Section 4: 'Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed.' Forbidden: an inter-AS interface that runs Hellos; the assertion `!ic.Passive || active` goes red when parseInterface leaves it active, with an intra-AS TE control. The runtime step from Passive to no socket is openConfiguredInterface (instance.go), shared by every passive interface and not re-proven here.",
+      "requirement_sha": "8859820e1c7b85f9",
       "tests": {
+        "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
         "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
       },
       "units": {
+        "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
         "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
       },
-      "verdict": "wrong"
+      "verdict": "enforced"
+    },
+    "RFC5392-4-2": {
+      "code": {},
+      "note": "Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). Same producer as RFC5392-4-1: the forced-passive inter-AS interface is not in activeInterfaces, so no neighbor FSM runs and no adjacency forms. The negative TestRFC5392InterASInterfaceIsPassive now carries the rule; the positive TestInterASTEOriginatesWithoutNeighbor only shows origination needs no neighbor. REV-OSPF independent re-audit 2026-09-27: kept enforced on the same producer and assertion as RFC5392-4-1: no socket is opened on a passive interface, so no neighbor FSM and no adjacency.",
+      "requirement_sha": "3c3921bb4f22f238",
+      "tests": {
+        "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
+        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "a7ccaac6dfd4490a"
+      },
+      "units": {
+        "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
+        "internal/plugins/ospf/te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
+      },
+      "verdict": "enforced"
     },
     "RFC5392-4-3": {
       "note": "Forbidden: re-advertising a changed inter-AS TE LSA without any precaution against excessive re-advertisement. Red on it: TestInterASTEReAdvertiseRateLimited (internal/plugins/ospf/lsdb/opaque_originate_test.go) originates a Type-6 LSA, changes its body within MinLSInterval and asserts `ok || h2.Sequence != h1.Sequence` fatal plus no extra LS Update send. Negative polarity: after MinLSInterval the changed body is re-advertised with the next sequence.",

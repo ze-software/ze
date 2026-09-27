@@ -148,10 +148,11 @@ func TestOSPFv3ReceptionDuplicateIgnored(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC8666-6-7 negative -- "multiple Prefix-SIDs for the same prefix" means
-// CONFLICTING ones: two advertisements binding the SAME SID to one prefix (an ABR
-// re-advertising an intra-area Prefix-SID, RFC 8666 §8.2) are not duplicates and are not
-// ignored.
+// TestOSPFv3ReceptionSameSIDNotDuplicate checks Ze's cross-router policy, which RFC 8666
+// does not state: two DIFFERENT routers binding the SAME SID to one prefix (an anycast
+// prefix, or ABRs propagating one Prefix-SID, RFC 8666 Section 8.2) are one binding and it
+// is used. The RFC's own rule, per advertising router, is proven by
+// TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored.
 func TestOSPFv3ReceptionSameSIDNotDuplicate(t *testing.T) {
 	// An ABR re-advertising the SAME SID inter-area is not a conflict (RFC 8666 §8.2).
 	eng := newV6RIEngine(t)

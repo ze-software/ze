@@ -50,7 +50,7 @@ func TestOSPFv3PtMPRouterLSALinks(t *testing.T) {
 	neighbor := types.RouterID{172, 30, 0, 1}
 	area := types.BackboneArea
 	opts := ospfv3types.OptV6 | ospfv3types.OptR
-	h, ok := e.v6OriginateRouter(area, router, opts, []ospflsdb.InterfaceInfo{v6PtMPInterface(area, router, neighbor)}, false, false, false, false)
+	h, ok := e.v6OriginateRouter(area, router, opts, []ospflsdb.InterfaceInfo{v6PtMPInterface(area, router, neighbor)}, false, false, false, false, false)
 	if !ok {
 		t.Fatalf("v6OriginateRouter returned false")
 	}

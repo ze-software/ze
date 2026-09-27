@@ -54,9 +54,12 @@ post-convergence path. This is a COMPUTE, CARRY-THROUGH and INSTALL feature. RFC
   remote-Adj-SID test passed because its fake resolver returned a value for a
   remote router while the production resolver returned none. Drive such a test
   through the REAL resolver over a real LSDB, with negative guards.
-- The LSInfinity gate is dead defensive code: the metric type is 16-bit, so a
-  point-to-point or transit adjacency cost cannot reach the 24-bit LSInfinity on
-  real OSPFv2 input. A costed-out reverse link is already excluded by the
-  two-way check.
+- The Section 3.5 costed-out gate compares against `MaxLinkMetric` (0xffff),
+  the 16-bit Router-LSA value RFC 6987 Section 3 defines, never the 24-bit
+  summary LSInfinity: a link metric cannot reach 0xffffff, so a gate on it
+  would let every costed-out neighbour through. The reverse cost is the
+  minimum over the neighbour's links back to S, so the neighbour is excluded
+  only when every one of them is costed out.
+  <!-- source: internal/plugins/ospf/spf/lfa.go -- selectLFA, MaxLinkMetric, reverseP2PCost -->
 - The Section 3.6 "prefer a primary alternate" rule is inert, because no config
   leaf selects it.

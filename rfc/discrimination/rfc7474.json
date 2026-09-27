@@ -2,6 +2,50 @@
   "rfc": "rfc7474",
   "records": [
     {
+      "rid": "RFC7474-2-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+      "unit-sha": "56fedea51ab8e1cc",
+      "claim-sha": "d29dc82533a4034a",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+      "producer-sha": "72fc611d0163d903",
+      "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+      "unit-sha": "56fedea51ab8e1cc",
+      "claim-sha": "b33700c980b43cb1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+      "producer-sha": "72fc611d0163d903",
+      "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-2-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType",
+      "unit-sha": "1e53f51aeaef1d12",
+      "claim-sha": "4858a98571525990",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+      "producer-sha": "72fc611d0163d903",
+      "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-2-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+      "unit-sha": "56fedea51ab8e1cc",
+      "claim-sha": "d6f88b3803c4db25",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+      "producer-sha": "72fc611d0163d903",
+      "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7474-4-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime",

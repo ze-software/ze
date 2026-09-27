@@ -124,6 +124,11 @@ func (e *engine) srRemoteAdjSID(advRouter, neighbor types.RouterID) (uint32, boo
 		if err != nil || !lsa.HasLink {
 			continue
 		}
+		// RFC 8665 Section 9: an Adj-SID of invalid length condemns the whole LSA, so no
+		// Adj-SID from it (not even a well-formed one) enters a repair stack.
+		if srExtLinkLengthInvalid(&lsa.Link) {
+			continue
+		}
 		link := lsa.Link
 		switch link.LinkType {
 		case packet.RouterLinkTypeP2P:

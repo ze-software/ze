@@ -1,5 +1,9 @@
 {
   "audited": "2026-09-27",
+  "reaudit_history": [
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
+  ],
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
   "requirements": {
     "RFC7474-2-1": {
       "note": "Clause 'occupy the 8 octets following the OSPFv2 packet': TestOSPFAuthType3SequenceTrailer asserts readUint64(signed[plen:]) == seq and len == plen+8+digest, red if misplaced. Clause 'MUST be included when calculating the digest': no 2-1-tagged assertion goes red if Sign and Verify both leave the sequence out of the hash, because the round-trip still verifies and the extra-byte negative in TestOSPFAuthCryptoRejectsExtraTrailerBytes proves framing, not digest coverage. TestOSPFAuthType3SequenceTamperRejected would prove it but carries only the RFC7474-5-1 tag.",
@@ -18,7 +22,7 @@
       "note": "Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey's seq == 0x1234<<32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.",
       "requirement_sha": "0b2c501881fc65b2",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "b26f6281820115a7"
+        "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "4c80cc2db69348dc"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "ebaa89e50b3f4a0f"
@@ -29,7 +33,7 @@
       "note": "TestOSPFAuthESNCounterWrapAdvancesBootCount asserts successive signKey calls return seq then seq+1, red if signKey did not advance the low word. The clause is 'for every OSPF packet sent': no tagged unit drives the send path (transport signer hook engine.signPacket) twice and reads two transmitted packets, so a send path that reused one signed buffer or one signKey result for two packets stays green. The single-polarity marker is fair; the gap is the unit, which tests the counter function rather than the sent packets.",
       "requirement_sha": "2537335bef35e75f",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount": "b26f6281820115a7"
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount": "4c80cc2db69348dc"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount": "bb84b98ca4c9b499"
@@ -40,7 +44,7 @@
       "note": "Forbidden: a sequence reused after a cold restart or a low-word wrap. TestBootCountMonotonicAcrossRestart asserts the persisted boot count strictly increases per load; TestOSPFESNWrapPersistsBeforeRestart asserts the wrapped boot count is persisted (value 2) and a second engine's first packet (3<<32|1) sorts above the first engine's final packet; TestOSPFESNWrapFailureRefusesPackets asserts signPacket emits nothing when the durable increment is unavailable, corrupt, failed, exhausted, missing or non-increasing. Lost storage is the separate RFC7474-8-1 gap.",
       "requirement_sha": "faffa992abce4572",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "b26f6281820115a7",
+        "internal/plugins/ospf/auth_keystore_test.go::TestBootCountMonotonicAcrossRestart": "4c80cc2db69348dc",
         "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapFailureRefusesPackets": "8b78b66a3a8ad8d9",
         "internal/plugins/ospf/state_store_gate_test.go::TestOSPFESNWrapPersistsBeforeRestart": "8b78b66a3a8ad8d9"
       },
@@ -52,27 +56,35 @@
       "verdict": "enforced"
     },
     "RFC7474-2-5": {
-      "note": "Forbidden: accepting a packet whose sequence is not greater than the last accepted of that type from that neighbor. TestOSPFAuthReplay asserts seq 5 and equal seq 11 are rejected as 'replay', but every packet there is AuType 2 (32-bit sequence) signed with AuTypeCryptographic. The obligation governs the AuType 3 64-bit sequence; no tagged assertion goes red if the AuType 3 comparison dropped the boot-count high word (a post-restart packet boot+1|1 would then compare below boot|N).",
+      "code": {
+        "internal/plugins/ospf/auth_keystore.go::replayedSequence": "31dc3c7e2f7049a6"
+      },
+      "note": "Forbidden: accepting a packet whose sequence is not greater than the last accepted of that type from that neighbor. TestOSPFAuthReplayEqualSequenceByAuType drives AuType 3 (AuTypeCryptographicESN, extended-sequence key chain) and asserts an equal sequence is dropped as 'replay' (replayedSequence). TestOSPFAuthReplay asserts lower sequences are dropped, but on AuType 2. Weak: no tagged assertion goes red if the AuType 3 comparison dropped the boot-count high word (a post-restart packet boot+1|1 would then compare below boot|N), and a lower AuType 3 sequence is not asserted.",
       "requirement_sha": "f272c44f4bf140f5",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "b26f6281820115a7",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "b26f6281820115a7"
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "4c80cc2db69348dc"
       },
       "units": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4f7e544242587f85",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "4f7e544242587f85"
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "2dd1d0be6b7e928a",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "2dd1d0be6b7e928a",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "111972d6f0dc3ad4"
       },
       "verdict": "weak"
     },
     "RFC7474-2-6": {
-      "note": "Clause 'of that type': TestOSPFAuthReplayPerType asserts an LS-Ack at seq 5 is accepted after a Hello at 100, and TestOSPFAuthReplay asserts same-type lower and equal sequences are dropped. Clause 'from the sending OSPF neighbor': no unit uses a second neighbor, so a mark shared across neighbors passes every tagged assertion. Both units also use AuType 2 packets rather than the AuType 3 sequence this RFC defines.",
+      "code": {
+        "internal/plugins/ospf/auth_keystore.go::verify": "46375021525b571c"
+      },
+      "note": "Clause 'of that type': TestOSPFAuthReplayPerType asserts an LS-Ack at seq 5 is accepted after a Hello at 100, and TestOSPFAuthReplay asserts a same-type lower sequence is dropped. Clause 'from the sending OSPF neighbor': no unit uses a second neighbor, so a mark shared across neighbors passes every tagged assertion. Both units use AuType 2 packets rather than the AuType 3 sequence this RFC defines.",
       "requirement_sha": "c7ad3459727b7f6c",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "b26f6281820115a7",
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerType": "b26f6281820115a7"
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerType": "4c80cc2db69348dc"
       },
       "units": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "4f7e544242587f85",
+        "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "2dd1d0be6b7e928a",
         "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerType": "94f5296b80c29bff"
       },
       "verdict": "weak"
@@ -94,9 +106,9 @@
       "note": "Forbidden: accepting with a key whose accept window excludes now. TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clock values and asserts 'accept-lifetime' refusal before AcceptLifetimeStart and after AcceptLifetimeEnd and acceptance inside, so both window edges are red on a violation.",
       "requirement_sha": "05a8f06ed60bbc8e",
       "tests": {
-        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "b26f6281820115a7",
-        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "b26f6281820115a7",
-        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "b26f6281820115a7"
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "4c80cc2db69348dc",
+        "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "4c80cc2db69348dc"
       },
       "units": {
         "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "297061b6ca582c78",

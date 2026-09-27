@@ -29,7 +29,7 @@ func reservedCases() []reservedCase {
 		{name: "srms-preference-3.4", value: EncodeSRMSValue(128), reserved: [2]int{1, 4}, read: 0,
 			decode: func(v []byte) (any, error) { return DecodeSRMSValue(v) }},
 		{name: "extended-prefix-range-4", value: EncodeExtPrefixRangeValueV4(24, [4]byte{10, 1, 0, 0}, 4, false, sid), reserved: [2]int{5, 8}, read: 0,
-			decode: func(v []byte) (any, error) { return decodeExtPrefixRangeValueV4(v) }},
+			decode: func(v []byte) (any, error) { return DecodeExtPrefixRangeValueV4(v) }},
 		{name: "prefix-sid-5", value: EncodePrefixSIDValue(sid), reserved: [2]int{1, 2}, read: 3,
 			decode: func(v []byte) (any, error) { return DecodePrefixSIDValue(v) }},
 		{name: "adj-sid-6.1", value: EncodeAdjSIDValue(adj), reserved: [2]int{1, 2}, read: 3,
@@ -51,7 +51,7 @@ func withOctets(v []byte, from, to int, fill byte) []byte {
 // RFC requirement: RFC8665-3.2-14 positive -- for every SR TLV and sub-TLV, a received value
 // whose Reserved field is all ones decodes to exactly the same result as the value with the
 // Reserved field zero, without an error: the decoders never read the Reserved octets
-// (DecodeRangeValue, DecodeSRMSValue, decodeExtPrefixRangeValueV4, DecodePrefixSIDValue,
+// (DecodeRangeValue, DecodeSRMSValue, DecodeExtPrefixRangeValueV4, DecodePrefixSIDValue,
 // DecodeAdjSIDValue, DecodeLANAdjSIDValue, codec.go).
 func TestRFC8665ReservedFieldIgnoredOnReception(t *testing.T) {
 	for _, tc := range reservedCases() {

@@ -343,9 +343,7 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 		rk := replayKey{iface: iface, rid: rid, keyID: k.keyID, pktType: h.Type}
 		s.mu.Lock()
 		last, seen := s.recvSeq[rk]
-		// RFC 7474 §2: the received sequence MUST be strictly greater than the last
-		// accepted; an equal sequence is a replay (the send counter increments per packet).
-		if seen && seq <= last {
+		if seen && replayedSequence(h.AuType, seq, last) {
 			s.mu.Unlock()
 			return "replay", false
 		}
@@ -360,6 +358,23 @@ func (s *authStore) verify(iface string, rid types.RouterID, src [4]byte, wire [
 		return "password-mismatch", false
 	}
 	return "digest-mismatch", false
+}
+
+// replayedSequence reports whether a verified packet's cryptographic sequence number seq
+// is a replay against last, the highest sequence already accepted for the same neighbor,
+// key and packet type. The two cryptographic AuTypes carry different rules.
+func replayedSequence(auType packet.AuType, seq, last uint64) bool {
+	if auType == packet.AuTypeCryptographicESN {
+		// RFC 7474 Section 2: "Upon reception, the sequence number MUST be greater than the
+		// sequence number in the last OSPF packet of that type accepted from the sending OSPF
+		// neighbor. Otherwise, the OSPF packet is considered a replayed packet and dropped."
+		return seq <= last
+	}
+	// RFC 2328 Section D.4.3 (2): "If the cryptographic sequence number found in the OSPF
+	// header (see Figure 18) is less than the cryptographic sequence number recorded in the
+	// sending neighbor's data structure, the OSPF packet is discarded." The AuType 2 sequence
+	// is "non-decreasing" (Section D.3), so an equal sequence is accepted.
+	return seq < last
 }
 
 // resetNeighbor clears the cryptographic receive-sequence high-water marks for neighbor

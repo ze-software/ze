@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5392",
+  "records": [
+    {
+      "rid": "RFC5392-4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive",
+      "unit-sha": "dd671b0e927348a8",
+      "claim-sha": "543f7a35fe26a829",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::parseInterface",
+      "producer-sha": "93829689375c3b17",
+      "break": "body of parseInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5392-4-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive",
+      "unit-sha": "dd671b0e927348a8",
+      "claim-sha": "0887d1821b52bef9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/config.go::parseInterface",
+      "producer-sha": "93829689375c3b17",
+      "break": "body of parseInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

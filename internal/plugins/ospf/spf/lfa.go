@@ -247,6 +247,11 @@ func attachAreaBackups(routes []RouteEntry, idxs []int, area types.AreaID, g *Gr
 	return st
 }
 
+// MaxLinkMetric is the Router-LSA link cost that marks a link costed out.
+// RFC 6987 Section 3: "It is defined to be the 16-bit binary value of all ones: 0xffff."
+// Section 3 of RFC 6987 names this cost MaxLinkMetric.
+const MaxLinkMetric uint64 = 0xffff
+
 // selectLFA runs the RFC 5286 Section 3.6 per-primary selection for the primary
 // next-hop protecting destination vertex v, returning the best loop-free
 // alternate. It returns false when no directly-connected neighbor is loop-free.
@@ -269,9 +274,17 @@ func selectLFA(v VertexID, primary NextHop, primarySet []NextHop, cands []candLi
 		if c.addr == primary.Addr {
 			continue
 		}
-		// RFC 5286 Section 3.5: MUST NOT use an alternate whose link cost or reverse
-		// cost is LSInfinity (a neighbor reachable only over a costed-out link).
-		if c.forwardCost >= LSInfinity || c.reverseCost >= LSInfinity {
+		// RFC 5286 Section 3.5: "a router MUST NOT use an alternate next-hop that is
+		// along a link whose cost or reverse cost is LSInfinity (for OSPF)". A Router-LSA
+		// link metric is 16 bits, so its LSInfinity is MaxLinkMetric (0xffff), never the
+		// 24-bit summary LSInfinity.
+		if c.forwardCost >= MaxLinkMetric {
+			continue
+		}
+		// RFC 5286 Section 3.5: "if all links from router S to a neighbor N_i have a
+		// reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate".
+		// reverseP2PCost carries the minimum over those links.
+		if c.reverseCost >= MaxLinkMetric {
 			continue
 		}
 		sptN := sptByRouter[c.neighbor]

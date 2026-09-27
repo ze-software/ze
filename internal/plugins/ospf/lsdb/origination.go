@@ -83,11 +83,14 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 			opts = byArea[area][0].Options
 		}
 		nt := abr && d.isNSSATranslatorArea(area)
+		// RFC 3101 Section 3.1: an NSSA border router is an ASBR in its non-stub areas
+		// whether or not it originates an external.
+		eBit := asbr || NSSABorderEBit(abr, byArea, activeAreas, area)
 		// RFC 2328 App A.4.2 / section 16.3: set the V-bit in the Router-LSA for a TRANSIT
 		// area (an area a Full virtual link runs through), never in the backbone Router-LSA
 		// that carries the Type-4 virtual link record.
 		vle := fullTransitAreas[area]
-		if _, ok := d.OriginateRouter(OriginInput{AreaID: area, RouterID: router, Options: opts, ABR: abr, ASBR: asbr, VirtualLinkEndpoint: vle, NSSATranslator: nt, MaxMetric: maxMetric, Interfaces: byArea[area]}); ok {
+		if _, ok := d.OriginateRouter(OriginInput{AreaID: area, RouterID: router, Options: opts, ABR: abr, ASBR: eBit, VirtualLinkEndpoint: vle, NSSATranslator: nt, MaxMetric: maxMetric, Interfaces: byArea[area]}); ok {
 			count++
 		}
 		desiredNetworks := make(map[types.LSAKey]struct{})
@@ -836,6 +839,38 @@ func (d *LSDB) handleSelfReceived(area types.AreaID, lsa packet.LSA) bool {
 		d.notifyChange(area)
 	}
 	return true
+}
+
+// NSSABorderEBit reports whether this router's router-LSA for area carries the E-bit
+// because the router is an NSSA border router: an ABR (abr) with an NSSA among its active
+// areas. The bit goes into every attached area that is not a stub area. It is independent
+// of self-originated externals, which set the E-bit on their own (SelfIsASBR). Both the
+// OSPFv2 and the OSPFv3 router-LSA origination call it.
+// RFC 3101 Section 3.1: "All NSSA border routers must set the E-bit in the Type-1
+// router-LSAs of their directly attached non-stub areas, even when they are not
+// translating." The answer is that bit.
+func NSSABorderEBit(abr bool, byArea map[types.AreaID][]InterfaceInfo, activeAreas []types.AreaID, area types.AreaID) bool {
+	if !abr {
+		return false
+	}
+	if interfacesAreaType(byArea[area]) == types.AreaTypeStub {
+		return false
+	}
+	for _, active := range activeAreas {
+		if interfacesAreaType(byArea[active]) == types.AreaTypeNSSA {
+			return true
+		}
+	}
+	return false
+}
+
+// interfacesAreaType returns the configured kind of the area the interfaces belong to.
+// Every interface of one area carries the same kind, so the first answers.
+func interfacesAreaType(ifaces []InterfaceInfo) string {
+	if len(ifaces) == 0 {
+		return types.AreaTypeNormal
+	}
+	return ifaces[0].AreaType
 }
 
 func isAreaBorderRouter(areas []types.AreaID) bool {

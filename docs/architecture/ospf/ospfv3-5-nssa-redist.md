@@ -46,6 +46,13 @@ inject nothing.
   OSPFv3 helper consult; production leaves it nil and reads the live interface.
   <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- forwardingAddressForAF -->
   <!-- source: internal/plugins/ospf/redist_wiring.go -- nssaIPv4Address -->
+- **The translator carries only a global forwarding address.** A translated
+  Type-5 copies the Type-7's forwarding address (RFC 3101 Section 3.2), and
+  RFC 5340 Appendix A.4.7 forbids a link-local or unspecified one. A received
+  NSSA-LSA whose address fails the same eligibility rule local origination uses
+  is not translated, so a peer's `fe80::/10` address never reaches the backbone.
+  <!-- source: internal/plugins/ospf/nssa.go -- translateNSSAV6 -->
+  <!-- source: internal/plugins/ospf/interface_addr.go -- v6UsableForwardingAddress -->
 - **The scope decision lives in the engine**, so the redistribution framework
   stays address-family generic. An ASBR in an NSSA injects Type-7, and a
   normal-area ASBR keeps Type-5 AS-wide.

@@ -124,7 +124,9 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 		if len(ifaces) > 0 {
 			opts = neutralToV6Options(ifaces[0].Options)
 		}
-		if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, maxMetric, abr, v6NSSATranslatorArea(cfg, area) && abr, fullTransitAreas[area]); ok {
+		// RFC 3101 Section 3.1 (RFC 5340 Section 4.4.3.7 carries it to OSPFv3)
+		nssaBorderE := ospflsdb.NSSABorderEBit(abr, byArea, activeAreas, area)
+		if _, ok := e.v6OriginateRouter(area, router, opts, ifaces, maxMetric, abr, v6NSSATranslatorArea(cfg, area) && abr, nssaBorderE, fullTransitAreas[area]); ok {
 			count++
 		}
 		keep[ospflsdb.SelfLSARef{Area: area, Key: v6RouterKey(router)}] = struct{}{}
@@ -182,12 +184,13 @@ func (e *engine) v6OriginateSelf(router types.RouterID, maxMetric bool) int {
 // v6OriginateRouter builds and originates this router's OSPFv3 Router-LSA for one area.
 // The Link State ID of an OSPFv3 Router-LSA is a fragment number (0 for the single
 // fragment), not the Router ID as in OSPFv2 (RFC 5340 App A.4.3).
-func (e *engine) v6OriginateRouter(area types.AreaID, router types.RouterID, opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, abr, nssaTranslator, virtualEndpoint bool) (packet.LSAHeader, bool) {
+func (e *engine) v6OriginateRouter(area types.AreaID, router types.RouterID, opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, maxMetric, abr, nssaTranslator, nssaBorderE, virtualEndpoint bool) (packet.LSAHeader, bool) {
 	// RFC 5340 App A.4.3: set B when this router is an ABR, E when it is an
 	// ASBR, and Nt in directly attached NSSAs where Ze participates in Type-7
 	// translation. SelfIsASBR is AF-neutral, so v6 Type-7 originators also set E.
-	// virtualEndpoint sets the V-bit for a TRANSIT area (RFC 2328 App A.4.2).
-	asbr := e.lsdb != nil && e.lsdb.SelfIsASBR(router)
+	// virtualEndpoint sets the V-bit for a TRANSIT area (RFC 2328 App A.4.2). nssaBorderE
+	// sets E for an NSSA border router that originates no external (RFC 3101 Section 3.1).
+	asbr := nssaBorderE || (e.lsdb != nil && e.lsdb.SelfIsASBR(router))
 	body := v6RouterLSABody(opts, ifaces, maxMetric, asbr, abr, nssaTranslator, virtualEndpoint)
 	bodyBytes := make([]byte, body.EncodedLen())
 	body.WriteTo(bodyBytes, 0)

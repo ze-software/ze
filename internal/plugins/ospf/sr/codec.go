@@ -10,6 +10,7 @@ package sr
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"slices"
 )
 
@@ -17,6 +18,15 @@ import (
 // treats the carrying LSA as malformed and does not install anything from it
 // (RFC 8665 §9/§10; RFC 8666 §10/§11).
 var ErrMalformed = errors.New("sr: malformed TLV")
+
+// ErrLength marks an SR TLV or sub-TLV whose length is invalid for its field layout. It
+// wraps ErrMalformed, and it is the case that condemns the whole carrying LSA rather than
+// the one TLV.
+// RFC 8665 Section 9: "For any new TLVs/sub-TLVs defined in this document, if the length
+// is invalid, the LSA in which it is advertised is considered malformed and MUST be
+// ignored."
+// A V/L-Flag error stays ErrMalformed and condemns the sub-TLV alone.
+var ErrLength = fmt.Errorf("%w: invalid length", ErrMalformed)
 
 // RFC 8665 flag bit masks. Bit 0 is the most significant bit of the flags octet.
 // Prefix-SID (§5): NP bit1, M bit2, E bit3, V bit4, L bit5.
@@ -189,13 +199,13 @@ func (it *subTLVIter) Next() bool {
 		return false
 	}
 	if len(it.data)-it.off < 4 {
-		it.err = ErrMalformed
+		it.err = ErrLength
 		return false
 	}
 	it.typ = binary.BigEndian.Uint16(it.data[it.off:])
 	l := int(binary.BigEndian.Uint16(it.data[it.off+2:]))
 	if it.off+4+l > len(it.data) {
-		it.err = ErrMalformed
+		it.err = ErrLength
 		return false
 	}
 	it.val = it.data[it.off+4 : it.off+4+l]
@@ -237,7 +247,9 @@ func decodeSIDLabelSubTLV(v []byte) (bool, uint32, error) {
 	case 4:
 		return false, binary.BigEndian.Uint32(val), nil
 	default:
-		return false, 0, ErrMalformed
+		// RFC 8665 Section 2.1: the SID/Label sub-TLV length is 3 or 4 octets; any other
+		// length is invalid (ErrLength, Section 9).
+		return false, 0, ErrLength
 	}
 }
 
@@ -287,12 +299,12 @@ func EncodeRangeValue(r LabelRange) []byte {
 // beyond the label space is caught by the bounds check.
 func DecodeRangeValue(v []byte) (LabelRange, error) {
 	if len(v) < 8 {
-		return LabelRange{}, ErrMalformed
+		return LabelRange{}, ErrLength
 	}
 	size := read24(v, 0)
-	if size == 0 {
-		return LabelRange{}, ErrMalformed
-	}
+	// Every length is judged before the Range Size, because only a length error condemns
+	// the carrying LSA (RFC 8665 Section 9): a range whose SID/Label sub-TLV length is
+	// invalid AND whose Range Size is 0 is a length error.
 	it := newSubTLVIter(v[4:])
 	var base uint32
 	count := 0
@@ -308,11 +320,15 @@ func DecodeRangeValue(v []byte) (LabelRange, error) {
 		case 4:
 			base = binary.BigEndian.Uint32(val)
 		default:
-			return LabelRange{}, ErrMalformed
+			// RFC 8665 Section 2.1: the SID/Label sub-TLV length is 3 or 4 octets.
+			return LabelRange{}, ErrLength
 		}
 	}
 	if it.Err() != nil {
 		return LabelRange{}, it.Err()
+	}
+	if size == 0 {
+		return LabelRange{}, ErrMalformed
 	}
 	if count != 1 {
 		return LabelRange{}, ErrMalformed
@@ -332,9 +348,10 @@ func DecodeRangeValue(v []byte) (LabelRange, error) {
 func EncodeSRMSValue(pref uint8) []byte { return []byte{pref, 0, 0, 0} }
 
 // DecodeSRMSValue reads the SRMS preference.
+// RFC 8665 Section 3.4: "Length: 4 octets". Any other length is invalid.
 func DecodeSRMSValue(v []byte) (uint8, error) {
-	if len(v) < 1 {
-		return 0, ErrMalformed
+	if len(v) != 4 {
+		return 0, ErrLength
 	}
 	return v[0], nil
 }
@@ -362,20 +379,25 @@ func EncodePrefixSIDValue(p PrefixSID) []byte {
 // (RFC 8665 §5: only V=0/L=0 or V=1/L=1 are valid, else ignore).
 func DecodePrefixSIDValue(v []byte) (PrefixSID, error) {
 	if len(v) < 4 {
-		return PrefixSID{}, ErrMalformed
+		return PrefixSID{}, ErrLength
 	}
 	flags := sidFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8665 Section 5, the length is exact: "Length: 7 or 8 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 4+width {
+		return PrefixSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return PrefixSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 4+width {
-		return PrefixSID{}, ErrMalformed
-	}
 	p := PrefixSID{Flags: flags, MTID: v[2], Algorithm: v[3], IsLabel: isLabel}
 	if isLabel {
 		p.Label = read24(v, 4) & 0x0FFFFF
@@ -406,20 +428,25 @@ func EncodeAdjSIDValue(a AdjSID) []byte {
 // DecodeAdjSIDValue parses an Adj-SID sub-TLV value with V/L validation.
 func DecodeAdjSIDValue(v []byte) (AdjSID, error) {
 	if len(v) < 4 {
-		return AdjSID{}, ErrMalformed
+		return AdjSID{}, ErrLength
 	}
 	flags := adjFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8665 Section 6.1, the length is exact: "Length: 7 or 8 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 4+width {
+		return AdjSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return AdjSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 4+width {
-		return AdjSID{}, ErrMalformed
-	}
 	a := AdjSID{Flags: flags, MTID: v[2], Weight: v[3], IsLabel: isLabel}
 	if isLabel {
 		a.Label = read24(v, 4) & 0x0FFFFF
@@ -450,20 +477,25 @@ func EncodeLANAdjSIDValue(a AdjSID) []byte {
 // DecodeLANAdjSIDValue parses a LAN-Adj-SID sub-TLV value.
 func DecodeLANAdjSIDValue(v []byte) (AdjSID, error) {
 	if len(v) < 8 {
-		return AdjSID{}, ErrMalformed
+		return AdjSID{}, ErrLength
 	}
 	flags := adjFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8665 Section 6.2, the length is exact: "Length: 11 or 12 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 8+width {
+		return AdjSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return AdjSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 8+width {
-		return AdjSID{}, ErrMalformed
-	}
 	a := AdjSID{Flags: flags, MTID: v[2], Weight: v[3], IsLabel: isLabel, IsLAN: true}
 	copy(a.NeighborID[:], v[4:8])
 	if isLabel {
@@ -493,10 +525,10 @@ func EncodeExtPrefixRangeValueV4(prefixLen uint8, addr [4]byte, rangeSize uint16
 	return b
 }
 
-// decodeExtPrefixRangeValueV4 parses an IPv4 Extended Prefix Range TLV value.
-func decodeExtPrefixRangeValueV4(v []byte) (ExtPrefixRange, error) {
+// DecodeExtPrefixRangeValueV4 parses an IPv4 Extended Prefix Range TLV value.
+func DecodeExtPrefixRangeValueV4(v []byte) (ExtPrefixRange, error) {
 	if len(v) < 12 {
-		return ExtPrefixRange{}, ErrMalformed
+		return ExtPrefixRange{}, ErrLength
 	}
 	r := ExtPrefixRange{
 		PrefixLength: v[0],
@@ -505,19 +537,29 @@ func decodeExtPrefixRangeValueV4(v []byte) (ExtPrefixRange, error) {
 		IAFlag:       v[4]&0x80 != 0,
 	}
 	copy(r.Address[:], v[8:12])
+	var malformed error
 	it := newSubTLVIter(v[12:])
 	for it.Next() {
 		if it.Type() != 2 {
 			continue
 		}
 		p, err := DecodePrefixSIDValue(it.Value())
-		if err != nil {
+		if errors.Is(err, ErrLength) {
 			return ExtPrefixRange{}, err
+		}
+		if err != nil {
+			// A V/L-Flag error is kept until every later sub-TLV has had its length
+			// judged: a length error anywhere in the range still condemns the LSA.
+			malformed = err
+			continue
 		}
 		r.PrefixSIDs = append(r.PrefixSIDs, p)
 	}
 	if it.Err() != nil {
 		return ExtPrefixRange{}, it.Err()
+	}
+	if malformed != nil {
+		return ExtPrefixRange{}, malformed
 	}
 	return r, nil
 }

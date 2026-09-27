@@ -9,6 +9,7 @@ package sr
 
 import (
 	"encoding/binary"
+	"errors"
 )
 
 // OSPFv2 (RFC 8665) TLV/sub-TLV type codes, kept explicit so the IPv4 and IPv6
@@ -56,20 +57,25 @@ func EncodePrefixSIDValueV6(p PrefixSID) []byte {
 // validation (RFC 8666 §6).
 func DecodePrefixSIDValueV6(v []byte) (PrefixSID, error) {
 	if len(v) < 4 {
-		return PrefixSID{}, ErrMalformed
+		return PrefixSID{}, ErrLength
 	}
 	flags := sidFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8666 Section 6, the length is exact: "Length: 7 or 8 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 4+width {
+		return PrefixSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return PrefixSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 4+width {
-		return PrefixSID{}, ErrMalformed
-	}
 	p := PrefixSID{Flags: flags, Algorithm: v[1], IsLabel: isLabel}
 	if isLabel {
 		p.Label = read24(v, 4) & 0x0FFFFF
@@ -100,20 +106,25 @@ func EncodeAdjSIDValueV6(a AdjSID) []byte {
 // DecodeAdjSIDValueV6 parses an OSPFv3 Adj-SID sub-TLV value.
 func DecodeAdjSIDValueV6(v []byte) (AdjSID, error) {
 	if len(v) < 4 {
-		return AdjSID{}, ErrMalformed
+		return AdjSID{}, ErrLength
 	}
 	flags := adjFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8666 Section 7.1, the length is exact: "Length: 7 or 8 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 4+width {
+		return AdjSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return AdjSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 4+width {
-		return AdjSID{}, ErrMalformed
-	}
 	a := AdjSID{Flags: flags, Weight: v[1], IsLabel: isLabel}
 	if isLabel {
 		a.Label = read24(v, 4) & 0x0FFFFF
@@ -145,20 +156,25 @@ func EncodeLANAdjSIDValueV6(a AdjSID) []byte {
 // DecodeLANAdjSIDValueV6 parses an OSPFv3 LAN-Adj-SID sub-TLV value.
 func DecodeLANAdjSIDValueV6(v []byte) (AdjSID, error) {
 	if len(v) < 8 {
-		return AdjSID{}, ErrMalformed
+		return AdjSID{}, ErrLength
 	}
 	flags := adjFlagsFromByte(v[0])
+	// The length is judged before the V/L-Flags, because only a length error condemns
+	// the carrying LSA: a value whose length is invalid AND whose V/L-Flags are invalid
+	// is a length error. The SID field width follows the V-Flag alone, as the RFC words it.
+	width := 4
+	if flags.V {
+		width = 3
+	}
+	// RFC 8666 Section 7.2, the length is exact: "Length: 11 or 12 octets, depending on the V-Flag". Any other
+	// length is invalid and condemns the carrying LSA (ErrLength).
+	if len(v) != 8+width {
+		return AdjSID{}, ErrLength
+	}
 	if !flags.validVL() {
 		return AdjSID{}, ErrMalformed
 	}
 	isLabel := flags.V && flags.L
-	width := 4
-	if isLabel {
-		width = 3
-	}
-	if len(v) < 8+width {
-		return AdjSID{}, ErrMalformed
-	}
 	a := AdjSID{Flags: flags, Weight: v[1], IsLabel: isLabel, IsLAN: true}
 	copy(a.NeighborID[:], v[4:8])
 	if isLabel {
@@ -207,7 +223,7 @@ func EncodeExtPrefixRangeValueV6(prefixLen uint8, addr []byte, rangeSize uint16,
 // DecodeExtPrefixRangeValueV6 parses an IPv6 Extended Prefix Range TLV value.
 func DecodeExtPrefixRangeValueV6(v []byte) (ExtPrefixRange, error) {
 	if len(v) < 8 {
-		return ExtPrefixRange{}, ErrMalformed
+		return ExtPrefixRange{}, ErrLength
 	}
 	r := ExtPrefixRange{
 		PrefixLength: v[0],
@@ -217,25 +233,35 @@ func DecodeExtPrefixRangeValueV6(v []byte) (ExtPrefixRange, error) {
 	}
 	words := v6PrefixWordBytes(r.PrefixLength)
 	if len(v) < 8+words {
-		return ExtPrefixRange{}, ErrMalformed
+		return ExtPrefixRange{}, ErrLength
 	}
 	if words > 0 {
 		r.AddressV6 = make([]byte, words)
 		copy(r.AddressV6, v[8:8+words])
 	}
+	var malformed error
 	it := newSubTLVIter(v[8+words:])
 	for it.Next() {
 		if it.Type() != V6TypePrefixSID {
 			continue
 		}
 		p, err := DecodePrefixSIDValueV6(it.Value())
-		if err != nil {
+		if errors.Is(err, ErrLength) {
 			return ExtPrefixRange{}, err
+		}
+		if err != nil {
+			// A V/L-Flag error is kept until every later sub-TLV has had its length
+			// judged: a length error anywhere in the range still condemns the LSA.
+			malformed = err
+			continue
 		}
 		r.PrefixSIDs = append(r.PrefixSIDs, p)
 	}
 	if it.Err() != nil {
 		return ExtPrefixRange{}, it.Err()
+	}
+	if malformed != nil {
+		return ExtPrefixRange{}, malformed
 	}
 	return r, nil
 }
