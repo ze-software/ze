@@ -1,0 +1,17 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7012-4-1": {
+      "note": "TestIPFIXFlowTemplate checks the E bit on all 11 fields (so ids stay <= 32767) but pins exact IE ids for only fields 0, 4 and 9. A template that emitted IE id 0 in any other field stays green, so the 'range of 1-32767' lower bound is not asserted for the emitted template. Single-polarity marker.",
+      "requirement_sha": "eaa3a43563fba7bf",
+      "tests": {
+        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "0a51ff851038eff5"
+      },
+      "units": {
+        "internal/plugins/flowexport/ipfix/flow_template_test.go::TestIPFIXFlowTemplate": "8482e23ae37ecd23"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc7012"
+}
