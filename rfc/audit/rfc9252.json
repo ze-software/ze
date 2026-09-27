@@ -179,6 +179,15 @@
       },
       "verdict": "weak"
     },
+    "RFC9252-5-2": {
+      "code": {
+        "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible": "82d2a0e3cfcceb4a",
+        "internal/component/sysrib/sysrib.go::fibEntry": "212e1fede64e8154"
+      },
+      "note": "{gap} confirmed at the producer. isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go) is the only best-path gate on the SRv6 Service SID, and it excludes a route only when an SRv6 Service TLV yields no extractable SID; it never asks whether the SID resolves. The one resolvability check ze runs, srv6SIDResolvable in sysRIB.fibEntry (internal/component/sysrib/sysrib.go), runs after both selections and only declines the FIB write, so a route whose SID reaches nothing still wins the prefix and the next-best route is not used. No tagged unit exists; the check before best path is plan/immediate/spec-srv6-bestpath-resolvability.md.",
+      "requirement_sha": "0ca22049adacc6ff",
+      "verdict": "unimplemented"
+    },
     "RFC9252-5-3": {
       "note": "(a) forbidden: an ingress PE forwarding an SRv6 service route without IPv6 encapsulation. TestSRv6ServiceSIDSelectsIPv6Encapsulation asserts SEG6 encap mode 1 with the SID for the kernel backend (buildRichRoute). The VPP backend (internal/plugins/fib/vpp/srv6.go) has no test. The negative-tagged TestRouteWithoutServiceSIDKeepsMPLSEncapsulation proves a route without a SID keeps MPLS, which is not a violation of this row.",
       "requirement_sha": "18afd49fba316531",
