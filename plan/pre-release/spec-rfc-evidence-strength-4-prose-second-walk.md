@@ -334,7 +334,7 @@ spec by owner decision on 2026-09-26. Two specs own it now:
   `docs/contributing/rfc-conformance-gates.md`, "The row quote") makes the row text the
   RFC's verbatim sentence for EVERY row, checked in its cited section, and adds a
   ratchet so the unquoted count per stem cannot rise.
-- `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` quotes the rows the
+- `spec-rfc-requirement-quote-hand-backfill` quotes the rows the
   backfill tool cannot quote, the unsourced rows among them, until the count is zero.
 
 This spec keeps deliverables 2 to 4: the blind second walk, the comparison tool

@@ -19,7 +19,7 @@ from its resource identifier. When the identifier's path ends in a slash
 `/.well-known/oauth-protected-resource/mcp`, so a client that derives the
 metadata URL from the identifier as RFC 9728 Section 3.1 describes asks for
 `.../mcp/`, which Ze does not serve. Found by the strict re-read of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` (audit verdict
+`spec-rfc-requirement-quote-hand-backfill` (audit verdict
 `wrong`), and read at the producer in HEAD on 2026-09-27.
 
 ## Defects

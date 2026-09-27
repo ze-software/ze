@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Three defects in Ze's SR Policy SAFI (RFC 9830), found by the strict re-read of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. Ze sends a
+`spec-rfc-requirement-quote-hand-backfill`. Ze sends a
 Binding SID with an unassigned flag set, silently truncates a configured
 Binding SID label wider than 20 bits and sends one from the reserved range, and accepts a received SR Policy NLRI
 that lacks a mandatory field. Each was read at its producer in HEAD on

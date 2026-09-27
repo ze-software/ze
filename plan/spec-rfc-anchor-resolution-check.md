@@ -140,7 +140,7 @@ row whose section is not a heading of the RFC, and a row whose quote is in
 another section, which is the "real section but the wrong one" half. It judges the
 rows a commit adds or edits. A row that is not yet quoted, a bad anchor included,
 counts toward the stem's unquoted figure, which `checkUnquotedRatchet` does not
-let rise. `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` takes that
+let rise. `spec-rfc-requirement-quote-hand-backfill` takes that
 figure to zero.
 
 What remains for this spec:

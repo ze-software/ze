@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The strict RFC re-read of `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`
+The strict RFC re-read of `spec-rfc-requirement-quote-hand-backfill`
 found that Ze's Graceful Restart (RFC 4724) and Long-Lived Graceful Restart
 (RFC 9494) helper keeps routes it must drop and forwards stale routes it must
 depreference or hold back. An operator meets both as routing: stale routes

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | tooling |
-| Depends | `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` (closes first, after its phase 5 rule flip) |
+| Depends | `spec-rfc-requirement-quote-hand-backfill` (closes first, after its phase 5 rule flip) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-27 |
@@ -337,7 +337,7 @@ Dropped after reading, with the reason:
   → Constraint: [to fill in design]
 - [ ] `ai/skills/ze-rfc-audit.md` - the four judgement questions and the verdict vocabulary; STRICTNESS
   → Constraint: an `upgrade_reason` is owed for any weak or wrong to enforced move with no unit change
-- [ ] `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md` - D-2, D-3, D-6, D-7, D-8, D-9, D-10, D-15 and the stem brief
+- [ ] `spec-rfc-requirement-quote-hand-backfill` - D-2, D-3, D-6, D-7, D-8, D-9, D-10, D-15 and the stem brief
   → Decision: [to fill in design]
 - [ ] `plan/pre-release/spec-rfc-requirement-reattribution.md` - a re-attribution the gates refuse today
   → Constraint: [to fill in design]

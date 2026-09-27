@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Two defects in what Ze reports to a monitoring collector, found by the strict
-re-read of `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. A BMP
+re-read of `spec-rfc-requirement-quote-hand-backfill`. A BMP
 station is told Ze closed a session the peer dropped, and an sFlow collector's
 sample pool stops advancing once it saturates. Both were read at the producer
 in HEAD on 2026-09-27.

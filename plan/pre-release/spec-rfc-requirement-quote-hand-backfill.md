@@ -5,9 +5,9 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/5 |
+| Phase | 5/5 |
 | Handoff | - |
-| Updated | 2026-09-26 |
+| Updated | 2026-09-27 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -88,6 +88,61 @@ discrimination record (`ai/rules/rfc-compliance.md`).
 | RFC7606-4-1 | the second §4 case, fewer than three octets remaining |
 | RFC7606-7.10-2 | the zero-length half of "non-zero multiple of 4" |
 | RFC7606-7.14-1 | the length-5 case; `TestRFC7606ExtendedCommunityLength` tests it but carries no tag |
+
+Un-enrolled stems (AC-7, A-6), read 2026-09-27 under the STRICTNESS rule of the
+strict re-audit brief. These 37 tagged rows changed text in or after 0bf0696576 in
+stems that have no `rfc/audit/<stem>.json`, so this table is their only record.
+The first 21 read changed after the backfill; the 16 added by job AC7-E
+(rfc1035 3, rfc9190 13) changed in 0bf0696576 itself.
+"Weak" means a clause of the quote has no assertion that goes red when that
+clause is broken.
+
+| ID | Verdict | Unit | What the test fails to prove |
+|----|---------|------|------------------------------|
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-1 | weak | `TestParseASPAPDU`, `TestParseASPAPDUMalformed` (`internal/component/bgp/plugins/rpki/rtr_pdu_test.go`) | the second sentence: both units assert the parser sentinel `errASPAProviderList`. None asserts that the router returns an Error Report PDU with Error Code 9. The mapping in `RTRSession.readLoop` (`rtr_session.go`) is not driven by a tagged unit |
+| DRAFT-IETF-SIDROPS-8210BIS-5.12-3 | weak | `TestParseASPAPDU`, `TestParseASPAPDUUnsorted` (`rtr_pdu_test.go`) | ascending order and uniqueness are proven in both polarities. The "zero or more" clause (a withdrawal carries no provider) is driven only by `TestParseASPAPDUWithdraw`, which carries no tag |
+| DRAFT-IETF-SIDROPS-8210BIS-7-1 | enforced | `TestRTRSessionStartsAtV2` (`rtr_session_test.go`) | nothing missing: the first query on the wire is a Serial Query at version 2, and the row's `{single-polarity}` marker states why no negative exists |
+| DRAFT-IETF-SIDROPS-8210BIS-7-2 | weak | `TestRTRUnknownNegotiationVersion` (`rtr_session_test.go`) | the exception "unless the received PDU is itself an Error Report PDU": no case feeds an Error Report carrying an unrecognized version and asserts that no Error Report goes back. `RTRSession.readLoop` guards it (`hdr.Type != pduErrorRpt`), untested |
+| RFC1035-2.3.4-1 | weak | `TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive` (`internal/plugins/geodns/rfc1035_rr_test.go`) | the upper bound is proven both ways (2147483648 refused on three leaves, 2147483647 served). The lower bound of "positive" is driven by no tagged unit, and the sibling 4.1.3-1 negative serves TTL 0, which the word "positive" excludes. The row does not cite the RFC 2181 Section 8 reading (0 to 2^31-1) that would admit it |
+| RFC1035-2.3.4-2 | enforced | `TestRFC1035_UDPReplyBoundedAndTruncated` (`internal/core/dnsserver/rfc1035_handler_test.go`) | nothing missing: an oversized reply packs to at most 512 octets, and a reply under the bound keeps all three answers |
+| RFC1035-3.1-4 | enforced | `TestRFC1035_ConfiguredNameBoundedTo255WireOctets` (`internal/plugins/geodns/rfc1035_name_limits_test.go`), `test/parse/dns-name-too-long.ci` | nothing missing: 256 wire octets refused and 255 accepted, over the synthesized glue name and through `ze config validate` |
+| RFC1035-4.1.1-1 | weak | `TestRFC1035_ReservedZFieldIsZero` (`internal/core/dnsserver/rfc1035_header_test.go`) | "in all queries": both polarities hold Z clear in responses only (an answer func that sets Z, a query that arrives with Z set). Ze also sends queries, from `internal/component/resolve/dns/resolver.go` (`SetQuestion`) and the as112 health probe (`internal/plugins/as112/health.go`), and no tagged unit asserts Z is zero in either |
+| RFC1035-4.1.1-2 | enforced | the AA test in `internal/core/dnsserver/rfc1035_header_test.go`, `TestZoneAnswer_ResponseCodeByNamePosition` (`internal/plugins/as112/zones_test.go`), the negative-answer table test in `internal/plugins/geodns/rfc1035_negative_test.go` | nothing missing: AA set for names in a served zone, clear for names outside it. The dnsserver negative asserts the neighbouring RD bit, and the two plugin tables carry the AA negative |
+| RFC1035-4.1.1-3 | enforced | `TestZoneAnswer_ResponseCodeByNamePosition` (as112), the negative-answer table test (geodns) | nothing missing: RCODE 3 for a name absent from a served zone, NOERROR for names that exist, REFUSED where Ze is no authority |
+| RFC1035-4.1.3-1 | enforced | `TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount` (`rfc1035_rr_test.go`) | nothing missing: the configured TTL (120, 2147483647, 0) reaches the wire unchanged. The test comment quotes the Section 3.2.1 wording ("before the source of the information should again be consulted"), not the Section 4.1.3 sentence the row quotes, so the comment is stale |
+| RFC1035-4.1.3-2 | enforced | `TestRFC1035_RDLengthCountsTheRDataOctets` (`rfc1035_rr_test.go`) | nothing missing: RDLENGTH equals the RDATA octets for A (4), AAAA (16) and a variable-length SOA |
+| RFC1035-4.1.4-1 | weak | `TestRFC1035_CompressionPointersInATruncatedDatagram` (`internal/plugins/geodns/rfc1035_compression_test.go`) | "the label must begin with two zero bits": `pointerTargets` treats any length octet without both top bits set as a label, so a label length octet of 0x40 to 0xBF (a label over 63 octets) passes both polarities. The negative asserts only that the stream reply holds no 0xC0 octet, not the "two zero bits" its comment claims |
+| RFC1035-4.1.4-2 | enforced | the compression test in `internal/plugins/geodns/rfc1035_compression_test.go` | nothing missing: every pointer offset lands inside the message and past the header, and the names it expands to are the queried zone |
+| RFC1035-4.1.4-4 | enforced | the compression test in `rfc1035_compression_test.go` | nothing missing: the NS RDLENGTH is below the expanded name length on the compressed datagram, and the uncompressed stream reply is longer |
+| RFC1035-4.1.4-5 | weak | `TestRFC1035_InboundCompressionPointerUnderstood` (`rfc1035_compression_test.go`) | "understand arriving messages that contain pointers": the pointer sits in the additional TXT record's owner name and the question name is uncompressed, so the SOA answer does not depend on the pointer being expanded, and no assertion reads what it expands to. The client side, replies Ze reads in `resolve/dns/resolver.go` and the as112 health probe, is driven by no tagged unit |
+| RFC1035-4.2.1-1 | enforced | `TestRFC1035_UDPReplyBoundedAndTruncated`, `TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize` (dnsserver), the transport test in `internal/plugins/geodns/rfc1035_server_transport_test.go` | nothing missing: the datagram read off a real socket is at most 512 octets. The negative rests on the RFC 6891 advertised size, a neighbouring rule, but the positive holds the bound at the handler and at the socket |
+| RFC1035-4.2.2-1 | weak | `TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix` (`rfc1035_compression_test.go`) | the first sentence, "use server port 53": the server listens on a `freePort` port (`serveCompressionZone`), and no tagged unit asserts that the TCP listener defaults to 53. The two-octet length prefix is proven both ways |
+| RFC8362-2-1 | weak | `TestRFC8362ExtendedLSAsSetUBitOnTheWire`, `TestRFC8362BaseLSAsKeepUBitClearOnTheWire` (`internal/plugins/ospf/rfc8362_test.go`) | the U-bit is asserted on the E-Router-LSA (0xA021) and the E-Intra-Area-Prefix-LSA (0xA029) only. The third Extended LSA Ze originates, the E-Inter-Area-Prefix-LSA, is not checked, as the stem's enrolment reason already records |
+| RFC9190-1-1 | weak | `TestEAPTLSCapsBothRolesAtTLS13`, `TestEAPTLSVersionCapLeavesTLS12Reachable` (`internal/core/eap/rfc9190_version_cap_test.go`) | the positive holds `MaxVersion` at TLS 1.3 on both roles and reads the peer's offer. The tagged negative proves a neighbouring rule (the cap is not a pin, TLS 1.2 still completes). No unit shows a version above 1.3 refused, and the row carries no `{single-polarity}` marker saying why none can |
+| RFC9190-2.1.2-1 | enforced | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`, `TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket` (`internal/core/eap/rfc9190_resumption_test.go`), `TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode` (`rfc9190_resumption_refusal_test.go`) | nothing missing: the initial authentication stores a non-empty ticket the next exchange redeems, a server with resumption off still issues a fresh one, and a client offering no PSK mode gets none |
+| RFC9190-2.1.2-2 | weak | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems` (`rfc9190_resumption_test.go`) | the bound rests on crypto/tls's client refusing a lifetime over 604800: no assertion reads the lifetime the ticket declares, there is no negative, and no `{single-polarity}` marker |
+| RFC9190-2.1.3-1 | weak | `TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`, `TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket` (`rfc9190_resumption_test.go`) | the positive reads `Resumed()` on a flight driven at TLS 1.3 and never the resumed session's version. The negative proves a neighbouring rule (declining resumption falls back to a full handshake); no unit refuses a mechanism that is not the TLS 1.3 one |
+| RFC9190-2.1.8-2 | weak | `TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm`, `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` (`internal/core/eap/rfc9190_nai_test.go`), `TestEAPTLSPeerDropsTheUsernameTheCertificateCarries` (`rfc9190_cert_nai_test.go`) | "(or any other permanent identifiers)": the tagged units search the wire for the username only. The identity with no realm and the IP-address identity are driven by units tagged 2.1.8-5 and 2.1.8-3, not by a 2.1.8-2 unit |
+| RFC9190-2.1.8-3 | weak | `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`, `TestNAIGrammarMatchesRFC7542Section22` (`rfc9190_nai_test.go`) | the grammar is proven both ways over `anonymousNAI`. The NAI the peer derives from a certificate (`certificateNAIs`, `realmNAI` in `nai.go`) is never run through `validNAI` by a tagged unit, so the positive's "every NAI the peer can emit" is not what it checks |
+| RFC9190-2.1.8-4 | weak | `TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal` (`rfc9190_nai_test.go`) | the sentence binds both the peer and the server to TLS 1.3 processing. The one unit drives the server's handling of an empty certificate_list; nothing drives the peer's processing |
+| RFC9190-2.1.8-5 | wrong | `TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm` (`internal/core/eap/rfc9190_nai_test.go`) | the unit proves the fixed-username construction the next clause allows, for an identity with no realm. The recommended form, "@realm", is proven by `TestEAPTLS13PeerSendsAnAnonymousNAIAndKeepsTheRealm`, which is tagged only RFC9190-2.1.8-2 |
+| RFC9190-2.1.9-2 | enforced | `TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit`, `TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself` (`internal/core/eap/rfc9190_fragmentation_test.go`) | nothing missing: both shapes are accepted and yield the same octets, and self-contradicting shapes are refused |
+| RFC9190-2.3-1 | weak | `TestRFC9190MSKIsTheExportUnderTheRFCLabel` (`internal/core/eap/rfc5216_msk_label_test.go`) | Key_Material is proven (MSK is the first 64 octets of the export, and a wrong context changes it). Method-Id is not: no non-test code in `internal/core/eap` derives `EXPORTER_EAP_TLS_Method-Id` or a Session-Id, so that clause is an implementation gap to record under R-7 |
+| RFC9190-2.5-1 | enforced | `TestEAPTLS13SendsProtectedSuccessIndication`, `TestEAPTLS13RefusedClientGetsNoSuccessIndication`, `TestEAPTLS12SendsNoProtectedSuccessIndication` (`internal/core/eap/rfc9190_test.go`), plus the resumption test and the interoplab checker | nothing missing: one application_data record decrypting to 0x00 sits in the Request before EAP-Success, EAP-Success is the last packet, and neither a refused client nor TLS 1.2 gets one |
+| RFC9190-5.4-1 | weak | the eight tagged units in `internal/core/eap/rfc9190_revocation_test.go`, `TestEAPTLS13ResumptionStillNeedsARevocationSource` (`rfc9190_resumption_refusal_test.go`), `checkResponderEAPTLS13RevokedClient` (`internal/le/interoplab/ipsec/checkers.go`) | "all the certificates in the certificate chains": the authenticator's check is proven over the client leaf, a client intermediate, a missing list and a stale list, and the trust anchor exception holds. On the peer only the authenticator's leaf is driven. A revoked intermediate in the authenticator's chain is driven only by a 5.4-3 OCSP unit, and no unit shows the peer refusing when it holds no current list |
+| RFC9190-5.4-2 | weak | `TestEAPTLS13StaplesTheConfiguredOCSPResponse`, `TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse` (`internal/core/eap/rfc9190_ocsp_test.go`) | the configured staple reaches the peer on TLS 1.3 and nothing is stapled when none is configured. The RFC 8446 Section 4.4.2.1 half, no status sent to a client whose ClientHello carried no status_request, is driven by no unit, because every client in the suite is crypto/tls, which always offers it |
+| RFC9190-5.4-3 | weak | the thirteen tagged units in `internal/core/eap/rfc9190_ocsp_test.go` | "abort the handshake with an appropriate alert": the units assert that no EAP-Success arrives and read the peer's error text. None reads the alert the authenticator receives. The comment's claim that crypto/tls turns the error into bad_certificate is not asserted |
+| RFC9190-5.7-1 | weak | `TestEAPTLS13ResumptionRefusesARevokedClientChain` (`rfc9190_resumption_test.go`), `TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey` (`rfc9190_resumption_refusal_test.go`) | the positive asserts no EAP-Success, and a full handshake presenting the same revoked certificate fails the same way: it never asserts the exchange resumed or that no Certificate crossed. Neither tagged unit shows a resumption authorized on valid cached data; `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` does, tagged 5.7-2 and 5.7-6 only |
+| RFC9190-5.7-5 | weak | `TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling` (`rfc9190_resumption_test.go`), `TestEAPTLS13RefusesATicketPastTheSection57Lifetime` (`rfc9190_resumption_refusal_test.go`) | "regardless of the PSK or ticket lifetime": the stored ticket is crypto/tls's, whose declared lifetime is itself 604800 seconds, so a store that expired entries on the ticket's own lifetime passes both halves. No case stores a ticket declaring another lifetime |
+| RFC9190-5.7-6 | enforced | `TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain`, `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` (`rfc9190_resumption_test.go`), `TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired` (`rfc9190_resumption_refusal_test.go`) | nothing missing: changed information (a revocation on the peer, an expiry on the authenticator) is reevaluated at resumption, and unchanged information resumes. `internal/core/eap` makes no accounting decision, so that alternative binds nothing |
+| RFC9384-4-1 | enforced | `TestNotificationRefusedBySocketStillRecordsTheReason`, `TestNotificationDeliveredIsNotRecordedAsUnsent` (`internal/component/bgp/reactor/peer_last_error_test.go`), `TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell` (`internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go`) | nothing missing: an unsent Cease/BFD Down stays in Stats and in `show bgp peer` as "(not sent)", and a delivered one does not |
+
+Counts: 15 enforced, 21 weak, 1 wrong (the first 21: 13, 7, 1; AC7-E's 16:
+2 enforced, 14 weak). D-15 homes weak and wrong verdicts in
+`plan/pre-release/spec-rfc-verdict-test-fix-pass.md`. These 22 live only in this
+table, so that spec names each of them in its "Un-enrolled R-7 rows" table and
+its goal covers them. RFC9190-2.3-1 also records an implementation gap: Ze
+derives no Method-Id.
 
 The set to read is every row whose text changed in the backfill commit and whose
 id a test tags (`RFC requirement:` tag). `git diff <backfill-commit>^ <backfill-commit> -- rfc/short`
@@ -186,7 +241,7 @@ Summary file, then RFC text, then `./le rfc check` violations and JSON (`unquote
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
 | A-1 | "unsourced" does not mean fabricated | in the sample, 2 of 3 unsourced rows had a sentence (RFC4271-4.3-4 shares the §4.3 sentence with -3) | retiring by kind would delete real obligations | every row is read against the RFC before any retire; the retire count is recorded per stem | unvalidated |
-| A-2 | about 5% of rows have no supporting sentence | 1 of 21 sampled (RFC1877-x-5) | a larger retire volume means the ledger was inflated, and its public figures move | retire count per tranche; a tranche above 15% stops and is reported to the owner | unvalidated |
+| A-2 | about 5% of rows have no supporting sentence | 1 of 21 sampled (RFC1877-x-5) | a larger retire volume means the ledger was inflated, and its public figures move | retire count per tranche; a tranche above 15% stops and is reported to the owner | broken (2026-09-27): rfc9582 retired 13 of 35 rows (37%); see the Mistake Log |
 | A-3 | a verbatim span over consecutive sentences in one section replaces most row splits | the check matches any span inside one section body (`rowQuoteRefusal`) | rows split, and tags must follow the new ids | the sampled class (c) rows (RFC1661-2-1, RFC7474-5-2) pass as spans | unvalidated |
 | A-4 | a hand reword stales only audit verdicts | `verdictFreshness` is the only reader of row text; sign-off (`signoff.go`), discrimination (`claimSHA`) and the render (`render_ledger.go`) do not read it | a mass reword triggers refusals across the ledger | the first stem commit of phase 3 runs `./le rfc check` with no new violation | unvalidated |
 | A-5 | an audit file may carry verdicts for only some rows of a stem | `checkAuditSchema` and `checkAuditFreshness` iterate the verdicts present; no check demands a verdict per row (`check_audit.go`) | R-7 verdicts could not land stem by stem | the first R-7 stem commit passes `./le rfc check` with a partial audit file | unvalidated |
@@ -415,6 +470,238 @@ One row per stem, appended when the stem's commit lands.
 
 | Stem | Phase | Rows quoted | Retired | Level changed | R-7 verdicts (enforced / weak / wrong) | Blind sample agreed | Commit |
 |------|-------|-------------|---------|---------------|-----------------------------------------|---------------------|--------|
+| draft-abraitis-bgp-version-capability | 2-4 | 9 | 0 | 0 | 11 / 0 / 0 | yes, 2/2; verdicts 1/2 | c7c098e642 90579b6a4f |
+| draft-abraitis-idr-addpath-paths-limit | 2-4 | 5 | 0 | 0 | 6 / 1 / 0 | yes, 1/1; verdicts 1/1 | 9afaa8d466 |
+| draft-ietf-bess-mup-safi | 2-4 | 39 | 0 | 0 | 0 / 9 / 0 | yes, 6/6; verdicts 1/2 | f15791393d e6028708e8 |
+| draft-ietf-idr-bgp-bfd-strict-mode | 2-4 | 1 | 0 | 0 | 1 / 3 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note c) | 7757c3e955 |
+| draft-ietf-idr-linklocal-capability | 2-4 | 15 | 0 | 0 | 4 / 8 / 0 | yes, 2/2; verdicts 2/2 | c88a3a858d a9beca2fc3 |
+| draft-ietf-sidrops-8210bis | 2-4 | 8 | 5 | 0 | un-enrolled, R-7 table lines | yes, 1/1 | cbcade6f68 1dd66ea8f7 be0c565ad3 b6fc04265e |
+| draft-ietf-sidrops-aspa-verification | 2-4 | 10 | 0 | 0 | 4 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 3e134ed06f |
+| draft-walton-bgp-hostname-capability | 2-4 | 1 | 0 | 0 | no audit file | yes, 1/1 | 0c3b4ec246 |
+| rfc1035 | 2-4 | 15 | 0 | 0 | un-enrolled, R-7 table lines | yes, 2/2 | f503e11de3 |
+| rfc1071 | 2-4 | 9 | 2 | 0 | 1 / 4 / 1 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note c) | be0c565ad3 ad422fdf37 |
+| rfc1195 | 2-4 | 21 | 0 | 0 | 12 / 14 / 2 | yes, 3/3 | 55a426abec 86206cffae 10edacdc5c |
+| rfc1332 | 2-4 | 12 | 0 | 0 | 3 / 2 / 0 | yes, 1/1; verdicts 0/1 (BS-A, 2026-09-27); sent back, re-read 6f307a730b: now 1 / 4 / 0 (note b) | 98b5dd9379 |
+| rfc1334 | 2-4 | 6 | 0 | 0 | 8 / 2 / 0 | yes, 1/1; verdicts 2/2 | 36e77ebc0a |
+| rfc1350 | 2-4 | 10 | 0 | 0 | 2 / 5 / 1 | yes, 2/2; verdicts 2/2 | f4a4cea195 7ec6cda22b |
+| rfc1661 | 2-4 | 45 | 0 | 7 | 9 / 3 / 2 | yes, 4/4; verdicts 3/3 | 0c00c9ade2 94bebd270b |
+| rfc1877 | 2-4 | 0 | 5 | 0 | no audit file | none owed: no quote changed (retirements only) | b8cfb52f0b |
+| rfc1994 | 2-4 | 12 | 0 | 0 | 6 / 6 / 2 | yes, 3/3; verdicts 1/3 | ec8e4ba924 024ae3edca |
+| rfc1997 | 2-4 | 9 | 0 | 0 | 5 / 0 / 0 | yes, 1/1; verdicts 1/1 | 09812f450d 5cb3f11e8d |
+| rfc2003 | 2-4 | 28 | 0 | 0 | no audit file | yes, 3/3 | 22ff9fffb0 |
+| rfc2131 | 2-4 | 73 | 0 | 2 | 15 / 4 / 0 | yes, 10/10 | 0daedbc60e |
+| rfc2132 | 2-4 | 39 | 0 | 0 | 7 / 0 / 1 | yes, 7/7; verdicts 1/1 | a6ecfeb969 |
+| rfc2181 | 2-4 | 42 | 0 | 0 | 3 / 5 / 0 | yes, 6/6; verdicts 1/1 | 69758e2636 0ec5698c56 |
+| rfc2205 | 2-4 | 26 | 0 (+1 added) | 0 | 5 / 11 / 0 | yes, 7/7; verdicts 3/4 | d69cfafda0 c78c87b136 76fcaae9c0 be0c565ad3 6887f57258 |
+| rfc2328 | 2-4 | 59 | 0 (+1 added) | 0 | 20 / 30 / 1 | yes, 6/6; verdicts 8/10 (BS-A, 2026-09-27); sent back, re-read a2e975c045: now 19 / 31 / 1 (note b) | 4d04c8cc14 b12697744d be0c565ad3 |
+| rfc2347 | 2-4 | 6 | 0 | 0 | 0 / 2 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | c265e4cea0 |
+| rfc2348 | 2-4 | 5 | 0 | 0 | 1 / 3 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 0a3b7577a6 |
+| rfc2349 | 2-4 | 6 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | eefd0832ef |
+| rfc2385 | 2-4 | 4 | 0 | 0 | 4 / 5 / 0 | yes, 1/1; verdicts 2/2 | 97693d5cae |
+| rfc2473 | 2-4 | 19 | 0 | 0 | no audit file | yes, 2/2 | 3329af6c31 |
+| rfc2516 | 2-4 | 25 | 5 | 2 | 18 / 11 / 2 | yes, 4/4; verdicts 5/6 | 7b894364d9 9b29095b20 |
+| rfc2545 | 2-4 | 2 | 0 | 0 | 4 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 0f1153d2a7 |
+| rfc2661 | 2-4 | 25 | 0 | 2 | 5 / 17 / 0 | yes, 3/3; verdicts 4/4 | db6fb6b5a5 507c8aad1d |
+| rfc2759 | 2-4 | 13 | 1 | 0 | 4 / 7 / 0 | yes, 1/1; verdicts 0/2 (BS-A, 2026-09-27); sent back, re-read ebb18b811a: now 3 / 8 / 0 (note b) | 6f3ab6c00b 76fcaae9c0 8b7d0ed7cf |
+| rfc2782 | 2-4 | 11 | 0 | 0 | no audit file | yes, 1/1 | 299171c14d |
+| rfc2784 | 2-4 | 9 | 0 | 0 | no audit file | yes, 1/1 | 716e4bc73a |
+| rfc2865 | 2-4 | 12 | 3 | 0 | 13 / 7 / 0 | yes, 2/2; verdicts 4/4 | 67ece73a56 be0c565ad3 867e5564d3 |
+| rfc2866 | 2-4 | 6 | 2 | 0 | 5 / 6 / 1 | yes, 1/1; verdicts 1/2 | 2d24464fbe be0c565ad3 |
+| rfc2869 | 2-4 | 5 | 4 (+1 added) | 0 | 4 / 2 / 0 | yes, 1/1; verdicts 1/1 | 8e9c87b644 76fcaae9c0 dd7cec8ceb |
+| rfc2890 | 2-4 | 4 | 0 | 0 | no audit file | yes, 1/1 | d2f3eb25c3 |
+| rfc2918 | 2-4 | 9 | 0 | 0 | 3 / 4 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 8879c5c67f |
+| rfc2966 | 2-4 | 6 | 0 | 0 | 3 / 2 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | a80af96fcb |
+| rfc3031 | 2-4 | 6 | 3 | 0 | no audit file | yes, 1/1 | fffeb765b3 |
+| rfc3032 | 2-4 | 14 | 0 (+1 added) | 1 | 0 / 1 / 0 | yes, 2/2 | cdcf184e21 be0c565ad3 74205057fc |
+| rfc3101 | 2-4 | 19 | 0 | 1 | 16 / 8 / 2 | yes, 3/3 | a677d1d9f6 b12697744d |
+| rfc3209 | 2-4 | 13 | 3 | 0 | 8 / 8 / 1 | yes, 5/5; verdicts 3/3 | 1bf08dbad3 be0c565ad3 |
+| rfc3579 | 2-4 | 29 | 0 | 0 | 13 / 4 / 0 | yes, 5/5; verdicts 2/2 | bb645d524e 8dda6261e4 |
+| rfc3623 | 2-4 | 21 | 0 | 0 | 4 / 5 / 0 | yes, 3/3; verdicts 2/2 | 403271bbab aeb6e04996 b12697744d |
+| rfc3630 | 2-4 | 8 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 09b16f1e1a |
+| rfc3748 | 2-4 | 25 | 3 | 1 | 28 / 9 / 0 | yes, 5/5; verdicts 6/7 (BS-A, 2026-09-27); sent back, re-read 2cf1b04765: now 14 / 23 / 0 (note c) | be0c565ad3 41921aa760 |
+| rfc3768 | 2-4 | 34 | 0 | 0 | 21 / 15 / 1 | yes, 5/5; verdicts 3/7 (BS-A, 2026-09-27); sent back, re-read e07e40de0f: now 9 / 26 / 2 (note c) | 850eb41b66 |
+| rfc3786 | 2-4 | 7 | 0 | 0 | 1 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | f26f531ea6 |
+| rfc3787 | 2-4 | 6 | 0 | 0 | 0 / 2 / 0 | yes, 1/1; verdicts 0/1 (BS-A, 2026-09-27); sent back, re-read by SB-3 with no change and no commit: 0 / 2 / 0 (note b) | e1fa028050 |
+| rfc3948 | 2-4 | 11 | 2 | 1 | 3 / 3 / 2 | yes, 2/2; verdicts 2/2 (BS-A, 2026-09-27) (note b) | 54d696b2c8 be0c565ad3 9372480ca8 |
+| rfc3954 | 2-4 | 26 | 0 | 1 | 0 / 4 / 0 | yes, 3/3; verdicts 1/1 | 713d002114 cbb5a5576a |
+| rfc4035 | 2-4 | 74 | 0 | 0 | 7 / 4 / 0 | yes, 12/12 | b43510554f |
+| rfc4090 | 2-4 | 25 | 2 | 0 | 23 / 10 / 1 | yes, 4/4; verdicts 2/4 | a67df9731f 7e139a49e0 |
+| rfc4213 | 2-4 | 29 | 0 | 1 | no audit file | yes, 4/4 | b35ce9e9d6 |
+| rfc4271 | 2-4 | 77 | 0 | 1 | 22 / 55 / 3 | yes, 13/13; verdicts 15/16 | dae5429aec daa2adcccc |
+| rfc4301 | 2-4 | 27 | 0 | 0 | 19 / 8 / 5 | no, 5/6; verdicts 3/6 (BS-A, 2026-09-27); sent back, re-read d240103498: now 15 / 12 / 5 (note b) | 9f61b44afa |
+| rfc4302 | 2-4 | 18 | 0 | 0 | 4 / 3 / 2 | yes, 4/4; verdicts 1/2 | 134987b1eb c2bd7f0894 76fcaae9c0 |
+| rfc4303 | 2-4 | 20 | 0 | 0 | 4 / 4 / 1 | yes, 2/2; verdicts 2/2 | 1054d49c4d |
+| rfc4360 | 2-4 | 6 | 1 | 0 | 0 / 2 / 0 | yes, 1/1; verdicts 1/1 (BS-A, 2026-09-27) (note b) | 21cfb98092 |
+| rfc4364 | 2-4 | 8 | 0 | 0 | no audit file | yes, 1/1 | 96ee1f5d0c |
+| rfc4456 | 2-4 | 9 | 0 | 2 | 6 / 1 / 0 | yes, 1/1; verdicts 1/1 | 9129371a4b ef334fccad |
+| rfc4552 | 2-4 | 10 | 0 | 0 | 3 / 3 / 0 | yes, 2/2; verdicts 1/1 | fc5a9d5772 |
+| rfc4555 | 2-4 | 18 | 0 | 0 | 8 / 2 / 0 | yes, 2/2; verdicts 2/2 | d517a4a0cd |
+| rfc4577 | 2-4 | 40 | 0 | 2 | 2 / 2 / 0 | yes, 6/6; verdicts 0/1 | b62d10fcbd 563081ef96 |
+| rfc4578 | 2-4 | 5 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 0/1 (BS-B, 2026-09-27); sent back, re-read 5f65b0a6e8: now 0 / 1 / 0 (note b) | 8b4ee817ce |
+| rfc4659 | 2-4 | 14 | 0 | 0 | 2 / 2 / 0 | yes, 2/2; verdicts 1/1 | 23149b447e |
+| rfc4684 | 2-4 | 6 | 0 | 0 | 2 / 0 / 0 | yes, 1/1; verdicts 0/1 (BS-B, 2026-09-27); sent back, re-read 042a63f22e: now 1 / 1 / 0 (note b) | bf065296d4 |
+| rfc4724 | 2-4 | 10 | 0 | 1 | 3 / 14 / 0 | yes, 3/3; verdicts 3/3 | 70647a8c13 |
+| rfc4760 | 2-4 | 13 | 0 | 0 | 2 / 3 / 1 | yes, 2/2; verdicts 0/1 | 317e8e2884 |
+| rfc4761 | 2-4 | 15 | 0 | 0 | no audit file | yes, 2/2 | 5a3420bd87 |
+| rfc4862 | 2-4 | 15 | 0 | 0 | no audit file | yes, 2/2 | 4ff3b5641e |
+| rfc5036 | 2-4 | 32 | 0 | 0 | 11 / 4 / 0 | yes, 7/7; verdicts 3/3 | 789e41cdd4 |
+| rfc5072 | 2-4 | 17 | 0 | 1 | 8 / 3 / 0 | yes, 3/3; verdicts 2/2 | f2378be549 |
+| rfc5082 | 2-4 | 7 | 0 | 0 | 3 / 0 / 0 | yes, 1/1; verdicts 0/1 (BS-B, 2026-09-27); sent back, re-read d25ba4d0d4: now 2 / 1 / 0 (note b) | ea9d36ee9f |
+| rfc5176 | 2-4 | 19 | 0 | 0 | 12 / 9 / 0 | yes, 2/2; verdicts 4/4 | bbd439f6f7 |
+| rfc5187 | 2-4 | 2 | 0 | 0 | 0 / 4 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 7d1b06cb05 |
+| rfc5216 | 2-4 | 21 | 0 | 0 | 20 / 17 / 1 | yes, 5/5; verdicts 8/8 | c66f43decc |
+| rfc5250 | 2-4 | 9 | 0 | 0 | 4 / 6 / 0 | yes, 1/1; verdicts 2/2 | 41b6a7e483 |
+| rfc5282 | 2-4 | 14 | 0 | 0 | 10 / 8 / 0 | yes, 2/2; verdicts 4/4 | 3d64f5bee9 |
+| rfc5286 | 2-4 | 30 | 0 | 0 | 2 / 1 / 0 | yes, 3/3; verdicts 1/1 | 483a9628b6 b12697744d |
+| rfc5301 | 2-4 | 1 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 6d4e1fa55c |
+| rfc5303 | 2-4 | 15 | 0 | 0 | 3 / 5 / 1 | yes, 2/2; verdicts 1/2 | 230651f0dc |
+| rfc5304 | 2-4 | 3 | 0 | 0 | no audit file | yes, 1/1; no verdict sampled, no audit file (BS-B, 2026-09-27) (note b) | 8db8cc84c4 |
+| rfc5305 | 2-4 | 13 | 0 | 0 | 2 / 2 / 1 | yes, 1/1; verdicts 0/1 | 588855afee 7a10313313 |
+| rfc5308 | 2-4 | 8 | 0 | 0 | 3 / 5 / 0 | yes, 1/1; verdicts 2/2 (BS-B, 2026-09-27) (note b) | fc6e2b04af |
+| rfc5310 | 2-4 | 7 | 0 | 0 | 1 / 5 / 1 | yes, 1/1; verdicts 1/1 | 3f8a691fd8 |
+| rfc5340 | 2-4 | 31 | 0 | 0 | 9 / 4 / 0 | yes, 4/4; verdicts 1/3 | f6844cc678 b12697744d |
+| rfc5392 | 2-4 | 27 | 0 | 1 | 6 / 2 / 0 | yes, 4/4; verdicts 2/2 | 898cabab50 b12697744d 38461a9435 |
+| rfc5443 | 2-4 | 14 | 0 | 0 | 0 / 4 / 1 | yes, 1/1; verdicts 1/1 | a4a860c5fb |
+| rfc5492 | 2-4 | 11 | 0 | 0 | 3 / 5 / 0 | yes, 2/2; verdicts 2/2 | 4f07a5e7a8 |
+| rfc5549 | 2-4 | 4 | 0 | 1 | 2 / 3 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 423126ceb8 |
+| rfc5561 | 2-4 | 6 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 3edb5848de |
+| rfc5575 | 2-4 | 9 | 3 | 0 | 4 / 4 / 0 | yes, 2/2; verdicts 2/2 | 751be2b01f |
+| rfc5701 | 2-4 | 6 | 0 | 0 | 3 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 3e01fca43a |
+| rfc5709 | 2-4 | 17 | 0 | 0 | 10 / 4 / 0 | yes, 2/2; verdicts 3/3 | 78d54c9df7 b12697744d |
+| rfc5798 | 2-4 | 52 | 0 | 0 | 22 / 21 / 0 | yes, 8/8 | 3780f7f19a 850eb41b66 |
+| rfc5838 | 2-4 | 24 | 0 | 0 | 2 / 2 / 2 | yes, 3/3; verdicts 1/1 | eae19123cc |
+| rfc5880 | 2-4 | 66 | 0 (+2 added) | 0 | 39 / 42 / 3 | no, 6/7; verdicts 15/17 (BS-B, 2026-09-27); sent back, re-read a6e945caa0: now 34 / 47 / 3 (note c) | 7757c3e955 |
+| rfc5881 | 2-4 | 16 | 0 | 0 | 3 / 11 / 1 | yes, 3/3; verdicts 3/3 | a770d91783 7757c3e955 |
+| rfc5882 | 2-4 | 26 | 0 | 0 | 0 / 2 / 0 | yes, 3/3; verdicts 1/1 | d98a845125 7757c3e955 |
+| rfc5883 | 2-4 | 5 | 2 | 0 | 4 / 2 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note c) | 7757c3e955 |
+| rfc6071 | 2-4 | 20 | 0 | 0 | no audit file | yes, 2/2 | 23a38246f5 |
+| rfc6138 | 2-4 | 1 | 0 | 0 | 2 / 0 / 0 | yes, 1/1; verdicts 0/1 (BS-B, 2026-09-27); sent back, re-read 70d678a85f: now 1 / 1 / 0 (note b) | 306835a90b |
+| rfc6286 | 2-4 | 5 | 0 | 0 | 3 / 2 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | d3bbf55a6b |
+| rfc6396 | 2-4 | 20 | 0 | 0 | 2 / 5 / 0 | yes, 2/2; verdicts 1/1 | d853474849 |
+| rfc6397 | 2-4 | 1 | 0 | 0 | no audit file | yes, 1/1 | 7d865cf35e |
+| rfc6482 | 2-4 | 3 | 0 | 0 | no audit file | yes, 1/1 | bb4655a759 |
+| rfc6514 | 2-4 | 201 | 0 | 0 | no audit file | yes, 20/20 | 8140b9c44f |
+| rfc6549 | 2-4 | 4 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | cc8499c716 |
+| rfc6608 | 2-4 | 3 | 0 | 0 | no audit file | yes, 1/1 | 65efc12ece |
+| rfc6793 | 2-4 | 11 | 0 | 0 | 23 / 4 / 0 | yes, 3/3; verdicts 3/3 | 051abad24a a79270be1d |
+| rfc6810 | 2-4 | 35 | 0 | 0 | 1 / 0 / 0 | yes, 6/6 | a24e6dd47c da5a5e8ad1 |
+| rfc6811 | 2-4 | 3 | 0 | 0 | 0 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 087840eb88 |
+| rfc6996 | 2-4 | 1 | 0 | 0 | 0 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 09b3fa29b0 |
+| rfc7011 | 2-4 | 17 | 7 | 1 | 7 / 5 / 0 | yes, 4/4; verdicts 2/2 | e8d2ce4780 f4c6a6d18c |
+| rfc7012 | 2-4 | 5 | 0 | 0 | 0 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | e1f9b1dc12 |
+| rfc7166 | 2-4 | 22 | 0 | 0 | no audit file | yes, 3/3 | b3bdc5f296 |
+| rfc7296 | 2-4 | 57 | 2 (+2 added) | 0 | 62 / 23 / 1 | no, 5/6; verdicts 13/17 (BS-B, 2026-09-27); sent back, re-read d8dbe3eccb: now 50 / 34 / 2 (note c) | be0c565ad3 d5780d60dc |
+| rfc7311 | 2-4 | 10 | 0 | 0 | 6 / 5 / 1 | yes, 2/2; verdicts 2/2 | 573079b6cf |
+| rfc7313 | 2-4 | 7 | 0 | 0 | 1 / 4 / 0 | yes, 2/2; verdicts 1/1 | d4f5b91b4d |
+| rfc7427 | 2-4 | 5 | 0 | 0 | 2 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-B, 2026-09-27) (note b) | 0023de112a |
+| rfc7432 | 2-4 | 39 | 1 | 0 | 6 / 3 / 0 | yes, 11/11; verdicts 1/1 | 5ea6e7665e 07d832e388 |
+| rfc7440 | 2-4 | 7 | 0 | 1 | 0 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | d54d79acf7 |
+| rfc7454 | 2-4 | 64 | 0 | 0 | no audit file | yes, 6/6 | 1d1239a281 |
+| rfc7474 | 2-4 | 10 | 0 | 0 | 5 / 6 / 0 | yes, 1/1; verdicts 1/2 | 35cecf4b36 43f89ff8d5 b12697744d |
+| rfc7534 | 2-4 | 16 | 0 | 0 | 1 / 2 / 0 | yes, 2/2; verdicts 1/1 | 65847dc1f9 |
+| rfc7535 | 2-4 | 6 | 0 | 0 | no audit file | yes, 1/1 | f8d5c62d3a |
+| rfc7606 | 2-4 | 0 | 0 | 0 | 46 / 4 / 0 (+1 unimplemented) | none owed: no quote changed (marker text only) | 546e3765b9 412d9774ec |
+| rfc7611 | 2-4 | 3 | 0 | 0 | 1 / 1 / 0 | yes, 1/1; verdicts 0/1 (BS-C, 2026-09-27); on hand re-read the verdict at HEAD stands, the blind reader was lenient (note b) | 06eaa85f68 |
+| rfc7627 | 2-4 | 27 | 0 | 0 | no audit file | yes, 3/3 | a89111926c |
+| rfc7684 | 2-4 | 15 | 0 | 0 | 2 / 3 / 0 | yes, 2/2; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 3b608c767a |
+| rfc7705 | 2-4 | 13 | 0 | 0 | 6 / 3 / 0 | yes, 2/2; verdicts 2/2 | f14d9233bf |
+| rfc7752 | 2-4 | 29 | 0 | 2 | 0 / 1 / 0 | yes, 5/5 | 56a8ab19aa b327acd569 |
+| rfc7770 | 2-4 | 18 | 0 | 0 | 3 / 1 / 0 | yes, 2/2; verdicts 1/1 | afc1c13a98 |
+| rfc7854 | 2-4 | 40 | 0 | 0 | 26 / 8 / 2 | yes, 4/4 | e19195ad69 |
+| rfc7858 | 2-4 | 20 | 0 | 0 | 3 / 3 / 0 | yes, 3/3; verdicts 1/1 | 7ace94d47c |
+| rfc7871 | 2-4 | 58 | 0 | 0 | 2 / 0 / 1 | yes, 6/6; verdicts 1/1 (BS-C, 2026-09-27) (note b); 36d18b7e6d also says a blind read of its verdicts disagreed and they were re-judged strictly (D-9), with no output on record | 36d18b7e6d |
+| rfc7911 | 2-4 | 10 | 0 | 0 | 2 / 5 / 2 | yes, 1/1; verdicts 1/2 | d62d5aba89 5861ce1750 |
+| rfc792 | 2-4 | 12 | 0 | 0 | 3 / 5 / 0 | yes, 1/1; verdicts 2/2 (BS-C, 2026-09-27) (note b) | 92cd7642e3 4ea190082d |
+| rfc7947 | 2-4 | 8 | 0 | 2 | 4 / 2 / 0 | no, 0/1; verdicts 1/1 (BS-C, 2026-09-27); on hand re-read the row's §2.1 sentence is the better fit, since it carries the SHOULD the row is levelled at, and the row stands (note b) | 2ba3009b61 |
+| rfc7950 | 2-4 | 66 | 1 | 1 | 8 / 13 / 2 | yes, 8/8; verdicts 5/5 | 1da03fcde0 |
+| rfc7999 | 2-4 | 14 | 0 | 0 | 1 / 6 / 0 | yes, 2/2; verdicts 1/1 | 34e16a33fd |
+| rfc8050 | 2-4 | 6 | 1 | 0 | 1 / 3 / 1 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 9b8d470be4 |
+| rfc8092 | 2-4 | 5 | 0 | 0 | 1 / 6 / 0 | yes, 1/1; verdicts 0/1 (BS-C, 2026-09-27); on hand re-read the verdict at HEAD stands, the blind reader was lenient (note b) | 26657c25ce |
+| rfc8097 | 2-4 | 7 | 0 | 0 | no audit file | yes, 1/1 | d404fe39d3 |
+| rfc8195 | 2-4 | 3 | 0 | 0 | no audit file | yes, 1/1 | 019e8d84ea |
+| rfc8203 | 2-4 | 4 | 0 | 0 | 2 / 3 / 0 | yes, 1/1; verdicts 1/1 | b7f7c8067a |
+| rfc8210 | 2-4 | 49 | 0 | 5 | 20 / 10 / 0 | 7/8; RFC8210-7-8 differs: the blind reader took the section 7 sentence 'Routers, however, MUST handle such notifications (by ignoring them)', the row quotes the section 7 sentence 'The router MUST ignore any Serial Notify PDUs ... during this initial startup period'. Same obligation; f783d1af12 records agreement, no re-read recorded. Sent back on 2026-09-27 and re-read in 1db09b782e, verdicts still 20 / 10 / 0; the duplicate is a merge candidate in `spec-rfc-verdict-test-fix-pass.md` | f783d1af12 1db09b782e |
+| rfc8277 | 2-4 | 25 | 0 | 0 | 1 / 8 / 0 | yes, 4/4; verdicts 0/2 | 063b7e0836 a5332075a3 |
+| rfc8326 | 2-4 | 1 | 2 | 0 | no audit file | yes, 1/1 | 9a8e154780 06adc861b1 |
+| rfc8362 | 2-4 | 50 | 0 | 0 | un-enrolled, R-7 table lines | yes, 5/5 | d3d4d965e3 |
+| rfc8414 | 2-4 | 13 | 0 | 0 | 5 / 2 / 0 | yes, 2/2; verdicts 1/1 | f9fbda2842 be0c565ad3 |
+| rfc8484 | 2-4 | 7 | 0 | 0 | 0 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 1734643634 |
+| rfc8654 | 2-4 | 6 | 0 | 0 | 3 / 5 / 0 | yes, 1/1; verdicts 2/2 | 484fb4581f |
+| rfc8665 | 2-4 | 41 | 0 | 2 | 19 / 9 / 0 | yes, 4/4; verdicts 6/6 (BS-C, 2026-09-27) (note c) | b12697744d |
+| rfc8666 | 2-4 | 35 | 0 | 0 | 19 / 4 / 0 | yes, 4/4; verdicts 5/5 (BS-C, 2026-09-27) (note c) | b12697744d |
+| rfc8669 | 2-4 | 25 | 0 | 0 | 2 / 10 / 0 | yes, 4/4; verdicts 2/2 | e926c85230 855b60b622 |
+| rfc8671 | 2-4 | 6 | 1 | 0 | 6 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 84f57a537f |
+| rfc8707 | 2-4 | 6 | 2 | 0 | no audit file | yes, 1/1; no verdict sampled, no audit file (BS-C, 2026-09-27) (note c) | be0c565ad3 |
+| rfc8907 | 2-4 | 34 | 0 | 0 | 30 / 18 / 0 | yes, 6/6; verdicts 9/10 | 35ec40699a |
+| rfc8950 | 2-4 | 3 | 0 | 0 | 1 / 3 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | bb216425d0 |
+| rfc8955 | 2-4 | 26 | 0 | 0 | 20 / 2 / 1 | yes, 4/4; verdicts 3/4 | 808e5178f4 be0c565ad3 5484c65fbe |
+| rfc8956 | 2-4 | 10 | 0 | 0 | 6 / 1 / 0 | yes, 1/1; verdicts 1/1 | 2ea1e30ec7 |
+| rfc9003 | 2-4 | 7 | 0 | 0 | 1 / 1 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 7851d49d92 |
+| rfc9012 | 2-4 | 40 | 0 | 0 | 12 / 2 / 1 | yes, 4/4; verdicts 1/3 (BS-C, 2026-09-27); sent back, re-read 49a91fdf9a: now 0 / 14 / 1 (note b) | b1b796824c |
+| rfc905 | 2-4 | 7 | 3 | 0 | 0 / 4 / 0 | yes, 1/1 | be0c565ad3 ed9dd6a089 2920e3e3cb |
+| rfc9069 | 2-4 | 11 | 0 | 1 | 10 / 5 / 0 | yes, 2/2; verdicts 3/3 | aed25fc2f2 |
+| rfc9072 | 2-4 | 7 | 0 | 0 | 1 / 0 / 0 | yes, 1/1; verdicts 1/1 (BS-C, 2026-09-27) (note b) | 04f374b49a 7c7c100d13 |
+| rfc9085 | 2-4 | 13 | 0 | 0 | 0 / 3 / 0 | yes, 1/1; verdicts 0/1 | 87fe43d8de 145e52ee25 |
+| rfc9086 | 2-4 | 15 | 0 | 0 | 3 / 4 / 0 | yes, 2/2; verdicts 1/1 | ce3064a1a2 |
+| rfc9129 | 2-4 | 6 | 1 | 0 | no audit file | yes, 1/1 | 9a8e154780 15cb157202 |
+| rfc9136 | 2-4 | 9 | 0 | 0 | 2 / 1 / 0 | yes, 2/2; verdicts 1/1 | 8708380a1d |
+| rfc9190 | 2-4 | 36 | 0 | 0 | un-enrolled, R-7 table lines | yes, 4/4; no verdict sampled, un-enrolled (BS-C, 2026-09-27) (note b) | c45c3bae04 |
+| rfc9234 | 2-4 | 11 | 0 | 0 | 8 / 9 / 0 | yes, 2/2; verdicts 3/3 | 78bc7a7651 |
+| rfc9252 | 2-4 | 22 | 0 | 0 | 10 / 7 / 0 | yes, 4/4; verdicts 4/4 | b1e0fe39f8 faf7e61351 |
+| rfc9256 | 2-4 | 38 | 0 | 0 | 2 / 0 / 0 | yes, 5/5; verdicts 1/1 | 258c244a3b |
+| rfc9319 | 2-4 | 7 | 0 | 0 | no audit file | yes, 1/1 | 106e78a9bf |
+| rfc9384 | 2-4 | 1 | 0 | 0 | un-enrolled, R-7 table lines | yes, 1/1; no verdict sampled, un-enrolled (BS-C, 2026-09-27) (note b) | 277719527b |
+| rfc9494 | 2-4 | 15 | 0 | 0 | 3 / 2 / 0 | yes, 4/4 | f10d01a8f7 3b2fffd32b |
+| rfc9514 | 2-4 | 22 | 0 | 0 | 10 / 7 / 0 | yes, 2/2; verdicts 3/3 | 4c77d6ca97 1fb067ed90 |
+| rfc9552 | 2-4 | 39 | 0 | 3 | 23 / 17 / 1 | yes, 7/7; verdicts 8/8 | 376c12d49a 9d5dea7721 |
+| rfc9568 | 2-4 | 55 | 0 (+1 added) | 0 | 25 / 21 / 1 | yes, 8/8; verdicts 8/9 | 3ad1eb9542 9e4ee8ed38 850eb41b66 69a54af2ac |
+| rfc9582 | 2-4 | 9 | 13 | 0 | no audit file | yes, 2/2 | ea5b4f197d cbcade6f68 be0c565ad3 b6fc04265e |
+| rfc9687 | 2-4 | 18 | 0 | 0 | 10 / 3 / 0 | yes, 2/2; verdicts 2/3 | ea0813c52f |
+| rfc9728 | 2-4 | 12 | 0 | 0 | 5 / 5 / 2 | yes, 1/1; verdicts 2/2 (BS-C, 2026-09-27) (note b) | 4ccad9c749 |
+| rfc9830 | 2-4 | 87 | 0 | 0 | 34 / 25 / 0 | yes, 11/11; verdicts 12/12 | 3c98aaa424 ab02812d23 |
+| sflow-v5 | 2-4 | 41 | 1 | 2 | 12 / 12 / 0 | yes, 5/5; verdicts 4/5 | 95427dc548 be0c565ad3 87ffa88c22 f5291c50aa |
+
+How the table was built (2026-09-27, AC-10 pass): the 190 stems whose
+`rfc/short/<stem>.md` differs between 0bf0696576 and HEAD. The closer's draft
+held 180, because it kept only commits whose body names the spec, which dropped
+the ten stems whose rows landed in defect-fix or D-10 commits
+(draft-ietf-idr-bgp-bfd-strict-mode, rfc3748, rfc3768, rfc5216, rfc5880,
+rfc5883, rfc7296, rfc8665, rfc8666, rfc8707).
+
+| Column | What it counts |
+|--------|----------------|
+| Rows quoted | rows whose text changed, trailing `{...}` markers ignored |
+| Retired | ids at 0bf0696576 and absent at HEAD. "+N added" counts ids new at HEAD, the D-10 moves and splits |
+| R-7 verdicts | every verdict in `rfc/audit/<stem>.json` at HEAD, because the D-9 strict re-audit judged the whole file. "un-enrolled" stems have their lines in the R-7 section |
+| Blind sample agreed | the D-4 blind outputs in the session's `scratch/work/sample/*.out.json` against the rows at HEAD. "yes, k/n" is k of n sampled quotes agreeing (same sentence or span in the same section; a retired row agrees with a blind "no-sentence"). "verdicts a/b" is a of b D-9 blind verdicts equal to the verdict at HEAD. A mismatch is a verdict at HEAD that differs from the blind reader's, and this table does not judge which is right |
+| Commit | every commit since 0bf0696576 touching the stem's summary, audit or corrections file |
+
+Totals: 3627 rows quoted, 81 retired, 9 added, 48 level changes; verdicts
+1114 enforced, 855 weak, 59 wrong.
+
+Blind sample: 128 stems sampled. 127 agree on every sampled quote, and rfc8210
+differs on one quote, recorded in its row with no re-read on record. Two stems
+owe no sample: rfc1877 quoted nothing and retired five rows, and rfc7606 changed
+only the `{gap}` text of RFC7606-5.1-1 in 546e3765b9. The remaining 60 stems
+had no blind output on record until 2026-09-27, when the samples BS-A, BS-B and
+BS-C ran over them (`scratch/work/sample/wave-bsa.*`, `wave-bsb.*`, `wave-bsc.*`):
+
+- note b (50 stems): the commit states that "The blind 10% second read agreed
+  (D-4)", but `commit_stems.sh` writes that sentence into every commit it makes,
+  whatever happened, and no blind output named the stem when the commit landed.
+  The statement is not evidence of a sample; the cell now records the 2026-09-27
+  sample instead.
+- note c (10 stems): the rows landed in a defect-fix or D-10 commit, and no commit
+  and no blind output recorded a sample before 2026-09-27. For rfc1071 the quotes
+  came from job J099 and rode in be0c565ad3. wave7 was cut before J099 ran, and
+  wave-qf did not include rfc1071.
+
+In the 2026-09-27 samples, 104 of 108 sampled quotes and 102 of 130 sampled
+verdicts agreed. Every stem with a disagreement was re-read: 14 of the 60 were
+sent back, with rfc8210 as the fifteenth for its earlier quote difference (the 14
+re-read commits are listed in the Mistake Log, and rfc3787 was re-read with no
+change), and for rfc7611, rfc7947 and rfc8092 the flagged line was re-read by hand
+in BS-C and the reading at HEAD stands. AC-10 now holds for all 60 stems.
 
 ### Critical Review Checklist
 
@@ -483,3 +770,169 @@ One row per stem, appended when the stem's commit lands.
 - [ ] `/ze-review` gate clean
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** remove the spec
+
+## Mistake Log
+
+### Wrong Assumptions
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 expected about 5% of rows to have no supporting sentence, with a stop at 15% of a stem's rows | rfc9582 lost 13 of its 35 rows (37%): 9 in cbcade6f68, re-attributed under D-7 to the draft-ietf-sidrops-8210bis rows that state them; RFC9582-5.12-2 and 5.12-7 in be0c565ad3 under owner decision D-10; RFC9582-5.12-6 and 5.12-9 in b6fc04265e under D-2, since no document states an ASPA AFI field. The summary had carried ASPA and RTR obligations that belong to 8210bis, not the ROA profile. Across the 190 changed stems, 81 of 6339 rows left their stem (1.3%), and rfc9582 is the only stem of 20 or more rows above 15% | the per-stem retire count at closure (AC-10 table) | the retirements stand on D-7, D-10 and D-2, the owner's rulings on rows another document states or no document states. A-2 is recorded broken for rfc9582, and no row is restored |
+
+The per-stem commit bodies that the session's helper script `commit_stems.sh`
+wrote claimed "The blind 10% second read agreed (D-4)" whether or not a sample had
+run, because the script put that sentence into every commit it made. For 60 stems
+no sample had run (notes b and c of the per-stem table). The samples then ran on
+2026-09-27 as BS-A, BS-B and BS-C, and 15 stems were sent back and re-read under
+the strict rule: rfc3768 e07e40de0f, rfc5880 a6e945caa0, rfc2759 ebb18b811a,
+rfc3748 2cf1b04765, rfc4301 d240103498, rfc7296 d8dbe3eccb, rfc2328 a2e975c045,
+rfc1332 6f307a730b, rfc9012 49a91fdf9a, rfc4578 5f65b0a6e8, rfc4684 042a63f22e,
+rfc5082 d25ba4d0d4, rfc6138 70d678a85f and rfc8210 1db09b782e, with rfc3787
+re-read and left unchanged, so it has no commit. The weak and wrong verdicts,
+split-needed rows and row-quality findings the re-reads produced are in
+`plan/pre-release/spec-rfc-verdict-test-fix-pass.md`. A commit message states what
+happened only when the step that writes it checks that it happened.
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| AC-9: RFC7606-3.g-2, 4-1, 7.10-2 and 7.14-1 are still `weak` in `rfc/audit/rfc7606.json`, and no new tag or discrimination record exists for them | D-15 moved every weak and wrong verdict out of this spec | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` |
+| The 21 weak and 1 wrong R-7 lines of the un-enrolled stems (draft-ietf-sidrops-8210bis, rfc1035, rfc8362, rfc9190), and the RFC9190-2.3-1 Method-Id gap | same D-15 move; they live only in this spec's R-7 table, so the fix pass names each in its "Un-enrolled R-7 rows" table and its goal and AC-8 cover them | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` |
+| The weak and wrong verdicts of enrolled stems from the strict re-read (838 weak, 56 wrong at D-15), and the split-needed rows | owner decision D-15: fixing them (test or row) runs by package in a separate spec | `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` |
+| RFC3948-5.1-1 (`unimplemented`, `{gap}`): ze assigns no inner address, so nothing prevents the tunnel-mode conflict | an absent feature, recorded as a gap under `ai/rules/rfc-compliance.md`; its gap text was corrected at closure to name `reloadPool` (`apply.go`) | `plan/immediate/spec-ike-virtual-ip-assignment.md` |
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1 (9a8e154780): a stem with no numbered heading cites its whole text as one section (D-1); indented headings are read where a text has no column-0 heading (D-5); `checkRetiredRequirements` accepts an id named first by a dated `Retired` paragraph with at least one section read, and `checkIDAllocation` refuses a retired id again (D-2). `rfc/full/rfc8326.txt` and `rfc/full/rfc9129.txt` fetched.
+- `./le rfc audit-stamp` (b6ad657bf2, `auditStamp` in `internal/le/rfc/audit_stamp.go`) stamps new verdicts with computed fingerprints (D-6); errata are stored under `rfc/errata/<stem>/` and a row citing one is judged against the corrected text (76fcaae9c0, `erratumRowRefusal` in `errata.go`, D-11).
+- Phases 2 to 4: every unquoted row of 201 stems quoted verbatim, retired (D-2, D-7, D-10) or its level corrected (D-3), one commit per stem, with the blind sample per stem (AC-10) and the strict R-7 verdicts in `rfc/audit/<stem>.json`.
+- Phase 5 (eb63fc5813): `checkRowQuotes` judges every row; the change scope, the unquoted ratchet and the backlog figure are deleted.
+- D-8 defect fixes found by the re-read landed in code (BFD, OSPF, softver D-13, RFC 3101 translator D-12), each in its own commit.
+
+### Bugs Found/Fixed
+- Closure: the RFC3948-5.1-1 `{gap}` text, its Meta "Support remaining" cell, its extraction reason and its audit note named `registerIKE` discarding the pool at `_ = ipPool` in `register.go`. That line is gone: `reloadPool` (`internal/component/ike/engine/apply.go`) stores the pool in `ikeEngineState.pool`, which no code reads. All four texts, and the source anchor in `docs/guide/ipsec.md`, now name `reloadPool`. The gap itself still holds.
+- b77dfd0996: three real-corpus tests asserted counts this spec's stem commits moved; fixed to the new truth.
+
+### Documentation Updates
+- `docs/contributing/rfc-conformance-gates.md`: "The row quote" states that every row is judged and the ratchet is gone (eb63fc5813); "Requirements do not vanish" states the `Retired` paragraph (9a8e154780); the whole-text section (D-1) is described.
+- `docs/guide/ipsec.md`: source anchor repointed from `register.go` to `apply.go` `reloadPool` (closure).
+- `docs/features/rfc-status.md` regenerated by `./le rfc index-update` (closure run: no diff).
+- `./le doc check verify` at closure: "Documentation tests PASSED" (scratch `close3-doccheck.out`).
+
+### Deviations from Plan
+- AC-9 not met here: D-15 moved every weak and wrong verdict, the rfc7606 four included, to the fix-pass spec (Work Not Done).
+- A-2 broken for rfc9582 (Mistake Log).
+- AC-6: 3 of the 10 no-rfc-text rows were retired under D-2 (`RFC8326-x-2`, `RFC8326-x-3`, `RFC9129-2.5-2`), with paragraphs in `rfc/corrections/`; the other 7 are quoted.
+- RFC3948-5.1-1 and RFC7296-2.4-2 were counted by the closers' AC-7 script only because plan prose and an audit note contain the words `RFC requirement:`. No test tags them, so AC-7 does not reach them; they carry verdicts anyway (e70b768c49, bdaca99582).
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| `./le rfc check` shows no unquoted row and no unjudged stem | Done | `checkRowQuotes`, `internal/le/rfc/check_quote.go` | closure run: 18 violations, all foreign producer-changed discrimination records, none a row-quote refusal |
+| The row-quote rule applies to every row | Done | `checkRowQuotes` | `TestCheckRefusesUnchangedUnquotedRow` passes |
+| Tagged tests of each rewritten row re-read (R-7) | Done | `rfc/audit/<stem>.json`, the R-7 table above | real-tag AC-7 derivation reports missing 0 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `./le rfc check` at closure | no unquoted figure exists after the flip; no quote violation |
+| AC-2 | Done | `TestCheckRefusesUnchangedUnquotedRow` | pass at closure |
+| AC-3 | Done | `git grep -w` over `internal` and `cmd` | 0 hits for all 8 symbols |
+| AC-4 | Done | `TestCheckAcceptsWholeTextQuoteInUnnumberedStem`, `TestCheckRefusesFrontCitationInNumberedStem` | pass |
+| AC-5 | Done | `TestCheckRefusesRetiredRowWithoutCorrection`, `TestCheckAcceptsRetiredRowWithCorrection`, `TestCheckRefusesRetiredIDReuse` | pass |
+| AC-6 | Done | `rfc/full/rfc8326.txt`, `rfc/full/rfc9129.txt`; rows quoted or retired | see Deviations |
+| AC-7 | Done | `close3-ac7-realtags.py`: 2139 changed tagged rows, 37 un-enrolled with R-7 lines, missing 0 | verdicts eed9f9c665 .. bdaca99582 |
+| AC-8 | Done | every weak, wrong or unimplemented verdict is homed: fix-pass spec (D-15), `{gap}` rows in their own specs | Work Not Done |
+| AC-9 | Changed | owner decision D-15 | homed in the fix-pass spec |
+| AC-10 | Done | per-stem table; BS-A, BS-B, BS-C samples | 14 re-read commits listed in the Mistake Log |
+| AC-11 | Done | `rfc/corrections/<stem>.md` `Retired` paragraphs name sections read and tag moves | `retires` refuses a paragraph with no section |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the 8 `TestCheck*` tests of the Unit Tests table and `TestRFCSelftestQuoteStageRefusesFabricatedRow` | Done | `internal/le/rfc/check_quote_test.go`, `check_ratchets_test.go` | 9 PASS at closure (scratch `close3-tests.out`) |
+| Deleted ratchet tests | Done | `check_quote_test.go` | `git grep` for `TestCheckRefusesUnquotedCountRise`: 0 hits |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `check_quote.go`, `check.go`, `inventory.go`, `check_ratchets.go`, `quote_backfill.go` | Done | 9a8e154780, eb63fc5813 |
+| `rfc/short`, `rfc/audit`, `rfc/corrections`, `rfc/extraction` | Done | stem commits |
+| `docs/contributing/rfc-conformance-gates.md` | Done | phase 1 and phase 5 commits |
+
+### Audit Summary
+- **Total items:** 11 AC, 3 task goals
+- **Done:** 10 AC, 3 goals
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-9, owner decision D-15, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| `./le rfc check` prints no unquoted figure and names no unjudged stem | functional run over the real tree | closure `./le rfc check`: "rfc-requirements: 18 violation(s)", every one a `producer-changed` discrimination record (rfc4271 2, rfc7611 2, rfc7705 1, rfc7947 2, rfc8907 11) whose producer last moved in 447c5c24da or b40379c07c; no quote refusal, no unjudged stem |
+| The row-quote rule covers every row | unit test through `Check()` | `TestCheckRefusesUnchangedUnquotedRow`: an unquoted row identical at `HEAD^` is refused; AC-3 symbols absent |
+| Every backfill-rewritten tagged row re-read | derivation over git history | rows at `0bf0696576^` vs HEAD, tags from `RFC requirement:` in code and `.ci` only: 2139 changed tagged rows, missing 0; the 37 un-enrolled rows are in the R-7 table |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfc-requirement-quote-hand-backfill-f7fd86a1-7a8c-495e-89c0-011b55afa13e.md` (19 files, verdict clean) |
+| `./le spec review check` | clean, run after the last spec edit |
+| Rounds | 1 |
+| Reviewer lenses used | logic and wiring over the le/rfc tooling (retirement, errata, audit-stamp, heading detection), security of the corrections and errata readers, citation and documentation drift |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | the RFC3948-5.1-1 gap text, Meta cell, extraction reason, audit note and the ipsec guide anchor named a `register.go` line that no longer exists | `rfc/short/rfc3948.md`, `rfc/extraction/rfc3948.json`, `rfc/audit/rfc3948.json`, `docs/guide/ipsec.md` | repointed to `reloadPool` (`apply.go`); `./le rfc check` shows no new violation |
+
+### Run 1
+- 0 BLOCKER, 0 ISSUE after finding 1 was fixed.
+- NOTE: `erratumCarries` (`errata.go`) accepts a quote that is a span of a cited erratum's corrected text without checking that the erratum's section is the row's section. A row cites the erratum by number in its own parenthetical, so the pairing is explicit.
+- NOTE: `./le commit audit`: clean (0 test files weakened). `./le repo check`: one ISSUE, a stale `internal/le/repo/numberparse-allowlist.txt` line for `internal/component/bgp/config/loader_create.go`, from b40379c07c and 65e4117e5f (another session's router-id work), not this spec.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/full/rfc8326.txt` | yes | ls: 22K, 2026-09-26 |
+| `rfc/full/rfc9129.txt` | yes | ls: 218K, 2026-09-26 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-2, AC-4, AC-5 | refusals and acceptances | `go test -race -run` of the 9 tests under `./le job run`: all PASS, `ok internal/le/rfc 7.649s` |
+| AC-3 | symbols gone | `git grep -c -w` for each of the 8: 0 |
+| AC-7 | verdict or R-7 line for every changed tagged row | `close3-ac7-realtags.py`: "changed tagged rows 2139 unenrolled 37 missing 0" |
+| AC-1 | no quote violation | `./le rfc check`: 18 violations, `grep -vc producer-changed` = 0 |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le rfc check` | none: the entry is driven through `Check()` by the named Go tests, and by the real-tree run above | yes |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | of 1511 unsourced rows, most were quoted; across the 190 changed stems 81 of 6339 rows left their stem (1.3%) |
+| A-2 | broken | rfc9582 retired 13 of 35 (Mistake Log) |
+| A-3 | confirmed | spans carried most rows; about 80 split-needed rows remain, homed by D-15 in the fix-pass spec |
+| A-4 | confirmed | every stem commit ran `./le rfc check`; the closure run shows no sign-off, discrimination-claim or render refusal caused by a reword |
+| A-5 | confirmed | `rfc/audit/rfc1661.json` held 14 verdicts before eed9f9c665 and passed the check |
+| A-6 | confirmed | `auditStamp` refuses an un-enrolled stem; rfc9494's audit file was created in 3dbbfe8154 and passes; un-enrolled rows are in the R-7 table |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| gates page: every row judged, no ratchet | `checkRowQuotes`; AC-3 grep | yes |
+| gates page: `Retired` paragraph | `retires`, `retiredIDs` in `check_ratchets.go` | yes |
+| `docs/guide/ipsec.md` pool anchor | `reloadPool`, `apply.go`: "NOTHING READS s.pool YET" | yes |
+| `./le doc check verify` | "Documentation tests PASSED" | yes |

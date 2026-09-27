@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Three defects in Ze's RADIUS client and its L2TP dynamic-authorization and
 accounting use, found by the strict re-read of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. Each was read at
+`spec-rfc-requirement-quote-hand-backfill`. Each was read at
 its producer in HEAD on 2026-09-27.
 
 ## Defects

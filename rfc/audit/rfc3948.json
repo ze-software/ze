@@ -93,7 +93,7 @@
         "internal/component/ike/engine/apply.go::reloadPool": "d7c60cb012b9c595",
         "internal/core/eap/pool.go::Allocate": "a77d195e5835c683"
       },
-      "note": "{gap} confirmed at the producer: ze devises no way to stop two peers behind one NAT reaching it with the same inner address, because it assigns no inner address. eap.Pool.Allocate (internal/core/eap/pool.go) leases a locally unique address and has no non-test caller; the engine keeps the remote-access pool in s.pool via reloadPool (internal/component/ike/engine/apply.go), whose own comment states nothing reads s.pool yet. No tagged unit exists. Finding: the row's {gap} text still names registerIKE discarding the pool at a bare `_ = ipPool`; that line is gone and the pool now lives, unread, in reloadPool, so the annotation's location is stale while its claim holds.",
+      "note": "{gap} confirmed at the producer: ze devises no way to stop two peers behind one NAT reaching it with the same inner address, because it assigns no inner address. eap.Pool.Allocate (internal/core/eap/pool.go) leases a locally unique address and has no non-test caller; the engine keeps the remote-access pool in s.pool via reloadPool (internal/component/ike/engine/apply.go), whose own comment states nothing reads s.pool yet. No tagged unit exists.",
       "requirement_sha": "857f569d12e4c9d9",
       "verdict": "unimplemented"
     },

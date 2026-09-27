@@ -17,7 +17,7 @@ A transit LSR acting as a Point of Local Repair arms no protection at all when
 an LSP asks for node protection and only a link bypass (merging at the next
 hop) is configured. RFC 4090 Section 6 asks the PLR to fall back to link
 protection when node protection is not feasible. Found by the strict re-read of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`, and read at the
+`spec-rfc-requirement-quote-hand-backfill`, and read at the
 producer in HEAD on 2026-09-27. An operator meets it as a protected LSP that
 reports no local protection available and loses traffic on a link failure a
 configured bypass could have repaired.

@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Four defects in how Ze builds and reports its BGP OPEN exchange, found by the
 RFC re-read and the softver interop work of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. Two are RFC
+`spec-rfc-requirement-quote-hand-backfill`. Two are RFC
 defects: a peer misframes Ze's OPEN, and a per-peer override gives peers
 different BGP Identifiers. Two are Ze behaviour defects that no RFC sentence
 states, each recorded by its journal row: a changed capability does not reach

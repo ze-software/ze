@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Two defects in Ze's IKEv2 NAT traversal and EAP-TLS, found by the strict re-read
-of `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. A peer behind a
+of `spec-rfc-requirement-quote-hand-backfill`. A peer behind a
 NAT that rewrote its IKE source port receives ESP on the wrong port, and an
 EAP-TLS 1.2 full handshake carries no session_id. Both read at the producer in
 HEAD on 2026-09-27.

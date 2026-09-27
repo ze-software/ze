@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The strict RFC re-read of `plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`
+The strict RFC re-read of `spec-rfc-requirement-quote-hand-backfill`
 found five places where Ze's handling of a received BGP Prefix-SID attribute
 (RFC 8669) and its SRv6 Service TLVs (RFC 9252) does not do what the RFC
 requires. An operator meets each one on the wire: a malformed attribute is

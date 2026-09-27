@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Six places where Ze accepts or re-advertises a BGP route in a way its RFC or
 draft forbids, found by the strict re-read of
-`plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`. An operator meets
+`spec-rfc-requirement-quote-hand-backfill`. An operator meets
 each as a wire behaviour towards a peer: bits that must be zero are sent,
 duplicates that must not be sent are sent, a malformed MUP route is kept, a
 received link-local next hop reaches a peer off the link, and
