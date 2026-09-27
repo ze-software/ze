@@ -1,0 +1,30 @@
+{
+  "audited": "2026-09-26",
+  "requirements": {
+    "RFC9256-2.6-3": {
+      "note": "TestRFC9256SymbolicNamesAreNotIdentifiers drives parseConfigRoute: differing policy and candidate-path names give byte-identical NLRI keys while the names still reach the Tunnel Encapsulation attribute (positive), and a shared name with a different distinguisher gives distinct keys (negative), so the name never takes part in identity.",
+      "requirement_sha": "ff857de83f7a5dbc",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers": "090ce0fdc58d10da",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers#2": "090ce0fdc58d10da"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers": "be89953f30d19ac4",
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers#2": "be89953f30d19ac4"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9256-5.1-4": {
+      "note": "ze verifies no SID reachability, so every SID must be Type A or B; TestRFC9256SegmentTypesAreAOrB shows parseSegmentList and buildSegmentSubSubTLV emit only sub-TLV 1 and 13 and that type-c, type-d, type-i and type-k are refused; the row carries its single-polarity marker.",
+      "requirement_sha": "a49fc9efc6be8202",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SegmentTypesAreAOrB": "090ce0fdc58d10da"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SegmentTypesAreAOrB": "759cd6358604afd1"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9256"
+}
