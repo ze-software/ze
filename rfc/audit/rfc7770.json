@@ -1,0 +1,54 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7770-2.4-1": {
+      "note": "Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(...)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Single-polarity marker on the row covers the absent negative.",
+      "requirement_sha": "1a85660b8f889a8e",
+      "tests": {
+        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "3b4c15470c73174b"
+      },
+      "units": {
+        "internal/plugins/ospf/ri_test.go::TestRITLVType1First": "de7f5ad359823d85"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7770-2.4-2": {
+      "note": "Over-claim and under-claim are enforced for the whole router: TestRICapabilityBitsFromState fails if the TE bit is set with no TE configured or the stub-router bit is clear when max-metric is configured, TestRICapabilityTEBitFromConfig fails if TE is not set with an interface TE block. The clause \"in the scope advertised\" has no assertion: deriveRICapabilities (internal/plugins/ospf/ri.go) takes no scope, and no test shows a capability held in one area is not claimed in an RI LSA flooded into another.",
+      "requirement_sha": "7df59214bc473f02",
+      "tests": {
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "3b4c15470c73174b",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "3b4c15470c73174b",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "3b4c15470c73174b"
+      },
+      "units": {
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState": "b9f700b4c6697a2d",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityBitsFromState#2": "b9f700b4c6697a2d",
+        "internal/plugins/ospf/ri_test.go::TestRICapabilityTEBitFromConfig": "e7967efdfe03c7c3"
+      },
+      "verdict": "weak"
+    },
+    "RFC7770-2.6-1": {
+      "note": "Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Single-polarity marker on the row covers the absent negative.",
+      "requirement_sha": "e3e048d8302b0376",
+      "tests": {
+        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "1f6ee3444d7ee282"
+      },
+      "units": {
+        "internal/plugins/ospf/ri_registry_test.go::TestRITLVRegistered": "7e82daa55c562ab2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7770-2.6-2": {
+      "note": "Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Single-polarity marker on the row covers the absent negative.",
+      "requirement_sha": "2f7328aefc204d11",
+      "tests": {
+        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "3b4c15470c73174b"
+      },
+      "units": {
+        "internal/plugins/ospf/ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "d382136cd01dec4b"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7770"
+}
