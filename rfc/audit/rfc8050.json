@@ -1,0 +1,69 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8050-4.1-1": {
+      "note": "Forbidden behaviour: writing or reading the Path Identifier of an AFI/SAFI-specific add-path RIB entry anywhere but the 4 octets between Originated Time and Attribute Length (Figure 1). TestRIBRecordAddPathRoundTrip is a symmetric round trip, WriteRIBEntries then DecodeRIBRecord, with no expected byte layout: an encoder and decoder that both put the Path Identifier after Attribute Length, or both used 2 octets (PathID 1 and 2 fit), stay green. The negative TestRIBRecordRoundTrip (base subtype 2 decodes PathID 0) is sound. Needed: a positive over hand-built Figure 1 bytes, or an assertion on the encoded bytes at the Originated Time + 4 offset.",
+      "requirement_sha": "0e4e298f95ef5404",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "a3cf168d6cde55bd",
+        "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5",
+        "internal/mrt/mrt_test.go::TestRIBRecordRoundTrip": "a8270cec375affeb"
+      },
+      "verdict": "weak"
+    },
+    "RFC8050-4.2-1": {
+      "note": "Forbidden behaviour: reading RIB_GENERIC_ADDPATH (subtype 12) RIB Entries as redefined (a Path Identifier in each entry), or losing the Path Identifier that belongs in the raw NLRI. TestRIBGenericAddPathRoundTrip hand-builds the bytes the RFC describes (Path ID 42 at the head of the NLRI blob, then an entry with Peer Index, Originated Time, Attribute Length, attributes and no Path ID) and requires rec.NLRI == nlri and Entries[0].Attributes == attrs; a decoder that read a 4-octet Path ID from the entry would take 0x0004 plus attribute bytes as the path id and misparse the attribute length, so the attribute comparison or the decode goes red. The negative TestRIBGenericRoundTrip requires the base subtype 6 NLRI to decode verbatim. Ze writes no subtype 12 record (internal/mrt/encode.go writes none; internal/mrt/decode.go is the only producer), so the decode path is the whole surface.",
+      "requirement_sha": "6872cc51eafebe46",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "a3cf168d6cde55bd",
+        "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "9e0cd914d419a246",
+        "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "4e9a8b80460e9682"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8050-x-2": {
+      "note": "Forbidden behaviour: a Path Identifier field that is not 32 bits wide (Figure 1), and, per the row's single-polarity marker, one not in network byte order. TestRIBRecordAddPathRoundTrip only round-trips PathID 1 and 2 through the Ze encoder and decoder: a symmetric pair using little-endian, or 16-bit fields, stays green because nothing compares the encoded octets with 00 00 00 01. Needed: an assertion on the exact encoded Path Identifier octets, or a decode of hand-built bytes with a value above 0xFFFF.",
+      "requirement_sha": "9e616d9919bd82c6",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5"
+      },
+      "verdict": "weak"
+    },
+    "RFC8050-x-3": {
+      "note": "The quoted sentence is about the four add-path BGP4MP subtypes (8 to 11): their fields are identical to the base versions and they carry the entire BGP message. TestBGP4MPMessageRoundTrip encodes and decodes subtype BGP4MP_MESSAGE_AS4 (4), a base subtype, with a 19-octet message holding no NLRI and no Path Identifier; TestBGP4MPStateChangeRoundTrip decodes a state change record. Both prove the RFC 6396 section 4.4 base layout, a neighbouring rule. No tagged unit drives BGP4MP_MESSAGE_ADDPATH, BGP4MP_MESSAGE_AS4_ADDPATH or the LOCAL variants, so a decoder that treated subtype 9 differently from 4 in the header stays green.",
+      "requirement_sha": "e345360cf8b8b739",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "a3cf168d6cde55bd",
+        "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "3e89b1b296b18679",
+        "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "9d3a3ab19ecff5b7"
+      },
+      "verdict": "wrong"
+    },
+    "RFC8050-x-4": {
+      "note": "Forbidden behaviour: deciding whether a record's NLRI carries Path Identifiers from anything but the MRT subtype (session state, a capability, a flag). TestIsAddPathHelpers requires IsAddPathRIBSubtype and IsAddPathBGP4MPSubtype to classify every add-path and base subtype correctly from the subtype alone, both polarities. It tests the classifier only: a decoder (internal/mrt/decode.go DecodeRIBRecord, or the BGP4MP reader) that stopped consulting the classifier and read an add-path flag from elsewhere keeps the unit green. No tagged unit decodes a record whose parse depends on the subtype.",
+      "requirement_sha": "3dcf23f1c1c7357c",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "a3cf168d6cde55bd",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers": "0a755beddd59ee75",
+        "internal/mrt/mrt_test.go::TestIsAddPathHelpers#2": "0a755beddd59ee75"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8050"
+}
