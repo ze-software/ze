@@ -1,0 +1,72 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC4552-11-1": {
+      "note": "Forbidden: any inbound or outbound OSPF traffic that bypasses IPsec processing. TestIPsecPoliciesInterfaceScopedWildcard asserts out, in and fwd policies exist with UpperProto 89, ::/0 selectors and transport mode, red if a direction were missing. It never asserts the policy Action (the zero value protects, SPActionBypass is template-free) or the Proto template, so an installer that laid bypass policies in all three directions keeps every assertion green.",
+      "requirement_sha": "34643c7aa4f918a3",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945"
+      },
+      "verdict": "weak"
+    },
+    "RFC4552-11-2": {
+      "note": "Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface's policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.",
+      "requirement_sha": "47d8095219ad4c47",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "dd52a76e2d13724d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4552-11-3": {
+      "note": "TestIPsecInstallOnInterfaceUp asserts only len(fake.pols) == 3 on an enabled interface. The quoted sentence carries the rule table: rules 2 and 3 (link-local source, protect, OSPF and ESP/AH-over-OSPF) and rules 4 and 5 (virtual-link src/128 dst/128). No tagged assertion checks the protect action, the transform, or any selector, and nothing covers the virtual-link rules 4 and 5, so a set of three bypass policies passes. Ze also installs a ::/0 source where the table names fe80::/10; that is wider, and no unit states it.",
+      "requirement_sha": "1145ef06b26e4f63",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "a145323c432300dc"
+      },
+      "verdict": "weak"
+    },
+    "RFC4552-6-2": {
+      "note": "Forbidden: one SPD applied regardless of interface. Ze realises the per-interface SPD as IfIndex-scoped XFRM policies; TestIPsecPoliciesInterfaceScopedWildcard asserts every installed policy has IfIndex == testIfIndex, red if a policy were global (IfIndex 0), and TestIPsecDisabledInterfaceBypass asserts a disabled interface on the same installer gets no policy. Single-polarity marker: no reject path.",
+      "requirement_sha": "1673b7a562541a00",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4552-6-4": {
+      "note": "Forbidden: inbound OSPF handled without regard to its arrival interface. The kernel tags; Ze owns the interface selector it installs. TestIPsecPoliciesInterfaceScopedWildcard asserts the policy set contains the SADirIn direction and that every policy, the inbound one included, carries IfIndex == testIfIndex, red if the inbound policy were unscoped. Single-polarity marker.",
+      "requirement_sha": "44b605a955cabf24",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4552-7-1": {
+      "note": "Clause 'same SPI for inbound and outbound': TestIPsecSAPerDestinationWithOSPFSelector asserts SPI 256 on every state, including the inbound link-local one, and the shared direction on the multicast states. Clause 'same keys': no 7-1-tagged assertion compares the key material across states, so an installer that keyed the inbound state differently passes. TestSAParamsSharedKey checks only that AuthKey is non-empty, and it carries the RFC4552-6-5 tag, not this one.",
+      "requirement_sha": "6b651075953b9d6e",
+      "tests": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "6030e8816e85665f"
+      },
+      "units": {
+        "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector": "9e264ae6fcbef0c5"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc4552"
+}
