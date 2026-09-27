@@ -1,0 +1,19 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7752-6.2.2-2": {
+      "note": "Five listed checks. Asserted: a BGP-LS attribute TLV whose length overruns the attribute is refused (ErrBGPLSTruncated) and an exact-sum sequence is walked completely; a fixed-length TLV (1028 with 3 octets) is refused. The MP_REACH_NLRI sum, the MP_UNREACH_NLRI sum and the descriptor sum against Total NLRI Length have no assertion in either unit.",
+      "requirement_sha": "d752ea60c051e852",
+      "tests": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "6b87bb9b72af59d8",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6b87bb9b72af59d8"
+      },
+      "units": {
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "cd3772465de11c9c",
+        "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "ee6151c6778bb298"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc7752"
+}
