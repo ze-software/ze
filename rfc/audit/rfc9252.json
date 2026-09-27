@@ -1,5 +1,5 @@
 {
-  "audited": "2026-09-26",
+  "audited": "2026-09-27",
   "requirements": {
     "RFC9252-3.1-1": {
       "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
@@ -70,8 +70,8 @@
       "verdict": "enforced"
     },
     "RFC9252-3.2.1-3": {
-      "note": "Both halves are detected: parseSIDStructure refuses sum>128 (TestExtractSRv6SIDFull_InvalidSIDStructure) and sum<offset+length (TestExtractSRv6SIDFull_SumBelowTransposition), checking HasTranspos==false. But both tests also assert that the SID is still valid, and ze then uses the attribute SID whole. Section 7 says such a SID value 'is invalid' and the path is ineligible, so an input that breaks this MUST still produces a usable SID and an eligible path, and no assertion goes red on that. The code accepts sum == offset+length (errata 7817) where the quoted text says 'greater than'.",
-      "requirement_sha": "179d5b0a1eb4aba0",
+      "note": "Re-judged 2026-09-27 by QF-2 after the row took the Corrected Text of verified erratum 7817 (rfc/errata/rfc9252/7817.txt): 'greater than or equal to'. Both bounds are detected: TestExtractSRv6SIDFull_InvalidSIDStructure (sum 200 > 128) and TestExtractSRv6SIDFull_SumBelowTransposition (64 < 76) assert HasTranspos false, and TestExtractSRv6SIDFull_WithTransposition accepts sum 64 == offset 48 + length 16, the equality the erratum allows. Weak: both negatives also assert the SID stays valid and ze uses it whole, while Section 7 makes such a SID invalid and the path ineligible, so no assertion goes red on the consequence of breaking this MUST.",
+      "requirement_sha": "1fe45198489c7a4e",
       "tests": {
         "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_InvalidSIDStructure": "7d696fdb5e08ffca",
         "internal/component/bgp/plugins/rib/pool/srv6sid_test.go::TestExtractSRv6SIDFull_SumBelowTransposition": "7d696fdb5e08ffca",

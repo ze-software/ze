@@ -1,0 +1,19 @@
+Errata ID: 7817
+RFC: 9252
+Status: Verified
+Type: Technical
+Location: Section 3.2.1
+Date Verified: 2024-05-22
+Source: https://www.rfc-editor.org/errata/eid7817
+
+Original Text:
+   As defined in [RFC8986], the sum of the Locator Block Length (LBL),
+   Locator Node Length (LNL), Function Length (FL), and Argument Length
+   (AL) fields MUST be less than or equal to 128 and greater than the
+   sum of Transposition Offset and Transposition Length.
+
+Corrected Text:
+   As defined in [RFC8986], the sum of the Locator Block Length (LBL),
+   Locator Node Length (LNL), Function Length (FL), and Argument Length
+   (AL) fields MUST be less than or equal to 128 and greater than or
+   equal to the sum of Transposition Offset and Transposition Length.
