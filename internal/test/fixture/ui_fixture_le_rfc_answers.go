@@ -271,7 +271,9 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		actionSelftest:        fieldChecks,
 		"approve":             wordWrites,
 		"reseal":              wordWrites,
+		"audit-stamp":         wordWrites,
 		actionIndexUpdate:     wordWrites,
+		"quote-backfill":      wordWrites,
 	}
 	// The expectation is written out rather than derived from the action table
 	// the binary renders: a list read from that table would agree with it
