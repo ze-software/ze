@@ -1,0 +1,95 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8671-4-1": {
+      "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
+      "requirement_sha": "edc718f92035419f",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "904daa30c09ce18e",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "904daa30c09ce18e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "99410a2dd5338591",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "d37d9dba39f2439a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-6.1-1": {
+      "note": "Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.",
+      "requirement_sha": "f3eb27903e98a7df",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "904daa30c09ce18e",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "904daa30c09ce18e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "d825067b222ff85f",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "58e9265522cf6c45"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-6.2-1": {
+      "note": "Re-read 2026-09-27. Forbidden: a Statistics Report with O=1. TestRFC8671StatisticsReportOnTheWireClearsTheOFlag fails when the report sendStatisticsReports puts on the collector pipe carries PeerFlagO for a peer whose header holds O, and asserts L survives. Single polarity is declared on the row.",
+      "requirement_sha": "aaffcefcbbe63f1b",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC8671StatisticsReportOnTheWireClearsTheOFlag": "b9942efbd6542cce"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC8671StatisticsReportOnTheWireClearsTheOFlag": "2773a5c536e36680"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-7.2-1": {
+      "note": "Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.",
+      "requirement_sha": "185f8cbb8c34166b",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "904daa30c09ce18e",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "904daa30c09ce18e",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "904daa30c09ce18e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "4c68d1d9d70417f6",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "7562173fb793e19c",
+        "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "946ffa03c1ddd70b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-x-1": {
+      "note": "Re-read 2026-09-27 against the \u00a74 quote (header layout with O in the fourth flag position; O=0 Adj-RIB-In, O=1 Adj-RIB-Out). Forbidden: O at another bit, or its meaning inverted. TestRFC8671OFlagBit4 fails if PeerFlagO != 0x10, if flags 0x10 does not decode as Adj-RIB-Out, or if 0x08 does.",
+      "requirement_sha": "629ff494a8f39c7f",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4": "49dfad3eed97ec32",
+        "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4#2": "49dfad3eed97ec32"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4": "c48503a93c7660af",
+        "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4#2": "c48503a93c7660af"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-x-2": {
+      "note": "Re-read 2026-09-27 against \u00a75.1 'The L flag MUST be set to 1 to indicate post-policy'. Ze's Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.",
+      "requirement_sha": "78b531802e313954",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "ab6458033c6436a6",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "ab6458033c6436a6"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "f9b8d61bde3447de",
+        "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "8c364bd38b11688f"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8671-x-3": {
+      "note": "Re-read 2026-09-27 against \u00a76.3 (Peer Up/Down state independent of which RIBs are monitored). Forbidden: a Peer Up whose content or presence depends on Adj-RIB-In vs Adj-RIB-Out monitoring. The only tagged unit, TestBMPPeerUpRoundTrip, round-trips a hand-built PeerUp through writePeerUp/DecodeMsg; it never drives the producer (bmp.go openCache path) nor compares Peer Ups under different monitoring, so the independence is asserted by the marker prose, not by a test.",
+      "requirement_sha": "5be0d12471a734fa",
+      "tests": {
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "3f21c748e8e703fe"
+      },
+      "units": {
+        "internal/component/bgp/plugins/bmp/msg_test.go::TestBMPPeerUpRoundTrip": "09b701b3bf81d357"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc8671"
+}
