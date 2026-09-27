@@ -1,0 +1,182 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC7311-3-1": {
+      "note": "Forbidden: accepting a Type-1 TLV whose Length is not 11. TestParseAIGPMalformedTruncatedValue is not tagged here; the tagged negative TestParseAIGPMalformedMetricWrongLength asserts an error only for Length 8 (below 11). No tagged assertion rejects a Type-1 TLV with Length above 11 (e.g. 12 with 9 value octets), so a validator written as tlvLen < 11 passes both tagged units. Positive TestParseAIGP pins Type 1, Length 11, metric 100.",
+      "requirement_sha": "2c6739873b534578",
+      "tests": {
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07"
+      },
+      "units": {
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGP": "6b490ebba37348d1",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02"
+      },
+      "verdict": "weak"
+    },
+    "RFC7311-3-2": {
+      "note": "Forbidden: accepting an attribute value that is not a whole set of TLVs, either a TLV overrunning the value (tagged negative TestParseAIGPMalformedTruncatedValue: assert.Error on Length 11 with 5 value octets) or trailing octets after the last TLV that do not form a TLV. The trailing-octets case (a valid TLV followed by 1 or 2 octets) has no assertion in a tagged unit, so a walker that stops at the last whole TLV passes. Positive TestParseAIGPMultipleTLVs pins two TLVs consuming exactly the value.",
+      "requirement_sha": "86b51cad859556b6",
+      "tests": {
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07"
+      },
+      "units": {
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMalformedTruncatedValue": "110e6880f1f6bf6d",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615"
+      },
+      "verdict": "weak"
+    },
+    "RFC7311-3-3": {
+      "note": "The row quotes the Section 3 MUST that later AIGP TLVs (Type 1 after the first) are passed along unchanged when the attribute is passed along. Both tagged units (TestParseAIGPMultipleTLVs, TestAIGPWriteToMultipleTLVs) carry one Type-1 TLV and one Type-2 TLV and prove the codec keeps an unknown-type TLV through parse and WriteTo: the neighbouring unknown-type rule, not a second Type-1 TLV, and not the forwarding path where the attribute is passed along. No tagged assertion goes red if a forwarded AIGP drops or rewrites its second Type-1 TLV.",
+      "requirement_sha": "ccd1ed711d398027",
+      "tests": {
+        "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07"
+      },
+      "units": {
+        "internal/core/bgp/attribute/aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
+        "internal/core/bgp/attribute/aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615"
+      },
+      "verdict": "wrong"
+    },
+    "RFC7311-3.2-4": {
+      "note": "Forbidden: keeping or passing along an AIGP whose transitive bit is set. TestRFC7606AIGPTransitiveIsDiscarded asserts Action==AttributeDiscard on code 26 with DiscardReasonMalformedValue and require.False(found) for AIGP after ApplyAttrDiscard, with ORIGIN, AS_PATH, NEXT_HOP intact; TestRFC7311AIGPTransitiveDiscardedOnReceive asserts the same through enforceRFC7606 with no error (discard, not reset). Positives with flags 0x80 assert RFC7606ActionNone and the AIGP bytes unchanged, so a codepoint-only check goes red.",
+      "requirement_sha": "69a550d0d0d623bb",
+      "tests": {
+        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "d11b870505a5b12f",
+        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "d11b870505a5b12f",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive": "7f52170b1752013c",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive": "7f52170b1752013c"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept": "600be71c156d99db",
+        "internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded": "dd924033947ce4f7",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive": "4833c52d30c4ead9",
+        "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive": "0c7d0fc1021c86b3"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7311-3.2-5": {
+      "note": "Forbidden: acting on, or passing along, a malformed AIGP, or escalating beyond ignoring it. TestAIGPReceiveValidatesEveryTLV (IBGP, AIGP enabled) appends a truncated trailing TLV and asserts require.Equal(!malformed, present) on the payload leaving enforceRFC7606 (the bytes passed along), require.NoError (quietly, no session reset) and the NLRI kept (route not withdrawn). The well-formed half (unknown TLV plus duplicate metric) keeps the metric, so a blanket AIGP strip goes red.",
+      "requirement_sha": "4b6ba95ea04b6437",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "b7c71e460d127db3"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "3b4825f95627f2c2",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "3b4825f95627f2c2"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7311-3.2-6": {
+      "note": "Forbidden: judging an AIGP malformed for a repeated TLV type or an unknown TLV type. TestRFC7311DuplicateAndUnknownTLVsAreWellFormed parses two Type-1 TLVs and a Type-200 TLV with require.NoError, so rejecting either shape goes red; ParseAIGP and the receive validator validateAIGPAttr share AIGPMetricOffset. TestRFC7311MalformedVerdictIsForLengthOnly shows the malformed verdict exists (ErrMalformedValue on a Type-1 TLV of Length 8) and is lifted when only the length is repaired.",
+      "requirement_sha": "00a55309f0c3a452",
+      "tests": {
+        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "bb11d3aadfeb234d",
+        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "bb11d3aadfeb234d"
+      },
+      "units": {
+        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed": "907cbe3545834edf",
+        "internal/core/bgp/attribute/aigp_rfc7311_test.go::TestRFC7311MalformedVerdictIsForLengthOnly": "401021c32fc67084"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7311-3.3-2": {
+      "note": "Forbidden: an EBGP (non-confederation) session defaulting AIGP_SESSION to enabled. TestAIGPSessionReceiveBoundary case external-default (peer AS 65002, local 65001, AIGPSession nil) asserts require.Equal(false, present) for AIGP after enforceRFC7606, which goes red on an enabled default; external-enabled shows the item is honoured when set; internal-default keeps AIGP, so the check is not a blanket strip.",
+      "requirement_sha": "bf6f97ece0e68f9d",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "b7c71e460d127db3"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "5c6e71448aa83dd0",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "5c6e71448aa83dd0"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7311-3.4.3-2": {
+      "note": "Forbidden: any Section 3.4.3 computation exceeding or wrapping past 0xffffffffffffffff. The tagged unit TestAIGPForwardedMetricsReachFinalWire case saturate asserts max-5 plus 30 equals the maximum for the next-hop-self interior addition, and case interior shows 130 is not clamped. The recursive procedure sums (Xattr+Y, Xattr+D) are not asserted in a unit tagged for this id; the sysrib saturation assertion in TestAIGPRecursiveDistanceUsesReceivedMetrics is tagged only for 3.4.3-4 and 3.4.3-7, and the direct-link addition (link-policy) is not tested near the maximum.",
+      "requirement_sha": "b0ac1abb10e91bc0",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131"
+      },
+      "verdict": "weak"
+    },
+    "RFC7311-3.4.3-4": {
+      "note": "Forbidden: after next-hop-self over (a) an IGP-learned route or (b) a non-recursive static route, not adding the R1-R2 distance to A, or adding the wrong quantity. TestAIGPForwardedMetricsReachFinalWire case interior asserts 100 plus 30 equals 130 on the wire and case unchanged keeps 100 without next-hop-self. TestAIGPRecursiveStaticDistance asserts a non-recursive static route yields its configured distance 25 and TestAIGPRecursiveDistanceUsesReceivedMetrics that the terminal interior metric 30 is added once. The wire test takes its distance from an igpcost stub, so the resolver and the adder are proved in separate units.",
+      "requirement_sha": "dd3784f728f3cfc1",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "6b2760c11598d15e",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "6b2760c11598d15e",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance": "6b2760c11598d15e",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance#2": "6b2760c11598d15e"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "5208f23ea0e3c2ec",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "5208f23ea0e3c2ec",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance": "f6a54b16e554fa50",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance#2": "f6a54b16e554fa50"
+      },
+      "verdict": "enforced"
+    },
+    "RFC7311-3.4.3-6": {
+      "note": "Forbidden: after next-hop-self over a direct EBGP link with no IGP, advertising the AIGP value unchanged (increase of zero). Case link-policy (unresolved, link cost 7) asserts 107, so a missing increase goes red. The tagged negative is case zero-refused, which uses a RESOLVED interior route of cost 0: that is the 3.4.3-5 scenario, not a direct link with no IGP. No tagged case has Resolved false with link cost 0, so an implementation that advertises the unchanged metric on an unresolved direct link with no configured cost passes.",
+      "requirement_sha": "34dc4991d650d0ca",
+      "tests": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "b7c71e460d127db3",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "b7c71e460d127db3"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d0354c9b21293131",
+        "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d0354c9b21293131"
+      },
+      "verdict": "weak"
+    },
+    "RFC7311-3.4.3-7": {
+      "note": "Forbidden: a change in the AIGP TLV value of a recursively resolved next hop (clause (a)) not triggering a new AIGP computation for the route. TestAIGPReadvertisesFromReceivedGeneration and TestAIGPDistanceChangeReselectsRetainedRoutes change an IGP or Loc-RIB metric (clause (b)) and the RIB test calls reselectAIGPRoutes by hand. TestAIGPRecursiveDistanceUsesReceivedMetrics changes a recursive route's AIGP (400) but calls IGPMetric by hand, proving the value is read when asked, not that the change triggers a recomputation or re-advertisement. No tagged assertion goes red if a recursive AIGP change is never acted on.",
+      "requirement_sha": "24ac0e8d720b866d",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "a175c0306331c18a",
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "a175c0306331c18a",
+        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "ce590389e4bbbd78",
+        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "ce590389e4bbbd78",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "6b2760c11598d15e",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "6b2760c11598d15e"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes": "977fced45ca931f5",
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes#2": "977fced45ca931f5",
+        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration": "0ffaafa1dae93609",
+        "internal/component/bgp/reactor/aigp_readvertise_test.go::TestAIGPReadvertisesFromReceivedGeneration#2": "0ffaafa1dae93609",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "5208f23ea0e3c2ec",
+        "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "5208f23ea0e3c2ec"
+      },
+      "verdict": "weak"
+    },
+    "RFC7311-4.1-1": {
+      "note": "Forbidden: running a Section 9.1.2.2 tie-breaker before the AIGP step. TestAIGPSelectsStoredRoutesBeforeASPath gives peer B the lower AIGP sum (20 plus 10) and the longer AS_PATH (3 versus 1); require.Equal(nhB, winner.NextHop) goes red if AS_PATH length, the first 9.1.2.2 tie-breaker, runs first. Negatives assert LOCAL_PREF (Section 9.1.1, not a tie-breaker) still wins before AIGP and that a missing AIGP is not metric zero.",
+      "requirement_sha": "291f7185220f93db",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath": "a175c0306331c18a",
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath#2": "a175c0306331c18a"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath": "df7c8dfe0285064c",
+        "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath#2": "df7c8dfe0285064c"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc7311"
+}
