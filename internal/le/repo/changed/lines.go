@@ -93,6 +93,25 @@ func LinesSinceUpstream(root string) (ChangedLines, LineBase, error) {
 	return changed, base, nil
 }
 
+// LinesSinceCommit answers the lines the working tree changed since one
+// commit, in every path. A reader that asks "did this declaration move after
+// commit C" diffs from C rather than from the upstream base.
+func LinesSinceCommit(root, commit string) (ChangedLines, error) {
+	return linesAgainst(root, commit, nil)
+}
+
+// LinesInCommit answers the lines one commit changed against its first parent,
+// numbered in that commit's own copy of each file. A reader maps them onto the
+// declarations of that copy to learn which symbols the commit touched.
+func LinesInCommit(root, commit string) (ChangedLines, error) {
+	out, err := runGit(root, gitDiff, commit+"^", commit, "-U0", "--inter-hunk-context=0", "--no-color",
+		"--no-ext-diff", "--find-renames", "--src-prefix=a/", "--dst-prefix=b/", "--")
+	if err != nil {
+		return nil, err
+	}
+	return parseZeroContextDiff(out)
+}
+
 // PathsSince answers every path the working tree changed since base, once
 // each and sorted: the paths git diffs against the base commit, a deleted path
 // included, and every untracked path. It is the file set that pairs with the

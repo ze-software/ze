@@ -517,9 +517,20 @@ func (g *checker) checkDesignRefs() CheckResult {
 // A claim naming no symbol, and a file the parser cannot read, are both
 // unanswerable rather than clean. Neither blocks, and the trailer counts them,
 // so a silent check and a check with nothing to say never read alike.
+//
+// A change that preserves behavior leaves the claim true, and a page edit made
+// only for this check is banned. The reviewed-claim ledger (ReviewedDir,
+// reviewed.go) accepts such a claim when every unpushed commit that changed a
+// line of its symbol has a row and the working tree leaves the symbol alone.
+// The verdict line counts the claims review accepted. A row that is wrong on
+// its own is a finding, and the ledger is judged even when no Go changed.
 func (g *checker) checkDocDrift() CheckResult {
 	sources := changedGoSources(g.report.Changed)
-	if len(sources) == 0 {
+	ledger, err := readReviewLedger(g.root, g.base.Commit)
+	if err != nil {
+		return g.readFailure(checkDocDriftName, err)
+	}
+	if len(sources) == 0 && ledger.empty() {
 		return CheckResult{Skipped: true}
 	}
 
@@ -527,11 +538,16 @@ func (g *checker) checkDocDrift() CheckResult {
 	if err != nil {
 		return g.readFailure(checkDocDriftName, err)
 	}
+	ledger.validate(claims)
+	if len(sources) == 0 {
+		return g.ledgerOnlyResult(ledger)
+	}
 
 	pages := changedPages(g.report.Changed)
 	related := map[string]bool{}
 	var findings []string
 	unanswerable := 0
+	accepted := 0
 	for _, source := range sources {
 		if len(claims[source]) == 0 {
 			continue
@@ -552,18 +568,34 @@ func (g *checker) checkDocDrift() CheckResult {
 				}
 				continue
 			}
+			open, why := unreviewedSymbols(ledger, claim.Doc, source, named)
+			if len(open) == 0 {
+				accepted++
+				continue
+			}
 			var tb textbuf.Buffer
-			findings = append(findings, tb.Str(claim.Doc).Byte(':').Int(int64(claim.Line)).Str(": ").
-				Str(source).Byte(' ').Str(strings.Join(named, ", ")).
-				Str(" changed under this claim and the page did not").String())
+			tb.Str(claim.Doc).Byte(':').Int(int64(claim.Line)).Str(": ").
+				Str(source).Byte(' ').Str(strings.Join(open, ", ")).
+				Str(" changed under this claim and the page did not")
+			if why != "" {
+				tb.Str(" (").Str(why).Byte(')')
+			}
+			findings = append(findings, tb.String())
 			related[claim.Doc] = true
 			related[source] = true
 		}
+	}
+	findings = append(findings, ledger.problems...)
+	for shard := range ledger.shards {
+		related[shard] = true
 	}
 
 	var tb textbuf.Buffer
 	if len(findings) == 0 {
 		tb.Str("every claim about a changed symbol changed with it")
+		if accepted > 0 {
+			tb.Str(" or was accepted by review (").Int(int64(accepted)).Str(" claim(s) in ").Str(ReviewedDir).Byte(')')
+		}
 		if unanswerable > 0 {
 			tb.Str(" (").Int(int64(unanswerable)).Str(" claim(s) name no symbol this check can resolve)")
 		}
@@ -576,6 +608,21 @@ func (g *checker) checkDocDrift() CheckResult {
 	return CheckResult{Failed: true, Violations: findings}
 }
 
+// unreviewedSymbols answers the named symbols of one claim that no reviewed
+// row covers, and why the rows naming them did not.
+func unreviewedSymbols(ledger *reviewLedger, doc, source string, named []string) ([]string, string) {
+	var open, why []string
+	for _, symbol := range named {
+		reasons, covered := ledger.covers(doc, source, symbol)
+		if covered {
+			continue
+		}
+		open = append(open, symbol)
+		why = append(why, reasons...)
+	}
+	return open, strings.Join(why, "; ")
+}
+
 // touchedSymbols answers the declarations of one changed file that the
 // changed lines reach. The second result reports a file this check cannot
 // judge: the Go parser could not read it, and an unreadable file is never a
@@ -585,6 +632,14 @@ func touchedSymbols(root, rel string, lines repochanged.ChangedLines) (map[strin
 	if err != nil {
 		return nil, false
 	}
+	return touchedSymbolsIn(rel, body, lines)
+}
+
+// touchedSymbolsIn answers the declarations of one copy of a file that the
+// changed lines reach. The copy is the working file for touchedSymbols and a
+// committed blob for the reviewed-claim ledger. The second result is false
+// when the Go parser cannot read the copy.
+func touchedSymbolsIn(rel string, body []byte, lines repochanged.ChangedLines) (map[string]bool, bool) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, rel, body, parser.SkipObjectResolution)
 	if err != nil {

@@ -63,6 +63,7 @@ release. Optional specs can remain open when the release ships.
 | `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |
 | `learned/` | The hand-written meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
 | `known-failures/` | One shard per failure nobody could reproduce |
+| `doc-reviewed/` | One shard per commit session: docs claims a reader reviewed after a change that preserves behavior (`docs/contributing/documentation-testing.md`) |
 
 ## Lifecycle
 

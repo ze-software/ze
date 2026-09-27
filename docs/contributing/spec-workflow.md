@@ -111,8 +111,13 @@ found under and says nothing about whether that spec is closing, and CLAUDE.md
 requires a row for every defect walked into, so the ordinary `in-progress`
 commit carries one. Reading rows as closures charged those commits with a review
 artifact their spec could not yet produce, and charged a session with other
-sessions' specs where a class file is shared. Journal paths are still read for
-their SHAPE: a row that is not five cells refuses the commit.
+sessions' specs where a class file is shared. A journal file the
+commit changes is still validated whole, by `specjournal.ValidateFile`. A file
+with no journal header refuses the commit, and so does any row in it, added or
+not, that is not five cells, carries a Date that is not `YYYY-MM-DD`, or has a
+Spec cell that names no readable stem. A row that HEAD does not already hold
+must also stay within the 600-character cap.
+<!-- source: internal/le/spec/journal/validate.go -- ValidateFile -->
 
 What this gives up: commit A of the two-commit closure below lands its code
 before the artifact is read, because nothing in its content distinguishes it
