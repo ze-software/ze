@@ -41,10 +41,7 @@
       "id": "2.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is real and is listed below. The section states no checksum rule of its own and defers the checksum to RFC 3947.",
-      "unsourced-ids": [
-        "RFC3948-2.2-1"
-      ]
+      "reason": "IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is stated by RFC 7296 Section 2.23, whose own row RFC7296-2.23-3 carries it, so no row of this summary claims it. The section states no checksum rule of its own and defers the checksum to RFC 3947."
     },
     {
       "id": "2.3",

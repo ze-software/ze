@@ -1,0 +1,80 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC3948-2.1-1": {
+      "note": "Forbidden behaviour: an ESP SA whose SPI is 0. TestGenerateESPSPI asserts spi != 0 over 100 calls to generateESPSPI, and both tags sit on that one assertion (two hats). The assertion cannot observe the loss of the producer's guard: with the retry loop in child.go removed, a random 32-bit draw is 0 with probability 2^-32 per call, so the test stays green. No unit injects a zero draw into the generator.",
+      "requirement_sha": "96eb64607ceba544",
+      "tests": {
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "3c8069f4319f7f90",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "3c8069f4319f7f90"
+      },
+      "units": {
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI": "44bf9768b4b90de3",
+        "internal/component/ike/engine/child_test.go::TestGenerateESPSPI#2": "44bf9768b4b90de3"
+      },
+      "verdict": "weak"
+    },
+    "RFC3948-2.1-2": {
+      "note": "Forbidden behaviour: UDP-encapsulated ESP whose source or destination port differs from the ports IKE traffic uses, which is the NAT-translated case (Section 5.2 shows IKE reaching the server as <Y,4500>). TestChildSANATTEncapPorts asserts both encap ports equal the constant transport.NATTPort (4500), which is what the code does, not what the RFC says: installChildSA (child.go) takes the peer's real IKE port only on the MOBIKE path (udpRemotePort) and otherwise falls back to 4500, so a peer whose IKE arrives from a translated port Y gets ESP on 4500 and the test stays green. The {single-polarity} marker's claim that no path produces a non-4500 port is also false for the MOBIKE path.",
+      "requirement_sha": "34792a4c5764f8b4",
+      "tests": {
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "3c8069f4319f7f90"
+      },
+      "units": {
+        "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "955a46be9071a360"
+      },
+      "verdict": "wrong"
+    },
+    "RFC3948-2.3-2": {
+      "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
+      "requirement_sha": "e03b3988d738b573",
+      "tests": {
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434"
+      },
+      "units": {
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3948-3.1.1-1": {
+      "note": "Forbidden behaviour: tunnel-mode decapsulation that takes none of the three actions, here accepting an inner packet whose source lies outside the policy's defined space. Ze takes option 1 through the kernel, so the proof is the selector Ze installs: TestChildInboundPolicyDefinesTheValidInnerSourceSpace asserts the inbound policy is SPActionProtect with Src == the negotiated remote selector 10.2.0.0/24, and the child_test.go unit asserts inPol.Src == NegotiatedTSr; a wider or wrong source selector goes red (discrimination record on childPolicyParams). Options 2 and 3 are alternatives the RFC leaves to local policy. Single-polarity marker present.",
+      "requirement_sha": "5cc3af212139b3f1",
+      "tests": {
+        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "3c8069f4319f7f90",
+        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "5680d85ad80fc850"
+      },
+      "units": {
+        "internal/component/ike/engine/child_test.go::TestChildSAInboundPolicyUsesNegotiatedTS": "93a9bdfaf157d80d",
+        "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace": "f7772b93140a2f1d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC3948-4-1": {
+      "note": "Forbidden behaviour: not sending a NAT-keepalive when a need is detected (NAT behind this end) and nothing else was sent to the peer for M seconds. TestNATKeepalive proves Keepalive.Run emits a keepalive on its timer and TestKeepaliveDefaultInterval proves the default interval is positive and <= 20s. Neither clause of the condition is asserted: no unit shows keepalives start only when the RFC 3947 need is detected, and none shows the M-second window is measured from the last packet sent to the peer rather than a free-running ticker.",
+      "requirement_sha": "7a70244ce37ee3c6",
+      "tests": {
+        "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "953e0984234cb434",
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "953e0984234cb434"
+      },
+      "units": {
+        "internal/component/ike/transport/keepalive_test.go::TestKeepaliveDefaultInterval": "1b40e58f60aec171",
+        "internal/component/ike/transport/keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
+      },
+      "verdict": "weak"
+    },
+    "RFC3948-5.2-1": {
+      "note": "Forbidden behaviour: two transport-mode clients behind one NAT whose traffic descriptions overlap both admitted with nothing deciding which SA carries the traffic. TestPolicyOwnerRefusesASecondPeerOnOneSelector refuses only a second claim on an identical selector (0.0.0.0/0 tunnel, same fields), which is the XFRM policy-identity rule, a neighbouring one. TestPolicyOwnerSeparatesDistinctSelectors (positive) asserts that overlapping descriptions ARE admitted: Dst 192.0.2.0/24 against 0.0.0.0/0, and a port-500 or port-4500 selector against an any-port one, all overlap, so its tag prose ('do NOT overlap') is false and the unit pins the non-compliant behaviour. Transport mode is never exercised.",
+      "requirement_sha": "fd1e619290abf417",
+      "tests": {
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "142bcb55c13cb951",
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "142bcb55c13cb951"
+      },
+      "units": {
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerRefusesASecondPeerOnOneSelector": "6931f1d16c880a9d",
+        "internal/component/ike/dataplane/policy_owner_test.go::TestPolicyOwnerSeparatesDistinctSelectors": "488da6f10f6c0b16"
+      },
+      "verdict": "wrong"
+    }
+  },
+  "rfc": "rfc3948"
+}
