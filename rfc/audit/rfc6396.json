@@ -1,0 +1,87 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC6396-1-1": {
+      "note": "Forbidden: any multi-octet MRT field written little-endian. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip byte-asserts MSB-first order only for the four common-header fields (Timestamp, Type, Subtype, Length). No tagged assertion covers the PEER_INDEX_TABLE, RIB entry or BGP4MP multi-octet fields (Peer AS, View Name Length, Peer Count, Sequence Number, Entry Count, Originated Time, Interface Index), so a little-endian writer for any of them that round-trips through a matching decoder stays green.",
+      "requirement_sha": "2760ee7de2407440",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "449046ff5ce584d2"
+      },
+      "verdict": "weak"
+    },
+    "RFC6396-4.2-2": {
+      "note": "Forbidden: emitting a TABLE_DUMP (type 12) record for a 4-byte peer AS or a peer/prefix AFI mismatch. internal/plugins/mrt/dump_test.go::TestRibSubtype asserts only that ribSubtype maps AFIs to TABLE_DUMP_V2 subtype numbers; it never asserts the record Type field is TypeTableDumpV2 and never drives a 4-byte peer AS or a differing peer AFI through the dump, so stamping TypeTableDump on those records stays green.",
+      "requirement_sha": "bc7aa97ad7fbe9e2",
+      "tests": {
+        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "8d266da6e4557b90"
+      },
+      "units": {
+        "internal/plugins/mrt/dump_test.go::TestRibSubtype": "afc6c2958382fedb"
+      },
+      "verdict": "weak"
+    },
+    "RFC6396-4.3.1-1": {
+      "note": "Forbidden: an absent view name with a nonzero View Name Length. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName writes a PEER_INDEX_TABLE with an empty view name and asserts binary.BigEndian.Uint16(buf[4:6]) == 0, which goes red on any nonzero length. Single-polarity positive marker on the row: the encoder derives the length from len(viewName), so no absent-name-with-length input exists to reject.",
+      "requirement_sha": "47bf8b0aa4c0f0a7",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "ddc9c811348f593d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6396-4.3.1-2": {
+      "note": "Forbidden: a View Name that is not UTF-8. internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName only writes the empty name, and its utf8.ValidString assertion cannot go red on that input because the empty string is always valid UTF-8. The unit calls the encoder directly and does not drive the producer (internal/plugins/mrt/dump.go), so a producer or encoder that emitted a non-UTF-8 name would stay green.",
+      "requirement_sha": "cf8b44fb065cbe2f",
+      "tests": {
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "a3cf168d6cde55bd"
+      },
+      "units": {
+        "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "ddc9c811348f593d"
+      },
+      "verdict": "weak"
+    },
+    "RFC6396-4.3.1-3": {
+      "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
+      "requirement_sha": "a14ee59763ac83fc",
+      "tests": {
+        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "8d266da6e4557b90"
+      },
+      "units": {
+        "internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
+      },
+      "verdict": "enforced"
+    },
+    "RFC6396-4.3.4-1": {
+      "note": "Forbidden: a TABLE_DUMP_V2 RIB entry whose AS_PATH carries 2-byte AS numbers (a route from a 2-byte session). internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte proves ingest widens a 2-byte AS_PATH, and ::TestRFC6396RIBEntryASPathFourByteSessionUnchanged proves no double widening. internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte feeds an AS_PATH that is already 4-byte, so it proves only that the writer copies bytes unchanged. No tagged unit drives a 2-byte-session route through the RIB into a written RIB entry. The link between the widened value and the MRT output is claimed in prose only, so an MRT path that read unwidened bytes would stay green.",
+      "requirement_sha": "2a52cfc3407ee35b",
+      "tests": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "ef5cdafe1b9e158d",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "ef5cdafe1b9e158d",
+        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "8d266da6e4557b90"
+      },
+      "units": {
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathFourByteSessionUnchanged": "13986c347835ca8b",
+        "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6396RIBEntryASPathStoredFourByte": "36a87415e3065443",
+        "internal/plugins/mrt/dump_test.go::TestDumpV2RIBEntryASPathIs4Byte": "c00b2b6a1ec5c802"
+      },
+      "verdict": "weak"
+    },
+    "RFC6396-4.4.2-2": {
+      "note": "Forbidden: more than one BGP message in one BGP4MP message record. internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord makes one OnBGPMessage call and asserts one record whose body equals that message. With a single input message there is nothing to coalesce, so a writer that batched consecutive messages into one record would stay green. A second call is needed before the assertion can fail.",
+      "requirement_sha": "83fcb565bbdf4552",
+      "tests": {
+        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "7ce0477ea917cc7e"
+      },
+      "units": {
+        "internal/plugins/mrt/component_test.go::TestOneBGPMessagePerBGP4MPRecord": "ee14c0aa148ab5bf"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc6396"
+}
