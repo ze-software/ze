@@ -1,0 +1,77 @@
+{
+  "audited": "2026-09-27",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC1071-1-1": {
+      "note": "Sentence: to generate, the checksum field is cleared, the 16-bit one's complement sum is computed, and its complement is placed in the field. TestOSPFPacketChecksum asserts only that the field is non-zero and that ze's own VerifyPacketChecksum accepts. The clearing clause is not provable there: the encoded header starts with a zero Checksum, so an encoder that skipped the clear passes. No independent expected value pins the complement.",
+      "requirement_sha": "b309a05cdec3045e",
+      "tests": {
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "8ac8573c092c7f1a"
+      },
+      "units": {
+        "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "7a67bd5fa6cb3961"
+      },
+      "verdict": "weak"
+    },
+    "RFC1071-1-2": {
+      "note": "Forbidden: a one's complement sum without end-around carry. Red on it: TestChecksumRFC1071 compares checksum16 with an independent straight-line reference (t.Fatalf on got != want) over inputs whose sums overflow 16 bits (0xDEAD+0xBEEF, the golden VRRP packets). Single-polarity marker on the row.",
+      "requirement_sha": "7990b1d5a557ad13",
+      "tests": {
+        "internal/plugins/vrrp/packet/checksum_test.go::TestChecksumRFC1071": "4766c124e73a689a"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/checksum_test.go::TestChecksumRFC1071": "b25621b78a3057fc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1071-1-3": {
+      "note": "Sub-span: the 16-bit one's complement sum is computed and its complement is placed in the checksum field. The complement is pinned by the exact vector 0x1411 in TestInternetChecksumRFC1071Vectors. The placement clause is not ze's in that unit: the test itself writes the value into data[2:4]; the tagged unit calls internetChecksum only.",
+      "requirement_sha": "7e6c6e5ec37d332b",
+      "tests": {
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "8df584d7f7f93f43"
+      },
+      "units": {
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2fa72f8d875453be"
+      },
+      "verdict": "weak"
+    },
+    "RFC1071-1-4": {
+      "note": "Sentence gives the even-count form [1] and the odd-count form [Z,0] [2]. The odd clause is proven: exact vector 0x97cb in TestInternetChecksumOddLength and the 0xffff fold of an 11-octet echo in TestRFC792ChecksumOddLength both go red on a dropped or low-byte pad. No 1-4-tagged unit asserts the even-count form. The row's old 'do not transmit the pad' is not in RFC 1071 (it is RFC 793 Section 3.1).",
+      "requirement_sha": "fa54a374c7e8117d",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "c5fd4a2554d99d53",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "8df584d7f7f93f43"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54",
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "76936fc787931729"
+      },
+      "verdict": "weak"
+    },
+    "RFC1071-1-5": {
+      "note": "Sentence: to check a checksum, sum over the same octets including the checksum field and succeed on all ones. Both tagged units (TestRFC792ChecksumValid, TestRFC792ChecksumRejectsCorruption) perform the check with the test helper checksumOnesFold, not with ze code. They prove ze's GENERATED checksum is valid (the generate rule, RFC1071-1-1/RFC792-Echo-3), and that the helper detects corruption. No ze verify function (ospf VerifyPacketChecksum, vrrp verifyChecksumSum) is driven under this tag.",
+      "requirement_sha": "977762d7e0e4aeaa",
+      "tests": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "c5fd4a2554d99d53",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "c5fd4a2554d99d53"
+      },
+      "units": {
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumRejectsCorruption": "46ddecc03ca5c888",
+        "internal/core/probe/icmp_test.go::TestRFC792ChecksumValid": "a4ca55fc19375ae9"
+      },
+      "verdict": "wrong"
+    },
+    "RFC1071-1-6": {
+      "note": "Sentence: fold the long sum into 16 bits; each 16-bit addition may produce new end-around carries that must be added. The vector in TestInternetChecksumRFC1071Vectors overflows once (0x1EBED folds to 0xEBEE with no second carry), so a single fold without repetition still returns 0x1411. The repeated-carry clause has no assertion.",
+      "requirement_sha": "3d5df36b6e1eb1ef",
+      "tests": {
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "8df584d7f7f93f43"
+      },
+      "units": {
+        "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2fa72f8d875453be"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc1071"
+}
