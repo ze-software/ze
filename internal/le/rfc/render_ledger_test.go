@@ -373,8 +373,14 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// rfc2205, rfc2516, rfc2661, rfc7432, rfc7474, rfc8210 and rfc9552.
 	// rfc8907, rfc8955 and rfc8956 stay out, because each carries zero {gap}
 	// annotations and gapNumbers spells one through ninety-nine, never zero.
-	if counted != 51 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 51",
+	// 50 since 2026-09-26: b8cfb52f0b retired RFC1877-x-2, the one {gap} its
+	// cell counted ("One MUST gap gated"). No RFC 1877 sentence states the row,
+	// and RFC 1661 section 6 answers a bad Length with the Configure-Nak Ze
+	// sends, so the gap described a defect Ze does not have. The cell now
+	// spells no count because rfc1877 carries no {gap}: the row left because
+	// its gap is gone, which is the shrink this number exists to see argued.
+	if counted != 50 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 50",
 			counted, len(rows))
 	}
 }

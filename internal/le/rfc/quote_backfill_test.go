@@ -281,30 +281,34 @@ func TestQuoteBackfillPairRefusalKinds(t *testing.T) {
 	}
 }
 
-// backfillSampleRows are rows the backfill MUST send to review: first the ten the spec's
-// measurement found wrongly worded, each mapped to a real sentence the paraphrase
-// misstates (RFC7432-10-1 allows a length the RFC forbids, RFC4456-x-2 states a MUST NOT
-// the RFC does not hold).
+// backfillSampleRows are the rows the backfill had to send to review when it ran over
+// the paraphrased corpus: first the ten the measurement found wrongly worded, each mapped
+// to a real sentence the paraphrase misstated (RFC7432-10-1 allowed a length the RFC
+// forbids, RFC4456-x-2 stated a MUST NOT the RFC does not hold), then two rows the A-6
+// hand-read found covering one half of a two-MUST sentence. The fixture tests above pin
+// each refusal kind that kept them out; every one has since been quoted by hand.
 var backfillSampleRows = []string{
 	"RFC7854-x-1", "RFC2866-5-1", "RFC2328-10.2-1", "RFC2328-10.1-1", "RFC4552-6-8",
 	"RFC2328-D.3-3", "RFC4303-2.4-1", "RFC7432-10-1", "RFC5036-2.5.3-2", "RFC4456-x-2",
-	// Two rows the A-6 hand-read found covering one half of a two-MUST sentence, which the
-	// partial rule now sends to review.
 	"RFC7911-5-1", "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
 }
 
-// backfillKnownMisses are rows the A-6 hand-read found the rule still quotes although the
-// sentence changes what the row claims: a wrong value (RFC7432-6.3-3 says "normalized VID"
-// where the RFC says the originating VID), a narrower scope (RFC9552-5.2-6 names modifying
-// where the RFC names adding, removing or modifying), a different property (RFC5880-6.7.3-4).
-// Word overlap cannot see these; a human reading the tagged tests can.
+// backfillKnownMisses are rows the A-6 hand-read found the backfill quoted although the
+// sentence changed what the row claimed: a wrong value (RFC7432-6.3-3 said "normalized
+// VID" where the RFC says the originating VID), a narrower scope (RFC9552-5.2-6 named
+// modifying where the RFC names adding, removing or modifying), a different property
+// (RFC5880-6.7.3-4). Word overlap cannot see these; the R-7 re-read of their tagged tests
+// did.
 var backfillKnownMisses = []string{"RFC7432-6.3-3", "RFC9552-5.2-6", "RFC5880-6.7.3-4"}
 
-// VALIDATES: AC-12 and A-6 over the real corpus -- a dry run over every summary judges
-// every stem without error, and no sample row lands on the quote list. Run
-// with -v, it logs the totals by kind, where each sample row landed, and fifteen quoted
-// rows evenly spaced over the whole quote list, for a human to read against the RFC.
-func TestQuoteBackfillRealCorpusReviewsSampleRows(t *testing.T) {
+// VALIDATES: the end state of the hand backfill over the real corpus -- a dry run over
+// every summary judges every stem without error and finds nothing left to quote, review
+// or hand to a human, and the rows that calibrated the backfill are still in the corpus.
+// PREVENTS: a sample row leaving the corpus in silence. When the corpus was paraphrased
+// this test asserted each sample row landed in review; with every row verbatim nothing
+// lands anywhere, so what the rows still witness is that they were quoted, not retired.
+// A row retired under a correction paragraph leaves this list in the same commit.
+func TestQuoteBackfillRealCorpusHasNothingLeft(t *testing.T) {
 	root, err := lepath.Root()
 	if err != nil {
 		t.Fatal(err)
@@ -313,46 +317,41 @@ func TestQuoteBackfillRealCorpusReviewsSampleRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	kinds := map[string]int{}
-	placed := map[string]string{}
-	var quoted []quoteBackfillRow
-	verbatim := 0
+	present := map[string]bool{}
+	verbatim, rows := 0, 0
 	for _, stem := range sortedSet(stems) {
 		report, err := quoteBackfill(root, stem, false)
 		if err != nil {
 			t.Fatalf("%s: %v", stem, err)
 		}
 		verbatim += report.Verbatim
-		quoted = append(quoted, report.Quoted...)
 		for _, list := range [][]quoteBackfillRow{report.Quoted, report.Review, report.Human} {
 			for _, row := range list {
-				kinds[row.Kind]++
-				placed[row.RID] = row.Kind + ": " + row.Reason
+				t.Errorf("%s is not verbatim in its section (%s: %s)", row.RID, row.Kind, row.Reason)
 			}
 		}
-	}
-	for _, rid := range backfillSampleRows {
-		where, judged := placed[rid]
-		if !judged {
-			t.Errorf("%s: not judged (absent, or already verbatim)", rid)
-			continue
+		body, err := os.ReadFile(treePath(root, summaryRel, stem+".md")) //nolint:gosec // a path under the checkout's rfc/short
+		if err != nil {
+			t.Fatal(err)
 		}
-		if strings.HasPrefix(where, backfillQuote+":") {
-			t.Errorf("%s would be quoted; a wrongly worded row MUST go to review", rid)
+		requirements, err := parseSummaryText(string(body), stem, stemPath(summaryRel, stem, ".md"))
+		if err != nil {
+			t.Fatalf("%s: %v", stem, err)
 		}
-		t.Logf("sample %s -> %s", rid, where)
-	}
-	for _, rid := range backfillKnownMisses {
-		t.Logf("known miss %s -> %s", rid, placed[rid])
-	}
-	t.Logf("totals: verbatim %d, by kind %v", verbatim, kinds)
-	for i := range 15 {
-		if len(quoted) == 0 {
-			break
+		for _, req := range requirements {
+			present[req.RID] = true
 		}
-		row := quoted[i*len(quoted)/15]
-		t.Logf("apply %s\n  row:   %s\n  quote: %s", row.RID, row.Text, row.Quote)
+		rows += len(requirements)
 	}
+	if verbatim != rows {
+		t.Errorf("the dry run counts %d verbatim row(s) of %d parsed", verbatim, rows)
+	}
+	for _, rid := range append(append([]string{}, backfillSampleRows...), backfillKnownMisses...) {
+		if !present[rid] {
+			t.Errorf("%s is no longer in the corpus", rid)
+		}
+	}
+	t.Logf("verbatim %d of %d row(s)", verbatim, rows)
 }
 
 // VALIDATES: a row stating one obligation of a sentence that states two goes to review,
