@@ -1,0 +1,331 @@
+{
+  "audited": "2026-09-26",
+  "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+  "requirements": {
+    "RFC2865-1.1-2": {
+      "note": "Forbidden: honouring an Access-Accept that authorizes a service the NAS does not provide. The tagged units drive only Service-Type (admin: Framed and NAS-Prompt rejected, Login accepted; L2TP: Login and NAS-Prompt rejected, Framed accepted). No tagged unit drives an Accept authorizing an unavailable service through another attribute, for example Framed-User with Framed-Protocol SLIP on the L2TP LNS, so that clause has no assertion.",
+      "requirement_sha": "1af735b73cfc0de9",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "d914f47d88bb0d8f",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#4": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "61b075ba7ce4bffe",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "61b075ba7ce4bffe",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "61b075ba7ce4bffe",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "61b075ba7ce4bffe",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "f99329e0abe38972",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "f99329e0abe38972",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "f99329e0abe38972",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#4": "f99329e0abe38972",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "215da72a4421735b",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "70631ff196ec4f0d"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-2.5-1": {
+      "note": "The quote obliges the same Request Authenticator, ID and source port on a retransmission to the same server. TestClientRetransmit only asserts attempts >= 2 and an Accept; the mock builds each reply from the latest datagram, so a client that changed ID and Request Authenticator together, or changed source port, still passes. No tagged assertion compares the attempts' Identifier, Request Authenticator or source port.",
+      "requirement_sha": "5c737904eded8aeb",
+      "tests": {
+        "internal/component/radius/client_test.go::TestClientRetransmit": "112d7f170f64c378"
+      },
+      "units": {
+        "internal/component/radius/client_test.go::TestClientRetransmit": "d4a339688c942372"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-3-1": {
+      "note": "Min clause: a decoder accepting a 19-octet datagram fails TestDecodeTooShort (Decode error expected). Max clause: TestDecodeTooLong feeds 4097 zero octets whose Length field is 0, so a decoder with no 4096 bound still errors on Length < 20 and the test stays green; no tagged unit drives a datagram or Length field above 4096 with an otherwise valid Length. TestDecodeBadLength proves the Length-beyond-datagram rule (RFC2865-3-7), not this bound.",
+      "requirement_sha": "ebf1bb0b278dac85",
+      "tests": {
+        "internal/component/radius/packet_test.go::TestDecodeBadLength": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestDecodeTooLong": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestDecodeTooShort": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "8d639d23d04e7dff"
+      },
+      "units": {
+        "internal/component/radius/packet_test.go::TestDecodeBadLength": "9fcdb8433915aec3",
+        "internal/component/radius/packet_test.go::TestDecodeTooLong": "65492f6f2bd6e14c",
+        "internal/component/radius/packet_test.go::TestDecodeTooShort": "86f81e2df0468603",
+        "internal/component/radius/packet_test.go::TestPacketRoundTrip": "d5a61de5c2dd8a4e"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-3-2": {
+      "note": "Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.",
+      "requirement_sha": "e697e07b213ccf80",
+      "tests": {
+        "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom": "9e5b9d00bb0a5c97",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom#2": "9e5b9d00bb0a5c97"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom": "31efc61332e45565",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865RequestAuthenticatorRandom#2": "31efc61332e45565"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-3-3": {
+      "note": "Forbidden: a Response Authenticator computed over anything but Code+ID+Length+RequestAuth+Attributes+Secret. TestRFC2865ResponseAuthenticatorMatchesTheFormula compares ResponseAuthenticator with an independent MD5 over exactly those fields (red on a wrong formula, with a non-degenerate attribute stream); TestRFC2865ResponseAuthenticatorCoversEveryNamedField mutates each named field and asserts VerifyResponseAuth rejects it.",
+      "requirement_sha": "0bb672d98351bc9a",
+      "tests": {
+        "internal/component/radius/packet_test.go::TestResponseAuthenticator": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestResponseAuthenticator#2": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestVerifyResponseAuth": "8d639d23d04e7dff",
+        "internal/component/radius/packet_test.go::TestVerifyResponseAuth#2": "8d639d23d04e7dff",
+        "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorCoversEveryNamedField": "afe9edcd4686e40f",
+        "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorMatchesTheFormula": "afe9edcd4686e40f"
+      },
+      "units": {
+        "internal/component/radius/packet_test.go::TestResponseAuthenticator": "ff18b148edbed08b",
+        "internal/component/radius/packet_test.go::TestResponseAuthenticator#2": "ff18b148edbed08b",
+        "internal/component/radius/packet_test.go::TestVerifyResponseAuth": "d477af56421ae71b",
+        "internal/component/radius/packet_test.go::TestVerifyResponseAuth#2": "d477af56421ae71b",
+        "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorCoversEveryNamedField": "e9dc8b4342c381d9",
+        "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorMatchesTheFormula": "59eb4da1c7786a4c"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-3-4": {
+      "note": "Forbidden: trusting a reply whose Response Authenticator is wrong. TestClientAuthenticatorVerify answers the first attempt signed with the wrong secret; the attempts >= 2 assertion goes red if the client accepts it instead of discarding it, and the Code assertion proves the correctly signed reply is accepted.",
+      "requirement_sha": "c08491b27c89db2c",
+      "tests": {
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "112d7f170f64c378",
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "112d7f170f64c378"
+      },
+      "units": {
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify": "85271fb250ca6523",
+        "internal/component/radius/client_test.go::TestClientAuthenticatorVerify#2": "85271fb250ca6523"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-3-7": {
+      "note": "Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.",
+      "requirement_sha": "aa727fbc9d9838ec",
+      "tests": {
+        "internal/component/radius/rfc2865_walk_test.go::TestDecodeAcceptsAPacketAsLongAsItsLengthField": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestDecodeRefusesAPacketShorterThanItsLengthField": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_walk_test.go::TestDecodeAcceptsAPacketAsLongAsItsLengthField": "146ad4266df484c9",
+        "internal/component/radius/rfc2865_walk_test.go::TestDecodeRefusesAPacketShorterThanItsLengthField": "ab229cd170641e4d"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-4.1-2": {
+      "note": "Forbidden: an Access-Request with neither NAS-IP-Address nor NAS-Identifier. radius TestAdminAccessRequestIdentifiesTheNAS asserts hasIP || hasID on the wire; authradius TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured asserts a non-empty NAS-Identifier even with nothing configured (red if the request goes out naming no NAS).",
+      "requirement_sha": "57dcd4808cf06bba",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress": "c6f04475dba42f70",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "92f990b7c0dc5556",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress": "78b37a87c00c3f3e",
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "d14e2840cc684656",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "97148f41ab5c48f9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-4.1-3": {
+      "note": "Forbidden: an Access-Request carrying none of User-Password, CHAP-Password, State. The admin (TestAdminAccessRequestCarriesExactlyOneCredential) and L2TP PAP/CHAP units assert the credential attribute on the wire, and the AuthMethodNone and short MS-CHAPv2 units assert no request is sent. The sentence covers every Access-Request, and the full MS-CHAPv2 and EAP Access-Requests Ze sends carry none of the three (RFC 2548 / RFC 3579 carriers); no tagged unit asserts anything about them, so the row is not proven for every request Ze emits. Whether RFC 3579 relieves the EAP path is an owner question, recorded in findings.",
+      "requirement_sha": "fe2a7a49820343bb",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestCredentialBearingMethodStillReachesTheServer": "c2434105197a4ccd",
+        "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestNoAuthIsAdmittedWithARADIUSClientConfigured": "c2434105197a4ccd",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#4": "d914f47d88bb0d8f",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestCredentialBearingMethodStillReachesTheServer": "5cdb35248e955a45",
+        "internal/component/l2tp/plugins/authradius/rfc2548_mschap2_success_test.go::TestNoAuthIsAdmittedWithARADIUSClientConfigured": "bc7e0a96cd51b9b4",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential": "c714cc1090804910",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#2": "c714cc1090804910",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#3": "c714cc1090804910",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberAccessRequestCarriesCredential#4": "c714cc1090804910",
+        "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential": "57cd0545b0228b2f"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-4.4-1": {
+      "note": "Forbidden: a NAS without challenge/response support treating an Access-Challenge as anything but a reject. The admin PAP path is covered (ErrAuthRejected, and the AAA chain stops). The row binds the L2TP PAP and CHAP paths too, and no tagged unit sends an Access-Challenge to the authradius handler; that package has no Access-Challenge test at all.",
+      "requirement_sha": "1b4d7075e742011f",
+      "tests": {
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "75bdb47ffa846320",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "75bdb47ffa846320",
+        "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "4e5bed20a9284efc",
+        "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "0e8a7a1034a4954a"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-5-1": {
+      "note": "Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.",
+      "requirement_sha": "437669fad98017c7",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "92f990b7c0dc5556",
+        "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "3e3eaab50ae82f2a",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "9e5b9d00bb0a5c97"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "9124583de2883fdd",
+        "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "11168d7dfe297c7d",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "043b4bc65d28cb2b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5-2": {
+      "note": "Forbidden: an attribute Length octet that does not count Type, Length and Value. TestRFC2865AttributeLengthBound encodes a 253-octet value and asserts only that Decode returns 253 octets: an encoder writing Length = len(Value) and a decoder reading it the same way round-trip identically and stay green. No assertion reads the Length octet on the wire (it must be 255 for a 253-octet value). The 254-octet refusal is a bound check that holds under either reading.",
+      "requirement_sha": "ee5e3df093593c6b",
+      "tests": {
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "9e5b9d00bb0a5c97",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "9e5b9d00bb0a5c97"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound": "49b95d65b9eaaf18",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound#2": "49b95d65b9eaaf18"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-5-6": {
+      "note": "Forbidden: acting on a response carrying an attribute with an invalid length. TestResponseWithAnInvalidAttributeLengthIsDiscarded drives only Length 1 (below the header). An attribute whose Length runs past the packet Length is not driven by any tagged unit, and no unit asserts the client-level outcome (reject or discard) for Access-Reject or Access-Challenge.",
+      "requirement_sha": "84ef9a95c6061d53",
+      "tests": {
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded": "28cfe003c702b6b7",
+        "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered": "516bc3baa735ff7b"
+      },
+      "verdict": "weak"
+    },
+    "RFC2865-5-7": {
+      "note": "Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.",
+      "requirement_sha": "fd0fe9c78fc97102",
+      "tests": {
+        "internal/component/radius/rfc2865_walk_test.go::TestAnEmbeddedNullDoesNotEndTheAttributeWalk": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestAttributeValueWithAnEmbeddedNullRoundTrips": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_walk_test.go::TestAnEmbeddedNullDoesNotEndTheAttributeWalk": "67482c3c619dbee0",
+        "internal/component/radius/rfc2865_walk_test.go::TestAttributeValueWithAnEmbeddedNullRoundTrips": "63b87d83679cd405"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5-8": {
+      "note": "Forbidden: sending text of length zero. TestZeroLengthAttributeIsOmitted asserts an empty Filter-Id is dropped from the encoded packet (Len 1), and the admin and L2TP units assert an empty User-Name produces no attribute; TestOneOctetAttributeIsNotOmitted is the negative that bounds the guard.",
+      "requirement_sha": "dd0998d9eec58a51",
+      "tests": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted": "d914f47d88bb0d8f",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted#2": "d914f47d88bb0d8f",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted#2": "ae06d1fa559aa47c",
+        "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted": "61c96ed940b3fb09",
+        "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted#2": "61c96ed940b3fb09",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted": "b164a4f4bdf242f7",
+        "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted#2": "b164a4f4bdf242f7",
+        "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "49aa7ad37658033b",
+        "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "3164a430247ebe78"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.11-1": {
+      "note": "Quote is the Filter-Id sentence of 5.11. Forbidden: Filter-Id content changing protocol operation. TestCarrierAttributesDoNotAffectAnAccessReject asserts a Reject carrying Filter-Id stays a rejection; TestCarrierAttributesDoNotAffectAnAccessAccept asserts an Accept carrying it stays an accept. Question reported: ze uses Filter-Id as its admin profile carrier.",
+      "requirement_sha": "d552a6de5744c495",
+      "tests": {
+        "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessAccept": "a3f1d9fa74292a7a",
+        "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessReject": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessAccept": "91b7b1587dc93deb",
+        "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessReject": "dc2dffedb97aceb5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.2-1": {
+      "note": "Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.",
+      "requirement_sha": "813e6f1b4c8c3531",
+      "tests": {
+        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "9e5b9d00bb0a5c97",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "9e5b9d00bb0a5c97"
+      },
+      "units": {
+        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "4b863d59b24dcb66",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "4b863d59b24dcb66"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.2-2": {
+      "note": "Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.",
+      "requirement_sha": "ad3cd6cd6e5d0f77",
+      "tests": {
+        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordEmpty": "e76b99b8ec888664",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "9e5b9d00bb0a5c97"
+      },
+      "units": {
+        "internal/component/radius/attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordEmpty": "17f49d94fe53f13f",
+        "internal/component/radius/attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+        "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "6312def790eeb3e5"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.24-1": {
+      "note": "Forbidden: returning State modified or not at all. TestRadiusAdminStateIsReturnedUnmodified asserts each round's request carries that round's distinct State byte for byte (red on drop, rewrite or stale echo); TestRadiusAdminStateIsNotManufactured asserts no State when the challenge sent none.",
+      "requirement_sha": "c94af1fe87693f71",
+      "tests": {
+        "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsNotManufactured": "46c459a4f7f9145c",
+        "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsReturnedUnmodified": "46c459a4f7f9145c"
+      },
+      "units": {
+        "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsNotManufactured": "97cea1c2341acab7",
+        "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsReturnedUnmodified": "093cbf916b0b7104"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2865-5.25-1": {
+      "note": "Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.",
+      "requirement_sha": "b7a324d0806e58ab",
+      "tests": {
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "5d43c530ca8f23a3",
+        "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "6555a5ee0756e17c",
+        "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "71b1f7958ca13a1b",
+        "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "a3f1d9fa74292a7a"
+      },
+      "units": {
+        "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "539351a3158b44d1",
+        "internal/component/radius/authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "69d87dcd0d82a4ce",
+        "internal/component/radius/config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "f0443cd162a54321",
+        "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "8316f2355177ac64"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc2865"
+}
