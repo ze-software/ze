@@ -516,6 +516,19 @@
       },
       "verdict": "weak"
     },
+    "RFC9568-7.1-5": {
+      "note": "Forbidden: accepting an advertisement whose Max Advertise Interval is zero. N6 v3-interval-zero zeroes the 12-bit interval, recomputes the checksum so no other check fires, and fails unless Decode returns ErrIntervalZero. Positive: the golden advert with 100 cs decodes with interval 1000 ms.",
+      "requirement_sha": "e70a37dff6c477be",
+      "tests": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "19a4c15f930f948e",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "19a4c15f930f948e"
+      },
+      "units": {
+        "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "db69a59e983ad974",
+        "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "a438a01f7d637e97"
+      },
+      "verdict": "enforced"
+    },
     "RFC9568-7.1-6": {
       "note": "TestInstanceRxValidAdvertReachesFSM proves a passing packet reaches the FSM; TestInstanceRxDecodeErrorMapsReason feeds a truncated packet and asserts only that a reason was recorded, not that the FSM saw nothing, so an onPacket that recorded the error and still dispatched would pass",
       "requirement_sha": "5382391a3b5b9394",
