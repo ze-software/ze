@@ -1,0 +1,103 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC2918-2-1": {
+      "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestCapabilityWriteTo (capability_test.go) only checks WriteTo writes Len() bytes and that Parse returns the same c.Code(); both sides come from RouteRefresh itself, so a Code() of 3 or a Len() carrying a payload stays green. No assertion names the literal code 2 or the zero length on the emitted bytes. The negative TestOpenRejectsMalformedKnownCapability proves receive-side refusal of length 1, a neighbouring check.",
+      "requirement_sha": "bb2659c612dc6645",
+      "tests": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "36ad5ca29acc4eb4",
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "67908494b5038760",
+        "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "38dac687429f1885"
+      },
+      "verdict": "weak"
+    },
+    "RFC2918-3-1": {
+      "note": "Forbidden: a ROUTE-REFRESH carrying a type other than 5. TestRouteRefreshType asserts r.Type() == msgtype.MessageType(5), red if the send-side type changes. TestParseHeaderAllTypes asserts header type byte 5 decodes to TypeROUTEREFRESH and bytes 1..4 decode to the other types, red if the receive mapping moves.",
+      "requirement_sha": "4b543ee588a7f965",
+      "tests": {
+        "internal/component/bgp/message/header_test.go::TestParseHeaderAllTypes": "4eb31663a97bb3a8",
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshType": "30b8b3abfb09b975"
+      },
+      "units": {
+        "internal/component/bgp/message/header_test.go::TestParseHeaderAllTypes": "91ac0506a9739db3",
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshType": "fc7308e226f16f21"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2918-3-2": {
+      "note": "Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted.",
+      "requirement_sha": "7cab3f9d98e6e783",
+      "tests": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "30b8b3abfb09b975",
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "30b8b3abfb09b975",
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "36ad5ca29acc4eb4"
+      },
+      "units": {
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "6b1979ee9a3bf3c5",
+        "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "67bee8ebf99b5d94",
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "897e95aea222b076"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2918-3-4": {
+      "note": "Forbidden: a sender setting the Reserved octet non-zero, or a receiver acting on it. Receiver clause: TestRFC2918ReservedOctetIgnoredOnReceive asserts, for octets 0x00/0x01/0x02/0xAA/0xFF, one onMessageReceived and one onRefreshRecv, Established state and no NOTIFICATION, red if a non-zero octet is refused; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. Sender clause of the quoted sentence ('Should be set to 0 by the sender'): no tagged unit of this row asserts the sent octet is 0 (TestRouteRefreshPack asserts body[2] == 0 but is tagged RFC2918-3-2 only).",
+      "requirement_sha": "cd4c55554fb5f84e",
+      "tests": {
+        "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "cae94db0eba23b03",
+        "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "cae94db0eba23b03"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage": "7f67b93b46ae7e65",
+        "internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive": "c3bb43d68138be87"
+      },
+      "verdict": "weak"
+    },
+    "RFC2918-4-1": {
+      "note": "Forbidden: sending ROUTE-REFRESH to a peer that did not advertise the capability. TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability (both subtests) and TestRFC2918SoftClearPeerSkipsPeerWithoutCapability assert require.Empty(conn.written()) and RefreshSent == 0, red if either send entry skips the gate. The positives assert the message reaches the wire for a capable peer.",
+      "requirement_sha": "b07d7ff962695c0f",
+      "tests": {
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability": "43910770b006edad",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshToCapablePeer": "43910770b006edad",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSendsRefreshToCapablePeer": "43910770b006edad",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSkipsPeerWithoutCapability": "43910770b006edad"
+      },
+      "units": {
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability": "8d43153482a40b33",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshToCapablePeer": "22136ba5dd10e0f7",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSendsRefreshToCapablePeer": "1e97717e206e23cf",
+        "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSkipsPeerWithoutCapability": "db4d53bb8a5fe8f1"
+      },
+      "verdict": "enforced"
+    },
+    "RFC2918-4-2": {
+      "note": "Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. The positive TestHandleRouteRefresh_NonNegotiatedFamily asserts only NoError; it installs no callback, so a receiver that delivered the request onward or re-advertised would stay green. The negative TestRouteRefreshValidLengthDelivered proves an advertised family is delivered. Also: handleRouteRefresh keys on the negotiated family set, the RFC on what the speaker advertised.",
+      "requirement_sha": "b5093eb70295d521",
+      "tests": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "36ad5ca29acc4eb4",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "933b3c0fcb7d9bad"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "014323bd9126baee",
+        "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
+      },
+      "verdict": "weak"
+    },
+    "RFC2918-4-3": {
+      "note": "Forbidden: not re-advertising the Adj-RIB-Out of the requested <AFI, SAFI>, or re-advertising another family. TestHandleRefresh_InternalState asserts both IPv4 routes are sent with meta replay and the IPv6 route is not, red on either. The negative TestHandleRefresh_PeerNotUp installs no updateHook and asserts only that peerUp stays false, so a send to a down peer stays green; and no tagged unit exercises the outbound route filtering policy clause.",
+      "requirement_sha": "b02d09aa24b01702",
+      "tests": {
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "67323a140596dd23",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "67323a140596dd23"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState": "87ee559293b51931",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp": "4c887e880b608592"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc2918"
+}
