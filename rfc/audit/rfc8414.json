@@ -1,0 +1,107 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC8414-2-1": {
+      "note": "The sentence makes issuer REQUIRED and defines it as a URL that uses https and has no query or fragment. Presence: TestFetchASMetadata_MissingIssuer goes red if a document without issuer is accepted (err must contain 'missing issuer'); TestFetchASMetadata positive decodes it. The https, no-query and no-fragment clauses have no assertion in a 2-1-tagged unit: asMetadataURL/oauthHTTPSURL enforce them, and TestRFC8414MetadataRequiresHTTPS (tagged 3.3-1) and TestConfiguredIssuerQueryRejectedBeforeMetadataFetch (untagged) cover https and query, but no unit covers an issuer with a fragment.",
+      "requirement_sha": "94d05f9e2042f41a",
+      "tests": {
+        "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "a6b0bf070bf83906",
+        "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success": "a6b0bf070bf83906"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "e4ccda5c227a0782",
+        "internal/component/mcp/as_metadata_test.go::TestFetchASMetadata_Success": "e9b576f93c3a099d"
+      },
+      "verdict": "weak"
+    },
+    "RFC8414-2-7": {
+      "note": "Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity 'HTTP keys' subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; 'redirect to HTTP' asserts the same for an https jwks_uri redirecting to http. Positive 'labeled keys' verifies a token with the key fetched over https.",
+      "requirement_sha": "a96dd431b6a7578b",
+      "tests": {
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "6a623fa3f72e255f",
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "6a623fa3f72e255f"
+      },
+      "units": {
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "a32bc861f26718e8",
+        "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "a32bc861f26718e8"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8414-3.2-1": {
+      "note": "Consumer view of the response envelope. 200: 'created' (201) case must return error and zero metadata. application/json: 'HTML' and 'absent type' cases red if accepted; charset parameter accepted. JSON object: 'array' case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The 'subset of Section 2 values' clause constrains the server; \u00a73.2 says 'Other claims MAY also be returned', so no consumer input violates it.",
+      "requirement_sha": "7f448a6aab76af3b",
+      "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse#2": "61104ab130a18819"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse": "15029d5b2e1825cb",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataHTTPResponse#2": "15029d5b2e1825cb"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8414-3.3-1": {
+      "note": "Quote is the \u00a73 sentence 'This path MUST use the https scheme.' Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The \u00a76.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).",
+      "requirement_sha": "b520f47eb54e1c10",
+      "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS#2": "61104ab130a18819"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS": "0093ccb644d32b03",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequiresHTTPS#2": "0093ccb644d32b03"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8414-3.3-2": {
+      "note": "Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts 'does not match configured'. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document's jwks_uri is never fetched, and no server is returned.",
+      "requirement_sha": "3d6bb0158b73e67d",
+      "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "61104ab130a18819",
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "6a623fa3f72e255f",
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "6a623fa3f72e255f",
+        "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "6a623fa3f72e255f"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "93bb9c8813eeb775",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "93bb9c8813eeb775",
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "a0be4da11d76a9d6",
+        "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "91e2f0d7eab9b530",
+        "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "39d0bba3fe3c5acc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC8414-4-1": {
+      "note": "Quote: comparisons between JSON strings and other Unicode strings MUST be performed as specified below (unescape, no normalization, code-point equality). The 4-1-tagged units (TestRFC8414IssuerCompareUnescapesJSON, TestRFC8414IssuerCompareNotOnJSONText) prove only step 1 and only on the JWT iss path (verifyJWT). The RFC 8414 metadata issuer comparison in fetchASMetadata, which \u00a74 names ('the member names in the metadata response ... issuer'), is exercised with JSON escapes by TestRFC8414MetadataIssuerIdentity, which is tagged 3.3-2/4-2/4-3 but not 4-1. Steps 2 and 3 are proven only under the 4-2 and 4-3 rows.",
+      "requirement_sha": "afc614cc2701b333",
+      "tests": {
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText": "18e93e5bd1969dca",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON": "18e93e5bd1969dca"
+      },
+      "units": {
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText": "b7fb969414b3da0c",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON": "6b3721d6e0a191d1"
+      },
+      "verdict": "weak"
+    },
+    "RFC8414-4-2": {
+      "note": "Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.",
+      "requirement_sha": "df6fb39f1bb1b6fe",
+      "tests": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "61104ab130a18819",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "61104ab130a18819",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "18e93e5bd1969dca",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "18e93e5bd1969dca"
+      },
+      "units": {
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity": "93bb9c8813eeb775",
+        "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataIssuerIdentity#2": "93bb9c8813eeb775",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "4a62d5cfff044f1c",
+        "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "a3db3e51029160d8"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc8414"
+}
