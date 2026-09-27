@@ -1,0 +1,73 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC9494-4.2-8": {
+      "note": "Three listed cases. Only the third (neither GR nor LLGR received) is asserted: onSessionReestablished(nil,nil) returns IPv4Unicast for purge and the peer leaves LLGR. The negative (F=1 in both caps, nothing purged) is the control. Neither the F bit clear for a family in the new LLGR capability nor a family absent from it has an assertion.",
+      "requirement_sha": "2136b71bc93919d1",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "0c7f565215e037ef",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "0c7f565215e037ef"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "0fd5f019aadf5f89",
+        "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "0e5a311d257bb506"
+      },
+      "verdict": "weak"
+    },
+    "RFC9494-4.3-1": {
+      "note": "TestComparePair_LLGRStale does not isolate the rule: normal (10.0.0.1) and stale (10.0.0.2) have equal LOCAL_PREF, so the lower peer address wins on the final tie-break with or without the Step-0 stale comparison, and both ComparePair assertions stay green if it is removed (the third assertion in the same unit shows the lower-address tie-break). Neither the receive path (a route arriving with LLGR_STALE gets StaleLevel 2) nor the self-attached path is asserted.",
+      "requirement_sha": "1168b7e095abe221",
+      "tests": {
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "7e45dd7edaf7d8c5",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "7e45dd7edaf7d8c5"
+      },
+      "units": {
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",
+        "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "19eccc4948cfbb9e"
+      },
+      "verdict": "weak"
+    },
+    "RFC9494-4.3-3": {
+      "note": "Forbidden: advertising the stale route to a neighbor whose LLGR capability was not received. TestLLGREgressFilter_NilStateWithdrawsEBGP fails unless mods.IsWithdraw() for an external destination with no capability recorded; llgr-egress-state-unloaded.ci proves the Section 4.6 exception in the daemon (the internal neighbor receives the route only with FFFFFF01). Negative: a destination in peerLLGRCaps gets no withdraw and zero mods.",
+      "requirement_sha": "76231582d0f155d2",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "27afa9d1b8ebacc9",
+        "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_NilStateWithdrawsEBGP": "b406251374d69f4f",
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_StateLoadedStillAdvertisesToLLGRPeer": "967976e8d70ce683",
+        "test/plugin/llgr-egress-state-unloaded.ci": "9222cb29cfa0e1be"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9494-4.5-1": {
+      "note": "Forbidden: honouring an LLGR capability that arrives without GR. TestHandleEventOpenLLGR_NoGR sends an OPEN with code 71 and no code 64 and fails if peerLLGRCaps holds the peer (assert.False llgrOK). Negative: the same OPEN with code 64 keeps the decoded LLGR capability (Families, F bit, LLST 3600 asserted), so the removal is conditional on GR being absent.",
+      "requirement_sha": "cbb5de307607c9dd",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR": "e921a209356a7dad",
+        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "e921a209356a7dad"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR": "be6469aa934cdde6",
+        "internal/component/bgp/plugins/gr/gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "a3dd810ebc2a1db9"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9494-4.6-1": {
+      "note": "Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.",
+      "requirement_sha": "e7ee81b6b57096e6",
+      "tests": {
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "27afa9d1b8ebacc9",
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "27afa9d1b8ebacc9"
+      },
+      "units": {
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
+        "internal/component/bgp/plugins/gr/gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b"
+      },
+      "verdict": "enforced"
+    }
+  },
+  "rfc": "rfc9494"
+}
