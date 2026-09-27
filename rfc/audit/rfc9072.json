@@ -1,6 +1,34 @@
 {
   "audited": "2026-09-27",
   "requirements": {
+    "RFC9072-2-1": {
+      "note": "The envelope is asserted: TestOpenPackExtendedParams fails unless 300 octets of OptionalParams produce Non-Ext OP Len 0xFF, Non-Ext OP Type 0xFF and a 2-octet length of 300. But 'the procedure below' also gives every parameter a two-octet Parameter Length, and both units hand the encoder caller-built OptionalParams (TestOpenPackExtendedParams passes 300 unframed bytes with ExtendedParams unset; the negative sets ExtendedParams and 2-octet framing by hand and asserts the round trip). No tagged unit drives ze's OPEN builder with more than 255 octets of capabilities and asserts the parameters come out in the extended framing, which is the interop defect the negative's own comment names.",
+      "requirement_sha": "a19a7161810084e8",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "5e1d5078b11393d9"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc",
+        "internal/component/bgp/message/rfc9072_extended_open_test.go::TestTheExtendedEnvelopeAndItsParametersAgree": "8480aa5620c244dd"
+      },
+      "verdict": "weak"
+    },
+    "RFC9072-2-2": {
+      "note": "TestOpenUnpackExtendedParams accepts the extended-form cases with Extended Opt. Parm. Length 0 and 6 (no error, 0 and 6 parameter octets) and decodes a standard OPEN classically. The table declares wantExtended for the extended cases but the loop never asserts it, so an UnpackOpen that returned the 6 octets with ExtendedParams false, leaving the capability parser to misread the 2-octet Parameter Length, stays green. Acceptance of the OPEN is proven only as far as UnpackOpen returning no error.",
+      "requirement_sha": "1603ca9a90ef6018",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#2": "eabc69b2ca4c66d8",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "eabc69b2ca4c66d8"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams": "912f11a2cea36703",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#2": "912f11a2cea36703",
+        "internal/component/bgp/message/open_test.go::TestOpenUnpackExtendedParams#3": "912f11a2cea36703"
+      },
+      "verdict": "weak"
+    },
     "RFC9072-2-3": {
       "note": "{single-polarity: positive} carried on the row. Forbidden: a Non-Ext OP Len of 0 on an extended-format OPEN. TestOpenPackExtendedParams packs 300 octets of parameters and fails unless body[9]==0xFF, which covers both the SHOULD (255) and the MUST NOT (0).",
       "requirement_sha": "97db2fe55e7c6056",
@@ -11,6 +39,28 @@
         "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
       },
       "verdict": "enforced"
+    },
+    "RFC9072-2-4": {
+      "note": "{single-polarity: positive} carried on the row: writeToExtended writes the constant. Forbidden: a Non-Ext OP Type other than 255 on an extended OPEN. TestOpenPackExtendedParams fails unless body[10] == 0xFF for a 300-octet parameter set.",
+      "requirement_sha": "792327ad94a5d5d6",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+      },
+      "verdict": "enforced"
+    },
+    "RFC9072-3-2": {
+      "note": "{single-polarity: positive} carried on the row. The only assertion is body[10] == 0xFF, the permitted use of 255. The forbidden behaviour is emitting 255 as an optional-parameter type elsewhere; the unit hands the encoder opaque OptionalParams (bytes i % 256, which contain 255) and asserts nothing about parameter types, and the builder the annotation relies on to emit only type 2 is not driven by any tagged unit.",
+      "requirement_sha": "0ec0274767359d45",
+      "tests": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "eabc69b2ca4c66d8"
+      },
+      "units": {
+        "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "2fc897548a5794cc"
+      },
+      "verdict": "weak"
     }
   },
   "rfc": "rfc9072"
