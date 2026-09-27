@@ -63,7 +63,7 @@ type netnsBinaries struct {
 }
 
 func netnsGuestBinaries() netnsBinaries {
-	arch := qemuGuestArch()
+	arch := GuestArch()
 	return netnsBinaries{
 		Ze:       settingFromEnv("ZE_QEMU_BIN", filepath.Join("bin", "ze-linux-"+arch)),
 		Stripped: settingFromEnv("ZE_QEMU_STRIPPED_BIN", filepath.Join("bin", "ze-stripped-linux-"+arch)),

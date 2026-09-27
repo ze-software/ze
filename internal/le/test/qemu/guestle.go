@@ -25,7 +25,7 @@ const leName = linuxle.Name
 const leTestWord = "test"
 
 // guestLeRel answers where the host writes the guest le, relative to the
-// checkout the guest mounts at guestWorkspace. It sits under tmp/, never under
+// checkout the guest mounts at GuestWorkspace. It sits under tmp/, never under
 // bin/le-*, which is launcher territory.
 func guestLeRel(goarch string) string {
 	return filepath.Join("tmp", "qemu", "linux-"+goarch, leName)

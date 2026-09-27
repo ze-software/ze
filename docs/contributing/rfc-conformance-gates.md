@@ -1033,6 +1033,33 @@ use the mutant route inside the value that the initializer returns
 | `revert` on a `.ci` | the producing function's body replaced by a halt | `le test <suite> <name>`, ONE `.ci`, against the isolated set `testfunctional.Prepare` builds under the same overlay |
 | `revert` on an interop checker | the same | `./le test integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
 
+A Go unit runs where its own build constraints hold, and the file decides, not
+the author. `unitNeedsGuest` (`internal/le/rfc/discriminate_guest.go`) asks
+`go/build` of the tagged file, reading the `//go:build` line and the `_linux`
+file-name suffix the way the go command reads them. The host comes first, under
+the tag set the host run passes. A file the host cannot compile is asked of the
+QEMU guest: `linux`, the guest's architecture, and the same tags plus
+`integration`, which is how a test that touches the kernel is marked
+(`ai/rules/platform-linux.md`). A file neither compiles is refused, because a
+unit nothing ran cannot have gone red.
+
+A guest unit is compiled on the HOST with `go test -c`, cross-built for the
+guest and under the same overlay, so the break still reaches the compiler and no
+file is modified. The binary then runs inside the guest through
+`./le test qemu run`, selected to the one unit with `-test.run '^<Func>$' -test.v`
+from its package directory, and the coverage profile is written through the
+shared checkout where the host reads it. Attribution is unchanged: the red must
+name the unit. A guest proof MUST boot Ze's runtime kernel, so the recorder
+takes `kernel <vmlinuz>` for a guest unit and refuses to run one without it, and
+refuses the keyword for a unit that runs on the host (`requireGuestKernel`):
+
+    ./le rfc discriminate-record id <ID> polarity <p> unit <file>::<Func> \
+      route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
+
+Before 2026-09-27 the unit route always ran host `go test` with no extra tags,
+so an `integration && linux` unit never compiled and its tags could not be
+proven at all (journal row 155 of `gate-excludes-part-of-its-population.md`).
+
 Adding `report <path>` to `./le rfc discriminate` turns it into a PROPOSER: it
 prints the candidate breaks for each unproven unit tag, best first. Two filters
 and one ranking. A candidate must be a mutant gomu recorded as KILLED, because

@@ -57,7 +57,7 @@ func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	run := newAllTests()
-	if run.Workspace != guestWorkspace || run.BinDir != guestBinDir {
+	if run.Workspace != GuestWorkspace || run.BinDir != guestBinDir {
 		t.Errorf("the guest paths are %q and %q", run.Workspace, run.BinDir)
 	}
 	if run.Parallel != defaultParallel || run.Timeout != defaultTimeout {
@@ -82,7 +82,7 @@ func TestEveryKnobHasTheNativeDefault(t *testing.T) {
 // mounted where the guest expects it. This command must never run the guest's
 // plan against a developer tree.
 func TestTheVerbRefusesToRunOutsideTheGuest(t *testing.T) {
-	if _, err := os.Stat(guestWorkspace); err == nil {
+	if _, err := os.Stat(GuestWorkspace); err == nil {
 		t.Skip("this machine has a /workspace, so the refusal cannot be observed here")
 	}
 

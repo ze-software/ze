@@ -50,6 +50,11 @@ type observationRunner struct {
 	// command is the last command this runner executed, recorded so the report
 	// carries what was actually run rather than what one branch would have run.
 	command string
+	// guest is true when the tagged unit's file compiles only in the Linux
+	// guest, so the unit is built for it and run there (discriminate_guest.go).
+	guest bool
+	// kernel is the runtime kernel a guest run boots, empty for a host run.
+	kernel string
 }
 
 // newObservationRunner resolves everything one observation needs before any of
@@ -59,7 +64,7 @@ type observationRunner struct {
 const leTestCommand = "test"
 
 func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, carrier Carrier,
-	tag Tag, record DiscriminationRecord) (*observationRunner, error) {
+	tag Tag, record DiscriminationRecord, kernel string) (*observationRunner, error) {
 	toolchain, err := gotoolchain.New(tree)
 	if err != nil {
 		return nil, err
@@ -71,9 +76,19 @@ func newObservationRunner(tree string, reader *sourceReader, index *scopeIndex, 
 			Str("functional or interop carrier: ").Err(err))
 	}
 	runner := &observationRunner{tree: tree, toolchain: toolchain, carrier: carrier,
-		tag: tag, record: record, self: self}
+		tag: tag, record: record, self: self, kernel: kernel}
 	_, runner.unitName, err = fingerprintKey(record.Unit, record.Source)
 	if err != nil {
+		return nil, err
+	}
+	if carrier.Kind == kindUnit {
+		host, guest := placementContexts(strings.Fields(toolchain.TestTags()))
+		runner.guest, err = unitNeedsGuest(&host, &guest, treePath(tree, tag.File))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := requireGuestKernel(record.Unit, runner.guest, kernel); err != nil {
 		return nil, err
 	}
 	runner.names = runner.unitName
@@ -414,6 +429,9 @@ func (o *observationRunner) coverPackages() string {
 func (o *observationRunner) run(overlay, profile string) (bool, string, error) {
 	if o.carrier.Kind == kindFunctional {
 		return o.runFunctional(overlay)
+	}
+	if o.guest {
+		return o.runInGuest(overlay, profile)
 	}
 	deadline := unitRunDeadline
 	if o.carrier.Kind != kindUnit {

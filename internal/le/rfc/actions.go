@@ -84,6 +84,10 @@ var actions = leaction.New(area,
 			{Keyword: keyMutant, Value: "file:line:column#n", Requirement: leaction.Optional},
 			{Keyword: keyCitation, Value: keyCitation, Requirement: leaction.Optional},
 			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Optional},
+			// Required only for a unit whose build constraints hold in the
+			// Linux guest alone, and refused for every other unit
+			// (requireGuestKernel).
+			{Keyword: keyKernel, Value: keyPath, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{

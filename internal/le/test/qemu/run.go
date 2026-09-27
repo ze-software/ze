@@ -100,9 +100,9 @@ var (
 		"the guest ze binary used in keep-alive instructions")
 )
 
-// qemuGuestArch answers the architecture of the QEMU guest: QEMU_GOARCH when a
+// GuestArch answers the architecture of the QEMU guest: QEMU_GOARCH when a
 // caller names one, else the host's, because the guest runs without emulation.
-func qemuGuestArch() string {
+func GuestArch() string {
 	if named := os.Getenv("QEMU_GOARCH"); named != "" {
 		return named
 	}

@@ -48,7 +48,7 @@ func runIPsecMOBIKEHere(args leaction.Arguments) (answer any, code int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	guestArtifacts := filepath.Join(guestWorkspace, relative)
+	guestArtifacts := filepath.Join(GuestWorkspace, relative)
 	command := shellQuote(filepath.Join(guestArtifacts, "le")) +
 		" deployment ipsec-mobike-test daemon " + shellQuote(filepath.Join(guestArtifacts, "ze"))
 	runArgs := leaction.Arguments{

@@ -47,6 +47,8 @@ const (
 	keyRoute    = "route"
 	keyProducer = "producer"
 	keyCitation = "citation"
+	// keyKernel names the runtime kernel a guest observation boots.
+	keyKernel = "kernel"
 	// keyPath is the value word for a filesystem path, shared by every action
 	// that takes one.
 	keyPath = "path"
@@ -129,6 +131,9 @@ type recordRequest struct {
 	rid, polarity, unit, route string
 	producer, citation, reason string
 	report, mutant             string
+	// kernel is the runtime kernel a unit that compiles only in the Linux
+	// guest boots, empty for every other unit.
+	kernel string
 }
 
 // discriminateRecordAnswer records one proof or one escape in this checkout.
@@ -148,6 +153,7 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		route: args.One(keyRoute), producer: args.One(keyProducer),
 		citation: args.One(keyCitation), reason: args.One(keyReason),
 		report: args.One(keyReport), mutant: args.One(keyMutant),
+		kernel: args.One(keyKernel),
 	})
 	if err != nil {
 		leaction.ReportError(err)
@@ -339,7 +345,7 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	if err != nil {
 		return ObservedRed{}, err
 	}
-	runner, err := newObservationRunner(tree, reader, index, carrier, tag, *record)
+	runner, err := newObservationRunner(tree, reader, index, carrier, tag, *record, request.kernel)
 	if err != nil {
 		return ObservedRed{}, err
 	}

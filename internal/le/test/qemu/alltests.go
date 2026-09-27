@@ -52,7 +52,7 @@ import (
 // place. The binary shim is a VM-local directory because some UI tests exec
 // `ze-stripped` through PATH. The build and guest command use this one path.
 const (
-	guestWorkspace = "/workspace"
+	GuestWorkspace = "/workspace"
 	guestBinDir    = "/tmp/ze-qemu-bin"
 )
 
@@ -452,7 +452,7 @@ type allTestsRun struct {
 // exports, and defaults the rest.
 func newAllTests() *allTestsRun {
 	return &allTestsRun{
-		Workspace:   guestWorkspace,
+		Workspace:   GuestWorkspace,
 		BinDir:      guestBinDir,
 		ZeBin:       envOr(zeBinKey, "bin/ze"),
 		StrippedBin: envOr("ZE_STRIPPED_BIN", "bin/ze-stripped"),
@@ -890,7 +890,7 @@ func (a *allTestsRun) unitPhase(environ []string) (PhaseResult, error) {
 	if err != nil {
 		return PhaseResult{}, err
 	}
-	tags = strings.Replace(tags, " integration", "", 1)
+	tags = strings.Replace(tags, " "+IntegrationTag, "", 1)
 	argv := []string{
 		"env", "CGO_ENABLED=0", "go", "test",
 		"-timeout", "20m",
@@ -977,9 +977,15 @@ func (a *allTestsRun) hasPackage(pkg string) bool {
 	return err == nil && info.IsDir()
 }
 
+// IntegrationTag is the build tag of a test that needs a real kernel, which is
+// what this guest exists to supply. A file carrying it compiles in the guest's
+// integration pass and nowhere else, and a caller placing one such test in the
+// guest names this constant rather than spelling the tag.
+const IntegrationTag = "integration"
+
 // integrationBase is the personality the integration pass compiles, before the
 // gates featuretags adds to it.
-const integrationBase = "ze_core integration"
+const integrationBase = "ze_core " + IntegrationTag
 
 // integrationTags answers the build tags the integration pass compiles with.
 //
