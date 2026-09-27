@@ -1,0 +1,75 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC5305-2-1": {
+      "note": "Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (tlv_ipv4_test.go, with-subtlv) goes red if a type-1 sub-TLV is rejected (t.Fatalf on decode error). Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.",
+      "requirement_sha": "6dd4a1f63b862e49",
+      "tests": {
+        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "1867a2588f51badf",
+        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "1867a2588f51badf",
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "9ba86ec0a3b2807a"
+      },
+      "units": {
+        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22RoundTrip": "3294d5bc08b0a06c",
+        "internal/plugins/isis/packet/tlv_core_test.go::TestISISTLV22Truncated": "cbd038f203670f5d",
+        "internal/plugins/isis/packet/tlv_ipv4_test.go::TestISISTLVIPv4RoundTrip": "bbb4b387e09e51ca"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5305-3-1": {
+      "note": "Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).",
+      "requirement_sha": "0c7c73f938d5fbbb",
+      "tests": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "b42b022e108e2021",
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "b42b022e108e2021"
+      },
+      "units": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "bded38fed2fb216a",
+        "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "bded38fed2fb216a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC5305-3-2": {
+      "note": "The quoted sentence governs a traffic engineering SPF implementation: \"To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.\" Ze has no TE SPF (RFC5305-3.7-1 is not-applicable for that reason). TestISISMetricWidth asserts clampMetric saturation in the normal SPF, a neighbouring rule (RFC5308-5-2 tags the same unit), so the tag proves a different obligation from the one the row states.",
+      "requirement_sha": "5e315ce4690877ee",
+      "tests": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "b42b022e108e2021",
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "b42b022e108e2021"
+      },
+      "units": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "c5c23654ac48497f",
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "c5c23654ac48497f"
+      },
+      "verdict": "wrong"
+    },
+    "RFC5305-4-1": {
+      "note": "\u00a74 excludes a prefix \"advertised with a metric larger then MAX_PATH_METRIC\". Forbidden behaviour: such a prefix being considered in normal SPF. The tagged negative in TestISISMetricWidth advertises exactly MAX_PATH_METRIC (0xFE000000), which \u00a74 does not exclude by itself, and the route drops out because the path total with edge 10 exceeds the ceiling. No input advertises a metric larger than MAX_PATH_METRIC, so the unit proves the path-total ceiling rather than \u00a74's advertised-metric rule.",
+      "requirement_sha": "b981ef464b036da5",
+      "tests": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "b42b022e108e2021",
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "b42b022e108e2021"
+      },
+      "units": {
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "c5c23654ac48497f",
+        "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "c5c23654ac48497f"
+      },
+      "verdict": "weak"
+    },
+    "RFC5305-4.1-1": {
+      "note": "The quote carries two clauses. Down the hierarchy: TestISISEngineLeakOrigination (lsdb_wiring_test.go) asserts the L2-to-L1 leak has up/down SET (t.Errorf on !up), and the negatives (the same test, and TestISISRedistConsumerConnected) assert an up leak and a first injection leave it clear. Same level, area to area: \"If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1.\" No tagged unit advertises a prefix between areas at one level, so that clause has no assertion that goes red.",
+      "requirement_sha": "352cca60941827ff",
+      "tests": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "cc9a1290177d7ed6",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "cc9a1290177d7ed6",
+        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96"
+      },
+      "units": {
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "2d814af0901110d4",
+        "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "2d814af0901110d4",
+        "internal/plugins/isis/redistribute/consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc5305"
+}
