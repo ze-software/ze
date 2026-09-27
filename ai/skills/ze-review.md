@@ -239,7 +239,7 @@ phase itself.
     | What bounds this loop, queue, retry, or cache? | A bound is stated in the code. An endless loop by design says so in a comment above it |
     | Does this name say what the value IS? | The name carries the concept, not the Go type. `famStr` is the failure, `family` is the fix. A qualifier goes last, by descending significance |
     | Does this new lifecycle, resource, or paired call state its obligation? | The doc comment says MUST on BOTH sides. `Stop` names `Wait`, and `Wait` names `Stop` |
-    | Does the diff duplicate a value that already exists, or alias one? | The copy is deliberate for one of the four reasons in `performance.md`. Two names for one fact will disagree |
+    | Does the diff duplicate a value that already exists, or alias one? | The copy matches a trigger in `docs/architecture/buffer-architecture.md`, "When a copy is deliberate". Two names for one fact will disagree |
     | Is this return type wider than it needs to be? | The extra dimension is used. Prefer nothing over `bool`, `bool` over a value, a value over `(value, ok)`, and `(value, ok)` over `(value, error)` |
 
     Report each as an ISSUE naming the section, except the `panic()` trace, which is a BLOCKER.

@@ -8,7 +8,8 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | Document | Purpose |
 |----------|---------|
 | `writing-style.md` | Rule one: how every word in the repository is written. The six habits to avoid, the sentence limits, and how to check your own prose |
-| `ze-go-style.md` | Rule one for code: how every line of Go in the repository is written. The reasoning behind the Go rules, adapted from TigerStyle |
+| `ze-go-style.md` | Rule one for code: how every line of Go in the repository is written. The judgment rules first, then the rules a tool enforces, then where Ze differs from standard Go |
+| `ze-go-style-background.md` | The history and reasoning behind `ze-go-style.md`: TigerStyle lineage, the sources of its quotations, and how its gates choose what they judge. It holds no rule |
 | `go-conventions.md` | The Ze-specific Go reference: the package-naming glossary, file headers and cross-references, the `internal/core/env` accessors, typed-numeric-over-string, and API contract comments |
 | `ze-python-style.md` | Rules for references to external Python programs. First-party commands, hooks, test drivers, and generators are Go |
 | `rule-authoring.md` | How to change an agent rule: the point files behind `ai/rules/`, the manifest, the generators, and how a hook check binds to one instruction |

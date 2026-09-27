@@ -444,14 +444,27 @@ TCP recv → bufMuxStd / bufMuxExt block-backed buffer
 
 ### When a copy is deliberate
 
-A copy outside these four triggers is a defect until its reason is stated.
+A copy on the wire path MUST match one of the triggers below. A copy that fits
+none of them is a defect until this table names the new trigger.
 
-| Copy trigger | Why |
-|---|---|
-| An attribute enters the pool for the first time | The pool owns the canonical copy; the wire buffer will be reused |
-| `ContextID` mismatch on forward | Wire bytes encoded for other capabilities need re-encoding |
-| A filter modifies attributes | The modified attributes are written into the outgoing buffer |
-| JSON serialization for an external plugin | An external plugin needs formatted text, not wire bytes |
+| Copy trigger | What forces it | Producer |
+|---|---|---|
+| An attribute enters its pool for the first time | The pool owns the canonical copy, and the wire buffer is reused | `(*shard).intern` |
+| The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
+| The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
+| A per-destination attribute rewrite | Filter output, AS-path intent and ASN4, AS override, or next hop change the attributes. With no free `peerPool` slot, the `sync.Pool` fallback copies twice | `buildModifiedPayload` |
+| An announce becomes a withdrawal | RFC 9494: an EBGP peer without LLGR receives a withdrawal for stale routes. The NLRI moves into a new payload | `buildWithdrawalPayload` |
+| The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several | `SplitWireUpdate`, and `fwdSplitParsedUpdate` for the cross-context branch |
+| Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
+| An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
+
+<!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdUpdateForDestination, fwdSplitParsedUpdate -->
+<!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdRegenerateRawPathIDs -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload, buildWithdrawalPayload -->
+<!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
+<!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
 
 ## The pools Ze runs
 

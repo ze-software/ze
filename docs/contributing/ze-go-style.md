@@ -1,24 +1,19 @@
 # Ze Go Style
 
-Ze runs on a router that nobody restarts. A defect drops a session, blackholes a
-prefix, or leaks a buffer that grows for a year. The peer on the other side of
-the socket is not friendly, and the operator reading the log is not a Go
-developer.
+Ze runs on a router that nobody restarts. The peer on the other side of the
+socket is hostile, and the operator who reads the log is not a Go developer.
+This page is the standard for every line of Go in the repository.
 
-Ze code is written to that standard. This page is the working standard for every
-line of Go in the repository. It has two companions. `writing-style.md` is the
-standard for every word. `ze-python-style.md` explains where external Python
-references remain valid while all first-party tooling stays in Go.
+The page has three parts. The rules a reader applies come first, because no tool
+checks them. One table then lists the rules a tool enforces. Last come the places
+where Ze differs from standard Go. The history and the reasoning behind the
+standard are in `ze-go-style-background.md`. `writing-style.md` is the standard
+for every word. When this page and a file in `ai/rules/` disagree, the rule file
+wins.
 
-This page carries the reasoning. The blocking mechanical detail lives in
-`ai/rules/`, and each section names the rule that owns it. When this page and a
-rule file disagree, the rule file wins.
-
-## Why have style
-
-Another word for style is design.
-
-Ze has three design goals, in this order.
+Ze has three design goals, in this order: safety, performance, developer
+experience. All three matter. The order decides only what gives way when two
+goals pull apart.
 
 | # | Goal | The question it asks |
 |---|------|----------------------|
@@ -26,105 +21,79 @@ Ze has three design goals, in this order.
 | 2 | Performance | What does this cost for each UPDATE, for each peer, for each second? |
 | 3 | Developer experience | Can the next reader change this code without a second file open? |
 
-All three matter. The order decides one thing only: what gives way when two
-goals pull apart.
+## The rules a reader applies
 
-Style serves the goals. A rule earns its place on this page when it makes Ze
-safer, faster, or easier to change. Readability is the floor, not the target.
+### Assertions, in a language that has none
 
-## Simplicity is the hard revision
+**A peer MUST NOT be able to panic the daemon.** This is the most important
+rule on this page. A malformed UPDATE is an operating error, and every parser
+returns an error for one. Use `panic("BUG: <what>")` only for a state that a Ze
+defect alone can produce, never for a state that arrives over a socket.
 
-Simplicity is not a smaller answer to the problem. It is the same answer with
-less machinery.
+| The failure | The tool |
+|-------------|----------|
+| A programmer error that MUST NOT happen at runtime | `panic("BUG: <what>")` |
+| An operating error that a running system produces | An error return, wrapped with `fmt.Errorf("context: %w", err)` |
+| A design property that holds before the program runs | `var _ Iface = (*T)(nil)`, or a test |
 
-The simplest fully correct design is usually the hardest one to find, so budget
-thinking time for it. The first shape that works is rarely the simplest one. A
-large diff is more often the cheap answer than the good one.
+**Pair the check.** Check each property on two code paths. Validate an
+attribute when it is parsed from the wire, and again when it is written back. A
+bug that survives one check rarely survives both.
 
-Simplicity governs the shape of the answer. It never governs how much of the
-problem the answer solves. Cutting correctness to reach a smaller diff is scope
-reduction, and scope reduction is banned.
+**Test the negative space.** Defects live where data crosses from valid to
+invalid, so every wire parser carries a fuzz target and every boundary gets a
+case. A fuzz target proves that defects are present, never that they are absent.
+Build the mental model first, write the checks that encode it, then let the
+fuzzer find the gap.
+<!-- source: ai/rules/testing.md -- Boundary Testing, Fuzz -->
 
-Short is not simple either. A dense expression that the reader must simulate
-fails this standard exactly as a five-file framework fails it. Write the version
-that is boring to read.
+### A zero value is never an answer
 
-Full rule: `ai/rules/simplicity.md` (blocking).
+A zero value is what every field holds before anybody writes to it, so it
+cannot be told apart from a field nobody set. The dangerous form is the zero
+that behaves correctly: a missing branch and a deliberate no-op produce the same
+silence, and the next change deletes the behavior without touching a line that
+names it. Give the outcome a name and make the caller branch on it.
 
-## Zero technical debt
+The sharpest case is a zero that guards without being a guard. A test that asks
+*which value do I use* can also answer *is this allowed yet*, because the value
+stays zero until the permission exists. `verifyRemoteAuth` gated an EAP peer's
+AUTH payload on `sa.EAPMSK != [64]byte{}`, a test of which key to sign with. An
+EAP method that derives no key makes the MSK legitimately zero, and the
+accidental guard then becomes an authentication bypass. The fix asks the
+exchange whether it succeeded, on purpose. `PeerResult` gained `Discarded` and
+`Notified` for the same reason.
 
-Code, like steel, is cheaper to change while it is hot. A defect found in design
-costs an hour. The same defect found in production costs a week, and it costs it
-to somebody else.
+Before you write a zero, nil, false or empty result, ask two questions. Can a
+caller tell this from a failure? Does anything downstream rely on this value
+being absent? If it does, that reliance is a guard, and a guard gets a name, a
+comment, and a test. Full rule: `ai/rules/principles.md`.
 
-So Ze fixes what it finds, when it finds it. A memory copy in a hot path does
-not enter the tree with a comment that promises a later fix. Neither does an
-unbounded queue, and neither does an algorithm that grows with the square of the
-peer count.
+### Types that cannot lie
 
-Two habits carry this.
+A type that can hold an invalid value will hold one.
 
-| Habit | Rule |
-|-------|------|
-| When you replace X with Y, delete X first, then write Y. Never keep both | `ai/rules/no-layering.md` |
-| Ze has never been released, so no compatibility shim exists anywhere. When something needs to change, change it | `ai/rules/go-standards.md` |
+- A value from a known set is a typed numeric enum. Zero MUST mean
+  `Unspecified`, so the Go zero value is never a valid state.
+- An address is `netip.Addr` or `netip.Prefix`, never a string. A duration is
+  `time.Duration`, never an integer of unstated units.
+- A string exists only at a boundary: a YANG leaf, a CLI token, a JSON key, a log
+  line, an error message. Convert once at that boundary, then pass the typed
+  value inward.
+- `String()` is for a human. Never compare with it.
 
-The one frozen surface is the plugin API, and only after the first release. Its
-implementation stays free to change. Its contract does not.
+The common failure is an address stored as a string and parsed back for each
+comparison. When a struct needs both forms, it stores both and parses once at
+construction:
 
-## Safety
+```go
+type Candidate struct {
+    PeerAddr string     // for map keys, JSON, interning
+    PeerIP   netip.Addr // for comparison (zero-alloc)
+}
+```
 
-### Control flow a reader can simulate
-
-Write the guard, handle it, and return. A sequence of guard clauses followed by
-the main logic reads from top to bottom. A happy path wrapped in an `else` block
-does not. The linter enforces this: revive's `early-return`, `indent-error-flow`
-and `superfluous-else` rules refuse an `else` that a guard makes unnecessary.
-<!-- source: .golangci.yml -- revive rules -->
-
-Split a compound condition into nested branches. A reader who meets
-`if a && b && !c` must hold three facts at once to decide whether every case is
-covered. Ask, for each `if`, whether the negative case also needs a branch or a
-guard.
-
-One guard states one fact. `if a || b { return err }` is two guards written as
-one, and it splits with no change in meaning: `||` tests `a` first and stops at
-the first true operand, and the body leaves either way. Write `if a { return
-err }`, then `if b { return err }`. `./le arch compound-guard check` refuses
-this shape on a changed line: a top-level `||` condition, no `else`, and a body
-whose last statement is a `return`, `continue`, `break` or `goto`. It does not
-judge `&&`, a condition with an `else`, or a body that falls through, because
-none of those splits without a design decision.
-
-The gate judges only changed lines, in shipped Go (not `_test.go`, `vendor/`,
-`testdata/`, or a dot directory). A changed line is one that differs between
-the working tree and the last pushed commit behind HEAD: the merge base of
-HEAD and the branch upstream, or of HEAD and `origin/main` when the branch
-tracks none. The gate is owed before a push, so the unpushed range is what it
-judges, and a guard committed without a verify is still judged by the next
-run. A clean checkout of pushed code judges nothing, which is correct, because
-that code was judged before its push. The base reads refs only, so the
-detached worktree `./le verify worktree` makes answers the same range. When no
-base resolves, the check exits 2 and names why. The tree held about 3,000 such
-guards when the gate was written, so a package or file scope would make every
-old guard due the moment a neighbor changed. A guard is due when a line of its
-condition changed, from the `if` keyword to the opening brace. An edit inside an
-old guard's body leaves it alone. `./le arch compound-guard selftest` proves the detection
-against fixtures.
-<!-- source: internal/le/arch/compoundguard/compoundguard.go -- Check -->
-<!-- source: internal/le/repo/changed/lines.go -- LinesSinceUpstream -->
-
-State an invariant positively. `if index < length` is easy to read. `if index >=
-length` states the failure of the invariant, and the reader must invert it.
-When a condition has an `else`, the linter refuses `if !c` and `if a != b`: swap
-the branches and test `c` or `a == b`. A comparison with `nil` stays, because
-`err != nil` is the Go guard idiom. The failure form of a bound, such as
-`x >= len(y)`, is not checked, because a terminating guard is its usual home.
-<!-- source: .golangci/ruleguard/modern.go -- negatedElse -->
-
-Recursion over a structure that an external peer controls is forbidden, because
-the peer chooses the depth. Recursion over a bounded internal structure is
-permitted, and the bound belongs in a comment above the function.
+Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
 
 ### A limit on everything
 
@@ -138,162 +107,46 @@ Everything in reality has a limit, so state the limit in the code.
 | A retry | A count and a maximum backoff |
 | A cache | An entry count or a byte budget |
 
-A loop that cannot end, the reactor loop for example, is correct. Say so in a
-comment at the top of the loop, so the reader knows the absence of a bound is a
-decision.
+Recursion over a structure that a peer controls is forbidden, because the peer
+chooses the depth. Recursion over a bounded internal structure is permitted, and
+the bound goes in a comment above the function. A loop that cannot end, the
+reactor loop for example, says so in a comment at its top, so the reader knows
+the missing bound is a decision.
 
-### Types that cannot lie
+### Control flow a reader can simulate
 
-A type that can hold an invalid value will hold one.
+Write the guard, handle it, and return. Guard clauses followed by the main logic
+read from top to bottom, and a happy path inside an `else` does not.
 
-- Use a typed numeric enum for a value from a known set. Zero MUST mean
-  `Unspecified`, so the Go zero value is never a valid state.
-- Use `netip.Addr` and `netip.Prefix` for an address, never a string.
-- Use `time.Duration` for a duration, never an integer of unstated units.
-- Use a string only at a boundary: a YANG leaf, a CLI token, a JSON key, a log
-  line, an error message. Convert once at that boundary, then pass the typed
-  value inward.
-- Use `String()` for a human. Never compare with it.
+Split a compound condition into nested branches. A reader who meets
+`if a && b && !c` must hold three facts at once to decide whether every case is
+covered. For each `if`, ask whether the negative case also needs a branch.
 
-Full rule: `ai/rules/go-standards.md`, "Prefer Typed Numeric Over String".
+One guard states one fact. `if a || b { return err }` is two guards written as
+one: write `if a { return err }`, then `if b { return err }`. The split changes
+no meaning, because `||` stops at the first true operand and the body leaves
+either way. `./le arch compound-guard check` refuses a top-level `||` condition
+with no `else` and a body that ends in `return`, `continue`, `break` or `goto`,
+on the lines your unpushed commits and working tree changed. It does not judge
+`&&`, an `else`, or a body that falls through, because none of those splits
+without a design decision. How it chooses the lines:
+`ze-go-style-background.md`.
+<!-- source: internal/le/arch/compoundguard/compoundguard.go -- Check -->
 
-Storing an address as a string and parsing it back for a comparison is the
-common shape of this failure.
-
-| Anti-pattern | Fix |
-|-------------|-----|
-| `type Foo struct { Addr string }` then `net.ParseIP(a.Addr).Compare(...)` | `type Foo struct { Addr netip.Addr }` then `a.Addr.Compare(b.Addr)` |
-| Formatting to a string, storing it, parsing it back to compare | Parse once at construction, store the typed value, format only for display |
-| `compareAddrs(a.PeerAddr, b.PeerAddr)` with string parsing inside | `a.PeerIP.Compare(b.PeerIP)` over a `netip.Addr` field |
-
-When a struct genuinely needs both forms, the typed one for comparison and the
-string one for a map key or JSON, it stores both and parses once at
-construction.
-
-```go
-type Candidate struct {
-    PeerAddr string     // for map keys, JSON, interning
-    PeerIP   netip.Addr // for comparison (zero-alloc)
-}
-
-// At construction:
-c.PeerAddr = peerAddr
-c.PeerIP, _ = netip.ParseAddr(peerAddr)
-```
-
-### A zero value is never an answer
-
-The section above asks a type not to hold an invalid value. A zero value is the
-harder case, because it is the value every field holds before anybody writes to
-it, so it cannot be told apart from a field nobody set.
-
-**The dangerous form is the zero that behaves correctly.** A missing branch and
-a deliberate no-op produce the same silence, so a reader cannot tell whether the
-case was handled or forgotten, and the next change deletes the behavior without
-touching a line that mentions it. Give the outcome a name and make the caller
-branch on it.
-
-| The accident | Why it holds today | What breaks it |
-|--------------|--------------------|----------------|
-| An all-zero result means "drop this packet", because the caller sends only when a field is non-nil | the wire behavior is right | a second outcome that also sends nothing, now indistinguishable from a bug |
-| An empty set means "the peer offered nothing", read as "we failed to read the peer" | both are rare | the first peer that legitimately offers nothing |
-| A search returning no hits is read as absence | the corpus was complete | the first query that fails rather than finds nothing |
-
-**The sharpest case is a zero that is guarding without being a guard.** A test
-written to ask *which value do I use* can, by accident, also answer *is this
-allowed yet* — because the value happens to stay zero until the moment
-authorization is granted. Nothing names the second job, no test covers it, and
-the comment above it describes only the first. Change the type so a legitimate
-zero appears, and the guard is gone with no line deleted and no test red.
-
-Ze has paid for this three times in one package. `PeerResult` needed an explicit
-`Discarded`, because a silent drop and an unwritten branch were the same value.
-`PeerResult` needed `Notified` beside its message, because a Notification whose
-message is legitimately empty is still a Notification. And `verifyRemoteAuth`
-gated an EAP peer's AUTH payload on `sa.EAPMSK != [64]byte{}`, a test asking
-which key to sign with, which happened to reject an AUTH arriving before the EAP
-exchange succeeded — until a method that derives no key made the MSK legitimately
-zero, at which point the accidental guard would have become an authentication
-bypass. The replacement asks the exchange whether it succeeded, on purpose.
-
-So, before writing a zero, nil, false or empty as a result, ask two questions.
-Can a caller tell this from a failure? And is anything downstream relying on this
-value being absent? If the second answer is yes, that reliance is a guard, and a
-guard gets a name, a comment and a test.
-
-Full rule: `ai/rules/principles.md` (blocking).
-
-### Assertions, in a language that has none
-
-An assertion detects a programmer error. An error return handles an operating
-error. The two are different, and Go gives no keyword for the first one, so Ze
-uses three tools.
-
-| The failure | The tool |
-|-------------|----------|
-| A programmer error that MUST NOT happen at runtime | `panic("BUG: <what>")` |
-| An operating error that a running system produces | An error return, wrapped with `fmt.Errorf("context: %w", err)` |
-| A design property that holds before the program runs | `var _ Iface = (*T)(nil)`, or a test |
-
-The allowed panic prefixes are `BUG`, `unreachable`, `not implemented`,
-`unimplemented`, `TODO`, and `impossible`. Any other `panic()` is refused when
-the file is written.
-<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
-
-Three habits make the tools earn their cost.
-
-**A peer MUST NOT be able to panic the daemon.** A malformed UPDATE is an
-operating error, and every parser returns an error for one. Use `panic("BUG:")`
-for a state that only a Ze defect can produce, never for a state that arrives
-over a socket. This is the single most important line on this page.
-
-**Pair the check.** For each property you want to enforce, find two code paths
-that can carry a check. Validate an attribute when it is parsed from the wire,
-and validate it again when it is written back to the wire. A bug that survives
-one check rarely survives both, and the pair also documents the property twice.
-
-**Test the negative space.** A test that feeds valid data proves the code reads
-valid data. Interesting defects live where data crosses from valid to invalid,
-so every wire parser carries a fuzz target and every boundary gets a case.
-<!-- source: ai/rules/testing.md -- Boundary Testing, Fuzz -->
-
-A fuzz target proves that defects are present. It never proves that they are
-absent. So build the mental model first, write the checks that encode it, then
-let the fuzzer find the gap between the model and the code.
-
-### Memory
-
-Ze forwards millions of UPDATE messages. Go gives you a garbage collector, and
-every allocation on that path is a payment to it. Ze targets zero allocation on
-a wire path.
-
-| Rule | Detail |
-|------|--------|
-| The caller owns the buffer | A callee writes into `buf[off:]` and returns the byte count. It allocates nothing |
-| A pool replaces `make` | A wire-facing path takes its buffer from a bounded pool. `make` stays for a fixed-size header and for a one-shot allocation at startup |
-| The pool shape follows the goroutine shape | One sequential goroutine takes a ring. Concurrent goroutines take a `sync.Pool` seeded for the peak |
-| Every buffer in a pool has the same maximum size | Variable-sized allocation defeats the pool |
-| A copy is deliberate | Ze has four reasons to copy. A copy that fits none of them is a defect until somebody names the fifth reason |
-
-Full rule: `ai/rules/performance.md`.
+State an invariant positively. `if index < length` is easy to read.
+`if index >= length` states the failure of the invariant, and the reader must
+invert it. With an `else`, write `if c` rather than `if !c`, and swap the
+branches.
 
 ### Every error is handled
 
-An analysis of production failures in distributed data-intensive systems found
-one dominant cause. Most catastrophic failures came from the handling of errors
-that the software had already detected.
-
-> "Specifically, we found that almost all (92%) of the catastrophic system
-> failures are the result of incorrect handling of non-fatal errors explicitly
-> signaled in software."
-
-So: no discarded error, no silent default, no fallback value invented at the
-point of failure. `f, _ := open()` is refused. When a discard is genuinely
-correct, write `//nolint:errcheck // <the reason>` and give the reason.
-`nolintlint` refuses a directive that names no linter or gives no reason.
-
-Fail early. A config that does not parse stops the load. A value that is absent
-is an error, never `0.0.0.0/0`.
+Most catastrophic failures in distributed systems come from the handling of an
+error the software had already detected. So Ze has no discarded error, no silent
+default, and no fallback value invented at the point of failure. Fail early: a
+config that does not parse stops the load, and an absent value is an error,
+never `0.0.0.0/0`. Do not discard an error into `_`, as in `f, _ := open()`:
+no linter refuses that form, so the reader is the check. When a discard is
+correct, write `//nolint:errcheck // <the reason>`.
 
 ### Goroutines
 
@@ -303,217 +156,187 @@ Every goroutine is a long-lived worker with an owner and a stop path.
 |---------|--------|
 | A long-lived goroutine reading from a channel | Required |
 | One goroutine for one lifecycle: a process, a session, a peer | Permitted |
-| One goroutine for one event in a hot path | Forbidden |
-| `go func()` inside a `for range` over events | Forbidden |
+| One goroutine for one event in a hot path, or `go func()` in a `for range` over events | Forbidden |
 
-The shape is: create the channel and start the worker, enqueue on the hot path,
-close the channel to stop. When a type owns a goroutine, its doc comment states
-the sequence, and `Stop` says that the caller MUST call `Wait` after it.
+Create the channel and start the worker, enqueue on the hot path, close the
+channel to stop. A type that owns a goroutine states that sequence in its doc
+comment. Full rule: `ai/rules/goroutine-lifecycle.md`.
 
-Full rule: `ai/rules/goroutine-lifecycle.md`.
+### Comments say why and state the contract
 
-### The shape of a function
-
-A function that fits on one screen can be read. A function that needs a scroll
-must be remembered instead, and memory is where defects hide.
-
-- A good function is the inverse of an hourglass: few parameters, a simple
-  return type, and a lot of logic between the braces.
-- Centralize control flow. When you split a large function, keep the `switch`
-  and the `if` statements in the parent, and move the branch-free fragments into
-  helpers. One function owns the control flow, and the rest ignore it.
-- Centralize state. The parent holds the state in local variables, and a helper
-  computes what changes rather than applying the change itself. A leaf function
-  is pure.
-- One concern in one file. Past 1000 lines, look for a second concern. Split
-  only when the separation is right, because a forced split that scatters one
-  concern across three files is worse than one long cohesive file.
-
-Full rule: `ai/rules/go-standards.md`, "File Modularity".
-
-### Run at your own pace
-
-When Ze meets an external system, Ze does not act at the moment of each external
-event. Ze reads what has arrived, then works on its own schedule.
-
-This keeps control flow inside Ze, which is a safety property. It also lets Ze
-batch, which is a performance property. And it makes the work for each unit of
-time possible to bound, which is the first rule of this section.
-
-### Always say why
-
-Never forget to say why. An explained decision gives the reader the criteria to
-judge it, and the reader who has the criteria can change the code safely.
-
-Code is not documentation of itself. The code says what happens. The comment
-says why that, and not the obvious alternative.
-
-### Pass the option at the call site
-
-Write the option out rather than relying on a default from a library. The call
-then states its own behavior, and a change of default in the library cannot
-change Ze in silence.
-
-## Performance
-
-> "The lack of back-of-the-envelope performance sketches is the root of all
-> evil."
-
-**Solve performance in design, because that is where the large wins are.** In
-the design phase you cannot measure or profile, which is exactly why the
-sketches matter. After implementation the fix is harder and the gain is smaller.
-
-**Sketch the four resources.** Network, disk, memory, and CPU, each with its
-bandwidth and its latency. A sketch is cheap, and a rough sketch lands close to
-the best design.
-
-**Weight each resource by how often you touch it.** The order network, disk,
-memory, CPU is the order of raw cost. A memory cache miss that happens a
-thousand times costs more than one disk write, so count the accesses before you
-pick the target.
-
-**Separate the control plane from the data plane.** A session negotiation runs
-once for each peer, and an UPDATE runs millions of times. The control plane can
-afford a check that the data plane cannot, and the line between them is what
-lets Ze carry both.
-
-**Batch.** Batching amortizes the cost of every one of the four resources. It is
-the same answer for a system call, a disk write, a lock, and a wake-up.
-
-**Let the CPU sprint.** Give it a large piece of work with a predictable shape.
-Do not make it change lanes for each message.
-
-**Be explicit. Do not depend on the compiler.** Extract a hot loop into a
-standalone function that takes primitive arguments and no receiver. The compiler
-then has no struct fields to prove it can cache in registers, and a reader can
-see a redundant computation.
-
-Go adds its own costs, and each one has a cheaper form.
-
-| Cost | The cheaper form |
-|------|------------------|
-| `fmt.Sprintf` on a hot path | `textbuf.Buffer`, or `strconv.Append*` into a buffer you own |
-| String concatenation with `+` | One `textbuf.Buffer` |
-| `strings.Join(parts, " ")` | One buffer, with a separator written between the parts |
-| A `map[string]V` on a hot path | A numeric or typed-enum key, parsed once at the boundary |
-| A value that escapes to the heap | An out pointer from the caller |
-| `sort.Strings`, `sort.Ints`, `sort.Float64s` | `slices.Sort`. The `sort` entry points wrap the slice in a `sort.Interface`, so every comparison and every swap is a dynamic call. `slices.Sort` is generic and compares directly |
-
-<!-- source: internal/core/textbuf/textbuf.go -- Buffer -->
-
-Full rule: `ai/rules/performance.md`.
-
-## Developer experience
-
-> "There are only two hard things in Computer Science: cache invalidation,
-> naming things, and off-by-one errors."
-
-### Names
-
-**Get the nouns and the verbs right.** A great name captures what a thing is or
-what it does, and it proves that the author understood the domain. Take the time
-to find it.
-
-**Describe what the value is, never its Go type.** `famStr`, `levelStr`, and
-`addrStr` name the type. `family`, `level`, and `addr` name the value. When two
-variables hold one concept in two forms, separate them by meaning: `afiName` for
-the name, and `afi` for the numeric code.
-
-**Put the qualifier last, by descending significance.** Write `latencyMsMax`
-rather than `maxLatencyMs`. Then `latencyMsMin` lines up beside it, and every
-latency name sorts together.
-
-**Infuse a name with meaning.** `logger` is correct and dull. `peerLog` and
-`wireLog` tell the reader which subsystem writes the line.
-
-**Give related names the same length.** As arguments to a copy, `source` and
-`target` beat `src` and `dst`, because `sourceOffset` and `targetOffset` then
-line up in every slice expression that follows. Code that lines up is code the
-eye can check.
-
-**Give the helper the name of its caller.** `writeUpdate` and `writeUpdateBody`
-show the call history in the file listing. A reader who greps one finds the
-other.
-
-**Order the file for the first read.** The entry point goes first. In a type,
-the order is fields, then types, then methods. When no order is obviously right,
-sort alphabetically and take the benefit of names that start with the concept.
-
-**Do not overload a name.** Ze keeps `delete` for config, `clear` for counters,
-and `remove` for a route. One name that carries two meanings costs the reader a
-guess on every page.
-
-**Name for the document, not only for the compiler.** A noun goes straight into
-a sentence, an email, or a heading. A present participle must be rephrased
-first. `peer.pipeline` beats `peer.preparing`, and it composes into
-`pipelineMax`.
-
-Go casing, package naming, and the package glossary: `docs/contributing/go-conventions.md`.
-
-### Comments
+The code says what happens. The comment says why this, and not the obvious
+alternative. A reader who has the criteria for a decision can change the code
+safely.
 
 | Comment | Requirement |
 |---------|-------------|
-| The file header | `// Design:` first, then `// Detail:`, `// Overview:`, or `// Related:` to the sibling files that a reader needs |
-| A caller obligation | State it with MUST, on both sides of the pair. `Stop` says "MUST call Wait after". `Wait` says "MUST be called after Stop" |
-| Concurrency | Say "Safe for concurrent use", or say the opposite. Silence is not an answer |
-| A test | Open with the goal and the method, so the next reader can skip it or trust it |
-| Any comment | Sentences. A capital letter, a space after the slashes, and a full stop |
+| The file header | `// Design:` first, then `// Detail:`, `// Overview:`, or `// Related:` to the sibling files a reader needs |
+| A caller obligation | MUST, on both sides of the pair. `Stop` says "MUST call Wait after". `Wait` says "MUST be called after Stop" |
+| Concurrency | "Safe for concurrent use", or the opposite. Silence is not an answer |
+| A test | Opens with its goal and its method, so the next reader can skip it or trust it |
+| Any comment | Sentences: a capital letter, a space after the slashes, and a full stop |
 
-A comment that no longer matches the code is worse than no comment. When you
-change behavior, the comments that described the old behavior change in the same
-edit.
+A comment that no longer matches the code is worse than no comment, so the
+comments change in the same edit as the behavior. Full rules:
+`ai/rules/go-standards.md` and `ai/rules/stale-comments.md`.
 
-Full rules: `ai/rules/go-standards.md` and `ai/rules/stale-comments.md`.
+### Names
+
+A great name captures what a thing is or does, and it proves that the author
+understood the domain. Take the time to find it.
+
+| Rule | Instead of | Write |
+|------|-----------|-------|
+| Name the value, never its Go type. Two forms of one concept differ by meaning | `famStr`, `levelStr` | `family`, `level`; `afiName` beside `afi` |
+| Put the qualifier last, by descending significance, so related names sort together | `maxLatencyMs` | `latencyMsMax` beside `latencyMsMin` |
+| Give the name meaning: say which subsystem | `logger` | `peerLog`, `wireLog` |
+| Give related names the same length, so expressions line up | `src`, `dst` | `source`, `target` |
+| Give a helper the name of its caller | `writeBody` | `writeUpdateBody` beside `writeUpdate` |
+| Never overload a name | `delete` for a counter | `delete` config, `clear` counters, `remove` a route |
+| Prefer a noun to a participle: it goes straight into a sentence | `peer.preparing` | `peer.pipeline`, then `pipelineMax` |
+
+Order a file for the first read: the entry point first, and in a type the
+fields, then types, then methods. When no order is obviously right, sort
+alphabetically. Go casing and the package glossary: `go-conventions.md`.
 
 ### State that goes stale
 
 Most defects come from a gap in time or in space between where a value is
 checked and where it is used.
 
-- **Do not copy a variable, and do not take an alias to one.** Two names for one
-  fact will disagree.
-- **Pass a large struct as a pointer.** Go copies a value argument at every
-  call. The linter reports a value parameter above its size threshold.
-  <!-- source: .golangci.yml -- gocritic hugeParam sizeThreshold -->
-- **Build a large struct in place.** Give the constructor an out pointer, so the
-  value is written where it will live. This holds the pointers stable and
-  removes the intermediate copy.
-- **Shrink the scope.** Fewer variables in scope means fewer variables to
-  confuse.
-- **Compute a value next to where it is used.** Do not declare it early, and do
-  not leave it alive after the last read.
+- **Do not copy a variable or alias one.** Two names for one fact will disagree.
+- **Build a large struct in place.** The constructor takes an out pointer, so
+  the value is written where it lives and no intermediate copy exists.
+- **Shrink the scope, and compute a value next to its use.** Do not declare it
+  early or keep it alive after its last read.
 - **Simplify the return type.** Each extra dimension is a branch at every call
-  site, and it propagates up the chain.
-
-  | Prefer | Over |
-  |--------|------|
-  | Nothing | `bool` |
-  | `bool` | A value |
-  | A value | `(value, ok)` |
-  | `(value, ok)` | `(value, error)` |
-
-- **Zero the padding.** A buffer that is written short and sent long leaks
-  whatever the last user left in it. It also breaks the deterministic output
-  that Ze tests depend on.
+  site. Prefer nothing to `bool`, `bool` to a value, a value to `(value, ok)`,
+  and `(value, ok)` to `(value, error)`.
+- **Zero the padding.** A buffer written short and sent long leaks what the last
+  user left in it, and it breaks deterministic test output.
 - **Group an allocation with its release.** A blank line before the acquisition
-  and a blank line after the `defer` makes a missing `defer` visible in a diff.
+  and after the `defer` makes a missing `defer` visible in a diff.
+- **Keep index, count and size apart.** An index plus one is a count, and a
+  count times the unit is a size. Put the unit in the name: `octets`, `entries`
+  and `slots` answer what `n` leaves open. When a division can round, write
+  which way.
 
-### Off-by-one
+### The shape of a function
 
-An index, a count, and a size are three different types that Go spells the same
-way.
+A function that fits on one screen can be read. A function that needs a scroll
+must be remembered, and memory is where defects hide.
 
-| From | To | Operation |
-|------|----|-----------|
-| Index | Count | Add one. An index starts at zero, and a count starts at one |
-| Count | Size | Multiply by the unit |
+- Few parameters, a simple return type, and the logic between the braces.
+- Keep the `switch` and `if` statements in the parent, and move branch-free
+  fragments into helpers. The parent holds the state in locals, and a helper
+  computes the change rather than applying it. A leaf function is pure.
+- One concern in one file. Past 1000 lines, look for a second concern. Split
+  only when the separation is right: one concern scattered over three files is
+  worse than one long file. Full rule: `ai/rules/go-standards.md`, "File
+  Modularity".
+- Pass each option at the call site rather than relying on a library default.
+  The call then states its behavior, and a changed default cannot change Ze in
+  silence.
+- Run at your own pace. When Ze meets an external system, it reads what has
+  arrived and works on its own schedule. Control stays inside Ze, the work can
+  batch, and the work for each unit of time has a bound.
 
-This is the second reason to put the unit in the name. `octets`, `entries`, and
-`slots` each answer the question that `n` leaves open.
+### Performance
 
-Show the intent of a division. When a division can round, write which way it
-rounds, so the reader knows that you thought about the case.
+Solve performance in design, where the large wins are and where nothing can be
+measured yet.
+
+- **Sketch the four resources:** network, disk, memory, CPU, each with its
+  bandwidth and its latency. Weight each by how often you touch it: a thousand
+  cache misses cost more than one disk write.
+- **Separate the control plane from the data plane.** A session negotiation runs
+  once for each peer, and an UPDATE runs millions of times. The control plane
+  can afford a check that the data plane cannot.
+- **Batch,** for a system call, a disk write, a lock, and a wake-up alike, and
+  give the CPU a large piece of work with a predictable shape.
+- **Do not depend on the compiler.** Extract a hot loop into a function that
+  takes primitive arguments and no receiver, so no struct field has to be
+  proved cacheable and a redundant computation is visible.
+
+Ze targets zero allocation on a wire path, because every allocation there is a
+payment to the garbage collector.
+
+| Rule | Detail |
+|------|--------|
+| The caller owns the buffer | A callee writes into `buf[off:]` and returns the byte count. It allocates nothing |
+| A pool replaces `make` | A wire path takes its buffer from a bounded pool. `make` stays for a fixed-size header and a one-shot allocation at startup |
+| The pool shape follows the goroutine shape | One sequential goroutine takes a ring. Concurrent goroutines take a `sync.Pool` seeded for the peak |
+| One maximum size for every buffer in a pool | A variable size defeats the pool |
+| A copy is deliberate | A copy on the wire path MUST match a trigger in `docs/architecture/buffer-architecture.md`, "When a copy is deliberate". A copy that fits none is a defect until that page names the new trigger |
+| A string on a hot path is built once | Concatenation with `+`, `strings.Join`, and a `map[string]V` key each cost an allocation. Use one `textbuf.Buffer` and a typed key parsed at the boundary |
+| A value that escapes to the heap | The caller passes an out pointer |
+
+<!-- source: internal/core/textbuf/textbuf.go -- Buffer -->
+
+Full rule: `ai/rules/performance.md`.
+
+### Simplicity and debt
+
+The simplest fully correct design is usually the hardest to find, so budget the
+thinking for it. Simplicity cuts machinery and never correctness: an answer that
+solves less of the problem is scope reduction, which is banned. Short is not
+simple either, so write the version that is boring to read. Full rule:
+`ai/rules/simplicity.md`.
+
+Fix what you find when you find it. A hot-path copy, an unbounded queue, or an
+algorithm quadratic in the peer count never enters with a promise of a later
+fix. When you replace X with Y, delete X first (`ai/rules/no-layering.md`). Ze
+is unreleased, so no compatibility shim exists (`ai/rules/go-standards.md`).
+Only the plugin API contract freezes, and only after the first release.
+
+No new third-party import enters until Thomas agrees, because each one adds a
+supply-chain, safety, performance and install cost. Existing dependencies are
+vendored, so a build never reaches the network.
+
+Repository tooling is Go under `internal/le/`: an `./le <area> <action>` backed
+by a callable package, with fixtures under its `testdata/` or
+`internal/test/fixture`. Python stays only where an external Python program is
+the subject.
+<!-- source: internal/le/register.go -- native tooling composition root -->
+
+## The rules a tool enforces
+
+A finding from these tools names the rule, so the rule is not restated above.
+`golangci-lint` runs in `./le go lint run` and in CI. The edit-time check is
+`writeGoPatterns`, which refuses a `Write` or `Edit` of shipped Go (not
+`_test.go`) that matches a pattern.
+<!-- source: .golangci.yml -- revive rules -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeGoPatterns -->
+
+| Rule | Tool | What it refuses |
+|------|------|-----------------|
+| Guard, handle, return | revive `early-return`, `indent-error-flow`, `superfluous-else` | An `else` that a guard makes unnecessary |
+| One fact per guard | `./le arch compound-guard check` | A terminating `if a \|\| b` on a changed line |
+| State an invariant positively | ruleguard `negatedElse` | `if !c` or `if a != b` with an `else`. `err != nil` and the failure form of a bound stay allowed |
+| Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
+| No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |
+| No `nil, nil` answer | `nilnil` | A `(pointer, error)` function that returns neither |
+| Every enum value handled | `exhaustive` (a `default` counts) | A `switch` over an enum that skips a value |
+| A `//nolint` names its linter and its reason | `nolintlint`, `writeGoPatterns` | `//nolint`, or `//nolint:x` with no `// reason` |
+| No legacy logger | `forbidigo`, `writeGoPatterns` | `log.Print*`, `log.Fatal*`, `log.Panic*`: use `slog` |
+| No allocating formatter | `writeGoPatterns` | `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Printf`, `strconv.FormatInt`, `strconv.FormatUint`: use `textbuf.Buffer` |
+| No anonymous goroutine | `writeGoPatterns` | `go func(` |
+| No exit from a handler | `writeGoPatterns` | `os.Exit(` outside `main.go` and `register.go` |
+| Registration only in `register*.go` | `writeGoPatterns` | An `init()` that registers, subscribes or hooks in another file |
+| No switch dispatch | `writeGoPatterns` | `switch args[0]` |
+| One responsibility per function | `writeGoPatterns` (warning) | An exported function named `...And...` |
+| Pass a large struct by pointer | gocritic `hugeParam` (288 bytes), `rangeValCopy` (160 bytes) | A value parameter or range copy above the size |
+| `slices.Sort` | ruleguard `modernSort` | `sort.Strings`, `sort.Ints`, `sort.Float64s`, which compare through `sort.Interface` |
+| `crashlog.Exec` | ruleguard `crashlogExec` | An `execve` past the crash-capture flush |
+| A comment is a sentence | `godot` | A declaration comment with no full stop |
+| US spelling | `misspell` | UK spellings |
+| Modern Go | `modernize`, `intrange` | A pre-generics or pre-range-over-int idiom |
+<!-- source: .golangci/ruleguard/modern.go -- negatedElse -->
+
+The other enabled linters (`govet`, `staticcheck`, `unused`, `gosec`,
+`unconvert`, `unparam`, `nakedret`, `prealloc`, `noctx`, `bodyclose`, `dupl`,
+`goconst`, `tparallel`, `wastedassign`, `ineffassign`, gocritic's diagnostic,
+style and performance tags) teach through their own messages.
 
 ### By the numbers
 
@@ -521,96 +344,39 @@ rounds, so the reader knows that you thought about the case.
 |---------|-------|
 | Formatting | `gofmt` and `goimports`. Ze imports come last, under the local prefix |
 | Linting | `golangci-lint` MUST pass. Do not disable a linter. Fix the finding |
-| A `//nolint` | Carries the specific reason on the same line. `nolintlint` enforces it in `./le go lint run`, and `writeGoPatterns` also refuses it when the file is written |
-| Indentation | Tabs, because `gofmt` writes tabs. Every other file type is spaces, and `.editorconfig` at the repository root carries the width for each one |
-| Line length | 100 columns is the target, and it is advisory. The number is physical: two copies of the code fit beside each other on one screen |
-| File length | 1000 lines is the point at which you look for a second concern. It is the only threshold |
+| A `//nolint` | Names the linter and carries the reason on the same line |
+| Indentation | Tabs, because `gofmt` writes tabs. Every other file type is spaces, and `.editorconfig` carries the width |
+| Line length | 100 columns, advisory: two copies of the code fit side by side on one screen |
+| File length | 1000 lines is where you look for a second concern. It is the only threshold |
 | Test file length | No threshold. A table of cases grows with coverage |
-| Function length | One screen is the target, and it is advisory |
+| Function length | One screen, advisory. No gate counts the lines |
+| Assertion density | Ze counts nothing. A `panic("BUG:")` marks a state that a Ze defect alone can reach |
 
 <!-- source: .golangci.yml -- linters, formatters -->
+<!-- source: .golangci.yml -- gocritic hugeParam sizeThreshold -->
 <!-- source: .editorconfig -- indentation per file type -->
 
-The toolchain does not know every idiom Ze holds itself to. The `modernize`
-suite in `x/tools` carries no rule for the `sort` entry points above, and
-neither does any other linter, so 622 call sites stayed invisible until this
-repository wrote the rule itself.
-
-Where that happens, the rule goes in `.golangci/ruleguard/modern.go`, which
-gocritic's `ruleguard` checker loads at run time. The rule then reaches every
-place the linter already reaches: the post-write hook, `./le go lint run`,
-CI, and `//nolint`. A rule written this way needs no new gate, no new hook, and
-no custom linter binary.
-
-That reach has one condition. The flavors that drop build tags do not lint
-through the checkout configuration. They lint through a copy written under
-`tmp/lint-flavors/`, and golangci-lint expands `${config-path}` against the
-directory holding the configuration it loaded, which for the copy is that
-directory. So the derivation expands the token to the checkout root before it
-writes the copy. Left relative, the rules file is not found, gocritic fails to
-initialize, and `failOn: all` takes the whole `goanalysis_metalinter` pass down
-with it: those flavors then lint with no gocritic at all, while the run's other
-findings still print.
-<!-- source: internal/le/go/lint/verifylint.go -- deriveTaglessConfig -->
-
-The leading dot on the directory keeps the Go toolchain out of it, so a rules
-file is never compiled, vendored, or linted. Give each rule a `Report` line
-that states the cost, and a `Suggest` line that gives the replacement. Note that
-`Suggest` rewrites the expression only: `--fix` does not add the new import or
-drop the old one, so a mass rewrite runs `gofmt -r` and then `goimports`.
-
-The dot is a trade, and the cost is on this page. Neither path gate reaches
-into the directory: `./le doc index check` accepts a `<!-- source: -->`
-anchor into it without checking, and `./le doc check links` does not count a
-dotted path among its broken references. Both were measured by breaking the
-path and watching the count stay put. So if the rules file is renamed, nothing
-goes red and this paragraph goes quietly wrong. Check it by hand when you move
-the file.
-
-### Dependencies
-
-Ze takes no new third-party import until you ask Thomas and he agrees. A dependency
-carries a supply-chain risk, a safety risk, a performance risk, and an install
-cost. For infrastructure that other software runs on, every one of those costs
-is multiplied down the stack.
-
-The dependencies that Ze has are vendored in the repository, so a build never
-reaches the network.
-
-### Tooling
-
-A tool has a cost. A small standard toolbox is easier to operate than a shelf of
-specialist instruments, each with its own manual.
-
-> "The right tool for the job is often the tool you are already using -- adding
-> new tools has a higher cost than many people appreciate"
-
-Ze writes repository tooling in Go under `internal/le/`. A new development
-workflow is an `./le <area> <action>` backed by a callable Go package, and its
-fixtures live under that package's `testdata/` directory or
-`internal/test/fixture`. Python remains relevant only when documentation or
-interoperability concerns an external Python program.
-<!-- source: internal/le/register.go -- native tooling composition root -->
+A Ze idiom that no linter knows goes in `.golangci/ruleguard/modern.go`, which
+gocritic's `ruleguard` loads. It then reaches every place the linter reaches,
+with no new gate. Give each rule a `Report` line that states the cost and a
+`Suggest` line that gives the replacement. `--fix` does not edit imports, so a
+mass rewrite runs `gofmt -r` and then `goimports`. No path gate checks a
+reference into that dot directory, so when you rename the file, correct this
+page by hand.
 
 ## Where Ze differs from standard Go
 
-Ze differs from a typical Go project in specific, load-bearing ways. A reader
-trained on standard Go patterns defaults to the wrong approach in each of the
-rows below. Each row names the standard approach, the Ze approach, the rule
-that governs it, and the reason.
+A reader trained on standard Go defaults to the wrong approach in each row
+below. The buffer and pool rules are in "Performance" above.
 
 ### Encoding and wire
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
 | `func (t T) Marshal() ([]byte, error)` | `func (t T) WriteTo(buf []byte, off int) int` | `ai/rules/performance.md` | Zero allocations on a hot path; the caller owns the buffer |
-| `bytes.Buffer` or `append` in helpers | Pre-allocated pooled buffers, sliced inward | `ai/rules/performance.md` | Bounded memory, no GC pressure |
-| `make([]byte, n)` for variable-length wire data | Pool-backed buffers of one fixed maximum size | `ai/rules/performance.md` | Block accounting can release a block whole |
-| A helper allocating its own scratch | The caller passes the buffer down and the callee writes into it | `ai/rules/performance.md` | One allocation at the outermost scope, not N in sub-functions |
-| `sync.Pool` only for reuse | `sync.Pool` for multi-goroutine scratch, a ring for a single goroutine | `ai/rules/performance.md` | The pool shape follows the goroutine shape |
+| `bytes.Buffer`, `append`, or `make` in a helper | A pooled buffer of one fixed maximum size, passed down by the caller | `ai/rules/performance.md` | One allocation at the outermost scope, and block accounting can release a block whole |
 | Parse into structs eagerly | Lazy iterators over raw byte slices (`Next()`) | `ai/rules/architecture.md` | N to zero-until-needed, not N to one |
-| `fmt.Sprintf` for formatting | `textbuf.Buffer` (128-byte stack inline) or `strconv.Append*` | `ai/rules/performance.md` | Sprintf allocates two to three times; textbuf allocates once |
-| `strings.Join(parts, " ")` | One `textbuf.Buffer` with `.Byte(' ')` separators | `ai/rules/performance.md` | Removes the intermediate `[]string` and the final join |
+| `fmt.Sprintf`, `strings.Join` | `textbuf.Buffer` (128-byte stack inline) or `strconv.Append*` | `ai/rules/performance.md` | Sprintf allocates two to three times; textbuf allocates once |
 
 ### Architecture and registration
 
@@ -670,32 +436,3 @@ that governs it, and the reason.
 | Ad-hoc scripts for tooling | A native Go package with a registered `./le` action | `ai/rules/go-standards.md` | One typed implementation serves the local caller and CI |
 | `/tmp` for scratch files | The per-session directory from `./le session scratch ensure` | `ai/rules/commands.md` | Concurrent sessions never share a name |
 | A bare staging verb followed by a bare commit | `./le commit create`, then the generated script | `ai/rules/git-safety.md` | The declared file population is checked before staging |
-
-## Where Ze differs from TigerStyle
-
-The differences are the places where Go, or Ze's own history, gives a different
-answer. Each one is deliberate.
-
-| Subject | TigerStyle | Ze |
-|---------|-----------|-----|
-| Case | `snake_case` for everything | Go casing. `gofmt` and the standard library set it, and fighting them costs more than it returns |
-| Function length | A hard limit of 70 lines | One screen, advisory. No gate counts the lines |
-| Line length | A hard limit of 100 columns | 100 columns, advisory |
-| Indentation | 4 spaces | Tabs, written by `gofmt` |
-| Allocation | No dynamic allocation after startup | Zero allocation on a wire path, through bounded pools. Go has a garbage collector, so the target is the hot path rather than the whole program |
-| Repository tooling | Zig | Go actions under `internal/le/` |
-| Dependencies | Zero, apart from the toolchain | Vendored Go modules. A new one needs Thomas to agree first |
-| Assertion density | At least two for each function | Ze counts nothing. `panic("BUG:")` marks a state that a Ze defect alone can reach, and a peer never reaches one |
-
-## Lineage
-
-This standard follows TigerStyle, the coding standard of TigerBeetle. It is
-restated for Go, for a routing daemon, and for this repository, and the examples
-are Ze's own.
-
-Source: `https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md`
-
-The quotations on this page come from that document. It credits Rivacindela
-Hudsoni for the sketching line, Phil Karlton for the hard things in computer
-science, and John Carmack for the tools. The failure statistic comes from "Simple
-Testing Can Prevent Most Critical Failures", published at OSDI 2014.
