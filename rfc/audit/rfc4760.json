@@ -1,0 +1,104 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC4760-3-1": {
+      "note": "Clause \"MUST be set to 0\": (a) forbidden: an MP_REACH_NLRI whose Reserved octet is non-zero on send, e.g. inherited from a pooled buffer. (b) rfc4760_reserved_test.go TestRFC4760ReservedIsWrittenNotInherited asserts buf[reserved]==0 over a 0xAA-poisoned buffer at a non-zero offset for six next-hop forms, and TestRFC4760ReservedSurvivesBufferReuse asserts 0 where the previous encode left 0x11; both go red if MPReachNLRI.WriteTo stops writing the octet. Single-polarity marker on the row: there is no non-zero form Ze could emit to reject.",
+      "requirement_sha": "84e34e3fa72a90c7",
+      "tests": {
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited": "8ee1ba8bd33e41ab",
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse": "8ee1ba8bd33e41ab"
+      },
+      "units": {
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedIsWrittenNotInherited": "9bf8b55895aa3621",
+        "internal/core/bgp/attribute/rfc4760_reserved_test.go::TestRFC4760ReservedSurvivesBufferReuse": "07b945d683fc4786"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4760-3-2": {
+      "note": "The one multi-protocol case Ze encodes is IPv4 NLRI over an IPv4 or an IPv6 next hop (RFC 5549/8950), plus RD-prefixed VPN hops. (a) forbidden: an encoding whose Length of Next Hop does not tell which protocol the hop is, e.g. an IPv6 hop under AFI 1 written with length 4, or a zero-length field. (b) TestMPReachNextHopLengthCountsTheOctetsWritten asserts buf[3]==16 for \"ipv4 unicast over an ipv6 next hop\" and 4 for the IPv4 hop, and that the written span equals Len(); negatives: TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm (ErrUnencodableNextHop, nothing written), TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm and TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm (no UPDATE on the commit and RIB-replay rails), TestParseMPReachNLRI_InvalidNextHopLength (length 5 refused). Tag-prose note: TestParseMPReachNLRI claims the parser derives the family from the length, but its cases are AFI 2 only and assert counts, not the family.",
+      "requirement_sha": "328f6e02c6ab0927",
+      "tests": {
+        "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "d2eeb2e25557e522",
+        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "e95a22c6a645c4b7",
+        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "e95a22c6a645c4b7",
+        "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "bd147ba04b9bb229",
+        "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "bd147ba04b9bb229",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "956952d4c9cbe9bd",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "956952d4c9cbe9bd"
+      },
+      "units": {
+        "internal/component/bgp/reactor/peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm": "78903c0eef755206",
+        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm": "b70843ccf60a1782",
+        "internal/component/bgp/rib/commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop": "8db455227021d870",
+        "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachNextHopLengthCountsTheOctetsWritten": "4d9d50563d47ebad",
+        "internal/core/bgp/attribute/mpnlri_nexthop_wire_test.go::TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm": "f353248e1c90348b",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestMPReachNLRI_WriteTo": "25748e2690ae75be",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI": "f8a2e70b53e57961",
+        "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_InvalidNextHopLength": "7a3d2d2e2acca2ba"
+      },
+      "verdict": "enforced"
+    },
+    "RFC4760-3-3": {
+      "note": "The sentence binds the SENDER: an UPDATE carrying MP_REACH_NLRI MUST carry ORIGIN and AS_PATH, on eBGP and iBGP. (a) forbidden: Ze emitting an MP_REACH_NLRI UPDATE without ORIGIN or AS_PATH. (b) no tagged unit asserts it: TestRFC4760MPReachRequiresOriginAndASPath drives only the RECEIVE validator ValidateUpdateRFC7606 (treat-as-withdraw on a missing attribute, which is RFC 7606 Section 3(d) handling), and never inspects an UPDATE Ze builds. The eBGP/iBGP clause is not exercised on either side.",
+      "requirement_sha": "ade8a0848a8c0383",
+      "tests": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "1dc5ff0bda5321c3",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "1dc5ff0bda5321c3"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath": "dea6e5b17a79fb40",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760MPReachRequiresOriginAndASPath#2": "dea6e5b17a79fb40"
+      },
+      "verdict": "weak"
+    },
+    "RFC4760-3-4": {
+      "note": "(a) forbidden: an iBGP UPDATE carrying MP_REACH_NLRI with no LOCAL_PREF. (b) TestRFC4760IBGPMPReachCarriesLocalPref \"ibgp includes local_pref\" asserts codes[5] on UpdateBuilder.BuildUnicast for an IPv6 route, which goes red on that builder. Weak because the negative tag proves a neighbouring rule: \"ebgp omits local_pref\" is RFC 4271 Section 5.1.5 (LOCAL_PREF not sent to external peers), and no input in it violates this requirement; the row has no single-polarity marker. Only the BuildUnicast rail is covered; the CommitService and RIB-replay rails that also emit MP_REACH are not.",
+      "requirement_sha": "8c68c072463e59b6",
+      "tests": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "1dc5ff0bda5321c3",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "1dc5ff0bda5321c3"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "0e1674e7025d1d59",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "0e1674e7025d1d59"
+      },
+      "verdict": "weak"
+    },
+    "RFC4760-7-1": {
+      "note": "(a) forbidden: after an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI, routes of that AFI/SAFI from the neighbor stay installed. Ze answers with session reset (RFC 7606 Section 3(j)). (b) The trigger is asserted: TestRFC4760IncorrectMPAttributeResetsTheSession (RFC7606ActionSessionReset for a bad next-hop length and a short MP_UNREACH), TestRFC4760IncorrectMPReach/MPUnreachDeletesTheNeighborsRoutes (session reaches Idle, NOTIFICATION code 3), negatives keep Established. The deletion is asserted separately: TestHandleState_PeerDown deletes the PeerRIB on a hand-built state \"down\" event. No tagged unit asserts the link between them, that the reset session delivers the peer-down event which clears the RIB, so a reactor that goes Idle without notifying the RIB keeps the routes and every tagged unit stays green. The reactor tests assert Idle and assume it deletes routes.",
+      "requirement_sha": "dbfbd3ffc825a942",
+      "tests": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "1dc5ff0bda5321c3",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "1dc5ff0bda5321c3",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "67323a140596dd23",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "1abec3c0a7939e9c",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes": "1abec3c0a7939e9c",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes": "1abec3c0a7939e9c"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession": "cae654db47c17b85",
+        "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IncorrectMPAttributeResetsTheSession#2": "cae654db47c17b85",
+        "internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown": "2b64b74db58b8189",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes": "39d13d3b848c9f6d",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes": "dee54a42ce9fb3bc",
+        "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPUnreachDeletesTheNeighborsRoutes": "54d0a31489342e51"
+      },
+      "verdict": "weak"
+    },
+    "RFC4760-8-1": {
+      "note": "(a) forbidden: Ze exchanging routes of an <AFI, SAFI> with a peer without having advertised the Multiprotocol capability for that <AFI, SAFI> in its OPEN. (b) none: TestParseCapabilities only parses a received Code 1 capability into AFI/SAFI. It proves the parser (a neighbouring rule, the Section 8 wire layout), not that Ze advertises a capability for each family it exchanges; it never inspects an OPEN Ze builds or a family Ze sends.",
+      "requirement_sha": "89aa529f61dbd564",
+      "tests": {
+        "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "b3428c78168b854d"
+      },
+      "units": {
+        "internal/core/bgp/capability/capability_test.go::TestParseCapabilities": "75c7b1f753e9d4ae"
+      },
+      "verdict": "wrong"
+    }
+  },
+  "rfc": "rfc4760"
+}
