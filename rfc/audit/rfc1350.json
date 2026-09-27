@@ -1,0 +1,104 @@
+{
+  "audited": "2026-09-27",
+  "requirements": {
+    "RFC1350-2-1": {
+      "note": "Forbidden: a non-final DATA block that is not 512 bytes. TestTFTPReadExact512 asserts block 1 of a 512-byte file carries exactly 512 bytes (n-4 != 512 fails) and that the transfer continues to block 2; TestTFTPReadLargeFile asserts three blocks for 1500 bytes. Single-polarity marker: ze is the sender and no input changes its framing.",
+      "requirement_sha": "177ec2d28dc9434d",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1350-2-2": {
+      "note": "Forbidden: sending DATA block n+1 before block n is ACKed. No tagged assertion goes red on it. TestTFTPReadLargeFile ACKs each block and checks gotBlock == block, which a server that streamed all blocks without waiting would also pass (the reads arrive in order). The negative in TestTFTPConcurrentLimit asserts only that a second RRQ gets ERROR while the first transfer holds the semaphore; a server that sent block 2 unacknowledged would still hold it. Needs an assertion that no block 2 arrives before the ACK of block 1.",
+      "requirement_sha": "6e51c71ee33b5d30",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "f8798044238d59e6",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b"
+      },
+      "verdict": "weak"
+    },
+    "RFC1350-4-1": {
+      "note": "Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.",
+      "requirement_sha": "c3d583281c51b282",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "fdde8a7e1436845a"
+      },
+      "verdict": "enforced"
+    },
+    "RFC1350-4-3": {
+      "note": "Forbidden: the server answering from port 69 instead of a TID it chose, or changing its TID mid-transfer. TestListenTFTPLoopbackRoundTrip (Linux, skips without root) asserts only that the bytes arrive; tftpFetch records the first DATA source and ACKs to it but never asserts it differs from port 69, so a server replying from 69 passes. A mid-transfer TID change would stall the fetch only incidentally. No unit asserts the chosen TID.",
+      "requirement_sha": "d8ce09cd32156ece",
+      "tests": {
+        "internal/plugins/tftpserver/socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "902e0bf0222babba"
+      },
+      "units": {
+        "internal/plugins/tftpserver/socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "690d3098855724e3"
+      },
+      "verdict": "weak"
+    },
+    "RFC1350-5-2": {
+      "note": "The sentence binds a host that RECEIVES an octet file and later returns it. Ze's TFTP server rejects WRQ (handler.go handleRRQ path only) and never receives a file, so the obligation's round trip cannot occur. TestTFTPReadRequest and TestTFTPReadLargeFile prove a neighbouring rule: the RRQ path sends a stored file's bytes verbatim in octet mode. The tags are misplaced.",
+      "requirement_sha": "cf6a9d5b4e5a1d33",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "968d8635be3cc45b",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "fdde8a7e1436845a"
+      },
+      "verdict": "wrong"
+    },
+    "RFC1350-5-3": {
+      "note": "Clause '512 bytes: not the last block': TestTFTPReadExact512 asserts block 1 is 512 bytes and a block 2 follows, red if the server stopped. Clause 'zero to 511 bytes signals the end of the transfer': no tagged assertion goes red if the server sent further DATA after the short or zero-length block (neither test reads after the terminating block) or sent a short block before the end of a multi-block file. Clause 'zero to 512 bytes': both tests read into a 516-byte buffer, which truncates an oversize datagram, so a block over 512 bytes is not detected. TestTFTPReadEmptyFile asserts only that block 1 is zero-length.",
+      "requirement_sha": "e9541f5c732b1360",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "a94a3042c4c6352a",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadEmptyFile": "80b8428baab910b6",
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe"
+      },
+      "verdict": "weak"
+    },
+    "RFC1350-6-1": {
+      "note": "Clause 'must retransmit it': TestTFTPRetransmitOnTimeout withholds the ACK of the single (last) DATA and asserts a byte-identical retransmission arrives within 7s, red if none. Clause 'until the packet is acknowledged': no tagged unit asserts the retransmissions stop once the ACK arrives; the test ACKs at the end and asserts nothing after. The marker points at RFC1350-2-2, whose own tagged units do not prove the stop either.",
+      "requirement_sha": "1e3573f72b4f1ee9",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "f5dc7f7c0717b732"
+      },
+      "verdict": "weak"
+    },
+    "RFC1350-7-1": {
+      "note": "Not wrong: TestTFTPRetransmitOnTimeout does go red on a server with no ACK timeout at all (it would block on Read and no retransmission arrives within 7s), which is part of the obligation. But the sentence (Section 7, Premature Termination) requires timeouts to detect errors, i.e. a peer that is gone or failed ends the transfer. A server that retransmitted forever and never declared the transfer failed passes: the abort after maxRetransmit (sendAndWaitACK returning false) has no assertion. The single-polarity marker's reason (the abort needs about 20s of real timeouts) is a test-cost argument, not the absence of a negative behaviour.",
+      "requirement_sha": "c8b39b85a1e38f5e",
+      "tests": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "a94a3042c4c6352a"
+      },
+      "units": {
+        "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "f5dc7f7c0717b732"
+      },
+      "verdict": "weak"
+    }
+  },
+  "rfc": "rfc1350"
+}
