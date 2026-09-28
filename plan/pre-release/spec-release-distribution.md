@@ -44,6 +44,18 @@ Excluded:
 
 The excluded binaries are host/developer, test/evidence, or target/appliance artifacts with different build and lifecycle contracts. They may get separate release specs only after their source-supported packaging and end-to-end tests exist.
 
+### Scope amendment (owner, 2026-09-28)
+
+`plan/pre-release/spec-release-build.md` now runs ahead of this spec and supersedes parts of it. Where this spec and that one disagree, that one wins until this spec is revised against it.
+
+| Topic | This spec said | Now |
+|-------|----------------|-----|
+| Artifact build | This spec builds binaries, tarballs, DEB and RPM | `./le build release` builds them; this spec consumes its output and adds repositories, the full package lifecycle, nightlies and retention |
+| Version | Strict `YY.MM.DD`, no correction suffix, one stable release per UTC date | `YYYY.MM.DD`, with `YYYY.MM.DD.N` for a same-day rebuild |
+| Excluded channels | Homebrew and macOS excluded | Homebrew formula and macOS builds are produced by spec-release-build |
+| Release trust | Protected dispatch and CI-side signing infrastructure | Maintainer builds and GPG-signs locally; a read-only CI rebuild must match every hash before publication |
+| Live store (steps 8 and 9 of Package First-Install Path) | `/etc/ze/database.zefs` | Correction: the live store is the directory `/etc/ze/database/`; `database.zefs` is the import/export blob (`internal/component/config/storage/open.go`, `treeName` and `blobName`) |
+
 ## Required Reading
 
 ### Architecture Docs and Rules
