@@ -82,6 +82,7 @@ One writer per ledger file: this child alone writes `rfc/audit/<stem>.json`, `rf
 | rfc8666 | 4 | 0 |
 | rfc8362 | 0 in `rfc/audit/` | out of audit scope: its one R-7 row (RFC8362-2-1) is recorded in the R-7 table |
 | rfc3630 | 0 in `rfc/audit/` | row-quality RFC3630-1-1; no weak or wrong verdict |
+| rfc7166 | 0 in `rfc/audit/` | narrowing audit row RFC7166-4.6-4; no audit file |
 
 Stems tagged in this child's packages that another child owns:
 
@@ -149,6 +150,24 @@ None of this table's rows belong to this child.
 ### Deferred items the parent's tables missed
 
 None of this table's rows belong to this child.
+
+### Narrowing audit rows (parent, 2026-09-28)
+
+Copied from the parent's "Narrowing audit findings, 2026-09-28", where the process and the call meanings are. AC-C3 includes these rows.
+
+| ID | Call | Obligation | Section |
+|----|------|------------|---------|
+| RFC2328-13-6 | dropped | "The best route to the destination described by the summary-LSA must be recalculated (see Section 16.5)." | §13.2 |
+| RFC2328-9.5.1-1 | dropped | "The interface state must be at least Waiting for any Hello Packets to be sent out the NBMA interface." | §9.5.1 |
+| RFC3101-2.3-1 | dropped | "The Type field in the LSA header is 7." | §2.3 |
+| RFC3101-2.4-4 | dropped | "A Type-7 default LSA may be installed by NSSA border routers if and only if its P-bit is set." | §2.4 |
+| RFC3101-3.1-2 | dropped | "If there exists another border router in this list whose router-LSA has bit Nt set or who has a higher router ID, then its NSSATranslatorState is disabled." | §3.1 |
+| RFC5250-5-1 | dropped | "If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA." | §5 |
+| RFC5709-3.3-1 | dropped | "Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times." | §3.3 |
+| RFC7166-4.6-4 | dropped | "If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged." | §4.6 |
+| RFC8665-5-7 | dropped | "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix." | §5 |
+| RFC8666-6-13 | dropped | "If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label." | §6 |
+| RFC8666-6-8 | dropped | "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix." | §6 |
 
 ### Blocked by
 
@@ -274,7 +293,7 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the OSPF group.
 |-------|-------------------|-------------------|
 | AC-C1 | the derived listing above | holds only the "Blocked by" ids, each named in its blocking spec's acceptance criteria |
 | AC-C2 | every verdict this child moves to `enforced` | its tagged units carry a discrimination record, and an agent other than the test's author judged it |
-| AC-C3 | every row of this child in the split-needed and missing-rows tables, including the rows the parent's narrowing audit adds for this group | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
+| AC-C3 | every row of this child in the split-needed and missing-rows tables, including the rows the parent's narrowing audit adds for this group (the "Narrowing audit rows (parent, 2026-09-28)" table) | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
 | AC-C4 | every spec in the parent's code-defect list | this child declares none of their defects and does not fix them; a test whose producer one of them changes waits for, or lands with, that spec |
 | AC-C5 | `./le rfc check` after each commit of this child | no violation the commit added, and no stale verdict in this child's stems |
 | AC-C6 | every row and unit of this child in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |

@@ -115,6 +115,9 @@ the SRv6 nexthop test goes to BGP (rfc9252) and the on-link test stays in routin
 | routing | 77 | 7 | 16 | rsvpte 32, isis 16, isis/packet 13 |
 | services | 77 | 8 | 22 | tftpserver 12, config 9, flowexport/sflow 9, mcp 8 |
 
+The exclusive per-child counts are in each child spec. The children total 1008,
+and with the parent's 5 cross-group verdicts and RFC7296-2.4-2 that is 1014.
+
 A verdict that spans two children counts in each. Five remain after the moves,
 and they stay in the parent: RFC1071-1-4 (OSPF, services), RFC4303-2.1-1 (IKE/EAP,
 OSPF), RFC5882-4.4-1 (BFD, BGP, OSPF), RFC905-x-3 and RFC905-x-4 (routing, OSPF).
@@ -136,7 +139,8 @@ whose verdicts fall in two children has one owner:
 Test files that carry tags of two owners, and so are edited by one child at a
 time: `ospf/config_ipsec_test.go`, `ospf/ipsec_install_test.go`,
 `ospf/packet/checksum_test.go`, `core/probe/icmp_test.go`,
-`reactor/config_bfd_strict_test.go`.
+`reactor/config_bfd_strict_test.go`, `vrrp/gateway_icmp_integration_linux_test.go`
+(rfc792 is owned by services, and the tags are in VRRP).
 
 ## Known Inventory
 
@@ -334,6 +338,117 @@ Rows the stem agents found missing outright, which also owe tests:
 | rfc8210 | SHOULD: "If the router has never issued a successful query against a particular cache, it SHOULD retry periodically using the default Retry Interval, above." | §6 |
 | rfc8210 | SHOULD, cache side: the cache "SHOULD reject the connection if none of the iPAddress identities match the connection." (RFC8210-9.2-3 quotes only the MUST check before it) | §9.2 |
 | rfc8210 | MAY: "host authentication MAY be supported. Implementations MAY support password authentication." (RFC8210-9.1-2 quotes only the user-authentication MUST before it) | §9.1 |
+
+### Narrowing audit findings, 2026-09-28
+
+The narrowing audit (Implementation Step 4, AC-7) compared every row's current
+quote against its old claim. A first reader called each row, and an independent second reader
+re-read every flagged row against the RFC text. The per-row outputs are
+`out-NN.tsv` and `review/second-*.tsv` under
+`tmp/session/2026-09-28-869df689-cc8f-4d78-9161-1d7c87434c8e/scratch/inventory/narrow/`,
+which is scratch, so the result is copied here.
+
+| Measure | Value |
+|---------|-------|
+| Rows read | 4816 substantive rows in 25 batches, plus 81 removed rows |
+| Removed rows | all 81 accounted for by `Retired` paragraphs; 12 of them retired under D-10 to un-summarized documents, already journaled in `plan/journal/gate-excludes-part-of-its-population.md` |
+| First pass flagged (dropped, retire or moved) | 161 |
+| Second read of all 161 | 129 agree, 1 re-called (RFC7311-3.2-2 retire to dropped, covered by RFC7311-3.3-5), 31 covered by another row or by the row's own current text |
+| Confirmed findings already in the tables above | 56 |
+| Confirmed new findings | 81, in the table below |
+| Blind 20% sample of kept calls | 931 rows re-read, 8 dropped found: 4 already in the tables above, 4 new (RFC4271-8.2.2-13, RFC4271-8.2.2-8, RFC3209-4.4.3-4, RFC8666-6-13, all in the table below) |
+| Residual | new-miss rate about 0.4%, so about 20 undetected drops are expected among the 3724 kept rows not sampled (R-12) |
+
+Each quoted sentence below was re-checked verbatim in `rfc/full/<stem>.txt` or
+`rfc/drafts/` on 2026-09-28; an ellipsis marks an elision between verbatim spans.
+"dropped" means the current quote lost the obligation, "retire" means no sentence
+of the document states the row's old claim, and "moved" means another document
+states it. Stems with no child before this audit are placed by protocol: rfc2473
+and rfc4213 to services, rfc3031 to routing, rfc5701 to BGP, rfc7166 to OSPF.
+
+| ID | Call | Obligation | Section | Child |
+|----|------|------------|---------|-------|
+| DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4 | dropped | "Otherwise the NLRI is considered as a malformed. A BGP speaker MUST handle such a malformed NLRI as a "Treat-as-withdraw" [RFC7606]." | §3.1.3.1 | BGP |
+| DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2 | dropped | "Otherwise the NLRI is considered as a malformed. A BGP speaker MUST handle such a malformed NLRI as a "Treat-as-withdraw" [RFC7606]." | §3.1.4.1 | BGP |
+| DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3 | dropped | "When a BGP speaker receives a MP_REACH_NLRI attribute update message with a Direct Segment Discovery route without a prefix SID attribute, than it MUST be treated as if it contained a malformed prefix SID attribute and the "Treat-as-withdraw procedure of [RFC7606] is applied." | §3.3.6 | BGP |
+| RFC4271-6.1-3 | dropped | "The Data field MUST contain the erroneous Length field." | §6.1 | BGP |
+| RFC4271-8.2.2-13 | dropped | "If the local system receives a TcpConnectionFails event (Event 18), the local system: ... - increments the ConnectRetryCounter by 1," | §8.2.2 (Active state) | BGP |
+| RFC4271-8.2.2-15 | dropped | "In response to any other event (Events 9, 12-13, 20-22), the local system: - sends a NOTIFICATION message with the Error Code Finite State Machine Error, - deletes all routes associated with this connection, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, - increments the ConnectRetryCounter by 1" | §8.2.2 | BGP |
+| RFC4271-8.2.2-8 | dropped | "In response to a ManualStop event (Event 2), the local system: ... - sets ConnectRetryCounter to zero," | §8.2.2 (Connect, Active; also OpenConfirm, Established) | BGP |
+| RFC4271-9.1.2.1-5 | retire | No RFC 4271 sentence says connection establishment failure SHOULD be logged; quote is a different obligation (mutual-recursion logging). | none | BGP |
+| RFC4271-9.2.2.2-2 | dropped | "Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP." | §9.2.2.2 | BGP |
+| RFC4360-x-1 | moved | stated by RFC7606 7.14, not by this document: "The Extended Community attribute SHALL be considered malformed if its length is not a non-zero multiple of 8.". RFC 4360 only states 8-octet encoding (quote); explicit length multiple-of-8 rule is RFC 7606. | RFC7606 7.14 | BGP |
+| RFC4456-8-3 | retire | Old MUST NOT create unless originator in local AS has no RFC sentence; quote is different SHOULD NOT create if one exists. | none | BGP |
+| RFC4659-3.2.1.1-1 | dropped | "When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address - whose 8-octet RD is set to zero, and - whose 16-octet IPv6 address is set to the global IPv6 address of the advertising BGP speaker." | §3.2.1.1 | BGP |
+| RFC4659-3.2.1.1-2 | dropped | "The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]." | §3.2.1.1 | BGP |
+| RFC5492-5-1 | dropped | "Each such capability is encoded in the same way as it would be encoded in the OPEN message." | §5 | BGP |
+| RFC5701-2-4 | moved | stated by RFC4360 6, not by this document: "If a route has a non-transitivity extended community, then before advertising the route across the Autonomous System boundary the community SHOULD be removed from the route.". RFC 5701 only defines the 0x40 bit; the propagation rule is RFC 4360 Section 6 | RFC4360 6 | BGP |
+| RFC7311-3-2 | retire | No RFC 7311 sentence requires attribute length consistent with TLVs; quote is a TLV-set definition. | none | BGP |
+| RFC7432-11.2-7 | dropped | "The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute." | §11.2 | BGP |
+| RFC7432-8.1.1-2 | retire | No RFC sentence requires ESI Label on the ES route; quote is the ES-Import RT obligation, a different one. | none | BGP |
+| RFC7432-8.2.1-4 | dropped | "This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs." | §8.2.1 | BGP |
+| RFC7947-x-6 | retire | No RFC 7947 sentence permits ADD-PATH use; 2.3 is informative; quote carries no obligation. Nearest: ADD-PATH should enforce send-only mode (2.3.2.2.2). | none | BGP |
+| RFC8955-4.2.2.4-1 | dropped | "Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). \| Type 6 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01). \| Type 10 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01)." | §4.2.2.5; 4.2.2.6; 4.2.2.10 | BGP |
+| RFC8955-4.2.2.7-1 | dropped | "Type 8 component values SHOULD be encoded as single octet (numeric_op len=00)." | §4.2.2.8 | BGP |
+| RFC8955-6-2 | moved | stated by RFC 9117 Section 4.2, not by this document. Leftmost-ASN-matches-best-match-unicast rule is RFC 9117 Section 4.2 (text not in rfc/); quote is RFC 8955 neighbor-AS rule. | RFC 9117 Section 4.2 | BGP |
+| RFC8955-7.1-4 | dropped | "A traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded." | §7.2 | BGP |
+| RFC9012-15-1 | dropped | "This implies that the duty to filter external traffic extends to all routers participating in such tunnels." | §15 | BGP |
+| RFC9012-3.2.4-1 | dropped | "Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present." | §3.2.5 | BGP |
+| RFC9136-3.1-4 | dropped | "It MUST be all bytes zero otherwise." | §3.1 | BGP |
+| RFC9494-4.2-1 | dropped | "The interval for which they are retained is limited by the sum of the Restart Time in the received Graceful Restart Capability and the Long-Lived Stale Time in the received Long-Lived Graceful Restart Capability." | §4.2 | BGP |
+| RFC9830-5-1 | dropped | "This includes the validation of the length of each NLRI and the total length of the MP_REACH_NLRI and MP_UNREACH_NLRI attributes. It also includes the validation of the consistency of the NLRI length with the AFI and the endpoint address as specified in Section 2.1." | §5 | BGP |
+| RFC5880-6.7.3-11 | dropped | "Otherwise (the hash does not match the Auth Key/Hash field), the received packet MUST be discarded." | §6.7.4 | BFD |
+| RFC5883-5-2 | retire | No RFC sentence requires binding RX sockets per session type; quote duplicates RFC5883-5-1 port 4784 obligation. | none | BFD |
+| RFC2328-13-6 | dropped | "The best route to the destination described by the summary-LSA must be recalculated (see Section 16.5)." | §13.2 | OSPF |
+| RFC2328-9.5.1-1 | dropped | "The interface state must be at least Waiting for any Hello Packets to be sent out the NBMA interface." | §9.5.1 | OSPF |
+| RFC3101-2.3-1 | dropped | "The Type field in the LSA header is 7." | §2.3 | OSPF |
+| RFC3101-2.4-4 | dropped | "A Type-7 default LSA may be installed by NSSA border routers if and only if its P-bit is set." | §2.4 | OSPF |
+| RFC3101-3.1-2 | dropped | "If there exists another border router in this list whose router-LSA has bit Nt set or who has a higher router ID, then its NSSATranslatorState is disabled." | §3.1 | OSPF |
+| RFC5250-5-1 | dropped | "If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA." | §5 | OSPF |
+| RFC5709-3.3-1 | dropped | "Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times." | §3.3 | OSPF |
+| RFC7166-4.6-4 | dropped | "If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged." | §4.6 | OSPF |
+| RFC8665-5-7 | dropped | "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix." | §5 | OSPF |
+| RFC8666-6-13 | dropped | "If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label." | §6 | OSPF |
+| RFC8666-6-8 | dropped | "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix." | §6 | OSPF |
+| RFC3768-6.4.3-1 | dropped | "When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router." | §8.2 | VRRP |
+| RFC9568-5.2.8-1 | dropped | "For the IPv6 address family, the checksum calculation also includes a prepended "pseudo-header", as defined in Section 8.1 of [RFC8200]." | §5.2.8 | VRRP |
+| RFC9568-6.4.3-1 | dropped | "When a host sends an ARP request for one of the Virtual Router IPv4 addresses, the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router." | §8.1.2 | VRRP |
+| RFC9568-6.4.3-3 | dropped | "When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router." | §8.2.2 | VRRP |
+| RFC3748-2.3-1 | dropped | "Unless the authenticator implements one or more authentication methods locally which support the authenticator role, the EAP method layer header fields (Type, Type-Data) are not examined as part of the forwarding decision." | §2.3 | IKE/EAP |
+| RFC3948-4-1 | retire | No RFC 3948 sentence says interval MUST be shorter than NAT binding timeout; quote is the SHOULD-send-after-M-seconds obligation. | none | IKE/EAP |
+| RFC4301-4.4.1-6 | dropped | "- SPD-I: For inbound traffic that is to be bypassed or discarded ... - SPD-O: For outbound traffic ... - SPD-S: For traffic that is to be protected using IPsec" | §4.4.1 | IKE/EAP |
+| RFC4303-3.4.4.1-1 | dropped | "If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer." | §3.4.4.1 | IKE/EAP |
+| RFC4555-3.9-1 | dropped | "The notification data contains the IP addresses and ports from/to which the packet was sent." | §4.2.6 | IKE/EAP |
+| RFC2865-1.1-2 | dropped | "A NAS is not required to implement all of these service types, and MUST treat unknown or unsupported Service-Types as though an Access-Reject had been received instead." | §5.6 | access |
+| RFC2865-5-8 | dropped | "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead." | §5 | access |
+| RFC2869-x-5 | retire | No RFC 2869 sentence requires computing from byte count; quote only defines the counter. | none | access |
+| RFC3579-3.2-1 | dropped | "The Message-Authenticator is calculated and inserted in the packet before the Response Authenticator is calculated." | §3.2 | access |
+| RFC8907-x-1 | dropped | "For example, a server MUST be configured to time out a Single Connection Mode TCP connection after a specific period of inactivity to preserve its resources." | §4.3 | access |
+| RFC1195-1.4-1 | dropped | "In a dual area within a dual routing domain only dual routers may be used." | §1.4 | routing |
+| RFC2205-3-12 | dropped | "Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down." | §3.1.5 | routing |
+| RFC2205-3-34 | dropped | "When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored." | §3.9 | routing |
+| RFC2966-2-1 | dropped | "The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs." | §2 | routing |
+| RFC3031-3.14-1 | retire | No RFC 3031 sentence says merged labels map to one egress point; quote is the distinct same-label-two-FECs ban. | none | routing |
+| RFC3209-4.4.3-4 | dropped | "A received Path message without an RRO indicates that the sender node no longer needs route recording." | §4.4.3 | routing |
+| RFC4090-4.2-1 | dropped | "This PathErr SHOULD be generated as specified in [RSVP] for unknown objects with a Class-Num of the form "0bbbbbbb"." | §4.2 | routing |
+| RFC4090-6.5-3 | dropped | "- Global revertive mode: The head-end LSR of each tunnel is responsible for reoptimizing the TE LSPs that used the failed resource." | §6.5.2 | routing |
+| RFC1350-2-3 | moved | stated by RFC 1123 4.2.3.1, not by this document. Sorcerer's Apprentice fix (do not resend on duplicate ACK) is RFC 1123; RFC 1350 only cites it. rfc1123.txt not in rfc/full. | RFC 1123 4.2.3.1 | services |
+| RFC2131-4.1-7 | dropped | "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field." | §4.1 | services |
+| RFC2181-10.3-1 | dropped | "It can also have other RRs, but never a CNAME RR." | §10.3 | services |
+| RFC2473-4.1.1-2 | dropped | "The limit value in the encapsulating option is set to one less than the limit value found in the packet being encapsulated." | §4.1.1 | services |
+| RFC4035-2.2-1 | dropped | "o The RRSIG Algorithm, Signer's Name, and Key Tag fields identify a zone key DNSKEY record at the zone apex." | §2.2 | services |
+| RFC4035-3.1.1-4 | dropped | "If space does not permit inclusion of the DS or NSEC RRset and associated RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1)." | §3.1.4 | services |
+| RFC4035-4.3-1 | dropped | "More precisely, a security-aware resolver must be able to distinguish between four cases:" | §4.3 | services |
+| RFC4213-3.6-1 | dropped | "This is done by verifying that the source address is the IPv4 address of the encapsulator, as configured on the decapsulator." | §3.6 | services |
+| RFC7011-8-3 | dropped | "Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes exporting via UDP and MUST be ignored by Collecting Processes collecting via UDP." | §8.4 | services |
+| RFC7011-x-1 | retire | RFC never mandates short form for 0-254; Section 7 says length may also use 3 octets. Quote is descriptive, carries no obligation. | none | services |
+| RFC7871-7.1.2-3 | dropped | "If an Intermediate Nameserver receives a query with SOURCE PREFIX-LENGTH set to 0, it MUST NOT include client address information in queries made to resolve that client's request (see Section 7.1.2)." | §7.5 | services |
+| RFC7950-5.1-1 | dropped | "A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module." | §7.2.2 | services |
+| RFC7950-7.21.5-1 | dropped | "If the XPath expression references any node that also has associated "when" statements, those "when" expressions MUST be evaluated first. There MUST NOT be any circular dependencies among "when" expressions." | §7.21.5 | services |
+| RFC7950-7.3-1 | dropped | "The "type" statement, which MUST be present, defines the base type from which this type is derived." | §7.3.2 | services |
+| RFC7950-7.9.2-1 | dropped | "The case identifier MUST be unique within a choice." | §7.9.2 | services |
+| RFC7950-9.2.4-1 | dropped | "If a length restriction is applied to a type that is already length-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit length values or ranges, or splitting ranges into multiple ranges with intermediate gaps." | §9.4.4 | services |
+| SFLOW-V5-x-15 | retire | No spec sentence says counters are cumulative since boot; quote is descriptive text about lost counter samples. | none | services |
 
 ### Row-quality corrections
 
@@ -559,10 +674,10 @@ Dropped after reading, with the reason:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `0bf0696576^` holds the pre-quote text of every row the backfill and the hand pass changed | the commit message of `0bf0696576` names the check and the 1821-row backfill | the narrowing set misses rows quoted earlier | diff of `0bf0696576^` against its predecessor quote commits | BROKEN 2026-09-28: feature commits between 2026-09-21 and 2026-09-24 (`3f8dcc5fb5`, `23a10f500a`, `3ff5a6f056`, `6a07404d5d`) re-quoted 16 rows first. For those the baseline is `fa7ac196df` (2026-09-20). 8 of them never changed again, so `0bf0696576^` misses them: RFC3031-3.10-1, 3.14-1, 3.16-1; RFC3209-4.1-1, 4.1-2; RFC7311-3.2-1, 3.2-2; RFC9552-5.2.2-6. RFC3209-4.1-2 went from "Upper 12 bits of the LABEL value MUST be zero" to "Labels MAY be carried in Resv messages". The 16 were found by a verbatim-substring heuristic, so they are a floor |
-| A-2 | the split-needed table above is the whole set the stem agents recorded | grep of every report's split sections and every findings.tsv, 2026-09-27 | a split is lost when the scratch directory goes | the narrowing audit re-derives it | unvalidated |
+| A-2 | the split-needed table above is the whole set the stem agents recorded | grep of every report's split sections and every findings.tsv, 2026-09-27 | a split is lost when the scratch directory goes | the narrowing audit re-derives it | validated 2026-09-28: the narrowing audit re-derived the split set; 81 new rows found |
 | A-3 | D-15 is the owner's standing approval for every tagged-unit edit this pass makes, so a child records `./le rfc approve unit ... reason` itself | D-15 moved the test fixes here | every changed tagged unit, about a thousand, waits for Thomas one by one | owner answer at the research gate | unvalidated |
 | A-4 | the verdicts owned by the 12 code-defect specs, `spec-ipsec-rfc9190` and `spec-fixit-dns-rfc1035-conformance` are the only ones a test-only fix cannot reach | the overlap table; `{gap}` is refused on a tagged row | a child cannot close at zero | each child lists its blocked-by verdicts at its own research | unvalidated |
-| A-5 | the 16 early re-quotes are all the rows quoted before `0bf0696576` | a verbatim-substring heuristic against `rfc/full/`, back to 2026-09-10 | the narrowing audit misses a dropped obligation | the parent's narrowing phase re-runs the comparison for every row against its oldest text since 2026-09-01 | unvalidated |
+| A-5 | the 16 early re-quotes are all the rows quoted before `0bf0696576` | a verbatim-substring heuristic against `rfc/full/`, back to 2026-09-10 | the narrowing audit misses a dropped obligation | the parent's narrowing phase re-runs the comparison for every row against its oldest text since 2026-09-01 | superseded 2026-09-28: the narrowing audit compared every row's quote with its old claim (4816 substantive, 81 removed), so no finding depends on the 16-row floor. The residual miss rate is R-12 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -578,6 +693,7 @@ Dropped after reading, with the reason:
 | R-5 | the evidence-strength-1 mutant ratchet lands mid-pass and refuses `revert` records written earlier | `./le rfc check` names a revert record on a mutatable carrier | a child re-records on the `mutant` route; evidence-strength-2 never runs on a stem a child holds |
 | R-6 | a D-8 fix in one child stales records in a stem another child owns | `producer-changed` in a stem the committing child does not own | the committing child re-records them in the same commit, per the producer-change constraint |
 | R-7 | a narrowed row is retired or re-levelled by one child while the parent's narrowing audit compares it | the parent's comparison meets a row that changed since its baseline read | the narrowing audit runs first, before the children start on row edits |
+| R-12 | about 20 dropped obligations stay undetected among the 3724 kept rows the blind sample did not re-read (new-miss rate about 0.4%) | a child's test author finds a row whose old text claims more than its current quote | the child adds the split row under AC-C3, with the RFC sentence quoted |
 
 ## Blast Radius
 

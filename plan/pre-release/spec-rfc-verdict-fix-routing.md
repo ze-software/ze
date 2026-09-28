@@ -75,6 +75,7 @@ One writer per ledger file: this child alone writes `rfc/audit/<stem>.json`, `rf
 | rfc5310 | 6 | 1 |
 | rfc905 | 2 | 0 |
 | rfc5301 | 0 in `rfc/audit/` | row-quality RFC5301-3-8; no weak or wrong verdict |
+| rfc3031 | 0 in `rfc/audit/` | narrowing audit row RFC3031-3.14-1; no audit file |
 
 Test files that carry tags of two owners. A child edits one only while the other holds no uncommitted change in it:
 
@@ -133,6 +134,21 @@ None of this table's rows belong to this child.
 ### Deferred items the parent's tables missed
 
 None of this table's rows belong to this child.
+
+### Narrowing audit rows (parent, 2026-09-28)
+
+Copied from the parent's "Narrowing audit findings, 2026-09-28", where the process and the call meanings are. AC-C3 includes these rows.
+
+| ID | Call | Obligation | Section |
+|----|------|------------|---------|
+| RFC1195-1.4-1 | dropped | "In a dual area within a dual routing domain only dual routers may be used." | §1.4 |
+| RFC2205-3-12 | dropped | "Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down." | §3.1.5 |
+| RFC2205-3-34 | dropped | "When Path and PathTear messages are forwarded, path state marked "Local_Only" must be ignored." | §3.9 |
+| RFC2966-2-1 | dropped | "The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs." | §2 |
+| RFC3031-3.14-1 | retire | No RFC 3031 sentence says merged labels map to one egress point; quote is the distinct same-label-two-FECs ban. | none |
+| RFC3209-4.4.3-4 | dropped | "A received Path message without an RRO indicates that the sender node no longer needs route recording." | §4.4.3 |
+| RFC4090-4.2-1 | dropped | "This PathErr SHOULD be generated as specified in [RSVP] for unknown objects with a Class-Num of the form "0bbbbbbb"." | §4.2 |
+| RFC4090-6.5-3 | dropped | "- Global revertive mode: The head-end LSR of each tunnel is responsible for reoptimizing the TE LSPs that used the failed resource." | §6.5.2 |
 
 ### Blocked by
 
@@ -257,7 +273,7 @@ Inherited from the parent (AC-C1 to AC-C7), restated for the routing group.
 |-------|-------------------|-------------------|
 | AC-C1 | the derived listing above | holds only the "Blocked by" ids, each named in its blocking spec's acceptance criteria |
 | AC-C2 | every verdict this child moves to `enforced` | its tagged units carry a discrimination record, and an agent other than the test's author judged it |
-| AC-C3 | every row of this child in the split-needed and missing-rows tables, including the rows the parent's narrowing audit adds for this group | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
+| AC-C3 | every row of this child in the split-needed and missing-rows tables, including the rows the parent's narrowing audit adds for this group (the "Narrowing audit rows (parent, 2026-09-28)" table) | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
 | AC-C4 | every spec in the parent's code-defect list | this child declares none of their defects and does not fix them; a test whose producer one of them changes waits for, or lands with, that spec |
 | AC-C5 | `./le rfc check` after each commit of this child | no violation the commit added, and no stale verdict in this child's stems |
 | AC-C6 | every row and unit of this child in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |
