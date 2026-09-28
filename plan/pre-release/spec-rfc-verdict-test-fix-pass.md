@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | ready |
 | Scope | tooling |
-| Depends | `spec-rfc-requirement-quote-hand-backfill` (closes first, after its phase 5 rule flip) |
+| Depends | `spec-rfc-requirement-quote-hand-backfill` (closed 2026-09-27, `f265152e15`) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-27 |
+| Updated | 2026-09-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -60,6 +60,84 @@ the owner.
 The ledger already records each finding as `weak` or `wrong`, so no public claim
 outruns the evidence while this spec is open.
 
+## Split (owner decision, 2026-09-28)
+
+This spec is the PARENT. It holds the method, the inventory and the cross-cutting
+work. One child spec per protocol group carries the test fixes, and each child
+closes on its own when its packages have no `weak` or `wrong` verdict.
+
+| Order | Child | Test packages |
+|-------|-------|---------------|
+| 1 | BGP | `internal/component/bgp/...`, `internal/core/bgp/...`, BGP interop and MRT |
+| 2 | BFD | `internal/component/bfd/...` |
+| 3 | OSPF | `internal/plugins/ospf/...` |
+| 4 | VRRP | `internal/plugins/vrrp/...` |
+| 5 | IKE/EAP | `internal/component/ike/...`, `internal/core/eap` |
+| 6 | access | L2TP, PPP, PPPoE, RADIUS, TACACS |
+| 7 | routing | IS-IS, RSVP-TE, LDP and the other routing packages |
+| 8 | services | DNS, TFTP, DHCP, flow export, MCP, config and YANG, the rest |
+
+| Stays in the parent | Why |
+|---------------------|-----|
+| The narrowing audit | it runs over every stem, and its output feeds every child |
+| A verdict whose tagged tests span two groups, and a verdict with no tagged test | two children in parallel sessions would edit the same test file (D-6) |
+
+The split-needed rows, the missing rows, the row-quality corrections and the
+mistagged units go to the child that owns the stem's protocol.
+
+**Owner decisions at the research gate, 2026-09-28:**
+
+| ID | Decision |
+|----|----------|
+| P-1 | D-15 is the owner's standing approval for every tagged-unit edit and tag move this pass makes. A child records `./le rfc approve unit <pkg>.<Test> reason "D-15: ..."` itself, and each commit carries the `RFC-approved:` trailer. A-3 is confirmed |
+| P-2 | A recorded verdict is re-judged through a re-judge mode of `./le rfc audit-stamp`, built as the parent's first phase. Hand-deleting an audit entry and re-stamping it is not used |
+| P-3 | A child closes when every verdict in its packages is `enforced`, except those it lists as blocked by a named spec (the 12 code-defect specs, `spec-ipsec-rfc9190`, `spec-fixit-dns-rfc1035-conformance`, `spec-ike-dpd-demand-driven`); each blocked verdict moves into that spec's acceptance criteria |
+
+Measured 2026-09-28: 952 `weak` and 62 `wrong`, 1014 in all, across 104 test
+packages.
+
+**Package placement refined 2026-09-28** (each move removes a cross-group verdict
+or a stem shared by two children): `test/plugin` and `test/reload` to BGP (rfc4271,
+rfc6793, rfc7999, rfc9234); `test/parse` to IKE/EAP (rfc7296); `internal/core/network`
+to BGP (rfc2385, rfc5082); `internal/plugins/flowspec-firewall` and
+`internal/component/sysrib` to BGP (rfc8955, rfc7311); in `internal/plugins/fib/kernel`
+the SRv6 nexthop test goes to BGP (rfc9252) and the on-link test stays in routing
+(rfc1195); the IS-IS BGP-LS export test goes to BGP (rfc9552 only).
+
+| Child | Weak | Wrong | Stems | Largest packages |
+|-------|------|-------|-------|------------------|
+| BGP | 344 | 14 | 61 | bgp/reactor 76, core/bgp/attribute 48, bgp/message 43, bgp/plugins/rib 27, nlri/ls 25 |
+| BFD | 62 | 4 | 4 | bfd/session 19, bfd/engine 19, bfd/auth 17 |
+| OSPF | 114 | 9 | 25 | ospf 66, ospf/lsdb 19, ospf/packet 16 |
+| VRRP | 70 | 3 | 4 | vrrp 37, vrrp/packet 20, vrrp/fsm 15 |
+| IKE/EAP | 109 | 10 | 10 | core/eap 49, ike/engine 38, ike/dataplane 11 |
+| access | 104 | 7 | 13 | l2tp/ppp 31, tacacs 18, l2tp 17, radius 16 |
+| routing | 77 | 7 | 16 | rsvpte 32, isis 16, isis/packet 13 |
+| services | 77 | 8 | 22 | tftpserver 12, config 9, flowexport/sflow 9, mcp 8 |
+
+A verdict that spans two children counts in each. Five remain after the moves,
+and they stay in the parent: RFC1071-1-4 (OSPF, services), RFC4303-2.1-1 (IKE/EAP,
+OSPF), RFC5882-4.4-1 (BFD, BGP, OSPF), RFC905-x-3 and RFC905-x-4 (routing, OSPF).
+One verdict has no tagged test: RFC7296-2.4-2, whose note points at
+`plan/immediate/spec-ike-dpd-demand-driven.md`.
+
+**One writer per ledger file.** `rfc/audit/<stem>.json`, `rfc/discrimination/<stem>.json`,
+`rfc/short/<stem>.md` and `rfc/corrections/<stem>.md` are per stem, so a stem
+whose verdicts fall in two children has one owner:
+
+| Stem | Owner | Other child with tagged tests |
+|------|-------|-------------------------------|
+| rfc1071 | OSPF | services (`core/probe/icmp_test.go`) |
+| rfc905 | routing | OSPF (the two OSPF checksum test files) |
+| rfc4301, rfc4303 | IKE/EAP | OSPF (`ospf/config_ipsec_test.go`, `ospf/ipsec_install_test.go`) |
+| rfc5882 | BFD | BGP (`reactor/config_bfd_strict_test.go`), OSPF (`ospf/rfc5882_shared_key_test.go`) |
+| rfc792 | services | VRRP (`vrrp/gateway_icmp_integration_linux_test.go`) |
+
+Test files that carry tags of two owners, and so are edited by one child at a
+time: `ospf/config_ipsec_test.go`, `ospf/ipsec_install_test.go`,
+`ospf/packet/checksum_test.go`, `core/probe/icmp_test.go`,
+`reactor/config_bfd_strict_test.go`.
+
 ## Known Inventory
 
 The verdict inventory is DERIVED. No list of ids is committed here, because the
@@ -69,7 +147,7 @@ audit files change as the work proceeds.
 |----------|-----------|
 | Every weak or wrong verdict (stem, id, verdict) | `jq -r 'input_filename as $f \| .requirements \| to_entries[] \| select(.value.verdict=="weak" or .value.verdict=="wrong") \| "\($f)\t\(.key)\t\(.value.verdict)"' rfc/audit/*.json` |
 | The same, grouped by the package of each tagged test | the same filter, emitting the directory of every key of `.value.tests` (the part before `::`) |
-| The narrowing set: rows whose text changed since the quoting began | every `rfc/short/<stem>.md` row whose text differs between `0bf0696576^` (the parent of the commit that landed the quote check and the backfill) and `HEAD`, compared by id |
+| The narrowing set: rows whose text changed since the quoting began | every `rfc/short/<stem>.md` row whose quote text (cut at the section marker, `(§` or the older `(S`) differs between its baseline and `HEAD`, compared by id. The baseline is `fa7ac196df` (2026-09-20) for a row already verbatim in `rfc/full/<stem>.txt` at `0bf0696576^`, and `0bf0696576^` otherwise (A-1). Rows present at the baseline and gone at `HEAD` join the set |
 
 ### Measured 2026-09-27, after the blind samples and the send-back re-reads
 
@@ -290,6 +368,39 @@ Mistagged units, whose tag names a row the unit does not prove:
 | `internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector` | RFC4301-4.4.1-4 | direction mirroring, not administrator ordering; the verdict stays `enforced` on the ordering units | move the tag |
 | `internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery` | RFC8210-8.3-1 | the tag prose says "ze runs every configured cache in parallel", but `cacheGroup` is preference-ordered since 2026-09-20 | correct the tag prose, and re-judge the unit against the more-preferred-cache SHOULD of the quote |
 
+### Deferred items the tables above missed (found 2026-09-28)
+
+Re-read of the closed source spec against this spec; each confirmed in HEAD.
+
+| Item | What is owed | Group |
+|------|--------------|-------|
+| RFC7296-2.4-2 | `weak` with an empty `tests` map (the note names `newDPDState`): the one verdict with no tagged test, so the 2026-09-27 claim "every one names at least one tagged test" was false for it | parent |
+| RFC9552-5.1-2 and `nlri/ls/types_descriptor.go` | the verdict is `wrong` (the units assert the forbidden repeated 518 encoding), and the comment claiming 518 is "the only sub-TLV a descriptor can repeat" is false per RFC 9514 Section 6 | BGP |
+| `TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount` (`internal/plugins/geodns/rfc1035_rr_test.go`) | the row RFC1035-4.1.3-1 is `enforced`, but the comment quotes §3.2.1, not the §4.1.3 sentence | services |
+| R-7 detail lost in condensing | RFC1035-4.1.4-1: the negative's comment claims "two zero bits" but asserts only "no 0xC0 octet". RFC9190-5.4-3: the claim that crypto/tls turns the error into bad_certificate is not asserted. RFC9190-5.7-1: `TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain` proves the valid-cache positive but carries only the 5.7-2 and 5.7-6 tags. DRAFT-8210BIS-7-2: the guard is `hdr.Type != pduErrorRpt` in `RTRSession.readLoop`. DRAFT-8210BIS-5.12-1: the Error Code 9 mapping is in `readLoop` | services, IKE/EAP, BGP |
+
+### Narrowing set, measured 2026-09-28
+
+5448 rows over 190 stems differ between their pre-quote text and HEAD (baseline
+per A-1: `fa7ac196df` for the 16 early re-quotes, `0bf0696576^` for the rest).
+458 differ only in punctuation, case or quote marks, and 251 belong to rfc6514
+(201) and rfc8362 (50). 4816 rows are left to compare. The largest stems are
+rfc4271 130, rfc4035 118, rfc5880 118, rfc9830 111, rfc7432 110, rfc1661 100 and
+rfc2131 100. 81 baseline rows are gone from HEAD, most of them D-10 moves and
+retirements (rfc9582 13, rfc7011 7), and each is checked for a lost obligation too.
+
+### Other open specs that own or touch these verdicts
+
+| Spec | Status | Overlap | Consequence for a child |
+|------|--------|---------|-------------------------|
+| the 12 code-defect specs below | immediate | they own weak or wrong verdicts in BGP, VRRP, access, IKE/EAP, OSPF, routing and services | a child cannot reach zero until the owning spec lands; AC-5 |
+| `plan/spec-ipsec-rfc9190.md` | in-progress | owns R-7 rows RFC9190-1-1, 2.1.8-2 to 2.1.8-5, 5.4-1 to 5.4-3, 5.7-5 | the IKE/EAP child leaves these rows to it |
+| `plan/spec-fixit-dns-rfc1035-conformance.md` | blocked | owns R-7 rows RFC1035-2.3.4-1, 4.1.1-1, 4.1.4-5, 4.2.2-1 | the services child leaves these rows to it, or the owner unblocks it |
+| `plan/immediate/spec-ike-dpd-demand-driven.md` | skeleton | RFC7296-2.4-2, the verdict with no test | the parent waits for it |
+| `plan/pre-release/spec-rfc-evidence-strength-1-targeted-mutant-ratchet.md` | design | once it lands, a record on a mutatable unit carrier MUST take the `mutant` route | every record this pass writes after that date follows its route |
+| `plan/pre-release/spec-rfc-evidence-strength-2-revert-upgrade-burndown.md` | skeleton | rewrites the same `rfc/discrimination/<stem>.json` files; its R-1 expects the upgrade to expose more weak tests | the two passes never run on one stem at once |
+| `plan/pre-release/spec-rfc-requirement-reattribution.md` | skeleton | the rfc9582 to 8210bis moves overlap the missing-row item for 8210bis 5.12-2 and 5.12-7 | the BGP child adds those rows only through the route that spec settles |
+
 ### Code defects recorded by the stem agents
 
 This spec declares no code defect. Each defect the stem agents recorded in their
@@ -334,53 +445,96 @@ Dropped after reading, with the reason:
 
 ### Architecture Docs
 - [ ] `docs/contributing/rfc-conformance-gates.md` - the discrimination record, the row quote, the refusals
-  → Constraint: [to fill in design]
+  → Constraint: every row stays a verbatim span of its cited section or its subsections, at least 24 characters, never across two sections (`checkRowQuotes`), so a widened span that reaches the next section is refused and the row must be split instead
+  → Constraint: `requirement_sha` hashes the quote plus the section parenthetical with markers peeled, not the level: widening, narrowing or re-citing a row stales its verdict (`stale-requirement`) until it is re-judged in the same commit; re-levelling leaves it fresh but it is re-judged by hand when the meaning moved
+  → Constraint: a new id is `<Prefix>-<section>-<n>` with n above the HEAD^ high-water mark for that section (`checkIDAllocation`), permanent, never reused; two sessions adding rows to one section of one stem collide, so one child owns each stem
+  → Constraint: a new gated row on an enrolled stem lands with both polarity tags or an annotation (`{single-polarity}`, `{gap}` ...), a discrimination record for each new cover (a moved tag is a new cover), and a site in `rfc/extraction/<stem>.json` mapped to it or listed in `unsourced-ids`; a split row whose sentence site maps to the old row needs that site remapped. A verdict is not required at once
+  → Constraint: an annotation never replaces a tag a row held at HEAD (`checkCoverageRatchet`), `{single-polarity}` is refused while the other polarity's tag exists, and `{lower-layer}`, `{rollup}` and `{not-applicable}` bar tags; so an implementation gap inside a tagged row (RFC9190-2.3-1 Method-Id) is SPLIT into a `{gap}` row, verdict `unimplemented`, and the old row keeps its tests
+  → Constraint: a correction demoting out of MUST, MUST NOT, SHALL or REQUIRED is a `Correction <YYYY-MM-DD>:` paragraph naming the id in backticks and double-quoting at least 24 characters verbatim from the RFC; a retirement is `Retired <YYYY-MM-DD>:` with the id as the first backticked id and at least one `§<n>`; no gate reads any other paragraph
+  → Constraint: a producer change (a D-8 fix, or another spec's) stales every record naming that producer at that commit, in any stem, and the committing child re-records them (`./le rfc discriminate stem <s>` lists them); a `no-break` escape is refused for a producer in a gomu-mutated file, and rewording a tag's prose changes `claim-sha` and owes a re-record
+  → Constraint: `discriminate-record` picks host or QEMU guest by `go/build` over the file (`unitNeedsGuest`); a guest unit needs `kernel <vmlinuz>` from `ze appliance kernel`. A host-compilable `_linux_test.go` that skips without privileges stays green under the break and cannot be recorded; the interop `revert` route writes the break into the shared working tree, so it never runs while another child builds
 - [ ] `ai/skills/ze-rfc-audit.md` - the four judgement questions and the verdict vocabulary; STRICTNESS
-  → Constraint: an `upgrade_reason` is owed for any weak or wrong to enforced move with no unit change
-- [ ] `spec-rfc-requirement-quote-hand-backfill` - D-2, D-3, D-6, D-7, D-8, D-9, D-10, D-15 and the stem brief
-  → Decision: [to fill in design]
+  → Constraint: an `upgrade_reason` is owed for any weak or wrong to enforced move with no unit change (`checkAuditFindings`); an author's test commit followed by the auditor's upgrade commit therefore needs it, so author and auditor share one commit where they can
+  → Constraint: `enforced` needs a non-empty `tests` map, both polarities or `{single-polarity}`, and a note naming an identifier of 5 or more characters found in the tagged unit (`checkAuditNote`); a new `wrong` verdict needs the public row in `docs/features/rfc-status.md` to disclose non-support first
+  → Constraint: `./le rfc audit-stamp` refuses an id that already carries a verdict (`stampRefusal`: "Re-judging a recorded verdict is /ze-rfc-audit's work, not a stamp") and refuses `upgrade_reason` in a pending file, and `reseal` re-stamps only `shifted` verdicts. No command re-judges a recorded verdict today, and every one of the 1014 targets has one
+  → Constraint: `audit-stamp` refuses a stem that is not enrolled; draft-ietf-sidrops-8210bis, rfc1035 and rfc9190 are backlog and rfc8362 is out of scope, so the R-7 re-judgements are recorded in this spec's table (AC-8)
+  → Constraint: editing a tagged unit stales its verdict (`stale-unit`), and editing any function in a test file moves the file sha of every verdict tagging that file (`shifted`, fixed by `./le rfc reseal`); `reseal` is corpus-wide and rewrites another child's audit files too
+- [ ] `internal/le/hookruntime/writeedit.go` `writeWeakening`, `internal/le/commit/rfcchange.go` - the RFC test-change gate
+  → Constraint: an edit that changes the behavior of an RFC-tagged unit, or removes or moves a tag, is blocked at edit time, and the commit needs an `RFC-approved:` trailer from `./le rfc approve unit <pkg>.<Test> reason "..."`, recorded per commit session; a brand-new test function needs none (`ChangedTags` returns nil when the old unit had no tag)
+- [ ] `spec-rfc-requirement-quote-hand-backfill` - D-2, D-3, D-6, D-7, D-8, D-9, D-10, D-15 and the stem brief (closed at `f265152e15`; read with `git show f265152e15^:plan/pre-release/spec-rfc-requirement-quote-hand-backfill.md`; no learned summary exists, and the stem brief was never committed)
+  → Constraint (D-2): a retired row loses its tags first (moved, or deleted where the row was its only claim), leaves extraction and audit, gets a dated `Retired` paragraph in `rfc/corrections/<stem>.md` naming the sections read and where each tag went, and its id is never reused
+  → Constraint (D-3): a row over prose without a BCP 14 keyword, or a lowercase keyword, keeps its level; the level changes only for a different keyword, and a demotion from MUST owes a dated correction paragraph. The "level with no BCP 14 keyword" rows are reviewed, not demoted by rule
+  → Decision (D-6): one agent per package, never two on one test file; a verdict enters only through `./le rfc audit-stamp stem <stem>` from a pending file outside `rfc/audit/`, never with a hand-computed sha
+  → Constraint (D-7): a row whose obligation another document already rows is retired and its tags move there; a move the gates refuse goes to the owner; stop and report when more than 15% of a stem of 20 or more rows is retired, report each retirement in a smaller stem
+  → Decision (D-8): a verified defect is fixed in code, failing test first, then interop where a peer exists; never a `{gap}` in its place; an impossible fix goes to the owner. Defects the 12 `plan/immediate/` specs own are fixed there (AC-5)
+  → Constraint (D-9): judge strictly; every re-judged verdict has a reader other than its author, and the blind sample floor is 20% of a stem's verdicts
+  → Decision (D-10): an obligation that belongs to another summarized document gets a row there and the tags move; with no summary the row is retired, the correction names the document, and a journal row asks for its enrolment
+  → Constraint (D-14): RFC5880-6.7.3-12 seeds bfd.RcvAuthSeq before the digest check by owner decision; the BFD child MUST NOT reverse it, and RFC5880-6.8.1-13 stays a gap
+  → Constraint (D-4, D-11, D-12, D-13, D-1/D-5a): the judge is never the author and no tool proposes a sentence; an erratum is quoted verbatim (RFC9568-7.1-4 under erratum 8298); RFC 3101 translator equivalence is same mask, metric and non-zero forwarding address; softver `legacy` is an owner-approved deviation, not a defect; rfc905 cites §B.N
+  → Constraint (mistake log): a report or commit states a check ran only when the writing step verified it; a tag count is derived from code and `.ci` files, never from plan prose; a row edit can redden the real-corpus count tests in `internal/le/rfc`; the bgp/reactor link-local tests fail without `fd00::2` on loopback (journal row, not an RFC 2545 regression)
 - [ ] `plan/pre-release/spec-rfc-requirement-reattribution.md` - a re-attribution the gates refuse today
-  → Constraint: [to fill in design]
+  → Constraint: that spec (2026-09-01, skeleton) is stale in two places: `validateID` no longer checks the section, and `checkRetiredRequirements` now accepts `Retired`. The route rfc9582 used is today's route: move the tags to the destination row, drop the id from extraction, audit and discrimination, delete the row, add the `Retired` paragraph (`rfc/corrections/rfc9582.md`)
+  → Constraint: still refused: an annotation over a row that had tags at HEAD, un-enrolment, and rewriting a row's text to another document's sentence under the old id (the quote is not in that RFC)
 
 **Key insights:**
-- [to fill in design]
+- The work is 1014 verdicts plus a 4816-row narrowing comparison plus about 120 split, missing and row-quality items, split into a parent and eight children (Split section)
+- Ledger files are per stem, test files per package: a child owns stems, and five test files are edited by one child at a time
+- Two gate facts shape every child: no command re-judges a recorded verdict, and every edit to a tagged unit needs an owner approval record
+- A child's closure is bounded by other specs: 12 code-defect specs, `spec-ipsec-rfc9190`, `spec-fixit-dns-rfc1035-conformance`, `spec-ike-dpd-demand-driven`
+- `./le rfc check` is red at HEAD from other sessions; a child answers only for the violations it adds
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/rfc/check.go` - [to fill in design: the gates this pass satisfies; confirm the file names with `gopls symbols`]
-- [ ] `ai/skills/ze-rfc-audit.md` - the verdict rules this pass applies
+- [ ] `internal/le/rfc/audit_stamp.go` (297L) - `auditStamp` loads the stem's audit file, runs `stampRefusal` on every pending entry (all or nothing), fills fingerprints with `stampFingerprints`, appends the entries and renames the file in through `replaceAudit`. `stampRefusal` refuses first when the id already has a verdict; `authoredVerdictKeys` admits only `verdict`, `note`, `code`, `no_code_path`
+  → Constraint: the re-judge mode reuses `stampRefusal`'s vocabulary, tag and not-applicable refusals and `stampFingerprints` unchanged; only the "already judged" test inverts, and `upgrade_reason` joins the authored keys in that mode alone
+  → Constraint: a re-judged entry keeps its position in `audit.Order` (replace in place, not append), so the diff of a re-judge shows one entry changed, never a deletion and an addition
+- [ ] `internal/le/rfc/check_audit.go` `checkAuditFindings` - refuses a deleted weak or wrong verdict, and a weak or wrong to enforced move whose `units` equal HEAD^'s with no `upgrade_reason`
+  → Constraint: the stamp's early refusal of an unchanged-units upgrade and the gate's check are one predicate, extracted from `checkAuditFindings` and called by both (`ai/rules/principles.md`: one declaration)
+- [ ] `internal/le/rfc/actions.go` - the `audit-stamp` action declares `stem` and `from`, both required; `auditStampAnswer` calls `auditStamp`
+  → Constraint: the mode is an optional parameter `mode new|rejudge`, default `new`, the same shape as the `mode full|changed` parameter of the verify actions (`internal/le/verify/actions.go`)
+- [ ] `internal/le/rfc/audit_stamp_test.go` - `TestAuditStampFillsNewVerdictsAndTheyReadFresh`, `TestAuditStampLeavesARecordedVerdictUntouched`, `TestAuditStampRefusesAndWritesNothing`; `internal/le/rfc/actions_test.go` drives a verb through `Answer`
+  → Constraint: `TestAuditStampLeavesARecordedVerdictUntouched` stays as the proof that the default mode is unchanged
+- [ ] `ai/skills/ze-rfc-audit.md` - the verdict rules this pass applies, and the one place an author learns the stamp route
 
 **Behavior to preserve:**
-- `./le rfc check` stays green on every commit of the pass: a weak or wrong verdict is never deleted, never upgraded without an `upgrade_reason`
+- a commit of this pass adds no `./le rfc check` violation of its own: a weak or wrong verdict is never deleted, never upgraded without a unit change or an `upgrade_reason`
+- `./le rfc check` is red at HEAD on 2026-09-28 with 18 `producer-changed` records (rfc4271 6.3-15, rfc7611 2.1-1, rfc7705 3.3-1, rfc7947 2.2.2.2-1, rfc8907 x11) from other sessions, journaled in `plan/journal/concurrent-rfc-gate-stale.md`; a child judges its commit by the violations it adds, not by a green total
 
-**Behavior to change:**
-- [to fill in design: test changes, row corrections and code fixes, per package]
+**Behavior to change (parent only; the children own the test, row and D-8 changes):**
+- `./le rfc audit-stamp` gains `mode rejudge`: every pending id MUST already carry a verdict, the entry replaces it in place with fresh fingerprints, and `upgrade_reason` is accepted, required for a weak or wrong to enforced move whose units are unchanged, and refused on any other move
+- `./le rfc audit-stamp` without `mode`, or with `mode new`, behaves as today
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
+- `./le rfc audit-stamp stem <stem> from <pending> mode rejudge`, typed by a child's judging agent
 - `./le rfc check`, reading `rfc/short/`, `rfc/audit/`, `rfc/discrimination/` and the tags in test files
 
 ### Transformation Path
-1. The agent changes a tagged test, a row, or a producer
-2. `./le rfc discriminate-record` records the observed red under a break
-3. The independent auditor writes the verdict; `./le rfc audit-stamp` stamps it
-4. `./le rfc check` compares verdicts, records and rows
+1. The child's author agent changes a tagged test (approval recorded under P-1), a row, or a producer
+2. `./le rfc reseal` re-stamps the sibling verdicts the edit only shifted
+3. `./le rfc discriminate-record` records the observed red under a break for each added or changed cover
+4. A judging agent that did not author the test writes the new verdict in a pending file in session scratch
+5. `./le rfc audit-stamp ... mode rejudge` refuses or replaces, computing `requirement_sha`, `tests`, `units` and `code`
+6. `./le rfc check` compares verdicts, records and rows against HEAD^
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| test file to ledger | the RFC requirement tag | No |
+| test file to ledger | the `RFC requirement:` tag, fingerprinted by `stampFingerprints` | `TestAuditStampRejudgeReplacesInPlaceAndReadsFresh` |
+| pending file to audit file | `readPendingVerdicts`, then `replaceAudit` validating before rename | `TestAuditStampRejudgeRefusesAndWritesNothing` |
+| stamp to commit gate | the shared unchanged-units upgrade predicate | `TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged`, `TestCheckAuditRatchetSeesTipCommit` |
 
 ### Integration Points
-- [to fill in design]
+- `auditStampAnswer` (`actions.go`) reads the new `mode` argument and passes it to `auditStamp`
+- `checkAuditFindings` (`check_audit.go`) calls the extracted upgrade predicate instead of its inline test
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | No | |
-| No duplicated functionality | No | |
+| No bypassed layers | Yes | the re-judge writes through `replaceAudit`, the one writer of `rfc/audit/` (`docs/architecture/core-design.md`) |
+| No duplicated functionality | Yes | one fingerprint path, one refusal function, one upgrade predicate shared with the gate |
 
 ## Method
 
@@ -393,80 +547,193 @@ Dropped after reading, with the reason:
 | An independent re-audit of every re-judged verdict | an author does not judge its own tests (`ai/rules/principles.md`) |
 | Order by operator impact: BGP, BFD, OSPF, VRRP and IKE first, then the rest | these are the protocols an operator meets first on the release |
 | A code defect: failing test first, then the fix, with interop where there is a peer | D-8 |
+| One child owns each stem's ledger files; a test file carrying two owners' tags is edited by one child at a time | the ledger files are rewritten whole, with no lock |
+| A tagged-unit edit records `./le rfc approve unit ... reason "D-15: ..."` before the edit | P-1; the edit hook and the commit gate refuse it otherwise |
+| A verdict is replaced only through `./le rfc audit-stamp ... mode rejudge` | P-2; a hand-deleted entry reads as a deleted finding |
+| Author and judge land in one commit where they can | an upgrade in a later commit than the test change needs an `upgrade_reason` |
+| A verdict a child cannot move without another spec's producer fix is listed as blocked by that spec and moved into its acceptance criteria | P-3 |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `0bf0696576^` holds the pre-quote text of every row the backfill and the hand pass changed | the commit message of `0bf0696576` names the check and the 1821-row backfill | the narrowing set misses rows quoted earlier | diff of `0bf0696576^` against its predecessor quote commits | unvalidated |
+| A-1 | `0bf0696576^` holds the pre-quote text of every row the backfill and the hand pass changed | the commit message of `0bf0696576` names the check and the 1821-row backfill | the narrowing set misses rows quoted earlier | diff of `0bf0696576^` against its predecessor quote commits | BROKEN 2026-09-28: feature commits between 2026-09-21 and 2026-09-24 (`3f8dcc5fb5`, `23a10f500a`, `3ff5a6f056`, `6a07404d5d`) re-quoted 16 rows first. For those the baseline is `fa7ac196df` (2026-09-20). 8 of them never changed again, so `0bf0696576^` misses them: RFC3031-3.10-1, 3.14-1, 3.16-1; RFC3209-4.1-1, 4.1-2; RFC7311-3.2-1, 3.2-2; RFC9552-5.2.2-6. RFC3209-4.1-2 went from "Upper 12 bits of the LABEL value MUST be zero" to "Labels MAY be carried in Resv messages". The 16 were found by a verbatim-substring heuristic, so they are a floor |
 | A-2 | the split-needed table above is the whole set the stem agents recorded | grep of every report's split sections and every findings.tsv, 2026-09-27 | a split is lost when the scratch directory goes | the narrowing audit re-derives it | unvalidated |
+| A-3 | D-15 is the owner's standing approval for every tagged-unit edit this pass makes, so a child records `./le rfc approve unit ... reason` itself | D-15 moved the test fixes here | every changed tagged unit, about a thousand, waits for Thomas one by one | owner answer at the research gate | unvalidated |
+| A-4 | the verdicts owned by the 12 code-defect specs, `spec-ipsec-rfc9190` and `spec-fixit-dns-rfc1035-conformance` are the only ones a test-only fix cannot reach | the overlap table; `{gap}` is refused on a tagged row | a child cannot close at zero | each child lists its blocked-by verdicts at its own research | unvalidated |
+| A-5 | the 16 early re-quotes are all the rows quoted before `0bf0696576` | a verbatim-substring heuristic against `rfc/full/`, back to 2026-09-10 | the narrowing audit misses a dropped obligation | the parent's narrowing phase re-runs the comparison for every row against its oldest text since 2026-09-01 | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | two package agents touch the same test file through a shared helper | a commit carries another agent's hunk | assign by test file, not by directory, where helpers are shared |
 | R-2 | a fix to a test reveals a defect that grows past the package | a code change outside the package | D-8: fix it; where impossible, back to the owner |
+| R-3 | two children commit while one holds uncommitted verdicts or records in the other's stem file, and the first commit carries a stale foreign hunk | a commit diff shows another child's ids | one owner per stem file (the Split table); `reseal` and interop `revert` runs are serialized between children |
+| R-4 | a re-judge written by hand-deleting an audit entry and re-stamping reads, in the diff, as the deletion the findings ratchet exists to catch | a reviewer or a later gate treats it as a deleted finding | settled by P-2: the re-judge mode replaces in place, so no deletion appears |
+| R-8 | the re-judge mode lets an agent re-stamp a verdict it did not re-read | a re-judged note identical to the old one, or a new note naming nothing in the unit | the same exposure a first stamp has; `checkAuditNote`, the independent-judge rule and the 20% blind sample (D-9) apply |
+| R-9 | narrowing agents flag cosmetic rewording or an over-claiming paraphrase as a dropped obligation | a split-needed row whose "dropped obligation" no RFC sentence states | each proposed split names the RFC sentence that states it, quoted; a claim with no sentence is a D-2 retirement or nothing |
+| R-10 | retirements from the narrowing audit pass the D-7 15% stop on a stem | the per-stem retirement count | stop and report to the owner, as rfc9582 was reported |
+| R-11 | a child starts row edits on a stem the narrowing audit has not covered | the child's commit touches `rfc/short/<stem>.md` before the narrowing output for that stem is committed | the narrowing audit commits its output per child group, and a child's row phase waits for its group |
+| R-5 | the evidence-strength-1 mutant ratchet lands mid-pass and refuses `revert` records written earlier | `./le rfc check` names a revert record on a mutatable carrier | a child re-records on the `mutant` route; evidence-strength-2 never runs on a stem a child holds |
+| R-6 | a D-8 fix in one child stales records in a stem another child owns | `producer-changed` in a stem the committing child does not own | the committing child re-records them in the same commit, per the producer-change constraint |
+| R-7 | a narrowed row is retired or re-levelled by one child while the parent's narrowing audit compares it | the parent's comparison meets a row that changed since its baseline read | the narrowing audit runs first, before the children start on row edits |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | test-only changes break nothing an operator sees; D-8 code fixes change protocol behavior and carry their own tests and interop |
-| How is it reverted? | one commit per package |
-| Who else touches this path? | `spec-rfc-evidence-strength-*` specs working the same audit files |
+| What breaks if this is wrong? | the parent changes a development tool: a wrong re-judge mode could replace a verdict with a fresh-looking one nobody re-made. No operator sees it. The children's test-only changes break nothing an operator sees; their D-8 fixes change protocol behavior and carry their own tests and interop |
+| How is it reverted? | the re-judge mode is one commit; the children revert one commit per package |
+| Who else touches this path? | `spec-rfc-evidence-strength-1` and `-2` (the same discrimination files and record route), every session that runs `./le rfc audit-stamp` or `reseal` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le rfc check` | → | the audit, discrimination and quote gates in `internal/le/rfc` | [to fill in design] |
+| `./le rfc audit-stamp stem <stem> from <pending> mode rejudge` | → | `auditStampAnswer` → `auditStamp` in re-judge mode | `TestRFCActionsAuditStampRejudgeMode` (`internal/le/rfc/actions_test.go`) |
+| `./le rfc check` | → | `checkAuditFindings` calling the shared upgrade predicate | `TestCheckAuditRatchetSeesTipCommit` (`internal/le/rfc/check_audit_baseline_test.go`, existing: it already asserts the "stayed byte-identical" refusal through the tip commit, so it proves the extraction changed nothing) |
 
 ## Acceptance Criteria
 
+The parent's own criteria:
+
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | the derived weak-or-wrong listing over `rfc/audit/*.json` | lists nothing |
-| AC-2 | every verdict moved to `enforced` in this pass | its tagged units carry a discrimination record, and an agent other than the test's author judged it |
-| AC-3 | every row in the split-needed table and the missing-rows table | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
-| AC-4 | the narrowing set | every row compared against its pre-quote text, and every dropped obligation handled as AC-3 |
-| AC-5 | every spec in the code-defects pointer list | this spec declares none of their defects and does not fix them; a test this spec corrects whose producer one of them changes waits for, or lands with, that spec |
-| AC-6 | `./le rfc check` | no violation, no stale verdict |
-| AC-7 | every row and unit in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |
-| AC-8 | every row of "Un-enrolled R-7 rows" | resolved as the goal's first or second way and re-judged `enforced` by an agent that did not write the test, recorded in that table with the date or in the stem's audit file; RFC9190-2.3-1's Method-Id gap is recorded under `ai/rules/rfc-compliance.md` and its row carries the marker that says so |
+| AC-1 | `./le rfc audit-stamp ... mode rejudge` over a pending entry whose id carries a verdict | the verdict is replaced at the same position in the file, its fingerprints are recomputed, and `./le rfc check` reads it fresh |
+| AC-2 | `mode rejudge` over a pending entry whose id carries no verdict | refused, naming the id, nothing written |
+| AC-3 | `mode rejudge`, weak or wrong to enforced, tagged units byte-identical to the recorded ones | refused without `upgrade_reason`; stamped with it, and the reason survives in the audit file |
+| AC-4 | `mode rejudge` with `upgrade_reason` on any move other than weak or wrong to enforced | refused, naming the id |
+| AC-5 | `./le rfc audit-stamp` with no `mode` or `mode new`, and any `mode` value other than `new` or `rejudge` | today's behavior, including the refusal of an id that carries a verdict; an unknown mode is refused |
+| AC-6 | the docs that describe `audit-stamp` (`ai/skills/ze-rfc-audit.md`, `docs/functional-tests.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/contributing/rfc-conformance-gates.md`) and the action's own help | each names the re-judge mode and when it is used; none still says a recorded verdict can only be refused |
+| AC-7 | the narrowing set: 4816 substantive rows, the 81 removed rows and the 8 early re-quotes | every row compared against its pre-quote text; every dropped obligation, quoted from the RFC with its section, is added to "Split-needed rows" with its child; every removed row names where its obligation lives now or why it had none |
+| AC-8 | the eight children | each child spec exists in `plan/pre-release/`, status `ready`, naming its packages, its owned stems, its rows from every table here, its blocked-by verdicts with the spec that blocks each, and the P-3 closure rule, and inherits AC-C1 to AC-C7 |
+| AC-9 | the five cross-group verdicts (RFC1071-1-4, RFC4303-2.1-1, RFC5882-4.4-1, RFC905-x-3, RFC905-x-4) | each resolved as the goal's first or second way and re-judged by an agent that did not write the test |
+| AC-10 | RFC7296-2.4-2 | named in the acceptance criteria of `plan/immediate/spec-ike-dpd-demand-driven.md` |
+| AC-11 | parent closure | every child is closed, and the derived weak-or-wrong listing over `rfc/audit/*.json` holds only verdicts named in another spec's acceptance criteria |
+
+The criteria every child inherits:
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-C1 | the derived weak-or-wrong listing restricted to the child's packages and owned stems | holds only verdicts the child lists as blocked by a named spec, each named in that spec's acceptance criteria (P-3) |
+| AC-C2 | every verdict the child moves to `enforced` | its tagged units carry a discrimination record, and an agent other than the test's author judged it |
+| AC-C3 | every row of the child's in the split-needed and missing-rows tables | the dropped obligation is a row of its own, or a dated correction says why not, and the new row carries a verdict |
+| AC-C4 | every spec in the code-defects pointer list | the child declares none of their defects and does not fix them; a test whose producer one of them changes waits for, or lands with, that spec |
+| AC-C5 | `./le rfc check` after each child commit | no violation the child's commit added, and no stale verdict in the child's stems |
+| AC-C6 | every row and unit of the child's in the row-quality and mistagged-unit tables | corrected, merged or re-tagged, or a dated correction says why it stands; a changed row or tag is re-judged |
+| AC-C7 | every row of the child's in "Un-enrolled R-7 rows" | resolved as the goal's first or second way and re-judged `enforced` by an agent that did not write the test, recorded in that table with the date or in the stem's audit file; RFC9190-2.3-1's Method-Id gap is split into a `{gap}` row under `ai/rules/rfc-compliance.md` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| [per package, to fill in design] | | | |
+| `TestAuditStampRejudgeReplacesInPlaceAndReadsFresh` | `internal/le/rfc/audit_stamp_test.go` | AC-1: a judged id is replaced at its position with recomputed fingerprints, and `./le rfc check`'s freshness reads it fresh | |
+| `TestAuditStampRejudgeRefusesAndWritesNothing` | `internal/le/rfc/audit_stamp_test.go` | AC-2: an unjudged id in a re-judge file refuses the whole file, and the audit file is byte-identical after | |
+| `TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged` | `internal/le/rfc/audit_stamp_test.go` | AC-3: weak to enforced over unchanged units is refused without `upgrade_reason` and stamped with it; the same move after a unit change needs none | |
+| `TestAuditStampRejudgeRefusesAReasonOffAnUpgrade` | `internal/le/rfc/audit_stamp_test.go` | AC-4: `upgrade_reason` on enforced to weak, weak to weak and weak to wrong is refused | |
+| `TestAuditStampLeavesARecordedVerdictUntouched` (existing) | `internal/le/rfc/audit_stamp_test.go` | AC-5: the default mode still refuses a judged id | |
+| `TestAuditStampRefusesAReasonInNewMode` | `internal/le/rfc/audit_stamp_test.go` | AC-5: `upgrade_reason` stays refused in the default mode | |
+| `TestRFCActionsAuditStampRejudgeMode` | `internal/le/rfc/actions_test.go` | wiring and AC-5: `mode rejudge` reaches the re-judge path through `Answer`, `mode new` and no mode reach the default, an unknown mode is refused with exit 2 | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| N-A | the change takes no numeric input | | | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| [to fill in design, for the D-8 fixes] | | | |
+| N-A for the parent | `./le` actions are Go-tested through `Answer` (`internal/le/rfc/actions_test.go`); there is no `.ci` harness for `./le` verbs | the wiring row covers the typed command | |
+
+The children's functional and interop tests are per D-8 fix and are planned in each child.
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| [to fill in design, for each D-8 fix with a wire-visible change] | | | | |
+| N-A for the parent | | | the parent changes no protocol behavior; each child plans interop for its D-8 fixes | |
 
 ## Files to Modify
-- `rfc/audit/<stem>.json`, `rfc/short/<stem>.md`, `rfc/corrections/<stem>.md`, `rfc/discrimination/<stem>.json` - verdicts, split rows, corrections, records
-- tagged `*_test.go` files, per package - [to fill in design]
-- the producers in the code-defects table - D-8 fixes
+- `internal/le/rfc/audit_stamp.go` - the re-judge mode in `auditStamp` and `stampRefusal`, `upgrade_reason` admitted in that mode, replace-in-place
+- `internal/le/rfc/check_audit.go` - extract the unchanged-units upgrade predicate from `checkAuditFindings`
+- `internal/le/rfc/actions.go` - the optional `mode new|rejudge` parameter on `audit-stamp`, its help text, `auditStampAnswer`
+- `internal/le/rfc/audit_stamp_test.go`, `internal/le/rfc/actions_test.go` - the tests above
+- `ai/skills/ze-rfc-audit.md` - the re-judge route, and when `upgrade_reason` is written
+- `docs/functional-tests.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/contributing/rfc-conformance-gates.md` - the sentences that say a recorded verdict is only refused
+- `ai/INDEX.md` - the RFC audit verdict row names the re-judge mode
+- `plan/immediate/spec-ike-dpd-demand-driven.md` - AC-10
+- `plan/pre-release/spec-rfc-verdict-test-fix-pass.md` - the narrowing output (AC-7)
+- the children's files (tests, `rfc/short/`, `rfc/audit/`, `rfc/discrimination/`, `rfc/corrections/`, `rfc/extraction/`, D-8 producers) are named in each child
 
 ## Files to Create
-- [to fill in design]
+- `plan/pre-release/spec-rfc-verdict-fix-bgp.md`, `-bfd.md`, `-ospf.md`, `-vrrp.md`, `-ike-eap.md`, `-access.md`, `-routing.md`, `-services.md` - the eight children (AC-8)
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | N-A | a `./le` development verb; no YANG |
+| YANG validation constraints | N-A | no YANG leaf |
+| YANG custom validators | N-A | no YANG leaf |
+| CLI commands/flags | Yes | `internal/le/rfc/actions.go`, the `mode` parameter of `audit-stamp` |
+| CLI grammar (keyword before value) | Yes | `mode rejudge`, keyword before value, the verify actions' shape |
+| Editor autocomplete | N-A | `./le` completion comes from the action table, which carries the parameter |
+| Functional test for new RPC/API | N-A | no RPC; the action is tested through `Answer` |
+| Pipe completeness | N-A | the answer is the existing `AuditStampReport`, unchanged in shape |
+| Env var registration | N-A | no env var |
+| Doctor check for runtime dependencies | N-A | no new path, socket, port or binary |
+| Prometheus counters/metrics | N-A | a development tool |
+| BGP family surface (new SAFI / capability / attribute) | N-A | no BGP family |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | No | a development verb; no operator sees it |
+| 2 | Config syntax changed? | No | no config |
+| 3 | CLI command added/changed? | No | `docs/guide/command-reference.md` covers `ze`, not `./le`; the `./le` verb is documented in the pages in row 10 and 12 |
+| 4 | API/RPC added/changed? | No | no API |
+| 5 | Plugin added/changed? | No | no plugin |
+| 6 | Has a user guide page? | No | no guide page for the RFC ledger tools |
+| 7 | Wire format changed? | No | the parent changes no wire format; each child answers for its D-8 fixes |
+| 8 | Plugin SDK/protocol changed? | No | no SDK change |
+| 9 | RFC behavior implemented, changed, or newly proven? | No for the parent | the children update `rfc/short/<stem>.md` and the `docs/features/rfc-status.md` row as they prove or correct rows |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` (the audit-stamp paragraph), `docs/contributing/rfc-conformance-gates.md` |
+| 11 | Affects daemon comparison? | No | no product behavior |
+| 12 | Internal architecture changed? | Yes | `docs/contributing/rfc-implementation-guide.md` (the audit-stamp step), `ai/skills/ze-rfc-audit.md`; `docs/architecture/core-design.md` names `audit_stamp.go` as the one writer of `rfc/audit/`, which stays true |
+| 13 | Route metadata keys added/changed? | No | none |
+| 14 | Prometheus counters added/changed? | No | none |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | an `./le` action parameter, not a `ze` command |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `docs/functional-tests.md` anchors `internal/le/rfc/audit_stamp.go -- auditStamp` (updated, row 10); `docs/architecture/core-design.md` is the `// Design:` doc of `audit_stamp.go` and stays accurate (row 12); `docs/features.md` anchors `internal/le/rfc/actions.go -- Answer` on the interoperability-testing row, which the new parameter leaves unaffected |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | every `./le rfc audit-stamp stem <stem> from <path>` example stays valid; the re-judge example is added beside it |
+
+### Discovery
+
+| Question | Answer |
+|----------|--------|
+| Where does an agent look first? | `ai/INDEX.md`, the "RFC audit verdict" row, which names the re-judge mode |
+| What rule prevents regression? | `ai/skills/ze-rfc-audit.md` names the re-judge route; the action's help text states it |
+| What registry prevents drift? | the `./le rfc` action table (`internal/le/rfc/actions.go`) publishes the parameter |
+| What verification proves it? | the unit tests above, and `./le rfc check` reading a re-judged verdict fresh |
 
 ## Implementation Steps
 
-1. **Phase: inventory** - run the derived listing, group by test package, confirm each code-defects row at its producer, run the narrowing audit and extend the split-needed set
-2. **Phase: BGP, BFD, OSPF, VRRP, IKE packages** - one agent per package; independent re-audit per package
-3. **Phase: the remaining packages** - same brief
-4. **Phase: split rows and missing rows** - add the rows, tag and audit them
-5. **Phase: row-quality corrections** - the row-quality and mistagged-unit tables, one stem at a time, re-judging each changed row
+1. **Phase: Wiring** - the `mode` parameter on `audit-stamp`, reaching a stub re-judge path
+   - Tests: `TestRFCActionsAuditStampRejudgeMode`
+   - Files: `internal/le/rfc/actions.go`, `internal/le/rfc/audit_stamp.go`
+   - Verify: the test fails on the stub, then reaches the path
+2. **Phase: re-judge mode** - inverted "already judged" refusal, `upgrade_reason` admitted in the mode, the shared upgrade predicate, replace in place
+   - Tests: the four `TestAuditStampRejudge*` tests, `TestAuditStampRefusesAReasonInNewMode`, then `TestCheckAuditRatchetSeesTipCommit` and `TestAuditStampLeavesARecordedVerdictUntouched` unchanged and green
+   - Files: `audit_stamp.go`, `check_audit.go`
+   - Verify: tests fail, implement, tests pass; the docs of AC-6 edited in the same phase
+3. **Phase: children** - write the eight child specs from the Split section, the inventory tables and P-1 to P-3; AC-10 edit to the DPD spec
+   - Verify: each child carries every field AC-8 lists; the union of their owned stems and packages covers the derived listing, less the parent's five and RFC7296-2.4-2
+4. **Phase: narrowing audit** - agents in batches of about 200 rows, whole stems per batch, each comparing pre-quote text against HEAD in `rfc/full/<stem>.txt`; output committed per child group
+   - Per-row output, one line each: id, call (`kept`: the quote carries every obligation the old text claimed; `dropped`: an obligation the old text claimed is stated by an RFC sentence the quote lacks; `retire`: the old text claimed something no RFC sentence states, D-2; `moved`: another document states it, D-10), the quoted RFC sentence for `dropped`, its section, and the child group
+   - Every `dropped`, `retire` and `moved` call is re-read by a second agent that did not make it, against the RFC text, before it enters "Split-needed rows"; a disagreement stays out of the table and is listed for the owner
+   - A `kept` call needs no second read; the 20% blind sample (D-9) is drawn from the `kept` calls of each batch
+   - Verify: AC-7; the sum of rows over all batch outputs equals the narrowing set count
+5. **Phase: parent verdicts** - the five cross-group verdicts, author and judge separate
+   - Verify: AC-9 through the re-judge mode; `./le rfc check` adds no violation
 
 ## Key Design Decisions
 
@@ -474,10 +741,18 @@ Dropped after reading, with the reason:
 |----------|------------------------|-----------|
 | Group by test package | group by stem, as the quoting pass did | stems share test files, so stem agents collided (D-6) |
 | Derive the verdict inventory, commit only the split table | commit the 894 ids | the audit files are the source; a copy drifts from the first fix. The split facts live only in scratch |
+| Parent plus eight children by protocol group | one phased spec; operator-first protocols only | owner decision, 2026-09-28: each child closes on its own and runs in its own session |
+| Ledger ownership by stem, test work by package | package only | the ledger files are per stem and rewritten whole; two children on one stem lose or carry each other's hunks |
+| `mode rejudge` on `audit-stamp` | a separate `audit-rejudge` verb; hand-delete and re-stamp | one writer with one inverted refusal; a second verb re-declares the fingerprint path, and a hand deletion reads as a deleted finding (P-2) |
+| The upgrade predicate shared by the stamp and the gate | a copy in the stamp | one declaration; a copy drifts from the gate it anticipates |
+| Children written `ready` by the parent | eight skeletons, each through `/ze-spec` | the method is fixed and the inventory derived; per-verdict reading happens in each child's implementation |
+| Narrowing audit in the parent, before child row edits | narrowing inside each child | owner scope decision; one comparison per row, and no child edits a row while it is compared |
 
 ## Known Limitations
 
-- [to fill in design]
+- `./le rfc check` stays red from the 18 `producer-changed` records other sessions staled, journaled in `plan/journal/concurrent-rfc-gate-stale.md`; this pass neither owns nor fixes them
+- The R-7 rows of un-enrolled stems (8210bis, rfc1035, rfc9190) are recorded in this spec's table, not in an audit file, because `audit-stamp` refuses an un-enrolled stem; enrolment is `spec-rfc-evidence-strength-3`'s
+- Verdicts blocked by another spec's producer fix leave this pass in that spec's acceptance criteria (P-3), so the whole-corpus listing reaches empty only when those specs close
 
 ## Checklist
 
